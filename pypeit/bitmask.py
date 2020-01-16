@@ -172,8 +172,7 @@ class BitMask:
         Returns:
             list: List of bit keywords.
         """
-        k = numpy.array(list(self.bits.keys()))
-        return k[numpy.invert(k == 'NULL')]
+        return [k for k in self.bits.keys() if k != 'NULL']
 
     def info(self):
         """
@@ -282,7 +281,7 @@ class BitMask:
             return []
         keys = numpy.array(self.keys())
         indx = numpy.array([1<<self.bits[k] & value != 0 for k in keys])
-        return list(keys[indx])
+        return (keys[indx]).tolist()
 
     def toggle(self, value, flag):
         """

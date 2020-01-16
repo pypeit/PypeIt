@@ -511,6 +511,10 @@ class DataContainer:
         or :func:`_validate` methods; otherwise, the class with throw
         an ``AttributeError``.
 
+    .. todo::
+
+        Add a copy method
+
     Args:
         d (:obj:`dict`):
             Dictionary to copy to the internal attribute dictionary.
@@ -709,9 +713,13 @@ class DataContainer:
         """
         d = {}
         for key in self.keys():
-            if transpose_arrays and self.datamodel[key]['otype'] == np.ndarray:
+            if self[key] is not None and transpose_arrays \
+                    and self.datamodel[key]['otype'] == np.ndarray:
                 d[key] = self[key].T
             elif self.datamodel[key]['otype'] == tuple:
+                # TODO: Anything with tuple type that is None will be
+                # converted to 'None'. Is that what we want, or do we
+                # want to set it to None so that it's not written?
                 d[key] = str(self[key])
             else:
                 d[key] = self[key]

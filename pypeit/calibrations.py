@@ -473,7 +473,7 @@ class Calibrations(object):
         Load or generate a normalized pixel flat and slit illumination
         flat.
 
-        Requires :attr:`tslits_dict`, :attr:`tilts_dict`, :attr:`det`,
+        Requires :attr:`slits`, :attr:`tilts_dict`, :attr:`det`,
         :attr:`par`.
 
         Returns:
@@ -485,13 +485,11 @@ class Calibrations(object):
             traces are not provided, the function returns two None
             objects instead.
         """
-        embed()
-        exit()
 
         # Check for existing data
 #        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib']):
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
-            msgs.error('dont have all the objects')
+            msgs.error('Must have the arc, bpm, slits, and wv_calib defined to proceed!')
 
         if self.par['flatfield']['method'] is 'skip':
             # User does not want to flat-field
@@ -506,6 +504,7 @@ class Calibrations(object):
         # Slit and tilt traces are required to flat-field the data
 #        if not self._chk_objs(['tslits_dict', 'tilts_dict']):
         if not self._chk_objs(['slits', 'tilts_dict']):
+            # TODO: Why doesn't this fault?
             msgs.warning('Flats were requested, but there are quantities missing necessary to '
                          'create flats.  Proceeding without flat fielding....')
             # User cannot flat-field
@@ -537,20 +536,19 @@ class Calibrations(object):
         # Instantiate
         # TODO: This should automatically attempt to load and instatiate
         # from a file if it exists.
+        # TODO: msbpm is not passed?
         self.flatField = flatfield.FlatField(self.spectrograph, self.par['pixelflatframe'],
                                              files=pixflat_image_files, det=self.det,
                                              master_key=self.master_key_dict['flat'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters,
-                                             flatpar=self.par['flatfield'],
-                                             msbias=self.msbias,
-                                             # TODO: msbpm is not passed?
-                                             tslits_dict=self.tslits_dict,
-                                             tilts_dict=self.tilts_dict)
+                                             flatpar=self.par['flatfield'], msbias=self.msbias,
+                                             slits=self.slits, tilts_dict=self.tilts_dict)
 
         # --- Pixel flats
 
         # 1)  Try to load master files from disk (MasterFrame)?
+        # TODO: Is this just to get illumflat if the pixel flat is provided?
         _, self.mspixelflat, self.msillumflat = self.flatField.load()
 
         # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
@@ -574,15 +572,45 @@ class Calibrations(object):
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixelflat is None and len(pixflat_image_files) != 0:
             # Run
-            self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show,
-                                                                    maskslits=self.tslits_dict['maskslits'])
+            self.mspixelflat, self.msillumflat = self.flatField.new_run(show=self.show)
+
+            embed()
+            exit()
+
+            import time
+            self.flatField.build_pixflat()
+            t = time.perf_counter()
+            _mspixelflat, _msillumflat = self.flatField.run(show=self.show)
+            print(time.perf_counter() - t)
+            #1896.366100385
+            _flat_model = self.flatField.flat_model.copy()
+
+            embed()
+
+            self.flatField.rawflatimg = None
+            self.flatField.mspixelflat = None
+            self.flatField.msillumflat = None
+            self.flatField.flat_model = None
+            self.flatField.steps = []
+
+            self.flatField.build_pixflat()
+            t = time.perf_counter()
+            self.mspixelflat, self.msillumflat = self.flatField.new_run(show=self.show)
+            print(time.perf_counter() - t)
+            #487.14599066899973
+
+            embed()
+            exit()
 
             # If we tweaked the slits, update the tilts_dict and
             # tslits_dict to reflect new slit edges
             if self.par['flatfield']['tweak_slits']:
+                # flatfield updates slits directly and only alters the
+                # *_tweak set. This updates the MasterEdges
                 msgs.info('Using slit boundary tweaks from IllumFlat and updated tilts image')
-                self.tslits_dict = self.flatField.tslits_dict
+#                self.tslits_dict = self.flatField.tslits_dict
                 self.tilts_dict = self.flatField.tilts_dict
+
 
             # Save to Masters
             if self.save_masters:
@@ -592,7 +620,11 @@ class Calibrations(object):
                 # TODO: These should be saved separately
                 if self.par['flatfield']['tweak_slits']:
                     msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
-                    self.edges.update_using_tslits_dict(self.flatField.tslits_dict)
+                    # flatfield updates slits directly and only alters
+                    # the *_tweak set. This updates the MasterEdges
+                    # file with the new data from the flat-field slit
+                    # tweaks.
+                    self.edges.update_slits(self.slits)
                     self.edges.save()
                     # Write the final_tilts using the new slit boundaries to the MasterTilts file
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
@@ -629,15 +661,16 @@ class Calibrations(object):
               Generate the QA?  Turn off for testing..
 
         Returns:
-            Returns the trace-slits dictionary (also kept internally as
-            :attr:`tslits_dict`) and the slit mask array (numpy.ndarray;
-            also kept internally as :attr:`maskslits`)
+            Returns the :class:`SlitTraceSet` object (also kept
+            internally as :attr:`slits`) and the slit mask array
+            (numpy.ndarray; also kept internally as
+            :attr:`maskslits`)
 
         """
         # Check for existing data
         if not self._chk_objs(['msbpm']):
-            self.tslits_dict = None
-            return self.tslits_dict
+            self.slits = None
+            return self.slits
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -651,8 +684,8 @@ class Calibrations(object):
 
         # Return already generated data
         if self._cached('trace', self.master_key_dict['trace']) and not redo:
-            self.tslits_dict = self.calib_dict[self.master_key_dict['trace']]['trace']
-            return self.tslits_dict
+            self.slits = self.calib_dict[self.master_key_dict['trace']]['trace']
+            return self.slits
 
         # Instantiate
         self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
@@ -661,8 +694,7 @@ class Calibrations(object):
                                             qa_path=self.qa_path if write_qa else None)
 
         if self.reuse_masters and self.edges.exists():
-            self.edges.load()
-            self.tslits_dict = self.edges.convert_to_tslits_dict()
+            self.slits = self.edges.load_slits()
         else:
             # Build the trace image
             self.traceImage = traceimage.TraceImage(self.spectrograph,
@@ -684,27 +716,31 @@ class Calibrations(object):
             if self.show:
                 self.edges.show(thin=10, in_ginga=True)
 
-            # TODO: Stop-gap until we can get rid of tslits_dict
-            self.tslits_dict = self.edges.convert_to_tslits_dict()
+            # Get the slits from the result of the edge tracing
+            self.slits = self.edges.get_slits()
+
+        # We're done with edge trace
+        # TODO: We don't have to do this...
+        self.edges = None
 
         # Save, initialize maskslits, and return
-        self._update_cache('trace', 'trace', self.tslits_dict)
-        return self.tslits_dict
+        self._update_cache('trace', 'trace', self.slits)
+        return self.slits
 
     def get_wave(self):
         """
         Load or generate a wavelength image
 
         Requirements:
-           tilts_dict, tslits_dict, wv_calib
-           det, par, master_key
+           tilts_dict, slits, wv_calib, det, par, master_key
 
         Returns:
             ndarray: :attr:`mswave` wavelength image
 
         """
         # Check for existing data
-        if not self._chk_objs(['tilts_dict', 'tslits_dict', 'wv_calib']):
+#        if not self._chk_objs(['tilts_dict', 'tslits_dict', 'wv_calib']):
+        if not self._chk_objs(['tilts_dict', 'slits', 'wv_calib']):
             self.mswave = None
             return self.mswave
 
@@ -725,9 +761,10 @@ class Calibrations(object):
 
         # Instantiate
         # TODO we are regenerating this mask a lot in this module. Could reduce that
-        self.waveImage = waveimage.WaveImage(self.tslits_dict, self.tilts_dict['tilts'],
-                                             self.wv_calib, self.spectrograph, self.det,
-                                             self.tslits_dict['maskslits'],
+
+        # TODO: fix that jank
+        self.waveImage = waveimage.WaveImage(self.slits, self.tilts_dict['tilts'], self.wv_calib,
+                                             self.spectrograph, self.det, self.slits.mask,
                                              master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)
@@ -749,14 +786,14 @@ class Calibrations(object):
         Load or generate the 1D wavelength calibrations
 
         Requirements:
-          msarc, msbpm, tslits_dict
-          det, par
+          msarc, msbpm, slits, det, par
 
         Returns:
             dict, ndarray: :attr:`wv_calib` calibration dict and the updated slit mask array
         """
         # Check for existing data
-        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict']):
+#        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict']):
+        if not self._chk_objs(['msarc', 'msbpm', 'slits']):
             msgs.error('dont have all the objects')
 
         # Check internals
@@ -769,7 +806,7 @@ class Calibrations(object):
                 and self._cached('wvmask', self.master_key_dict['arc']):
             self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
             self.wv_maskslits = self.calib_dict[self.master_key_dict['arc']]['wvmask']
-            self.tslits_dict['maskslits'] += self.wv_maskslits
+            self.slits.mask |= self.wv_maskslits
             return self.wv_calib
 
         # No wavelength calibration requested
@@ -777,7 +814,7 @@ class Calibrations(object):
             msgs.info("A wavelength calibration will not be performed")
             self.wv_calib = None
             self.wv_maskslits = np.zeros_like(self.maskslits, dtype=bool)
-            self.tslits_dict['maskslits'] += self.wv_maskslits
+            self.slits.mask |= self.wv_maskslits
             return self.wv_calib
 
         # Grab arc binning (may be different from science!)
@@ -786,7 +823,7 @@ class Calibrations(object):
         binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
                                                                                 'binning'))
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, self.spectrograph,
+        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], binspectral=binspec,
                                              det=self.det, master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
@@ -805,8 +842,8 @@ class Calibrations(object):
         # master frame file.  As it is, if not loaded from the master
         # frame file, mask_maskslits is run twice, once in run above and
         # once here...
-        self.wv_maskslits = self.waveCalib.make_maskslits(self.tslits_dict['slit_left'].shape[1])
-        self.tslits_dict['maskslits'] += self.wv_maskslits
+        self.wv_maskslits = self.waveCalib.make_maskslits(self.slits.nslits)
+        self.slits.mask |= self.wv_maskslits
 
         # Save & return
         self._update_cache('arc', ('wavecalib','wvmask'), (self.wv_calib,self.wv_maskslits))
@@ -818,7 +855,7 @@ class Calibrations(object):
         Load or generate the tilts image
 
         Requirements:
-           mstilt, tslits_dict, wv_calib
+           mstilt, slits, wv_calib
            det, par, spectrograph
 
         Returns:
@@ -828,11 +865,12 @@ class Calibrations(object):
         """
         # Check for existing data
         #TODO add mstilt_inmask to this list when it gets implemented.
-        if not self._chk_objs(['mstilt', 'msbpm', 'tslits_dict', 'wv_calib']):
+#        if not self._chk_objs(['mstilt', 'msbpm', 'tslits_dict', 'wv_calib']):
+        if not self._chk_objs(['mstilt', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('dont have all the objects')
             self.tilts_dict = None
             self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
-            self.tslits_dict['maskslits'] += self.wt_maskslits
+            self.slits.mask |= self.wt_maskslits
             return self.tilts_dict
 
         # Check internals
@@ -849,7 +887,8 @@ class Calibrations(object):
             return self.tilts_dict
 
         # Instantiate
-        self.waveTilts = wavetilts.WaveTilts(self.mstilt, self.tslits_dict, self.spectrograph,
+        # TODO: Fix that jank
+        self.waveTilts = wavetilts.WaveTilts(self.mstilt, self.slits, self.spectrograph,
                                              self.par['tilts'], self.par['wavelengths'],
                                              det=self.det, master_key=self.master_key_dict['tilt'],
                                              master_dir=self.master_dir,
@@ -861,16 +900,16 @@ class Calibrations(object):
         if self.tilts_dict is None:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \
-                    = self.waveTilts.run(maskslits=self.tslits_dict['maskslits'], doqa=self.write_qa,
+                    = self.waveTilts.run(maskslits=self.slits.mask, doqa=self.write_qa,
                                          show=self.show)
             if self.save_masters:
                 self.waveTilts.save()
         else:
-            self.wt_maskslits = np.zeros_like(self.tslits_dict['maskslits'], dtype=bool)
+            self.wt_maskslits = np.zeros(self.slits.nslits, dtype=bool)
 
         # Save & return
         self._update_cache('tilt', ('tilts_dict','wtmask'), (self.tilts_dict,self.wt_maskslits))
-        self.tslits_dict['maskslits'] += self.wt_maskslits
+        self.slits.mask |= self.wt_maskslits
         return self.tilts_dict
 
     def run_the_steps(self):
@@ -908,15 +947,9 @@ class Calibrations(object):
         for obj in items:
             if getattr(self, obj) is None:
                 msgs.warn("You need to generate {:s} prior to this calibration..".format(obj))
-                if obj in ['tslits_dict']:
-                    msgs.warn("Use get_slits".format(obj))
-                else:
-                    # Strip ms
-                    if obj[0:2] == 'ms':
-                        iobj = obj[2:]
-                    else:
-                        iobj = obj
-                    msgs.warn("Use get_{:s}".format(iobj))
+                # Strip ms
+                iobj = obj[2:] if obj[0:2] == 'ms' else obj
+                msgs.warn("Use get_{:s}".format(iobj))
                 return False
         return True
 
