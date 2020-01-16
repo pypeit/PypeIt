@@ -449,7 +449,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         previously constructed; see :func:`build_pixflat`.
 
         The method loops through all slits provided by the :attr:`slits`
-        object.  For each slit:
+        object, except those that have been masked (i.e., slits with
+        ``self.slits.mask == True`` are skipped).  For each slit:
 
             - Collapse the flat-field data spatially using the
               wavelength coordinates provided by the fit to the arc-line
@@ -599,6 +600,10 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         # Model each slit independently
         for slit in range(self.slits.nslits):
+            # Is this a good slit??
+            if self.slits.mask[slit]:
+                msgs.info('Skipping bad slit: {}'.format(slit))
+                continue
 
             msgs.info('Modeling the flat-field response for slit: {0}/{1}'.format(
                         slit, self.slits.nslits))
