@@ -2141,7 +2141,7 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, caldir=None, setup=None, trim=None, badpix=None, biasframe=None,
+    def __init__(self, caldir=None, setup=None, trim=None, makebpm=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
                  wavelengths=None, slitedges=None, tilts=None):
@@ -2243,7 +2243,7 @@ class CalibrationsPar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'caldir', 'setup', 'trim', 'badpix' ]
+        parkeys = [ 'caldir', 'setup', 'trim', 'makebpm' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

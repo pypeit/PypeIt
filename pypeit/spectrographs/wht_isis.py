@@ -137,6 +137,8 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
+        # Make a bad pixel mask
+        par['calibrations']['makebpm'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
@@ -149,8 +151,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 4859.0
         par['calibrations']['wavelengths']['disp'] = 0.2
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Always correct for flexure, starting with default parameters
@@ -294,6 +294,8 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
+        # Make a bad pixel mask
+        par['calibrations']['makebpm'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
