@@ -82,6 +82,7 @@ class Spectrograph(object):
 
     def __init__(self):
         self.spectrograph = 'base'
+        self.camera = 'base'
         self.telescope = None
         self.detector = None
         self.naxis = None
@@ -333,7 +334,18 @@ class Spectrograph(object):
             to 1 and an unmasked value set to 0.  All values are set to
             0.
         """
-        return self.empty_bpm(filename, det, shape=shape)
+        # Generate an empty BPM first
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            msgs.info("Generating a BPM for det={0:d} on {1:s}".format(det, self.camera))
+            medval = np.median(msbias.image)
+            madval = 1.4826 * np.median(np.abs(medval - msbias.image))
+            ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
+            bpm_img[ww] = 1
+
+        return bpm_img
 
     def get_slitmask(self, filename):
         """

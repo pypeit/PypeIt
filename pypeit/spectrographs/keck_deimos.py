@@ -568,7 +568,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return self.naxis
     '''
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
@@ -578,6 +578,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 

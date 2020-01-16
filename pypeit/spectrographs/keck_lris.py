@@ -486,12 +486,13 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Args:
             filename (str):
             det (int):
+            msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
 
         Returns:
             np.ndarray:
@@ -677,12 +678,13 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Add grating tilt
         return cfg_keys+['dispangle']
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Args:
             filename (str):
             det (int):
+            msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
 
         Returns:
             np.ndarray

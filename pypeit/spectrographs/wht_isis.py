@@ -387,7 +387,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
 
         if msbias is not None:
-            msgs.info("Generating a BPM for det={0:d} on ISISr".format(det))
+            msgs.info("Generating a BPM for det={0:d} on {1:s}".format(det, self.camera))
             medval = np.median(msbias.image)
             madval = 1.4826 * np.median(np.abs(medval - msbias.image))
             ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
