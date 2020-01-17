@@ -305,6 +305,32 @@ class Spectrograph(object):
         # Return
         return bpm_img
 
+    def bpm_frombias(self, msbias, det, bpm_img):
+        """
+        Generate a bad-pixel mask from a master bias frame.
+
+        Args:
+            msbias (`numpy.ndarray`):
+                Master bias frame used to identify bad pixels
+            det (:obj:`int`):
+                1-indexed detector number to use when getting the image
+                shape from the example file.
+            bpm_img (`numpy.ndarray`):
+                bad pixel mask
+
+        Returns:
+            `numpy.ndarray`_: An integer array with a masked value set
+            to 1 and an unmasked value set to 0.  All values are set to 0.
+        """
+        msgs.info("Generating a BPM for det={0:d} on {1:s}".format(det, self.camera))
+        medval = np.median(msbias.image)
+        madval = 1.4826 * np.median(np.abs(medval - msbias.image))
+        ww = np.where(np.abs(msbias.image - medval) > 10.0 * madval)
+        bpm_img[ww] = 1
+
+        # Return
+        return bpm_img
+
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Generate a default bad-pixel mask.
@@ -339,11 +365,7 @@ class Spectrograph(object):
 
         # Fill in bad pixels if a master bias frame is provided
         if msbias is not None:
-            msgs.info("Generating a BPM for det={0:d} on {1:s}".format(det, self.camera))
-            medval = np.median(msbias.image)
-            madval = 1.4826 * np.median(np.abs(medval - msbias.image))
-            ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
-            bpm_img[ww] = 1
+            bpm_img = self.bpm_frombias(msbias, det, bpm_img)
 
         return bpm_img
 

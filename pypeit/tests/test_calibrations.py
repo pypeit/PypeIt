@@ -52,7 +52,7 @@ def multi_caliBrate(fitstbl):
     par = spectrograph.config_specific_par(sci_file)
     #
     calib_par = par['calibrations']
-    calib_par['makebpm'] = False
+    calib_par['bpm_usebias'] = False
     calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
 

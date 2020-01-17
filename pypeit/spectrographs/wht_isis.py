@@ -138,7 +138,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
         # Make a bad pixel mask
-        par['calibrations']['makebpm'] = True
+        par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
@@ -213,35 +213,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def bpm(self, filename=None, det=None, shape=None, msbias=None, **null_kwargs):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str, REQUIRED for binning
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
-        """
-        # Get the empty bpm: force is always True
-        self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
-
-        if msbias is not None:
-            msgs.info("Generating a BPM for det={0:d} on ISISb".format(det))
-            medval = np.median(msbias.image)
-            madval = 1.4826 * np.median(np.abs(medval - msbias.image))
-            ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
-            self.bpm_img[ww] = 1
-
-        return self.bpm_img
-
 
 class WHTISISRedSpectrograph(WHTISISSpectrograph):
     """
@@ -295,7 +266,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
         # Make a bad pixel mask
-        par['calibrations']['makebpm'] = True
+        par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
@@ -367,32 +338,3 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-    def bpm(self, filename=None, det=None, shape=None, msbias=None, **null_kwargs):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str, REQUIRED for binning
-        det : int, REQUIRED
-        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
-        """
-        # Get the empty bpm: force is always True
-        self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
-
-        if msbias is not None:
-            msgs.info("Generating a BPM for det={0:d} on {1:s}".format(det, self.camera))
-            medval = np.median(msbias.image)
-            madval = 1.4826 * np.median(np.abs(medval - msbias.image))
-            ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
-            self.bpm_img[ww] = 1
-
-        return self.bpm_img
