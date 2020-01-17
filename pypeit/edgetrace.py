@@ -889,8 +889,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # JFH I'm doing this in this silly way of computing the tslits_dict and then running slit_spat_pos, because
         # slit_spat_pos was never integrated as a method into EdgeTrace
         tslits_dict = self.convert_to_tslits_dict()
-        self.spec_min, self.spec_max = self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
-                                                                     binspectral=tslits_dict['binspectral'])
+        self.spec_min, self.spec_max = self.spectrograph.slit_minmax(slit_spat_pos(
+            tslits_dict['slit_left'], tslits_dict['slit_righ'], self.nspec, self.nspat),
+            binspectral=tslits_dict['binspectral'])
         if save:
             # Save the object to a file
             self.save()
