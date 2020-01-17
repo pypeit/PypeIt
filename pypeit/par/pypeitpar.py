@@ -2743,16 +2743,14 @@ class FindObjPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = ['trace_npoly', 'sig_thresh', 'find_trim_edge',
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr',
-                   'skip_second_find',
-                   ]
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find']
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

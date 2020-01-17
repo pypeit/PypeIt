@@ -11,7 +11,7 @@ from pypeit.tests.tstutils import dev_suite_required
 
 @dev_suite_required
 def test_deimosslitmask():
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     spec.get_slitmask(f)

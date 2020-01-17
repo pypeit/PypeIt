@@ -27,7 +27,8 @@ def master_dir():
 
 @cooked_required
 def test_instantiate_from_master(master_dir):
-    master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue', 'MasterTilts_A_1_01.fits')
+    master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
+                               'MasterTilts_A_1_01.fits')
     waveTilts = wavetilts.WaveTilts.from_master_file(master_file)
     assert isinstance(waveTilts.tilts_dict, dict)
 
@@ -45,13 +46,15 @@ def test_step_by_step(master_dir):
                                     wavepar, det=1, master_key=master_key, master_dir=master_dir,
                                     reuse_masters=True)
     # Extract arcs
-    arccen, arccen_bpm, maskslits = waveTilts.extract_arcs()#waveTilts.slitcen, waveTilts.slitmask, waveTilts.inmask)
+    arccen, arccen_bpm, maskslits = waveTilts.extract_arcs()
+    #waveTilts.slitcen, waveTilts.slitmask, waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0
     waveTilts.slitmask = pixels.tslits2mask(waveTilts.tslits_dict)
     thismask = waveTilts.slitmask == slit
-    waveTilts.lines_spec, waveTilts.lines_spat = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
+    waveTilts.lines_spec, waveTilts.lines_spat \
+            = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
 
     trcdict = waveTilts.trace_tilts(waveTilts.msarc.image, waveTilts.lines_spec,
                                     waveTilts.lines_spat, thismask, slit)
@@ -59,7 +62,8 @@ def test_step_by_step(master_dir):
     # 2D Fit
     spat_order = waveTilts._parse_param(waveTilts.par, 'spat_order', slit)
     spec_order = waveTilts._parse_param(waveTilts.par, 'spec_order', slit)
-    coeffs = waveTilts.fit_tilts(trcdict, thismask, waveTilts.slitcen[:, slit], spat_order, spec_order,slit, doqa=False)
+    coeffs = waveTilts.fit_tilts(trcdict, thismask, waveTilts.slitcen[:, slit], spat_order,
+                                 spec_order,slit, doqa=False)
     tilts = tracewave.fit2tilts(waveTilts.slitmask_science.shape, coeffs, waveTilts.par['func2d'])
     assert np.max(tilts) < 1.01
 

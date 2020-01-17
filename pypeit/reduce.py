@@ -860,8 +860,11 @@ class EchelleReduce(Reduce):
         if 'coadd2d' in self.objtype:
             self.order_vec = spectrograph.orders
         else:
-            slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
-            self.order_vec = self.spectrograph.order_vec(slit_spat_pos)
+            slitspat = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
+                                               self.tslits_dict['slit_righ'],
+                                               self.tslits_dict['nspec'],
+                                               self.tslits_dict['nspat'])
+            self.order_vec = self.spectrograph.order_vec(slitspat)
 
     def get_platescale(self, sobj):
         """
