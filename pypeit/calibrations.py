@@ -588,17 +588,19 @@ class Calibrations(object):
             if self.save_masters:
                 self.flatField.save()
 
-                # If we tweaked the slits update the master files for tilts and slits
-                # TODO: These should be saved separately
-                if self.par['flatfield']['tweak_slits']:
-                    msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
-                    # flatfield updates slits directly and only alters
-                    # the *_tweak set. This updates the MasterEdges
-                    # file with the new data from the flat-field slit
-                    # tweaks.
-                    # TODO: Make SlitTraceSet a masterframe?
-                    self.edges.update_slits(self.slits)
-                    self.edges.save()
+                # TODO: Need to discuss how to save the tweaked slit edges
+
+#                # If we tweaked the slits update the master files for tilts and slits
+#                # TODO: These should be saved separately
+#                if self.par['flatfield']['tweak_slits']:
+#                    msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
+#                    # flatfield updates slits directly and only alters
+#                    # the *_tweak set. This updates the MasterEdges
+#                    # file with the new data from the flat-field slit
+#                    # tweaks.
+#                    # TODO: Make SlitTraceSet a masterframe?
+#                    self.edges.update_slits(self.slits)
+#                    self.edges.save()
 
                     # TODO: Tilts are unchanged, right?
 #                    # Write the final_tilts using the new slit boundaries to the MasterTilts file

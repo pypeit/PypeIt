@@ -154,12 +154,6 @@ class SlitTraceSet(DataContainer):
                              descr='Integer number of pixels to consider beyond the slit edges.'),
                  'nslits': dict(otype=int, descr='Number of slits.'),
                  'id': dict(otype=np.ndarray, atype=int, descr='Slit ID number'),
-                 'left_orig': dict(otype=np.ndarray, atype=float,
-                                   descr='The original spatial coordinates (pixel indices) of all '
-                                         'left edges, one per slit.  Shape is Nspec by Nslits.'),
-                 'right_orig': dict(otype=np.ndarray, atype=float,
-                                    descr='The original spatial coordinates (pixel indices) of all '
-                                          'right edges, one per slit.  Shape is Nspec by Nslits.'),
                  'left': dict(otype=np.ndarray, atype=float,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
                                     'per slit.  Shape is Nspec by Nslits.'),
@@ -188,8 +182,9 @@ class SlitTraceSet(DataContainer):
     """Provides the class data model."""
     # NOTE: The docstring above is for the ``datamodel`` attribute.
 
-    def __init__(self, left, right, nspat=None, spectrograph=None, left_orig=None, right_orig=None,
-                 mask=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
+    # TODO: Allow tweaked edges to be arguments?
+    def __init__(self, left, right, nspat=None, spectrograph=None, mask=None, specmin=None,
+                 specmax=None, binspec=1, binspat=1, pad=0):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         super(SlitTraceSet, self).__init__({k: values[k] for k in args[1:]})
 
@@ -208,10 +203,6 @@ class SlitTraceSet(DataContainer):
             self._set_slitids()
         if self.spectrograph is None:
             self.spectrograph = 'unknown'
-        if self.left_orig is None:
-            self.left_orig = self.left.copy()
-        if self.right_orig is None:
-            self.right_orig = self.right.copy()
         if self.mask is None:
             self.mask = np.zeros(self.nslits, dtype=bool)
         if self.specmin is None:
@@ -445,8 +436,6 @@ class SlitTraceSet(DataContainer):
 
     def to_tslits_dict(self):
         tslits_dict = {}
-        tslits_dict['slit_left_orig'] = self.left_orig.copy()
-        tslits_dict['slit_righ_orig'] = self.right_orig.copy()
         tslits_dict['slit_left'] = self.left.copy()
         tslits_dict['slit_righ'] = self.right.copy()
         tslits_dict['slitcen'] = self.center.copy()
@@ -4783,6 +4772,7 @@ def slit_spat_pos(left, right, nspat):
         
     The fiducial coordinates are given by::
    
+        nspec = left.shape[0]
         (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
     Args:
