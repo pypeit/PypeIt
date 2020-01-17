@@ -40,7 +40,7 @@ def grab_img(specstr, rawfile, det=1):
 
 @dev_suite_required
 def test_load_deimos():
-    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
+    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '830G_L_8400',
                          'd0914_0014.fits.gz')
     try:
         # First amplifier
@@ -50,7 +50,7 @@ def test_load_deimos():
 
 @dev_suite_required
 def test_load_lris():
-    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_blue',
+    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_lris_blue',
                          'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     try:
         # First amplifier
@@ -60,7 +60,7 @@ def test_load_lris():
 
 @dev_suite_required
 def test_load_nires():
-    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES',
+    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_nires', 'NIRES',
                          's180604_0004.fits.gz')
     try:
         # First amplifier
@@ -70,7 +70,7 @@ def test_load_nires():
 
 @dev_suite_required
 def test_load_nirspec():
-    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRSPEC', 'LOW_NIRSPEC-1',
+    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_nirspec', 'LOW_NIRSPEC-1',
                          'NS.20160414.02604.fits.gz')
     try:
         # First amplifier
@@ -80,7 +80,7 @@ def test_load_nirspec():
 
 @dev_suite_required
 def test_load_kast():
-    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Shane_Kast_blue', '600_4310_d55',
+    ifile = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'shane_kast_blue', '600_4310_d55',
                          'b1.fits.gz')
     try:
         # First amplifier
