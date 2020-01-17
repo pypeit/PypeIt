@@ -2141,7 +2141,7 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, caldir=None, setup=None, trim=None, badpix=None, biasframe=None,
+    def __init__(self, caldir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
                  wavelengths=None, slitedges=None, tilts=None):
@@ -2173,9 +2173,9 @@ class CalibrationsPar(ParSet):
         dtypes['trim'] = bool
         descr['trim'] = 'Trim the frame to isolate the data'
 
-        defaults['badpix'] = False
-        dtypes['badpix'] = bool
-        descr['badpix'] = 'Make a bad pixel mask? Bias frames must be provided.'
+        defaults['bpm_usebias'] = False
+        dtypes['bpm_usebias'] = bool
+        descr['bpm_usebias'] = 'Make a bad pixel mask from bias frames? Bias frames must be provided.'
 
         defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
         dtypes['biasframe'] = [ ParSet, dict ]
@@ -2243,7 +2243,7 @@ class CalibrationsPar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'caldir', 'setup', 'trim', 'badpix' ]
+        parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

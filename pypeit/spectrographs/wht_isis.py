@@ -1,4 +1,4 @@
-""" Module for Shane/Kast specific codes
+""" Module for WHT/ISIS specific codes
 """
 import numpy as np
 
@@ -17,14 +17,13 @@ from pypeit import debugger
 
 class WHTISISSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Shane/Kast specific code
+    Child to handle WHT/ISIS specific code
     """
     def __init__(self):
         # Get it started
         super(WHTISISSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis'
         self.telescope = telescopes.WHTTelescopePar()
-        #self.timeunit = 'isot'
 
     def configuration_keys(self):
         """
@@ -138,6 +137,8 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
+        # Make a bad pixel mask
+        par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
@@ -150,8 +151,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 4859.0
         par['calibrations']['wavelengths']['disp'] = 0.2
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Always correct for flexure, starting with default parameters
@@ -214,39 +213,10 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def bpm(self, filename=None, det=None, shape=None, msbias=None, **null_kwargs):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str, REQUIRED for binning
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
-        """
-        # Get the empty bpm: force is always True
-        self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
-
-        # Only defined for det=2
-        if msbias is not None:
-            msgs.info("Generating a BPM for det={0:d} on ISISb".format(det))
-            medval = np.median(msbias.image)
-            madval = 1.4826 * np.median(np.abs(medval - msbias.image))
-            ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
-            self.bpm_img[ww] = 1
-
-        return self.bpm_img
-
 
 class WHTISISRedSpectrograph(WHTISISSpectrograph):
     """
-    Child to handle WHT/ISIS red specific code
+    Child to handle WHT/ISISr red specific code
     """
     def __init__(self):
         # Get it started
@@ -280,7 +250,7 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for WHT ISISr reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'wht_isis_red'
@@ -295,6 +265,8 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             except (TypeError, KeyError):
                 pass
         par['scienceframe']['process']['overscan'] = 'none'
+        # Make a bad pixel mask
+        par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
@@ -305,8 +277,6 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 6000.0
         par['calibrations']['wavelengths']['disp'] = 0.2
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Do not flux calibrate
         par['fluxcalib'] = None
         # Always correct for flexure, starting with default parameters
@@ -368,32 +338,3 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
             return good_exp & (fitstbl['lampstat01'] == 'CuNe+CuAr') & (fitstbl['idname'] == 'arc')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
-
-    def bpm(self, filename=None, det=None, shape=None, msbias=None, **null_kwargs):
-        """ Generate a BPM
-
-        Parameters
-        ----------
-        shape : tuple, REQUIRED
-        filename : str, REQUIRED for binning
-        det : int, REQUIRED
-        **null_kwargs:
-           Captured and never used
-
-        Returns
-        -------
-        badpix : ndarray
-
-        """
-        # Get the empty bpm: force is always True
-        self.bpm_img = self.empty_bpm(filename, det=det, shape=shape)
-
-        # Only defined for det=2
-        if msbias is not None:
-            msgs.info("Generating a BPM for det={0:d} on ISISr".format(det))
-            medval = np.median(msbias.image)
-            madval = 1.4826 * np.median(np.abs(medval - msbias.image))
-            ww = np.where(np.abs(msbias.image-medval) > 10.0*madval)
-            self.bpm_img[ww] = 1
-
-        return self.bpm_img

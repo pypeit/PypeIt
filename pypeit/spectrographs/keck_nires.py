@@ -157,7 +157,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return (fitstbl['idname'] == 'object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -167,6 +167,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -178,6 +179,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for NIRES")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             bpm_img[:, :20] = 1.
             bpm_img[:, 1000:] = 1.
