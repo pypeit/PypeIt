@@ -7,6 +7,8 @@ import scipy
 from IPython import embed
 import inspect
 
+from matplotlib import pyplot as plt
+
 from pypeit import msgs
 from pypeit import ginga
 from pypeit import masterframe
@@ -131,6 +133,9 @@ class SensFunc(object):
             if self.wave_sens.shape[1] == 1:
                 self.wave_sens = self.wave_sens.flatten()
                 self.sensfunc = self.sensfunc.flatten()
+        # Show?
+        if self.debug:
+            self.show()
         return
 
     def eval_sensfunc(self, wave, iorddet):
@@ -217,12 +222,25 @@ class SensFunc(object):
             splice_wave_mask = (wave_splice >= wave_mask_min) & (wave_splice <= wave_mask_max)
             sensfunc_splice[splice_wave_mask] = self.eval_sensfunc(wave_splice[splice_wave_mask], idet)
 
+        # Interpolate over gaps
+        zeros = sensfunc_splice == 0.
+        if np.any(zeros):
+            msgs.info("Interpolating over gaps")
+            interp_func = scipy.interpolate.interp1d(wave_splice[np.invert(zeros)],
+                                                 sensfunc_splice[np.invert(zeros)],
+                                                 kind='nearest', fill_value='extrapoloate')
+            zero_values = interp_func(wave_splice[zeros])
+            sensfunc_splice[zeros] = zero_values
+
         self.steps.append(inspect.stack()[0][3])
 
         return wave_splice, sensfunc_splice
 
     def show(self):
-        pass
+        plt.figure()
+        plt.plot(self.wave_sens, self.sensfunc)
+        plt.show()
+        plt.close()
 
 # TODO Add a method which optionally merges sensfunc using the nsens > 1 logic
 

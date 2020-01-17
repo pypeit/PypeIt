@@ -128,6 +128,10 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                         std_dict['wave'] = std_spec['col1'] * units.AA
                         std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
                                            units.erg / units.s / units.cm ** 2 / units.AA
+                        # At this low resolution, best to throw out entries affected by A and B-band absorption
+                        mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
+                        std_dict['wave'] = std_dict['wave'][np.invert(mask)]
+                        std_dict['flux'] = std_dict['flux'][np.invert(mask)]
                     msgs.info("Fluxes are flambda, normalized to 1e-17")
                 else:
                     msgs.error("No standard star file found: {:s}".format(star_file))
@@ -797,8 +801,8 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
         polycorrect=polycorrect, debug=debug, show_QA=False)
 
     if debug:
-        plt.plot(wave_star.value[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')
-        plt.plot(wave_star.value[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r',label='Fluxed Observed Star')
+        plt.plot(wave_star[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')
+        plt.plot(wave_star[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r',label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)
