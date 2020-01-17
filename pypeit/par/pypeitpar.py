@@ -2243,7 +2243,7 @@ class CalibrationsPar(ParSet):
         k = cfg.keys()
 
         # Basic keywords
-        parkeys = [ 'caldir', 'setup', 'trim', 'makebpm' ]
+        parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias' ]
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None

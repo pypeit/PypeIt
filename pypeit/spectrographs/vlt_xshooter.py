@@ -310,6 +310,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
 
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
             try :
@@ -596,6 +601,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         shape = bpm_img.shape
         #
         # ToDo Ema: This is just a workaround to deal with
@@ -784,6 +794,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning

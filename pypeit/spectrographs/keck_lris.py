@@ -501,6 +501,10 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(filename, det, shape=shape)
 
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Only defined for det=1
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on LRISb")
@@ -692,7 +696,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         """
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(filename, det, shape=shape)
-        
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Only defined for det=2
         if det == 2:
             msgs.info("Using hard-coded BPM for det=2 on LRISr")

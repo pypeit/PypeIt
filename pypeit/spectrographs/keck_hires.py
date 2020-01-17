@@ -353,8 +353,14 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         """
 
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
+        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        return bpm_img
+
 
 def indexing(itt, postpix, det=None,xbin=None,ybin=None):
     """

@@ -206,6 +206,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for MAGE")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Get the binning
         hdu = fits.open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])

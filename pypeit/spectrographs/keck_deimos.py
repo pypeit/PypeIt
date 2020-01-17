@@ -589,6 +589,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             bpm_img[:,1052:1054] = 1
         elif det == 2:

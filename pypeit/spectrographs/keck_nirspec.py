@@ -325,6 +325,11 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         badpix : ndarray
         """
         bpm_img = self.empty_bpm(filename, det)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRSPEC")
         bpm_img[:, :20] = 1.
