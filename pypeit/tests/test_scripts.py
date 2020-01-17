@@ -96,13 +96,13 @@ def test_quicklook():
         shutil.rmtree(outdir)
 
     # Raw path
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA',
-                         'keck_lris_blue', 'long_600_4000_d560')
-    ql_mos.main(ql_mos.parser(
-        ['keck_lris_blue', droot,
-         'b150910_2033.fits.gz', 'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
-         '--user_pixflat={0}'.format(
-             os.path.join(calib_dir, 'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_blue',
+                         'long_600_4000_d560')
+    ql_mos.main(ql_mos.parser(['keck_lris_blue', droot, 'b150910_2033.fits.gz',
+                               'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
+                               '--user_pixflat={0}'.format(
+                                   os.path.join(calib_dir,
+                                        'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
 
 
 @dev_suite_required
@@ -209,5 +209,3 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
                 = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
-
-

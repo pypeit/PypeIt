@@ -606,13 +606,10 @@ class DataContainer:
         # Finalize the instantiation.
         # NOTE: The key added to `__dict__` by this call is always
         # `_DataContainer__initialised`, regardless of whether or not
-        # the call to this `__init__` is from the derived class.
-        # Originally, I had been checking if the result from the
-        # `_init_key` method below was in `__dict__`, but this gives
-        # different names for the derived classes. In the end, I check
-        # if `_DataContainer__initialised` is in `self.__dict__` (as
-        # done in the SpecObj example). Is there a way we could just
-        # check a boolean instead?
+        # the call to this `__init__` is from the derived class. This
+        # is why I can check for `_DataContainer__initialised` is in
+        # `self.__dict__`, even for derived classes. But is there a way
+        # we could just check a boolean instead?
         self.__initialised = True
 
         if self.version is None:
@@ -850,14 +847,6 @@ class DataContainer:
                             d[key] = d[key].T
         return d
                 
-#    @classmethod
-#    def _init_key(cls):
-#        """
-#        The key in the internal dict that establishes that the object
-#        is initialized.
-#        """
-#        return '_{0}__initialised'.format(cls.__name__)
-
     def __getattr__(self, item):
         """Maps values to attributes.
         Only called if there *isn't* an attribute with this name
@@ -962,8 +951,8 @@ class DataContainer:
 
         # Initialize the base header
         hdr = io.initialize_header() if primary_hdr is None else primary_hdr
-        hdr['DATAMOD'] = (self.__class__.__name__, 'Datamodel class')
-        hdr['DATAVER'] = (self.version, 'Datamodel version')
+        hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
+        hdr['DMODVER'] = (self.version, 'Datamodel version')
 
         # Construct the list of HDUs
         hdu = []

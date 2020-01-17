@@ -15,7 +15,6 @@ import linetools.utils
 
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit import edgetrace
 from pypeit.core import arc, qa, pixels
 from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify

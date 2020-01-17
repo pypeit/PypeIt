@@ -504,23 +504,26 @@ class PypeIt(object):
         sci_ID and det need to have been set internally prior to calling this method
 
         Args:
-            frames (list):
-                List of frames to extract;  stacked if more than one is provided
-            det (int):
-            bg_frames (list):
-                List of frames to use as the background
-                Can be empty
-            std_outfile (str, optional):
+            frames (:obj:`list`):
+                List of frames to extract; stacked if more than one
+                is provided
+            det (:obj:`int`):
+                Detector number (1-indexed)
+            bg_frames (:obj:`list`):
+                List of frames to use as the background. Can be
+                empty.
+            std_outfile (:obj:`str`, optional):
+                Filename for the standard star spec1d file. Passed
+                directly to :func:`get_std_trace`.
 
         Returns:
-            seven objects are returned::
-                - ndarray: Science image
-                - ndarray: Science inverse variance image
-                - ndarray: Model of the sky
-                - ndarray: Model of the object
-                - ndarray: Model of inverse variance
-                - ndarray: Mask
-                - :obj:`pypeit.specobjs.SpecObjs`: spectra
+            tuple: Returns six `numpy.ndarray`_ objects and a
+            :class:`pypeit.specobjs.SpecObjs` object with the
+            extracted spectra from this exposure/detector pair. The
+            six `numpy.ndarray`_ objects are (1) the science image,
+            (2) its inverse variance, (3) the sky model, (4) the
+            object model, (5) the model inverse variance, and (6) the
+            mask.
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
@@ -533,7 +536,8 @@ class PypeIt(object):
 
         # Force the illumination flat to be None if the user doesn't
         # want to apply the correction.
-        illum_flat = self.caliBrate.msillumflat if self.par['flatfield']['illumflatten'] else None
+        illum_flat = self.caliBrate.msillumflat \
+                        if self.par['calibrations']['flatfield']['illumflatten'] else None
 
         # TODO: report if illum_flat is None? Done elsewhere, but maybe
         # want to do so here either only or also.

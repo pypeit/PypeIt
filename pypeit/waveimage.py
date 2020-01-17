@@ -12,7 +12,6 @@ import os
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
-from pypeit import edgetrace
 from pypeit.core import pixels
 from pypeit.core import save
 from pypeit.core import load
@@ -97,8 +96,9 @@ class WaveImage(masterframe.MasterFrame):
         else:
             # NOTE: This uses the pad defined by EdgeTraceSetPar
             self.slitmask = self.slits.slit_img()
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.slits.left, self.slits.right,
-                                                         self.slits.nspec, self.slits.nspat)
+            # This selects the coordinates for the tweaked edges if
+            # they exist, original otherwise.
+            self.slit_spat_pos = self.slits.spatial_coordinates()
 
         self.maskslits = maskslits
 

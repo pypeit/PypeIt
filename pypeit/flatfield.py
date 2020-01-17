@@ -615,7 +615,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 continue
 
             msgs.info('Modeling the flat-field response for slit: {0}/{1}'.format(
-                        slit, self.slits.nslits))
+                        slit+1, self.slits.nslits))
 
             # Find the pixels on the slit
             onslit = slitid_img == slit
@@ -625,6 +625,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # slit.  TODO: set the threshold to a parameter?
             good_frac = np.sum(onslit & (rawflat < nonlinear_counts))/np.sum(onslit)
             if good_frac < 0.5:
+                # TODO: Used slit ID in these print statments instead of slit index
                 msgs.warn('Only {:4.2f}'.format(100*good_frac)
                           + '% of the pixels on this slit are not saturated.' + msgs.newline()
                           + 'Consider raising nonlinear_counts={:5.3f}'.format(nonlinear_counts) +

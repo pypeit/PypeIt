@@ -183,6 +183,7 @@ class SlitTraceSet(DataContainer):
     # NOTE: The docstring above is for the ``datamodel`` attribute.
 
     # TODO: Allow tweaked edges to be arguments?
+    # TODO: May want nspat to be a required argument.
     def __init__(self, left, right, nspat=None, spectrograph=None, mask=None, specmin=None,
                  specmax=None, binspec=1, binspat=1, pad=0):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -194,10 +195,36 @@ class SlitTraceSet(DataContainer):
         """
         if self.left.shape != self.right.shape:
             raise ValueError('Input left and right traces should have the same shape.')
+        if self.left.ndim == 1:
+            # Object contains a single slit.  Expand the dimensions.
+            self.left = np.expand_dims(self.left, 1)
+            self.right = np.expand_dims(self.right, 1)
+
+        # Do the same for the tweaked traces. NOTE: Tweaked traces will
+        # only exist if they were read from an output file; i.e., the
+        # current init does not allow for the tweaked traces to be
+        # defined directly.
+        if self.left_tweak is not None:
+            if self.left_tweak.shape != self.right_tweak.shape:
+                # TODO: Shouldn't get here, but just in case the init changes...
+                raise ValueError('Tweaked left and right traces should have the same shape.')
+            if self.left_tweak.ndim == 1:
+                # Object contains a single slit.  Expand the dimensions.
+                self.left_tweak = np.expand_dims(self.left_tweak, 1)
+                self.right_tweak = np.expand_dims(self.right_tweak, 1)
+
         self.nspec, self.nslits = self.left.shape
+
+        # Center is always defined by the original traces, not the
+        # tweaked ones. TODO: Is that the behavior we want? An argument
+        # in favor is that this means that the slit IDs are always tied
+        # to the original traces, not the tweaked ones.
         self.center = (self.left+self.right)/2
 
         if self.nspat is None:
+            # TODO: May want nspat to be a required argument given the
+            # only other option is this kludge, which should basically
+            # never be useful.
             self.nspat = np.amax(np.append(self.left, self.right))
         if self.id is None:
             self._set_slitids()
@@ -209,6 +236,12 @@ class SlitTraceSet(DataContainer):
             self.specmin = np.full(self.nslits, -1, dtype=float)
         if self.specmax is None:
             self.specmax = np.full(self.nslits, self.nspec, dtype=float)
+
+        # Make sure mask, specmin, and specmax are at least 1D arrays.
+        # TODO: Is there a way around this?
+        self.mask = np.atleast_1d(self.mask)
+        self.specmin = np.atleast_1d(self.specmin)
+        self.specmax = np.atleast_1d(self.specmax)
 
     def _bundle(self):
         """
@@ -291,16 +324,17 @@ class SlitTraceSet(DataContainer):
                 To use the nominal edges regardles of the presence of
                 the tweaked edges, set this to True.
 
-        Returns;
-            tuple: Returns the arrays containing the left and right,
-            respectively, edge coordinates. These are returned as
+        Returns:
+            tuple: Returns the arrays containing the left and right
+            edge coordinates, respectively. These are returned as
             pointers to the internal attributes, **not** copies.
         """
-        use_tweaked = self.left_tweak is not None and self.right_tweak is not None and not original
-        left = self.left_tweak if use_tweaked else self.left
-        right = self.right_tweak if use_tweaked else self.right
+        # TODO: Add a copy argument?
+        if self.left_tweak is not None and self.right_tweak is not None and not original:
+            return self.left_tweak, self.right_tweak
+        return self.left, self.right
 
-    def slit_img(self, pad=None, slitids=None, original=False)
+    def slit_img(self, pad=None, slitids=None, original=False):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -462,17 +496,27 @@ class SlitTraceSet(DataContainer):
                 coo_img = coo
         return coo_img
 
-    def spatial_coordinates(self):
+    def spatial_coordinates(self, original=False):
         """
         Return a fiducial coordinate for each slit.
 
         This is a simple wrapper for :func:`slit_spat_pos`.
 
+        Args:
+            original (:obj:`bool`, optional):
+                By default, the method will use the tweaked slit
+                edges if they have been defined. If they haven't
+                been, the nominal edges (:attr:`left` and
+                :attr:`right`) are used. To use the nominal edges
+                regardless of the presence of the tweaked edges, set
+                this to True. See :func:`select_edges`.
+
         Returns:
             `numpy.ndarray`_: Vector with the list of floating point
             spatial coordinates.
         """
-        return slit_spat_pos(self.left, self.right, self.nspat)
+        left, right = self.select_edges(original=original)
+        return slit_spat_pos(left, right, self.nspat)
 
     def to_tslits_dict(self):
         tslits_dict = {}
