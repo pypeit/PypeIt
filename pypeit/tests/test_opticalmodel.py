@@ -30,7 +30,7 @@ def test_deimos_distortion():
 
 @dev_suite_required
 def test_deimos_mask_coordinates():
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     spec.get_grating(f)
@@ -45,7 +45,7 @@ def test_deimos_mask_coordinates():
 
 @dev_suite_required
 def test_deimos_ccd_slits():
-    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS', '830G_M_8500',
+    f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
     ximg, yimg, ccd, xpix, ypix = spec.mask_to_pixel_coordinates(filename=f)
