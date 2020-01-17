@@ -66,7 +66,7 @@ def test_setup_made_pypeit_file():
 
 @dev_suite_required
 def test_setup_keck_lris_red():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_LRIS_red/multi_400_8500_d560')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_red/multi_400_8500_d560')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'keck_lris_red'])
     setup.main(pargs)
@@ -86,7 +86,7 @@ def test_setup_keck_lris_red():
 
 @dev_suite_required
 def test_setup_keck_lris_blue():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_LRIS_blue/multi_600_4000_d560')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_blue/multi_600_4000_d560')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'keck_lris_blue'])
     setup.main(pargs)
@@ -106,7 +106,7 @@ def test_setup_keck_lris_blue():
 
 @dev_suite_required
 def test_setup_shane_kast_blue():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_blue/600_4310_d55')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'shane_kast_blue'])
     setup.main(pargs)
@@ -126,7 +126,7 @@ def test_setup_shane_kast_blue():
 
 @dev_suite_required
 def test_setup_shane_kast_red():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_red/600_7500_d55_ret')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_red/600_7500_d55_ret')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'shane_kast_red'])
     setup.main(pargs)
@@ -149,7 +149,7 @@ def test_setup_shane_kast_red():
 @dev_suite_required
 def test_setup_keck_deimos():
 
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_DEIMOS/830G_M_8600')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_deimos/830G_M_8600')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'keck_deimos'])
     setup.main(pargs)
@@ -169,7 +169,7 @@ def test_setup_keck_deimos():
 
 @dev_suite_required
 def test_setup_keck_nires():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRES/NIRES/')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_nires/NIRES/')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'keck_nires'])
     setup.main(pargs)
@@ -189,7 +189,7 @@ def test_setup_keck_nires():
 
 @dev_suite_required
 def test_setup_keck_nirspec():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_NIRSPEC/LOW_NIRSPEC-1')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_nirspec/LOW_NIRSPEC-1')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'keck_nirspec_low'])
     setup.main(pargs)
@@ -210,7 +210,7 @@ def test_setup_keck_nirspec():
 
 @dev_suite_required
 def test_setup_magellan_mage():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_MAGE/1x1')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/magellan_mage/1x1')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'magellan_mage'])
     setup.main(pargs)
@@ -230,7 +230,7 @@ def test_setup_magellan_mage():
 
 @dev_suite_required
 def test_setup_wht_isis_blue():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/WHT_ISIS_blue/long_R300B_d5300')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/wht_isis_blue/long_R300B_d5300')
     droot += '/'
     pargs = setup.parser(['-r', droot, '-s', 'wht_isis_blue', '--extension', '.fit'])
     setup.main(pargs)
@@ -250,7 +250,7 @@ def test_setup_wht_isis_blue():
 
 @dev_suite_required
 def test_setup_vlt_xshooter_uvb():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/UVB_1x1')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_xshooter/UVB_1x1')
     droot += '/XSHO'
     pargs = setup.parser(['-r', droot, '-s', 'vlt_xshooter_uvb'])
     setup.main(pargs)
@@ -270,7 +270,7 @@ def test_setup_vlt_xshooter_uvb():
 
 @dev_suite_required
 def test_setup_vlt_xshooter_vis():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/VIS_1x1')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_xshooter/VIS_1x1')
     droot += '/XSHO'
     pargs = setup.parser(['-r', droot, '-s', 'vlt_xshooter_vis'])
     setup.main(pargs)
@@ -290,7 +290,7 @@ def test_setup_vlt_xshooter_vis():
 
 @dev_suite_required
 def test_setup_vlt_xshooter_nir():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER/NIR')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_xshooter/NIR')
     droot += '/XSHO'
     pargs = setup.parser(['-r', droot, '-s', 'vlt_xshooter_nir'])
     setup.main(pargs)
@@ -310,7 +310,7 @@ def test_setup_vlt_xshooter_nir():
 
 @dev_suite_required
 def test_setup_gemini_gnirs():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/32_SB_SXD/')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/gemini_gnirs/32_SB_SXD/')
     droot += '/cN'
     pargs = setup.parser(['-r', droot, '-s', 'gemini_gnirs'])
     setup.main(pargs)

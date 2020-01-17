@@ -33,8 +33,7 @@ def data_path(filename):
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
-    rawdir = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA',
-                          'Shane_Kast_blue','600_4310_d55')
+    rawdir = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'shane_kast_blue', '600_4310_d55')
     assert os.path.isdir(rawdir), 'Incorrect raw directory'
 
     # Just get a few files
@@ -54,7 +53,8 @@ def test_run_pypeit():
         shutil.rmtree(outdir)
 
     # Run the setup
-    sargs = setup.parser(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o', '--output_path', outdir])
+    sargs = setup.parser(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
+                          '--output_path', outdir])
     setup.main(sargs)
 
     # Change to the configuration directory and set the pypeit file
@@ -97,7 +97,7 @@ def test_quicklook():
 
     # Raw path
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA',
-                         'Keck_LRIS_blue', 'long_600_4000_d560')
+                         'keck_lris_blue', 'long_600_4000_d560')
     ql_mos.main(ql_mos.parser(
         ['keck_lris_blue', droot,
          'b150910_2033.fits.gz', 'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
@@ -117,7 +117,7 @@ def test_trace_edges():
         shutil.rmtree(outdir)
 
     # Perform the setup
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Shane_Kast_blue/600_4310_d55')
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
     droot += '/'
     setup.main(setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all']))
 

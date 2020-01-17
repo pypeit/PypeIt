@@ -91,7 +91,7 @@ def test_load_kast():
 
 @dev_suite_required
 def test_load_vlt_xshooter_uvb():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_xshooter',
                          'UVB_1x1/XSHOO.2010-04-28T05:34:32.723.fits.gz')
     try:
         data_img = grab_img('vlt_xshooter_uvb', ifile)
@@ -102,7 +102,7 @@ def test_load_vlt_xshooter_uvb():
 @dev_suite_required
 def test_load_vlt_xshooter_vis():
 
-    root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER')
+    root = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_xshooter')
     files = [ os.path.join(root, 'VIS_1x1/XSHOO.2010-04-28T05:34:37.853.fits.gz'),
               os.path.join(root, 'VIS_2x1/XSHOO.2016-08-02T08:45:46.510.fits.gz'),
               os.path.join(root, 'VIS_2x2/XSHOO.2016-10-08T00:51:04.703.fits.gz') ]
@@ -115,7 +115,7 @@ def test_load_vlt_xshooter_vis():
 
 @dev_suite_required
 def test_load_vlt_xshooter_nir():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/VLT_XSHOOTER',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/vlt_xshooter',
                          'NIR/XSHOO.2016-08-02T08:45:49.494.fits.gz')
     try:
         data_img = grab_img('vlt_xshooter_nir', ifile)
@@ -124,7 +124,7 @@ def test_load_vlt_xshooter_nir():
 
 @dev_suite_required
 def test_load_gnirs():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GNIRS/32_SB_SXD/',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/gemini_gnirs/32_SB_SXD/',
                          'cN20170331S0206.fits')
     try:
         data_img = grab_img('gemini_gnirs', ifile)
@@ -133,7 +133,7 @@ def test_load_gnirs():
 
 @dev_suite_required
 def test_load_mage():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_MAGE/1x1',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/magellan_mage/1x1',
                          'mage0050.fits')
     try:
         data_img = grab_img('magellan_mage', ifile)
@@ -142,7 +142,7 @@ def test_load_mage():
 
 @dev_suite_required
 def test_load_gmos():
-    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Gemini_GMOS/GS_HAM_R400_700',
+    ifile = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/gemini_gmos/GS_HAM_R400_700',
                          'S20181005S0086.fits.gz')
     try:
         data_img = grab_img('gemini_gmos_south_ham', ifile)
@@ -152,7 +152,7 @@ def test_load_gmos():
 '''
 @dev_suite_required
 def test_load_fire():
-    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Magellan_FIRE/FIRE',
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/magellan_fire/FIRE',
                          'fire_0029.fits.gz')
     proc = ProcessImages('magellan_fire', par, files)
     proc.build_image()
@@ -163,7 +163,7 @@ def test_load_fire():
 
 @dev_suite_required
 def test_load_hires():
-    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/Keck_HIRES/RED',
+    files = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_hires/RED',
                          'hires0009.fits.gz')
     proc = ProcessImages('keck_hires_red', par, files)
     proc.build_image()
@@ -174,7 +174,7 @@ def test_load_hires():
         
 @dev_suite_required
 def test_load_isis():
-    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'WHT_ISIS_blue', 'long_R300B_d5300',
+    files = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'wht_isis_blue', 'long_R300B_d5300',
                          'r2324566.fit.gz')
     proc = ProcessImages('wht_isis_blue', par, files)
     proc.build_image()
