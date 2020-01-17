@@ -167,7 +167,12 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     def build_pixflat(self, trim=True, force=False):
         """
-        Generate the flat image.
+        Process the flat flat images.
+
+        Processing steps are the result of
+        :func:`pypeit.core.procimg.init_process_steps`, ``trim``
+        (based on the input argument), ``apply_gain``, and ``orient``.
+        Currently, cosmic-ray rejection (``cr_reject``) is not done.
 
         Args:
             trim (:obj:`bool`, optional):

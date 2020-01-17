@@ -574,43 +574,15 @@ class Calibrations(object):
             # Run
             self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show)
 
-            embed()
-            exit()
-
-            import time
-            self.flatField.build_pixflat()
-            t = time.perf_counter()
-            _mspixelflat, _msillumflat = self.flatField.run(show=self.show)
-            print(time.perf_counter() - t)
-            #1896.366100385
-            _flat_model = self.flatField.flat_model.copy()
-
-            embed()
-
-            self.flatField.rawflatimg = None
-            self.flatField.mspixelflat = None
-            self.flatField.msillumflat = None
-            self.flatField.flat_model = None
-            self.flatField.steps = []
-
-            self.flatField.build_pixflat()
-            t = time.perf_counter()
-            self.mspixelflat, self.msillumflat = self.flatField.new_run(show=self.show)
-            print(time.perf_counter() - t)
-            #487.14599066899973
-
-            embed()
-            exit()
-
-            # If we tweaked the slits, update the tilts_dict and
-            # tslits_dict to reflect new slit edges
-            if self.par['flatfield']['tweak_slits']:
-                # flatfield updates slits directly and only alters the
-                # *_tweak set. This updates the MasterEdges
-                msgs.info('Using slit boundary tweaks from IllumFlat and updated tilts image')
-#                self.tslits_dict = self.flatField.tslits_dict
-                self.tilts_dict = self.flatField.tilts_dict
-
+            # TODO: Tilts are unchanged, right?
+#            # If we tweaked the slits, update the tilts_dict and
+#            # tslits_dict to reflect new slit edges
+#            if self.par['flatfield']['tweak_slits']:
+#                # flatfield updates slits directly and only alters the
+#                # *_tweak set. This updates the MasterEdges
+#                msgs.info('Using slit boundary tweaks from IllumFlat and updated tilts image')
+##                self.tslits_dict = self.flatField.tslits_dict
+#                self.tilts_dict = self.flatField.tilts_dict
 
             # Save to Masters
             if self.save_masters:
@@ -624,12 +596,15 @@ class Calibrations(object):
                     # the *_tweak set. This updates the MasterEdges
                     # file with the new data from the flat-field slit
                     # tweaks.
+                    # TODO: Make SlitTraceSet a masterframe?
                     self.edges.update_slits(self.slits)
                     self.edges.save()
-                    # Write the final_tilts using the new slit boundaries to the MasterTilts file
-                    self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
-                    self.waveTilts.tilts_dict = self.flatField.tilts_dict
-                    self.waveTilts.save()
+
+                    # TODO: Tilts are unchanged, right?
+#                    # Write the final_tilts using the new slit boundaries to the MasterTilts file
+#                    self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
+#                    self.waveTilts.tilts_dict = self.flatField.tilts_dict
+#                    self.waveTilts.save()
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning
