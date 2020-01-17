@@ -397,7 +397,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         # Return
         return par
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
@@ -417,4 +417,9 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         return bpm_img
