@@ -863,8 +863,6 @@ class PypeItMetaData:
             j = 0
             for c in self.configs.values():
                 if row_match_config(self.table[i], c, self.spectrograph):
-                    print("breaking!")
-                    print(self.table[i], c)
                     break
                 j += 1
             unique = j == len(self.configs)
