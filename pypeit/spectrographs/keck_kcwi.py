@@ -112,7 +112,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Extras for config and frametyping
         meta['hatch'] = dict(ext=0, card='HATNUM')
-        meta['numamps'] = dict(ext=0, card='NVIDINP')
         meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
 
         # Lamps
@@ -150,7 +149,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             used to constuct the :class:`pypeit.metadata.PypeItMetaData`
             object.
         """
-        return ['dispname', 'decker', 'binning', 'dispangle', 'numamps']
+        return ['dispname', 'decker', 'binning', 'dispangle']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

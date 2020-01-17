@@ -215,7 +215,6 @@ class PypeItMetaData:
         additional_meta['filter1'] = dict(dtype=str, comment='First filter in optical path')
         additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
         additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
-        additional_meta['numamps'] = dict(dtype=str, comment='Number of amplifiers')
         additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
         additional_meta['detector'] = dict(dtype=str, comment='Name of detector')
         additional_meta['arm'] = dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)')
