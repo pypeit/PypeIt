@@ -102,16 +102,17 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         meta['ra'] = dict(ext=0, card='RA')
         meta['dec'] = dict(ext=0, card='DEC')
         meta['target'] = dict(ext=0, card='TARGNAME')
+        meta['dispname'] = dict(ext=0, card='BGRATNAM')
         meta['decker'] = dict(ext=0, card='IFUNAM')
         meta['binning'] = dict(card=None, compound=True)
 
         meta['mjd'] = dict(ext=0, card='MJD')
         meta['exptime'] = dict(ext=0, card='ELAPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
+
         # Extras for config and frametyping
         meta['hatch'] = dict(ext=0, card='HATNUM')
-        meta['dispname'] = dict(ext=0, card='BGRATNAM')
-        meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=1e-2)
+        meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
 
         # Lamps
         lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
@@ -120,6 +121,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         for kk, lamp_name in enumerate(lamp_names):
             if lamp_name == 'LMP3':
                 # There is no shutter on LMP3
+                meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=None, default=1)
                 continue
             meta['lampshst{:02d}'.format(kk + 1)] = dict(ext=0, card=lamp_name+'SHST')
         # Ingest

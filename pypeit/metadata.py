@@ -223,6 +223,7 @@ class PypeItMetaData:
         # Calibration lamps
         for kk in range(20):
             additional_meta['lampstat{:02d}'.format(kk+1)] = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
+            additional_meta['lampshst{:02d}'.format(kk+1)] = dict(dtype=str, comment='Shutter status of a given lamp (e.g off/on)')
 
         # Misc
         additional_meta['idname'] = dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)')
@@ -862,6 +863,8 @@ class PypeItMetaData:
             j = 0
             for c in self.configs.values():
                 if row_match_config(self.table[i], c, self.spectrograph):
+                    print("breaking!")
+                    print(self.table[i], c)
                     break
                 j += 1
             unique = j == len(self.configs)
