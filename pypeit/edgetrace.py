@@ -1195,8 +1195,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # the most recent release. If it is, building the hdu can be
         # done in one go, where the binary tables will just be empty if
         # no design/object data is avialable.
-        hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr)] + self.get_slits().to_hdu() +
-                           [fits.ImageHDU(data=self.img.astype(float_dtype), name='TRACEIMG'),
+        hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr),
+                            fits.ImageHDU(data=self.img.astype(float_dtype), name='TRACEIMG'),
                             fits.ImageHDU(data=self.bpm.astype(np.int16), name='TRACEBPM'),
                             fits.ImageHDU(data=self.sobel_sig.astype(float_dtype),
                                           name='SOBELSIG'),
@@ -1212,6 +1212,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
             else:
                 hdu += [self.pca.to_hdu()]
+        if self.is_synced:
+            # Only write the slits datamodel if the edges have been synced
+            hdu += self.get_slits().to_hdu()
         if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
