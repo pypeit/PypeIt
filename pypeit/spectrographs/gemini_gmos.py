@@ -400,10 +400,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             # Apply the mask
             xbin = int(binning.split(' ')[0])
             if xbin != 2:
-                embed()
+                embed(header='403 of gemini_gmos')
             # Up high
-            badr = (898*2)//xbin # Transposed
-            bpm_img[badr:badr+(8*2)//xbin,:] = 1
+            badr = (902*2)//xbin # Transposed
+            bpm_img[badr:badr+(3*2)//xbin,:] = 1
             # Down low
             badr = (161*2)//xbin # Transposed
             bpm_img[badr,:] = 1
