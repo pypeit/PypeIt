@@ -4434,7 +4434,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
             spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
             tslits_dict['spectrograph'] = spec.spectrograph
-                        tslits_dict['spec_min'], tslits_dict['spec_max'] = hdu['SPEC_MIN'].data, hdu['SPEC_MAX'].data
+            tslits_dict['spec_min'], tslits_dict['spec_max'] = hdu['SPEC_MIN'].data, hdu['SPEC_MAX'].data
             indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
             if not np.any(indx):
                 raise ValueError('Could not find padding parameter in header.')
