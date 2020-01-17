@@ -352,17 +352,17 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)
 
-        # If illumination flat fielding is turned off, set the
-        # illumflat to be None.
-        # TODO: Why are we removing this? The illumflat is constructed
-        # by the fit algorithm regardless. It seems like a waste to get
-        # rid of it. Can we just use this parameter to decide if the
-        # data should be illumination flattened at the relevant place
-        # in the codee instead basing it on whether or not msillumflat
-        # is None?
-        if not self.flatpar['illumflatten']:
-            msgs.warn('No illumination flat will be applied to your data (illumflatten=False).')
-            self.msillumflat = None
+#        # If illumination flat fielding is turned off, set the
+#        # illumflat to be None.
+#        # TODO: Why are we removing this? The illumflat is constructed
+#        # by the fit algorithm regardless. It seems like a waste to get
+#        # rid of it. Can we just use this parameter to decide if the
+#        # data should be illumination flattened at the relevant place
+#        # in the codee instead basing it on whether or not msillumflat
+#        # is None?
+#        if not self.flatpar['illumflatten']:
+#            msgs.warn('No illumination flat will be applied to your data (illumflatten=False).')
+#            self.msillumflat = None
 
         # Return
         return self.mspixelflat, self.msillumflat
@@ -583,6 +583,10 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
 
         if tweak_slits:
+            # NOTE: This copies the input slit edges to a set that can
+            # be tweaked. Because these are copied immediately before
+            # the calls to slit_img below, all the slit images use the
+            # original slit edges, not any pre-existing tweaked ones.
             self.slits.init_tweaked()
 
         # TODO: This needs to include a padding check
@@ -810,11 +814,10 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 # image for all slits. Fix this...
 
                 # Update the onslit mask
-                _slitid_img = self.slits.slit_img(slitids=slit, tweaked=True)
+                _slitid_img = self.slits.slit_img(slitids=slit)
                 onslit = _slitid_img == slit
                 spat_coo = self.slits.spatial_coordinate_image(slitids=slit,
-                                                               slitid_img=_slitid_img,
-                                                               tweaked=True)
+                                                               slitid_img=_slitid_img)
                 # Note that nothing changes with the tilts, since these were
                 # already extrapolated across the whole image.
             else:

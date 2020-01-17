@@ -266,10 +266,41 @@ class SlitTraceSet(DataContainer):
         """
         Initialize the tweaked slits.
         """
-        self.left_tweak = np.zeros_like(self.left)
-        self.right_tweak = np.zeros_like(self.right)
+        self.left_tweak = self.left.copy()
+        self.right_tweak = self.right.copy()
 
-    def slit_img(self, pad=None, slitids=None, tweaked=False):
+    def rm_tweaked(self):
+        """
+        Delete (set to None) the tweaked traces.
+        """
+        self.left_tweak = None
+        self.right_tweak = None
+
+    def select_edges(self, original=False):
+        """
+        Select between the original or tweaked slit edges.
+
+        By default, the method will return the tweaked slits if they
+        have been defined. If they haven't been defined the nominal
+        edges (:attr:`left` and :attr:`right`) are returned. Use
+        ``original=True`` to return the nominal edges regardless of
+        the presence of the tweaked edges.
+
+        Args:
+            original (:obj:`bool`, optional):
+                To use the nominal edges regardles of the presence of
+                the tweaked edges, set this to True.
+
+        Returns;
+            tuple: Returns the arrays containing the left and right,
+            respectively, edge coordinates. These are returned as
+            pointers to the internal attributes, **not** copies.
+        """
+        use_tweaked = self.left_tweak is not None and self.right_tweak is not None and not original
+        left = self.left_tweak if use_tweaked else self.left
+        right = self.right_tweak if use_tweaked else self.right
+
+    def slit_img(self, pad=None, slitids=None, original=False)
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -304,8 +335,13 @@ class SlitTraceSet(DataContainer):
             slitids (:obj:`int`, array_like, optional):
                 List of slit IDs to include in the image. If None,
                 all slits are included.
-            tweaked (:obj:`bool`, optional):
-                Use the tweaked version of the slit edges.
+            original (:obj:`bool`, optional):
+                By default, the method will use the tweaked slit
+                edges if they have been defined. If they haven't
+                been, the nominal edges (:attr:`left` and
+                :attr:`right`) are used. To use the nominal edges
+                regardless of the presence of the tweaked edges, set
+                this to True. See :func:`select_edges`.
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
@@ -326,8 +362,7 @@ class SlitTraceSet(DataContainer):
         spec = np.arange(self.nspec)
 
         # Choose the slit edges to use
-        left = self.left_tweak if tweaked else self.left
-        right = self.right_tweak if tweaked else self.right
+        left, right = self.select_edges(original=original)
 
         # TODO: When specific slits are chosen, need to check that the
         # padding doesn't lead to slit overlap.
@@ -343,7 +378,7 @@ class SlitTraceSet(DataContainer):
         return slitid_img
 
     def spatial_coordinate_image(self, slitids=None, full=False, slitid_img=None, pad=None,
-                                 tweaked=False):
+                                 original=False):
         r"""
         Generate an image with the normalized spatial coordinate
         within each slit.
@@ -373,8 +408,13 @@ class SlitTraceSet(DataContainer):
                 to override the value of `pad` in :attr:`par`. Only
                 used if ``slitid_img`` is not provided directly and
                 ``full`` is False.
-            tweaked (:obj:`bool`, optional):
-                Use the tweaked version of the slit edges.
+            original (:obj:`bool`, optional):
+                By default, the method will use the tweaked slit
+                edges if they have been defined. If they haven't
+                been, the nominal edges (:attr:`left` and
+                :attr:`right`) are used. To use the nominal edges
+                regardless of the presence of the tweaked edges, set
+                this to True. See :func:`select_edges`.
 
         Returns:
             `numpy.ndarray`_: Array specifying the spatial coordinate
@@ -391,12 +431,12 @@ class SlitTraceSet(DataContainer):
         # Generate the slit ID if it wasn't provided
         if not full:
             if slitid_img is None:
-                slitid_img = self.slit_img(pad=pad, slitids=_slitids, tweaked=tweaked)
+                slitid_img = self.slit_img(pad=pad, slitids=_slitids, original=original)
             if slitid_img.shape != (self.nspec,self.nspat):
                 msgs.error('Provided slit ID image does not have the correct shape!')
 
-        left = self.left_tweak if tweaked else self.left
-        right = self.right_tweak if tweaked else self.right
+        # Choose the slit edges to use
+        left, right = self.select_edges(original=original)
 
         # Slit width
         slitwidth = right - left

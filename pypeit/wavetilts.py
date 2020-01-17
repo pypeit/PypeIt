@@ -137,7 +137,7 @@ class WaveTilts(masterframe.MasterFrame):
         # the slits
         if self.slits is not None and self.msarc is not None:
             # NOTE: This uses the interneral definition of `pad`
-            self.slitmask_science = self.slits.slit_img() #pixels.tslits2mask(self.tslits_dict)
+            self.slitmask_science = self.slits.slit_img()
             gpm = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape

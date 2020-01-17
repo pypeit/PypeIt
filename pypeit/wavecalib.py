@@ -108,8 +108,9 @@ class WaveCalib(masterframe.MasterFrame):
         # have a different binning then the trace images used to defined
         # the slits
         if self.slits is not None and self.msarc is not None:
-            # NOTE: This uses the interneral definition of `pad`
-            self.slitmask_science = self.slits.slit_img() #pixels.tslits2mask(self.tslits_dict)
+            # NOTE: This uses the interneral definition of `pad` in
+            # EdgeTraceParSet
+            self.slitmask_science = self.slits.slit_img()
             gpm = self.bpm == 0 if self.bpm is not None \
                                     else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape

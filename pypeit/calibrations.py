@@ -160,7 +160,6 @@ class Calibrations(object):
         self.msarc = None
         self.msbias = None
         self.msbpm = None
-#        self.tslits_dict = None
         self.slits = None
         self.wavecalib = None
         self.tilts_dict = None
@@ -487,7 +486,6 @@ class Calibrations(object):
         """
 
         # Check for existing data
-#        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict', 'wv_calib']):
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('Must have the arc, bpm, slits, and wv_calib defined to proceed!')
 
@@ -502,7 +500,6 @@ class Calibrations(object):
             return self.mspixelflat, self.msillumflat
 
         # Slit and tilt traces are required to flat-field the data
-#        if not self._chk_objs(['tslits_dict', 'tilts_dict']):
         if not self._chk_objs(['slits', 'tilts_dict']):
             # TODO: Why doesn't this fault?
             msgs.warning('Flats were requested, but there are quantities missing necessary to '
@@ -588,7 +585,11 @@ class Calibrations(object):
             if self.save_masters:
                 self.flatField.save()
 
-                # TODO: Need to discuss how to save the tweaked slit edges
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # TODO: Need to discuss how to save the tweaked slit
+                # edges (but also any changes to the slits that are
+                # masked by other steps)
+                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #                # If we tweaked the slits update the master files for tilts and slits
 #                # TODO: These should be saved separately
@@ -613,10 +614,10 @@ class Calibrations(object):
         # TODO: These will barf if self.tilts_dict['tilts'] isn't
         # defined.
         if self.mspixelflat is None:
-            self.mspixelflat = np.ones_like(self.tilts_dict['tilts'])
+#            self.mspixelflat = np.ones_like(self.tilts_dict['tilts'])
             msgs.warn('You are not pixel flat fielding your data!!!')
-        if self.msillumflat is None:
-            self.msillumflat = np.ones_like(self.tilts_dict['tilts'])
+        if self.msillumflat is None or not self.par['flatfield']['illumflatten']:
+#            self.msillumflat = np.ones_like(self.tilts_dict['tilts'])
             msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
@@ -716,7 +717,6 @@ class Calibrations(object):
 
         """
         # Check for existing data
-#        if not self._chk_objs(['tilts_dict', 'tslits_dict', 'wv_calib']):
         if not self._chk_objs(['tilts_dict', 'slits', 'wv_calib']):
             self.mswave = None
             return self.mswave
@@ -739,7 +739,6 @@ class Calibrations(object):
         # Instantiate
         # TODO we are regenerating this mask a lot in this module. Could reduce that
 
-        # TODO: fix that jank
         self.waveImage = waveimage.WaveImage(self.slits, self.tilts_dict['tilts'], self.wv_calib,
                                              self.spectrograph, self.det, self.slits.mask,
                                              master_key=self.master_key_dict['arc'],
@@ -769,7 +768,6 @@ class Calibrations(object):
             dict, ndarray: :attr:`wv_calib` calibration dict and the updated slit mask array
         """
         # Check for existing data
-#        if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict']):
         if not self._chk_objs(['msarc', 'msbpm', 'slits']):
             msgs.error('dont have all the objects')
 
@@ -842,7 +840,6 @@ class Calibrations(object):
         """
         # Check for existing data
         #TODO add mstilt_inmask to this list when it gets implemented.
-#        if not self._chk_objs(['mstilt', 'msbpm', 'tslits_dict', 'wv_calib']):
         if not self._chk_objs(['mstilt', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('dont have all the objects')
             self.tilts_dict = None
@@ -860,11 +857,10 @@ class Calibrations(object):
                 and self._cached('wtmask', self.master_key_dict['tilt']):
             self.tilts_dict = self.calib_dict[self.master_key_dict['tilt']]['tilts_dict']
             self.wt_maskslits = self.calib_dict[self.master_key_dict['tilt']]['wtmask']
-            self.tslits_dict['maskslits'] += self.wt_maskslits
+            self.slits.mask |= self.wt_maskslits
             return self.tilts_dict
 
         # Instantiate
-        # TODO: Fix that jank
         self.waveTilts = wavetilts.WaveTilts(self.mstilt, self.slits, self.spectrograph,
                                              self.par['tilts'], self.par['wavelengths'],
                                              det=self.det, master_key=self.master_key_dict['tilt'],
@@ -893,6 +889,9 @@ class Calibrations(object):
         """
         Run full the full recipe of calibration steps
         """
+        # TODO: Is there anywhere in pypeit where the output from these
+        # `get_*` methods are caught? Do we need to keep returning
+        # self.* attributes?
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
         msgs.info("Calibration complete!")
