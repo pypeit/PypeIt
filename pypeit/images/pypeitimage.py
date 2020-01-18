@@ -102,6 +102,38 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
         if mask is not None:
             self.mask = mask
 
+    def _bundle(self):
+        """
+        Over-write default _bundle() method to write one
+        HDU per image.  Any extras are in the HDU header of
+        the primary image.
+
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension. See the description
+            above.
+        """
+        d = []
+        # Primary image
+        d.append(dict(image=self.image))
+
+        # Rest of the datamodel
+        for key in self.keys():
+            if key == 'image':
+                continue
+            # Skip None
+            if self[key] is None:
+                continue
+            # Array?
+            if self.datamodel[key]['otype'] == np.ndarray:
+                tmp = {}
+                tmp[key] = self[key]
+                d.append(tmp)
+            else:
+                d[0][key] = self[key]
+        # Return
+        return d
+
     @property
     def shape(self):
         return () if self.image is None else self.image.shape
@@ -126,9 +158,9 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
 
         """
         # TODO -- Should we use the internal HEAD0 if that exists??
-        if hdr is None:
-            hdr = initialize_header()
+        self.to_file(outfile, overwrite=True, primary_hdr=hdr)
 
+        '''
         # Chk
         if not hasattr(self, 'image'):
             msgs.warn("Image is not ready to save.")
@@ -151,6 +183,7 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
         # TODO -- Default to float32 for float images?
         # Write the fits file
         save.write_fits(hdr, data, outfile, extnames=ext)
+        '''
 
     def show(self):
         """

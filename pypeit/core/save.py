@@ -2,6 +2,7 @@
 """
 import os
 import datetime
+import warnings
 
 import numpy as np
 
@@ -466,6 +467,7 @@ def write_fits(hdr, data, outfile, extnames=None, checksum=True):
     Returns:
 
     """
+    warnings.warn("To be depracated!!")
     # Format the output
     ext = extnames if isinstance(extnames, list) else [extnames]
     if len(ext) > 1 and not isinstance(data, list):

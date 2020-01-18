@@ -1007,7 +1007,7 @@ class DataContainer:
         super(cls, self).__init__(cls._parse(hdu))
         return self
 
-    def to_file(self, ofile, overwrite=False, checksum=True):
+    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None):
         """
         Write the data to a file.
 
@@ -1027,8 +1027,8 @@ class DataContainer:
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
         """
-        io.write_to_fits(self.to_hdu(add_primary=True), ofile, overwrite=overwrite,
-                         checksum=checksum)
+        io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr),
+                         ofile, overwrite=overwrite, checksum=checksum)
 
     @classmethod
     def from_file(cls, ifile):
