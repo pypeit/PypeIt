@@ -163,7 +163,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == '0') & (fitstbl['calpos'] == '6')
+            return good_exp & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == '0') & (fitstbl['calpos'] == '6')
         if ftype in ['dark']:
             # Dark frames
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
@@ -203,30 +203,33 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                                     for k in fitstbl.keys() if 'lampstat' in k])
             lampshst = np.array([(fitstbl[k] == '0') | (fitstbl[k] == 'None')
                                     for k in fitstbl.keys() if 'lampshst' in k])
-            return np.all(lampstat|lampshst, axis=0)  # i.e. either the shutter is closed or the lamp is off
+            return np.all(lampstat, axis=0)  # Lamp has to be off
+            # return np.all(lampstat | lampshst, axis=0)  # i.e. either the shutter is closed or the lamp is off
         if status == 'arcs':
             # Check if any arc lamps are on (FeAr | ThAr)
             arc_lamp_stat = ['lampstat{0:02d}'.format(i) for i in range(1, 3)]
             arc_lamp_shst = ['lampshst{0:02d}'.format(i) for i in range(1, 3)]
             lamp_stat = np.array([fitstbl[k] == '1' for k in fitstbl.keys()
-                                    if k in arc_lamp_stat])
+                                  if k in arc_lamp_stat])
             lamp_shst = np.array([fitstbl[k] == '1' for k in fitstbl.keys()
-                                    if k in arc_lamp_shst])
+                                  if k in arc_lamp_shst])
             # Make sure the continuum frames are off
             dome_lamps = ['lampstat{0:02d}'.format(i) for i in range(4, 5)]
             dome_lamp_stat = np.array([fitstbl[k] == '0' for k in fitstbl.keys()
-                                    if k in dome_lamps])
-            return np.any(lamp_stat&lamp_shst&dome_lamp_stat, axis=0)  # i.e. lamp on and shutter open
-        if status == 'dome':
+                                       if k in dome_lamps])
+            return np.any(lamp_stat & lamp_shst & dome_lamp_stat, axis=0)  # i.e. lamp on and shutter open
+        if status in ['dome_noarc', 'dome']:
             # Check if any dome lamps are on (Continuum) - Ignore lampstat03 (Aux) - not sure what this is used for
             dome_lamp_stat = ['lampstat{0:02d}'.format(i) for i in range(4, 5)]
             lamp_stat = np.array([fitstbl[k] == '1' for k in fitstbl.keys()
-                                    if k in dome_lamp_stat])
-            # Make sure arcs are off - it seems even with the shutter closed, the arcs
-            arc_lamps = ['lampstat{0:02d}'.format(i) for i in range(1, 3)]
-            arc_lamp_stat = np.array([fitstbl[k] == '0' for k in fitstbl.keys()
-                                    if k in arc_lamps])
-            return np.any(lamp_stat&arc_lamp_stat, axis=0)  # i.e. lamp on
+                                  if k in dome_lamp_stat])
+            if status == 'dome_noarc':
+                # Make sure arcs are off - it seems even with the shutter closed, the arcs
+                arc_lamps = ['lampstat{0:02d}'.format(i) for i in range(1, 3)]
+                arc_lamp_stat = np.array([fitstbl[k] == '0' for k in fitstbl.keys()
+                                          if k in arc_lamps])
+                lamp_stat = lamp_stat & arc_lamp_stat
+            return np.any(lamp_stat, axis=0)  # i.e. lamp on
         raise ValueError('No implementation for status = {0}'.format(status))
 
     def get_rawimage(self, raw_file, det):
