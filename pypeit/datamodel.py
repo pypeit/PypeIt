@@ -590,10 +590,6 @@ class DataContainer:
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
 
-        # Validate the object
-        # TODO: _validate isn't the greatest name for this method...
-        self._validate()
-
         # TODO: Confirm elements have otype and atypes consistent with
         # the data model?
 
@@ -614,7 +610,11 @@ class DataContainer:
             if d[key] is None:
                 continue
             setattr(self, key, d[key])
-        #self.__dict__.update(d)
+
+        # Validate the object
+        # TODO: _validate isn't the greatest name for this method...
+        self._validate()
+
 
         if self.version is None:
             raise ValueError('Must define a version for the class.')

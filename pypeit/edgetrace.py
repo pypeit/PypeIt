@@ -168,7 +168,7 @@ class SlitTraceSet(DataContainer):
                  'center': dict(otype=np.ndarray, atype=float,
                                descr='Spatial coordinates of the slit centers.  Shape is Nspec '
                                      'by Nslits.'),
-                 'mask': dict(otype=np.ndarray, atype=bool,
+                 'mask': dict(otype=np.ndarray, atype=np.bool_,
                               descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
                  'specmin': dict(otype=np.ndarray, atype=float,
                                  descr='Minimum spectral position allowed for each slit/order.  '

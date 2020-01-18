@@ -665,14 +665,13 @@ class Calibrations(object):
                                                     bias=self.msbias)
             self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
-            try:
-                self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
+            self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
                                       save=self.save_masters) #, debug=True, show_stages=True)
-            except:
-                self.edges.save()
-                msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
-                           'but it needs fixing.')
-                return None
+            #except:
+            #    self.edges.save()
+            #    msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
+            #               'but it needs fixing.')
+            #    return None
 
             # Show the result if requested
             if self.show:

@@ -106,7 +106,7 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
     def shape(self):
         return () if self.image is None else self.image.shape
 
-    def write(self, outfile, hdr=None, iext=None):
+    def write(self, outfile, hdr=None):
         """
         Write the image(s) to a multi-extension FITS file
 
@@ -121,9 +121,6 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
 
         Args:
             outfile:
-            iext (str, optional):
-                Name for the first extension
-                Defaults to IMAGE
             hdr (`astropy.io.fits.Header`, optional):
                 The header to write
 
@@ -139,10 +136,7 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
 
         # Save whatever is available
         data = [self.image]
-        if iext is None:
-            ext = ['image']
-        else:
-            ext = [iext]
+        ext = ['image']
 
         # Work on the rest
         for item in ['ivar', 'mask']:
