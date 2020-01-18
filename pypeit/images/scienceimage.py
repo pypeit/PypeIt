@@ -51,11 +51,8 @@ class ScienceImage(pypeitimage.PypeItImage):
     def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
                  crmask=None, mask=None, files=[]):
 
-        # Init me
-        pypeitimage.PypeItImage.__init__(self, image, ivar=ivar, rn2img=rn2img,
-                                         bpm=bpm, crmask=crmask, mask=mask)
-
-        # Required attribs
+        # Internals (not in datamodel)
+        # Required
         self.spectrograph = spectrograph
         if not isinstance(par, pypeitpar.ProcessImagesPar):
             msgs.error('Provided ParSet for must be type ProcessImagesPar.')
@@ -64,6 +61,11 @@ class ScienceImage(pypeitimage.PypeItImage):
 
         # Not required
         self.files = files
+
+        # Init me
+        pypeitimage.PypeItImage.__init__(self, image, ivar=ivar, rn2img=rn2img,
+                                         bpm=bpm, crmask=crmask, mask=mask)
+
 
     def build_crmask(self, subtract_img=None):
         """
