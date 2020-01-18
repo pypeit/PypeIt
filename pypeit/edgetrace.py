@@ -500,7 +500,8 @@ class SlitTraceSet(DataContainer):
         """
         Return a fiducial coordinate for each slit.
 
-        This is a simple wrapper for :func:`slit_spat_pos`.
+        This is a simple wrapper for :func:`select_edges` and
+        :func:`slit_spat_pos`.
 
         Args:
             original (:obj:`bool`, optional):

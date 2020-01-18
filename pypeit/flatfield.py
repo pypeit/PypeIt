@@ -600,6 +600,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         #   - and an image that trims the width of the slit using the
         #     parameter in self.flatpar. This was always 3 pixels in
         #     the previous version.
+        # TODO: Fix this for when trim is a tuple
         trimmed_slitid_img = self.slits.slit_img(pad=-trim)
 
         # Prep for results

@@ -871,18 +871,8 @@ class EchelleReduce(Reduce):
         super(EchelleReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
-        if 'coadd2d' in self.objtype:
-            self.order_vec = spectrograph.orders
-        else:
-
-            # Select the edges to use: Selects the edges tweaked by the
-            # illumination profile if they're present; otherwise, it
-            # selects the original edges from EdgeTraceSet. To always
-            # select the latter, use the method with `original=True`.
-            left, right = self.slits.select_edges()
-
-            slitspat = edgetrace.slit_spat_pos(left, right, self.slits.nspec, self.slits.nspat)
-            self.order_vec = self.spectrograph.order_vec(slitspat)
+        self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
+                            else self.spectrograph.order_vec(self.slits.spatial_coordinates())
 
     def get_platescale(self, sobj):
         """
@@ -896,11 +886,7 @@ class EchelleReduce(Reduce):
             float:
 
         """
-        # Now the plate_scale
-        plate_scale = self.spectrograph.order_platescale(sobj.ECH_ORDER,
-                                                         binning=self.binning)[0]
-        # Return
-        return plate_scale
+        return self.spectrograph.order_platescale(sobj.ECH_ORDER, binning=self.binning)[0]
 
     def get_positive_sobj(self, specobjs, iord):
         """
@@ -914,10 +900,9 @@ class EchelleReduce(Reduce):
             :class:`pypeit.specobj.SpecObj`:
 
         """
-        thisobj = (self.sobjs_obj.ech_orderindx == iord) & (
-                self.sobjs_obj.ech_objid > 0)  # pos indices of objects for this slit
-        sobj = self.sobjs_obj[np.where(thisobj)[0][0]]
-        return sobj
+        # pos indices of objects for this slit
+        thisobj = (self.sobjs_obj.ech_orderindx == iord) & (self.sobjs_obj.ech_objid > 0)
+        return self.sobjs_obj[np.where(thisobj)[0][0]]
 
     def find_objects_pypeline(self, image, std_trace=None,
                               show=False, show_peaks=False, show_fits=False,

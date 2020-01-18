@@ -405,7 +405,7 @@ class PypeIt(object):
                                 set(np.arange(self.spectrograph.ndet))-set(detectors)])))
 
         # Loop on Detectors
-        # TODO: Attempt to put in a multiprocessing call here
+        # TODO: Attempt to put in a multiprocessing call here?
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
             sci_dict[self.det] = {}

@@ -922,7 +922,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
 
-def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, norder,
+def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, norders,
                              left, right, slitmask, sobjs, order_vec, spat_pix=None,
                              fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0,
                              trim_edg=(3,3), std=False, prof_nsigma=None, niter=4, box_rad_order=7,
