@@ -499,51 +499,52 @@ class bspline(object):
             occurence of position greater than breakpoint indx; and 'upper',
             Same as lower, but denotes the upper pixel positions.
         """
-        nx = x.size
         nbkpt = self.mask.sum()
         if nbkpt < 2*self.nord:
-            msgs.warn('Order chosen nord = {:d}'.format(self.nord) +
-                         ' is too low for the number of breakpoints nbkpt = {:d}'.format(nbkpt))
-            return (-2, 0, 0)
+            msgs.warn('Order ({0}) too low for {1} breakpoints.'.format(self.nord, nbkpt))
+            return -2, 0, 0
+        nx = x.size
         n = nbkpt - self.nord
-        gb = self.breakpoints[self.mask]
-        bw = self.npoly*self.nord
         lower = np.zeros((n - self.nord + 1,), dtype=int)
         upper = np.zeros((n - self.nord + 1,), dtype=int) - 1
         indx = self.intrv(x)
         bf1 = self.bsplvn(x, indx)
-        action = bf1
-        aa = uniq(indx, np.arange(indx.size, dtype=int))
+        aa = uniq(indx)
         upper[indx[aa]-self.nord+1] = aa
         rindx = indx[::-1]
-        bb = uniq(rindx, np.arange(rindx.size, dtype=int))
+        bb = uniq(rindx)
         lower[rindx[bb]-self.nord+1] = nx - bb - 1
-        if x2 is not None:
-            if x2.size != nx:
-                raise ValueError('Dimensions of x and x2 do not match.')
-            x2norm = 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
-            if self.funcname == 'poly':
-                temppoly = np.ones((nx, self.npoly), dtype='f')
-                for i in range(1, self.npoly):
-                    temppoly[:, i] = temppoly[:, i-1] * x2norm
-            elif self.funcname == 'poly1':
-                temppoly = np.tile(x2norm, self.npoly).reshape(nx, self.npoly)
-                for i in range(1, self.npoly):
-                    temppoly[:, i] = temppoly[:, i-1] * x2norm
-            elif self.funcname == 'chebyshev':
-                # JFH fixed bug here where temppoly needed to be transposed because of different IDL and python array conventions
-                temppoly = fchebyshev(x2norm, self.npoly).T
-            elif self.funcname == 'legendre':
-                temppoly = flegendre(x2norm, self.npoly).T
-            else:
-                raise ValueError('Unknown value of funcname.')
-            action = np.zeros((nx, bw), dtype='d')
-            counter = -1
-            for ii in range(self.nord):
-                for jj in range(self.npoly):
-                    counter += 1
-                    action[:, counter] = bf1[:, ii]*temppoly[:, jj]
-        return (action, lower, upper)
+        if x2 is None:
+            return bf1, lower, upper
+
+        if x2.size != nx:
+            raise ValueError('Dimensions of x and x2 do not match.')
+
+        x2norm = 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
+        if self.funcname == 'poly':
+            temppoly = np.ones((nx, self.npoly), dtype='f')
+            for i in range(1, self.npoly):
+                temppoly[:, i] = temppoly[:, i-1] * x2norm
+        elif self.funcname == 'poly1':
+            temppoly = np.tile(x2norm, self.npoly).reshape(nx, self.npoly)
+            for i in range(1, self.npoly):
+                temppoly[:, i] = temppoly[:, i-1] * x2norm
+        elif self.funcname == 'chebyshev':
+            # JFH fixed bug here where temppoly needed to be transposed because of different IDL and python array conventions
+            temppoly = fchebyshev(x2norm, self.npoly).T
+        elif self.funcname == 'legendre':
+            temppoly = flegendre(x2norm, self.npoly).T
+        else:
+            raise ValueError('Unknown value of funcname.')
+
+        bw = self.npoly*self.nord
+        action = np.zeros((nx, bw), dtype='d')
+        counter = -1
+        for ii in range(self.nord):
+            for jj in range(self.npoly):
+                counter += 1
+                action[:, counter] = bf1[:, ii]*temppoly[:, jj]
+        return action, lower, upper
 
     def intrv(self, x):
         """Find the segment between breakpoints which contain each value in the array x.
@@ -563,7 +564,7 @@ class bspline(object):
         """
         gb = self.breakpoints[self.mask]
         n = gb.size - self.nord
-        indx = np.zeros((x.size,), dtype=int)
+        indx = np.zeros(x.size, dtype=int)
         ileft = self.nord - 1
         for i in range(x.size):
             while x[i] > gb[ileft+1] and ileft < n - 1:
@@ -630,51 +631,104 @@ class bspline(object):
             A tuple containing the results of the bspline evaluation and a
             mask indicating where the evaluation was good.
         """
-
+        # TODO: Is the sorting necessary?
         xsort = x.argsort()
-        xwork = x[xsort]
-        if x2 is not None:
-            x2work = x2[xsort]
+        if action is None:
+            action, lower, upper = self.action(x[xsort], x2=None if x2 is None else x2[xsort])
         else:
-            x2work = None
-        if action is not None:
             if lower is None or upper is None:
                 raise ValueError('Must specify lower and upper if action is set.')
-        else:
-            action, lower, upper = self.action(xwork, x2=x2work)
+
+        # TODO: Can we save some of these objects to self so that we
+        # don't have to recreate them?
         yfit = np.zeros(x.shape, dtype=x.dtype)
         bw = self.npoly * self.nord
-        spot = np.arange(bw, dtype='i4')
+        spot = np.arange(bw, dtype=int)
         goodbk = self.mask.nonzero()[0]
         coeffbk = self.mask[self.nord:].nonzero()[0]
+        goodcoeff = self.coeff[...,coeffbk]
+
+        nowidth = np.invert(upper+1 > lower)
         n = self.mask.sum() - self.nord
-        if self.npoly > 1:
-            goodcoeff = self.coeff[:, coeffbk]
-        else:
-            try:
-                goodcoeff = self.coeff[coeffbk]
-            except:
-                msgs.warn('No good coefficients in bspline evaluation. All breakpoints were rejected. Something is probably wrong')
-                embed()
-        # maskthis = np.zeros(xwork.shape,dtype=xwork.dtype)
         for i in range(n-self.nord+1):
-            ict = upper[i] - lower[i] + 1
-            if ict > 0:
-                yfit[lower[i]:upper[i]+1] = np.dot(action[lower[i]:upper[i]+1, :], (goodcoeff.flatten('F'))[i*self.npoly+spot])
-        yy = yfit.copy()
-        yy[xsort] = yfit
+            if nowidth[i]:
+                continue
+            yfit[lower[i]:upper[i]+1] = np.dot(action[lower[i]:upper[i]+1,:],
+                                               goodcoeff.flatten('F')[i*self.npoly+spot])
+
         mask = np.ones(x.shape, dtype='bool')
         gb = self.breakpoints[goodbk]
-        outside = ((x < gb[self.nord-1]) | (x > gb[n]))
-        if outside.any():
-            mask[outside] = False
-        hmm = ((np.diff(goodbk) > 2).nonzero())[0]
+        mask[(x < gb[self.nord-1]) | (x > gb[n])] = False
+        hmm = (np.diff(goodbk) > 2).nonzero()[0]
+        if hmm.size == 0:
+            return yfit[np.argsort(xsort)], mask
+
         for jj in range(hmm.size):
-            inside = ((x >= self.breakpoints[goodbk[hmm[jj]]]) &
-                      (x <= self.breakpoints[goodbk[hmm[jj]+1]-1]))
-            if inside.any():
-                mask[inside] = False
-        return (yy, mask)
+            mask[(x >= self.breakpoints[goodbk[hmm[jj]]])
+                    & (x <= self.breakpoints[goodbk[hmm[jj]+1]-1])] = False
+        return yfit[np.argsort(xsort)], mask
+
+#    def value(self, x, x2=None, action=None, lower=None, upper=None):
+#        """Evaluate a bspline at specified values.
+#
+#        Parameters
+#        ----------
+#        x : :class:`numpy.ndarray`
+#            Independent variable.
+#        x2 : :class:`numpy.ndarray`, optional
+#            Orthogonal dependent variable for 2d fits.
+#        action : :class:`numpy.ndarray`, optional
+#            Action matrix to use.  If not supplied it is calculated.
+#        lower : :class:`numpy.ndarray`, optional
+#            If the action parameter is supplied, this parameter must also
+#            be supplied.
+#        upper : :class:`numpy.ndarray`, optional
+#            If the action parameter is supplied, this parameter must also
+#            be supplied.
+#
+#        Returns
+#        -------
+#        :func:`tuple`
+#            A tuple containing the results of the bspline evaluation and a
+#            mask indicating where the evaluation was good.
+#        """
+#        # TODO: Is the sorting necessary?
+#        xsort = x.argsort()
+#        if action is None:
+#            action, lower, upper = self.action(x[xsort], x2=None if x2 is None else x2[xsort])
+#        else:
+#            if lower is None or upper is None:
+#                raise ValueError('Must specify lower and upper if action is set.')
+#
+#        # TODO: Can we save some of these objects to self so that we
+#        # don't have to recreate them?
+#        yfit = np.zeros(x.shape, dtype=x.dtype)
+#        bw = self.npoly * self.nord
+#        spot = np.arange(bw, dtype=int)
+#        goodbk = self.mask.nonzero()[0]
+#        coeffbk = self.mask[self.nord:].nonzero()[0]
+#        goodcoeff = self.coeff[...,coeffbk]
+#
+#        # maskthis = np.zeros(xwork.shape,dtype=xwork.dtype)
+#        nowidth = np.invert(upper > lower)
+#        n = self.mask.sum() - self.nord
+#        for i in range(n-self.nord+1):
+#            if nowidth[i]:
+#                continue
+#            yfit[lower[i]:upper[i]+1] = np.dot(action[lower[i]:upper[i]+1,:],
+#                                               goodcoeff.flatten('F')[i*self.npoly+spot])
+#
+#        mask = np.ones(x.shape, dtype='bool')
+#        gb = self.breakpoints[goodbk]
+#        mask[(x < gb[self.nord-1]) | (x > gb[n])] = False
+#        hmm = (np.diff(goodbk) > 2).nonzero()[0]
+#        if hmm.size == 0:
+#            return yfit[np.argsort(xsort)], mask
+#
+#        for jj in range(hmm.size):
+#            mask[(x >= self.breakpoints[goodbk[hmm[jj]]])
+#                    & (x <= self.breakpoints[goodbk[hmm[jj]+1]-1])] = False
+#        return yfit[np.argsort(xsort)], mask
 
     def maskpoints(self, err):
         """Perform simple logic of which breakpoints to mask.
@@ -731,7 +785,7 @@ class bspline(object):
         else:
             return -2
 
-    def workit(self, xdata, ydata, invvar, action,lower,upper):
+    def workit(self, xdata, ydata, invvar, action, lower, upper):
         """An internal routine for bspline_extract and bspline_radial which solve a general
         banded correlation matrix which is represented by the variable "action".  This routine
         only solves the linear system once, and stores the coefficients in sset. A non-zero return value
@@ -763,66 +817,54 @@ class bspline(object):
 
         """
         goodbk = self.mask[self.nord:]
+        # KBW: Interesting: x.sum() is actually a bit faster than np.sum(x)
         nn = goodbk.sum()
         if nn < self.nord:
             msgs.warn('Fewer good break points than order of b-spline. Returning...')
-            yfit = np.zeros(ydata.shape, dtype='f')
-            return (-2, yfit)
+            # KBW: Why is the dtype set to 'f' = np.float32?
+            return -2, np.zeros(ydata.shape, dtype=np.float32)
+
         nfull = nn * self.npoly
         bw = self.npoly * self.nord
-        foo = np.sqrt(np.tile(invvar, bw).reshape(bw, invvar.size).transpose())
-        a2 = action * foo
-        #a2 = action*np.sqrt(np.outer(invvar,np.ones(bw)))
+        a2 = action * np.sqrt(invvar)[:,None]
 
-        alpha = np.zeros((bw, nfull+bw), dtype='d')
-        beta = np.zeros((nfull+bw,), dtype='d')
-        bi = np.arange(bw, dtype='i4')
-        bo = np.arange(bw, dtype='i4')
-        for k in range(1, bw):
-            bi = np.append(bi, np.arange(bw-k, dtype='i4')+(bw+1)*k)
-            bo = np.append(bo, np.arange(bw-k, dtype='i4')+bw*k)
+        alpha = np.zeros((bw, nfull+bw), dtype=float)
+        beta = np.zeros((nfull+bw,), dtype=float)
+        bi = np.concatenate([np.arange(i)+(bw-i)*(bw+1) for i in range(bw,0,-1)])
+        bo = np.concatenate([np.arange(i)+(bw-i)*bw for i in range(bw,0,-1)])
+        upper += 1
+        nowidth = np.invert(upper > lower)
         for k in range(nn-self.nord+1):
+            if nowidth[k]:
+                continue
             itop = k*self.npoly
-            ibottom = min(itop, nfull) + bw - 1
-            try:
-                ict = upper[k] - lower[k] + 1
-            except:
-                debugger.set_trace()
-            if ict > 0:
-                work = np.dot(a2[lower[k]:upper[k]+1, :].T, a2[lower[k]:upper[k]+1, :])
-                wb = np.dot(ydata[lower[k]:upper[k]+1]*np.sqrt(invvar[lower[k]:upper[k]+1]), a2[lower[k]:upper[k]+1, :])
-                alpha.T.flat[bo+itop*bw] += work.flat[bi]
-                beta[itop:ibottom+1] += wb
-        min_influence = 1.0e-10 * invvar.sum() / nfull
+            alpha.T.flat[bo+itop*bw] \
+                    += np.dot(a2[lower[k]:upper[k],:].T, a2[lower[k]:upper[k],:]).flat[bi]
+            beta[itop:min(itop,nfull)+bw] \
+                    += np.dot(ydata[lower[k]:upper[k]] * np.sqrt(invvar[lower[k]:upper[k]]),
+                              a2[lower[k]:upper[k],:])
+        upper -= 1
+
         # Right now we are not returning the covariance, although it may arise that we should
-        covariance = alpha
-        errb = cholesky_band(alpha, mininf=min_influence)  # ,verbose=True)
-        if isinstance(errb[0], int) and errb[0] == -1: # successful cholseky_band returns -1
-            a = errb[1]
-        else:
-            yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (self.maskpoints(errb[0]), yfit)
-        errs = cholesky_solve(a, beta)
-        if isinstance(errs[0], int) and errs[0] == -1:
-            sol = errs[1]
-        else:
-            #
-            # It is not possible for this to get called, because cholesky_solve
-            # has only one return statement, & that statement guarantees that
-            # errs[0] == -1
-            #
-            yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (self.maskpoints(errs[0]), yfit)
+#        covariance = alpha
+        err, a = cholesky_band(alpha, mininf=1.0e-10 * invvar.sum() / nfull)
+
+        # successful cholseky_band returns -1
+        if not isinstance(err, int) or err != -1:
+            return self.maskpoints(err), \
+                        self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
+
+        # NOTE: cholesky_solve ALWAYS returns err == -1; don't even catch it.
+        sol = cholesky_solve(a, beta)[1]
 
         if self.coeff.ndim == 2:
-            self.icoeff[:, goodbk] = np.array(a[0, 0:nfull].T.reshape(self.npoly, nn,order='F'), dtype=a.dtype)
-            self.coeff[:, goodbk] = np.array(sol[0:nfull].T.reshape(self.npoly, nn, order='F'), dtype=sol.dtype)
+            self.icoeff[:,goodbk] = np.array(a[0,:nfull].T.reshape(self.npoly, nn, order='F'), dtype=a.dtype)
+            self.coeff[:,goodbk] = np.array(sol[:nfull].T.reshape(self.npoly, nn, order='F'), dtype=sol.dtype)
         else:
-            self.icoeff[goodbk] = np.array(a[0, 0:nfull], dtype=a.dtype)
-            self.coeff[goodbk] = np.array(sol[0:nfull], dtype=sol.dtype)
+            self.icoeff[goodbk] = np.array(a[0,:nfull], dtype=a.dtype)
+            self.coeff[goodbk] = np.array(sol[:nfull], dtype=sol.dtype)
 
-        yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-        return (0, yfit)
+        return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
 
 
@@ -845,39 +887,45 @@ def cholesky_band(l, mininf=0.0):
         be the input matrix.  If no problems were detected, the first item
         will be -1, and the second item will be the Cholesky decomposition.
     """
-    #from . import PydlutilsUserWarning
-    lower = l.copy()
-    bw, nn = lower.shape
+
+    # KBW: added isfinite check so that it doesn't need to be done in
+    # the for loop. This should be okay because sqrt and division of
+    # positive numbers by other positive numbers should never lead to
+    # non-finite numbers. However, need to watch out for numerical
+    # issues.
+    bw, nn = l.shape
     n = nn - bw
-    negative = lower[0, 0:n] <= mininf
+    negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
     # JFH changed this below to make it more consistent with IDL version. Not sure
     # why the np.all(np.isfinite(lower)) was added. The code could return an empty
     # list for negative.nonzero() and crash if all elements in lower are NaN.
     if negative.any():
-        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
-                  ' bad entries: ' + str(negative.nonzero()[0]))
-        return (negative.nonzero()[0], l)
+        nz = negative.nonzero()[0]
+        msgs.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
+        return nz, l
+
 #    negative = (lower[0, 0:n] <= mininf)
 #    if negative.any() or not np.all(np.isfinite(lower)):
 #        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
 #                  ' bad entries: ' + str(negative.nonzero()[0]))
 #        return (negative.nonzero()[0], l)
+
+    # KBW: Moved the copy to after the initial check of the input
+    lower = l.copy()
     kn = bw - 1
-    spot = np.arange(kn, dtype='i4') + 1
-    bi = np.arange(kn, dtype='i4')
-    for i in range(1, kn):
-        bi = np.append(bi, np.arange(kn-i, dtype='i4') + (kn+1)*i)
+    spot = np.arange(kn, dtype=int) + 1
+
+    # KBW: Faster by about factor of ~2 compared to previous version
+    #bi = np.arange(kn*kn).reshape(kn,kn)[np.triu_indices(kn)]
+    bi = np.concatenate([np.arange(i)+(kn-i)*(kn+1) for i in range(kn,0,-1)])
+    here = bi[:,None] + (np.arange(n)[None,:] + 1)*bw
     for j in range(n):
-        lower[0, j] = np.sqrt(lower[0, j])
-        lower[spot, j] /= lower[0, j]
-        x = lower[spot, j]
-        if not np.all(np.isfinite(x)):
-            msgs.warn('NaN found in cholesky_band.')
-            return (j, l)
-        hmm = np.outer(x, x)
-        here = bi+(j+1)*bw
-        lower.T.flat[here] -= hmm.flat[bi]
-    return (-1, lower)
+        lower[0,j] = np.sqrt(lower[0,j])
+        lower[spot, j] /= lower[0,j]
+        hmm = lower[spot,j,None] * lower[None,spot,j]
+        lower.T.flat[here[:,j]] -= hmm.flat[bi]
+
+    return -1, lower
 
 
 def cholesky_solve(a, bb):
@@ -897,17 +945,19 @@ def cholesky_solve(a, bb):
         status is always -1.
     """
     b = bb.copy()
-    bw = a.shape[0]
-    n = b.shape[0] - bw
-    kn = bw - 1
-    spot = np.arange(kn, dtype='i4') + 1
+    n = b.shape[0] - a.shape[0]
+    kn = a.shape[0] - 1
+
+    spot = np.arange(kn, dtype=int) + 1
     for j in range(n):
-        b[j] /= a[0, j]
-        b[j+spot] -= b[j]*a[spot, j]
-    spot = kn - np.arange(kn, dtype='i4')
+        b[j] /= a[0,j]
+        b[j+spot] -= b[j]*a[spot,j]
+
+    spot = spot[::-1]
     for j in range(n-1, -1, -1):
-        b[j] = (b[j] - np.sum(a[spot, j] * b[j+spot]))/a[0, j]
-    return (-1, b)
+        b[j] = (b[j] - np.sum(a[spot,j] * b[j+spot]))/a[0,j]
+
+    return -1, b
 
 
 def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
@@ -1055,7 +1105,12 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
     yfit[xsort] = temp
     return (sset, outmask)
 
-def uniq(x, index=None):
+# TODO: How important is it that the function return the last
+# occurrence of the unique values in the sorted array than the first
+# value? If it doesn't `numpy.unique(numpy.sort(x),
+# return_index=True)[1]` is about twice as fast as
+# `pydl.uniq(numpy.sort(x))`.
+def old_uniq(x, index=None):
     """Replicates the IDL ``UNIQ()`` function.
 
     Returns the *subscripts* of the unique elements of an array.  The elements
@@ -1094,22 +1149,77 @@ def uniq(x, index=None):
     >>> print(uniq(np.sort(data)))
     [ 3  5  7  9 10 11 12 13]
     """
-    from numpy import array, roll
     if index is None:
-        indicies = (x != roll(x, -1)).nonzero()[0]
+        indicies = (x != np.roll(x, -1)).nonzero()[0]
         if indicies.size > 0:
             return indicies
         else:
-            return array([x.size - 1, ])
+            return np.array([x.size - 1, ])
     else:
         q = x[index]
-        indicies = (q != roll(q, -1)).nonzero()[0]
+        indicies = (q != np.roll(q, -1)).nonzero()[0]
         if indicies.size > 0:
             return index[indicies]
         else:
-            return array([q.size - 1, ], dtype=index.dtype)
+            return np.array([q.size - 1, ], dtype=index.dtype)
 
+# Faster than previous version but not as fast as if we could switch to
+# np.unique.
+def uniq(x, index=None):
+    """
+    Return the indices of the *last* occurrence of the unique
+    elements in a sorted array.
 
+    The input vector must be sorted before being passed to this
+    function. This can be done by sorting ``x`` directly or by
+    passing the array that sorts ``x`` (``index``).
+
+    Replicates the IDL ``UNIQ()`` function.
+
+    Parameters
+    ----------
+    x : array-like
+        Search this array for unique items.
+    index : array-like, optional
+        This array provides the array subscripts that sort `x`. That
+        is::
+
+            index = np.argsort(x)
+
+    Returns
+    -------
+    `np.ndarray`
+        The indices of the last occurence in `x` of its unique
+        values.
+
+    Notes
+    -----
+    Given a sorted array, and assuming that there is a set of
+    adjacent identical items, ``uniq()`` will return the subscript of
+    the *last* unique item. This charming feature is retained for
+    reproducibility.
+
+    References
+    ----------
+    http://www.harrisgeospatial.com/docs/uniq.html
+
+    Speed improvement thanks to discussion here:
+    https://stackoverflow.com/questions/47495510/numpy-in-a-sorted-list-find-the-first-and-the-last-index-for-each-unique-value
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> from pydl import uniq
+    >>> data = np.array([ 1, 2, 3, 1, 5, 6, 1, 7, 3, 2, 5, 9, 11, 1 ])
+    >>> print(uniq(np.sort(data)))
+    [ 3  5  7  9 10 11 12 13]
+    """
+    if len(x) == 0:
+        raise ValueError('No unique elements in an empty array!')
+    if index is None:
+        return np.flatnonzero(np.concatenate(([True], x[1:] != x[:-1], [True])))[1:]-1
+    _x = x[index]
+    return np.flatnonzero(np.concatenate(([True], _x[1:] != _x[:-1], [True])))[1:]-1
 
 
 def flegendre(x, m):
