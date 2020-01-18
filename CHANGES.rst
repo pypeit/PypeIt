@@ -1,10 +1,14 @@
 
+
 0.12.3dev
 ---------
 
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
+- Refactored sensitivity function, fluxing, and coadding scripts and algorithms.
+- Added support for additional near-IR spectrographs.
+
 
 0.12.2 (14 Jan 2019)
 --------------------
