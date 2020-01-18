@@ -11,25 +11,16 @@ from astropy.io import fits
 from pypeit.core import save
 from pypeit.images import maskimage
 from pypeit.io import initialize_header
+from pypeit import datamodel
 
 from IPython import embed
 
-data_model = {
-    'FLAVOR': 'PypeItImage',
-    'VERSION': '1.0',
-    'IMAGE': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
-    'IVAR': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
-    'RN2IMG': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
-    'BPM': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
-    'CRMASK': dict(otype=np.ndarray, atype=np.integer, desc='CR mask image'),
-    'MASK': dict(otype=np.ndarray, atype=np.integer, desc='Full mask'),
-    'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
-    'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
-    'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
-}
+from importlib import reload
+reload(datamodel)
 
 
-class PypeItImage(maskimage.ImageMask):
+
+class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
     """
     Class to hold a single image from a single detector in PypeIt
     and its related images (e.g. ivar, mask).
@@ -51,6 +42,21 @@ class PypeItImage(maskimage.ImageMask):
         head0 (astropy.io.fits.Header):
 
     """
+    # Set the version of this class
+    version = '1.0.0'
+    #
+    datamodel = {
+        'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
+        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
+        'rn2img': dict(otype=np.ndarray, atype=np.floating, desc='Read noise squared image'),
+        'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
+        'crmask': dict(otype=np.ndarray, atype=np.integer, desc='CR mask image'),
+        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Full mask'),
+        'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
+        'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
+        'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
+    }
+
     @classmethod
     def from_file(cls, file):
         """
@@ -64,63 +70,42 @@ class PypeItImage(maskimage.ImageMask):
                 Loaded up PypeItImage with the primary Header attached
 
         """
+        slf = super(PypeItImage, cls).from_file(file)
+
         # Open
         hdul = fits.open(file)
         # Header
-        head0 = hdul[0].header
-
-        # Instantiate
-        pypeitImage = cls(hdul[1].data)
-        pypeitImage.HEAD0 = head0
-        if hdul[1].name != 'IMAGE':
-            msgs.warn("Badly formated PypeItImage.  I hope this is an old calibration frame for compatibility")
-            # TODO This warning is printed to the screen when from_file is used to read in the MasterArc. I think
-            # there is an inconsistenc with the headers written to the MasterArc.
-
-        # Load up the other extensions, as present
-        for kk in range(2,len(hdul)):
-            # Check
-            if hdul[kk].name.upper() not in data_model.keys(): #allowed_attributes:
-                msgs.warn('Badly formatted PypeItImage')
-                msgs.error('Extension {} is not an allowed attribute of {}'.format(
-                    hdul[kk].name, data_model.keys()))
-            # Continue
-            setattr(pypeitImage, hdul[kk].name.upper(), hdul[kk].data)
-
+        slf.HEAD0 = hdul[0].header
         # Return
-        return pypeitImage
+        return slf
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
                  binning=None, crmask=None, mask=None):
 
+        # Internals
         maskimage.ImageMask.__init__(self, bpm)
-
-        # Data -- If there are no Internal attributes, we can just use the internal dict
-        self._data = {}
         self.binning = binning
 
-        # after initialisation, setting attributes is the same as setting an item
-        self.__initialised = True
-
-        # Required parameters
-        self.IMAGE = image
+        # Setup the DataContainer
+        super(PypeItImage, self).__init__({'image': image})
 
         # Optional Attributes
         if ivar is not None:
-            self.IVAR = ivar
+            self.ivar = ivar
         if rn2img is not None:
-            self.RN2IMG = rn2img
+            self.rn2img = rn2img
         #self.head0 = None
 
         # Mask attributes
         if crmask is not None:
-            self.CRMASK = crmask
+            self.crmask = crmask
         if mask is not None:
-            self.MASK = mask
+            self.mask = mask
 
         # Data model
         #self.allowed_attributes = ('image', 'ivar', 'rn2img') + self.mask_attributes
 
+    '''
     # TODO -- Instantiate these methods by making a DataModel class
     #   Have a child for data as a Table instead of a dict
     def __getattr__(self, item):
@@ -162,6 +147,7 @@ class PypeItImage(maskimage.ImageMask):
             return self._data[item]
         else:
             raise KeyError
+    '''
 
 
     @property
@@ -195,26 +181,26 @@ class PypeItImage(maskimage.ImageMask):
             hdr = initialize_header()
 
         # Chk
-        if not hasattr(self, 'IMAGE'):
+        if not hasattr(self, 'image'):
             msgs.warn("Image is not ready to save.")
             return
 
         # Save whatever is available
-        data = [self.IMAGE]
+        data = [self.image]
         if iext is None:
-            ext = ['IMAGE']
+            ext = ['image']
         else:
             ext = [iext]
 
         # Work on the rest
-        for item in ['IVAR', 'MASK']:
-            if hasattr(self, item):
+        for item in ['ivar', 'mask']:
+            if hasattr(self, item) and getattr(self,item) is not None:
                 data.append(getattr(self, item))
-                ext.append(item)#.upper())
+                ext.append(item)
 
         # A few more bits
-        hdr['FLAVOR'] = data_model['FLAVOR']
-        hdr['VERSDM'] = data_model['VERSION']
+        hdr['FLAVOR'] = self.__class__.__name__
+        hdr['VERSDM'] = self.version
 
         # TODO -- Default to float32 for float images?
         # Write the fits file
@@ -235,10 +221,10 @@ class PypeItImage(maskimage.ImageMask):
         # Image
         rdict = {}
         for attr in ['image', 'ivar', 'rn2img', 'crmask', 'mask']:
-            if hasattr(self, attr.upper()):
-                rdict[attr.upper()] = True
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                rdict[attr] = True
             else:
-                rdict[attr.upper()] = False
+                rdict[attr] = False
         repr += ' images={}'.format(rdict)
         repr = repr + '>'
         return repr

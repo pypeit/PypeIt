@@ -589,8 +589,6 @@ class DataContainer:
 #        self.__dict__ = copy.deepcopy(d)
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
-        # Assign the values provided by the input dictionary
-        self.__dict__.update(d)
 
         # Validate the object
         # TODO: _validate isn't the greatest name for this method...
@@ -610,6 +608,13 @@ class DataContainer:
         # done in the SpecObj example). Is there a way we could just
         # check a boolean instead?
         self.__initialised = True
+
+        # Assign the values provided by the input dictionary
+        for key in d:
+            if d[key] is None:
+                continue
+            setattr(self, key, d[key])
+        #self.__dict__.update(d)
 
         if self.version is None:
             raise ValueError('Must define a version for the class.')
@@ -822,6 +827,7 @@ class DataContainer:
                 d[e] = hdu[e.upper()].data if isinstance(hdu[e.upper()], fits.ImageHDU) \
                         else Table.read(hdu[e.upper()])
 
+
         for e in _ext:
             # Check for header elements
             indx = np.isin([key.upper() for key in keys], list(hdu[e].header.keys()))
@@ -894,6 +900,13 @@ class DataContainer:
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError('Incorrect data type for {0}!'.format(item) + 
                             'Allowed type(s) are: {0}'.format(self.datamodel[item]['otype']))
+        # Array?
+        if 'atype' in self.datamodel[item].keys():
+            if not isinstance(value.flat[0], self.datamodel[item]['atype']):
+                print("Wrong data type for array: {}".format(item))
+                print("Allowed type(s) for the array are: {}".format(self.datamodel[item]['atype']))
+                raise IOError("Try again")
+        # Set
         self.__dict__[item] = value
 
     def __getitem__(self, item):
