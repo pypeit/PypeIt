@@ -72,11 +72,12 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     std_sets = ['xshooter', 'calspec','esofil']
 
     # SkyCoord
-    try:
-        ra, dec = float(ra), float(dec)
-        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
-    except:
-        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    #  The following was a bad hack and violated the expected input of str for ra,dec
+    #try:
+    #    ra, dec = float(ra), float(dec)
+    #    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
+    #except:
+    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
 
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)

@@ -488,23 +488,34 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def build_header(self, head_fitstbl, spectrograph):
+    def build_header(self, head_fitstbl, head2d, spectrograph):
         """
         Builds the spec1d file header from the fitstbl meta data and meta data from spectrograph
+
         Args:
-            head_fitstbl (header):
+            head_fitstbl (:class:`astropy.io.fits.Header`):
                Header from fitstbl
-            spectrograph (object):
+            head2d (:class:`astropy.io.fits.Header`):
+               Header from the Raw file
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
                Spectrograph object
 
         Returns:
+            :class:`astropy.io.fits.Header`:
 
         """
         header = fits.PrimaryHDU().header
+        # Try to pull a few from the original header
         try:
             header['MJD-OBS'] = head_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
         except KeyError:
             header['MJD-OBS'] = head_fitstbl['MJD-OBS']
+        try:
+            header['INSTRUME'] = head2d['INSTRUME'].strip()  # recorded as 'mjd' in fitstbl
+        except KeyError:
+            pass
+        embed(header='515')
+
         core_keys = spectrograph.header_cards_for_spec()
         for key in core_keys:
             # Allow for fitstbl vs. header
@@ -515,7 +526,7 @@ class SpecObjs(object):
         # Specify which pipeline created this file
         header['PYPELINE'] = spectrograph.pypeline
         header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
-        # Observatory
+        # Observatory and Header supplied Instrument
         telescope = spectrograph.telescope
         header['LON-OBS'] = telescope['longitude']
         header['LAT-OBS'] = telescope['latitude']

@@ -35,6 +35,7 @@ from pkg_resources import resource_filename
 import numpy as np
 from astropy.io import fits
 
+from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit.core.wavecal import wvutils
@@ -557,6 +558,23 @@ class Spectrograph(object):
             retvalue = None
             castable = False
 
+        # RA, DEC specially handled (sometimes they are decimal deg sometimes not!)
+        if meta_key in ['ra','dec'] and not castable:
+            if ':' not in value:
+                pass  # Assumed missing from header
+            else:
+                ra = headarr[self.meta['ra']['ext']][self.meta['ra']['card']].strip()
+                dec = headarr[self.meta['dec']['ext']][self.meta['dec']['card']].strip()
+                coord = ltu.radec_to_coord((ra,dec))
+                if meta_key == 'ra':
+                    retvalue = coord.ra.value
+                    castable = True
+                elif meta_key == 'dec':
+                    retvalue = coord.dec.value
+                    castable = True
+                else:
+                    msgs.error("Should never get here")
+
         # JFH Added the typing to prevent a crash below when the header value exists, but is the wrong type. This
         # causes a crash below  when the value is cast.
         if value is None or not castable:
@@ -579,20 +597,7 @@ class Spectrograph(object):
                         self.meta[meta_key]['card']))
             return None
 
-        # JFH Old code which causes a crash when the type is wrong
-        # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
-        #if self.meta_data_model[meta_key]['dtype'] == str:
-        #    value = str(value).strip()
-        #elif self.meta_data_model[meta_key]['dtype'] == int:
-        #    value = int(value)
-        #elif self.meta_data_model[meta_key]['dtype'] == float:
-        #    value = float(value)
-        #elif self.meta_data_model[meta_key]['dtype'] == tuple:
-        #    assert isinstance(value, tuple)
-        #else:
-        #    embed()
         # Return
-
         return retvalue
 
     def validate_metadata(self):

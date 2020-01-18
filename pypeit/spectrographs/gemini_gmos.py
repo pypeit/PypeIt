@@ -3,7 +3,10 @@
 import glob
 import os
 import numpy as np
+
 from astropy.io import fits
+from astropy import units
+from astropy.coordinates import SkyCoord
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
@@ -38,11 +41,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='MASKNAME')
-        self.meta['binning'] = dict(card=None, compound=True)
-        # TODO: Can we define the card here that compound meta uses to
-        # set the binning?  Would be better to have all header cards
-        # collected in this function...
-#        self.meta['binning'] = dict(ext=1, card='CCDSUM')
+        self.meta['binning'] = dict(card=None, compound=True)  # Uses CCDSUM
 
         self.meta['mjd'] = dict(ext=0, card='OBSEPOCH')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
@@ -79,6 +78,17 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[1]['CCDSUM'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key in ['ra', 'dec']:
+            embed(header='82 of gmos')
+            # TODO -- This is a duplicate of VLT.  Should probably generalize
+            try:  # Calibs do not have RA values
+                coord = SkyCoord(ra=headarr[0]['RA'], dec=headarr[0]['DEC'], unit='deg')
+            except:
+                return None
+            if meta_key == 'ra':
+                return coord.ra.to_string(unit=units.hour,sep=':',pad=True,precision=2)
+            else:
+                return coord.dec.to_string(sep=':',pad=True,alwayssign=True,precision=1)
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """

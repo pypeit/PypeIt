@@ -172,8 +172,10 @@ class PypeItMetaData:
         #core_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
 
         # Target
-        core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
-        core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+        #core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
+        #core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+        core_meta['ra'] = dict(dtype=float, comment='(J2000) RA in decimal degrees')
+        core_meta['dec'] = dict(dtype=float, comment='(J2000) DEC in decimal degrees')
         core_meta['target'] = dict(dtype=str, comment='Name of the target')
 
         # Instrument related
@@ -472,8 +474,10 @@ class PypeItMetaData:
         existing_keys = list(set(self.table.keys()) & set(usrdata.keys()))
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
+                if key in ['ra', 'dec']:  # RA, DEC from the PypeIt file is ignored
+                    continue
                 if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
-                    debugger.set_trace()
+                    import pdb; pdb.set_trace()
                 elif key in meta_data_model.keys(): # Is this meta data??
                     dtype = meta_data_model[key]['dtype']
                 else:
@@ -486,6 +490,9 @@ class PypeItMetaData:
 
         # Include the user data in the table
         for key in usrdata.keys():
+            if key in ['ra', 'dec']:
+                msgs.warn("PypeIt will *not* over-ride RA, DEC from the header using your PypeIt file!!")
+                continue
             self.table[key] = usrdata[key][srt]
 
     def finalize_usr_build(self, frametype, setup):
