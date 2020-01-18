@@ -29,19 +29,19 @@ nires_par = keck_nires.default_pypeit_par()
 @pytest.fixture
 @dev_suite_required
 def shane_kast_blue_sci_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Shane_Kast_blue', '600_4310_d55', ifile)
-            for ifile in ['b27.fits.gz', 'b28.fits.gz']]
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'shane_kast_blue', '600_4310_d55',
+                         ifile) for ifile in ['b27.fits.gz', 'b28.fits.gz']]
 
 @pytest.fixture
 @dev_suite_required
 def nires_sci_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES', ifile)
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_nires', 'NIRES', ifile)
             for ifile in ['s180604_0089.fits.gz', 's180604_0092.fits.gz']]
 
 @pytest.fixture
 @dev_suite_required
 def nires_bg_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES', ifile)
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_nires', 'NIRES', ifile)
             for ifile in ['s180604_0090.fits.gz', 's180604_0091.fits.gz']]
 
 
@@ -115,11 +115,13 @@ def test_proc_diff(nires_sci_files, nires_bg_files):
     pixelflat = np.ones_like(bpm)
 
     # Sci image
-    sciImg = scienceimage.build_from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
-                                       nires_sci_files, None, pixelflat)
+    sciImg = scienceimage.build_from_file_list(keck_nires, det,
+                                               nires_par['scienceframe']['process'], bpm,
+                                               nires_sci_files, None, pixelflat)
     # Bg image
-    bgImg = scienceimage.build_from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
-                                                      nires_bg_files, None, pixelflat)
+    bgImg = scienceimage.build_from_file_list(keck_nires, det,
+                                              nires_par['scienceframe']['process'], bpm,
+                                              nires_bg_files, None, pixelflat)
     # Difference
     sciImg = sciImg - bgImg
     # Test

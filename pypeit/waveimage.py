@@ -92,7 +92,10 @@ class WaveImage(masterframe.MasterFrame):
         self.wv_calib = wv_calib
         if tslits_dict is not None:
             self.slitmask = pixels.tslits2mask(self.tslits_dict)
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
+            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
+                                                         self.tslits_dict['slit_righ'],
+                                                         self.tslits_dict['nspec'],
+                                                         self.tslits_dict['nspat'])
         else:
             self.slitmask = None
             self.slit_spat_pos = None
