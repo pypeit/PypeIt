@@ -511,10 +511,9 @@ class SpecObjs(object):
         except KeyError:
             header['MJD-OBS'] = head_fitstbl['MJD-OBS']
         try:
-            header['INSTRUME'] = head2d['INSTRUME'].strip()  # recorded as 'mjd' in fitstbl
+            header['INSTRUME'] = head2d['INSTRUME']  # Self-assigned instrument name
         except KeyError:
             pass
-        embed(header='515')
 
         core_keys = spectrograph.header_cards_for_spec()
         for key in core_keys:
