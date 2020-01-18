@@ -50,7 +50,7 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
         'rn2img': dict(otype=np.ndarray, atype=np.floating, desc='Read noise squared image'),
         'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
-        'crmask': dict(otype=np.ndarray, atype=np.integer, desc='CR mask image'),
+        'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='Full mask'),
         'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
         'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
@@ -101,54 +101,6 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
             self.crmask = crmask
         if mask is not None:
             self.mask = mask
-
-        # Data model
-        #self.allowed_attributes = ('image', 'ivar', 'rn2img') + self.mask_attributes
-
-    '''
-    # TODO -- Instantiate these methods by making a DataModel class
-    #   Have a child for data as a Table instead of a dict
-    def __getattr__(self, item):
-        """Maps values to attributes.
-        Only called if there *isn't* an attribute with this name
-        """
-        try:
-            return self.__getitem__(item)
-        except KeyError:
-            raise AttributeError(item)
-
-    def __setattr__(self, item, value):
-
-        if not '_PypeItImage__initialised' in self.__dict__:  # this test allows attributes to be set in the __init__ method
-            return dict.__setattr__(self, item, value)
-        elif item in self.__dict__:       # any normal attributes are handled normally
-            dict.__setattr__(self, item, value)
-        else:
-            self.__setitem__(item, value)
-
-    def __setitem__(self, item, value):
-        if item not in data_model.keys():
-            raise IOError("Cannot set {} attribute.  It is not in the data model".format(item))
-        if not isinstance(value, data_model[item]['otype']):
-            print("Wrong data type for attribute: {}".format(item))
-            print("Allowed type(s) are: {}".format(data_model[item]['otype']))
-            raise IOError("Try again")
-        # Array?
-        if 'atype' in data_model[item].keys():
-            if not isinstance(value.flat[0], data_model[item]['atype']):
-                print("Wrong data type for array: {}".format(item))
-                print("Allowed type(s) for the array are: {}".format(data_model[item]['atype']))
-                raise IOError("Try again")
-        # Set
-        self._data[item] = value
-
-    def __getitem__(self, item):
-        if item in self._data.keys():
-            return self._data[item]
-        else:
-            raise KeyError
-    '''
-
 
     @property
     def shape(self):

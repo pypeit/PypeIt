@@ -127,7 +127,7 @@ class CombineImage(object):
                 return pypeitImage
             elif kk == 0:
                 # Get ready
-                shape = (nimages, pypeitImage.bpm.shape[0], pypeitImage.bpm.shape[1])
+                shape = (nimages, pypeitImage.image.shape[0], pypeitImage.image.shape[1])
                 img_stack = np.zeros(shape)
                 ivar_stack= np.zeros(shape)
                 rn2img_stack = np.zeros(shape)

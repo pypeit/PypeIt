@@ -43,7 +43,7 @@ class ImageMask(object):
 
     Args:
         bpm (np.ndarray):
-            Bad pixel mask
+            Bad pixel mask (int)
         crmask (np.ndarray, optional):
             Cosmic Ray mask (boolean)
 
@@ -142,8 +142,9 @@ class ImageMask(object):
         mask = np.zeros_like(image, dtype=self.bitmask.minimum_dtype(asuint=True))
 
         # Bad pixel mask
-        indx = self.bpm.astype(bool)
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
+        if self.bpm is not None:
+            indx = self.bpm.astype(bool)
+            mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
 
         # Cosmic rays
         if self.crmask is not None:

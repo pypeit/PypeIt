@@ -143,9 +143,6 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if self.pypeitImage is None:
             msgs.warn('No MasterBias to save!')
             return
-        if not self.pypeitImage.validate():
-            msgs.warn('MasterBias is not a proper image.')
-            return
         # Proceed
         _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists

@@ -897,6 +897,11 @@ class DataContainer:
         """
         if item not in self.datamodel.keys():
             raise KeyError('Key {0} not part of the data model'.format(item))
+        # None?
+        if value is None:
+            self.__dict__[item] = value
+            return
+        # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
             raise TypeError('Incorrect data type for {0}!'.format(item) + 
                             'Allowed type(s) are: {0}'.format(self.datamodel[item]['otype']))
