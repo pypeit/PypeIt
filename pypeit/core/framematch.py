@@ -27,6 +27,7 @@ class FrameTypeBitMask(BitMask):
         # of just a normal dict.
         frame_types = OrderedDict([
                          ('arc', 'Arc lamp observation used for wavelength calibration'),
+                         ('bar', 'Trace constant spatial positions along the slit'),
                         ('bias', 'Bias readout for detector bias subtraction'),
                         ('dark', 'Shuttered exposure to measure dark current'),
                      ('pinhole', 'Pinhole observation used for tracing slit centers'),
