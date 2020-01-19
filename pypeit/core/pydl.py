@@ -520,7 +520,9 @@ class bspline(object):
         if x2.size != nx:
             raise ValueError('Dimensions of x and x2 do not match.')
 
+        # TODO: Below is unchanged.
         x2norm = 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
+        # TODO: Should consider faster ways of generating the temppoly arrays for poly and poly1
         if self.funcname == 'poly':
             temppoly = np.ones((nx, self.npoly), dtype='f')
             for i in range(1, self.npoly):
@@ -537,6 +539,7 @@ class bspline(object):
         else:
             raise ValueError('Unknown value of funcname.')
 
+        # TODO: Should consider faster way of calculating action that doesn't require a nested loop.
         bw = self.npoly*self.nord
         action = np.zeros((nx, bw), dtype='d')
         counter = -1
