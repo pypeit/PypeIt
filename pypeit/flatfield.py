@@ -706,6 +706,13 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
+# TODO: Used for testing bspline
+#            np.savez_compressed('gemini_gnirs_{0}_spec.npz'.format(slit+1),
+#                                spec_coo_data=spec_coo_data,
+#                                spec_flat_data=spec_flat_data,
+#                                spec_ivar_data=spec_ivar_data,
+#                                spec_gpm_data=spec_gpm_data)
+
             if exit_status > 1:
                 # TODO: Should this fault?
                 msgs.warn('Problem in bspline fit!')
@@ -794,6 +801,12 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             np.ones_like(spat_flat_data),
                                             np.ones_like(spat_flat_data), nord=4, upper=5.0,
                                             lower=5.0, fullbkpt=spat_bspl.breakpoints)
+
+# TODO: Used for testing bspline
+#            np.savez_compressed('gemini_gnirs_{0}_spat.npz'.format(slit+1),
+#                                spat_coo_data=spat_coo_data,
+#                                spat_flat_data=spat_flat_data,
+#                                median_slit_width=median_slit_width[slit])
 
             # Compute the model illumination profile
             self.msillumflat[onslit_padded] = spat_bspl.value(spat_coo[onslit_padded])[0]
@@ -900,6 +913,15 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             upper=twod_sigrej, lower=twod_sigrej,
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+
+# TODO: Used for testing bspline
+#            np.savez_compressed('gemini_gnirs_{0}_twod.npz'.format(slit+1),
+#                                twod_spat_coo_data=twod_spat_coo_data,
+#                                twod_spec_coo_data=twod_spec_coo_data,
+#                                twod_flat_data=twod_flat_data,
+#                                twod_ivar_data=twod_ivar_data,
+#                                poly_basis=poly_basis,
+#                                twod_gpm_data=twod_gpm_data)
 
             if debug:
                 # TODO: Make a plot that shows the residuals in the 2D
