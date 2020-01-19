@@ -31,8 +31,6 @@
 
 - Implemented MOSFIRE and further implemented NIRSPEC for Y-band
   spectroscopy.
-- Implemented MOSFIRE and further implemented NIRSPEC for Y-band
-  spectroscopy.
 - Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing
