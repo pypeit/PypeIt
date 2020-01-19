@@ -1,7 +1,5 @@
-""" Module for Magellan/FIRE specific codes
-Important Notes:
-   If you are reducing old FIRE data (before the broken happened in 2016), please change the ord_spat_pos array
-   (see lines from ~220 to ~230)
+"""
+Module for Gemini flamingos
 """
 import numpy as np
 

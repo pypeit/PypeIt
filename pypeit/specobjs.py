@@ -1,4 +1,8 @@
-""" Module for the SpecObjs and SpecObj classes
+"""
+Module for the SpecObjs and SpecObj classes
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import re
@@ -136,32 +140,31 @@ class SpecObjs(object):
 
     def unpack_object(self, ret_flam=False):
         """
-
-        Utility function to unpack the sobjs for one object and return various numpy arrays describing the spectrum
-        and meta data. The user needs to already have trimmed the Specobjs to the relevant indices for the object.
+        Utility function to unpack the sobjs for one object and
+        return various numpy arrays describing the spectrum and meta
+        data. The user needs to already have trimmed the Specobjs to
+        the relevant indices for the object.
 
         Args:
-           ret_flam (bool):
-              If True return the FLAM, otherwise return COUNTS
+           ret_flam (:obj:`bool`, optional):
+              If True return the FLAM, otherwise return COUNTS.
 
         Returns:
-         wave, flux, flux_ivar, flux_gpm, meta_spec, header
+            tuple: Returns the following where all numpy arrays
+            returned have shape (nspec, norders) for Echelle data and
+            (nspec,) for Multislit data.
 
-
-        All numpy arrays returned have shape (nspec, norders) for Echelle data and (nspec,) for Multislit data.
-
-        wave (`numpy.ndarray`_):
-           Wavelength grids
-        flux (`numpy.ndarray`_):
-           Flambda or counts
-        flux_ivar (`numpy.ndarray`_):
-           Inverse variance (of Flambda or counts)
-        flux_gpm (`numpy.ndarray`_):
-           Good pixel mask. True=Good
-        meta_spec (dict:)
-           Dictionary containing meta data. The keys are defined by spectrograph.header_cards_from_spec()
-        header (astropy.io.header object):
-           header from spec1d file
+                - wave (`numpy.ndarray`_): Wavelength grids
+                - flux (`numpy.ndarray`_): Flambda or counts
+                - flux_ivar (`numpy.ndarray`_): Inverse variance (of
+                  Flambda or counts)
+                - flux_gpm (`numpy.ndarray`_): Good pixel mask.
+                  True=Good
+                - meta_spec (dict:) Dictionary containing meta data.
+                  The keys are defined by
+                  spectrograph.header_cards_from_spec()
+                - header (astropy.io.header object): header from
+                  spec1d file
     """
 
         # Read in the spec1d file

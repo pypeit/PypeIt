@@ -1,14 +1,26 @@
+"""
+Coadding module.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+"""
+
 import os
-import scipy
+from pkg_resources import resource_filename
+
+from IPython import embed
+
 import numpy as np
+import scipy
+
 import matplotlib.pyplot as plt
+from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
+
 from astropy import stats
 from astropy.io import fits
 from astropy import convolution
-from IPython import embed
 from astropy.table import Table
 from astropy import constants
-from pkg_resources import resource_filename
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
@@ -19,8 +31,9 @@ from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 
-
-from matplotlib.ticker import NullFormatter, NullLocator, MaxNLocator
+# TODO: These shouldn't be here. They should be changed on a
+# plot-by-plot basis, and each plot should end with a recall of
+# rcdefaults.
 
 ## Plotting parameters
 plt.rcdefaults()
@@ -34,7 +47,6 @@ plt.rcParams["xtick.direction"] = 'in'
 plt.rcParams["xtick.labelsize"] = 15
 plt.rcParams["ytick.labelsize"] = 15
 plt.rcParams["axes.labelsize"] = 17
-
 
 # TODO the other methods iref should be deprecated or removed
 def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min=None, wave_grid_max=None,
@@ -363,29 +375,43 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     #chi2 = np.sum(np.square(chi_vec))
     return loss_function
 
+# TODO: Change thismask to gpm
 def poly_ratio_fitfunc(flux_ref, thismask, arg_dict, **kwargs_opt):
     """
-    Function to be optimized by robust_optimize for solve_poly_ratio polynomial rescaling of one spectrum to
-    match a reference spectrum. This function has the correct format for running robust_optimize optimization. In addition
-    to running the optimization, this function recomputes the error vector ivartot for the error rejection that takes
-    place at each iteration of the robust_optimize optimization. The ivartot is also renormalized using the
-    renormalize_errors function enabling rejection. A scale factor is multiplied into the true errors to allow one
-    to reject based on the statistics of the actual error distribution.
+    Function to be optimized by robust_optimize for solve_poly_ratio
+    polynomial rescaling of one spectrum to match a reference
+    spectrum. This function has the correct format for running
+    robust_optimize optimization. In addition to running the
+    optimization, this function recomputes the error vector ivartot
+    for the error rejection that takes place at each iteration of the
+    robust_optimize optimization. The ivartot is also renormalized
+    using the renormalize_errors function enabling rejection. A scale
+    factor is multiplied into the true errors to allow one to reject
+    based on the statistics of the actual error distribution.
 
     Args:
-        flux_ref: ndarray, reference flux that we are trying to rescale our spectrum to match
-        thismask: ndarray, bool, mask for the current iteration of the optimization. True=good
-        arg_dict: dictionary containing arguments for the optimizing function. See poly_ratio_fitfunc_chi2 for how arguments
-                  are used. They are mask, flux_med, flux_ref_med, ivar_ref_med, wave, wave_min, wave_max, func
-        kwargs_opt: arguments to be passed to the optimizer, which in this case is just vanilla scipy.minimize with
-                    the default optimizer
+        flux_ref (`numpy.ndarray`_):
+            Reference flux that we are trying to rescale our spectrum
+            to match
+        thismask (`numpy.ndarray`_):
+            Boolean array with mask for the current iteration of the
+            optimization. True=good
+        arg_dict (:obj:`dict`):
+            dictionary containing arguments for the optimizing
+            function. See poly_ratio_fitfunc_chi2 for how arguments
+            are used. They are mask, flux_med, flux_ref_med,
+            ivar_ref_med, wave, wave_min, wave_max, func
+        kwargs_opt:
+            arguments to be passed to the optimizer, which in this
+            case is just vanilla scipy.minimize with the default
+            optimizer
 
    Returns:
-        Three objects are returned. (1) scipy optimization object, (2)
-        scale factor to be applied to the data to match the reference
-        spectrum flux_ref, (3) error vector to be used for the rejection
-        that takes place at each iteration of the robust_optimize
-        optimization
+        Three objects are returned. (1) scipy optimization object,
+        (2) scale factor to be applied to the data to match the
+        reference spectrum flux_ref, (3) error vector to be used for
+        the rejection that takes place at each iteration of the
+        robust_optimize optimization
 
     """
 
@@ -449,19 +475,22 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
                      maxiter=3, sticky=True, lower=3.0, upper=3.0, median_frac=0.01,
                      ref_percentile=70.0, debug=False):
     """
-    Routine for solving for the polynomial rescaling of an input spectrum flux to match a reference spectrum flux_ref.
-    The two spectra need to be defined on the same wavelength grid. The code will work best if you choose the reference
-    to be the higher S/N ratio spectrum. Note that the code
-    multiplies in the square of a polnomial of order norder to ensure positivity of the scale factor.  It also
-    operates on median filtered spectra to be more robust against outliers
+    Routine for solving for the polynomial rescaling of an input
+    spectrum flux to match a reference spectrum flux_ref. The two
+    spectra need to be defined on the same wavelength grid. The code
+    will work best if you choose the reference to be the higher S/N
+    ratio spectrum. Note that the code multiplies in the square of a
+    polnomial of order norder to ensure positivity of the scale
+    factor. It also operates on median filtered spectra to be more
+    robust against outliers
 
     Args:
         wave: ndarray, (nspec,)
             wavelength. flux, ivar, flux_ref, and ivar_ref must all be on the same wavelength grid
         flux: ndarray, (nspec,)
-             flux that you want to rescale to match flux_ref
+            flux that you want to rescale to match flux_ref
         ivar: ndarray, (nspec,)
-             inverse varaiance of the array that you want to rescale to match flux_ref
+            inverse varaiance of the array that you want to rescale to match flux_ref
         mask: ndarray, bool, (nspec,)
             mask for spectrum that you want to rescale, True=Good
         flux_ref: ndarray, (nspec,)
@@ -474,37 +503,37 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
             order of polynomial rescaling.  Note that the code multiplies in by the square of a polynomail of order
             norder to ensure positivity of the scale factor.
         scale_min: float, default =0.05
-             minimum scaling factor allowed
+            minimum scaling factor allowed
         scale_max: float, default=100.0
-             maximum scaling factor allowed
+            maximum scaling factor allowed
         func: str, default='legendre'
-             function you want to use,
+            function you want to use,
         model (str): defaut = 'square'
-           model type, valid model types are 'poly', 'square', or 'exp', corresponding to normal polynomial,
-           squared polynomial, or exponentiated polynomial
+            model type, valid model types are 'poly', 'square', or 'exp', corresponding to normal polynomial,
+            squared polynomial, or exponentiated polynomial
         maxiter: int, default=3
-             maximum number of iterations for robust_optimize
+            maximum number of iterations for robust_optimize
         sticky: bool, default=True
-             whether you want the rejection to be sticky or not with robust_optimize. See docs for djs_reject for
-             definition of sticky.
+            whether you want the rejection to be sticky or not with robust_optimize. See docs for djs_reject for
+            definition of sticky.
         lower: float, default=3.0
-             lower sigrej rejection threshold for robust_optimize
+            lower sigrej rejection threshold for robust_optimize
         upper: float, default=3.0
-             upper sigrej rejection threshold for robust_optimize
+            upper sigrej rejection threshold for robust_optimize
         median_frac: float default = 0.01,
-             the code rescales median filtered spectra with 'reflect' boundary conditions. The
-              with of the median filter will be median_frac*nspec, where nspec is the number of spectral pixels.
+            the code rescales median filtered spectra with 'reflect' boundary conditions. The
+            with of the median filter will be median_frac*nspec, where nspec is the number of spectral pixels.
         debug: bool, default=False
-             show interactive QA plot
+            show interactive QA plot
 
     Returns:
-        (1) ymult: ndarray, (nspec,) -- rescaling factor to be
+        tuple: (1) ymult: ndarray, (nspec,) -- rescaling factor to be
         multiplied into flux to match flux_ref. (2) flux_rescale:
-        ndarray, (nspec,) -- rescaled flux, i.e. ymult multiplied into
-        flux. (3) ivar_rescale: ndarray, (nspec,) -- rescaled inverse
-        variance. (4) outmask: ndarray, bool, (nspec,) -- output mask
-        determined from the robust_optimize optimization/rejection
-        iterations. True=Good
+        ndarray, (nspec,) -- rescaled flux, i.e. ymult multiplied
+        into flux. (3) ivar_rescale: ndarray, (nspec,) -- rescaled
+        inverse variance. (4) outmask: ndarray, bool, (nspec,) --
+        output mask determined from the robust_optimize
+        optimization/rejection iterations. True=Good
     """
 
     if mask is None:
@@ -1077,56 +1106,62 @@ def order_median_scale(waves, fluxes, ivars, masks, min_good=0.05, maxiters=5, m
 def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, mask_ref=None, scale_method='auto', min_good=0.05,
                ref_percentile=70.0, maxiters=5, sigrej=3, max_median_factor=10.0,
                npoly=None, hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5, debug=False, show=False):
-    '''
-    Routine for solving for the best way to rescale an input spectrum flux to match a reference spectrum flux_ref.
-    The code will work best if you choose the reference
-    to be the higher S/N ratio spectrum. If the scale_method is not specified, the code will make a decision about
-    which method to use based on the input S/N ratio.
+    """
+    Routine for solving for the best way to rescale an input spectrum
+    flux to match a reference spectrum flux_ref. The code will work
+    best if you choose the reference to be the higher S/N ratio
+    spectrum. If the scale_method is not specified, the code will
+    make a decision about which method to use based on the input S/N
+    ratio.
 
     Args:
-    wave: ndarray, (nspec,)
-       wavelengths grid for the spectra
-    flux: ndarray, (nspec,)
-       spectrum that will be rescaled.
-    ivar: ndarray, (nspec,)
-       inverse variance for the spectrum that will be rescaled.
-    sn: float
-       S/N of the spectrum that is being scaled used to make decisions about the scaling method.
-    This can be computed by sn_weights and passed in.
-    mask: ndarray, bool, (nspec,)
-       mask for the spectrum that will be rescaled. True=Good. If not input, computed from inverse variance
-    flux_ref: ndarray, (nspec,)
-       reference spectrum.
-    ivar_ref: ndarray, (nspec,)
-       inverse variance of reference spectrum.
-    mask_ref: ndarray, bool, (nspec,)
-       mask for reference spectrum. True=Good. If not input, computed from inverse variance.
-    min_good: float, default = 0.05
-       minmum fraction of the total number of good pixels needed for estimate the median ratio
-    maxiters: int,
-       maximum number of iterations for rejecting outliers used by the robust_median_ratio routine if median
-       rescaling is the  method used.
-    max_median_factor: float, default=10.0
-       maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
-    sigrej: float, default=3.0
-       rejection threshold used for rejecting outliers by robsut_median_ratio
-    ref_percentile: float, default=70.0
-       percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
-    npoly: int, default=None
-       order for the poly ratio scaling if polynomial rescaling is the method used. Default is to automatically compute
-       this based on S/N ratio of data.
-    scale_method (str):
-       scale method, str, default='auto'. Options are auto, poly, median, none, or hand. Hand is not well tested.
-       User can optionally specify the rescaling method. Default is to let the
-       code determine this automitically which works well.
-    hand_scale: ndarray, (nexp,)
-        array of hand scale factors, not well tested
-    sn_min_polyscale: float, default=2.0
-       maximum SNR for perforing median scaling
-    sn_min_medscale: float, default=0.5
-       minimum SNR for perforing median scaling
-    debug: bool, default=False
-       show interactive QA plot
+        wave: ndarray, (nspec,)
+            wavelengths grid for the spectra
+        flux: ndarray, (nspec,)
+            spectrum that will be rescaled.
+        ivar: ndarray, (nspec,)
+            inverse variance for the spectrum that will be rescaled.
+        sn: float
+            S/N of the spectrum that is being scaled used to make decisions about the scaling method.
+        This can be computed by sn_weights and passed in.
+        mask: ndarray, bool, (nspec,)
+            mask for the spectrum that will be rescaled. True=Good. If not input, computed from inverse variance
+        flux_ref: ndarray, (nspec,)
+            reference spectrum.
+        ivar_ref: ndarray, (nspec,)
+            inverse variance of reference spectrum.
+        mask_ref: ndarray, bool, (nspec,)
+            mask for reference spectrum. True=Good. If not input, computed from inverse variance.
+        min_good: float, default = 0.05
+            minmum fraction of the total number of good pixels needed for estimate the median ratio
+        maxiters: int,
+            maximum number of iterations for rejecting outliers used
+            by the robust_median_ratio routine if median rescaling is
+            the method used.
+        max_median_factor: float, default=10.0
+            maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
+        sigrej: float, default=3.0
+            rejection threshold used for rejecting outliers by robsut_median_ratio
+        ref_percentile: float, default=70.0
+            percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
+        npoly: int, default=None
+            order for the poly ratio scaling if polynomial rescaling
+            is the method used. Default is to automatically compute
+            this based on S/N ratio of data.
+        scale_method (str):
+            scale method, str, default='auto'. Options are auto,
+            poly, median, none, or hand. Hand is not well tested.
+            User can optionally specify the rescaling method. Default
+            is to let the code determine this automitically which
+            works well.
+        hand_scale: ndarray, (nexp,)
+            array of hand scale factors, not well tested
+        sn_min_polyscale: float, default=2.0
+            maximum SNR for perforing median scaling
+        sn_min_medscale: float, default=0.5
+            minimum SNR for perforing median scaling
+        debug: bool, default=False
+            show interactive QA plot
 
     Returns:
         tuple: (1) flux_scale: ndarray (nspec,) scaled spectrum; (2)
@@ -1134,7 +1169,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
         spectrum; (3) scale: ndarray (nspec,) scale factor applied to
         the spectrum and inverse variance; (4) scale_method: str, method
         that was used to scale the spectra.
-    '''
+    """
 
     if mask is None:
         mask = ivar > 0.0
@@ -1387,30 +1422,44 @@ def scale_spec_qa(wave, flux, ivar, wave_ref, flux_ref, ivar_ref, ymult, scale_m
     fig.suptitle(title)
     plt.show()
 
-def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack, mask_stack, outmask, norder=None, title='', qafile=None):
+# TODO: Change mask to gpm
+def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack, mask_stack,
+                  outmask, norder=None, title='', qafile=None):
     """
 
-    Routine to creqate QA for showing the individual spectrum compared to the combined stacked spectrum indicating
-     which pixels were rejected.
+    Routine to creqate QA for showing the individual spectrum
+    compared to the combined stacked spectrum indicating which pixels
+    were rejected.
+
     Args:
-        wave: ndarray, (nspec,)
-            wavelength array for spectrum of the exposure in question.
-        flux: ndarray, (nspec,)
-            flux for the exposure in question
-        ivar: ndarray, (nspec,)
-             inverse variance for the exposure in question
-        mask: ndarray, bool, (nspec,) optional
-             mask for the exposure in question True=Good. If not specified determined form inverse variance
-        flux_stack: ndarray (nspec,)
-             Stacked spectrum to be compared to the exposure in question.
-        ivar_ref: ndarray (nspec,)
-            inverse variance of the stacked spectrum
-        mask_ref: ndarray, bool, (nspec,)
-            mask for stacked spectrum
-        norder: int, default=None, Indicate the number of orders if this is an echelle stack
-        title (str):
-            plot title
-        qafile: QA file name
+        wave (`numpy.ndarray`_):
+            Wavelength array for spectrum of the exposure in
+            question. Shape is (nspec,).
+        flux (`numpy.ndarray`_):
+            Flux for the exposure in question. Shape is (nspec,).
+        ivar (`numpy.ndarray`_):
+             Inverse variance for the exposure in question. Shape is
+             (nspec,).
+        mask (`numpy.ndarray`_): 
+             Boolean array with mask for the exposure in question
+             True=Good. If not specified determined form inverse
+             variance.  Shape is (nspec,).
+        flux_stack (`numpy.ndarray`_):
+             Stacked spectrum to be compared to the exposure in
+             question. Shape is (nspec,).
+        ivar_stack (`numpy.ndarray`_): 
+            Inverse variance of the stacked spectrum. Shape is
+            (nspec,).
+        mask_stack (`numpy.ndarray`_):
+            Boolean array with mask for stacked spectrum. Shape is
+            (nspec,).
+        norder (:obj:`int`, optional):
+            Indicate the number of orders if this is an echelle
+            stack. If None, ...
+        title (:obj:`str`, optional):
+            Plot title
+        qafile (:obj:`str`, optional):
+            QA file name
 
     """
 

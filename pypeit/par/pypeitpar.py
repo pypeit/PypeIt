@@ -1016,12 +1016,10 @@ class SensFuncPar(ParSet):
 
         defaults['algorithm'] = 'UVIS'
         dtypes['algorithm'] = str
-        descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are:\n " \
-                             "\n" \
-                             "UVIS = Should be used for data with lambda < 7000A.\n" \
-                             "No detailed model of telluric absorption but corrects for atmospheric extinction.\n" \
-                             "\n" \
-                             "IR   = Should be used for data with lambbda > 7000A.\n" \
+        descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are: " \
+                             " (1) UVIS = Should be used for data with lambda < 7000A." \
+                             "No detailed model of telluric absorption but corrects for atmospheric extinction." \
+                             " (2) IR = Should be used for data with lambbda > 7000A." \
                              "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models."
 
 
