@@ -23,7 +23,7 @@ def test_init():
     # Test
     assert sobj.PYPELINE == 'MultiSlit'
     assert sobj['PYPELINE'] == 'MultiSlit'
-    assert sobj.name == 'SPAT-----SLIT0000-DET01'
+    assert sobj.NAME == 'SPAT-----SLIT0000-DET01'
     assert len(sobj._data.keys()) == 0
 
 
@@ -38,7 +38,7 @@ def test_assignment():
     sobj.SPAT_PIXPOS = 523.0
     sobj.PYPELINE = 'MultiSlit'
     sobj.set_name()
-    assert sobj.name == 'SPAT0523-SLIT0000-DET01'
+    assert sobj.NAME == 'SPAT0523-SLIT0000-DET01'
 
 
 def test_data():

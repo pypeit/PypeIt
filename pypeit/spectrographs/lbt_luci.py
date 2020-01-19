@@ -43,7 +43,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         # Scienceimage default parameters
         par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing

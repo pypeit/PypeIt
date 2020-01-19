@@ -40,8 +40,8 @@ from pypeit import msgs
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
+from pypeit.core import meta
 from pypeit.par import pypeitpar
-from pypeit.metadata import PypeItMetaData
 
 from IPython import embed
 
@@ -104,7 +104,7 @@ class Spectrograph(object):
 #        self._set_calib_par()
 
         # Init meta
-        self.meta_data_model = PypeItMetaData.get_meta_data_model()
+        self.meta_data_model = meta.get_meta_data_model()
         self.init_meta()
         self.validate_metadata()
 
@@ -229,7 +229,7 @@ class Spectrograph(object):
             list: Keys for header cards of spec1d
 
         """
-        core_meta = PypeItMetaData.define_core_meta()
+        core_meta = meta.define_core_meta()
         header_cards = list(core_meta.keys())
         # Add a few more
         header_cards += ['filename']  # For fluxing
@@ -367,7 +367,7 @@ class Spectrograph(object):
         """
         pypeit_keys = ['filename', 'frametype']
         # Core
-        core_meta = PypeItMetaData.define_core_meta()
+        core_meta = meta.define_core_meta()
         pypeit_keys += list(core_meta.keys())  # Might wish to order these
         # Add in config_keys (if new)
         for key in self.configuration_keys():
@@ -600,26 +600,32 @@ class Spectrograph(object):
         Validates the meta definitions of the Spectrograph
         by making a series of comparisons to the meta data model
         definied in metadata.py
-
-        Returns:
-
         """
         # Load up
-        core_meta = PypeItMetaData.define_core_meta()
-        meta_data_model = PypeItMetaData.get_meta_data_model()
+        # TODO: Can we indicate if the metadata element is core instead
+        # of having to call both of these?
+        core_meta = meta.define_core_meta()
+        # KBW: These should have already been defined to self
+        #meta_data_model = meta.get_meta_data_model()
+
         # Check core
-        for key in core_meta:
-            assert key in self.meta.keys(), \
-                'key {:s} not defined in spectrograph meta!'.format(key)
+        core_keys = np.array(list(core_meta.keys()))
+        indx = np.invert(np.isin(core_keys, list(self.meta.keys())))
+        if np.any(indx):
+            msgs.error('Required keys {0} not defined by spectrograph!'.format(core_keys[indx]))
+
         # Check for rtol for config keys that are type float
-        for key in self.configuration_keys():
-            if meta_data_model[key]['dtype'] in [float]:
-                assert 'rtol' in self.meta[key].keys(), \
-                    'rtol not set for key {:s} not defined in spectrograph meta!'.format(key)
+        config_keys = np.array(self.configuration_keys())
+        indx = ['rtol' not in self.meta[key].keys() if self.meta_data_model[key]['dtype'] == float 
+                    else False for key in config_keys]
+        if np.any(indx):
+            msgs.error('rtol not set for {0} keys in spectrograph meta!'.format(config_keys[indx]))
+
         # Now confirm all meta are in the data model
-        for key in self.meta.keys():
-            if key not in self.meta_data_model.keys():
-                msgs.error("Meta data {:s} not in meta_data_model".format(key))
+        meta_keys = np.array(list(self.meta.keys()))
+        indx = np.invert(np.isin(meta_keys, list(self.meta_data_model.keys())))
+        if np.any(indx):
+            msgs.error('Meta data keys {0} not in metadata model'.format(meta_keys[indx]))
 
     def get_headarr(self, inp, strict=True):
         """

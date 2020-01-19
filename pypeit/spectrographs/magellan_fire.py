@@ -354,7 +354,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['scienceimage']['maxnumber'] = 2
         par['scienceimage']['find_trim_edge'] = [50,50]
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing
