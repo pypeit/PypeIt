@@ -142,4 +142,3 @@ Developers
 
 For developers, see :doc:`development`.
 
-

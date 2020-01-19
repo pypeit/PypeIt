@@ -1,6 +1,13 @@
 
-0.12.2dev
+0.12.3dev
 ---------
+
+- Implemented DataContainer
+- Added fits I/O methods
+- Implemented SlitTraceSet
+
+0.12.2 (14 Jan 2019)
+--------------------
 
 - Introduces quick look scripts for MOS and NIRES
 - Bumps dependencies including Python 3.7
@@ -8,9 +15,6 @@
 - Refactor of ScienceImage Par into pieces
 - Finally dealt with 'random' windowing of Shane_kast_red
 - Dynamic namp setting for LRISr when instantiating Spectrograph
-- Implemented DataContainer
-- Added fits I/O methods
-- Implemented SlitTraceSet
 
 0.12.1 (07 Jan 2019)
 --------------------
