@@ -6,8 +6,12 @@
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
-- Refactored sensitivity function, fluxing, and coadding scripts and algorithms.
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
 - Added support for additional near-IR spectrographs.
+- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
+  key is not valid for the given parameter set.  NOTE: The check may
+  fail if there are identical keys for different parameter sets.
 
 
 0.12.2 (14 Jan 2019)
@@ -95,9 +99,6 @@
 - Include a mask in the line detection in extracted central arc spectrum
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
-- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
-  key is not valid for the given parameter set.  NOTE: The check may
-  fail if there are identical keys for different parameter sets.
 - Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
   construces a ``tslits_dict`` object directly from the Master file.
 
