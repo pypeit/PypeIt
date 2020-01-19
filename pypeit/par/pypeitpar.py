@@ -2586,8 +2586,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None,
-                 extraction=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2652,14 +2651,10 @@ class FindObjPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, trace_npoly=None, sig_thresh=None,
-                 find_trim_edge=None, find_cont_fit=None,
-                 find_npoly_cont=None, find_maxdev=None,
-                 find_extrap_npoly=None, maxnumber=None,
-                 find_fwhm=None, ech_find_max_snr=None,
-                 ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 skip_second_find=None
-                 ):
+    def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
+                 find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
+                 find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
+                 ech_find_nabove_min_snr=None, skip_second_find=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2769,10 +2764,7 @@ class SkySubPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self,
-                 bspline_spacing=None, sky_sigrej=None,
-                 global_sky_std=None, no_poly=None
-                 ):
+    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2842,11 +2834,9 @@ class ExtractionPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self,
-                 boxcar_radius=None, std_prof_nsigma=None,
-                 sn_gauss=None, model_full_slit=None, manual=None,
-                 skip_optimal=None
-                 ):
+    def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
+                 model_full_slit=None, manual=None, skip_optimal=None):
+
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())

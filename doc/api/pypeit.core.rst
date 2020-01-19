@@ -23,6 +23,7 @@ Submodules
    pypeit.core.flux_calib
    pypeit.core.framematch
    pypeit.core.load
+   pypeit.core.meta
    pypeit.core.moment
    pypeit.core.parse
    pypeit.core.pca

@@ -142,12 +142,12 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = True
 
         # Extraction
-        par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['sn_gauss'] = 4.0
+        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
+        par['scienceimage']['extraction']['sn_gauss'] = 4.0
         ## Do not perform global sky subtraction for standard stars
         ## FW: The slit is too wide and the target usually close to the center where is the boundary
         ## two detectors. global_sky will cause some problem sometime.
-        par['scienceimage']['global_sky_std']  = False
+        par['scienceimage']['skysub']['global_sky_std']  = False
 
         # Flexure
         par['flexure']['method'] = 'skip'
