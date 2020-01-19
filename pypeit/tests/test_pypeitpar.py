@@ -30,7 +30,7 @@ def test_flexure():
     pypeitpar.FlexurePar()
 
 def test_fluxcalibration():
-    pypeitpar.FluxCalibrationPar()
+    pypeitpar.FluxCalibratePar()
 
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
