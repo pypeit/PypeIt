@@ -21,7 +21,7 @@ def data_path(filename):
 @pytest.fixture
 @dev_suite_required
 def deimos_flat_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400', ifile)
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '830G_L_8400', ifile)
                 for ifile in ['d0914_0014.fits.gz', 'd0914_0015.fits.gz']]
 
 @dev_suite_required
