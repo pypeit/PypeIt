@@ -72,8 +72,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Checks
     if flux.ndim != 2:
         msgs.error('Trace image must be 2D.')
-    _bpm = np.zeros_like(flux, dtype=int) if bpm is None else bpm.astype(float)
-    if _bpm.shape != flux.shape:
+    if bpm is not None and bpm.shape != flux.shape:
         msgs.error('Mismatch in mask and trace image shapes.')
 
     # Specify how many times to repeat the median filter.  Even better
@@ -96,7 +95,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Filter with a Sobel
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
     # Apply the bad-pixel mask
-    filt *= (1.0 - _bpm)
+    if bpm is not None:
+        # NOTE: Casts to float because filt is float
+        filt *= (1.0 - bpm)
     # Significance of the edge detection
     sobel_sig = np.sign(filt)*np.power(filt,2)/np.maximum(sqmstrace, min_sqm)
 
@@ -120,11 +121,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
         _nave = np.fmin(grow_bpm, flux.shape[0])
         # Construct the kernel for mean calculation
         kernel = np.ones((1, _nave)) / float(_nave)
-        bpm_grow = ndimage.convolve(_bpm, kernel, mode='nearest') > 0.0
+        bpm_grow = ndimage.convolve(bpm.astype(float), kernel, mode='nearest') > 0.0
         edge_img *= (1 - bpm_grow)
         sobel_sig *= (1 - bpm_grow)
-        #edge_img *= (1 - _bpm)
-        #sobel_sig *= (1 - _bpm)
 
     return sobel_sig, edge_img
 
