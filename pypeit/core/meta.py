@@ -39,8 +39,8 @@ def define_core_meta():
     core_meta = OrderedDict()
 
     # Target
-    core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
-    core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+    core_meta['ra'] = dict(dtype=float, comment='(J2000) RA in decimal degrees')
+    core_meta['dec'] = dict(dtype=float, comment='(J2000) DEC in decimal degrees')
     core_meta['target'] = dict(dtype=str, comment='Name of the target')
 
     # Instrument related

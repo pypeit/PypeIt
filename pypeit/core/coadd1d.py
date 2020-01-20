@@ -27,9 +27,9 @@ from pypeit import utils
 from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit import msgs
-from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
+from pypeit.core import flux_calib
 
 # TODO: These shouldn't be here. They should be changed on a
 # plot-by-plot basis, and each plot should end with a recall of
@@ -2640,6 +2640,11 @@ class CoAdd1d(object):
         self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
         # Coadd the data
         self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
+        # Scale to a filter magnitude?
+        if self.par['filter'] != 'none':
+            scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.mask_coadd, self.par)
+            self.flux_coadd *= scale
+            self.ivar_coadd = self.ivar_coadd / scale**2
 
     def load(self):
         """

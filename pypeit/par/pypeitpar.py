@@ -686,7 +686,8 @@ class Coadd1DPar(ParSet):
     def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
                  sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
-                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None):
+                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
+                 mag_type=None, filter=None, filter_mag=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -807,6 +808,18 @@ class Coadd1DPar(ParSet):
         descr['nbest'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
                          'which will just use one fourth of the total number of orders. This is only used for Echelle'
 
+        # For scaling to an input filter magnitude
+        defaults['filter'] = 'none'
+        dtypes['filter'] = str
+        descr['filter'] = 'Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore if none'
+
+        defaults['mag_type'] = 'AB'
+        dtypes['mag_type'] = str
+        descr['mag_type'] = 'Magnitude type.  AB is the only option currently allowed'
+
+        defaults['filter_mag'] = None
+        dtypes['filter_mag'] = float
+        descr['filter_mag'] = 'Magnitude of the source in the given filter'
 
         # JFH These last two are actually arguments and not parameters that are only here because there is no other easy
         # way to parse .coadd1d files except with parsets. I would like to separate arguments from parameters.
@@ -833,7 +846,8 @@ class Coadd1DPar(ParSet):
         parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method',
                    'samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
-                   'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile']
+                   'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile',
+                   'filter', 'mag_type', 'filter_mag']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

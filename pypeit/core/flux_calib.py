@@ -1207,7 +1207,7 @@ def load_filter_file(filter):
     # Return
     return wave, instr
 
-def scale_in_filter(xspec, scale_dict):
+def scale_in_filter(wave, flux, gdm, scale_dict):
     """
     Scale spectra to input magnitude in given filter
 
@@ -1218,33 +1218,32 @@ def scale_in_filter(xspec, scale_dict):
       - 'masks' (list, optional): Wavelength ranges to mask in calculation
 
     Args:
-        xspec (linetools.spectra.xspectrum1d.XSpectrum1D):
-        scale_dict (dict):
+        wave (np.ndarray):
+        flux (np.ndarray):
+        gdm (np.ndarray):
+            True is good
+        scale_dict (dict like):
+            Requires mag_type, filter, filter_mag
 
     Returns:
-        linetools.spectra.xspectrum1d.XSpectrum1D, float:  Scaled spectrum
+        float: scale value for the flux, i.e. newflux = flux * scale
     """
     # Parse the spectrum
-    sig = xspec.sig
-    gdx = sig > 0.
-    wave = xspec.wavelength.value[gdx]
-    flux = xspec.flux.value[gdx]
+    wave = wave[mask]
+    flux = flux[mask]
 
     # Mask further?
-    if 'masks' in scale_dict:
-        if scale_dict['masks'] is not None:
-            gdp = np.ones_like(wave, dtype=bool)
-            for mask in scale_dict['masks']:
-                bad = (wave > mask[0]) & (wave < mask[1])
-                gdp[bad] = False
-            # Cut again
-            wave = wave[gdp]
-            flux = flux[gdp]
-
-    if ('mag_type' in scale_dict) | (scale_dict['mag_type'] is not None):
-        mag_type = scale_dict['mag_type']
-    else:
-        mag_type = 'AB'
+    # Not IMPLEMENTED RIGHT NOW
+    #if 'masks' in scale_dict:
+    #    if scale_dict['masks'] is not None:
+    #        gdp = np.ones_like(wave, dtype=bool)
+    #        for mask in scale_dict['masks']:
+    #            bad = (wave > mask[0]) & (wave < mask[1])
+    #            gdp[bad] = False
+    #        # Cut again
+    #        wave = wave[gdp]
+    #        flux = flux[gdp]
+    mag_type = scale_dict['mag_type']
 
     # Grab the instrument response function
     fwave, trans = load_filter_file(scale_dict['filter'])
@@ -1263,15 +1262,14 @@ def scale_in_filter(xspec, scale_dict):
         # Apparent AB
         AB = -2.5 * np.log10(fnu.to('erg/s/cm**2/Hz').value) - 48.6
         # Scale factor
-        Dm = AB - scale_dict['mag']
+        Dm = AB - scale_dict['filter_mag']
         scale = 10**(Dm/2.5)
+        embed(header='1267 of flux_calib')
         msgs.info("Scaling spectrum by {}".format(scale))
-        # Generate
-        new_spec = XSpectrum1D.from_tuple((xspec.wavelength, xspec.flux*scale, xspec.sig*scale))
     else:
-        msgs.error("Need a magnitude for scaling")
+        msgs.error("Bad magnitude type")
 
-    return new_spec,scale
+    return scale
 
 
 def generate_sensfunc_old(wave, counts, counts_ivar, airmass, exptime, longitude, latitude, telluric=True, star_type=None,
