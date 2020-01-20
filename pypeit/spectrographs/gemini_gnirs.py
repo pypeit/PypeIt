@@ -315,16 +315,12 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         order_platescale: ndarray, float
 
         """
-<<<<<<< HEAD
-        return np.full(order_vec.size, 0.15)
-=======
         if '10/mmLBSX' in self.dispname:
             return np.full(order_vec.size, 0.05)
         elif '32/mm' in self.dispname:
             return np.full(order_vec.size, 0.15)
         else:
             msgs.error('Unrecognized disperser')
->>>>>>> deimos_merge3
 
     @property
     def norders(self):
