@@ -261,9 +261,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         hdu = fits.open(fil[0])
         head0 = hdu[0].header
         raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
+        gain_img = self.detector[det-1]['gain']
 
         # Some properties of the image
         numamps = head0['NVIDINP']
+        gainmul, gainarr = head0['GAINMUL'], []
         # Exposure time (used by ProcessRawImage)
         headarr = self.get_headarr(hdu)
         exptime = self.get_meta_value(headarr, 'exptime')
@@ -280,6 +282,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
+            gain_img = np.zeros(raw_img.shape, dtype=int)
             for i in range(numamps):
                 # Get the data section
                 sec = head0[section+"{0:1d}".format(i+1)]
@@ -288,6 +291,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
                                           include_end=include_last, require_dim=2,
                                           binning=binning_raw)
+
+                if section == 'DSEC':  # Only do this once
+                    # Assign the gain for this amplifier
+                    gainarr += [head0["GAIN{0:1d}".format(i+1)]*gainmul]
+
                 # Assign the amplifier
                 pix_img[datasec] = i+1
             # Finish
@@ -295,6 +303,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 rawdatasec_img = pix_img.copy()
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
+
+        # Update detector parameters
+        self.set_detector_par('gain', det, gainarr)
 
         # Return
         return raw_img, hdu, exptime, rawdatasec_img, oscansec_img

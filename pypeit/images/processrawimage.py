@@ -233,7 +233,7 @@ class ProcessRawImage(object):
 
         # Generate a PypeItImage
         pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning,
-                                                       ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
+                                              ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
         # Mask(s)
         if 'crmask' in process_steps:
             if 'extras' in process_steps:

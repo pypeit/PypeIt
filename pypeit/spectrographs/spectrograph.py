@@ -27,6 +27,7 @@ provide instrument-specific:
 .. include:: ../links.rst
 """
 import os
+from copy import deepcopy
 import warnings
 
 from abc import ABCMeta
@@ -602,6 +603,23 @@ class Spectrograph(object):
             debugger.set_trace()
         # Return
         return value
+
+    def set_detector_par(self, par, det, value):
+        """
+        Update or set a parameter in the detector array
+
+        Args:
+            par (str):
+              Parameter that needs to be updated
+            det: int
+              Detector number
+            value: any type
+              Updated value to assign parameter 'par'
+
+        """
+        # Update the value
+        self.detector[det-1][par] = deepcopy(value)
+        return
 
     def validate_metadata(self):
         """
