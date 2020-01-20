@@ -249,6 +249,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['standardframe']['process']['bias'] = 'skip'
         par['scienceframe']['process']['bias'] = 'skip'
 
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
+
+
 
         return par
 
@@ -397,7 +403,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         return np.log10(9500.0), np.log10(26000)
 
 
-
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
@@ -495,6 +500,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par
 
@@ -608,6 +618,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         if det == 1:
             bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return bpm_img
+
 
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):

@@ -161,7 +161,8 @@ def main(args):
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg, bitmask=mask_in, clear=True)
                                   #, cuts=(cut_min, cut_max), wcs_match=True)
-    show_trace(sobjs, args.det, viewer, ch)
+    if sobjs is not None:
+        show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                      #, args.det)
 

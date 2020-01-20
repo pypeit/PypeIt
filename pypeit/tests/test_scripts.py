@@ -176,6 +176,11 @@ def test_chk_flat():
 
 def test_coadd():
     coadd_file = data_path('coadd_UGC3672A_red.yaml')
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_file]))
+    return
+
+    # TODO: Should then read in and check the results
+
     args = coadd_1dspec.parser([coadd_file])
     # Main
     gparam, ex_value, flux_value, iobj, outfile, files, local_kwargs \
@@ -197,6 +202,11 @@ def test_coadd2():
     """ Test using a list of object names
     """
     coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_file]))
+    return
+
+    # TODO: Should then read in and check the results
+
     args = coadd_1dspec.parser([coadd_file])
     # Main
     gparam, ex_value, flux_value, iobj, outfile, files, obj_kwargs \
