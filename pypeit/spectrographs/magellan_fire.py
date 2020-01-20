@@ -1,7 +1,12 @@
-""" Module for Magellan/FIRE specific codes
+"""
+Module for Magellan/FIRE specific codes
+
 Important Notes:
-   If you are reducing old FIRE data (before the broken happened in 2016), please change the ord_spat_pos array
-   (see lines from ~220 to ~230)
+
+    - If you are reducing old FIRE data (before the broken happened
+      in 2016), please change the ord_spat_pos array (see lines from
+      ~220 to ~230)
+
 """
 import numpy as np
 
@@ -184,7 +189,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['pca_order'] = 3
 
         # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        par['scienceimage'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
@@ -350,11 +355,11 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Scienceimage parameters
-        par['scienceimage']['sig_thresh'] = 5
-        par['scienceimage']['maxnumber'] = 2
-        par['scienceimage']['find_trim_edge'] = [50,50]
+        par['scienceimage']['findobj']['sig_thresh'] = 5
+        #par['scienceimage']['maxnumber'] = 2
+        par['scienceimage']['findobj']['find_trim_edge'] = [50,50]
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing

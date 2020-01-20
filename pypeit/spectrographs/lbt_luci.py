@@ -41,9 +41,9 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 
 
         # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
+        par['scienceimage'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
@@ -286,14 +286,14 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
         # Extraction
         # Model full slit currently turned on
-        par['scienceimage']['model_full_slit'] = False
+        par['scienceimage']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard, trying 100 (30
         # was standard
-        par['scienceimage']['std_prof_nsigma'] = 100.
+        par['scienceimage']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['global_sky_std'] = True
-        par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['sn_gauss'] = 4.0
+        par['scienceimage']['skysub']['global_sky_std'] = True
+        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
+        par['scienceimage']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
@@ -392,13 +392,13 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         # Extraction
         # Model full slit currently turned on
-        par['scienceimage']['model_full_slit'] = True
+        par['scienceimage']['extraction']['model_full_slit'] = True
         # Tailored profile nsigma parameter for the standard
-        par['scienceimage']['std_prof_nsigma'] = 100.
+        par['scienceimage']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['global_sky_std'] = False
-        par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['sn_gauss'] = 4.0
+        par['scienceimage']['skysub']['global_sky_std'] = False
+        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
+        par['scienceimage']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'

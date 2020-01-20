@@ -29,8 +29,23 @@ def test_flatfield():
 def test_flexure():
     pypeitpar.FlexurePar()
 
-def test_fluxcalibration():
-    pypeitpar.FluxCalibrationPar()
+def test_coadd1d():
+    pypeitpar.Coadd1DPar()
+
+def test_coadd2d():
+    pypeitpar.Coadd2DPar()
+
+def test_fluxcalibrate():
+    pypeitpar.FluxCalibratePar()
+
+def test_sensfunc():
+    pypeitpar.SensFuncPar()
+
+def test_sensfuncuvis():
+    pypeitpar.SensfuncUVISPar()
+
+def test_telluric():
+    pypeitpar.TelluricPar()
 
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
@@ -42,9 +57,6 @@ def test_spectrographs():
 def test_redux():
     pypeitpar.ReduxPar()
 
-def test_reduce():
-    pypeitpar.ReducePar()
-
 def test_wavelengthsolution():
     pypeitpar.WavelengthSolutionPar()
 
@@ -53,6 +65,18 @@ def test_edgetrace():
 
 def test_wavetilts():
     pypeitpar.WaveTiltsPar()
+
+def test_reduce():
+    pypeitpar.ReducePar()
+
+def test_findobj():
+    pypeitpar.FindObjPar()
+
+def test_skysub():
+    pypeitpar.SkySubPar()
+
+def test_extraction():
+    pypeitpar.ExtractionPar()
 
 def test_calibrations():
     pypeitpar.CalibrationsPar()

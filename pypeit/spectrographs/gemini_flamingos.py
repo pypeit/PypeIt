@@ -1,7 +1,5 @@
-""" Module for Magellan/FIRE specific codes
-Important Notes:
-   If you are reducing old FIRE data (before the broken happened in 2016), please change the ord_spat_pos array
-   (see lines from ~220 to ~230)
+"""
+Module for Gemini flamingos
 """
 import numpy as np
 
@@ -156,10 +154,10 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         # Scienceimage parameters
         #par['scienceimage']['sig_thresh'] = 5
         #par['scienceimage']['maxnumber'] = 2
-        par['scienceimage']['sky_sigrej'] = 5.0
-        par['scienceimage']['find_trim_edge'] = [10,10]
+        par['scienceimage']['skysub']['sky_sigrej'] = 5.0
+        par['scienceimage']['findobj']['find_trim_edge'] = [10,10]
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
         par['flexure'] = None
 
@@ -305,11 +303,13 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Scienceimage parameters
-        par['scienceimage']['sig_thresh'] = 5
-        par['scienceimage']['maxnumber'] = 2
-        par['scienceimage']['find_trim_edge'] = [50,50]
+        par['scienceimage']['findobj']['sig_thresh'] = 5
+        # TODO: I think this parameter was removed
+        #par['scienceimage']['maxnumber'] = 2
+        par['scienceimage']['findobj']['find_trim_edge'] = [50,50]
+
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
         par['flexure'] = None
         # Set the default exposure time ranges for the frame typing
