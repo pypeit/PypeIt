@@ -1228,22 +1228,23 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
     Returns:
         float: scale value for the flux, i.e. newflux = flux * scale
     """
-    # Parse the spectrum
-    wave = wave[mask]
-    flux = flux[mask]
 
     # Mask further?
-    # Not IMPLEMENTED RIGHT NOW
-    #if 'masks' in scale_dict:
-    #    if scale_dict['masks'] is not None:
-    #        gdp = np.ones_like(wave, dtype=bool)
-    #        for mask in scale_dict['masks']:
-    #            bad = (wave > mask[0]) & (wave < mask[1])
-    #            gdp[bad] = False
-    #        # Cut again
-    #        wave = wave[gdp]
-    #        flux = flux[gdp]
+    if scale_dict['filter_mask'] is not None:
+        # Funny formatting
+        if isinstance(scale_dict['filter_mask'], str):
+            regions = scale_dict['filter_mask'].split(',')
+        else:
+            regions = scale_dict['filter_mask']
+        for region in regions:
+            mask = region.split(':')
+            bad = (wave > float(mask[0])) & (wave < float(mask[1]))
+            gdm[bad] = False
     mag_type = scale_dict['mag_type']
+
+    # Parse the spectrum
+    wave = wave[gdm]
+    flux = flux[gdm]
 
     # Grab the instrument response function
     fwave, trans = load_filter_file(scale_dict['filter'])
@@ -1251,7 +1252,7 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
 
     # Convolve
     allt = tfunc(wave)
-    wflam = np.sum(flux*allt) / np.sum(allt) * PYPEIT_FLUX_SCALE * units.erg/units.s/units.cm**2/units.AA
+    wflam = np.sum(flux*allt)/np.sum(allt)* PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.AA
 
     mean_wv = np.sum(fwave*trans)/np.sum(trans) * units.AA
 
@@ -1264,7 +1265,6 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
         # Scale factor
         Dm = AB - scale_dict['filter_mag']
         scale = 10**(Dm/2.5)
-        embed(header='1267 of flux_calib')
         msgs.info("Scaling spectrum by {}".format(scale))
     else:
         msgs.error("Bad magnitude type")
