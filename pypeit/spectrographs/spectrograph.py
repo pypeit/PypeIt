@@ -561,7 +561,7 @@ class Spectrograph(object):
         # RA, DEC specially handled (sometimes they are decimal deg sometimes not!)
         if meta_key in ['ra','dec'] and not castable:
             if ':' not in value:
-                pass  # Assumed missing from header
+                msgs.error("Not sure how we got here.  Instrument specific coming")
             else:
                 ra = headarr[self.meta['ra']['ext']][self.meta['ra']['card']].strip()
                 dec = headarr[self.meta['dec']['ext']][self.meta['dec']['card']].strip()
