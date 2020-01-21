@@ -120,6 +120,7 @@ from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
+from pypeit import slittrace
 # TODO: Commented until EdgeTraceSet becomes a DataContainer
 #from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
@@ -214,7 +215,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
     then check if the trace exists and load it::
     
         edges = EdgeTraceSet(spec, par)
-        if edges.exists():
+        if edges.exists:
             edges.load()
 
     or you can attempt to load directly on instantiation::
@@ -1073,6 +1074,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   - PCA type, used for rebuilding the PCA when loading
         prihdr['PCATYPE'] = ('None' if self.pca is None else self.pca_type,
                              'PypeIt: Edge trace PCA type')
+        #   - The dispersion name is needed to setup some spectrographs
+        prihdr['DISPNAME'] = (self.spectrograph.dispname, 'Spectrograph disperser')
         #   - Indicate the type if fit (TODO: Keep the fit parameters?)
         fithdr = fits.Header()
         fithdr['FITTYP'] = 'None' if self.spat_fit_type is None else self.spat_fit_type
@@ -1125,9 +1128,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
             else:
                 hdu += [self.pca.to_hdu()]
-        if self.is_synced:
-            # Only write the slits datamodel if the edges have been synced
-            hdu += self.get_slits().to_hdu()
+        # TODO: These things are going to go in slittrace.SlitTraceSet
         if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
@@ -1183,20 +1184,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 raised by :func:`_reinit`).
         """
         # Check the file exists
-        if not self.exists():
+        if not self.exists:
             msgs.error('File does not exit: {0}'.format(self.master_file_path))
         with fits.open(self.master_file_path) as hdu:
             # Re-initialize and validate
             self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
-
-    def exists(self):
-        """
-        Check if the output file already exists.
-
-        Returns:
-            bool
-        """
-        return os.path.isfile(self.master_file_path)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=False):
@@ -1266,17 +1258,22 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
         if len(self.files) == 0:
             self.files = None
-        self.img = hdu['TRACEIMG'].data
+
+        # TODO: These now case back to float64, regardless of how they
+        # were written (typically float32). Not sure this is a great
+        # idea, but I put it here so that get_slits always casts to
+        # float64.  Not exactly sure what make sense...
+        self.img = hdu['TRACEIMG'].data.astype(float)
         self.nspec, self.nspat = self.img.shape
         self.bpm = hdu['TRACEBPM'].data.astype(bool)
         self.det = hdu[0].header['DET']
         self.binning = hdu[0].header['BINNING']
-        self.sobel_sig = hdu['SOBELSIG'].data
+        self.sobel_sig = hdu['SOBELSIG'].data.astype(float)
         self.traceid = hdu['TRACEID'].data
-        self.spat_cen = hdu['CENTER'].data
-        self.spat_err = hdu['CENTER_ERR'].data
+        self.spat_cen = hdu['CENTER'].data.astype(float)
+        self.spat_err = hdu['CENTER_ERR'].data.astype(float)
         self.spat_msk = hdu['CENTER_MASK'].data
-        self.spat_fit = hdu['CENTER_FIT'].data
+        self.spat_fit = hdu['CENTER_FIT'].data.astype(float)
         self.spat_fit_type = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
                                 else hdu['CENTER_FIT'].header['FITTYP']
         # Get the design and object data if they exist
@@ -1308,8 +1305,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.pca = [ TracePCA.from_hdu(hdu[ext]) for ext in ['LPCA', 'RPCA']] \
                             if self.par['left_right_pca'] else TracePCA.from_hdu(hdu['PCA'])
 
+        # Read the disperser if necessary
+        if self.spectrograph.dispname is None:
+            self.spectrograph.dispname = hdu[0].header['DISPNAME']
+
+        # Read the log
         self.log = io.parse_hdr_key_group(hdu[0].header, prefix='LOG')
 
+        # Reinit the left and right sobel images
         self.sobel_sig_left = None
         self.sobel_sig_right = None
 
@@ -1333,6 +1336,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Test the spectrograph is the same
         if self.spectrograph.spectrograph != hdu[0].header['PYP_SPEC']:
             msgs.error('Data used for this master frame was from a different spectrograph!')
+
+        # Check that the disperser is correct. NOTE: If disperser was
+        # None when this method was called, this will automatically be
+        # true.
+        if self.spectrograph.dispname != hdu[0].header['DISPNAME']:
+            msgs.error('Current spectrograph disperser does not match file data.')
 
         # Test the parameters used are the same
         par = EdgeTracePar.from_header(hdu[0].header)
@@ -3806,38 +3815,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             return None
-        return self._get_fully_masked_traces(self.spat_msk, self.bitmask, flag=flag,
-                                             exclude=exclude)
-
-    @staticmethod
-    def _get_fully_masked_traces(mask, bm, flag=None, exclude=None):
-        """
-        Helper function for :func:`fully_masked_traces`, allowing for
-        the masking to be performed by :func:`load_to_tslits_dict`.
-
-        Args:
-            mask (`numpy.ndarray`_):
-                Integer array with bitmask values.
-            bm (:class:`pypeit.bitmask.BitMask`):
-                Object used to interpret the bitmask array values.
-            flag (:obj:`str`, :obj:`list`, optional):
-                The bit mask flags to select. If None, any flags are
-                used. See :func:`pypeit.bitmask.Bitmask.flagged`.
-            exclude (:obj:`str`, :obj:`list`, optional):
-                A set of flags to explicitly exclude from
-                consideration as a masked trace. I.e., if any
-                spectral pixel in the trace is flagged with one of
-                these flags, it will not be considered a fully masked
-                trace. This is typically used to exclude inserted
-                traces from being considered as a bad trace.
-
-        Returns:
-            `numpy.ndarray`_: Boolean array selecting traces that are
-            flagged at all spectral pixels.
-        """
-        bpm = np.all(bm.flagged(mask, flag=flag), axis=0)
+        bpm = np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
         if exclude is not None:
-            bpm &= np.invert(np.any(bm.flagged(mask, flag=exclude), axis=0))
+            bpm &= np.invert(np.any(self.bitmask.flagged(self.spat_msk, flag=exclude), axis=0))
         return bpm
     
     def mask_refine(self, design_file=None, allow_resync=False, debug=False):
@@ -4256,196 +4236,37 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
     def get_slits(self):
         """
-        Use the data to construct and return a :class:`pypeit.slits.SlitTraceSet`
+        Use the data to instatiate the relevant
+        :class:`pypeit.slittrace.SlitTraceSet` object.
+
+        The traced edges must have first been organized into slits;
+        see :func:`sync`.
+
+        The :class:`pypeit.slittrace.SlitTraceSet` object will use
+        the same :attr:`master_key`, :attr:`master_dir`, and
+        :attr:`reuse_masters` as this parent :class:`EdgeTraceSet`
         object.
         """
         if not self.is_synced:
             msgs.error('Edges must be synced to construct SlitTraceSet object.')
 
+        # Select the good traces
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
 
+        # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.binning)
         slitspat = slit_spat_pos(left, right, self.nspat)
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
-        return slits.SlitTraceSet(left, right, nspat=self.nspat,
-                                  spectrograph=self.spectrograph.spectrograph, specmin=specmin,
-                                  specmax=specmax, binspec=binspec, binspat=binspat,
-                                  pad=self.par['pad'])
-
-    def load_slits(self):
-        """
-        Load the slit data from the master file.
-        """
-        if not self.exists():
-            msgs.error('File does not exit: {0}'.format(self.master_file_path))
-        return SlitTraceSet.from_file(self.master_file_path)
-
-    def convert_to_tslits_dict(self):
-        """
-        Stop-gap function to construct the old tslits_dict object.
-        """
-        # To construct at tslits_dict, the traces must be left-right
-        # synchronized.
-        if not self.is_synced:
-            msgs.error('Edges must be synced to construct tslits_dict.')
-
-        tslits_dict = {}
-
-        # Find the traces that are *not* fully masked. This will catch
-        # slits that are masked as too short but not clipped because of
-        # par['sync_clip'] = False.
-        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                 exclude=self.bitmask.exclude_flags))
-
-        tslits_dict['slit_left_orig'] = self.spat_fit[:,gpm & self.is_left]
-        tslits_dict['slit_righ_orig'] = self.spat_fit[:,gpm & self.is_right]
-
-        tslits_dict['slit_left'] = self.spat_fit[:,gpm & self.is_left]
-        tslits_dict['slit_righ'] = self.spat_fit[:,gpm & self.is_right]
-
-        nslits = tslits_dict['slit_left'].shape[1]
-
-        tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
-        tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
-        tslits_dict['nspec'] = self.nspec
-        tslits_dict['nspat'] = self.nspat
-        tslits_dict['nslits'] = nslits
-        tslits_dict['pad'] = self.par['pad']
-        tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
-        tslits_dict['spectrograph'] = self.spectrograph.spectrograph
-        tslits_dict['spec_min'], tslits_dict['spec_max'] = self.spec_min, self.spec_max
-        tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
-                                          binspectral=tslits_dict['binspectral'])
-
-
-        return tslits_dict
-
-    @staticmethod
-    def load_to_tslits_dict(filename): 
-        """
-        Use the saved master file to construct the ``tslits_dict``
-        dictionary.
-
-        Args:
-            filename (:obj:`str`):
-                Name of the master file
-        
-        Returns:
-            dict: The nominal tslits_dict object.
-        """
-        if not os.path.isfile(filename):
-            raise FileNotFoundError('{0} does not exist.'.format(filename))
-
-        with fits.open(filename) as hdu:
-
-            # Find the traces that are *not* fully masked. This will
-            # catch slits that are masked as too short but not clipped
-            # because of par['sync_clip'] = False.
-            gpm = EdgeTraceSet._get_fully_masked_traces(hdu['CENTER_MASK'].data, EdgeTraceSet.bitmask,
-                                                        flag=EdgeTraceSet.bitmask.bad_flags,
-                                                        exclude=EdgeTraceSet.bitmask.exclude_flags)
-            is_left = hdu['TRACEID'].data < 0
-            is_right = hdu['TRACEID'].data > 0
-
-            tslits_dict = {}
-            tslits_dict['slit_left_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
-            tslits_dict['slit_righ_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
-
-            tslits_dict['slit_left'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
-            tslits_dict['slit_righ'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
-            tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
-
-            nslits = tslits_dict['slit_left'].shape[1]
-            tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
-
-            tslits_dict['nspec'], tslits_dict['nspat'] = hdu['TRACEIMG'].data.shape
-            tslits_dict['nslits'] = nslits
-            tslits_dict['binspectral'], tslits_dict['binspatial'] \
-                    = parse.parse_binning(hdu[0].header['BINNING'])
-
-            spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
-            tslits_dict['spectrograph'] = spec.spectrograph
-            slitspat = slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'],
-                                     self.nspec, self.nspat)
-            tslits_dict['spec_min'], tslits_dict['spec_max'] \
-                    = spec.slit_minmax(slitspat, binspectral=tslits_dict['binspectral'])
-
-            indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
-            if not np.any(indx):
-                raise ValueError('Could not find padding parameter in header.')
-            if np.sum(indx) != 1:
-                raise ValueError('More than one header includes "EdgeTracePar: pad" in comment.')
-            tslits_dict['pad'] = hdu[0].header[int(np.where(indx)[0][0])]
-
-            return tslits_dict
-
-    @classmethod
-    def from_tslits_dict(cls, tslits_dict, master_key, master_dir):
-        """
-        Stop-gap function to instantiate insofar as it can from a
-        tslits_dict.
-        """
-        # Caveats:
-        #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
-        par = EdgeTracePar()
-        this = cls(load_spectrograph(tslits_dict['spectrograph']), par, master_key=master_key,
-                   master_dir=master_dir)
-        #   - img and sobel_sig should not be None
-        this.img = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
-        this.sobel_sig = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
-        this.bpm = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=bool)
-        this.nspec, this.nspat = this.img.shape
-        #   - May be able to parse the detector from the name of the
-        #   file, but just set it to 1 for now.
-        this.det = 1
-        this.binning = '{0},{1}'.format(tslits_dict['binspectral'], tslits_dict['binspatial'])
-        #   - Build the trace data
-        nslits = tslits_dict['slit_left'].shape[1]
-        #       - Force the input traces to be synced
-        if nslits != tslits_dict['slit_righ'].shape[1]:
-            msgs.error('Input dictionary has different number of left and right traces.')
-        #       - Initialize the trace arrays
-        this.traceid = np.append(-np.arange(nslits)-1, np.arange(nslits)+1)
-        this.spat_cen = np.hstack((tslits_dict['slit_left'], tslits_dict['slit_righ']))
-        #       - Resort them into synced pairs; assumes left and right
-        #         slits are correctly ordered in the input dictionary
-        srt = np.arange(2*nslits).reshape(2,-1).T.ravel()
-        this.traceid = this.traceid[srt]
-        this.spat_cen = this.spat_cen[:,srt]
-        # - Dummy data to produce a complete object
-        #   TODO: Refactor so that the object can be put in a
-        #   "read-only" state.  Then these attributes wouldn't need to
-        #   be defined, but this state would prohibit the execution of
-        #   some methods.
-        this.spat_fit = this.spat_cen.copy()
-        this.spat_fit_type = 'legendre'
-        this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
-        this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
-        this.spat_img = np.round(this.spat_cen).astype(int)
-        return this
-
-    def update_using_tslits_dict(self, tslits_dict):
-        """
-        Update the slit edges using a tslits_dict. This is a stop-gap
-        to allow for adjusting the slit traces based on the
-        flat-field.
-
-        Args:
-            tslits_dict (dict):
-        """
-        # If traces are updated, the PCA is no longer valid
-        self.pca = None
-        # Find the traces that are *not* fully masked
-        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
-        self.spat_fit[:, gpm & self.is_left] = tslits_dict['slit_left']
-        self.spat_fit[:, gpm & self.is_right] = tslits_dict['slit_righ']
-        self.spat_fit_type = 'tweaked'
-        # TODO: Resort?
+        # Instantiate and return
+        return slittrace.SlitTraceSet(left=left, right=right, nspat=self.nspat,
+                                      spectrograph=self.spectrograph.spectrograph, specmin=specmin,
+                                      specmax=specmax, binspec=binspec, binspat=binspat,
+                                      pad=self.par['pad'], master_key=self.master_key,
+                                      master_dir=self.master_dir, reuse=self.reuse_masters)
 
 
 # TODO: Move this to a core module?
@@ -4454,7 +4275,7 @@ def slit_spat_pos(left, right, nspat):
     Return a fidicial, normalized spatial coordinate for each slit.
 
     This is not a method for either :class:`EdgeTraceSet` or
-    :class:`SlitTraceSet` because both need it.
+    :class:`pypeit.slittrace.SlitTraceSet` because both need it.
         
     The fiducial coordinates are given by::
    

@@ -671,7 +671,7 @@ class Calibrations(object):
                                             master_dir=self.master_dir,
                                             qa_path=self.qa_path if write_qa else None)
 
-        if self.reuse_masters and self.edges.exists():
+        if self.reuse_masters and self.edges.exists:
             self.slits = self.edges.load_slits()
         else:
             # Build the trace image

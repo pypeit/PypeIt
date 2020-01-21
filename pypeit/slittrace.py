@@ -14,16 +14,40 @@ from pypeit import msgs
 from pypeit import masterframe
 from pypeit import datamodel
 
-class SlitTraceSet(datamodel.DataContainer):
+# NOTE: The main purpose behind having SlitTraceSet inherit from
+# MasterFrame is to maintain the file-name convention. This pairing of
+# base classes might now become common as we adopt DataContainer for
+# the main class objects. This means we need to be careful about the
+# uniqueness of the method names between DataContainer and MasterFrame;
+# in particular, I'm thinking of the to/from IO methods. We might want
+# to limit MasterFrame to essentially just be the class that maintains
+# our master-frame naming convention.
+class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
     """
     Defines a generic class for holding and manipulating image traces
     organized into left-right slit pairs.
 
     Instantiation arguments map directly to the object
-    :attr:`datamodel`.
+    :attr:`datamodel`. The only additional argument is ``load``,
+    described below.
+
+    :class:`SlitTraceSet` objects can be instantiated with only the
+    master-frame arguments. If this is done, it's expected that
+    you'll attempt to load an existing master frame, either using
+    ``load=True`` on instantiation or by a call to :func:`load`.
+    Otherwise, all the elements of the data model will be empty.
+
+    Args:
+        load (:obj:`bool`, optional):
+            Attempt to load an existing master frame with the slit
+            trace data.
+
     """
+    master_type = 'Slits'
+    """Name for type of master frame."""
     # Set the version of this class
     version = '1.0.0'
+    """SlitTraceSet data model version."""
     # Define the data model
     datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
                  'nspec': dict(otype=int,
@@ -68,15 +92,33 @@ class SlitTraceSet(datamodel.DataContainer):
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
-    def __init__(self, left, right, nspat=None, spectrograph=None, mask=None, specmin=None,
-                 specmax=None, binspec=1, binspat=1, pad=0):
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        super(SlitTraceSet, self).__init__({k: values[k] for k in args[1:]})
+    # TODO: May want to require that left and right not be None if load and reuse are False.
+    def __init__(self, left=None, right=None, nspat=None, spectrograph=None, mask=None,
+                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0, master_key=None,
+                 master_dir=None, reuse=False, load=False):
+
+        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+                                         master_key=master_key, file_format='fits.gz',
+                                         reuse_masters=reuse)
+
+        if load:
+            datamodel.DataContainer.__init__(self)
+            self.load()
+        else:
+            args, _, _, values = inspect.getargvalues(inspect.currentframe())
+            # The dictionary pass to DataContainer.__init__ does not
+            # contain self or the MasterFrame arguments.
+            # TODO: Does it matter if the calling function passes the
+            # keyword arguments in a different order?
+            datamodel.DataContainer.__init__(self, d={k: values[k] for k in args[1:-4]})
 
     def _validate(self):
         """
         Validate the slit traces.
         """
+        # Allow the object to be empty
+        if self.left is None or self.right is None:
+            return
         if self.left.shape != self.right.shape:
             raise ValueError('Input left and right traces should have the same shape.')
         if self.left.ndim == 1:
@@ -145,6 +187,50 @@ class SlitTraceSet(datamodel.DataContainer):
         always read from the 'SLITS' extension.
         """
         return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
+
+    def save(self, ofile=None, overwrite=False, checksum=True):
+        """
+        Save the slit trace data to a file.
+
+        This is a simple wrapper of
+        :func:`pypeit.datamodel.DataContainer.to_file` that writes
+        the data to the default master file, if no replacement
+        filename is provided.
+
+        Args:
+            ofile (:obj:`str`, optional):
+                Fits file for the data. File names with '.gz'
+                extensions will be gzipped; see
+                :func:`pypeit.io.write_to_fits`.
+            overwrite (:obj:`bool`, optional):
+                Flag to overwrite any existing file.
+            checksum (:obj:`bool`, optional):
+                Passed to `astropy.io.fits.HDUList.writeto`_ to add
+                the DATASUM and CHECKSUM keywords fits header(s).
+        """
+        self.to_file(self.master_file_path if ofile is None else ofile, overwrite=overwrite,
+                     checksum=checksum)
+
+    def load(self):
+        """
+        Load previously saved data.
+
+        If :func:`pypeit.masterframe.MasterFrame.chk_load_master`
+        correctly finds the master file, any existing data in this
+        object is replaced by the data in the master frame file.
+        """
+        ifile = self.chk_load_master(None)
+        if ifile is None:
+            return
+
+        msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
+
+        # Reset the object to be "uninitialized"
+        if self._init_key in self.__dict__:
+            del self.__dict__[self._init_key]
+        # Use DataContainer.from_file to read the data and use the
+        # result to overwrite the internal dictionary.
+        self.__dict__ = SlitTraceSet.from_file(ifile).__dict__
 
     def _set_slitids(self, specfrac=0.5):
         """

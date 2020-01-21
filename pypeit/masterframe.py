@@ -91,6 +91,16 @@ class MasterFrame(object):
         """
         return os.path.join(self.master_dir, self.file_name)
 
+    @property
+    def exists(self):
+        """
+        Check if the output file already exists.
+
+        Returns:
+            bool
+        """
+        return os.path.isfile(self.master_file_path)
+
     def chk_load_master(self, ifile):
         """
         Simple check to see if reuse_masters is set
@@ -111,9 +121,9 @@ class MasterFrame(object):
         _ifile = self.master_file_path if ifile is None else ifile
         if not self.reuse_masters:
             # User does not want to load masters
-            msgs.warn('PypeIt will not reuse masters!')
+            msgs.warn('You requested that PypeIt not reuse existing masters!')
             return
-        if not os.path.isfile(_ifile):
+        if not self.exists:
             # Master file doesn't exist
             msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
             return

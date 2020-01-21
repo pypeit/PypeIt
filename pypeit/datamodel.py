@@ -516,12 +516,16 @@ class DataContainer:
         Add a copy method
 
     Args:
-        d (:obj:`dict`):
+        d (:obj:`dict`, optional):
             Dictionary to copy to the internal attribute dictionary.
             All of the keys in the dictionary *must* be elements of
             the ``datamodel``. Any attributes that are not part of
             the ``datamodel`` can be set in the :func:`__init__` or
-            :func:`_validate` methods of a derived class.
+            :func:`_validate` methods of a derived class. If None,
+            the object is instantiated with all of the relevant data
+            model attributes but with all of those attributes set to
+            None.
+            
     """
 
     # Define the class version
@@ -579,29 +583,36 @@ class DataContainer:
     ``otype`` *cannot* be :obj:`dict`.
     """
 
-    def __init__(self, d):
+    def __init__(self, d=None):
         # Data model must be defined
         if self.datamodel is None:
             raise ValueError('Data model for {0} is undefined!'.format(self.__class__.__name__))
-
-        # Input dictionary cannot have keys that do not exist in the
-        # data model
-        if not np.all(np.isin(list(d.keys()), list(self.datamodel.keys()), assume_unique=True)):
-            raise AttributeError('Coding error: Initialization arguments do not match data model!')
 
         # Copy the dictionary
 #        self.__dict__ = copy.deepcopy(d)
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
-        # Assign the values provided by the input dictionary
-        self.__dict__.update(d)
 
-        # Validate the object
-        # TODO: _validate isn't the greatest name for this method...
-        self._validate()
+        # Include the provided data and build-out the data model, if
+        # data were provided
+        if d is not None:
 
-        # TODO: Confirm elements have otype and atypes consistent with
-        # the data model?
+            # Input dictionary cannot have keys that do not exist in
+            # the data model
+            if not np.all(np.isin(list(d.keys()), list(self.datamodel.keys()))):
+                raise AttributeError('Coding error: Initialization arguments do not match '
+                                     'data model!')
+
+            # Assign the values provided by the input dictionary
+            self.__dict__.update(d)
+
+            # Validate the object
+            # TODO: _validate isn't the greatest name for this
+            # method...
+            self._validate()
+
+            # TODO: Confirm elements have otype and atypes consistent
+            # with the data model?
 
         # Finalize the instantiation.
         # NOTE: The key added to `__dict__` by this call is always
@@ -610,6 +621,7 @@ class DataContainer:
         # is why I can check for `_DataContainer__initialised` is in
         # `self.__dict__`, even for derived classes. But is there a way
         # we could just check a boolean instead?
+        self._init_key = '_DataContainer__initialised'
         self.__initialised = True
 
         if self.version is None:
@@ -853,9 +865,9 @@ class DataContainer:
         """
         try:
             return self.__getitem__(item)
-        except KeyError:
+        except KeyError as e:
             raise AttributeError('{0} is not an attribute of {1}!'.format(item,
-                                    self.__class__.__name__))
+                                    self.__class__.__name__)) from e
 
     def __setattr__(self, item, value):
         """
@@ -878,7 +890,7 @@ class DataContainer:
                 self.__setitem__(item, value)
             except KeyError as e:
                 # Raise attribute error instead of key error
-                raise AttributeError(e)
+                raise AttributeError('{0} is not part of the data model!'.format(item)) from e
 
     def __setitem__(self, item, value):
         """
@@ -980,10 +992,11 @@ class DataContainer:
         # need to use the `__init__` of the base class instead. So
         # below, I get an empty instance of the derived class using
         # `__new__`, call the parent `__init__`, and then return the
-        # result. This is the first time I've used `__new__` so we may
-        # want to tread carefully, but it seems to work.
+        # result. The call to `DataContainer.__init__` is explicit to
+        # deal with objects inheriting from both DataContainer and
+        # other base classes, like MasterFrame.
         self = super().__new__(cls)
-        super(cls, self).__init__(cls._parse(hdu))
+        DataContainer.__init__(self, cls._parse(hdu))
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True):

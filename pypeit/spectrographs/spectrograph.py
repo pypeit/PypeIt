@@ -753,6 +753,14 @@ class Spectrograph(object):
     def norders(self):
         return None
 
+    def check_disperser(self):
+        """
+        Ensure that the disperser is defined.
+        """
+        if self.dispname is None:
+            msgs.error('Disperser used for observations is required.  Reinit with an example '
+                       'science frame.')
+
     @property
     def order_spat_pos(self):
         return None
