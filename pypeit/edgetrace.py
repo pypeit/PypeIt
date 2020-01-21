@@ -4258,7 +4258,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.binning)
-        slitspat = slit_spat_pos(left, right, self.nspat)
+        slitspat = slittrace.slit_spat_pos(left, right, self.nspat)
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return
@@ -4268,36 +4268,3 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                       pad=self.par['pad'], master_key=self.master_key,
                                       master_dir=self.master_dir, reuse=self.reuse_masters)
 
-
-# TODO: Move this to a core module?
-def slit_spat_pos(left, right, nspat):
-    r"""
-    Return a fidicial, normalized spatial coordinate for each slit.
-
-    This is not a method for either :class:`EdgeTraceSet` or
-    :class:`pypeit.slittrace.SlitTraceSet` because both need it.
-        
-    The fiducial coordinates are given by::
-   
-        nspec = left.shape[0]
-        (left[nspec//2,:] + right[nspec//2,:])/2/nspat
-
-    Args:
-        left (`numpy.ndarray`_):
-            Array with left slit edges. Shape is :math:`(N_{\rm
-            spec},N_{\rm slits})`.
-        right (`numpy.ndarray`_):
-            Array with right slit edges. Shape is :math:`(N_{\rm
-            spec},N_{\rm slits})`.
-        nspat (:obj:`int`):
-            Number of pixels in the spatial direction in the image
-            used to trace the slit edges.
-
-    Returns:
-        `numpy.ndarray`_: Vector with the list of floating point
-        spatial coordinates.
-    """
-    if left.shape != right.shape:
-        msgs.error('Left and right traces must have the same shape.')
-    nspec = left.shape[0]
-    return (left[nspec//2,:] + right[nspec//2,:])/2/nspat

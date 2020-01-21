@@ -21,6 +21,7 @@ from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
 from pypeit import edgetrace
+from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
@@ -585,11 +586,11 @@ class Calibrations(object):
             if self.save_masters:
                 self.flatField.save()
 
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                # TODO: Need to discuss how to save the tweaked slit
-                # edges (but also any changes to the slits that are
-                # masked by other steps)
-                # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                # If slits were tweaked by the slit illumination
+                # profile, re-write them so that the tweaked slits are
+                # included.
+                if self.par['flatfield']['tweak_slits']:
+                    self.slits.save()
 
 #                # If we tweaked the slits update the master files for tilts and slits
 #                # TODO: These should be saved separately
@@ -666,40 +667,46 @@ class Calibrations(object):
             return self.slits
 
         # Instantiate
-        self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
-                                            master_key=self.master_key_dict['trace'],
-                                            master_dir=self.master_dir,
-                                            qa_path=self.qa_path if write_qa else None)
+        self.slits = slittrace.SlitTraceSet(master_key=self.master_key_dict['trace'],
+                                            master_dir=self.master_dir, reuse=self.reuse_masters)
 
-        if self.reuse_masters and self.edges.exists:
-            self.slits = self.edges.load_slits()
+        if self.reuse_masters and self.slits.exists:
+            self.slits.load()
         else:
-            # Build the trace image
-            self.traceImage = traceimage.TraceImage(self.spectrograph,
-                                                    files=self.trace_image_files, det=self.det,
-                                                    par=self.par['traceframe'],
-                                                    bias=self.msbias)
-            self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
+                                                master_key=self.master_key_dict['trace'],
+                                                master_dir=self.master_dir,
+                                                qa_path=self.qa_path if write_qa else None)
 
-            try:
-                self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                      save=self.save_masters) #, debug=True, show_stages=True)
-            except:
-                self.edges.save()
-                msgs.error('Crashed out of finding the slits. Have saved the work done to disk '
-                           'but it needs fixing.')
-                return None
+            if self.reuse_masters and self.edges.exists:
+                self.edges.load()
+            else:
+                # Build the trace image
+                self.traceImage = traceimage.TraceImage(self.spectrograph,
+                                                        files=self.trace_image_files, det=self.det,
+                                                        par=self.par['traceframe'],
+                                                        bias=self.msbias)
+                self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
-            # Show the result if requested
-            if self.show:
-                self.edges.show(thin=10, in_ginga=True)
+                try:
+                    self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
+                                          save=self.save_masters) #, debug=True, show_stages=True)
+                except:
+                    self.edges.save()
+                    msgs.error('Crashed out of finding the slits. Have saved the work done to '
+                               'disk but it needs fixing.')
+                    return None
 
-            # Get the slits from the result of the edge tracing
+                # Show the result if requested
+                if self.show:
+                    self.edges.show(thin=10, in_ginga=True)
+
+            # Get the slits from the result of the edge tracing, delete
+            # the edges object, and save the slits, if requested
             self.slits = self.edges.get_slits()
-
-        # We're done with edge trace
-        # TODO: We don't have to do this...
-        self.edges = None
+            self.edges = None
+            if self.save_masters:
+                self.slits.save()
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)

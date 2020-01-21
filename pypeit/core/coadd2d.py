@@ -23,7 +23,7 @@ from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
 from pypeit import specobjs
-from pypeit import edgetrace
+from pypeit import slittrace
 from pypeit import reduce
 from pypeit.core import extract
 from pypeit.core import load, coadd1d, pixels
@@ -35,7 +35,7 @@ from pypeit import calibrations
 from pypeit.par import PypeItPar
 
 
-
+# TODO: Is this commented code still needed?
 #def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
 #    """
 #    Utility function for determining the reference trace about which 2d coadds are performed.
@@ -497,6 +497,7 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 # TODO Break up into separate methods?
+# TODO: Move this out of core
 
 class CoAdd2d(object):
 
@@ -610,10 +611,11 @@ class CoAdd2d(object):
         nslits_list = [slits.nslits for slits in self.stack_dict['slits_list']]
         if not len(set(nslits_list))==1:
             msgs.error('Not all of your exposures have the same number of slits. Check your inputs')
+        # TODO: Do the same check above but for the shape and binning
+        # of the input images?
         self.nslits = nslits_list[0]
         self.nexp = len(self.stack_dict['specobjs_list'])
-        self.nspec = nspec
-        # TODO: Check that the input all have the same binning
+        self.nspec = self.stack_dict['slits_list'][0].nspec
         self.binning = np.array([self.stack_dict['slits_list'][0].binspec,
                                  self.stack_dict['slits_list'][0].binspat])
 
@@ -763,7 +765,7 @@ class CoAdd2d(object):
 
         #slitcen = (slit_left + slit_righ)/2.0
 
-        slits_pseudo = edgetrace.SlitTraceSet(slit_left, slit_righ, nspat=nspat_pseudo,
+        slits_pseudo = slittrace.SlitTraceSet(slit_left, slit_righ, nspat=nspat_pseudo,
                                                     spectrograph=self.spectrograph.spectrograph,
                                                     specmin=spec_min1, specmax=spec_max1)
 
@@ -907,7 +909,7 @@ class CoAdd2d(object):
     def offset_slit_cen(self, slitid, offsets):
         # TODO: Check that slitid is available for all slit objects
         # TODO: Check that all slits have the same nspec
-        ref_trace_stack = np.zeros((self.stack_dict['slits_list'][0].nspec, len(offsets),
+        ref_trace_stack = np.zeros(self.stack_dict['slits_list'][0].nspec, len(offsets),
                                    dtype=float)
         for iexp, slits in enumerate(self.stack_dict['slits_list']):
             ref_trace_stack[:, iexp] = slits.center[:,slitid] - offsets[iexp]
@@ -993,7 +995,7 @@ class CoAdd2d(object):
             head2d_list.append(head)
             spec1d_files.append(f.replace('spec2d', 'spec1d'))
             tracefiles.append(os.path.join(master_path,
-                            '{0}.gz'.format(MasterFrame.construct_file_name('Edges', trace_key))))
+                            '{0}.gz'.format(MasterFrame.construct_file_name('Slits', trace_key))))
 #                                           MasterFrame.construct_file_name('Trace', trace_key)))
             waveimgfiles.append(os.path.join(master_path,
                                              MasterFrame.construct_file_name('Wave', wave_key)))
@@ -1060,7 +1062,7 @@ class CoAdd2d(object):
             # Slit Traces and slitmask
             # TODO: Don't understand this if statement
             if tracefile != tracefiles[ifile]:
-                slits = edgetrace.SlitTraceSet.from_file(tracefiles[ifile])
+                slits = slittrace.SlitTraceSet.from_file(tracefiles[ifile])
                 # Check the spectrograph names
                 # TODO: Should this be done here?
                 if slits.spectrograph != self.spectrograph.spectrograph:

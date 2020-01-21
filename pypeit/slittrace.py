@@ -40,8 +40,11 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
     Args:
         load (:obj:`bool`, optional):
             Attempt to load an existing master frame with the slit
-            trace data.
-
+            trace data. WARNING: If ``load`` is True, all of the slit
+            information provided to the initialization is ignored!
+            Only the arguments relevant to the
+            :class:`pypeit.masterframe.MasterFrame` components of
+            :class:`SlitTraceSet` are used.
     """
     master_type = 'Slits'
     """Name for type of master frame."""
@@ -97,10 +100,12 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0, master_key=None,
                  master_dir=None, reuse=False, load=False):
 
+        # Instantiate the MasterFrame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, file_format='fits.gz',
                                          reuse_masters=reuse)
 
+        # Instantiate the DataContainer
         if load:
             datamodel.DataContainer.__init__(self)
             self.load()
@@ -188,7 +193,10 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
         """
         return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
-    def save(self, ofile=None, overwrite=False, checksum=True):
+    # TODO: I think the default overwriting should be False everywhere.
+    # Until that happens, it's changed to True here to match other
+    # MasterFrames.
+    def save(self, ofile=None, overwrite=True, checksum=True):
         """
         Save the slit trace data to a file.
 
@@ -221,8 +229,10 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
         """
         ifile = self.chk_load_master(None)
         if ifile is None:
+            # chk_load_master writes all the relevant messages.
             return
-
+        
+        # Report
         msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
 
         # Reset the object to be "uninitialized"
@@ -507,4 +517,38 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
         tslits_dict['pad'] = self.pad
         return tslits_dict
 
+
+# TODO: Move this to a core module?
+def slit_spat_pos(left, right, nspat):
+    r"""
+    Return a fidicial, normalized spatial coordinate for each slit.
+
+    This is not a method in either
+    :class:`pypeit.edgetrace.EdgeTraceSet` or :class:`SlitTraceSet`
+    because both need it.
+        
+    The fiducial coordinates are given by::
+   
+        nspec = left.shape[0]
+        (left[nspec//2,:] + right[nspec//2,:])/2/nspat
+
+    Args:
+        left (`numpy.ndarray`_):
+            Array with left slit edges. Shape is :math:`(N_{\rm
+            spec},N_{\rm slits})`.
+        right (`numpy.ndarray`_):
+            Array with right slit edges. Shape is :math:`(N_{\rm
+            spec},N_{\rm slits})`.
+        nspat (:obj:`int`):
+            Number of pixels in the spatial direction in the image
+            used to trace the slit edges.
+
+    Returns:
+        `numpy.ndarray`_: Vector with the list of floating point
+        spatial coordinates.
+    """
+    if left.shape != right.shape:
+        msgs.error('Left and right traces must have the same shape.')
+    nspec = left.shape[0]
+    return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
