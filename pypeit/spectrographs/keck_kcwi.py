@@ -34,36 +34,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_kcwi_base'
         self.telescope = telescopes.KeckTelescopePar()
 
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for Keck KCWI reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        # Set wave tilts order
-        #par['calibrations']['slitedges']['edge_thresh'] = 15.
-        #par['calibrations']['slitedges']['fit_order'] = 3
-        #par['calibrations']['slitedges']['sync_center'] = 'gap'
-        #par['calibrations']['slitedges']['minimum_slit_length'] = 6
-        # 1D wavelengths
-        #par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always sky subtract, starting with default parameters
-        #par['scienceimage'] = pypeitpar.ScienceImagePar()
-
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        #par['flexure']['method'] = 'boxcar'
-
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 1]
-        par['calibrations']['darkframe']['exprng'] = [1, None]
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]  # This may be too low for KCWI
-        par['calibrations']['traceframe']['exprng'] = [None, 30]
-        par['scienceframe']['exprng'] = [29, None]
-        return par
-
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
@@ -282,7 +252,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
-            gain_img = np.zeros(raw_img.shape, dtype=int)
             for i in range(numamps):
                 # Get the data section
                 sec = head0[section+"{0:1d}".format(i+1)]
@@ -298,6 +267,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
                 # Assign the amplifier
                 pix_img[datasec] = i+1
+
             # Finish
             if section == 'DSEC':
                 rawdatasec_img = pix_img.copy()
@@ -357,11 +327,14 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         par['rdx']['spectrograph'] = 'keck_kcwi_blue'
         #par['flexure']['method'] = 'boxcar'
         # Set wave tilts order
-        #par['calibrations']['slitedges']['edge_thresh'] = 50.
-        #par['calibrations']['slitedges']['fit_order'] = 3
-        #par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
-        #par['calibrations']['slitedges']['minimum_slit_length'] = 4.
-        #par['calibrations']['slitedges']['sync_clip'] = False
+
+        # Set the slit edge parameters
+        par['calibrations']['slitedges']['edge_thresh'] = 20.
+        par['calibrations']['slitedges']['fit_order'] = 4
+        par['calibrations']['slitedges']['minimum_slit_gap'] = 3
+        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
+        par['calibrations']['slitedges']['det_min_spec_length'] = 0.1
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
 
         # 1D wavelength solution
         #par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -429,9 +402,6 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
-        .. todo::
-            Allow for binning changes.
-
         Parameters
         ----------
         det : int, REQUIRED
@@ -449,5 +419,46 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         # Fill in bad pixels if a master bias frame is provided
         if msbias is not None:
             return self.bpm_frombias(msbias, det, bpm_img)
+
+        # Extract some header info
+        msgs.info("Reading AMPMODE and BINNING from KCWI file: {:s}".format(filename))
+        head0 = fits.getheader(filename, ext=0)
+        ampmode = head0['AMPMODE']
+        binning = head0['BINNING']
+
+        # Construct a list of the bad columns
+        bc = None
+        if ampmode == 'ALL':
+            if binning == '1,1':
+                bc = [[3677, 3677, 2057, 2245]]
+            elif binning == '2,2':
+                bc = [[1839, 1839, 1029, 1122]]
+        elif ampmode == 'TBO':
+            if binning == '1,1':
+                bc = [[2623, 2623,  620,  688],
+                      [2740, 2740, 1749, 1861],
+                      [3296, 3301, 2557, 2561],
+                      [3676, 3677, 2244, 4112]]
+            elif binning == '2,2':
+                bc = [[1312, 1312,  311,  355],
+                      [1370, 1370,  877,  948],
+                      [1647, 1651, 1279, 1281],
+                      [1839, 1839, 1123, 2056]]
+        if ampmode == 'TUP':
+            if binning == '1,1':
+                bc = [[2623, 2623, 3493, 3529],
+                      [3296, 3301, 1551, 1556],
+                      [3677, 3677, 1867, 4112]]
+            elif binning == '2,2':
+                bc = [[1312, 1312, 1746, 1789],
+                      [1647, 1651,  776,  778],
+                      [1839, 1839,  934, 2056]]
+        if bc is None:
+            msgs.warn("Bad pixel mask is not available for ampmode={0:s} binning={1:s}".format(ampmode, binning))
+            bc = []
+
+        # Apply these bad columns to the mask
+        for bb in range(len(bc)):
+            bpm_img[bc[bb][0]:bc[bb][1]+1, bc[bb][2]:bc[bb][3]+1] = 1
 
         return bpm_img
