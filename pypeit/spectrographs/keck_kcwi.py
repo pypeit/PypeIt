@@ -421,7 +421,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
             return self.bpm_frombias(msbias, det, bpm_img)
 
         # Extract some header info
-        msgs.info("Reading AMPMODE and BINNING from KCWI file: {:s}".format(filename))
+        #msgs.info("Reading AMPMODE and BINNING from KCWI file: {:s}".format(filename))
         head0 = fits.getheader(filename, ext=0)
         ampmode = head0['AMPMODE']
         binning = head0['BINNING']
