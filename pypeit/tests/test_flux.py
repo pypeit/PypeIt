@@ -42,7 +42,7 @@ def data_path(filename):
 #    mask, tck = utils.robust_polyfit(wave, magfunc, 3, function='bspline',
 #                                       weights=np.sqrt(logivar), bspline_par=bspline_par)
 
-# TODO: This needs to be replaced with new tests of SensFunc
+# TODO: This needs to be replaced with new tests of SensFunc!!
 #def test_gen_sensfunc():
 #
 #    kastr = load_spectrograph('shane_kast_red')
