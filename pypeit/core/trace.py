@@ -103,6 +103,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # First edges assigned according to S/N
     # TODO: why not match the sign of the Sobel image to the edge it
     # traces? I.e., why is the sign flipped?
+    # Answer: I defined left as -1 (i.e. counting from left to right (-1, 0, +1) = (left, middle, right)
     tedges = np.zeros(flux.shape, dtype=np.float)
     tedges[np.where(sobel_sig > sigdetect)] = -1.0  # A positive gradient is a left edge
     tedges[np.where(sobel_sig < -sigdetect)] = 1.0  # A negative gradient is a right edge
