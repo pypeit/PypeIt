@@ -142,7 +142,14 @@ def main(args):
     # Load the file
     config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
     # Read in spectrograph from spec1dfile header
-    header = fits.getheader(spec1dfiles[0])
+    try:
+        header = fits.getheader(spec1dfiles[0])
+    except Exception as e:
+        print(spec1dfiles[0])
+        print(os.getcwd())
+        print(os.environ['TRAVIS_BUILD_DIR'])
+        raise Exception(e) from e
+
     spectrograph = load_spectrograph(header['PYP_SPEC'])
 
     # Parameters
