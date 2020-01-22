@@ -22,6 +22,8 @@ from pypeit import specobjs
 
 from pypeit.tests.tstutils import dummy_fitstbl
 
+from pypeit.pypmsgs import PypeItError
+
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
 
@@ -72,18 +74,17 @@ def test_find_standard():
     std_ra = '05:06:30.6'
     std_dec = '52:49:51.0'
     # Grab
-    std_dict = flux_calib.find_standard_file(std_ra, std_dec)
+    std_dict = flux_calib.find_standard_file(std_ra, std_dec) 
     # Test
     assert std_dict['name'] == 'G191B2B'
-#    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_mod_005.fits'
-    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_stisnic_002.fits'
+    assert os.path.split(std_dict['cal_file'])[1] == 'g191b2b_stisnic_002.fits'
     assert std_dict['std_source'] == 'calspec'
     # Fail to find
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = flux_calib.find_standard_file(std_ra, std_dec)
-    assert std_dict is None
+    with pytest.raises(PypeItError):
+        std_dict = flux_calib.find_standard_file(std_ra, std_dec)
 
 
 def test_load_extinction():
@@ -106,4 +107,7 @@ def test_extinction_correction():
     flux_corr = flux_calib.extinction_correction(wave, AM, extinct)
     # Test
     np.testing.assert_allclose(flux_corr[0], 4.47095192)
+
+#if __name__ == '__main__':
+#    test_find_standard()
 
