@@ -83,6 +83,8 @@ class Spectrograph(object):
     def __init__(self):
         self.spectrograph = 'base'
         self.telescope = None
+        self.camera = None
+        self.dispname = None
         self.detector = None
         self.naxis = None
 #        self.raw_naxis = None

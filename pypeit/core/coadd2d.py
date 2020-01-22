@@ -909,7 +909,7 @@ class CoAdd2d(object):
     def offset_slit_cen(self, slitid, offsets):
         # TODO: Check that slitid is available for all slit objects
         # TODO: Check that all slits have the same nspec
-        ref_trace_stack = np.zeros(self.stack_dict['slits_list'][0].nspec, len(offsets),
+        ref_trace_stack = np.zeros((self.stack_dict['slits_list'][0].nspec, len(offsets)),
                                    dtype=float)
         for iexp, slits in enumerate(self.stack_dict['slits_list']):
             ref_trace_stack[:, iexp] = slits.center[:,slitid] - offsets[iexp]
