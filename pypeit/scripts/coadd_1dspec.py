@@ -2,6 +2,8 @@
 """
 Script for coadding PypeIt 1d spectra
 """
+import os
+
 from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs
@@ -145,10 +147,8 @@ def main(args):
     try:
         header = fits.getheader(spec1dfiles[0])
     except Exception as e:
-        print(spec1dfiles[0])
-        print(os.getcwd())
-        print(os.environ['TRAVIS_BUILD_DIR'])
-        raise Exception(e) from e
+        raise Exception('{0}\n {1}\n {2}\n'.format(spec1dfiles[0], os.getcwd(),
+                        os.getenv('TRAVIS_BUILD_DIR', default='None'))) from e
 
     spectrograph = load_spectrograph(header['PYP_SPEC'])
 
