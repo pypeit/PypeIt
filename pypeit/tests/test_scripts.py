@@ -199,40 +199,28 @@ def test_coadd1d_1():
     os.remove(coadd_ofile)
 
 
-def test_coadd1d_2():
-    """
-    Test combining Echelle
-    """
-    coadd_ofile = data_path('pisco_coadd.fits')
-    if os.path.isfile(coadd_ofile):
-        os.remove(coadd_ofile)
-
-    coadd_1dspec.main(coadd_1dspec.parser([data_path('gemini_gnirs_32_sb_sxd.coadd1d')]))
-
-    from IPython import embed
-    embed()
-    exit()
-
-    return
-
-    # TODO: Should then read in and check the results
-
-    args = coadd_1dspec.parser([coadd_file])
-    # Main
-    gparam, ex_value, flux_value, iobj, outfile, files, obj_kwargs \
-            = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
-    # Test
-    assert len(iobj) == len(files)
-    # Crash it
-    coadd_file = data_path('coadd_UGC3672A_red_badlist.yaml')
-    args = coadd_1dspec.parser([coadd_file])
-    with pytest.raises(IOError):
-        gparam, ex_value, flux_value, iobj, outfile, files, _ \
-                = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+## TODO: Failure adding sensfunc to files/ because don't have telluric
+## grid.  Bring this test back when it's available.
+#def test_coadd1d_2():
+#    """
+#    Test combining Echelle
+#    """
+#    coadd_ofile = data_path('pisco_coadd.fits')
+#    if os.path.isfile(coadd_ofile):
+#        os.remove(coadd_ofile)
+#
+#    coadd_1dspec.main(coadd_1dspec.parser([data_path('gemini_gnirs_32_sb_sxd.coadd1d')]))
+#
+#    from IPython import embed
+#    embed()
+#    exit()
+#
+#    # Clean up
+#    os.remove(coadd_ofile)
+#
+#if __name__ == '__main__':
+#    test_coadd1d_2()
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
-
-#if __name__ == '__main__':
-#    test_coadd1d_2()
 

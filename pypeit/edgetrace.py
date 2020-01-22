@@ -4338,7 +4338,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         return SlitTraceSet(left, right, nspat=self.nspat,
                             spectrograph=self.spectrograph.spectrograph, specmin=self.spec_min,
-                            specmax=self.spec_max, binspec=binspec, binspat=binspat, pad=self.par['pad'])
+                            specmax=self.spec_max, binspec=binspec, binspat=binspat,
+                            pad=self.par['pad'])
 
     def load_slits(self):
         """
