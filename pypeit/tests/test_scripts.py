@@ -10,8 +10,12 @@ from configobj import ConfigObj
 
 import pytest
 
+import numpy as np
+
 import matplotlib
 matplotlib.use('agg')  # For Travis
+
+from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos
@@ -174,35 +178,41 @@ def test_chk_flat():
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
 
-def test_coadd():
-    coadd_file = data_path('coadd_UGC3672A_red.yaml')
-    coadd_1dspec.main(coadd_1dspec.parser([coadd_file]))
-    return
 
-    # TODO: Should then read in and check the results
-
-    args = coadd_1dspec.parser([coadd_file])
-    # Main
-    gparam, ex_value, flux_value, iobj, outfile, files, local_kwargs \
-            = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
-    # Test
-    assert len(gparam) == 2
-    assert isinstance(gparam, dict)
-    assert ex_value == 'opt'
-    assert flux_value is True
-    assert iobj == 'O210-S1467-D02-I0012'
-    assert outfile == 'UGC3672A_r.fits'
-    assert len(files) == 4
-    assert isinstance(local_kwargs, dict)
-    assert 'otol' in list(local_kwargs.keys())
-    assert 'scale_method' in list(gparam.keys())
-
-
-def test_coadd2():
-    """ Test using a list of object names
+def test_coadd1d_1():
     """
-    coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
-    coadd_1dspec.main(coadd_1dspec.parser([coadd_file]))
+    Test basic coadd using Shane Kast blue
+    """
+    # NOTE: flux_value is False
+    coadd_ofile = data_path('J1217p3905_coadd.fits')
+    if os.path.isfile(coadd_ofile):
+        os.remove(coadd_ofile)
+
+    coadd_1dspec.main(coadd_1dspec.parser([data_path('shane_kast_blue.coadd1d')]))
+
+    hdu = fits.open(coadd_ofile)
+    assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
+    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
+    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+
+    # Clean up
+    os.remove(coadd_ofile)
+
+
+def test_coadd1d_2():
+    """
+    Test combining Echelle
+    """
+    coadd_ofile = data_path('pisco_coadd.fits')
+    if os.path.isfile(coadd_ofile):
+        os.remove(coadd_ofile)
+
+    coadd_1dspec.main(coadd_1dspec.parser([data_path('gemini_gnirs_32_sb_sxd.coadd1d')]))
+
+    from IPython import embed
+    embed()
+    exit()
+
     return
 
     # TODO: Should then read in and check the results
@@ -219,4 +229,10 @@ def test_coadd2():
     with pytest.raises(IOError):
         gparam, ex_value, flux_value, iobj, outfile, files, _ \
                 = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+
+
+# TODO: Include tests for coadd2d, sensfunc, flux_calib
+
+#if __name__ == '__main__':
+#    test_coadd1d_2()
 
