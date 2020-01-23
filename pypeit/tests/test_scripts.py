@@ -188,11 +188,17 @@ def test_coadd1d_1():
     Test basic coadd using Shane Kast blue
     """
     # NOTE: flux_value is False
+    parfile = 'coadd1d.par'
+    if os.path.isfile(parfile):
+        os.remove(parfile)
     coadd_ofile = data_path('J1217p3905_coadd.fits')
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
-    coadd_1dspec.main(coadd_1dspec.parser([data_path('shane_kast_blue.coadd1d')]))
+    coadd_ifile = data_path('shane_kast_blue.coadd1d') if os.getenv('TRAVIS_BUILD_DIR') is None \
+                    else data_path('shane_kast_blue_travis.coadd1d')
+
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]))
 
     hdu = fits.open(coadd_ofile)
     assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
@@ -200,6 +206,7 @@ def test_coadd1d_1():
     assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
 
     # Clean up
+    os.remove(parfile)
     os.remove(coadd_ofile)
 
 
@@ -207,22 +214,27 @@ def test_coadd1d_2():
     """
     Test combining Echelle
     """
+    parfile = 'coadd1d.par'
+    if os.path.isfile(parfile):
+        os.remove(parfile)
     coadd_ofile = data_path('pisco_coadd.fits')
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
-    coadd_1dspec.main(coadd_1dspec.parser([data_path('gemini_gnirs_32_sb_sxd.coadd1d')]))
+    coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d') \
+                    if os.getenv('TRAVIS_BUILD_DIR') is None \
+                    else data_path('gemini_gnirs_32_sb_sxd_travis.coadd1d')
 
-    from IPython import embed
-    embed()
-    exit()
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]))
+
+    hdu = fits.open(coadd_ofile)
+    assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
+    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
+    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
 
     # Clean up
+    os.remove(parfile)
     os.remove(coadd_ofile)
-
-if __name__ == '__main__':
-    test_coadd1d_2()
-
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 
