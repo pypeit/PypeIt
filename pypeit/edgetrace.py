@@ -1345,7 +1345,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # Check that the disperser is correct. NOTE: If disperser was
         # None when this method was called, this will automatically be
         # true.
-        if self.spectrograph.dispname != hdu[0].header['DISPNAME']:
+        if self.spectrograph.dispname is not None \
+                and self.spectrograph.dispname != hdu[0].header['DISPNAME']:
             msgs.error('Current spectrograph disperser does not match file data.')
 
         # Test the parameters used are the same

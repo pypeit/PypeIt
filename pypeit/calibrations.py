@@ -494,8 +494,8 @@ class Calibrations(object):
             # User does not want to flat-field
             self.mspixelflat = None
             self.msillumflat = None
-            msgs.warning('Parameter calibrations.flatfield.method is set to skip. You are NOT '
-                         'flatfielding your data!!!')
+            msgs.warn('Parameter calibrations.flatfield.method is set to skip. You are NOT '
+                      'flatfielding your data!!!')
             # TODO: Why does this not return unity arrays, like what's
             # done below?
             return self.mspixelflat, self.msillumflat
@@ -503,8 +503,8 @@ class Calibrations(object):
         # Slit and tilt traces are required to flat-field the data
         if not self._chk_objs(['slits', 'tilts_dict']):
             # TODO: Why doesn't this fault?
-            msgs.warning('Flats were requested, but there are quantities missing necessary to '
-                         'create flats.  Proceeding without flat fielding....')
+            msgs.warn('Flats were requested, but there are quantities missing necessary to '
+                      'create flats.  Proceeding without flat fielding....')
             # User cannot flat-field
             self.mspixelflat = None
             self.msillumflat = None
@@ -590,7 +590,7 @@ class Calibrations(object):
                 # profile, re-write them so that the tweaked slits are
                 # included.
                 if self.par['flatfield']['tweak_slits']:
-                    self.slits.save()
+                    self.slits.to_master()
 
 #                # If we tweaked the slits update the master files for tilts and slits
 #                # TODO: These should be saved separately
@@ -707,7 +707,7 @@ class Calibrations(object):
             self.slits = self.edges.get_slits()
             self.edges = None
             if self.save_masters:
-                self.slits.save()
+                self.slits.to_master()
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)

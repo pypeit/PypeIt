@@ -111,7 +111,7 @@ def test_quicklook():
                                         'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
 
 
-@dev_suite_required
+#@dev_suite_required
 def test_trace_edges():
     # Define the output directories (HARDCODED!!)
     setupdir = os.path.join(os.getcwd(), 'setup_files')
@@ -244,4 +244,5 @@ def test_coadd1d_2():
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 
 # TODO: Add test for object_finding
+
 
