@@ -1841,10 +1841,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
                     specobj_dict=specobj_dict)
-        try:
             sobjs.add_sobj(sobjs_slit)
-        except:
-            embed()
 
     nfound = len(sobjs)
 
