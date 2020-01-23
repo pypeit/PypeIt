@@ -195,6 +195,8 @@ def test_coadd1d_1():
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
+    # TODO: This is a kludge to get Travis to work.  We need a script
+    # that will write the coadd files with absolute paths.
     coadd_ifile = data_path('shane_kast_blue.coadd1d') if os.getenv('TRAVIS_BUILD_DIR') is None \
                     else data_path('shane_kast_blue_travis.coadd1d')
 
@@ -214,6 +216,7 @@ def test_coadd1d_2():
     """
     Test combining Echelle
     """
+    # NOTE: flux_value is False
     parfile = 'coadd1d.par'
     if os.path.isfile(parfile):
         os.remove(parfile)
@@ -221,6 +224,8 @@ def test_coadd1d_2():
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
+    # TODO: This is a kludge to get Travis to work.  We need a script
+    # that will write the coadd files with absolute paths.
     coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d') \
                     if os.getenv('TRAVIS_BUILD_DIR') is None \
                     else data_path('gemini_gnirs_32_sb_sxd_travis.coadd1d')

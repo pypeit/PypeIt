@@ -150,15 +150,15 @@ def main(args):
     # Load the file
     config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
     # Read in spectrograph from spec1dfile header
-#    header = fits.getheader(spec1dfiles[0])
+    header = fits.getheader(spec1dfiles[0])
 
     # NOTE: This was some test code for Travis. Keep it around for now
     # in case we need to do this again. (KBW)
-    try:
-        header = fits.getheader(spec1dfiles[0])
-    except Exception as e:
-        raise Exception('{0}\n {1}\n {2}\n'.format(spec1dfiles[0], os.getcwd(),
-                        os.getenv('TRAVIS_BUILD_DIR', default='None'))) from e
+#    try:
+#        header = fits.getheader(spec1dfiles[0])
+#    except Exception as e:
+#        raise Exception('{0}\n {1}\n {2}\n'.format(spec1dfiles[0], os.getcwd(),
+#                        os.getenv('TRAVIS_BUILD_DIR', default='None'))) from e
 
     spectrograph = load_spectrograph(header['PYP_SPEC'])
 
