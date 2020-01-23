@@ -1,13 +1,10 @@
 """ Implements KCWI-specific functions.
 """
 
+import pdb
+from matplotlib import pyplot as plt
 import glob
-import re
-import os
 import numpy as np
-import warnings
-
-from scipy import interpolate
 
 from astropy.io import fits
 
@@ -17,10 +14,6 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-
-from pypeit.utils import index_of_x_eq_y
-
-from pypeit.spectrographs.slitmask import SlitMask
 
 
 class KeckKCWISpectrograph(spectrograph.Spectrograph):
@@ -260,6 +253,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
                                           include_end=include_last, require_dim=2,
                                           binning=binning_raw)
+                # Flip the datasec
+                datasec = datasec[::-1]
 
                 if section == 'DSEC':  # Only do this once
                     # Assign the gain for this amplifier
@@ -275,7 +270,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 oscansec_img = pix_img.copy()
 
         # Update detector parameters
-        self.set_detector_par('gain', det, gainarr)
+        self.set_detector_par('gain', det, gainarr, force_update=True)
 
         # Return
         return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
@@ -301,12 +296,12 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
                             platescale      = None,  # <-- TODO : Need to set this
                             darkcurr        = None,  # <-- TODO : Need to set this
                             saturation      = 65535.,
-                            nonlinear       = 0.95,   # For lack of a better number!
-                            numamplifiers   = None,      # The following are provided by get_rawimage
-                            gain            = None,  # <-- TODO : Need to set this from header
-                            ronoise         = None,  # <-- TODO : Need to set this
-                            datasec         = '',
-                            oscansec        = '',
+                            nonlinear       = 0.95,       # For lack of a better number!
+                            numamplifiers   = 4,          # <-- This is provided in the header
+                            gain            = [0]*4,  # <-- This is provided in the header
+                            ronoise         = [0]*4,  # <-- TODO : Need to set this
+                            datasec         = ['']*4,     # <-- This is provided in the header
+                            oscansec        = ['']*4,     # <-- This is provided in the header
                             suffix          = '_01'
                             )]
         self.numhead = 1
@@ -329,12 +324,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         # Set wave tilts order
 
         # Set the slit edge parameters
-        par['calibrations']['slitedges']['edge_thresh'] = 20.
         par['calibrations']['slitedges']['fit_order'] = 4
-        par['calibrations']['slitedges']['minimum_slit_gap'] = 3
-        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
-        par['calibrations']['slitedges']['det_min_spec_length'] = 0.1
-        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.2
 
         # 1D wavelength solution
         #par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -427,38 +417,41 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         binning = head0['BINNING']
 
         # Construct a list of the bad columns
+        # Note: These were taken from v1.1.0 (REL) Date: 2018/06/11 of KDERP
+        #       KDERP store values and in the code (stage1) subtract 1 from the badcol data files.
+        #       Instead of this, I have already pre-subtracted the values in the following arrays.
         bc = None
         if ampmode == 'ALL':
             if binning == '1,1':
-                bc = [[3677, 3677, 2057, 2245]]
+                bc = [[3676, 3676, 2056, 2244]]
             elif binning == '2,2':
-                bc = [[1839, 1839, 1029, 1122]]
+                bc = [[1838, 1838, 1028, 1121]]
         elif ampmode == 'TBO':
             if binning == '1,1':
-                bc = [[2623, 2623,  620,  688],
-                      [2740, 2740, 1749, 1861],
-                      [3296, 3301, 2557, 2561],
-                      [3676, 3677, 2244, 4112]]
+                bc = [[2622, 2622,  619,  687],
+                      [2739, 2739, 1748, 1860],
+                      [3295, 3300, 2556, 2560],
+                      [3675, 3676, 2243, 4111]]
             elif binning == '2,2':
-                bc = [[1312, 1312,  311,  355],
-                      [1370, 1370,  877,  948],
-                      [1647, 1651, 1279, 1281],
-                      [1839, 1839, 1123, 2056]]
+                bc = [[1311, 1311,  310,  354],
+                      [1369, 1369,  876,  947],
+                      [1646, 1650, 1278, 1280],
+                      [1838, 1838, 1122, 2055]]
         if ampmode == 'TUP':
             if binning == '1,1':
-                bc = [[2623, 2623, 3493, 3529],
-                      [3296, 3301, 1551, 1556],
-                      [3677, 3677, 1867, 4112]]
+                bc = [[2622, 2622, 3492, 3528],
+                      [3295, 3300, 1550, 1555],
+                      [3676, 3676, 1866, 4111]]
             elif binning == '2,2':
-                bc = [[1312, 1312, 1746, 1789],
-                      [1647, 1651,  776,  778],
-                      [1839, 1839,  934, 2056]]
+                bc = [[1311, 1311, 1745, 1788],
+                      [1646, 1650,  775,  777],
+                      [1838, 1838,  933, 2055]]
         if bc is None:
             msgs.warn("Bad pixel mask is not available for ampmode={0:s} binning={1:s}".format(ampmode, binning))
             bc = []
 
         # Apply these bad columns to the mask
         for bb in range(len(bc)):
-            bpm_img[bc[bb][0]:bc[bb][1]+1, bc[bb][2]:bc[bb][3]+1] = 1
+            bpm_img[bc[bb][2]:bc[bb][3]+1, bc[bb][0]:bc[bb][1]+1] = 1
 
         return bpm_img
