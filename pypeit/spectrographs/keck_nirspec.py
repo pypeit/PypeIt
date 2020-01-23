@@ -9,6 +9,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pkg_resources import resource_filename
 
 from pypeit import debugger
 
@@ -109,6 +110,15 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+
+
+
         return par
 
     # JFH Replaced with updated values based on experienced with MOSFIRE above.
@@ -337,6 +347,13 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         # Get it started
         super(KeckNIRSPECLowSpectrograph, self).__init__()
         self.spectrograph = 'keck_nirspec_low'
+
+
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+        return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
 
 
     '''

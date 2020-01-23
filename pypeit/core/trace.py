@@ -29,7 +29,7 @@ from pypeit.core import moment, pydl, arc
 # TODO: Some of these functions could probably just live in pypeit.edges
 
 def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mode='nearest',
-                      sigdetect=30.):
+                      sigdetect=30., grow_bpm=5):
     r"""
     Find slit edges using the input image.
 
@@ -72,8 +72,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Checks
     if flux.ndim != 2:
         msgs.error('Trace image must be 2D.')
-    _bpm = np.zeros_like(flux, dtype=int) if bpm is None else bpm.astype(int)
-    if _bpm.shape != flux.shape:
+    if bpm is not None and bpm.shape != flux.shape:
         msgs.error('Mismatch in mask and trace image shapes.')
 
     # Specify how many times to repeat the median filter.  Even better
@@ -96,7 +95,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     # Filter with a Sobel
     filt = ndimage.sobel(sqmstrace, axis=1, mode=sobel_mode)
     # Apply the bad-pixel mask
-    filt *= (1.0 - _bpm)
+    if bpm is not None:
+        # NOTE: Casts to float because filt is float
+        filt *= (1.0 - bpm)
     # Significance of the edge detection
     sobel_sig = np.sign(filt)*np.power(filt,2)/np.maximum(sqmstrace, min_sqm)
 
@@ -116,8 +117,13 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
 
     if bpm is not None:
         msgs.info("Applying bad pixel mask")
-        edge_img *= (1-_bpm)
-        sobel_sig *= (1-_bpm)
+        # JFH grow the bad pixel mask in the spatial direction
+        _nave = np.fmin(grow_bpm, flux.shape[0])
+        # Construct the kernel for mean calculation
+        kernel = np.ones((1, _nave)) / float(_nave)
+        bpm_grow = ndimage.convolve(bpm.astype(float), kernel, mode='nearest') > 0.0
+        edge_img *= (1 - bpm_grow)
+        sobel_sig *= (1 - bpm_grow)
 
     return sobel_sig, edge_img
 
@@ -416,6 +422,8 @@ def handle_orphan_edges(edge_img, sobel_sig, bpm=None, flux_valid=True, buffer=0
 
 
 def most_common_trace_row(trace_bpm, valid_frac=1/3.):
+    ## JFH DO not use row and column in the docs!!!! Change everywhere to spectral spatial. Traces always
+    ## run spectral
     """
     Find the spectral position (row) that crosses the most traces.
 
@@ -452,7 +460,7 @@ def most_common_trace_row(trace_bpm, valid_frac=1/3.):
     return Counter(np.where(gpm)[0]).most_common(1)[0][0] + s
 
 
-def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
+def prepare_sobel_for_trace(sobel_sig, bpm=None, boxcar=5, side='left'):
     """
     Prepare the Sobel filtered image for tracing.
 
@@ -490,7 +498,8 @@ def prepare_sobel_for_trace(sobel_sig, boxcar=5, side='left'):
     # TODO: This 0.1 is drawn out of the ether and different from what is done in peak_trace
     img = sobel_sig if side is None else np.maximum((1 if side == 'left' else -1)*sobel_sig, 0.1)
     # Returned the smoothed image
-    return utils.boxcar_smooth_rows(img, boxcar)
+    wgt = None if bpm is None else np.invert(bpm)
+    return utils.boxcar_smooth_rows(img, boxcar, wgt=wgt, replace='zero')
 
 
 def follow_centroid(flux, start_row, start_cen, ivar=None, bpm=None, fwgt=None, width=6.0,
@@ -771,6 +780,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
     xerr[indx] = fill_error
     if maxshift is None and maxerror is None and bitmask is None:
         # Nothing else to do
+        ## TODO: JFH It seems like this shold be returning indx here and not matherr if bitmask is None.
         return xfit, xerr, matherr
 
     # Flag large shifts

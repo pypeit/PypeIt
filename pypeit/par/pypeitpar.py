@@ -60,7 +60,7 @@ import os
 import warnings
 from pkg_resources import resource_filename
 import inspect
-
+from IPython import embed
 from collections import OrderedDict
 
 import numpy
@@ -70,8 +70,6 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-
-from IPython import embed
 
 # Needs this to determine the valid spectrographs TODO: This causes a
 # circular import.  Spectrograph specific parameter sets and where they
@@ -153,8 +151,13 @@ class FrameGroupPar(ParSet):
 
     @classmethod
     def from_dict(cls, frametype, cfg):
-        k = cfg.keys()
-        parkeys = [ 'useframe', 'number', 'exprng' ]
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['useframe', 'number', 'exprng']
+        # TODO: cfg can contain frametype but it is ignored...
+        allkeys = parkeys + ['process', 'frametype']
+        badkeys = numpy.array([pk not in allkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for FrameGroupPar.'.format(k[badkeys]))
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -310,11 +313,16 @@ class ProcessImagesPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'bias', 'overscan', 'overscan_par', 'match',
-                    'combine', 'satpix', 'cr_reject', 'sigrej', 'n_lohi',
-                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['bias', 'overscan', 'overscan_par', 'match',
+                   'combine', 'satpix', 'cr_reject', 'sigrej', 'n_lohi',
+                   'sig_lohi', 'replace', 'lamaxiter', 'grow',
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ProcessImagesPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -559,11 +567,16 @@ class FlatFieldPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = ['method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_pad', 'illum_iter', 'illum_rej',
                    'twod_fit_npoly']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for FlatFieldPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -665,8 +678,13 @@ class FlexurePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'method', 'maxshift', 'spectrum' ]
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for FlexurePar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -696,6 +714,183 @@ class FlexurePar(ParSet):
 #        if self.data['spectrum'] is not None and not os.path.isfile(self.data['spectrum']):
 #            raise ValueError('Provided archive spectrum does not exist: {0}.'.format(
 #                             self.data['spectrum']))
+
+
+
+
+class Coadd1DPar(ParSet):
+    """
+    A parameter set holding the arguments for how to perform 2D coadds
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, ex_value=None, flux_value=None, nmaskedge=None,
+                 sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
+                 sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
+                 lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Extraction to use
+        defaults['ex_value'] = 'OPT'
+        dtypes['ex_value'] = str
+        descr['ex_value'] = "The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'"
+
+        # Fluxed?
+        defaults['flux_value'] = True
+        dtypes['flux_value'] = bool
+        descr['flux_value'] = 'If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the ' \
+                              'spec1d files. If False, it will coadd the counts.'
+
+
+        # Mask edge pixels?
+        defaults['nmaskedge'] = 2
+        dtypes['nmaskedge'] = int
+        descr['nmaskedge'] = 'Number of edge pixels to mask. This should be removed/fixed.'
+
+        # Offsets
+        defaults['sn_smooth_npix'] = None
+        dtypes['sn_smooth_npix'] = [int, float]
+        descr['sn_smooth_npix'] = 'Number of pixels to median filter by when computing S/N used to decide how to scale ' \
+                                  'and weight spectra. If set to None (default), the code will determine the effective ' \
+                                  'number of good pixels per spectrum in the stack that is being co-added and use 10% of ' \
+                                  'this neff.'
+
+
+        # Offsets
+        defaults['wave_method'] = 'linear'
+        dtypes['wave_method'] = str
+        descr['wave_method'] = "Method used to construct wavelength grid for coadding spectra. The routine that creates " \
+                               "the wavelength is coadd1d.get_wave_grid. The options are:" \
+                               " "\
+                               "'iref' -- Use the first wavelength array" \
+                               "'velocity' -- Grid is uniform in velocity" \
+                               "'log10' -- Grid is uniform in log10(wave).This is the same as velocity." \
+                               "'linear' -- Grid is uniform in lamba." \
+                               "'concatenate' -- Meld the input wavelength arrays"
+
+        defaults['samp_fact'] = 1.0
+        dtypes['samp_fact'] = float
+        descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
+                             'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
+
+        defaults['ref_percentile'] = 70.0
+        dtypes['ref_percentile'] = [int, float]
+        descr['ref_percentile'] = 'Percentile used for selecting the minimum SNR cut from a reference spectrum used to ' \
+                                  'robustly determine the median ratio between spectra. This parameter is used by ' \
+                                  'coadd1d.robust_median_ratio as part of the automatic rescaling procedure. Pixels ' \
+                                  'above this percentile cut are deemed the "good" pixels and are used to compute the ' \
+                                  'ratio of two spectra.  This must be a number between 0 and 100.'
+
+        defaults['maxiter_scale'] = 5
+        dtypes['maxiter_scale'] = int
+        descr['maxiter_scale'] = 'Maximum number of iterations performed for rescaling spectra.'
+
+        defaults['sigrej_scale'] = 3.0
+        dtypes['sigrej_scale'] = [int, float]
+        descr['sigrej_scale'] = 'Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.'
+
+        defaults['scale_method'] = 'auto'
+        dtypes['scale_method'] = str
+        descr['scale_method'] = "Method used to rescale the spectra prior to coadding. The options are:" \
+                                " "\
+                                "'auto' -- Determine the scaling method automatically based on the S/N ratio which works well"\
+                                "'poly' -- Polynomial rescaling." \
+                                "'median' -- Median rescaling" \
+                                "'none' -- Do not rescale." \
+                                "'hand' -- Pass in hand scaling factors. This option is not well tested."
+
+        defaults['sn_min_medscale'] = 0.5
+        dtypes['sn_min_medscale'] = [int, float]
+        descr['sn_min_medscale'] = "For scale method set to 'auto', this sets the minimum SNR for which median scaling is attempted"
+
+        defaults['sn_min_polyscale'] = 2.0
+        dtypes['sn_min_polyscale'] = [int, float]
+        descr['sn_min_polyscale'] = "For scale method set to 'auto', this sets the minimum SNR for which polynomial scaling is attempted. " \
+
+
+        defaults['maxiter_reject'] = 5
+        dtypes['maxiter_reject'] = int
+        descr['maxiter_reject'] = 'maximum number of iterations for stacking and rejection. The code stops iterating ' \
+                                  'either when the output mask does not change betweeen successive iterations or when ' \
+                                  'maxiter_reject is reached.'
+        defaults['lower'] = 3.0
+        dtypes['lower'] = [int, float]
+        descr['lower'] = 'Lower rejection threshold used for rejecting pixels when combining spectra in units of sigma.'
+
+        defaults['upper'] = 3.0
+        dtypes['upper'] = [int, float]
+        descr['upper'] = 'Upper rejection threshold used for rejecting pixels when combining spectra in units of sigma.'
+
+        defaults['maxrej'] = None
+        dtypes['maxrej'] = int
+        descr['maxrej'] = 'Coadding performs iterative rejection by comparing each exposure to a preliminary stack of ' \
+                          'all the exposures. If this parameter is set then it will not reject more than maxrej pixels ' \
+                          'per iteration of this rejection. The default is None, which means no maximum on rejected pixels.'
+
+        defaults['sn_clip'] = 30.0
+        dtypes['sn_clip'] = [int, float]
+        descr['sn_clip'] = 'Errors are capped during rejection so that the S/N is never greater than sn_clip. This ' \
+                           'prevents overly aggressive rejection in high S/N ratio spectrum which neverthless differ ' \
+                           'at a level greater than the formal S/N due to systematics.'
+
+        defaults['nbest'] = None
+        dtypes['nbest'] = int
+        descr['nbest'] = 'Number of orders to use for estimating the per exposure weights. Default is None, ' \
+                         'which will just use one fourth of the total number of orders. This is only used for Echelle'
+
+
+        # JFH These last two are actually arguments and not parameters that are only here because there is no other easy
+        # way to parse .coadd1d files except with parsets. I would like to separate arguments from parameters.
+        defaults['sensfuncfile'] = None
+        dtypes['sensfuncfile'] = str
+        descr['sensfuncfile'] = 'File containing sensitivity function which is a requirement for echelle coadds. ' \
+                            'This is only used for Echelle'
+
+        defaults['coaddfile'] = None
+        dtypes['coaddfile'] = str
+        descr['coaddfile'] = 'Output filename'
+
+        # Instantiate the parameter set
+        super(Coadd1DPar, self).__init__(list(pars.keys()),
+                                         values=list(pars.values()),
+                                         defaults=list(defaults.values()),
+                                         dtypes=list(dtypes.values()),
+                                         descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['ex_value', 'flux_value', 'nmaskedge', 'sn_smooth_npix', 'wave_method',
+                   'samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
+                   'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
+                   'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for Coadd1DPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
 
 
 class Coadd2DPar(ParSet):
@@ -738,8 +933,13 @@ class Coadd2DPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = ['offsets', 'weights']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for Coadd2DPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -751,8 +951,7 @@ class Coadd2DPar(ParSet):
         """
         pass
 
-
-class FluxCalibrationPar(ParSet):
+class FluxCalibratePar(ParSet):
     """
     A parameter set holding the arguments for how to perform the flux
     calibration.
@@ -760,9 +959,7 @@ class FluxCalibrationPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, star_type=None, star_mag=None, multi_det=None, telluric=None,
-                 poly_norder=None, polycorrect=None):
+    def __init__(self, extinct_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -775,6 +972,189 @@ class FluxCalibrationPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
+        defaults['extinct_correct'] = True
+        dtypes['extinct_correct'] = bool
+        descr['extinct_correct'] = 'If extinct_correct=True the code will use an atmospheric extinction model to ' \
+                                   'extinction correct the data below 10000A. Note that this correction makes no ' \
+                                   'sense if one is telluric correcting and this shold be set to False'
+
+        # Instantiate the parameter set
+        super(FluxCalibratePar, self).__init__(list(pars.keys()),
+                                                 values=list(pars.values()),
+                                                 defaults=list(defaults.values()),
+                                                 dtypes=list(dtypes.values()),
+                                                 descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['extinct_correct']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for FluxCalibratePar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+
+
+class SensFuncPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+                 star_dec=None, mask_abs_lines=None):
+        # Grab the parameter names and values from the function arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['extrap_blu'] = 0.1
+        dtypes['extrap_blu'] = float
+        descr['extrap_blu'] = 'Fraction of minimum wavelength coverage to grow the wavelength coverage of the ' \
+                              'sensitivitity function in the blue direction, i.e. if the standard star spectrum' \
+                              'cuts off at wave_min, the sensfunc will be extrapolated to cover down to ' \
+                              ' (1.0-extrap_blu)*wave_min'
+
+
+        defaults['extrap_red'] = 0.1
+        dtypes['extrap_red'] = float
+        descr['extrap_red'] = 'Fraction of maximum wavelength coverage to grow the wavelength coverage of the ' \
+                              'sensitivitity function in the red direction, i.e. if the standard star spectrum' \
+                              'cuts off at wave_max, the sensfunc will be extrapolated to cover up to ' \
+                              ' (1.0 + extrap_red)*wave_max'
+
+        defaults['samp_fact'] = 1.5
+        dtypes['samp_fact'] = float
+        descr['samp_fact'] = 'sampling factor to make the wavelength grid for sensitivity function finer or coarser.  ' \
+                             'samp_fact > 1.0 oversamples (finer), samp_fact < 1.0 undersamples (coarser).'
+        defaults['polyorder'] = 5
+        dtypes['polyorder'] = int
+        descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
+
+        defaults['multi_spec_det'] = None
+        dtypes['multi_spec_det'] = list
+        descr['multi_spec_det'] = 'List of detector numbers to splice together for multi-detector instruments ' \
+                                  '(e.g. DEIMOS, GMOS). It is assumed that there is *no* overlap in wavelength ' \
+                                  'across detectors (might be ok if there is)'
+
+        defaults['algorithm'] = 'UVIS'
+        dtypes['algorithm'] = str
+        descr['algorithm'] = "Specify the algorithm for computing the sensitivity function. The options are: " \
+                             " (1) UVIS = Should be used for data with lambda < 7000A." \
+                             "No detailed model of telluric absorption but corrects for atmospheric extinction." \
+                             " (2) IR = Should be used for data with lambbda > 7000A." \
+                             "Peforms joint fit for sensitivity function and telluric absorption using HITRAN models."
+
+
+        defaults['UVIS'] = SensfuncUVISPar()
+        dtypes['UVIS'] = [ParSet, dict ]
+        descr['UVIS'] = 'Parameters for the UVIS sensfunc algorithm'
+
+        defaults['IR'] = TelluricPar()
+        dtypes['IR'] = [ ParSet, dict ]
+        descr['IR'] = 'Parameters for the IR sensfunc algorithm'
+
+        # JFH SHould the default by higher like 8?
+        defaults['polyorder'] = 5
+        dtypes['polyorder'] = int
+        descr['polyorder'] = 'Polynomial order for sensitivity function fitting'
+
+        defaults['star_type'] = None
+        dtypes['star_type'] = str
+        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
+
+        defaults['star_mag'] = None
+        dtypes['star_mag'] = float
+        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
+
+        defaults['star_ra'] = None
+        dtypes['star_ra'] = float
+        descr['star_ra'] = 'RA of the standard star. This will override values in the header, i.e. if they are wrong or absent'
+
+        defaults['star_dec'] = None
+        dtypes['star_dec'] = float
+        descr['star_dec'] = 'DEC of the standard star. This will override values in the header, i.e. if they are wrong or absent'
+
+        defaults['mask_abs_lines'] = True
+        dtypes['mask_abs_lines'] = bool
+        descr['mask_abs_lines'] = 'Mask Balmer, Paschen, Brackett, and Pfund lines in sensitivity function fit'
+
+        # Instantiate the parameter set
+        super(SensFuncPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['extrap_blu', 'extrap_red', 'samp_fact', 'multi_spec_det', 'algorithm', 'UVIS',
+                   'IR', 'polyorder', 'star_type', 'star_mag', 'star_ra', 'star_dec',
+                   'mask_abs_lines']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for SensFuncPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        if not ((self.data['algorithm'] == 'IR') or  (self.data['algorithm'] == 'UVIS')):
+            raise ValueError('algorithm must be set to either  "IR" or "UVIS"')
+        # JFH add other checks?
+
+
+class SensfuncUVISPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+    def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
+                 telluric_correct=None, telluric=None,
+                 polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+
+        # These are the UV sensfunc parameters
         defaults['balm_mask_wid'] = 5.
         dtypes['balm_mask_wid'] = float
         descr['balm_mask_wid'] = 'Mask width for Balmer lines in Angstroms.'
@@ -786,10 +1166,6 @@ class FluxCalibrationPar(ParSet):
         descr['std_obj_id'] = 'Specifies object in spec1d file to use as standard.' \
             ' The brightest object found is used otherwise.'
 
-        dtypes['multi_det'] = list
-        descr['multi_det'] = 'List of detector numbers to splice together for multi-detector instruments (e.g. DEIMOS)' \
-                        ' They are assumed to be in order of increasing wavelength' \
-                        ' And that there is *no* overlap in wavelength across detectors (might be ok if there is)'
 
         dtypes['sensfunc'] = str
         descr['sensfunc'] = 'FITS file that contains or will contain the sensitivity function.'
@@ -812,33 +1188,44 @@ class FluxCalibrationPar(ParSet):
         descr['telluric'] = 'If telluric=True the code creates a synthetic standard star spectrum using the Kurucz models, ' \
             'the sens func is created setting nresln=1.5 it contains the correction for telluric lines.'
 
-        dtypes['star_type'] = str
-        descr['star_type'] = 'Spectral type of the standard star (for near-IR mainly)'
-
-        dtypes['star_mag'] = float
-        descr['star_mag'] = 'Magnitude of the standard star (for near-IR mainly)'
-
-        defaults['poly_norder'] = 5
-        dtypes['poly_norder'] = int
-        descr['poly_norder'] = 'Polynomial order for sensfunc fitting'
-
         defaults['polycorrect'] = True
         dtypes['polycorrect'] = bool
         descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
 
+
+        defaults['nresln'] = 20
+        dtypes['nresln'] = [int, float]
+        descr['nresln'] = 'Parameter governing the spacing of the bspline breakpoints.'
+
+
+        defaults['resolution'] = 3000.0
+        dtypes['resolution'] = [int, float]
+        descr['resolution'] = 'Expected resolution of the standard star spectrum. This should be measured from the data.'
+
+        defaults['trans_thresh'] = 0.9
+        dtypes['trans_thresh'] = float
+        descr['trans_thresh'] = 'Parameter for selecting telluric regions which are masked. Locations below this ' \
+                                'transmission value are masked. If you have significant telluric absorption you should ' \
+                                'be using telluric.sensnfunc_telluric'
+
         # Instantiate the parameter set
-        super(FluxCalibrationPar, self).__init__(list(pars.keys()),
-                                                 values=list(pars.values()),
-                                                 defaults=list(defaults.values()),
-                                                 dtypes=list(dtypes.values()),
-                                                 descr=list(descr.values()))
+        super(SensfuncUVISPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file', 'std_obj_id',
-                   'star_type', 'star_mag', 'multi_det', 'telluric', 'poly_norder', 'polycorrect']
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file',
+                   'std_obj_id', 'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for SensfuncUVISPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -851,6 +1238,189 @@ class FluxCalibrationPar(ParSet):
         if self.data['sensfunc'] is not None and self.data['std_file'] is None and not os.path.isfile(self.data['sensfunc']):
             raise ValueError('Provided sensitivity function does not exist: {0}.'.format(
                              self.data['sensfunc']))
+
+
+class TelluricPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, telgridfile=None, sn_clip=None, resln_guess=None, resln_frac_bounds=None, pix_shift_bounds=None, maxiter=None,
+                 sticky=None, lower=None, upper=None, seed=None, tol=None, popsize=None, recombination=None, polish=None,
+                 disp=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['telgridfile'] = None
+        dtypes['telgridfile'] = str
+        descr['telgridfile'] = 'File containing the telluric grid for the observatory in question. These grids are ' \
+                               'generated from HITRAN models for each observatory using nominal site parameters. They ' \
+                               'must be downloaded from the GoogleDrive and stored in PypeIt/pypeit/data/telluric/'
+
+        defaults['sn_clip'] = 30.0
+        dtypes['sn_clip'] = [int, float]
+        descr['sn_clip'] = 'This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. ' \
+                          'standard stars, bright objects) using the function utils.clip_ivar. A small erorr is added ' \
+                          'to the input ivar so that the output ivar_out will never give S/N greater than sn_clip. This ' \
+                          'prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a ' \
+                          'level greater than the formal S/N due to the fact that our telluric models are only good to ' \
+                          'about 3%.'
+
+        defaults['resln_guess'] = None
+        dtypes['resln_guess'] = [int, float]
+        descr['resln_guess'] = 'A guess for the resolution of your spectrum expressed as lambda/dlambda. The resolution ' \
+                               'is fit explicitly as part of the telluric model fitting, but this guess helps determine ' \
+                               'the bounds for the optimization (see next). If not provided, the  wavelength sampling of ' \
+                               'your spectrum will be used and the resolution calculated using a typical sampling of 3 ' \
+                               'spectral pixels per resolution element.'
+
+
+        # Force resln_frac_bounds to be a tuple
+        if pars['resln_frac_bounds'] is not None and not isinstance(pars['resln_frac_bounds'], tuple):
+            try:
+                pars['resln_frac_bouncs'] = tuple(pars['resln_frac_bounds'])
+            except:
+                raise TypeError('Could not convert provided resln_frac_bounds to a tuple.')
+
+        defaults['resln_frac_bounds'] = (0.5,1.5)
+        dtypes['resln_frac_bounds'] = tuple
+        descr['resln_frac_bounds'] = 'Bounds for the resolution fit optimization which is part of the telluric model. ' \
+                                     'This range is in units of the resln_guess, so the (0.5, 1.5) would bound the ' \
+                                     'spectral resolution fit to be within the range ' \
+                                     'bounds_resln = (0.5*resln_guess, 1.5*resln_guess)'
+
+        # Force pix_shisft_bounds to be a tuple
+        if pars['pix_shift_bounds'] is not None and not isinstance(pars['pix_shift_bounds'], tuple):
+            try:
+                pars['pix_shift_bounds'] = tuple(pars['pix_shift_bounds'])
+            except:
+                raise TypeError('Could not convert provided pix_shift_bounds to a tuple.')
+
+        defaults['pix_shift_bounds'] = (-5.0,5.0)
+        dtypes['pix_shift_bounds'] = tuple
+        descr['pix_shift_bounds'] = ' Bounds for the pixel shift optimization in telluric model fit in units of pixels. ' \
+                                    'The atmosphere will be allowed to shift within this range during the fit.'
+
+
+        defaults['maxiter'] = 3
+        dtypes['maxiter'] = int
+        descr['maxiter'] = 'Maximum number of iterations for the telluric + object model fitting. The code performs ' \
+                           'multiple iterations rejecting outliers at each step. The fit is then performed anew to the ' \
+                           'remaining good pixels. For this reason if you run with the disp=True option, you will see ' \
+                           'that the f(x) loss function gets progressively better during the iterations.'
+
+        defaults['sticky'] = True
+        dtypes['sticky'] = bool
+        descr['sticky'] = 'Sticky parameter for the utils.djs_reject algorithm for iterative model fit rejection.  ' \
+                          'If set to True then points rejected from a previous iteration are kept rejected, in other ' \
+                          'words the bad pixel mask is the OR of all previous iterations and rejected pixels accumulate. ' \
+                          'If set to False, the bad pixel mask is the mask from the previous iteration, and if the model ' \
+                          'fit changes between iterations, points can alternate from being rejected to not rejected. ' \
+                          'At present this code only performs optimizations with differential evolution and experience ' \
+                          'shows that sticky needs to be True in order for these to converge. This is because the ' \
+                          'outliers can be so large that they dominate the loss function, and one never iteratively ' \
+                          'converges to a good model fit. In other words, the deformations in the model between ' \
+                          'iterations with sticky=False are too small to approach a reasonable fit.'
+
+        defaults['lower'] = 3.0
+        dtypes['lower'] = [int, float]
+        descr['lower'] = 'Lower rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the ' \
+                         'spectrum, and sigma_corr is an empirically determined correction to the formal error. The ' \
+                         'distribution of input chi (defined by chi = (data - model)/sigma) values is analyzed, and a ' \
+                         'correction factor to the formal error sigma_corr is returned which is multiplied into the ' \
+                         'formal errors. In this way, a rejection threshold of i.e. 3-sigma, will always correspond to ' \
+                         'roughly the same percentile.  This renormalization is performed with ' \
+                         'coadd1d.renormalize_errors function, and guarantees that rejection is not too agressive in ' \
+                         'cases where the empirical errors determined from the chi-distribution differ significantly ' \
+                         'from the formal noise which is used to determine chi.'
+
+        defaults['upper'] = 3.0
+        dtypes['upper'] = [int, float]
+        descr['upper'] = 'Upper rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the ' \
+                         'spectrum, and sigma_corr is an empirically determined correction to the formal error. See ' \
+                         'above for description.'
+
+        defaults['seed'] = 777
+        dtypes['seed'] = int
+        descr['seed'] = 'An initial seed for the differential evolution optimization, which is a random process. ' \
+                        'The default is a seed = 777 which will be used to generate a unique seed for every order. ' \
+                        'A specific seed is used because otherwise the random number generator will use the time for ' \
+                        'the seed, and the results will not be reproducible.'
+
+
+        defaults['tol'] = 1e-3
+        dtypes['tol'] = float
+        descr['tol'] = 'Relative tolerance for converage of the differential evolution optimization. See ' \
+                       'scipy.optimize.differential_evolution for details.'
+
+
+        defaults['popsize'] = 30
+        dtypes['popsize'] = int
+        descr['popsize'] = 'A multiplier for setting the total population size for the differential evolution ' \
+                           'optimization. See scipy.optimize.differential_evolution for details.'
+
+        defaults['recombination'] = 0.7
+        dtypes['recombination'] = [int, float]
+        descr['recombination'] = 'The recombination constant for the differential evolution optimization. This should ' \
+                                 'be in the range [0, 1]. See scipy.optimize.differential_evolution for details.'
+
+        defaults['polish'] = True
+        dtypes['polish'] = bool
+        descr['polish'] = 'If True then differential evolution will perform an additional optimizatino at the end to ' \
+                          'polish the best fit at the end, which can improve the optimization slightly. See ' \
+                          'scipy.optimize.differential_evolution for details.'
+
+        defaults['disp'] = True
+        dtypes['disp'] = bool
+        descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will  display status messages to the ' \
+                        'screen indicating the status of the optimization. See documentation for telluric.Telluric ' \
+                        'for a description of the output and how to know if things are working well.'
+
+        # Instantiate the parameter set
+        super(TelluricPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['telgridfile', 'sn_clip', 'resln_guess', 'resln_frac_bounds',
+                   'pix_shift_bounds', 'maxiter', 'sticky', 'lower', 'upper', 'seed', 'tol',
+                   'popsize', 'recombination', 'polish', 'disp']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for TelluricPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
+        # JFH add something in here which checks that the recombination value provided is bewteen 0 and 1, although
+        # scipy.optimize.differential_evoluiton probalby checks this.
+
 
 
 class ManualExtractionPar(ParSet):
@@ -916,8 +1486,14 @@ class ManualExtractionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'frame', 'spec','spat','det','fwhm']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ManualExtractionPar.'.format(
+                                k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -925,84 +1501,6 @@ class ManualExtractionPar(ParSet):
 
     def validate(self):
         pass
-
-
-
-class ManualExtractionParOld(ParSet):
-    """
-    A parameter set holding the arguments for how to perform the
-    manual extraction of a spectrum.
-
-    A list of these objects can be included in an instance of
-    :class:`ExtractObjectsPar` to perform a set of user-defined
-    extractions.
-
-    For an example of how to define a series of manual extractions in
-    the pypeit input file, see :ref:`pypeit_file`.
-
-    Args:
-        frame (:obj:`str`):
-            The name of the fits file for a manual extraction
-
-        params (:obj:`list`):
-            Parameters of the manual extraction.  For example, params =
-            1,1000,500,10,10 specifies the following behavior: 1 is the
-            detector number, 1000 is the spatial location that the trace
-            must go through, 500 is the spectral location that the trace
-            must go through, and the last two numbers (10,10) are the
-            widths around the stated (spatial,spectral) location that
-            should also be in the trace.
-    """
-    def __init__(self, frame=None, params=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['frame'] = str
-        descr['frame'] = 'The name of the fits file for a manual extraction'
-
-        dtypes['params'] = list
-        descr['params'] = 'Parameters of the manual extraction.  For example, params = ' \
-                          '1,1000,500,10,10 specifies the following behavior: 1 is the ' \
-                          'detector number, 1000 is the spatial location that the trace must ' \
-                          'go through, 500 is the spectral location that the trace must go ' \
-                          'through, and the last two numbers (10,10) are the widths around the ' \
-                          'stated (spatial,spectral) location that should also be in the trace.'
-
-        # Instantiate the parameter set
-        super(ManualExtractionPar, self).__init__(list(pars.keys()),
-                                                  values=list(pars.values()),
-                                                  dtypes=list(dtypes.values()),
-                                                  descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = cfg.keys()
-        parkeys = [ 'frame', 'params' ]
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    def validate(self):
-        """
-        Check the parameters are valid for the provided method.
-        """
-        if self.data['params'] is not None and len(self.data['params']) != 5:
-            raise ValueError('There must be 5 manual extraction parameters.')
-        if self.data['frame'] is not None and not os.path.isfile(self.data['frame']):
-            raise FileNotFoundError('Manual extraction frame does not exist: {0}'.format(
-                                    self.data['frame']))
 
 
 class ReduxPar(ParSet):
@@ -1083,11 +1581,16 @@ class ReduxPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
                     'redux_path', 'ignore_bad_headers']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ReduxPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1101,14 +1604,14 @@ class ReduxPar(ParSet):
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
-        return ['gemini_gnirs','keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
-                'keck_nires', 'keck_hires_red', 'keck_hires_blue', 'mmt_binospec',
-                'keck_nirspec_low', 'keck_mosfire', 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret',
-                'tng_dolores', 'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis',
-                'magellan_fire', 'magellan_mage', 'vlt_xshooter_nir', 'gemini_gmos_south_ham',
-                'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-                'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'vlt_fors2']
-
+        return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
+                'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red',
+                'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
+                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
+                'vlt_fors2', 'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2',
+                'gemini_gmos_south_ham', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
+                'magellan_fire', 'magellan_fire_long', 'magellan_mage', 'lbt_mods1r', 'lbt_mods1b',
+                'lbt_mods2r', 'lbt_mods2b', 'lbt_luci1', 'lbt_luci2', 'mmt_binospec']
     def validate(self):
         pass
 
@@ -1355,13 +1858,19 @@ class WavelengthSolutionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
                    'ech_norder_coeff', 'ech_sigrej', 'lamps', 'nonlinear_counts', 'sigdetect',
                    'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
                    'IDpixels', 'IDwaves', 'medium', 'frame', 'nsnippet']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for WavelengthSolutionPar.'.format(
+                             k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1418,15 +1927,16 @@ class EdgeTracePar(ParSet):
                  det_min_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
                  max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
                  fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None,
-                 fit_min_spec_length=None, left_right_pca=None, pca_n=None, pca_var_percent=None,
-                 pca_function=None, pca_order=None, pca_sigrej=None, pca_maxrej=None,
-                 pca_maxiter=None, smash_range=None, edge_detect_clip=None, trace_median_frac=None,
-                 trace_thresh=None, fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None,
-                 niter_gaussian=None, det_buffer=None, max_nudge=None, sync_predict=None,
-                 sync_center=None, gap_offset=None, sync_to_edge=None, minimum_slit_length=None,
-                 length_range=None, minimum_slit_gap=None, clip=None, sync_clip=None,
-                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
-                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
+                 fit_min_spec_length=None, auto_pca=None, left_right_pca=None, pca_min_edges=None,
+                 pca_n=None, pca_var_percent=None, pca_function=None, pca_order=None,
+                 pca_sigrej=None, pca_maxrej=None, pca_maxiter=None, smash_range=None,
+                 edge_detect_clip=None, trace_median_frac=None, trace_thresh=None,
+                 fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None, niter_gaussian=None,
+                 det_buffer=None, max_nudge=None, sync_predict=None, sync_center=None,
+                 gap_offset=None, sync_to_edge=None, minimum_slit_length=None, length_range=None,
+                 minimum_slit_gap=None, clip=None, sync_clip=None, mask_reg_maxiter=None,
+                 mask_reg_maxsep=None, mask_reg_sigrej=None, ignore_alignment=None, pad=None,
+                 add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1530,11 +2040,29 @@ class EdgeTracePar(ParSet):
                                        'to use in any modeling procedure (polynomial fitting ' \
                                        'or PCA decomposition).'
 
+        defaults['auto_pca'] = True
+        dtypes['auto_pca'] = bool
+        descr['auto_pca'] = 'During automated tracing, attempt to construct a PCA decomposition ' \
+                            'of the traces. When True, the edge traces resulting from the ' \
+                            'initial detection, centroid refinement, and polynomial fitting ' \
+                            'must meet a set of criteria for performing the pca; see ' \
+                            ':func:`pypeit.edgetrace.EdgeTraceSet.can_pca`.  If False, the ' \
+                            '``sync_predict`` parameter *cannot* be set to ``pca``; if it is ' \
+                            'not, the value is set to ``nearest`` and a warning is issued when ' \
+                            'validating the parameter set.'
+
         defaults['left_right_pca'] = False
         dtypes['left_right_pca'] = bool
         descr['left_right_pca'] = 'Construct a PCA decomposition for the left and right traces ' \
                                   'separately.  This can be important for cross-dispersed ' \
                                   'echelle spectrographs (e.g., Keck-NIRES)'
+
+        defaults['pca_min_edges'] = 4
+        dtypes['pca_min_edges'] = int
+        descr['pca_min_edges'] = 'Minimum number of edge traces required to perform a PCA '\
+                                 'decomposition of the trace form.  If left_right_pca is True, ' \
+                                 'this minimum applies to the number of left and right traces '\
+                                 'separately.'
 
         dtypes['pca_n'] = int
         descr['pca_n'] = 'The number of PCA components to keep, which must be less than the ' \
@@ -1782,18 +2310,25 @@ class EdgeTracePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        # TODO Please provide docs
+        k = numpy.array([*cfg.keys()])
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
                    'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
                    'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
-                   'fit_niter', 'fit_min_spec_length', 'left_right_pca', 'pca_n',
-                   'pca_var_percent', 'pca_function', 'pca_order', 'pca_sigrej', 'pca_maxrej',
-                   'pca_maxiter', 'smash_range', 'edge_detect_clip', 'trace_median_frac',
-                   'trace_thresh', 'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian',
-                   'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict', 'sync_center',
-                   'gap_offset', 'sync_to_edge', 'minimum_slit_length', 'length_range',
-                   'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter', 'mask_reg_maxsep',
-                   'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits', 'rm_slits']
+                   'fit_niter', 'fit_min_spec_length', 'auto_pca', 'left_right_pca',
+                   'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
+                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
+                   'trace_median_frac', 'trace_thresh', 'fwhm_uniform', 'niter_uniform',
+                   'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict',
+                   'sync_center', 'gap_offset', 'sync_to_edge', 'minimum_slit_length',
+                   'length_range', 'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter',
+                   'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits',
+                   'rm_slits']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for EdgeTracePar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -1822,7 +2357,10 @@ class EdgeTracePar(ParSet):
         return ['median', 'nearest', 'gap']
 
     def validate(self):
-        pass
+        """Validate the parameter set."""
+        if not self['auto_pca'] and self['sync_predict'] == 'pca':
+            warnings.warn('sync_predict cannot be pca if auto_pca is False.  Setting to nearest.')
+            self['sync_predict'] = 'nearest'
 
 
 class WaveTiltsPar(ParSet):
@@ -1977,10 +2515,15 @@ class WaveTiltsPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
                    'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
                    'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order',
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2016,8 +2559,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None,
-                 extraction=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2056,9 +2598,14 @@ class ReducePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
-        kwargs = {}
+        k = numpy.array([*cfg.keys()])
 
+        allkeys = ['findobj', 'skysub', 'extraction']
+        badkeys = numpy.array([pk not in allkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
+
+        kwargs = {}
         # Keywords that are ParSets
         pk = 'findobj'
         kwargs[pk] = FindObjPar.from_dict(cfg[pk]) if pk in k else None
@@ -2082,14 +2629,10 @@ class FindObjPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, trace_npoly=None, sig_thresh=None,
-                 find_trim_edge=None, find_cont_fit=None,
-                 find_npoly_cont=None, find_maxdev=None,
-                 find_extrap_npoly=None, maxnumber=None,
-                 find_fwhm=None, ech_find_max_snr=None,
-                 ech_find_min_snr=None, ech_find_nabove_min_snr=None,
-                 skip_second_find=None
-                 ):
+    def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
+                 find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
+                 find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
+                 ech_find_nabove_min_snr=None, skip_second_find=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2173,16 +2716,19 @@ class FindObjPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = ['trace_npoly', 'sig_thresh', 'find_trim_edge',
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr',
-                   'skip_second_find',
-                   ]
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for FindObjPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2201,10 +2747,7 @@ class SkySubPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self,
-                 bspline_spacing=None, sky_sigrej=None,
-                 global_sky_std=None, no_poly=None
-                 ):
+    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2250,12 +2793,15 @@ class SkySubPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std',
-                   'no_poly'
-                   ]
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for SkySubPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2274,11 +2820,9 @@ class ExtractionPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self,
-                 boxcar_radius=None, std_prof_nsigma=None,
-                 sn_gauss=None, model_full_slit=None, manual=None,
-                 skip_optimal=None
-                 ):
+    def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
+                 model_full_slit=None, manual=None, skip_optimal=None):
+
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2340,13 +2884,16 @@ class ExtractionPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['boxcar_radius', 'std_prof_nsigma',
-                   'sn_gauss', 'model_full_slit',
-                   'manual', 'skip_optimal'
-                   ]
+        parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
+                   'skip_optimal']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ExtractionPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2467,10 +3014,18 @@ class CalibrationsPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
 
         # Basic keywords
         parkeys = [ 'caldir', 'setup', 'trim', 'badpix' ]
+
+        allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
+                             'pinholeframe', 'traceframe', 'standardframe', 'flatfield',
+                             'wavelengths', 'slitedges', 'tilts']
+        badkeys = numpy.array([pk not in allkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for CalibrationsPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -2553,7 +3108,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
-                 flexure=None, fluxcalib=None, coadd2d=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2599,6 +3154,7 @@ class PypeItPar(ParSet):
                            'default flexure-correction parameters.'
 
         # Flux calibration is turned OFF by default
+        defaults['fluxcalib'] = FluxCalibratePar()
         dtypes['fluxcalib'] = [ParSet, dict]
         descr['fluxcalib'] = 'Parameters used by the flux-calibration procedure.  Flux ' \
                              'calibration is not performed by default.  To turn on, either ' \
@@ -2606,10 +3162,24 @@ class PypeItPar(ParSet):
                              '\'fluxcalib = True\' in the \'rdx\' parameter group to use the ' \
                              'default flux-calibration parameters.'
 
+
+        # Coadd1D
+        defaults['coadd1d'] = Coadd1DPar()
+        dtypes['coadd1d'] = [ParSet, dict]
+        descr['coadd1d'] = 'Par set to control 1D coadds.  Only used in the after-burner script.'
+
+
         # Coadd2D
         defaults['coadd2d'] = Coadd2DPar()
         dtypes['coadd2d'] = [ParSet, dict]
         descr['coadd2d'] = 'Par set to control 2D coadds.  Only used in the after-burner script.'
+
+
+        # Sensfunc
+        defaults['sensfunc'] = SensFuncPar()
+        dtypes['sensfunc'] = [ParSet, dict]
+        descr['sensfunc'] = 'Par set to control sensitivity function computation.  Only used in the after-burner script.'
+
 
         # Instantiate the parameter set
         super(PypeItPar, self).__init__(list(pars.keys()),
@@ -2761,6 +3331,7 @@ class PypeItPar(ParSet):
         # Evaluate the strings if requested
         if evaluate:
             cfg = util.recursive_dict_evaluate(cfg)
+
         # Instantiate the object based on the configuration dictionary
         return cls.from_dict(cfg)
 
@@ -2806,7 +3377,14 @@ class PypeItPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
+
+        allkeys = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib',
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess']
+        badkeys = numpy.array([pk not in allkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
+
         kwargs = {}
 
         pk = 'rdx'
@@ -2829,14 +3407,27 @@ class PypeItPar(ParSet):
 
         # Allow flux calibration to be turned on using cfg['rdx']
         pk = 'fluxcalib'
-        default = FluxCalibrationPar() \
+        default = FluxCalibratePar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['fluxcalib'] else None
-        kwargs[pk] = FluxCalibrationPar.from_dict(cfg[pk]) if pk in k else default
+        kwargs[pk] = FluxCalibratePar.from_dict(cfg[pk]) if pk in k else default
 
-        # Allow flexure to be turned on using cfg['rdx']
+        # Allow coadd1d  to be turned on using cfg['rdx']
+        pk = 'coadd1d'
+        default = Coadd1DPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['coadd1d'] else None
+        kwargs[pk] = Coadd1DPar.from_dict(cfg[pk]) if pk in k else default
+
+        # Allow coadd2d  to be turned on using cfg['rdx']
         pk = 'coadd2d'
-        default = Coadd2DPar()
+        default = Coadd2DPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['coadd2d'] else None
         kwargs[pk] = Coadd2DPar.from_dict(cfg[pk]) if pk in k else default
+
+        # Allow coadd2d  to be turned on using cfg['rdx']
+        pk = 'sensfunc'
+        default = SensFuncPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['sensfunc'] else None
+        kwargs[pk] = SensFuncPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)
@@ -3058,10 +3649,15 @@ class DetectorPar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
                    'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
                    'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for DetectorPar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -3154,8 +3750,13 @@ class TelescopePar(ParSet):
 
     @classmethod
     def from_dict(cls, cfg):
-        k = cfg.keys()
+        k = numpy.array([*cfg.keys()])
         parkeys = [ 'name', 'longitude', 'latitude', 'elevation', 'fratio', 'diameter' ]
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for TelescopePar.'.format(k[badkeys]))
+
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
@@ -3166,7 +3767,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT' ]
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT' ]
 
     def validate(self):
         pass

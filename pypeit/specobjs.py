@@ -1,4 +1,8 @@
-""" Module for the SpecObjs and SpecObj classes
+"""
+Module for the SpecObjs and SpecObj classes
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import re
@@ -12,6 +16,7 @@ from pypeit import msgs
 from pypeit.core import save
 from pypeit import specobj
 from pypeit.io import initialize_header
+from pypeit.spectrographs.util import load_spectrograph
 
 from IPython import embed
 
@@ -80,7 +85,7 @@ class SpecObjs(object):
         # Return
         return slf
 
-    def __init__(self, specobjs=None):
+    def __init__(self, specobjs=None, header=None):
 
         # Only one attribute is allowed for this Object -- specobjs
         if specobjs is None:
@@ -90,8 +95,7 @@ class SpecObjs(object):
                 specobjs = np.array(specobjs)
             self.specobjs = specobjs
 
-        # Other attributes
-        self.header = None
+        self.header = header if header is not None else None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array
@@ -134,13 +138,104 @@ class SpecObjs(object):
         """
         return len(self.specobjs)
 
-    def get_std(self):
+    def unpack_object(self, ret_flam=False):
+        """
+        Utility function to unpack the sobjs for one object and
+        return various numpy arrays describing the spectrum and meta
+        data. The user needs to already have trimmed the Specobjs to
+        the relevant indices for the object.
+
+        Args:
+           ret_flam (:obj:`bool`, optional):
+              If True return the FLAM, otherwise return COUNTS.
+
+        Returns:
+            tuple: Returns the following where all numpy arrays
+            returned have shape (nspec, norders) for Echelle data and
+            (nspec,) for Multislit data.
+
+                - wave (`numpy.ndarray`_): Wavelength grids
+                - flux (`numpy.ndarray`_): Flambda or counts
+                - flux_ivar (`numpy.ndarray`_): Inverse variance (of
+                  Flambda or counts)
+                - flux_gpm (`numpy.ndarray`_): Good pixel mask.
+                  True=Good
+                - meta_spec (dict:) Dictionary containing meta data.
+                  The keys are defined by
+                  spectrograph.header_cards_from_spec()
+                - header (astropy.io.header object): header from
+                  spec1d file
+    """
+
+        # Read in the spec1d file
+        norddet = self.nobj
+        if ret_flam:
+            # TODO Should nspec be an attribute of specobj?
+            nspec = self[0].OPT_FLAM.size
+        else:
+            nspec = self[0].OPT_COUNTS.size
+        # Allocate arrays and unpack spectrum
+        wave = np.zeros((nspec, norddet))
+        flux = np.zeros((nspec, norddet))
+        flux_ivar = np.zeros((nspec, norddet))
+        flux_gpm = np.zeros((nspec, norddet), dtype=bool)
+        detector = np.zeros(norddet, dtype=int)
+        ech_orders = np.zeros(norddet, dtype=int)
+        for iorddet in range(norddet):
+            wave[:, iorddet] = self[iorddet].OPT_WAVE
+            flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
+            detector[iorddet] = self[iorddet].DET
+            if self[0].PYPELINE == 'Echelle':
+                ech_orders[iorddet] = self[iorddet].ECH_ORDER
+            if ret_flam:
+                flux[:, iorddet] = self[iorddet].OPT_FLAM
+                flux_ivar[:, iorddet] = self[iorddet].OPT_FLAM_IVAR
+            else:
+                flux[:, iorddet] = self[iorddet].OPT_COUNTS
+                flux_ivar[:, iorddet] = self[iorddet].OPT_COUNTS_IVAR
+
+        # Populate meta data
+        try:
+            spectrograph = load_spectrograph(self.header['PYP_SPEC'])
+        except:
+            # TODO JFH  This is a hack until a generic spectrograph is implemented.
+            spectrograph = load_spectrograph('shane_kast_blue')
+
+        meta_spec = {}
+        core_keys = spectrograph.header_cards_for_spec()
+        for key in core_keys:
+            try:
+                meta_spec[key.upper()] = self.header[key.upper()]
+            except KeyError:
+                pass
+        # Add the pyp spec.
+        # TODO JFH: Make this an atribute of the specobj by default.
+        meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
+        meta_spec['PYPELINE'] = self[0].PYPELINE
+        meta_spec['DET'] = detector
+        if self[0].PYPELINE == 'MultiSlit' and self.nobj == 1:
+            meta_spec['ECH_ORDERS'] = None
+            return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
+                   flux_gpm.reshape(nspec), meta_spec, self.header
+        else:
+            meta_spec['ECH_ORDERS'] = ech_orders
+            return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
+
+
+
+
+
+
+    def get_std(self, multi_spec_det=None):
         """
         Return the standard star from this Specobjs. For MultiSlit this
         will be a single specobj in SpecObjs container, for Echelle it
         will be the standard for all the orders.
 
         Args:
+            multi_spec_det (list):
+                If there are multiple detectors arranged in the spectral direction, return the sobjs for
+                the standard on each detector.
 
         Returns:
             SpecObj or SpecObjs
@@ -149,15 +244,22 @@ class SpecObjs(object):
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
-            SNR = np.zeros(self.nobj)
             # Have to do a loop to extract the counts for all objects
-            for iobj in range(self.nobj):
-                SNR[iobj] = np.median(self[iobj].OPT_COUNTS*np.sqrt(
-                    self[iobj].OPT_COUNTS_IVAR))
-            # Maximize S/N
-            istd = SNR.argmax()
-            # Return
-            return SpecObjs(specobjs=[self[istd]])
+            SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+            # For multiple detectors grab the requested detectors
+            if multi_spec_det is not None:
+                sobjs_std = SpecObjs(header=self.header)
+                # Now append the maximum S/N object on each detector
+                for idet in multi_spec_det:
+                    this_det = self.DET == idet
+                    istd = SNR[this_det].argmax()
+                    sobjs_std.add_sobj(self[this_det][istd])
+            else: # For normal multislit take the brightest object
+                istd = SNR.argmax()
+                # Return
+                sobjs_std = SpecObjs(specobjs=[self[istd]], header=self.header)
+            sobjs_std.header = self.header
+            return sobjs_std
         elif 'Echelle' in pypeline:
             uni_objid = np.unique(self.ECH_FRACPOS)  # A little risky using floats
             uni_order = np.unique(self.ECH_ORDER)
@@ -176,7 +278,9 @@ class SpecObjs(object):
             # Finish
             indx = self.ECH_FRACPOS == objid_std
             # Return
-            return SpecObjs(specobjs=self[indx])
+            sobjs_std = SpecObjs(specobjs=self[indx], header=self.header)
+            sobjs_std.header = self.header
+            return sobjs_std
         else:
             msgs.error('Unknown pypeline')
 
@@ -195,6 +299,7 @@ class SpecObjs(object):
         sobjs_neg.sign = -1.0
         if sobjs_neg[0].PYPELINE == 'Echelle':
             sobjs_neg.ECH_OBJID = -1*sobjs_neg.ECH_OBJID
+            sobjs_neg.OBJID = -1*sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
@@ -232,6 +337,18 @@ class SpecObjs(object):
         else:
             msgs.error("Should not get here")
         #
+        return indx
+
+    def name_indices(self, name):
+        """
+        Return the set of indices matching the input slit/order
+        """
+        if self[0].PYPELINE == 'Echelle':
+            indx = self.ECH_NAME == name
+        elif self[0].PYPELINE == 'MultiSlit':
+            indx = self.NAME == name
+        else:
+            msgs.error("Should not get here")
         return indx
 
 
@@ -294,7 +411,7 @@ class SpecObjs(object):
             SpecObjs
 
         """
-        sobj_copy = SpecObjs()
+        sobj_copy = SpecObjs(header=self.header)
         for sobj in self.specobjs:
             sobj_copy.add_sobj(sobj.copy())
         return sobj_copy
@@ -320,7 +437,7 @@ class SpecObjs(object):
         """
         Overload to allow one to pull an attribute or a portion of the
         SpecObjs list
-         
+
         Args:
             item (:obj:`str`, :obj:`int`, :obj:`slice`)
 
@@ -341,7 +458,7 @@ class SpecObjs(object):
             # here for the many ways to give a slice; a tuple of ndarray
             # is produced by np.where, as in t[np.where(t['a'] > 2)]
             # For all, a new table is constructed with slice of all columns
-            return SpecObjs(specobjs=self.specobjs[item])
+            return SpecObjs(specobjs=self.specobjs[item], header=self.header)
 
     def __getattr__(self, k):
         """
@@ -374,15 +491,50 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def write_to_fits(self, outfile, header=None, spectrograph=None, overwrite=True,
-                      update_det=None):
+    def build_header(self, head_fitstbl, spectrograph):
+        """
+        Builds the spec1d file header from the fitstbl meta data and meta data from spectrograph
+        Args:
+            head_fitstbl (header):
+               Header from fitstbl
+            spectrograph (object):
+               Spectrograph object
+
+        Returns:
+
+        """
+        header = fits.PrimaryHDU().header
+        try:
+            header['MJD-OBS'] = head_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
+        except KeyError:
+            header['MJD-OBS'] = head_fitstbl['MJD-OBS']
+        core_keys = spectrograph.header_cards_for_spec()
+        for key in core_keys:
+            # Allow for fitstbl vs. header
+            try:
+                header[key.upper()] = head_fitstbl[key.upper()]
+            except KeyError:
+                header[key.upper()] = head_fitstbl[key]
+        # Specify which pipeline created this file
+        header['PYPELINE'] = spectrograph.pypeline
+        header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+        # Observatory
+        telescope = spectrograph.telescope
+        header['LON-OBS'] = telescope['longitude']
+        header['LAT-OBS'] = telescope['latitude']
+        header['ALT-OBS'] = telescope['elevation']
+        _ = initialize_header(header)
+        return header
+
+
+
+    def write_to_fits(self, header, outfile, overwrite=True, update_det=None):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
         Args:
             outfile (str):
             header:
-            spectrograph:
             overwrite (bool, optional):
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update
@@ -402,29 +554,7 @@ class SpecObjs(object):
             # Build up the Header
             prihdu = fits.PrimaryHDU()
             hdus = [prihdu]
-            # Add to the header from input header
-            if header is not None:
-                try:
-                    prihdu.header['MJD-OBS'] = header['mjd']  # recorded as 'mjd' in fitstbl
-                except KeyError:
-                    prihdu.header['MJD-OBS'] = header['MJD-OBS']
-                if spectrograph is not None:
-                    core_keys = spectrograph.header_cards_for_spec()
-                    for key in core_keys:
-                        # Allow for fitstbl vs. header
-                        try:
-                            prihdu.header[key.upper()] = header[key.upper()]
-                        except KeyError:
-                            prihdu.header[key.upper()] = header[key]
-            if spectrograph is not None:
-                # Specify which pipeline created this file
-                prihdu.header['PYPELINE'] = spectrograph.pypeline
-                prihdu.header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
-                # Observatory
-                telescope = spectrograph.telescope
-                prihdu.header['LON-OBS'] = telescope['longitude']
-                prihdu.header['LAT-OBS'] = telescope['latitude']
-                prihdu.header['ALT-OBS'] = telescope['elevation']
+            prihdu.header = header
 
         ext = len(hdus)-1
         # Loop on the SpecObj objects
@@ -434,11 +564,11 @@ class SpecObjs(object):
             ext += 1
             # Add header keyword
             keywd = 'EXT{:04d}'.format(ext)
-            prihdu.header[keywd] = sobj.name
+            prihdu.header[keywd] = sobj.NAME
 
             # Table
             shdu = fits.table_to_hdu(sobj._data)
-            shdu.name = sobj.name
+            shdu.name = sobj.NAME
             # Append
             hdus += [shdu]
 
@@ -446,7 +576,7 @@ class SpecObjs(object):
         prihdu.header['NSPEC'] = len(hdus) - 1
         #prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
         # Code versions
-        _ = initialize_header(prihdu.header)
+        #_ = initialize_header(prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)

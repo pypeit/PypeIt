@@ -40,8 +40,8 @@ from pypeit import msgs
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
+from pypeit.core import meta
 from pypeit.par import pypeitpar
-from pypeit.metadata import PypeItMetaData
 
 from IPython import embed
 
@@ -83,6 +83,8 @@ class Spectrograph(object):
     def __init__(self):
         self.spectrograph = 'base'
         self.telescope = None
+        self.camera = None
+        self.dispname = None
         self.detector = None
         self.naxis = None
 #        self.raw_naxis = None
@@ -104,7 +106,7 @@ class Spectrograph(object):
 #        self._set_calib_par()
 
         # Init meta
-        self.meta_data_model = PypeItMetaData.get_meta_data_model()
+        self.meta_data_model = meta.get_meta_data_model()
         self.init_meta()
         self.validate_metadata()
 
@@ -229,7 +231,7 @@ class Spectrograph(object):
             list: Keys for header cards of spec1d
 
         """
-        core_meta = PypeItMetaData.define_core_meta()
+        core_meta = meta.define_core_meta()
         header_cards = list(core_meta.keys())
         # Add a few more
         header_cards += ['filename']  # For fluxing
@@ -261,6 +263,7 @@ class Spectrograph(object):
             image = np.flip(image, axis=1)
         return image
 
+    ## TODO: JFH Are these bad pixel masks in the raw frame, or the flipped/transposed pypeit frame??
     def empty_bpm(self, filename, det, shape=None):
         """
         Generate a generic (empty) bad-pixel mask.
@@ -366,7 +369,7 @@ class Spectrograph(object):
         """
         pypeit_keys = ['filename', 'frametype']
         # Core
-        core_meta = PypeItMetaData.define_core_meta()
+        core_meta = meta.define_core_meta()
         pypeit_keys += list(core_meta.keys())  # Might wish to order these
         # Add in config_keys (if new)
         for key in self.configuration_keys():
@@ -425,6 +428,10 @@ class Spectrograph(object):
         # Raw image
         hdu = fits.open(raw_file)
         raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
+        # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
+        # it's easier to change here than writing another get_rawimage function in the spectrograph file.
+        if np.size(raw_img.shape)==3:
+            raw_img = raw_img[0]
 
         # Extras
         headarr = self.get_headarr(hdu)
@@ -533,7 +540,28 @@ class Spectrograph(object):
             except (KeyError, TypeError):
                 value = None
 
-        if value is None:
+
+
+        # JFH Added this bit of code to deal with situations where the header card is there but the wrong type, e.g.
+        # MJD-OBS = 'null'
+        try:
+            if self.meta_data_model[meta_key]['dtype'] == str:
+                retvalue = str(value).strip()
+            elif self.meta_data_model[meta_key]['dtype'] == int:
+                retvalue = int(value)
+            elif self.meta_data_model[meta_key]['dtype'] == float:
+                retvalue = float(value)
+            elif self.meta_data_model[meta_key]['dtype'] == tuple:
+                assert isinstance(value, tuple)
+                retvalue = value
+            castable = True
+        except:
+            retvalue = None
+            castable = False
+
+        # JFH Added the typing to prevent a crash below when the header value exists, but is the wrong type. This
+        # causes a crash below  when the value is cast.
+        if value is None or not castable:
             # Was this required?
             if required:
                 kerror = True
@@ -553,45 +581,53 @@ class Spectrograph(object):
                         self.meta[meta_key]['card']))
             return None
 
+        # JFH Old code which causes a crash when the type is wrong
         # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
-        if self.meta_data_model[meta_key]['dtype'] == str:
-            value = str(value).strip()
-        elif self.meta_data_model[meta_key]['dtype'] == int:
-            value = int(value)
-        elif self.meta_data_model[meta_key]['dtype'] == float:
-            value = float(value)
-        elif self.meta_data_model[meta_key]['dtype'] == tuple:
-            assert isinstance(value, tuple)
-        else:
-            debugger.set_trace()
+        #if self.meta_data_model[meta_key]['dtype'] == str:
+        #    value = str(value).strip()
+        #elif self.meta_data_model[meta_key]['dtype'] == int:
+        #    value = int(value)
+        #elif self.meta_data_model[meta_key]['dtype'] == float:
+        #    value = float(value)
+        #elif self.meta_data_model[meta_key]['dtype'] == tuple:
+        #    assert isinstance(value, tuple)
+        #else:
+        #    embed()
         # Return
-        return value
+
+        return retvalue
 
     def validate_metadata(self):
         """
         Validates the meta definitions of the Spectrograph
         by making a series of comparisons to the meta data model
         definied in metadata.py
-
-        Returns:
-
         """
         # Load up
-        core_meta = PypeItMetaData.define_core_meta()
-        meta_data_model = PypeItMetaData.get_meta_data_model()
+        # TODO: Can we indicate if the metadata element is core instead
+        # of having to call both of these?
+        core_meta = meta.define_core_meta()
+        # KBW: These should have already been defined to self
+        #meta_data_model = meta.get_meta_data_model()
+
         # Check core
-        for key in core_meta:
-            assert key in self.meta.keys(), \
-                'key {:s} not defined in spectrograph meta!'.format(key)
+        core_keys = np.array(list(core_meta.keys()))
+        indx = np.invert(np.isin(core_keys, list(self.meta.keys())))
+        if np.any(indx):
+            msgs.error('Required keys {0} not defined by spectrograph!'.format(core_keys[indx]))
+
         # Check for rtol for config keys that are type float
-        for key in self.configuration_keys():
-            if meta_data_model[key]['dtype'] in [float]:
-                assert 'rtol' in self.meta[key].keys(), \
-                    'rtol not set for key {:s} not defined in spectrograph meta!'.format(key)
+        config_keys = np.array(self.configuration_keys())
+        indx = ['rtol' not in self.meta[key].keys() if self.meta_data_model[key]['dtype'] == float 
+                    else False for key in config_keys]
+        if np.any(indx):
+            msgs.error('rtol not set for {0} keys in spectrograph meta!'.format(config_keys[indx]))
+
         # Now confirm all meta are in the data model
-        for key in self.meta.keys():
-            if key not in self.meta_data_model.keys():
-                msgs.error("Meta data {:s} not in meta_data_model".format(key))
+        meta_keys = np.array(list(self.meta.keys()))
+        indx = np.invert(np.isin(meta_keys, list(self.meta_data_model.keys())))
+        if np.any(indx):
+            msgs.error('Meta data keys {0} not in metadata model'.format(meta_keys[indx]))
 
     def get_headarr(self, inp, strict=True):
         """
@@ -719,6 +755,14 @@ class Spectrograph(object):
     def norders(self):
         return None
 
+    def check_disperser(self):
+        """
+        Ensure that the disperser is defined.
+        """
+        if self.dispname is None:
+            msgs.error('Disperser used for observations is required.  Reinit with an example '
+                       'science frame.')
+
     @property
     def order_spat_pos(self):
         return None
@@ -820,6 +864,11 @@ class Spectrograph(object):
 
         return np.power(10.0,loglam_grid)
 
+
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+        pass
 
     def __repr__(self):
         # Generate string

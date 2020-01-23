@@ -1861,8 +1861,8 @@ def djs_reject(data, model, outmask=None, inmask=None,
         If set to a non-zero integer, N, the N nearest neighbors of rejected
         pixels will also be rejected.
     sticky : :class:`bool`, optional
-        If set to ``True``, pixels rejected in one iteration remain rejected in
-        subsequent iterations, even if the model changes.
+        If set to True then points rejected in outmask from a previous call to djs_reject are kept rejected. If
+        set to False, if a fit (model) changes between iterations, points can alternate from being rejected to not rejected.
     use_mad : :class: `bool`, optional, defaul = False
         It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
         the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True

@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Computes sensitivity function
+"""
+
+import pypeit.scripts.sensfunc as sensfunc
+
+if __name__ == '__main__':
+    args = sensfunc.parser()
+    sensfunc.main(args)
