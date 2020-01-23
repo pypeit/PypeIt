@@ -138,10 +138,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
             #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
             #tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
-            lskyset, outmask, lsky_fit, red_chi, exit_status = utils.bspline_profile(
-                pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky), inmask = inmask_fit[pos_sky],
-                upper=sigrej, lower=sigrej, kwargs_bspline={'bkspace':bsp},
-                kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+            lskyset, outmask, lsky_fit, red_chi, exit_status \
+                    = utils.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+                                            ingpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
+                                            kwargs_bspline={'bkspace':bsp},
+                                            kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
             lmask = (res < 5.0) & (res > -4.0)
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
@@ -164,11 +165,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
     # Perform the full fit now
     msgs.info("Full fit in global sky sub.")
-    skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar,poly_basis,inmask = inmask_fit,
-                                                                  nord=4,upper=sigrej, lower=sigrej,
-                                                                  maxiter=maxiter,
-                                                                  kwargs_bspline = {'bkspace':bsp},
-                                                                  kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    skyset, outmask, yfit, _, exit_status \
+            = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+                                    upper=sigrej, lower=sigrej, maxiter=maxiter,
+                                    kwargs_bspline={'bkspace':bsp},
+                                    kwargs_reject={'groupbadpix':True, 'maxrej': 10})
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
     # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
     # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
@@ -179,11 +180,11 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
                   'Redoing sky-subtraction without polynomial degrees of freedom')
         poly_basis = np.ones_like(sky)
         # Perform the full fit now
-        skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, inmask=inmask_fit,
-                                                                      nord=4, upper=sigrej, lower=sigrej,
-                                                                      maxiter=maxiter,
-                                                                      kwargs_bspline={'bkspace': bsp},
-                                                                      kwargs_reject={'groupbadpix': False, 'maxrej': 10})
+        skyset, outmask, yfit, _, exit_status \
+                = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+                                        upper=sigrej, lower=sigrej, maxiter=maxiter,
+                                        kwargs_bspline={'bkspace': bsp},
+                                        kwargs_reject={'groupbadpix': False, 'maxrej': 10})
 
     sky_frame = np.zeros_like(image)
     ythis = np.zeros_like(yfit)
@@ -275,10 +276,11 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
     outmask = np.zeros(wave.shape, dtype=bool)
 
     if ngood > 0:
-        sset1, outmask_good1, yfit1, red_chi1, exit_status = utils.bspline_profile(
-            wave[good], data[good], ivar[good],
-            profile_basis[good, :],fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
-            relative=relative,kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+        sset1, outmask_good1, yfit1, red_chi1, exit_status \
+                = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
+                                        fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+                                        relative=relative,
+                                        kwargs_reject={'groupbadpix': True, 'maxrej': 5})
     else:
         msgs.warn('All pixels are masked in skyoptimal. Not performing local sky subtraction.')
         return np.zeros_like(wave), np.zeros_like(wave), outmask
@@ -293,10 +295,11 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
     msgs.info('2nd round....')
     msgs.info('Iter     Chi^2     Rejected Pts')
     if np.any(mask1):
-        sset, outmask_good, yfit, red_chi, exit_status = \
-            utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :], inmask=mask1,
-                                  fullbkpt=fullbkpt, upper=sigrej, lower=sigrej, relative=relative,
-                                  kwargs_reject={'groupbadpix': True, 'maxrej': 1})
+        sset, outmask_good, yfit, red_chi, exit_status \
+                = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good,:],
+                                        ingpm=mask1, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
+                                        relative=relative,
+                                        kwargs_reject={'groupbadpix': True, 'maxrej': 1})
     else:
         msgs.warn('All pixels are masked in skyoptimal after first round of rejection. Not performing local sky subtraction.')
         return np.zeros_like(wave), np.zeros_like(wave), outmask

@@ -759,8 +759,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
-                                      ,maxiter=1,kwargs_bspline= {'nbkpts':nbkpts})
+        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+                                               norm_ivar.flat[inside], profile_basis,
+                                               maxiter=1, kwargs_bspline={'nbkpts':nbkpts})
         # Check to see if the mode fit failed, if so punt and return a Gaussian
         if not np.any(mode_shift_out[1]):
             msgs.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
@@ -781,8 +782,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
-                                            maxiter=1,fullbkpt = mode_shift_set.breakpoints)
+        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+                                                 norm_ivar.flat[inside], profile_basis, maxiter=1,
+                                                 fullbkpt=mode_shift_set.breakpoints)
         if not np.any(mode_stretch_out[1]):
             msgs.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
@@ -816,8 +818,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, type=bool)
-            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
-                                    nord = 4, bkpt=bkpt[keep],maxiter=2)
+            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
+                                             norm_ivar.flat[inside[ss]],pb[ss], nord=4,
+                                             bkpt=bkpt[keep], maxiter=2)
             if not np.any(bset_out[1]):
                 msgs.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
                 msgs.info("Returning Gaussian profile")
@@ -841,8 +844,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
-                            nord=4, bkpt = bkpt, upper = 10, lower=10)
+    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
+                                     norm_ivar.flat[ss[inside]], pb.flat[ss[inside]], nord=4,
+                                     bkpt=bkpt, upper=10, lower=10)
     bset = bset_out[0]
     outmask = bset_out[1]
 

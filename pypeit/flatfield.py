@@ -701,7 +701,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # don't have to instantiate invvar and profile_basis
             spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
                     = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
-                                            np.ones_like(spec_coo_data), inmask=spec_gpm_data,
+                                            np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -909,7 +909,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
-                                            poly_basis, inmask=twod_gpm_data, nord=4,
+                                            poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
