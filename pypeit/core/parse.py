@@ -731,6 +731,11 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         if len(_s) < 3:
             # Include step
             _s += [ None ]
+        # Must check order first so "include_last" and "one_indexed" are correctly applied
+        # Check that the first two elements of the slice are ordered correctly
+        if _s[0] is not None and _s[1] is not None:
+            if _s[0] > _s[1]:
+                _s = [_s[1], _s[0], _s[2]]
         if one_indexed:
             # Decrement to convert from 1- to 0-indexing
             _s = [ None if x is None else x-1 for x in _s ]
@@ -738,9 +743,6 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
             # Increment to include last 
             _s[1] += 1
         _s = [ None if ss is None else ss//b for ss in _s ]
-        # Check that the first two elements of the slice are ordered correctly
-        if _s[0] > _s[1]:
-            _s = [_s[1], _s[0], _s[2]]
         # Append the new slice
         slices += [slice(*_s)]
 
