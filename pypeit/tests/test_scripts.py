@@ -23,9 +23,11 @@ from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
 
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 #def test_arcid_plot():
 #    json_file = data_path('LRISb_600_WaveCalib_01.json')
@@ -142,6 +144,7 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
+
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
@@ -167,6 +170,7 @@ def test_view_fits():
     """
     spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
+
 
 @cooked_required
 def test_chk_flat():
@@ -199,27 +203,25 @@ def test_coadd1d_1():
     os.remove(coadd_ofile)
 
 
-## TODO: Failure adding sensfunc to files/ because don't have telluric
-## grid.  Bring this test back when it's available.
-#def test_coadd1d_2():
-#    """
-#    Test combining Echelle
-#    """
-#    coadd_ofile = data_path('pisco_coadd.fits')
-#    if os.path.isfile(coadd_ofile):
-#        os.remove(coadd_ofile)
-#
-#    coadd_1dspec.main(coadd_1dspec.parser([data_path('gemini_gnirs_32_sb_sxd.coadd1d')]))
-#
-#    from IPython import embed
-#    embed()
-#    exit()
-#
-#    # Clean up
-#    os.remove(coadd_ofile)
-#
-#if __name__ == '__main__':
-#    test_coadd1d_2()
+def test_coadd1d_2():
+    """
+    Test combining Echelle
+    """
+    coadd_ofile = data_path('pisco_coadd.fits')
+    if os.path.isfile(coadd_ofile):
+        os.remove(coadd_ofile)
+
+    coadd_1dspec.main(coadd_1dspec.parser([data_path('gemini_gnirs_32_sb_sxd.coadd1d')]))
+
+    from IPython import embed
+    embed()
+    exit()
+
+    # Clean up
+    os.remove(coadd_ofile)
+
+if __name__ == '__main__':
+    test_coadd1d_2()
 
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
