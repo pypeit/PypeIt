@@ -65,6 +65,3 @@ def test_io():
     os.remove(other_ofile)
    
 
-if __name__ == '__main__':
-    test_io()
-
