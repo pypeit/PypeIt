@@ -4196,7 +4196,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
 
-    # ADDED in rmtdict
     def slit_spatial_center(self, normalized=True, spec=None, resort=False, use_center=False):
         """
         Return the spatial coordinate of the center of each slit.
