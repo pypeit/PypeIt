@@ -666,13 +666,14 @@ class Calibrations(object):
             self.slits = self.calib_dict[self.master_key_dict['trace']]['trace']
             return self.slits
 
-        # Instantiate
-        self.slits = slittrace.SlitTraceSet(master_key=self.master_key_dict['trace'],
-                                            master_dir=self.master_dir, reuse=self.reuse_masters)
+        # Instantiate. This will load the master-frame file if it
+        # exists, and returns None otherwise.
+        self.slits = slittrace.SlitTraceSet.from_master(self.master_key_dict['trace'],
+                                                        self.master_dir, reuse=self.reuse_masters)
+        if self.slits is None:
+            # Slits don't exist or we're not resusing them
 
-        if self.reuse_masters and self.slits.exists:
-            self.slits.load()
-        else:
+            # TODO: Add a from_master function to EdgeTraceSet
             self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
                                                 master_key=self.master_key_dict['trace'],
                                                 master_dir=self.master_dir,

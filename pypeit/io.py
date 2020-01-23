@@ -449,13 +449,9 @@ def dict_to_hdu(d, name=None, hdr=None):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
-        try:
-            cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
-                                 dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                                 array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
-        except:
-            embed()
-            exit()
+        cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
+                             dim=rec_to_fits_col_dim(d[key], single_row=single_row),
+                             array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 

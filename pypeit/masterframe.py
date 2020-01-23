@@ -56,6 +56,9 @@ class MasterFrame(object):
     """
     __metaclass__ = ABCMeta
 
+    # TODO: set master_type and file_format to be class attributes
+    # (instead of instance attributes) that each derived class has to
+    # define.
     def __init__(self, master_type, master_dir=None, master_key=None, file_format='fits',
                  reuse_masters=False):
 
@@ -101,6 +104,7 @@ class MasterFrame(object):
         """
         return os.path.isfile(self.master_file_path)
 
+    # TODO: Why doesn't ifile default to None instead of having to provide None?
     def chk_load_master(self, ifile):
         """
         Simple check to see if reuse_masters is set
@@ -156,30 +160,37 @@ class MasterFrame(object):
             fits header.
         """
         # Standard init
-        hdr = initialize_header(hdr)
+        _hdr = initialize_header(hdr)
 
         # Save the master frame type and key, in case the file name is
         # changed.
-        hdr['MSTRTYP'] = (self.master_type, 'PypeIt: Master frame type')
-        hdr['MSTRDIR'] = (self.master_dir, 'PypeIt: Master directory')
-        hdr['MSTRKEY'] = (self.master_key, 'PypeIt: Calibration key')
-        hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
+        _hdr['MSTRTYP'] = (self.master_type, 'PypeIt: Master frame type')
+        _hdr['MSTRDIR'] = (self.master_dir, 'PypeIt: Master directory')
+        _hdr['MSTRKEY'] = (self.master_key, 'PypeIt: Calibration key')
+        _hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
 
         # Other info, pulled from the Child
+        # TODO: I think this should be put in the relevant derived
+        # classes, instead of the kludge I had to put in for
+        # SlitTraceSet.
         if hasattr(self, 'spectrograph'):
-            hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
+            if isinstance(self.spectrograph, str):
+                _hdr['PYP_SPEC'] = (self.spectrograph, 'PypeIt: Spectrograph name')
+            else:
+                # Assume it's a Spectrograph object
+                _hdr['PYP_SPEC'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph name')
 
         #   - List the completed steps
         if steps is not None:
-            hdr['STEPS'] = (','.join(steps), 'Completed reduction steps')
+            _hdr['STEPS'] = (','.join(steps), 'Completed reduction steps')
         #   - Provide the file names
         if raw_files is not None:
             nfiles = len(raw_files)
             ndig = int(np.log10(nfiles)) + 1
             for i in range(nfiles):
-                hdr['F{0}'.format(i + 1).zfill(ndig)] = (raw_files[i], 'PypeIt: Processed raw file')
+                _hdr['F{0}'.format(i + 1).zfill(ndig)] = (raw_files[i], 'PypeIt: Processed raw file')
 
-        return hdr
+        return _hdr
 
 
 def items_from_master_file(master_file):

@@ -10,7 +10,7 @@ DataContainer
 enforcing a specific datamodel on an object, and provides convenience
 routines for writing data to fits files. The class itself is an
 abstract base class that cannot be directly instantiated. As a base
-class, :class:`DataContainer` objects are versitile, but they have
+class, :class:`DataContainer` objects are versatile, but they have
 their limitations.
 
 Derived classes must do the following:
@@ -918,7 +918,9 @@ class DataContainer:
         """
         return self.datamodel.keys()
 
-    def to_hdu(self, primary_hdr=None, add_primary=False):
+    # TODO: Always have this return an HDUList instead of either that
+    # or a normal list?
+    def to_hdu(self, hdr=None, add_primary=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -932,9 +934,9 @@ class DataContainer:
         the HDU.
 
         Args:
-            primary_hdr (`astropy.io.fits.Header`):
-                Header to add in the primary HDU. If None, set by
-                :func:`pypeit.io.initialize_header()`.
+            hdr (`astropy.io.fits.Header`, optional):
+                Baseline header to add to all returned HDUs. If None,
+                set by :func:`pypeit.io.initialize_header()`.
             add_primary (:obj:`bool`, optional):
                 If False, the returned object is a simple
                 :obj:`list`, with a list of HDU objects (either
@@ -943,16 +945,14 @@ class DataContainer:
                 constructs an `astropy.io.fits.HDUList` with a
                 primary HDU, such that this call::
 
-                    hdu = fits.HDUList([fits.PrimaryHDU()] + self.to_hdu())
+                    hdr = io.initialize_header()
+                    hdu = fits.HDUList([fits.PrimaryHDU(header=hdr)] + self.to_hdu(hdr=hdr))
 
                 and this call::
 
                     hdu = self.to_hdu(add_primary=True)
 
-                are identical. To give a specific primary HDU header,
-                use ``primary_hdr``; otherwise,
-                :func:`pypeit.io.initialize_header()` will be used to
-                initialize the header when ``add_primary`` is True.
+                are identical.
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -962,19 +962,19 @@ class DataContainer:
         data = self._bundle()
 
         # Initialize the base header
-        hdr = io.initialize_header() if primary_hdr is None else primary_hdr
-        hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
-        hdr['DMODVER'] = (self.version, 'Datamodel version')
+        _hdr = io.initialize_header() if hdr is None else hdr
+        _hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
+        _hdr['DMODVER'] = (self.version, 'Datamodel version')
 
         # Construct the list of HDUs
         hdu = []
         for d in data:
             if isinstance(d, dict) and len(d) == 1:
                 ext = list(d.keys())[0]
-                hdu += [io.write_to_hdu(d[ext], name=ext, hdr=hdr)]
+                hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
             else:
-                hdu += [io.write_to_hdu(d, hdr=hdr)]
-        return fits.HDUList([fits.PrimaryHDU(header=hdr)] + hdu) if add_primary else hdu
+                hdu += [io.write_to_hdu(d, hdr=_hdr)]
+        return fits.HDUList([fits.PrimaryHDU(header=_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
     def from_hdu(cls, hdu):
@@ -999,7 +999,7 @@ class DataContainer:
         DataContainer.__init__(self, cls._parse(hdu))
         return self
 
-    def to_file(self, ofile, overwrite=False, checksum=True):
+    def to_file(self, ofile, hdr=None, overwrite=False, checksum=True):
         """
         Write the data to a file.
 
@@ -1013,15 +1013,19 @@ class DataContainer:
                 Fits file for the data. File names with '.gz'
                 extensions will be gzipped; see
                 :func:`pypeit.io.write_to_fits`.
+            hdr (`astropy.io.fits.Header`, optional):
+                Baseline header to add to all returned HDUs. Passed
+                directly to :func:`to_hdu`; see usage there.
             overwrite (:obj:`bool`, optional):
                 Flag to overwrite any existing file.
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
         """
-        io.write_to_fits(self.to_hdu(add_primary=True), ofile, overwrite=overwrite,
+        io.write_to_fits(self.to_hdu(hdr=hdr, add_primary=True), ofile, overwrite=overwrite,
                          checksum=checksum)
 
+    # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
     def from_file(cls, ifile):
         """

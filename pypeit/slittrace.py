@@ -9,6 +9,7 @@ import inspect
 from IPython import embed
 
 import numpy as np
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import masterframe
@@ -21,7 +22,8 @@ from pypeit import datamodel
 # uniqueness of the method names between DataContainer and MasterFrame;
 # in particular, I'm thinking of the to/from IO methods. We might want
 # to limit MasterFrame to essentially just be the class that maintains
-# our master-frame naming convention.
+# our master-frame naming convention. Or make MasterFrame inherit from
+# DataContainer.
 class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
     """
     Defines a generic class for holding and manipulating image traces
@@ -48,6 +50,8 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
     """
     master_type = 'Slits'
     """Name for type of master frame."""
+    master_format = 'fits.gz'
+    """File format for the master frame file."""
     # Set the version of this class
     version = '1.0.0'
     """SlitTraceSet data model version."""
@@ -95,27 +99,149 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
-    # TODO: May want to require that left and right not be None if load and reuse are False.
-    def __init__(self, left=None, right=None, nspat=None, spectrograph=None, mask=None,
+    def __init__(self, left, right, nspat=None, spectrograph=None, mask=None,
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0, master_key=None,
-                 master_dir=None, reuse=False, load=False):
+                 master_dir=None, reuse=False):
 
         # Instantiate the MasterFrame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format='fits.gz',
+                                         master_key=master_key, file_format=self.master_format,
                                          reuse_masters=reuse)
 
         # Instantiate the DataContainer
-        if load:
-            datamodel.DataContainer.__init__(self)
-            self.load()
-        else:
-            args, _, _, values = inspect.getargvalues(inspect.currentframe())
-            # The dictionary pass to DataContainer.__init__ does not
-            # contain self or the MasterFrame arguments.
-            # TODO: Does it matter if the calling function passes the
-            # keyword arguments in a different order?
-            datamodel.DataContainer.__init__(self, d={k: values[k] for k in args[1:-4]})
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        # The dictionary passed to DataContainer.__init__ does not
+        # contain self or the MasterFrame arguments.
+        # TODO: Does it matter if the calling function passes the
+        # keyword arguments in a different order?
+        datamodel.DataContainer.__init__(self, d={k: values[k] for k in args[1:-3]})
+
+    # TODO: Allow defaults for master_key and master_dir
+    # TODO: Do we need reuse as an option, or should the calling
+    # function just decide if the masters should be reused?
+    @classmethod
+    def from_master(cls, master_key, master_dir, reuse=True):
+        """
+        Attempt to load the :class:`SlitTraceSet` from an existing
+        master-frame file.
+
+        If the master-frame does not exist, or if ``reuse`` is False,
+        the method returns ``None``.
+
+        Args:
+            master_dir (:obj:`str`):
+                Name of the :class:`pypeit.masterframe.MasterFrame`
+                directory.
+            master_key (:obj:`str`):
+                Root of the :class:`pypeit.masterframe.MasterFrame`
+                name, e.g. 'A_1_01'.
+            reuse (:obj:`bool`, optional):
+                Reuse existing master frames from disk. If False,
+                this method returns ``None``.
+
+        Returns:
+            :class:`SlitTraceSet`, None: Returns the instantiated
+            object or ``None``; ``None`` is returned if ``reuse`` is
+            False or the master-frame was not found on disk.
+        """
+        if not reuse:
+            return None
+        # Use MasterFrame to get the name of the file
+        # TODO: This feels like over-kill
+        ifile = masterframe.MasterFrame(cls.master_type, master_dir=master_dir,
+                                        master_key=master_key, file_format=cls.master_format,
+                                        reuse_masters=reuse).chk_load_master(None)
+        if ifile is None:
+            return None
+        msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
+        return cls.from_file(ifile)
+
+    # NOTE: Don't need to overload the DataContainer.from_file method
+    # because it simply calls this from_hdu method.
+    @classmethod
+    def from_hdu(cls, hdu):
+        """
+        Instantiate the object from an HDU extension.
+
+        This is primarily a wrapper for :func:`_parse`.
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+                The HDU(s) with the data to use for instantiation.
+        """
+        # NOTE: We can't use `cls(cls._parse(hdu))` here because this
+        # will call the `__init__` method of the derived class and we
+        # need to use the `__init__` of the base class instead. So
+        # below, I get an empty instance of the derived class using
+        # `__new__`, instantiate the MasterFrame components, call the
+        # parent `__init__`, and then return the result. The `__init__`
+        # methods for both base classes are called explicitly to avoid
+        # resolution-order issues with `super`.
+        self = super().__new__(cls)
+        # Instantiate the MasterFrame.
+        hdr = hdu[0].header if isinstance(hdu, fits.HDUList) else hdu.header
+        if hdr['MSTRTYP'] != self.master_type:
+            msgs.warn('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
+                        hdr['MSTRTYP'], self.master_type))
+        # TODO: Throw warning if reuse masters from header is False?
+        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=hdr['MSTRDIR'],
+                                         master_key=hdr['MSTRKEY'], file_format=self.master_format,
+                                         reuse_masters=hdr['MSTRREU'])
+        # Instantiate the DataContainer
+        datamodel.DataContainer.__init__(self, cls._parse(hdu))
+        return self
+
+    # TODO: I think the default overwriting should be False everywhere.
+    # Until that happens, it's changed to True here to match other
+    # MasterFrames.
+    def to_master(self, overwrite=True):
+        """
+        Write the object to the master-frame file.
+
+        This is a simple wrapper for
+        :func:`pypeit.datamodel.DataContainer.to_file` that writes
+        the file to :attr:`master_file_path`.
+
+        Args:
+            overwrite (:obj:`bool`, optional):
+                Flag to overwrite any existing file.
+        """
+        self.to_file(self.master_file_path, overwrite=overwrite, checksum=True)
+
+    # NOTE: No need to overwrite DataContainer.to_file, because it will call this function.
+    def to_hdu(self, hdr=None, add_primary=False):
+        """
+        Write the :class:`SlitTraceSet` data to an
+        `astropy.io.fits.BinTableHDU`.
+
+        This is a basic wrapper for
+        :func:`pypeit.datamodel.DataContainer.to_hdu` that includes
+        the nominal :class:`pypeit.masterframe.MasterFrame` header
+        data.
+
+        Args:
+            hdr (`astropy.io.fits.Header`, optional):
+                Baseline header to add to all returned HDUs. The
+                relevant :class:`pypeit.masterframe.MasterFrame` and
+                :class:`SlitTraceSet` keywords are always
+                added/edited in this baseline header.
+            add_primary (:obj:`bool`, optional):
+                If False, the returned object is a simple :obj:`list`
+                object with a single element, the
+                `astropy.io.fits.BinTableHDU`_ with the
+                :class:`SlitTraceSet` data. If True, the method
+                constructs an `astropy.io.fits.HDUList` with a
+                primary HDU. The nominal
+                :func:`pypeit.masterframe.MasterFrame` header data is
+                included in all returned HDUs.
+
+        Returns:
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
+            where the type depends on the value of ``add_primary``.
+        """
+        # TODO: Use super here?
+        return datamodel.DataContainer.to_hdu(self, hdr=self.build_master_header(hdr=hdr),
+                                              add_primary=add_primary)
 
     def _validate(self):
         """
@@ -192,55 +318,6 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
         always read from the 'SLITS' extension.
         """
         return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
-
-    # TODO: I think the default overwriting should be False everywhere.
-    # Until that happens, it's changed to True here to match other
-    # MasterFrames.
-    def save(self, ofile=None, overwrite=True, checksum=True):
-        """
-        Save the slit trace data to a file.
-
-        This is a simple wrapper of
-        :func:`pypeit.datamodel.DataContainer.to_file` that writes
-        the data to the default master file, if no replacement
-        filename is provided.
-
-        Args:
-            ofile (:obj:`str`, optional):
-                Fits file for the data. File names with '.gz'
-                extensions will be gzipped; see
-                :func:`pypeit.io.write_to_fits`.
-            overwrite (:obj:`bool`, optional):
-                Flag to overwrite any existing file.
-            checksum (:obj:`bool`, optional):
-                Passed to `astropy.io.fits.HDUList.writeto`_ to add
-                the DATASUM and CHECKSUM keywords fits header(s).
-        """
-        self.to_file(self.master_file_path if ofile is None else ofile, overwrite=overwrite,
-                     checksum=checksum)
-
-    def load(self):
-        """
-        Load previously saved data.
-
-        If :func:`pypeit.masterframe.MasterFrame.chk_load_master`
-        correctly finds the master file, any existing data in this
-        object is replaced by the data in the master frame file.
-        """
-        ifile = self.chk_load_master(None)
-        if ifile is None:
-            # chk_load_master writes all the relevant messages.
-            return
-        
-        # Report
-        msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
-
-        # Reset the object to be "uninitialized"
-        if self._init_key in self.__dict__:
-            del self.__dict__[self._init_key]
-        # Use DataContainer.from_file to read the data and use the
-        # result to overwrite the internal dictionary.
-        self.__dict__ = SlitTraceSet.from_file(ifile).__dict__
 
     def _set_slitids(self, specfrac=0.5):
         """
@@ -498,24 +575,6 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
         """
         left, right = self.select_edges(original=original)
         return slit_spat_pos(left, right, self.nspat)
-
-    # TODO: Temporary until it's fully removed
-    def to_tslits_dict(self):
-        tslits_dict = {}
-        tslits_dict['slit_left'] = self.left.copy()
-        tslits_dict['slit_righ'] = self.right.copy()
-        tslits_dict['slitcen'] = self.center.copy()
-        tslits_dict['maskslits'] = self.mask.copy()
-        tslits_dict['nspec'] = self.nspec
-        tslits_dict['nspat'] = self.nspat
-        tslits_dict['nslits'] = self.nslits
-        tslits_dict['binspectral'] = self.binspec
-        tslits_dict['binspatial'] = self.binspat
-        tslits_dict['spectrograph'] = self.spectrograph
-        tslits_dict['spec_min'] = self.specmin.copy()
-        tslits_dict['spec_max'] = self.specmax.copy()
-        tslits_dict['pad'] = self.pad
-        return tslits_dict
 
 
 # TODO: Move this to a core module?

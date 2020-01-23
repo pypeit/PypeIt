@@ -242,6 +242,8 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
 
 
 # ToDO rewrite this function to use images rather than loops as in flat_fit.py
+# TODO: This is used by core/extract.py and core/skysub.py.
+# Flat-fielding now uses SlitTraceSet methods instead. Merge the usage?
 def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     """
     Generate the ximg and edgemask frames

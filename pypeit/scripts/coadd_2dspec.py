@@ -209,19 +209,19 @@ def main(args):
                                              weights=parset['coadd2d']['weights'],
                                              ir_redux=ir_redux,
                                              debug_offsets=args.debug_offsets, debug=args.debug,
-                                             samp_fact=args.samp_fact)
+                                             samp_fact=args.samp_fact, master_dir=master_dir)
 
         # Coadd the slits
         coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
-        # Create the psuedo images
-        psuedo_dict = coadd.create_psuedo_image(coadd_dict_list)
+        # Create the pseudo images
+        pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
         # Reduce
         msgs.info('Running the extraction')
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
-            psuedo_dict, show = args.show, show_peaks = args.peaks)
-        # Save psuedo image master files
-        coadd.save_masters(master_dir)
+            pseudo_dict, show = args.show, show_peaks = args.peaks)
+        # Save pseudo image master files
+        coadd.save_masters()
 
     # Make the new Science dir
     # TODO: This needs to be defined by the user

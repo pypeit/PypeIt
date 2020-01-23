@@ -243,3 +243,5 @@ def test_coadd1d_2():
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 
+# TODO: Add test for object_finding
+
