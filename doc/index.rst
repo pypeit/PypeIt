@@ -36,6 +36,7 @@ Running PypeIt
    pypeit_file
    calcheck
    running
+   quicklook
 
 
 Data Products
@@ -120,7 +121,6 @@ Orphaned Docs
    mask
    masters
    metadata
-   pyp_twine
    rawdata
    standards
    xshooter

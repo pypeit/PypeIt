@@ -23,7 +23,7 @@ def test_keck_lris_red():
     # Spectrograph
     spectrograph = util.load_spectrograph('keck_lris_red')
     #
-    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_LRIS_red',
+    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_lris_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     # Get the shape
     det = 2
@@ -35,7 +35,7 @@ def test_keck_lris_red():
 @dev_suite_required
 def test_keck_deimos():
     spectrograph = util.load_spectrograph('keck_deimos')
-    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_DEIMOS', '830G_L_8400',
+    example_file = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '830G_L_8400',
                                 'd0914_0002.fits.gz')
     # Get the shape
     det = 4

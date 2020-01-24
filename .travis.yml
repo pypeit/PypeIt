@@ -28,7 +28,7 @@ env:
         # overridden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
         - FOLDERNAME='pypeit'
-        - PYTHON_VERSION=3.6
+        - PYTHON_VERSION=3.7
         - ASTROPY_VERSION=stable
         - NUMPY_VERSION=stable
         - SKLEARN_VERSION=stable
@@ -61,7 +61,7 @@ env:
       #- EXTRA_CONTEXT='_parent_project=sunpy'
       #- TASK='render' EXTRA_CONTEXT='include_example_cython_code=y initialize_git_repo=n'
       #- PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
-      - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
+      - PYTHON_VERSION=3.7 SETUP_CMD='egg_info'
 
 matrix:
 
@@ -110,8 +110,9 @@ matrix:
         #- os: linux
         #  env: NUMPY_VERSION=1.14
 
+        # Try numpy pre-release
         - os: linux
-          env: NUMPY_VERSION=1.15
+          env: NUMPY_VERSION=1.16
         # Try numpy pre-release
         - os: linux
           env: NUMPY_VERSION=prerelease

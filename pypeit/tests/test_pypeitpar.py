@@ -36,8 +36,11 @@ def test_manualextraction():
     pypeitpar.ManualExtractionPar()
 
 def test_spectrographs():
-    s = pypeitpar.ReducePar.valid_spectrographs()
+    s = pypeitpar.ReduxPar.valid_spectrographs()
     assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
+
+def test_redux():
+    pypeitpar.ReduxPar()
 
 def test_reduce():
     pypeitpar.ReducePar()
