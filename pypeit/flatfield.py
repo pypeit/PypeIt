@@ -608,6 +608,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.msillumflat = np.ones_like(rawflat)
         self.flat_model = np.zeros_like(rawflat)
 
+        debug = True
         # Model each slit independently
         for slit in range(self.slits.nslits):
             # Is this a good slit??
@@ -641,8 +642,10 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 # Approximate number of pixels sampling each spatial pixel
                 # for this (original) slit.
                 npercol = np.fmax(np.floor(np.sum(onslit)/nspec),1.0)
-                npoly  = max(1, int(np.ceil(npercol/10.)))
-            
+                #npoly  = max(1, int(np.ceil(npercol/10.)))
+                # TODO: Added an upper limit.  Needs testing.
+                npoly  = int(np.clip(np.ceil(npercol/10.), 1, 10))
+
             # TODO: Always calculate the optimized `npoly` and warn the
             # user if npoly is provided but higher than the nominal
             # calculation?
@@ -707,7 +710,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
 # TODO: Used for testing bspline
-#            np.savez_compressed('gemini_gnirs_{0}_spec.npz'.format(slit+1),
+#            np.savez_compressed('slit{0}_spec.npz'.format(slit+1),
 #                                spec_coo_data=spec_coo_data,
 #                                spec_flat_data=spec_flat_data,
 #                                spec_ivar_data=spec_ivar_data,
@@ -803,7 +806,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             lower=5.0, fullbkpt=spat_bspl.breakpoints)
 
 # TODO: Used for testing bspline
-#            np.savez_compressed('gemini_gnirs_{0}_spat.npz'.format(slit+1),
+#            np.savez_compressed('slit{0}_spat.npz'.format(slit+1),
 #                                spat_coo_data=spat_coo_data,
 #                                spat_flat_data=spat_flat_data,
 #                                median_slit_width=median_slit_width[slit])
@@ -915,7 +918,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
 
 # TODO: Used for testing bspline
-#            np.savez_compressed('gemini_gnirs_{0}_twod.npz'.format(slit+1),
+#            np.savez_compressed('slit{0}_twod.npz'.format(slit+1),
 #                                twod_spat_coo_data=twod_spat_coo_data,
 #                                twod_spec_coo_data=twod_spec_coo_data,
 #                                twod_flat_data=twod_flat_data,

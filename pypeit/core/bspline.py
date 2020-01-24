@@ -7,8 +7,9 @@ import warnings
 from IPython import embed
 
 import numpy as np
-
 from scipy import special
+
+from numba import njit
 
 class bspline(object):
     """Bspline class.
@@ -644,6 +645,59 @@ class bspline(object):
         return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
 
+#def cholesky_band(l, mininf=0.0):
+#    """Compute Cholesky decomposition of banded matrix.
+#
+#    Parameters
+#    ----------
+#    l : :class:`numpy.ndarray`
+#        A matrix on which to perform the Cholesky decomposition.
+#    mininf : :class:`float`, optional
+#        Entries in the `l` matrix are considered negative if they are less
+#        than this value (default 0.0).
+#
+#    Returns
+#    -------
+#    :func:`tuple`
+#        If problems were detected, the first item will be the index or
+#        indexes where the problem was detected, and the second item will simply
+#        be the input matrix.  If no problems were detected, the first item
+#        will be -1, and the second item will be the Cholesky decomposition.
+#    """
+#
+#    bw, nn = l.shape
+#    n = nn - bw
+#    negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
+#    # JFH changed this below to make it more consistent with IDL version. Not sure
+#    # why the np.all(np.isfinite(lower)) was added. The code could return an empty
+#    # list for negative.nonzero() and crash if all elements in lower are NaN.
+#    # KBW: Added the "or not finite" flags to negative.
+#    if negative.any():
+#        nz = negative.nonzero()[0]
+#        warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
+#        return nz, l
+#
+#    lower = l.copy()
+#    kn = bw - 1
+#    spot = np.arange(kn, dtype=int) + 1
+#    bi = np.concatenate([np.arange(i)+(kn-i)*(kn+1) for i in range(kn,0,-1)])
+#    here = bi[:,None] + (np.arange(n)[None,:] + 1)*bw
+#    for j in range(n):
+#        lower[0,j] = np.sqrt(lower[0,j])
+#        lower[spot,j] /= lower[0,j]
+#        # TODO: This check is expensive. Is there any way to avoid it?
+#        # At least in the tests I've done, it seems like you get here
+#        # if the fitting function is too high order. I also don't like
+#        # having the warning statement here. We need cholesky band to
+#        # be as fast as possible. We should try to put as many checks
+#        # and print statements outside of the function.
+#        if not np.all(np.isfinite(lower[spot,j])):
+#            warnings.warn('NaN found in cholesky_band.')
+#            return j, l
+#        hmm = lower[spot,j,None] * lower[None,spot,j]
+#        lower.T.flat[here[:,j]] -= hmm.flat[bi]
+#
+#    return -1, lower
 
 def cholesky_band(l, mininf=0.0):
     """Compute Cholesky decomposition of banded matrix.
@@ -664,41 +718,55 @@ def cholesky_band(l, mininf=0.0):
         be the input matrix.  If no problems were detected, the first item
         will be -1, and the second item will be the Cholesky decomposition.
     """
+    nz, l = cholesky_band_inp_check(l, mininf=mininf)
+    if nz != -1:
+        return nz, l
+    nz, l = cholesky_band_no_checks(l)
+    if nz != -1:
+        warnings.warn('NaN found in cholesky_band.')
+    return nz, l
 
-    # KBW: added isfinite check so that it doesn't need to be done in
-    # the for loop. This should be okay because sqrt and division of
-    # positive numbers by other positive numbers should never lead to
-    # non-finite numbers. However, need to watch out for numerical
-    # issues.
+
+def cholesky_band_inp_check(l, mininf=0.0):
     bw, nn = l.shape
     n = nn - bw
     negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
     # JFH changed this below to make it more consistent with IDL version. Not sure
     # why the np.all(np.isfinite(lower)) was added. The code could return an empty
     # list for negative.nonzero() and crash if all elements in lower are NaN.
+    # KBW: Added the "or not finite" flags to negative.
     if negative.any():
         nz = negative.nonzero()[0]
         warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
         return nz, l
+    return -1, l
 
-    # KBW: Moved the copy to after the initial check of the input
+@njit(cache=True)
+def cholesky_band_no_checks(l):
+    bw, nn = l.shape
+    n = nn - bw
     lower = l.copy()
     kn = bw - 1
     spot = np.arange(kn, dtype=int) + 1
-
-    # KBW: Faster by about factor of ~2 compared to previous version
-    #bi = np.arange(kn*kn).reshape(kn,kn)[np.triu_indices(kn)]
     bi = np.concatenate([np.arange(i)+(kn-i)*(kn+1) for i in range(kn,0,-1)])
     here = bi[:,None] + (np.arange(n)[None,:] + 1)*bw
     for j in range(n):
         lower[0,j] = np.sqrt(lower[0,j])
-        lower[spot, j] /= lower[0,j]
+        lower[spot,j] /= lower[0,j]
+        # TODO: This check is expensive. Is there any way to avoid it?
+        # At least in the tests I've done, it seems like you get here
+        # if the fitting function is too high order. I also don't like
+        # having the warning statement here. We need cholesky band to
+        # be as fast as possible. We should try to put as many checks
+        # and print statements outside of the function.
+        if not np.all(np.isfinite(lower[spot,j])):
+            return j, l
         hmm = lower[spot,j,None] * lower[None,spot,j]
         lower.T.flat[here[:,j]] -= hmm.flat[bi]
-
     return -1, lower
 
 
+@njit(cache=True)
 def cholesky_solve(a, bb):
     """Solve the equation Ax=b where A is a Cholesky-banded matrix.
 
@@ -719,16 +787,26 @@ def cholesky_solve(a, bb):
     n = b.shape[0] - a.shape[0]
     kn = a.shape[0] - 1
 
-    spot = np.arange(kn, dtype=int) + 1
+    # NOTE: Use this with numba
     for j in range(n):
         b[j] /= a[0,j]
-        b[j+spot] -= b[j]*a[spot,j]
-
-    spot = spot[::-1]
+        for i in range(1,kn+1):
+            b[j+i] -= b[j]*a[i,j]
     for j in range(n-1, -1, -1):
-        b[j] = (b[j] - np.sum(a[spot,j] * b[j+spot]))/a[0,j]
-
+        s = 0
+        for i in range(1,kn+1):
+            s += a[i,j] * b[j+i]
+        b[j] = (b[j] - s)/a[0,j]
     return -1, b
+
+    # NOTE: Use this without numba
+#    spot = np.arange(kn, dtype=int) + 1
+#    for j in range(n):
+#        b[j] /= a[0,j]
+#        b[j+spot] -= b[j]*a[spot,j]
+#    for j in range(n-1, -1, -1):
+#        b[j] = (b[j] - np.sum(a[spot,j] * b[j+spot]))/a[0,j]
+#    return -1, b
 
 
 # Faster than previous version but not as fast as if we could switch to
