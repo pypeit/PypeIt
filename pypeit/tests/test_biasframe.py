@@ -22,7 +22,7 @@ def data_root():
 def deimos_flat_files():
     # Longslit in dets 3,7
     deimos_flat_files = [os.path.join(os.getenv('PYPEIT_DEV'),
-                                      '/RAW_DATA/Keck_DEIMOS/830G_L/', ifile) \
+                                      '/RAW_DATA/keck_deimos/830G_L/', ifile) \
                             for ifile in ['d0914_0014.fits', 'd0914_0015.fits'] ]
     assert len(deimos_flat_files) == 2
     return deimos_flat_files
@@ -31,7 +31,7 @@ def deimos_flat_files():
 @dev_suite_required
 def kast_blue_bias_files():
     kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
-                                                  'Shane_Kast_blue', '600_4310_d55', 'b1?.fits*'))
+                                                  'shane_kast_blue', '600_4310_d55', 'b1?.fits*'))
     return kast_blue_bias_files
 
 @dev_suite_required

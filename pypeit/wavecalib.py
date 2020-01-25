@@ -125,7 +125,10 @@ class WaveCalib(masterframe.MasterFrame):
             #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
                 self.gpm &= self.msarc.image < self.nonlinear_counts
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict)
+            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
+                                                         self.tslits_dict['slit_righ'],
+                                                         self.tslits_dict['nspec'],
+                                                         self.tslits_dict['nspat'])
 
         else:
             self.slitmask_science = None

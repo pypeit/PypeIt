@@ -32,44 +32,37 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
 
     """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
 
-    Parameters
-    ----------
-    sciimg : float ndarray shape (nspec, nspat)
-       Science frame
-    ivar: float ndarray shape (nspec, nspat)
-       inverse variance of science frame. Can be a model or deduced from the image itself.
-    mask: boolean ndarray
-       mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-    waveimg :  float ndarray
-        Wavelength image. float 2-d array with shape (nspec, nspat)
-    skyimg: float ndarray shape (nspec, nspat)
-        Image containing our model of the sky
-    rn2_img: float ndarray shape (nspec, nspat)
-        Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-    thismask: bool ndarray shape (nspec, nspat)
-        Image indicating which pixels are on the slit/order in question. True=Good.
-    oprof: float ndarray shape (nspec, nspat)
-        Image containing the profile of the object that we are extracting
-    box_radius: float
-        Size of boxcar window in floating point pixels in the spatial direction.
-    spec: SpecObj object (from the SpecObj class in specobj.py).
-         This is the container that holds object, trace,
-         and extraction information for the object in question. This routine operates one object at a time.
-    min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
-           are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
-           object profile has been masked
-
-    Returns
-    -------
     Return value is None. The specobj object is changed in place with the boxcar and optimal dictionaries being filled
     with the extraction parameters.
 
-    Notes
-    -----
-    Revision History
-        - 11-Mar-2005  Written by J. Hennawi and S. Burles.
-        - 28-May-2018  Ported to python by J. Hennawi
+    Args:
+        sciimg (np.ndarray): float ndarray shape (nspec, nspat)
+           Science frame
+        ivar (np.ndarray): float ndarray shape (nspec, nspat)
+           inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray): boolean ndarray
+           mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg  (np.ndarray):  float ndarray
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing our model of the sky
+        rn2_img (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        thismask (np.ndarray): bool ndarray shape (nspec, nspat)
+            Image indicating which pixels are on the slit/order in question. True=Good.
+        oprof (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the profile of the object that we are extracting
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (:class:`pypeit.specobj.SpecObj`):
+             This is the container that holds object, trace,
+             and extraction information for the object in question. This routine operates one object at a time.
+        min_frac_use (float, optional): default = 0.05. If the sum of object profile arcoss the spatial direction
+               are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
+               object profile has been masked
+
     """
+    # Setup
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
     nspec = imgminsky.shape[0]
@@ -170,6 +163,45 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spec.OPT_FRAC_USE = frac_use    # Fraction of pixels in the object profile subimage used for this extraction
     spec.OPT_CHI2 = chi2            # Reduced chi2 of the model fit for this spectral pixel
 
+    return
+
+
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+    """
+    Perform boxcar extraction for a single SpecObj
+
+    SpecObj is filled in place
+
+    Args:
+        sciimg (np.ndarray):
+            Science image
+        ivar (np.ndarray):
+            inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray):
+            mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg (np.ndarray):
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray):
+            Image containing our model of the sky
+        rn2_img (np.ndarray):
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (:class:`pypeit.specobj.SpecObj`):
+            This is the container that holds object, trace,
+            and extraction information for the object in question.
+            This routine operates one object at a time.
+    """
+    # Setup
+    imgminsky = sciimg - skyimg
+    nspat = imgminsky.shape[1]
+    nspec = imgminsky.shape[0]
+
+    spec_vec = np.arange(nspec)
+    spat_vec = np.arange(nspat)
+    # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
+    var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
+
     # Fill in the boxcar extraction tags
     flux_box = moment1d(imgminsky*mask, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # Denom is computed in case the trace goes off the edge of the image
@@ -198,6 +230,7 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
+    # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
     spec.BOX_COUNTS_IVAR = ivar_box*mask_box
@@ -207,11 +240,6 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_RN = rn_box
     spec.BOX_RADIUS = box_radius
-
-    # TODO: Why is the returning None? It doesn't have to, right?
-    return None
-
-
 
 
 def findfwhm(model, sig_x):
@@ -988,13 +1016,13 @@ def create_skymask_fwhm(sobjs, thismask):
     Creates a skymask from a SpecObjs object using the fwhm of each object
 
     Args:
-        sobjs: SpecObjs object
+        sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Objects for which you would like to create the mask
-        thismask: ndarray, bool, shape (nspec, nspat)
+        thismask (np.ndarray): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
 
     Returns:
-        ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
+        np.ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
         the same size as thismask indicating which pixels are usable for
         global sky subtraction.  True = usable for sky subtraction,
         False = should be masked when sky subtracting.
@@ -1626,9 +1654,10 @@ def remap_orders(xinit, spec_min_max, inverse=False):
                                                              bounds_error=False, fill_value='extrapolate')(spec_vec_norm)
     return xinit_remap
 
-# TODO Can we purge OBJID in this routine in place of ech_objid everywhere?
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_min_max=None,
-                fof_link=1.5, order_vec=None, plate_scale=0.2, ir_redux=False,
+
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits,
+                inmask=None, spec_min_max=None,
+                fof_link=1.5, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
@@ -1666,6 +1695,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
         slit_righ:  float ndarray
             Left boundary of orders to be extracted (given as floating
             pt pixels). This a 2-d array with shape (nspec, norders)
+        order_vec (np.ndarray):
+            Echelle orders.  This is written to the SpecObj objects.
+            It is ok, but not recommended to provide np.arange(norders)
         inmask: ndarray, bool, shape (nspec, nspat), default = None
             Input mask for the input image.
         fwhm: float, default = 3.0
@@ -1755,16 +1787,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     frameshape = image.shape
     nspec = frameshape[0]
     nspat = frameshape[1]
-    norders = slit_left.shape[1]
+    norders = len(order_vec)
 
     if spec_min_max is None:
         spec_min_max = np.zeros(2,norders)
         for iord in range(norders):
             ispec, ispat = np.where(slitmask == iord)
             spec_min_max[:,iord] = ispec.min(), ispec.max()
-
-    if order_vec is None:
-        order_vec = np.arange(norders)
 
     if isinstance(plate_scale,(float, int)):
         plate_scale_ord = np.full(norders, plate_scale)
@@ -1791,7 +1820,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, inmask=None, spec_m
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
     # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
-    for iord in range(norders):
+    gdorders = np.arange(norders)[np.invert(maskslits)]
+    for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
         inmask_iord = inmask & thismask

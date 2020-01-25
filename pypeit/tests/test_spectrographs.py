@@ -18,12 +18,12 @@ from pypeit.tests.tstutils import dev_suite_required
 @dev_suite_required
 def test_keckdeimos():
     s = spectrographs.keck_deimos.KeckDEIMOSSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_DEIMOS',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos',
                                 '830G_L_8400', 'd0914_0002.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck DEIMOS read.'
     det = 2
     #data, _ = s.load_raw_frame(example_file, det=det)
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     #
     bpm = s.bpm(example_file, det) #shape=shape) # filename=example_file)
     assert data.shape == (4096,2128)
@@ -33,12 +33,12 @@ def test_keckdeimos():
 @dev_suite_required
 def test_kecklrisblue():
     s = spectrographs.keck_lris.KeckLRISBSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_blue',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_blue',
                                 'long_400_3400_d560', 'LB.20160109.14149.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS blue read.'
     det = 2
     #data, _ = s.load_raw_frame(example_file, det=det)
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     #
     bpm = s.bpm(example_file, det) #shape=shape) # filename=example_file)
     assert data.shape == (2048,1154)
@@ -48,12 +48,12 @@ def test_kecklrisblue():
 @dev_suite_required
 def test_kecklrisred():
     s = spectrographs.keck_lris.KeckLRISRSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_LRIS_red',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_red',
                                 'long_600_7500_d560', 'LR.20160216.05529.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck LRIS red read.'
     det = 1
     #data, _ = s.load_raw_frame(example_file, det=det)
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     #
     bpm = s.bpm(example_file, det)#, debug=True) #shape=shape) # filename=example_file)
     assert data.shape == (2068,1110)
@@ -69,12 +69,12 @@ def test_kecknires():
 @dev_suite_required
 def test_kecknirspec():
     s = spectrographs.keck_nirspec.KeckNIRSPECSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Keck_NIRSPEC',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_nirspec',
                                 'LOW_NIRSPEC-1', 'NS.20160414.02637.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Keck NIRSPEC read.'
     #data, _ = s.load_raw_frame(example_file)
     det=1
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
     assert data.shape == bpm.shape, 'Image and BPM have different shapes!'
 
@@ -85,7 +85,7 @@ def test_shanekastblue():
                                 'b1.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast blue read.'
     det=1
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
     assert data.shape == (350, 2112)
     assert bpm.shape == (2048,350)
@@ -94,11 +94,11 @@ def test_shanekastblue():
 @dev_suite_required
 def test_shanekastredret():
     s = spectrographs.shane_kast.ShaneKastRedRetSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'Shane_Kast_red',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'shane_kast_red',
                                 '600_7500_d55_ret', 'r112.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for Shane Kast red read.'
     det = 1
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
     assert data.shape == (250, 1232)
     assert bpm.shape == (1200, 250)
@@ -117,11 +117,11 @@ def test_tngdolores():
 @dev_suite_required
 def test_vltxshooteruvb():
     s = spectrographs.vlt_xshooter.VLTXShooterUVBSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'VLT_XSHOOTER',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'vlt_xshooter',
                                 'UVB_1x1', 'XSHOO.2010-04-28T05:34:32.723.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter UVB read.'
     det = 1
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
     assert data.shape == (3000, 2144)
     assert bpm.shape == (3000, 2048)
@@ -130,11 +130,11 @@ def test_vltxshooteruvb():
 @dev_suite_required
 def test_vltxshootervis():
     s = spectrographs.vlt_xshooter.VLTXShooterVISSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'VLT_XSHOOTER',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'vlt_xshooter',
                                 'VIS_1x1', 'XSHOO.2010-04-28T05:34:37.853.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter VIS read.'
     det = 1
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
     assert data.shape == (4000, 2106)
     assert bpm.shape == (4000, 2048)
@@ -143,11 +143,11 @@ def test_vltxshootervis():
 @dev_suite_required
 def test_vltxshooternir():
     s = spectrographs.vlt_xshooter.VLTXShooterNIRSpectrograph()
-    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'VLT_XSHOOTER',
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'vlt_xshooter',
                                 'NIR', 'XSHOO.2016-08-02T08:45:49.494.fits.gz')
     assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter NIR read.'
     det = 1
-    data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    data, headarr, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
     assert data.shape == (1100,2048)
     assert bpm.shape == (2045, 1097)

@@ -40,7 +40,7 @@ class Calibrations(object):
     holds that info in self.calib_dict
 
     Args:
-        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
             The class holding the metadata for all the frames in this
             PypeIt run.
         par (:class:`pypeit.par.pypeitpar.PypeItPar`):
@@ -92,7 +92,9 @@ class Calibrations(object):
                  reuse_masters=False, show=False):
 
         # Check the types
-        if not isinstance(fitstbl, PypeItMetaData):
+        # TODO -- Remove this None option once we have data models for all the Calibrations
+        #  outputs and use them to feed Reduce instead of the Calibrations object
+        if not isinstance(fitstbl, PypeItMetaData) and fitstbl is not None:
             msgs.error('fitstbl must be an PypeItMetaData object')
         if not isinstance(par, pypeitpar.CalibrationsPar):
             msgs.error('Input parameters must be a CalibrationsPar instance.')
@@ -181,11 +183,12 @@ class Calibrations(object):
                 :attr:`master_key_dict`.
             master_type (:obj:`str`, :obj:`tuple`):
                 One or more keywords setting the type of master frame
-                being saved to :attr:`calib_dict`.  E.g.
-                `master_type=bpm` for the data saved to
-                `self.calib_dict['A_01_1']['bpm'].
+                being saved to :attr:`calib_dict`. E.g.
+                ``master_type=bpm`` for the data saved to
+                ``self.calib_dict['A_01_1']['bpm']``.
             data (object, :obj:`tuple`):
                 One or more data objects to save to :attr:`calib_dict`.
+
         """
         # Handle a single entry
         _master_type = master_type if isinstance(master_type, tuple) else (master_type,)
@@ -918,6 +921,11 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.  See :class:`pypeit.calibrations.Calibrations` for
     arguments.
+
+    NOTE: Echelle uses this same class.  It had been possible there would be
+    a different order of the default_steps
+
+    ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
                  show=False, steps=None):

@@ -44,8 +44,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always sky subtract, starting with default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
 
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
@@ -85,10 +83,13 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
         # Ignore PCA if longslit
-        #  This is a little risk as a user could put long into their maskname
+        #  This is a little risky as a user could put long into their maskname
         #  But they would then need to over-ride in their PypeIt file
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+            # This might only be required for det=2, but we'll see..
+            if self.spectrograph == 'keck_lris_red':
+                par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
         return par
 
@@ -223,7 +224,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         -------
         array : ndarray
           Combined image
-        hdu : HDUList
+        headarr (list of headers)
         sections : list
           List of datasec, oscansec, ampsec sections
           datasec, oscansec needs to be for an *unbinned* image as per standard convention
@@ -342,7 +343,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+        return array.T, [head0], exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -517,17 +518,30 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
     """
-    def __init__(self):
+    def __init__(self, ifile=None):
         # Get it started
         super(KeckLRISRSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_red'
         self.camera = 'LRISr'
+        # Allow for variable namps
+        if ifile is not None:
+            hdu = fits.open(ifile)
+            head0 = hdu[0].header
+            if head0['AMPPSIZE'] == '[1:1024,1:4096]':
+                namps = 2
+            elif head0['AMPPSIZE'] == '[1:2048,1:4096]':
+                namps = 1
+            else:
+                msgs.error("Bad amp size (windowed??)!!")
+        else: # Default
+            namps = 2
+        #
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
                             dataext         =1,
                             specaxis        =0,
-                            specflip        = False,
+                            specflip        =False,
                             xgap            =0.,
                             ygap            =0.,
                             ysize           =1.,
@@ -561,8 +575,17 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
                             oscansec        = ['',''],
                             suffix          ='_02red'
                             )]
-        self.numhead = 5
-        # Uses default timeunit
+        # Now deal with namps
+        if namps == 1:
+            for idx in [0,1]:
+                self.detector[idx]['numamplifiers'] = 1
+                self.detector[idx]['gain'] = [self.detector[idx]['gain'][0]]
+                self.detector[idx]['ronoise'] = [self.detector[idx]['ronoise'][0]]
+            self.numhead = 3
+        elif namps == 2:
+            self.numhead = 5
+        else:
+            msgs.error("Bad namps value: {}".format(namps))
 
     def default_pypeit_par(self):
         """
@@ -586,8 +609,8 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['tilts']['maxdev_tracefit'] = 1.0
         par['calibrations']['tilts']['sigrej2d'] = 5.0
 
-        # Scienceimage
-        par['scienceimage']['bspline_spacing'] = 0.8
+        #  Sky Subtraction
+        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
 
         # Defaults for anything other than 1,1 binning
         #  Rest config_specific_par below if binning is (1,1)

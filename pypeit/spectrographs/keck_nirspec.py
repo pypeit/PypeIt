@@ -71,8 +71,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = True
 
         # Extraction
-        par['scienceimage']['bspline_spacing'] = 0.8
-        par['scienceimage']['sn_gauss'] = 4.0
+        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
+        par['scienceimage']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
@@ -125,8 +125,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     #     par['calibrations']['pixelflatframe']['number'] = 5
     #     par['calibrations']['traceframe']['number'] = 5
     #     par['calibrations']['arcframe']['number'] = 1
-    #     # Scienceimage default parameters
-    #     par['scienceimage'] = pypeitpar.ScienceImagePar()
     #     # Do not flux calibrate
     #     # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
     #     par['flexure'] = pypeitpar.FlexurePar()

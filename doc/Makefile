@@ -56,8 +56,7 @@ clean:
 	rm -rf $(LOCALFILES)
 
 apirst:
-	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
-	$(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/scripts/*
+	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/scripts/*
 	python3 ./scripts/build_par_rst.py
 	python3 ./scripts/build_specobj_rst.py
 

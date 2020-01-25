@@ -126,8 +126,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
@@ -199,7 +197,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             tuple:
                 raw_img (np.ndarray) -- Raw image for this detector
-                hdu (astropy.io.fits.HDUList)
+                headarr (list of headers)
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
@@ -284,7 +282,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+        return array.T, [head0, head1], exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):

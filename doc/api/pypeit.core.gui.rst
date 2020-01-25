@@ -14,5 +14,6 @@ Module contents
 
 .. automodule:: pypeit.core.gui
    :members:
+   :private-members:
    :undoc-members:
    :show-inheritance:
