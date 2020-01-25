@@ -1,7 +1,7 @@
 """ Object to process a single raw image """
 
 import inspect
-
+from copy import deepcopy
 import numpy as np
 
 from pypeit import msgs
@@ -54,6 +54,7 @@ class ProcessRawImage(object):
         self.datasec_img = rawImage.rawdatasec_img.copy()
         self.oscansec_img = rawImage.oscansec_img
         self.image = rawImage.raw_image.copy()
+        self.headarr = deepcopy(rawImage.headarr)
         self.orig_shape = rawImage.raw_image.shape
         self.exptime = rawImage.exptime
 
@@ -232,7 +233,7 @@ class ProcessRawImage(object):
             steps_copy.remove('extras')
 
         # Generate a PypeItImage
-        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning,
+        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning, rawheadlst=self.headarr,
                                               ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
         # Mask(s)
         if 'crmask' in process_steps:

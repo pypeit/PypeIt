@@ -136,7 +136,7 @@ class CombineImage(object):
                 # Mask
                 bitmask = maskimage.ImageBitMask()
                 mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
-                lampstat += self.spectrograph.get_lamps_status()
+                lampstat += self.spectrograph.get_lamps_status(pypeitImage.rawheadlst)
             # Process
             img_stack[kk,:,:] = pypeitImage.image
             # Construct raw variance image and turn into inverse variance

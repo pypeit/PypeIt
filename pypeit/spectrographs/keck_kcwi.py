@@ -195,18 +195,33 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             return np.any(lamp_stat, axis=0)  # i.e. lamp on
         raise ValueError('No implementation for status = {0}'.format(status))
 
-    def get_lamp_status(self, file):
+    def get_lamps_status(self, headarr):
         """
         Return a string containing the information on the lamp status
 
         Args:
-            file (str):
-              Input filename
+            headarr (list of fits headers):
+              list of headers
 
         Returns:
             str: A string that uniquely represents the lamp status
         """
-        return ""
+        # Loop through all lamps and collect their status
+        kk = 1
+        lampstat = []
+        while True:
+            lampkey1 = 'lampstat{:02d}'.format(kk)
+            if lampkey1 not in self.meta.keys():
+                break
+            ext1, card1 = self.meta[lampkey1]['ext'], self.meta[lampkey1]['card']
+            lampkey2 = 'lampshst{:02d}'.format(kk)
+            if lampkey2 not in self.meta.keys():
+                lampstat += str(headarr[ext1][card1])
+            else:
+                ext2, card2 = self.meta[lampkey2]['ext'], self.meta[lampkey2]['card']
+                lampstat += str(headarr[ext1][card1]) + '-' + str(headarr[ext2][card2])
+            kk += 1
+        return "_".join(lampstat)
 
     def get_rawimage(self, raw_file, det):
         """
@@ -286,7 +301,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.set_detector_par('gain', det, gainarr, force_update=True)
 
         # Return
-        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+        return raw_img, [head0], exptime, rawdatasec_img, oscansec_img
 
 
 class KeckKCWIBSpectrograph(KeckKCWISpectrograph):

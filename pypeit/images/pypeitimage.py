@@ -78,12 +78,13 @@ class PypeItImage(maskimage.ImageMask):
         return pypeitImage
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
-                 binning=None, crmask=None, mask=None):
+                 binning=None, crmask=None, mask=None, rawheadlst=None):
 
         maskimage.ImageMask.__init__(self, bpm)
 
         # Required parameters
         self.image = image
+        self.rawheadlst = rawheadlst
 
         # Optional Attributes
         self.ivar = ivar

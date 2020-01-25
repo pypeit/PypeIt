@@ -512,19 +512,29 @@ class Spectrograph(object):
         # Return
         return raw_img, headarr, exptime, rawdatasec_img, oscansec_img
 
-    def get_lamp_status(self, file):
+    def get_lamps_status(self, headarr):
         """
         Return a string containing the information on the lamp status
 
         Args:
-            file (str):
-              Input filename
+            headarr (list of fits headers):
+              list of headers
 
         Returns:
             str: A string that uniquely represents the lamp status
         """
-
-        return ""
+        # Loop through all lamps and collect their status
+        kk = 1
+        lampstat = []
+        while True:
+            lampkey = 'lampstat{:02d}'.format(kk)
+            if lampkey not in self.meta.keys():
+                break
+            ext = self.meta[lampkey]['ext']
+            card = self.meta[lampkey]['card']
+            lampstat += str(headarr[ext][card])
+            kk += 1
+        return "_".join(lampstat)
 
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
