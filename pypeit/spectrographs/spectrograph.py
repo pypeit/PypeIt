@@ -512,6 +512,20 @@ class Spectrograph(object):
         # Return
         return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
+    def get_lamp_status(self, file):
+        """
+        Return a string containing the information on the lamp status
+
+        Args:
+            file (str):
+              Input filename
+
+        Returns:
+            str: A string that uniquely represents the lamp status
+        """
+
+        return ""
+
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
         Return meta data from a given file (or its array of headers)

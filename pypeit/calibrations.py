@@ -740,7 +740,7 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'tslits_dict']):
-            msgs.error('dont have all the objects')
+            msgs.error('Not enough information to load/generate the wavelength calibration')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])

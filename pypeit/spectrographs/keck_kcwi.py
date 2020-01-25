@@ -195,6 +195,19 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             return np.any(lamp_stat, axis=0)  # i.e. lamp on
         raise ValueError('No implementation for status = {0}'.format(status))
 
+    def get_lamp_status(self, file):
+        """
+        Return a string containing the information on the lamp status
+
+        Args:
+            file (str):
+              Input filename
+
+        Returns:
+            str: A string that uniquely represents the lamp status
+        """
+        return ""
+
     def get_rawimage(self, raw_file, det):
         """
         Read a raw KCWI data frame
@@ -379,7 +392,11 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
             par['calibrations']['wavelengths']['method'] = 'identify'#'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = ''
-            par['calibrations']['wavelengths']['lamps'] += ['ThAr']
+            #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        if self.get_meta_value(headarr, 'dispname') == 'BM':
+            par['calibrations']['wavelengths']['method'] = 'identify'#'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = ''
+            #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
 
         # FWHM
         #binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))

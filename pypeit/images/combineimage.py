@@ -118,12 +118,13 @@ class CombineImage(object):
         """
         # Loop on the files
         nimages = len(self.files)
+        lampstat = []
         for kk, ifile in enumerate(self.files):
             # Process a single image
             pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat=pixel_flat,
                                            illum_flat=illum_flat, bpm=bpm)
             # Are we all done?
-            if len(self.files) == 1:
+            if nimages == 1:
                 return pypeitImage
             elif kk == 0:
                 # Get ready
@@ -135,6 +136,7 @@ class CombineImage(object):
                 # Mask
                 bitmask = maskimage.ImageBitMask()
                 mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
+                lampstat += self.spectrograph.get_lamps_status()
             # Process
             img_stack[kk,:,:] = pypeitImage.image
             # Construct raw variance image and turn into inverse variance
@@ -155,6 +157,13 @@ class CombineImage(object):
                 indx = pypeitImage.bitmask.flagged(pypeitImage.mask, flag=['SATURATION'])
                 pypeitImage.mask[indx] = pypeitImage.bitmask.turn_off(pypeitImage.mask[indx], 'SATURATION')
             mask_stack[kk, :, :] = pypeitImage.mask
+
+        # Check that the lamps being combined are all the same:
+        if not lampstat[1:] == lampstat[:-1]:
+            msgs.warn("The following files contain different lamp status")
+            for file in self.files:
+                print(msgs.indent() + file)
+            msgs.error("Unable to combine frames with different lamp status")
 
         # Coadd them
         weights = np.ones(nimages)/float(nimages)

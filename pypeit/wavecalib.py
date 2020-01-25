@@ -162,6 +162,13 @@ class WaveCalib(masterframe.MasterFrame):
         # Obtain a list of good slits
         ok_mask = np.where(~self.maskslits)[0]
 
+        # Check if the lamps need to be specified
+        if self.par['lamps'] is None:
+            print(self.msarc.head0['F1'])  # <-- This is the directory+filename of the first frame used in the combination
+            import pdb
+            pdb.set_trace()
+            # TODO :: Need to set lamps, based on header info
+
         # Obtain calibration for all slits
         if method == 'simple':
             lines = self.par['lamps']
