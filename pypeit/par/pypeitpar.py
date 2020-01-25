@@ -3061,7 +3061,7 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
                  flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None):
 
         # Grab the parameter names and values from the function
@@ -3093,9 +3093,9 @@ class PypeItPar(ParSet):
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
-        defaults['scienceimage'] = ReducePar()
-        dtypes['scienceimage'] = [ParSet, dict]
-        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and ' \
+        defaults['reduce'] = ReducePar()
+        dtypes['reduce'] = [ParSet, dict]
+        descr['reduce'] = 'Parameters determining sky-subtraction, object finding, and ' \
                                 'extraction'
 
         # Flexure is turned OFF by default
@@ -3333,7 +3333,7 @@ class PypeItPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib',
+        allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
                    'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
@@ -3350,8 +3350,7 @@ class PypeItPar(ParSet):
         pk = 'scienceframe'
         kwargs[pk] = FrameGroupPar.from_dict('science', cfg[pk]) if pk in k else None
 
-        # Migrate this key to be reduce instead of scienceimage
-        pk = 'scienceimage'
+        pk = 'reduce'
         kwargs[pk] = ReducePar.from_dict(cfg[pk]) if pk in k else None
 
         # Allow flexure to be turned on using cfg['rdx']
