@@ -23,9 +23,11 @@ from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
 
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 #def test_arcid_plot():
 #    json_file = data_path('LRISb_600_WaveCalib_01.json')
@@ -142,6 +144,7 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
+
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
@@ -168,6 +171,7 @@ def test_view_fits():
     spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
 
+
 @cooked_required
 def test_chk_flat():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
@@ -184,11 +188,19 @@ def test_coadd1d_1():
     Test basic coadd using Shane Kast blue
     """
     # NOTE: flux_value is False
+    parfile = 'coadd1d.par'
+    if os.path.isfile(parfile):
+        os.remove(parfile)
     coadd_ofile = data_path('J1217p3905_coadd.fits')
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
-    coadd_1dspec.main(coadd_1dspec.parser([data_path('shane_kast_blue.coadd1d')]))
+    # TODO: This is a kludge to get Travis to work.  We need a script
+    # that will write the coadd files with absolute paths.
+    coadd_ifile = data_path('shane_kast_blue.coadd1d') if os.getenv('TRAVIS_BUILD_DIR') is None \
+                    else data_path('shane_kast_blue_travis.coadd1d')
+
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]))
 
     hdu = fits.open(coadd_ofile)
     assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
@@ -196,31 +208,38 @@ def test_coadd1d_1():
     assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
 
     # Clean up
+    os.remove(parfile)
     os.remove(coadd_ofile)
 
 
-## TODO: Failure adding sensfunc to files/ because don't have telluric
-## grid.  Bring this test back when it's available.
-#def test_coadd1d_2():
-#    """
-#    Test combining Echelle
-#    """
-#    coadd_ofile = data_path('pisco_coadd.fits')
-#    if os.path.isfile(coadd_ofile):
-#        os.remove(coadd_ofile)
-#
-#    coadd_1dspec.main(coadd_1dspec.parser([data_path('gemini_gnirs_32_sb_sxd.coadd1d')]))
-#
-#    from IPython import embed
-#    embed()
-#    exit()
-#
-#    # Clean up
-#    os.remove(coadd_ofile)
-#
-#if __name__ == '__main__':
-#    test_coadd1d_2()
+def test_coadd1d_2():
+    """
+    Test combining Echelle
+    """
+    # NOTE: flux_value is False
+    parfile = 'coadd1d.par'
+    if os.path.isfile(parfile):
+        os.remove(parfile)
+    coadd_ofile = data_path('pisco_coadd.fits')
+    if os.path.isfile(coadd_ofile):
+        os.remove(coadd_ofile)
 
+    # TODO: This is a kludge to get Travis to work.  We need a script
+    # that will write the coadd files with absolute paths.
+    coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d') \
+                    if os.getenv('TRAVIS_BUILD_DIR') is None \
+                    else data_path('gemini_gnirs_32_sb_sxd_travis.coadd1d')
+
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]))
+
+    hdu = fits.open(coadd_ofile)
+    assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
+    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
+    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+
+    # Clean up
+    os.remove(parfile)
+    os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
 
