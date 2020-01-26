@@ -8,44 +8,6 @@
 
 #include "bspline.h"
 
-void cholesky_solve(double *a, int ar, int ac, double *b, int bn) {
-    /*
-       Solve the equation Ax=b where A is a Cholesky-banded matrix.
-
-    Args:
-        a: 
-            The flattened array A used in the equation A x = b.  The
-            number of columns (2nd axis) in a is given by ``ac``.
-
-        ar:
-            The number of rows in the A matrix.
-
-        ac:
-            The number of columns in the A matrix.
-
-        b:
-            The vector b in the equation A x = b.  The values are
-            replaced by the solution.
-
-        bn:
-            The number of elements in the b vector.
-    */
-    int n = bn - ar;
-    int kn = ar - 1;
-    int i, j;
-    double s;
-    for (j = 0; j < n; ++j) {
-        b[j] /= a[j];
-        for (i = 1; i < kn+1; ++i)
-            b[j+i] -= b[j]*a[i*ac + j];
-    }
-    for (j = n-1; j > -1; --j) {
-        s = 0;
-        for (i = 1; i < kn+1; ++i)
-            s += a[i*ac+j] * b[j+i];
-        b[j] = (b[j] - s)/a[j];
-    }
-}
 
 int cholesky_band(double *lower, int lr, int lc) {
     /*
@@ -55,10 +17,8 @@ int cholesky_band(double *lower, int lr, int lc) {
         lower: 
             The flattened matrix on which to perform the Cholesky
             decomposition.  The input matrix is replaced.
-
         lr:
             Number of rows (1st axis) in the matrix.
-
         lc:
             Number of columns (2st axis) in the matrix.
 
@@ -124,4 +84,38 @@ int cholesky_band(double *lower, int lr, int lc) {
 }
 
 
+void cholesky_solve(double *a, int ar, int ac, double *b, int bn) {
+    /*
+       Solve the equation Ax=b where A is a Cholesky-banded matrix.
+
+    Args:
+        a: 
+            The flattened array A used in the equation A x = b.  The
+            number of columns (2nd axis) in a is given by ``ac``.
+        ar:
+            The number of rows in the A matrix.
+        ac:
+            The number of columns in the A matrix.
+        b:
+            The vector b in the equation A x = b.  The values are
+            replaced by the solution.
+        bn:
+            The number of elements in the b vector.
+    */
+    int n = bn - ar;
+    int kn = ar - 1;
+    int i, j;
+    double s;
+    for (j = 0; j < n; ++j) {
+        b[j] /= a[j];
+        for (i = 1; i < kn+1; ++i)
+            b[j+i] -= b[j]*a[i*ac + j];
+    }
+    for (j = n-1; j > -1; --j) {
+        s = 0;
+        for (i = 1; i < kn+1; ++i)
+            s += a[i*ac+j] * b[j+i];
+        b[j] = (b[j] - s)/a[j];
+    }
+}
 

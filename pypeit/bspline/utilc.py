@@ -14,6 +14,11 @@ try:
 except Exception:
     raise ImportError('Unable to load bspline C extension.  Try rebuilding pypeit.')
 
+cholesky_band_c = _bspline.cholesky_band
+cholesky_band_c.restype = int
+cholesky_band_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                            ctypes.c_int, ctypes.c_int]
+
 cholesky_solve_c = _bspline.cholesky_solve
 cholesky_solve_c.restype = None
 cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
@@ -21,17 +26,30 @@ cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CO
                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
                              ctypes.c_int]
 
-cholesky_band_c = _bspline.cholesky_band
-cholesky_band_c.restype = int
-cholesky_band_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                            ctypes.c_int, ctypes.c_int]
-
-def cholesky_solve(a, bb):
-    b = bb.copy()
-    cholesky_solve_c(a, a.shape[0], a.shape[1], b, b.shape[0])
-    return -1, b
 
 def cholesky_band(l, mininf=0.0):
+    """
+    Compute Cholesky decomposition of banded matrix.
+
+    This function is a wrapper for a C function that improves
+    performance.
+
+    Parameters
+    ----------
+    l : :class:`numpy.ndarray`
+        A matrix on which to perform the Cholesky decomposition.
+    mininf : :class:`float`, optional
+        Entries in the `l` matrix are considered negative if they are less
+        than this value (default 0.0).
+
+    Returns
+    -------
+    :func:`tuple`
+        If problems were detected, the first item will be the index or
+        indexes where the problem was detected, and the second item will simply
+        be the input matrix.  If no problems were detected, the first item
+        will be -1, and the second item will be the Cholesky decomposition.
+    """
     n = np.diff(l.shape)[0]
     negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
     if np.any(negative):
@@ -41,3 +59,29 @@ def cholesky_band(l, mininf=0.0):
     ll = l.copy()
     err = cholesky_band_c(ll, ll.shape[0], ll.shape[1])
     return err, ll if err == -1 else l
+
+
+def cholesky_solve(a, bb):
+    r"""
+    Solve the equation :math:`Ax=b` where :math:`A` is a
+    Cholesky-banded matrix.
+
+    This function is a wrapper for a C function that improves
+    performance.
+
+    Parameters
+    ----------
+    a : :class:`numpy.ndarray`
+        :math:`A` in :math:`A x = b`.
+    bb : :class:`numpy.ndarray`
+        :math:`b` in :math:`A x = b`.
+
+    Returns
+    -------
+    :func:`tuple`
+        A tuple containing the status and the result of the solution.  The
+        status is always -1.
+    """
+    b = bb.copy()
+    cholesky_solve_c(a, a.shape[0], a.shape[1], b, b.shape[0])
+    return -1, b

@@ -8,7 +8,8 @@ from IPython import embed
 import numpy as np
 
 def cholesky_band(l, mininf=0.0):
-    """Compute Cholesky decomposition of banded matrix.
+    """
+    Compute Cholesky decomposition of banded matrix.
 
     This function is pure python.
 
@@ -62,7 +63,8 @@ def cholesky_band(l, mininf=0.0):
 
 
 def cholesky_solve(a, bb):
-    """Solve the equation Ax=b where A is a Cholesky-banded matrix.
+    """
+    Solve the equation Ax=b where A is a Cholesky-banded matrix.
 
     This function is pure python.
 
