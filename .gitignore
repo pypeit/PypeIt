@@ -3,7 +3,7 @@
 
 # Compiled source #
 ###################
-*.c
+# *.c
 *.com
 *.class
 *.dll
