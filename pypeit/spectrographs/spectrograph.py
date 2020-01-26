@@ -536,6 +536,21 @@ class Spectrograph(object):
             kk += 1
         return "_".join(lampstat)
 
+    def get_arclamps(self, filename):
+        """
+        Obtain a list of lamps, based on the header information
+        TODO :: Probably, we should just feed in the headarr infomation, so save loading the fits file again
+
+        Args:
+            filename (str):
+              Input filename
+
+        Returns:
+            lamplist: list of lamp names
+
+        """
+        msgs.error("No lamps provided. Please set the 'calibrations wavelengths lamps' parameter.")
+
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
         Return meta data from a given file (or its array of headers)

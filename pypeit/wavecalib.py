@@ -167,10 +167,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Check if the lamps need to be specified
         if self.par['lamps'] is None:
-            print(self.msarc.head0['F1'])  # <-- This is the directory+filename of the first frame used in the combination
-            import pdb
-            pdb.set_trace()
-            # TODO :: Need to set lamps, based on header info
+            self.par['lamps'] = self.spectrograph.get_arclamps(self.msarc.head0['F1'])
 
         # Obtain calibration for all slits
         if method == 'simple':

@@ -181,7 +181,8 @@ class CombineImage(object):
                                                     bpm=pypeitImage.bpm,
                                                     rn2img=var_list_out[1],
                                                     crmask=np.invert(outmask),
-                                                    binning=pypeitImage.binning)
+                                                    binning=pypeitImage.binning,
+                                                    rawheadlst=pypeitImage.rawheadlst)
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
                                                               apply_gain='apply_gain' in process_steps)
         final_pypeitImage.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,

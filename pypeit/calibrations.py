@@ -303,6 +303,9 @@ class Calibrations(object):
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            # Need to set head0 here, since a master arc frame loaded from file will have head0 set.
+            self.msarc.head0 = self.arcImage.build_master_header(steps=self.arcImage.process_steps,
+                                                                 raw_files=self.arcImage.file_list)
             # Save to Masters
             if self.save_masters:
                 self.arcImage.save()
