@@ -414,19 +414,6 @@ class Calibrations(object):
         # Save & return
         self._update_cache('bias', 'bias', self.msbias)
 
-        # Commenting this out for now until it gets fixed. I'm not convinced this should be here.
-
-        # If we need to make a bad pixel mask using the bias frames, do it now
-        #if self.par['badpix']:
-        #    # Instantiate the shape here, based on the shape of the bias image
-        #    self.shape = self.msbias.shape
-        #
-        #   # Build it
-        #    self.msbpm = self.spectrograph.bpm(shape=self.shape, det=self.det, msbias=self.msbias)
-        #
-        #    # Record it
-        #    self._update_cache('bpm', 'bpm', self.msbpm)
-
         return self.msbias
 
     def get_bpm(self):
@@ -434,7 +421,8 @@ class Calibrations(object):
         Load or generate the bad pixel mask
 
         TODO -- Should consider doing this outside of calibrations as it is
-        more specific to the science frame
+        more specific to the science frame - unless we want to generate a BPM
+        from the bias frame.
 
         This needs to be for the *trimmed* and correctly oriented image!
 
@@ -458,8 +446,12 @@ class Calibrations(object):
         # Build the data-section image
         sci_image_file = self.fitstbl.frame_paths(self.frame)
 
+        # Check if a bias frame exists, and if a BPM should be generated
+        msbias = None
+        if self.par['bpm_usebias'] and self._cached('bias', self.master_key_dict['bias']):
+            msbias = self.msbias
         # Build it
-        self.msbpm = self.spectrograph.bpm(sci_image_file, self.det)
+        self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=msbias)
         self.shape = self.msbpm.shape
 
         # Record it
@@ -952,7 +944,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
     # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
     # Notes on order of steps if flexure compensation is implemented
