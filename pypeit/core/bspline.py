@@ -9,8 +9,6 @@ from IPython import embed
 import numpy as np
 from scipy import special
 
-from numba import njit
-
 class bspline(object):
     """Bspline class.
 
@@ -59,8 +57,8 @@ class bspline(object):
     """
 
     # ToDO Consider refactoring the argument list so that there are no kwargs
-    def __init__(self, x, fullbkpt = None, nord=4, npoly=1, bkpt=None, bkspread=1.0,
-                 verbose=False, from_dict=None, **kwargs):
+    def __init__(self, x, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0, verbose=False,
+                 from_dict=None, **kwargs):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
         """
@@ -191,15 +189,12 @@ class bspline(object):
                 self.icoeff = np.zeros((nc,), dtype='d')
             self.xmin = 0.0
             self.xmax = 1.0
-            if 'funcname' in kwargs:
-                self.funcname = kwargs['funcname']
-            else:
-                self.funcname = 'legendre'
-
-        return
+            self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
 
     def copy(self):
-
+        """
+        Return a copied instance of the object.
+        """
         bsp_copy = bspline(None)
         bsp_copy.nord = self.nord
         bsp_copy.npoly = self.npoly
@@ -213,31 +208,33 @@ class bspline(object):
         return bsp_copy
 
     def to_dict(self):
-        """Write bspline parameters to a dict.
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-            A dict containing the relevant bspline paramenters.
-
-        Notes
-        -----
-        The dictionary is JSON compatible.
         """
+        Write bspline attributes to a dict.
 
-        # needs to move np.arrays to lists for JSON files
-        return (dict(breakpoints=self.breakpoints.tolist(),
-                     nord=self.nord,
-                     npoly=self.npoly,
-                     mask=self.mask.tolist(),
-                     coeff=self.coeff.tolist(),
-                     icoeff=self.icoeff.tolist(),
-                     xmin=self.xmin,
-                     xmax=self.xmax,
-                     funcname=self.funcname))
+        Attributes returned are: :attr:`breakpoints`, :attr:`nord`,
+        :attr:`npoly`, :attr:`mask`, :attr:`coeff`, :attr:`icoeff`,
+        :attr:`xmin`, :attr:`xmax`, and :attr:`funcname`.
 
+        .. note::
+
+            `numpy.ndarray`_ objects are converted to lists in the
+            dictionary to make it JSON compatible.
+
+        Returns:
+            :obj:`dict`: A dictionary with the above keys and items.
+
+        """
+        return dict(breakpoints=self.breakpoints.tolist(),
+                    nord=self.nord,
+                    npoly=self.npoly,
+                    mask=self.mask.tolist(),
+                    coeff=self.coeff.tolist(),
+                    icoeff=self.icoeff.tolist(),
+                    xmin=self.xmin,
+                    xmax=self.xmax,
+                    funcname=self.funcname)
+
+    # TODO: C this
     def fit(self, xdata, ydata, invvar, x2=None):
         """Calculate a B-spline in the least-squares sense.
 
@@ -370,13 +367,15 @@ class bspline(object):
                 temppoly[:, i] = temppoly[:, i-1] * x2norm
         elif self.funcname == 'chebyshev':
             # JFH fixed bug here where temppoly needed to be transposed because of different IDL and python array conventions
-            temppoly = fchebyshev(x2norm, self.npoly).T
+            # NOTE: Transposed them in the functions themselves
+            temppoly = fchebyshev(x2norm, self.npoly)
         elif self.funcname == 'legendre':
-            temppoly = flegendre(x2norm, self.npoly).T
+            temppoly = flegendre(x2norm, self.npoly)
         else:
             raise ValueError('Unknown value of funcname.')
 
         # TODO: Should consider faster way of calculating action that doesn't require a nested loop.
+        # action = (bf1[:,:,None] * temppoly[:,None,:]).reshape(nx,-1)
         bw = self.npoly*self.nord
         action = np.zeros((nx, bw), dtype='d')
         counter = -1
@@ -386,6 +385,7 @@ class bspline(object):
                 action[:, counter] = bf1[:, ii]*temppoly[:, jj]
         return action, lower, upper
 
+    # C this
     def intrv(self, x):
         """Find the segment between breakpoints which contain each value in the array x.
 
@@ -412,6 +412,7 @@ class bspline(object):
             indx[i] = ileft
         return indx
 
+    # TODO: C this
     def bsplvn(self, x, ileft):
         """To be documented.
 
@@ -482,12 +483,12 @@ class bspline(object):
         # TODO: Can we save some of these objects to self so that we
         # don't have to recreate them?
         yfit = np.zeros(x.shape, dtype=x.dtype)
-        bw = self.npoly * self.nord
-        spot = np.arange(bw, dtype=int)
+        spot = np.arange(self.npoly * self.nord, dtype=int)
         goodbk = self.mask.nonzero()[0]
         coeffbk = self.mask[self.nord:].nonzero()[0]
         goodcoeff = self.coeff[...,coeffbk]
 
+        # TODO: C this
         nowidth = np.invert(upper+1 > lower)
         n = self.mask.sum() - self.nord
         for i in range(n-self.nord+1):
@@ -558,10 +559,8 @@ class bspline(object):
             if self.mask[reality].any():
                 self.mask[reality] = False
                 return -1
-            else:
-                return -2
-        else:
             return -2
+        return -2
 
     def workit(self, xdata, ydata, invvar, action, lower, upper):
         """An internal routine for bspline_extract and bspline_radial which solve a general
@@ -645,60 +644,6 @@ class bspline(object):
         return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
 
-#def cholesky_band(l, mininf=0.0):
-#    """Compute Cholesky decomposition of banded matrix.
-#
-#    Parameters
-#    ----------
-#    l : :class:`numpy.ndarray`
-#        A matrix on which to perform the Cholesky decomposition.
-#    mininf : :class:`float`, optional
-#        Entries in the `l` matrix are considered negative if they are less
-#        than this value (default 0.0).
-#
-#    Returns
-#    -------
-#    :func:`tuple`
-#        If problems were detected, the first item will be the index or
-#        indexes where the problem was detected, and the second item will simply
-#        be the input matrix.  If no problems were detected, the first item
-#        will be -1, and the second item will be the Cholesky decomposition.
-#    """
-#
-#    bw, nn = l.shape
-#    n = nn - bw
-#    negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
-#    # JFH changed this below to make it more consistent with IDL version. Not sure
-#    # why the np.all(np.isfinite(lower)) was added. The code could return an empty
-#    # list for negative.nonzero() and crash if all elements in lower are NaN.
-#    # KBW: Added the "or not finite" flags to negative.
-#    if negative.any():
-#        nz = negative.nonzero()[0]
-#        warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
-#        return nz, l
-#
-#    lower = l.copy()
-#    kn = bw - 1
-#    spot = np.arange(kn, dtype=int) + 1
-#    bi = np.concatenate([np.arange(i)+(kn-i)*(kn+1) for i in range(kn,0,-1)])
-#    here = bi[:,None] + (np.arange(n)[None,:] + 1)*bw
-#    for j in range(n):
-#        lower[0,j] = np.sqrt(lower[0,j])
-#        lower[spot,j] /= lower[0,j]
-#        # TODO: This check is expensive. Is there any way to avoid it?
-#        # At least in the tests I've done, it seems like you get here
-#        # if the fitting function is too high order. I also don't like
-#        # having the warning statement here. We need cholesky band to
-#        # be as fast as possible. We should try to put as many checks
-#        # and print statements outside of the function.
-#        if not np.all(np.isfinite(lower[spot,j])):
-#            warnings.warn('NaN found in cholesky_band.')
-#            return j, l
-#        hmm = lower[spot,j,None] * lower[None,spot,j]
-#        lower.T.flat[here[:,j]] -= hmm.flat[bi]
-#
-#    return -1, lower
-
 def cholesky_band(l, mininf=0.0):
     """Compute Cholesky decomposition of banded matrix.
 
@@ -718,16 +663,11 @@ def cholesky_band(l, mininf=0.0):
         be the input matrix.  If no problems were detected, the first item
         will be -1, and the second item will be the Cholesky decomposition.
     """
-    nz, l = cholesky_band_inp_check(l, mininf=mininf)
-    if nz != -1:
-        return nz, l
-    nz, l = cholesky_band_no_checks(l)
-    if nz != -1:
-        warnings.warn('NaN found in cholesky_band.')
-    return nz, l
+#    # TODO: Used for testing bspline
+#    np.savez_compressed('cholesky_band_l.npz', l=l, mininf=mininf)
+#    print(l.shape)
+#    raise ValueError('Entered band')
 
-
-def cholesky_band_inp_check(l, mininf=0.0):
     bw, nn = l.shape
     n = nn - bw
     negative = (l[0,:n] <= mininf) | np.invert(np.isfinite(l[0,:n]))
@@ -739,12 +679,7 @@ def cholesky_band_inp_check(l, mininf=0.0):
         nz = negative.nonzero()[0]
         warnings.warn('Found {0} bad entries: {1}'.format(nz.size, nz))
         return nz, l
-    return -1, l
 
-@njit(cache=True)
-def cholesky_band_no_checks(l):
-    bw, nn = l.shape
-    n = nn - bw
     lower = l.copy()
     kn = bw - 1
     spot = np.arange(kn, dtype=int) + 1
@@ -753,20 +688,14 @@ def cholesky_band_no_checks(l):
     for j in range(n):
         lower[0,j] = np.sqrt(lower[0,j])
         lower[spot,j] /= lower[0,j]
-        # TODO: This check is expensive. Is there any way to avoid it?
-        # At least in the tests I've done, it seems like you get here
-        # if the fitting function is too high order. I also don't like
-        # having the warning statement here. We need cholesky band to
-        # be as fast as possible. We should try to put as many checks
-        # and print statements outside of the function.
         if not np.all(np.isfinite(lower[spot,j])):
+            warnings.warn('NaN found in cholesky_band.')
             return j, l
         hmm = lower[spot,j,None] * lower[None,spot,j]
         lower.T.flat[here[:,j]] -= hmm.flat[bi]
     return -1, lower
 
 
-@njit(cache=True)
 def cholesky_solve(a, bb):
     """Solve the equation Ax=b where A is a Cholesky-banded matrix.
 
@@ -783,30 +712,22 @@ def cholesky_solve(a, bb):
         A tuple containing the status and the result of the solution.  The
         status is always -1.
     """
+#    # TODO: Used for testing bspline
+#    np.savez_compressed('cholesky_solve_abb.npz', a=a, bb=bb)
+#    print(a.shape)
+#    print(bb.shape)
+#    raise ValueError('Entered solve')
+
     b = bb.copy()
     n = b.shape[0] - a.shape[0]
     kn = a.shape[0] - 1
-
-    # NOTE: Use this with numba
+    spot = np.arange(kn, dtype=int) + 1
     for j in range(n):
         b[j] /= a[0,j]
-        for i in range(1,kn+1):
-            b[j+i] -= b[j]*a[i,j]
+        b[j+spot] -= b[j]*a[spot,j]
     for j in range(n-1, -1, -1):
-        s = 0
-        for i in range(1,kn+1):
-            s += a[i,j] * b[j+i]
-        b[j] = (b[j] - s)/a[0,j]
+        b[j] = (b[j] - np.sum(a[spot,j] * b[j+spot]))/a[0,j]
     return -1, b
-
-    # NOTE: Use this without numba
-#    spot = np.arange(kn, dtype=int) + 1
-#    for j in range(n):
-#        b[j] /= a[0,j]
-#        b[j+spot] -= b[j]*a[spot,j]
-#    for j in range(n-1, -1, -1):
-#        b[j] = (b[j] - np.sum(a[spot,j] * b[j+spot]))/a[0,j]
-#    return -1, b
 
 
 # Faster than previous version but not as fast as if we could switch to
@@ -868,6 +789,50 @@ def uniq(x, index=None):
     return np.flatnonzero(np.concatenate(([True], _x[1:] != _x[:-1], [True])))[1:]-1
 
 
+def _build_basis(x, m, func):
+    r"""
+    Perform initial checks of the basis function inputs.
+
+    This is a helper function for the common operations in
+    :func:`flegendre` and :func:`fchebyshev`.
+
+    Args:
+        x (array-like):
+            Compute the basis polynomials at these abscissa values.
+        m (:obj:`int`):
+            The number of polynomials to compute. For example, if
+            :math:`m = 3`, :math:`P_0 (x)`, :math:`P_1 (x)` and
+            :math:`P_2 (x)` will be computed. Must be :math:`\geq1`.
+        func (callable):
+            Callable function that generates the basis polynomials.
+            E.g., `scipy.special.legendre` for Legendre polynomials.
+
+    Returns:
+        `numpy.ndarray`_: An array of shape :math:`(N_x, m)` with
+        the basis polynomials.
+
+    Raises:
+        ValueError:
+            Raised if the input order is not at least 1.
+        TypeError:
+            Raised if the provided ``func`` is not callable.
+
+    """
+    if m < 1:
+        raise ValueError('Order must be at least 1.')
+    if func is not callable:
+        raise TypeError('Must provide a callable function that constructs the basis polynomials.')
+    _x = np.atleast_1d(x)
+    basis = np.ones((_x.size, m), dtype=_x.dtype)
+    if m >= 2:
+        basis[:,1] = x
+    if m >= 3:
+        for k in range(2, m):
+            # TODO: Is there a faster way to set this up?
+            basis[:,k] = np.polyval(func(k), _x)
+    return basis
+
+
 def flegendre(x, m):
     """Compute the first `m` Legendre polynomials.
 
@@ -884,23 +849,7 @@ def flegendre(x, m):
     -------
     :class:`numpy.ndarray`
     """
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 1:
-        raise ValueError('Number of Legendre polynomials must be at least 1.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    if m >= 2:
-        leg[1, :] = x
-    if m >= 3:
-        for k in range(2, m):
-            leg[k, :] = np.polyval(special.legendre(k), x)
-    return leg
+    return _build_basis(x, m, special.legendre)
 
 
 def fchebyshev(x, m):
@@ -919,22 +868,6 @@ def fchebyshev(x, m):
     -------
     :class:`numpy.ndarray`
     """
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 1:
-        raise ValueError('Order of Chebyshev polynomial must be at least 1.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    if m >= 2:
-        leg[1, :] = x
-    if m >= 3:
-        for k in range(2, m):
-            leg[k, :] = np.polyval(special.chebyt(k), x)
-    return leg
+    return _build_basis(x, m, special.chebyt)
 
 

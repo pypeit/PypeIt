@@ -49,6 +49,8 @@ if sys.version > '3':
 
 import numpy
 
+from astropy.io import fits
+
 from pypeit.par import util
 
 class ParSet(object):
@@ -175,7 +177,7 @@ class ParSet(object):
         self.options = dict([ (p, [o]) if o is not None and not isinstance(o, list) else (p, o) \
                                        for p, o in zip(pars, _options) ])
         # Set the valid types
-        self.dtype = dict([ (p, [t]) if not isinstance(t, list) else (p, t) \
+        self.dtype = dict([ (p, [t]) if t is not None and not isinstance(t, list) else (p, t) \
                                      for p, t in zip(pars, _dtypes) ])
 
         # Set the calling flags
@@ -311,8 +313,13 @@ class ParSet(object):
                     data_table[i+1,2] = ParSet._data_string(self.default[k])
             if value_only:
                 continue
-            data_table[i+1,3] = ', '.join(['Undefined' if t is None else t.__name__ 
-                                            for t in self.dtype[k]])
+
+            data_table[i+1,3] = 'Undefined' if self.dtype[k] is None \
+                                    else ', '.join([t.__name__ for t in self.dtype[k]])
+# TODO: Now treating None's differently. None's shouldn't be in a list.
+# Keep this code around for now in case we find a failure mode.
+#                                    else ', '.join(['Undefined' if t is None else t.__name__ 
+#                                                    for t in self.dtype[k]])
             data_table[i+1,4] = self.can_call[k].__repr__()
 
         output = [ParSet._data_table_string(data_table)]
@@ -773,7 +780,7 @@ class ParSet(object):
                 raise ValueError('These keys should not be None: {0}'.format(
                                     numpy.asarray(self.keys())[should_not_be_None].tolist()))
 
-    def to_header(self, hdr, prefix=None, quiet=False):
+    def to_header(self, hdr=None, prefix=None, quiet=False):
         """
         Write the parameters to a fits header.
 
@@ -781,15 +788,23 @@ class ParSet(object):
         *not* written to the header.
 
         Args:
-            hdr (`astropy.io.fits.Header`):
-                Header object for the parameters. Modified in-place.
+            hdr (`astropy.io.fits.Header`, optional):
+                Header object for the parameters. **If provided, the
+                header is not copied and directly modified.** If
+                None, the baseline header is empty.
             prefix (:obj:`str`, optional):
                 Prefix to use for the header keywords, which
                 overwrites the string defined for the class. If None,
                 uses the default for the class.
             quiet (:obj:`bool`, optional):
                 Suppress print statements.
+
+        Returns:
+            `astropy.io.fits.Header`_: Header with the parameter
+            data included.
         """
+        if hdr is None:
+            hdr = fits.Header()
         if prefix is None:
             prefix = self.prefix
         ndig = int(numpy.log10(self.npar))+1 
@@ -802,14 +817,33 @@ class ParSet(object):
                     warnings.warn('ParSets within ParSets are not written to headers!  '
                                   'Skipping {0}.'.format(key))
                 continue
-            _value = str(value) if isinstance(value, (list, tuple)) else value
+            _value = ', '.join([str(v) for v in value]) \
+                            if isinstance(value, (list, tuple)) else value
+            hdr['{0}K{1}'.format(prefix, str(i+1).zfill(ndig))] \
+                    = (key, '{0}: Key'.format(self.__class__.__name__))
             hdr['{0}{1}'.format(prefix, str(i+1).zfill(ndig))] \
-                    = (_value, '{0}: {1}'.format(self.__class__.__name__, key))
+                    = (_value, '{0}: Value'.format(self.__class__.__name__))
+        return hdr
 
     @classmethod
     def from_header(cls, hdr, prefix=None):
         """
         Instantiate the ParSet using data parsed from a fits header.
+
+        This is a simple wrapper for
+        :func:`ParSet.parse_par_from_hdr` and
+        :func:`ParSet.from_dict`.
+
+        .. warning::
+
+            The to/from header methods in the :class:`ParSet` base
+            class **only** saves the parameter keys and values, not
+            its other attributes (e.g., options, dtypes, etc). In
+            essentially all use cases, the :class:`ParSet` should be
+            used as a base class where the :func:`from_dict` method
+            is overwritten such that these higher-level attributes of
+            the derived class are maintained in the header I/O. See,
+            e.g., :mod:`pypeit.par.pypeitpar`.
 
         Args:
             hdr (`astropy.io.fits.Header`):
@@ -821,7 +855,7 @@ class ParSet(object):
         """
         if prefix is None:
             prefix = cls.prefix
-        return cls.from_dict(util.recursive_dict_evaluate(ParSet.parse_par_from_hdr(hdr, prefix)))
+        return cls.from_dict(util.recursive_dict_evaluate(cls.parse_par_from_hdr(hdr, prefix)))
 
     @staticmethod
     def parse_par_from_hdr(hdr, prefix):
@@ -843,20 +877,51 @@ class ParSet(object):
             # Check if this header keyword starts with the required
             # prefix
             if k[:len(prefix)] == prefix:
+                if k[len(prefix)] == 'K':
+                    # Skip keys
+                    continue
                 try:
                     # Try to convert the keyword without the prefix into
                     # an integer.
-                    i = int(k[len(prefix):])-1
+                    i = int(k[len(prefix):])
                 except ValueError:
-                    # Assume the value is some other random keyword that
-                    # starts with the prefix but isn't a parameter
+                    # Assume the value is some other random keyword
+                    # that starts with the prefix but doesn't contain a
+                    # relevant parameter
                     continue
-                # Assume we've found a parameter. Parse the parameter
-                # name from the header comment and add it to the
-                # dictionary.
-                par_key = hdr.comments[k].split(':')[-1].strip()
-                par[par_key] = v
+                # Assume we've found a parameter. Use the associated
+                # header card to set the keyword and add both to the
+                # output dictionary.
+                par[hdr['{0}K{1}'.format(prefix,i)]] = v
         return par
+
+    @classmethod
+    def from_dict(cls, cfg):
+        """
+        Instantiate a :class:`ParSet` from a dictionary.
+
+        This simply constructs a :class:`ParSet` that behaves exactly
+        like a dictionary. That is, no constraints are put on the
+        types, options, etc., of the parameters.
+
+        .. warning::
+
+            Use of this method of instantiating a :class:`ParSet`
+            **only** sets the parameter keys and values, not
+            its other attributes (e.g., options, dtypes, etc). In
+            essentially all use cases, the :class:`ParSet` should be
+            used as a base class where the :func:`from_dict` method
+            is overwritten such that these higher-level attributes of
+            the derived class are maintained in the header I/O. See,
+            e.g., :mod:`pypeit.par.pypeitpar`.
+
+        Args:
+            cfg (dict-like):
+                Dictionary-like object used to set the parameters and
+                parameter values for the :class:`ParSet`.
+        """
+        pars, values = map(lambda x : list(x), zip(*cfg.items()))
+        return cls(pars, values=values)
 
 
 class ParDatabase(object):
