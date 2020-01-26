@@ -532,7 +532,7 @@ class Spectrograph(object):
                 break
             ext = self.meta[lampkey]['ext']
             card = self.meta[lampkey]['card']
-            lampstat += str(headarr[ext][card])
+            lampstat += [str(headarr[ext][card])]
             kk += 1
         return "_".join(lampstat)
 

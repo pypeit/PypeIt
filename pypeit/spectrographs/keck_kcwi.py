@@ -215,11 +215,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 break
             ext1, card1 = self.meta[lampkey1]['ext'], self.meta[lampkey1]['card']
             lampkey2 = 'lampshst{:02d}'.format(kk)
-            if lampkey2 not in self.meta.keys():
-                lampstat += str(headarr[ext1][card1])
+            if self.meta[lampkey2]['card'] is None:
+                lampstat += [str(headarr[ext1][card1])]
             else:
                 ext2, card2 = self.meta[lampkey2]['ext'], self.meta[lampkey2]['card']
-                lampstat += str(headarr[ext1][card1]) + '-' + str(headarr[ext2][card2])
+                lampstat += ["{0:s}-{1:s}".format(str(headarr[ext1][card1]), str(headarr[ext2][card2]))]
             kk += 1
         return "_".join(lampstat)
 
