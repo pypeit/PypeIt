@@ -23,7 +23,8 @@ from matplotlib import pyplot as plt
 from collections import deque
 from itertools import islice
 from bisect import insort, bisect_left
-from pypeit.core import pydl, bspline
+from pypeit.core import pydl
+from pypeit import bspline
 from pypeit import msgs
 from IPython import embed
 from numpy.lib.stride_tricks import as_strided
@@ -649,7 +650,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         the upper,lower rejection thresholds
     kwargs_bspline : :obj:`dict`, optional
         Keyword arguments used to instantiate
-        :class:`pypeit.core.bspline.bspline`
+        :class:`pypeit.bspline.bspline`
     kwargs_reject : :obj:`dict`, optional
         Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`
     quiet : :obj:`bool`, optional
@@ -657,7 +658,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
 
     Returns
     -------
-    sset : :class:`pypeit.core.bspline.bspline`
+    sset : :class:`pypeit.bspline.bspline`
         Result of the fit.
     gpm : `numpy.ndarray`_
         Output good-pixel mask which the same size as ``xdata``. The
@@ -859,7 +860,7 @@ def bspline_profile_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, 
         ydata (`numpy.ndarray`_):
             Array with the dependent variable. Regardless of shape,
             data is treated as one-dimensional.
-        sset (:class:`pypeit.core.pydl.bspline`):
+        sset (:class:`pypeit.bspline.bspline`):
             Object with the results of the fit. (First object
             returned by :func:`bspline_profile`).
         gpm (`numpy.ndarray`_):

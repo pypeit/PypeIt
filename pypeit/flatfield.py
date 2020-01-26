@@ -18,6 +18,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
 from pypeit import masterframe
+from pypeit import bspline
 
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
@@ -794,8 +795,11 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # 1/10th of a pixel, but do not allow a bsp smaller than
             # the typical sampling. Use the bspline class to determine
             # the breakpoints:
-            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
-                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+#            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
+#                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+#                                                     1.2*np.median(np.diff(spat_coo_data))))
+            spat_bspl = bspline.bspline(spat_coo_data, nord=4,
+                                        bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
                                                      1.2*np.median(np.diff(spat_coo_data))))
             # TODO: Can we add defaults to bspline_profile so that we
             # don't have to instantiate invvar and profile_basis

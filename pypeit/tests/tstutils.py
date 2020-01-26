@@ -20,13 +20,28 @@ from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 
-# Create a decorator for tests that require the PypeIt dev suite
+# ----------------------------------------------------------------------
+# pytest decorators setting the tests to perform
+
+# Tests require the PypeIt dev-suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
                                         reason='test requires dev suite')
 
+# Tests require the Cooked data
 cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
                             reason='no dev-suite cooked directory')
+
+# Tests require the bspline c extension
+try:
+    from pypeit.bspline.utilc import cholesky_band
+except:
+    bspline_ext = False
+else:
+    bspline_ext = True
+bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not import C extension')
+# ----------------------------------------------------------------------
+
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
