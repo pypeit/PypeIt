@@ -189,7 +189,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['pca_order'] = 3
 
         # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ReducePar()
+        par['reduce'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
@@ -355,9 +355,9 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Scienceimage parameters
-        par['scienceimage']['findobj']['sig_thresh'] = 5
-        #par['scienceimage']['maxnumber'] = 2
-        par['scienceimage']['findobj']['find_trim_edge'] = [50,50]
+        par['reduce']['findobj']['sig_thresh'] = 5
+        #par['reduce']['maxnumber'] = 2
+        par['reduce']['findobj']['find_trim_edge'] = [50,50]
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure

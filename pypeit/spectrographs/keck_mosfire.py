@@ -74,8 +74,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = False
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
