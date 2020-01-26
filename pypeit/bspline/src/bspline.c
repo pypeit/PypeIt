@@ -87,7 +87,9 @@ int cholesky_band(double *lower, int lr, int lc) {
             k = i*n+j;
             here[k] = bi[i] + (j+1)*lr;
             // Because I've given up on trying to figure out how to more
-            // simply write the indices in the untransposed matrix!
+            // simply write the indices in the untransposed matrix! This
+            // converts the indices from a column-major order to a
+            // row-major order.
             here[k] = (here[k] - (here[k]/lr)*lr)*lc + here[k]/lr;
         }
             
