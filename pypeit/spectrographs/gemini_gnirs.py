@@ -110,16 +110,16 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Finding objects
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['findobj']['sig_thresh'] = 5.0
-        par['scienceimage']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
-        par['scienceimage']['findobj']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
-        par['scienceimage']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['findobj']['sig_thresh'] = 5.0
+        par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
+        par['reduce']['findobj']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
+        par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         # Extraction
-        par['scienceimage']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
         # Sky Subtraction
-        par['scienceimage']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['skysub']['no_poly'] = True         # Do not use polynomial degree of freedom for global skysub
+        par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
+        par['reduce']['skysub']['no_poly'] = True         # Do not use polynomial degree of freedom for global skysub
 
 
         # Do not correct for flexure
@@ -383,7 +383,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 #        return np.power(10.0,loglam_grid)
 
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to Gemini/GNIRS
 
@@ -404,6 +404,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for GNIRS")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # JFH Changed. Dealing with detector scratch
         if det == 1:
             bpm_img[687:765,12:16] = 1.

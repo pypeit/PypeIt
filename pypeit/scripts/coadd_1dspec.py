@@ -2,6 +2,8 @@
 """
 Script for coadding PypeIt 1d spectra
 """
+import os
+
 from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs
@@ -17,9 +19,15 @@ from IPython import embed
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
 class SmartFormatter(argparse.HelpFormatter):
-
     def _split_lines(self, text, width):
         if text.startswith('R|'):
+            # TODO: We shouldn't be ignoring the terminal width here,
+            # but doing anything fancier than splitlines() gets complicated quickly. I
+            # think we should be careful with using this formatter to
+            # make lines no longer than about 60 characters.
+            # import textwrap
+            # lines = np.concatenate([textwrap.wrap(t, width) if len(t) > 0 else [' ']
+            #                            for t in text[2:].split('\n')]).tolist()
             return text[2:].splitlines()
         # this is the RawTextHelpFormatter._split_lines
         return argparse.HelpFormatter._split_lines(self, text, width)
@@ -143,6 +151,15 @@ def main(args):
     config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
     # Read in spectrograph from spec1dfile header
     header = fits.getheader(spec1dfiles[0])
+
+    # NOTE: This was some test code for Travis. Keep it around for now
+    # in case we need to do this again. (KBW)
+#    try:
+#        header = fits.getheader(spec1dfiles[0])
+#    except Exception as e:
+#        raise Exception('{0}\n {1}\n {2}\n'.format(spec1dfiles[0], os.getcwd(),
+#                        os.getenv('TRAVIS_BUILD_DIR', default='None'))) from e
+
     spectrograph = load_spectrograph(header['PYP_SPEC'])
 
     # Parameters
@@ -155,7 +172,7 @@ def main(args):
     coaddfile = par['coadd1d']['coaddfile']
 
     if spectrograph.pypeline is 'Echelle' and sensfile is None:
-        msgs.error('You must specifiy set the sensfuncfile in the .coadd1d file for Echelle coadds')
+        msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
 
     # TODO JFH I really dislike that the parsets are used to hold actually run time specific information and not
     # i.e. parameter defaults, or values of parameters. The problem is there is no other easy way to pass this information

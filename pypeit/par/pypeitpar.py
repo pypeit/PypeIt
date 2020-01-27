@@ -1585,7 +1585,7 @@ class ReduxPar(ParSet):
         return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
                 'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
+                'wht_isis_blue', 'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
                 'vlt_fors2', 'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2',
                 'gemini_gmos_south_ham', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
                 'magellan_fire', 'magellan_fire_long', 'magellan_mage', 'lbt_mods1r', 'lbt_mods1b',
@@ -2889,7 +2889,7 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, caldir=None, setup=None, trim=None, badpix=None, biasframe=None,
+    def __init__(self, caldir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
                  wavelengths=None, slitedges=None, tilts=None):
@@ -2921,9 +2921,9 @@ class CalibrationsPar(ParSet):
         dtypes['trim'] = bool
         descr['trim'] = 'Trim the frame to isolate the data'
 
-        defaults['badpix'] = True
-        dtypes['badpix'] = bool
-        descr['badpix'] = 'Make a bad pixel mask? Bias frames must be provided.'
+        defaults['bpm_usebias'] = False
+        dtypes['bpm_usebias'] = bool
+        descr['bpm_usebias'] = 'Make a bad pixel mask from bias frames? Bias frames must be provided.'
 
         defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
         dtypes['biasframe'] = [ ParSet, dict ]
@@ -2991,7 +2991,7 @@ class CalibrationsPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'caldir', 'setup', 'trim', 'badpix' ]
+        parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias' ]
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'pinholeframe', 'traceframe', 'standardframe', 'flatfield',
@@ -3081,7 +3081,7 @@ class PypeItPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, rdx=None, calibrations=None, scienceframe=None, scienceimage=None,
+    def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
                  flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None):
 
         # Grab the parameter names and values from the function
@@ -3113,9 +3113,9 @@ class PypeItPar(ParSet):
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
-        defaults['scienceimage'] = ReducePar()
-        dtypes['scienceimage'] = [ParSet, dict]
-        descr['scienceimage'] = 'Parameters determining sky-subtraction, object finding, and ' \
+        defaults['reduce'] = ReducePar()
+        dtypes['reduce'] = [ParSet, dict]
+        descr['reduce'] = 'Parameters determining sky-subtraction, object finding, and ' \
                                 'extraction'
 
         # Flexure is turned OFF by default
@@ -3353,7 +3353,7 @@ class PypeItPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib',
+        allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
                    'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
@@ -3370,8 +3370,7 @@ class PypeItPar(ParSet):
         pk = 'scienceframe'
         kwargs[pk] = FrameGroupPar.from_dict('science', cfg[pk]) if pk in k else None
 
-        # Migrate this key to be reduce instead of scienceimage
-        pk = 'scienceimage'
+        pk = 'reduce'
         kwargs[pk] = ReducePar.from_dict(cfg[pk]) if pk in k else None
 
         # Allow flexure to be turned on using cfg['rdx']

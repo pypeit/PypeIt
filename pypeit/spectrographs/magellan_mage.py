@@ -183,7 +183,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             return (fitstbl['idname'] == 'Object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -193,6 +193,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -204,6 +205,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for MAGE")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Get the binning
         hdu = fits.open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])

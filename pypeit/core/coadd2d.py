@@ -845,14 +845,15 @@ class CoAdd2d(object):
         if self.ir_redux:
             sobjs.purge_neg()
 
-        # Add the information about the fixed wavelength grid to the sobjs
-        for spec in sobjs:
-            idx = spec.slit_orderindx
-            # Fill
-            spec.BOX_WAVE_GRID_MASK, spec.OPT_WAVE_GRID_MASK = [psuedo_dict['wave_mask'][:,idx]]*2
-            spec.BOX_WAVE_GRID, spec.OPT_WAVE_GRID = [psuedo_dict['wave_mid'][:,idx]]*2
-            spec.BOX_WAVE_GRID_MIN, spec.OPT_WAVE_GRID_MIN = [psuedo_dict['wave_min'][:,idx]]*2
-            spec.BOX_WAVE_GRID_MAX, spec.OPT_WAVE_GRID_MAX = [psuedo_dict['wave_max'][:,idx]]*2
+        # TODO: Removed this, but I'm not sure that's what you want...
+#        # Add the information about the fixed wavelength grid to the sobjs
+#        for spec in sobjs:
+#            idx = spec.slit_orderindx
+#            # Fill
+#            spec.BOX_WAVE_GRID_MASK, spec.OPT_WAVE_GRID_MASK = [psuedo_dict['wave_mask'][:,idx]]*2
+#            spec.BOX_WAVE_GRID, spec.OPT_WAVE_GRID = [psuedo_dict['wave_mid'][:,idx]]*2
+#            spec.BOX_WAVE_GRID_MIN, spec.OPT_WAVE_GRID_MIN = [psuedo_dict['wave_min'][:,idx]]*2
+#            spec.BOX_WAVE_GRID_MAX, spec.OPT_WAVE_GRID_MAX = [psuedo_dict['wave_max'][:,idx]]*2
 
         # Add the rest to the psuedo_dict
         psuedo_dict['skymodel'] = skymodel_psuedo

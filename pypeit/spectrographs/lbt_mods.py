@@ -38,7 +38,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['number'] = 1
 
         # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ReducePar()
+        par['reduce'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters

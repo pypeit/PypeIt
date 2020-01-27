@@ -88,15 +88,15 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = False
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-        par['scienceimage']['extraction']['boxcar_radius'] = 0.75  # arcsec
+        par['reduce']['extraction']['boxcar_radius'] = 0.75  # arcsec
 
         # Overscan but not bias
         #  This seems like a kludge of sorts
@@ -172,7 +172,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         return np.zeros(len(fitstbl), dtype=bool)
 
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -182,6 +182,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -193,6 +194,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for NIRES")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             bpm_img[:, :20] = 1.
             bpm_img[:, 1000:] = 1.

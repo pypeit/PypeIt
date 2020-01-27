@@ -69,7 +69,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
 
     """
     # Priority
-    std_sets = ['xshooter', 'calspec','esofil']
+    std_sets = ['xshooter', 'calspec', 'esofil']
 
     # SkyCoord
     #  The following was a bad hack and violated the expected input of str for ra,dec
@@ -83,69 +83,83 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     closest = dict(sep=999 * units.deg)
 
     for sset in std_sets:
-        path = 'data/standards/{:}/'.format(sset)
-        star_file = resource_filename('pypeit', path+'{:}_info.txt'.format(sset, sset))
-        star_tbl = Table.read(star_file, comment='#', format='ascii')
+        path = resource_filename('pypeit', os.path.join('data', 'standards', sset))
+        star_file =  os.path.join(path, '{0}_info.txt'.format(sset))
+        if not os.path.isfile(star_file):
+            msgs.warn('File does not exist!: {0}'.format(star_file))
+            continue
 
+        star_tbl = Table.read(star_file, comment='#', format='ascii')
         star_coords = coordinates.SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
                                            unit=(units.hourangle, units.deg))
         idx, d2d, d3d = coordinates.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
 
         if d2d < toler:
             if check:
+                # Found one so return
                 return True
+
+            # Generate a dict
+            _idx = int(idx)
+            std_dict = dict(cal_file=os.path.join(path, star_tbl[_idx]['File']),
+                            name=star_tbl[_idx]['Name'],
+                            std_ra=star_tbl[_idx]['RA_2000'],
+                            std_dec=star_tbl[_idx]['DEC_2000'])
+
+            if not os.path.isfile(star_file):
+                # TODO: Error or warn?
+                msgs.error("No standard star file found: {:s}".format(star_file))
+
+            # TODO: Does this need to be globbed? Why isn't the file
+            # name exact?
+            fil = glob.glob(std_dict['cal_file'] + '*')
+            if len(fil) == 0:
+                # TODO: Error or warn?
+                msgs.error("No standard star file: {:s}".format(std_dict['cal_file']))
+
+            fil = fil[0]
+            msgs.info("Loading standard star file: {:s}".format(fil))
+            # TODO: Put this stuf in a method, like `read_standard`
+            if sset == 'xshooter':
+                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                std_spec = Table.read(fil, format='ascii')
+                std_dict['std_source'] = sset
+                std_dict['wave'] = std_spec['col1'] * units.AA
+                std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
+                                   units.erg / units.s / units.cm ** 2 / units.AA
+            elif sset == 'calspec':
+                std_dict['std_source'] = sset
+                std_spec = fits.open(fil)[1].data
+                std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
+                std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
+                                   * units.erg / units.s / units.cm ** 2 / units.AA
+            elif sset == 'esofil':
+                # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
+                std_spec = Table.read(fil, format='ascii')
+                std_dict['std_source'] = sset
+                std_dict['wave'] = std_spec['col1'] * units.AA
+                std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
+                                   units.erg / units.s / units.cm ** 2 / units.AA
+                # At this low resolution, best to throw out entries affected by A and B-band absorption
+                mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
+                std_dict['wave'] = std_dict['wave'][np.invert(mask)]
+                std_dict['flux'] = std_dict['flux'][np.invert(mask)]
             else:
-                # Generate a dict
-                _idx = int(idx)
-                std_dict = dict(cal_file=os.path.join(path,star_tbl[_idx]['File']),
-                                name=star_tbl[_idx]['Name'],
-                                std_ra=star_tbl[_idx]['RA_2000'],
-                                std_dec=star_tbl[_idx]['DEC_2000'])
-                if os.path.exists(star_file):
-                    root = resource_filename('pypeit', std_dict['cal_file'] + '*')
-                    fil = glob.glob(root)
-                    if len(fil) == 0:
-                        msgs.error("No standard star file: {:s}".format(fil))
-                    else:
-                        fil = fil[0]
-                        msgs.info("Loading standard star file: {:s}".format(fil))
-                    if sset == 'xshooter':
-                        # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                        std_spec = Table.read(fil, format='ascii')
-                        std_dict['std_source'] = sset
-                        std_dict['wave'] = std_spec['col1'] * units.AA
-                        std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
-                                           units.erg / units.s / units.cm ** 2 / units.AA
-                    elif sset == 'calspec':
-                        std_dict['std_source'] = sset
-                        std_spec = fits.open(fil)[1].data
-                        std_dict['wave'] = std_spec['WAVELENGTH'] * units.AA
-                        std_dict['flux'] = std_spec['FLUX'] / PYPEIT_FLUX_SCALE \
-                                           * units.erg / units.s / units.cm ** 2 / units.AA
-                    elif sset == 'esofil':
-                        # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                        std_spec = Table.read(fil, format='ascii')
-                        std_dict['std_source'] = sset
-                        std_dict['wave'] = std_spec['col1'] * units.AA
-                        std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
-                                           units.erg / units.s / units.cm ** 2 / units.AA
-                        # At this low resolution, best to throw out entries affected by A and B-band absorption
-                        mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
-                        std_dict['wave'] = std_dict['wave'][np.invert(mask)]
-                        std_dict['flux'] = std_dict['flux'][np.invert(mask)]
-                    msgs.info("Fluxes are flambda, normalized to 1e-17")
-                else:
-                    msgs.error("No standard star file found: {:s}".format(star_file))
-                return std_dict
-        else:
-            # Save closest found so far
-            imind2d = np.argmin(d2d)
-            mind2d = d2d[imind2d]
-            if mind2d < closest['sep']:
-                closest['sep'] = mind2d
-                closest.update(dict(name=star_tbl[int(idx)]['Name'],
-                                    ra=star_tbl[int(idx)]['RA_2000'],
-                                    dec=star_tbl[int(idx)]['DEC_2000']))
+                msgs.error('Do not know how to parse {0} file.'.format(sset))
+            msgs.info("Fluxes are flambda, normalized to 1e-17")
+            return std_dict
+
+        # Save closest found so far
+        imind2d = np.argmin(d2d)
+        mind2d = d2d[imind2d]
+        if mind2d < closest['sep']:
+            closest['sep'] = mind2d
+            # TODO: Is this right? Do we need to use the imind2d from
+            # above?
+            closest.update(dict(name=star_tbl[int(idx)]['Name'],
+                                ra=star_tbl[int(idx)]['RA_2000'],
+                                dec=star_tbl[int(idx)]['DEC_2000']))
+
     # Standard star not found
     if check:
         return False
