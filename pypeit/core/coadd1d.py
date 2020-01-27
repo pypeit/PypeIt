@@ -1314,7 +1314,7 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, min_weight=1e
 
     # Calculate the stacked wavelength
     ## TODO: JFH Made the minimum weight 1e-8 from 1e-4. I'm not sure what this min_weight is necessary for, or
-    # is achieving FW. 
+    # is achieving FW.
     wave_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=waves_flat*weights_flat)
     wave_stack = (weights_total > min_weight)*wave_stack_total/(weights_total+(weights_total==0.))
 
@@ -2010,11 +2010,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
     scales = np.zeros_like(fluxes)
     scale_method_used = []
     for iexp in range(nexp):
-        if hand_scale is not None:
-            hand_scale_iexp = hand_scale[iexp]
-        else:
-            hand_scale_iexp = None
-        # TODO Create a parset for the coadd parameters!!!
+        hand_scale_iexp = None if hand_scale is None else hand_scale[iexp]
         fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp], scale_method_iexp = scale_spec(
             waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], sn[iexp], wave_stack, flux_stack, ivar_stack,
             mask=masks[:, iexp], mask_ref=mask_stack, ref_percentile=ref_percentile, maxiters=maxiter_scale,
@@ -2037,9 +2033,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     Args:
         waves, fluxes, ivars: (nspec, nexp) arrays
-        sn_smooth_npix (int):
+        sn_smooth_npix: int
            Numbe of pixels to median filter by when computing S/N used to decide how to scale and weight spectra
-        wave_method (str)
+        wave_method: str
            method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
            space grid in lambda. See docuementation on get_wave_grid for description of the options.
         dwave: float,
@@ -2062,9 +2058,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
         maxiter_scale: int, default=5
             Maximum number of iterations performed for rescaling spectra.
-        sigrej_scale: flaot, default=3.0
+        sigrej_scale: float, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
-        scale_method (str):
+        scale_method: str:
             Options are poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default is 'auto' will let the
             code determine this automitically which works well.
@@ -2163,8 +2159,14 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     Routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
 
     Args:
-        waves, fluxes, ivars, masks (ndarray):
-            Arrays with shape (nspec, nexp) containing the spectra to be coadded.
+        waves (ndarray):
+            Wavelength array  with shape (nspec, nexp) containing the spectra to be coadded.
+        fluxes (ndarray):
+            Flux array with shape (nspec, nexp) containing the spectra to be coadded.
+        ivars, masks (ndarray):
+            Ivar array with shape (nspec, nexp) containing the spectra to be coadded.
+        masks (ndarray):
+            Maks array with shape (nspec, nexp) containing the spectra to be coadded.
         sn_smooth_npix (int):
            Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
            set to None, the code will determine the effective number of good pixels per spectrum
