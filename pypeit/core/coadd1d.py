@@ -82,7 +82,7 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             If not input, the median km/s per pixel is calculated and used
         dloglam (float): optional
             Pixel size in log10(wave) for the log10 method.
-        samp_fact (float): optional 
+        samp_fact (float): optional
             sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
             samp_fact < 1.0 undersamples (coarser)
 
@@ -237,13 +237,13 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
             input chi values
         mask (ndarray, bool):
             True = good, mask for your chi array
-        clip (float):
+        clip (float): optional
             threshold for outliers which will be clipped for the purpose of computing the renormalization factor
-        max_corr (float):
+        max_corr (float): optional
             maximum corrected sigma allowed.
-        title (str):
+        title (str): optional
             title for QA plot, will parsed to renormalize_errors_qa
-        debug (bool):
+        debug (bool): optional
             whether or not show the QA plot created by renormalize_errors_qa
 
     Returns:
@@ -1239,7 +1239,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     return flux_scale, ivar_scale, scale, method_used
 
 
-def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
+def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, min_weight=1e-8):
     '''
     Compute a stacked spectrum from a set of exposures on the specified wave_grid with proper treatment of
     weights and masking. This code uses np.histogram to combine the data using NGP and does not perform any
@@ -1313,22 +1313,22 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     weights_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=weights_flat)
 
     # Calculate the stacked wavelength
-    ## FW: I changed from 0.0 to 1e-4 to remove extreme values
-    ## TODO: JFH Check that 1e-4 makes sense. It seems to me it should be a smaller number.
+    ## TODO: JFH Made the minimum weight 1e-8 from 1e-4. I'm not sure what this min_weight is necessary for, or
+    # is achieving FW. 
     wave_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=waves_flat*weights_flat)
-    wave_stack = (weights_total > 1e-4)*wave_stack_total/(weights_total+(weights_total==0.))
+    wave_stack = (weights_total > min_weight)*wave_stack_total/(weights_total+(weights_total==0.))
 
     # Calculate the stacked flux
     flux_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=fluxes_flat*weights_flat)
-    flux_stack = (weights_total > 1e-4)*flux_stack_total/(weights_total+(weights_total==0.))
+    flux_stack = (weights_total > min_weight)*flux_stack_total/(weights_total+(weights_total==0.))
 
     # Calculate the stacked ivar
     var_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=vars_flat*weights_flat**2)
-    var_stack = (weights_total > 1e-4)*var_stack_total/(weights_total+(weights_total==0.))**2
+    var_stack = (weights_total > min_weight)*var_stack_total/(weights_total+(weights_total==0.))**2
     ivar_stack = utils.inverse(var_stack)
 
     # New mask for the stack
-    mask_stack = (weights_total > 1e-4) & (nused > 0.0)
+    mask_stack = (weights_total > min_weight) & (nused > 0.0)
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
