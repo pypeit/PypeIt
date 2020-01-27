@@ -57,8 +57,8 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
     Args:
         waves (ndarray):
             Set of N original wavelength arrays shape = (nspec, nexp)
-        masks (ndarray):
-            Good pixel mask for wavelengths. shape = (nspec, nexp). Optional.
+        masks (ndarray): optional
+            Good pixel mask for wavelengths. shape = (nspec, nexp).
         wave_method (str): optional
             Desired method for creating new wavelength grid:
 
@@ -74,15 +74,15 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             min wavelength value for the final grid
         wave_grid_max (float): optional
             max wavelength value for the final grid
-        dwave (float):
+        dwave (float): optional
             Pixel size in same units as input wavelength array (e.g. Angstroms)
             If not input, the median pixel size is calculated and used
-        dv (float):
+        dv (float): optional
             Pixel size in km/s for velocity method
             If not input, the median km/s per pixel is calculated and used
-        dloglam (float):
+        dloglam (float): optional
             Pixel size in log10(wave) for the log10 method.
-        samp_fact (float):
+        samp_fact (float): optional 
             sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
             samp_fact < 1.0 undersamples (coarser)
 
