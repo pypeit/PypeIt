@@ -288,7 +288,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-ShooterNIR.
 
@@ -298,6 +298,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -309,6 +310,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
 
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
             try :
@@ -574,7 +580,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(5000.0), np.log10(11000)
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -584,6 +590,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -594,6 +601,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         shape = bpm_img.shape
         #
         # ToDo Ema: This is just a workaround to deal with
@@ -761,7 +773,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Right now I just took the average
         return np.full(self.norders, 0.161)*binspatial
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter UVB.
 
@@ -771,6 +783,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -781,6 +794,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning
