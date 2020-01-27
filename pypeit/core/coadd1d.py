@@ -2610,15 +2610,32 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
 
 class CoAdd1d(object):
 
-    # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
+        Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
+        """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
             spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
 
+        Args:
+            spec1dfiles (list):
+               List of strings which are the spec1dfiles
+            objids (list):
+               List of strings which are the objids for the object in each spec1d file that you want to coadd
+            par (parset):
+               Pypeit parameter set object
+            sensfile (str): optional
+               File holding the sensitivity function. This is required for echelle coadds only.
+            debug (bool): optional
+               Debug. Default = False
+            show (bool):
+               Debug. Default = True
+        """
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
         self.objids = objids
@@ -2636,6 +2653,9 @@ class CoAdd1d(object):
         self.coaddfile = None
 
     def run(self):
+        """
+        Runs the coadding
+        """
 
         # Load the data
         self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
@@ -2647,7 +2667,8 @@ class CoAdd1d(object):
         Load the arrays we need for performing coadds.
 
         Returns:
-          waves, fluxes, ivars, masks, header
+            tuple:
+               - waves, fluxes, ivars, masks, header
         """
 
         for iexp in range(self.nexp):
@@ -2672,12 +2693,14 @@ class CoAdd1d(object):
         Routine to save 1d coadds to a fits file. This replaces save.save_coadd1d_to_fits
 
         Args:
-            telluric:
-            obj_model:
-            ex_value:
-            overwrite:
-
-        Returns:
+            coaddfile (str):
+               File to outuput coadded spectrum to.
+            telluric (str):
+               This is vestigial and should probably be removed.
+            obj_model (str):
+               This is vestigial and should probably be removed
+            overwrite (bool):
+               Overwrite existing file?
 
         """
 
@@ -2740,9 +2763,35 @@ class MultiSlit(CoAdd1d):
     """
 
     def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
+
+            Args:
+                spec1dfiles (list):
+                   List of strings which are the spec1dfiles
+                objids (list):
+                   List of strings which are the objids for the object in each spec1d file that you want to coadd
+                par (parset):
+                   Pypeit parameter set object
+                sensfile (str): optional
+                   File holding the sensitivity function. This is required for echelle coadds only.
+                debug (bool): optional
+                   Debug. Default = False
+                show (bool):
+                   Debug. Default = True
+        """
+
         super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
+
     def coadd(self):
+        """
+        Perform coadd for for Multi/Longslit data using multi_combspec
+
+        Returns:
+            tuple
+              - wave, flux, ivar, mask
+
+        """
         wave_coadd, flux_coadd, ivar_coadd, mask_coadd = multi_combspec(
             self.waves, self.fluxes, self.ivars, self.masks,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
@@ -2763,9 +2812,34 @@ class Echelle(CoAdd1d):
     """
 
     def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
+
+            Args:
+                spec1dfiles (list):
+                   List of strings which are the spec1dfiles
+                objids (list):
+                   List of strings which are the objids for the object in each spec1d file that you want to coadd
+                par (parset):
+                   Pypeit parameter set object
+                sensfile (str): optional
+                   File holding the sensitivity function. This is required for echelle coadds only.
+                debug (bool): optional
+                   Debug. Default = False
+                show (bool):
+                   Debug. Default = True
+        """
+
         super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
+        """
+        Perform coadd for for echelle data using ech_combspec
+
+        Returns:
+            tuple
+              - wave, flux, ivar, mask
+
+        """
         (wave_coadd, flux_coadd, ivar_coadd, mask_coadd), order_stacks = ech_combspec(
             self.waves, self.fluxes, self.ivars, self.masks, self.sensfile,
             nbest=self.par['nbest'], sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
