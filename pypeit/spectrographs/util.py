@@ -23,7 +23,7 @@ def valid_spectrographs():
     return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly', 'keck_nires',
             'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores', 'wht_isis_blue',
-            'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir', 'vlt_fors2',
+            'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir', 'vlt_fors2',
             'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2', 'gemini_gmos_south_ham',
             'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
             'magellan_fire', 'magellan_fire_long', 'magellan_mage',
@@ -115,7 +115,10 @@ def load_spectrograph(spectrograph, ifile=None):
 
     if spectrograph == 'wht_isis_blue':
         return spectrographs.wht_isis.WHTISISBlueSpectrograph()
-    
+
+    if spectrograph == 'wht_isis_red':
+        return spectrographs.wht_isis.WHTISISRedSpectrograph()
+
     if spectrograph == 'tng_dolores':
         return spectrographs.tng_dolores.TNGDoloresSpectrograph()
 

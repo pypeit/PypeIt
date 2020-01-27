@@ -162,7 +162,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
             adjusted for configuration specific parameter values.
         """
-        par = self.__class__.default_pypeit_par(self) if inp_par is None else inp_par
+        par = self.__class__.default_pypeit_par() if inp_par is None else inp_par
 
         headarr = self.get_headarr(scifile)
 
@@ -359,7 +359,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
         return par
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Parameters
@@ -375,6 +375,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         """
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")

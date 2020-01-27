@@ -852,13 +852,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
+        # First manually remove some traces, just in case a user
+        # wishes to manually place a trace nearby a trace that
+        # was automatically identified. One problem with adding
+        # slits first is that we may have to sync the slits again.
+        if self.par['rm_slits'] is not None:
+            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
+
         # Add user traces
         if self.par['add_slits'] is not None:
             self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
-
-        # Remove user traces
-        if self.par['rm_slits'] is not None:
-            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
