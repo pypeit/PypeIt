@@ -2754,7 +2754,7 @@ class CoAdd1d(object):
         Returns:
 
         """
-        return [None]*4
+        return (None,)*4
 
 
 class MultiSlit(CoAdd1d):
@@ -2792,7 +2792,7 @@ class MultiSlit(CoAdd1d):
               - wave, flux, ivar, mask
 
         """
-        wave_coadd, flux_coadd, ivar_coadd, mask_coadd = multi_combspec(
+        return multi_combspec(
             self.waves, self.fluxes, self.ivars, self.masks,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
             samp_fact=self.par['samp_fact'], ref_percentile=self.par['ref_percentile'],
@@ -2802,7 +2802,7 @@ class MultiSlit(CoAdd1d):
             lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
             debug=self.debug, show=self.show)
 
-        return wave_coadd, flux_coadd, ivar_coadd, mask_coadd
+
 
 
 
