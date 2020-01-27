@@ -442,7 +442,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             print("Reading DEIMOS file: {:s}".format(fil[0]))
 
         hdu = fits.open(fil[0])
-        head0 = hdu[0].header
+        headarr = self.get_headarr(hdu)
+        head0 = headarr[0]
 
         # Get post, pre-pix values
         postpix = head0['POSTPIX']
@@ -488,7 +489,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Return
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-        return image, [head0], exptime, rawdatasec_img, oscansec_img
+        return image, headarr, exptime, rawdatasec_img, oscansec_img
         #return image, hdu, (dsec, osec)
 
     '''

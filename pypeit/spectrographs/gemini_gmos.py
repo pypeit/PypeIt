@@ -211,8 +211,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading GMOS file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
-        head0 = hdu[0].header
-        head1 = hdu[1].header
+        headarr = self.get_headarr(hdu)
+        head0 = headarr[0]
+        head1 = headarr[1]
 
         # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
         numamp = (len(hdu) - 1) // 3
@@ -282,7 +283,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return array.T, [head0, head1], exptime, rawdatasec_img.T, oscansec_img.T
+        return array.T, headarr, exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):

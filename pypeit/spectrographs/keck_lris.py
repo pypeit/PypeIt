@@ -237,7 +237,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading LRIS file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
-        head0 = hdu[0].header
+        headarr = self.get_headarr(hdu)
+        head0 = headarr[0]
 
         # Get post, pre-pix values
         precol = head0['PRECOL']
@@ -343,7 +344,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        return array.T, [head0], exptime, rawdatasec_img.T, oscansec_img.T
+        return array.T, headarr, exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
