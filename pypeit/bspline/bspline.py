@@ -9,12 +9,14 @@ from IPython import embed
 import numpy as np
 from scipy import special
 
-try:
-    from pypeit.bspline.utilc import cholesky_band, cholesky_solve
-except:
-    warnings.warn('Unable to load bspline C extension.  Try rebuilding pypeit.  In the '
-                  'meantime, falling back to pure python code.')
-    from pypeit.bspline.utilpy import cholesky_band, cholesky_solve
+#try:
+#    from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays
+#except:
+#    warnings.warn('Unable to load bspline C extension.  Try rebuilding pypeit.  In the '
+#                  'meantime, falling back to pure python code.')
+#    from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays
+
+from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays
 
 class bspline(object):
     """Bspline class.
@@ -382,7 +384,7 @@ class bspline(object):
             raise ValueError('Unknown value of funcname.')
 
         # TODO: Should consider faster way of calculating action that doesn't require a nested loop.
-        # action = (bf1[:,:,None] * temppoly[:,None,:]).reshape(nx,-1)
+#        _action = (bf1[:,:,None] * temppoly[:,None,:]).reshape(nx,-1)
         bw = self.npoly*self.nord
         action = np.zeros((nx, bw), dtype='d')
         counter = -1
@@ -608,26 +610,9 @@ class bspline(object):
             # KBW: Why is the dtype set to 'f' = np.float32?
             return -2, np.zeros(ydata.shape, dtype=np.float32)
 
+        alpha, beta = solution_arrays(nn, self.npoly, self.nord, ydata, action, invvar, upper,
+                                      lower)
         nfull = nn * self.npoly
-        bw = self.npoly * self.nord
-        a2 = action * np.sqrt(invvar)[:,None]
-
-        alpha = np.zeros((bw, nfull+bw), dtype=float)
-        beta = np.zeros((nfull+bw,), dtype=float)
-        bi = np.concatenate([np.arange(i)+(bw-i)*(bw+1) for i in range(bw,0,-1)])
-        bo = np.concatenate([np.arange(i)+(bw-i)*bw for i in range(bw,0,-1)])
-        upper += 1
-        nowidth = np.invert(upper > lower)
-        for k in range(nn-self.nord+1):
-            if nowidth[k]:
-                continue
-            itop = k*self.npoly
-            alpha.T.flat[bo+itop*bw] \
-                    += np.dot(a2[lower[k]:upper[k],:].T, a2[lower[k]:upper[k],:]).flat[bi]
-            beta[itop:min(itop,nfull)+bw] \
-                    += np.dot(ydata[lower[k]:upper[k]] * np.sqrt(invvar[lower[k]:upper[k]]),
-                              a2[lower[k]:upper[k],:])
-        upper -= 1
 
         # Right now we are not returning the covariance, although it may arise that we should
 #        covariance = alpha

@@ -7,6 +7,35 @@ from IPython import embed
 
 import numpy as np
 
+def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
+
+    # TODO: Used for testing bspline
+#    np.savez_compressed('solution_arrays.npz', nn=nn, npoly=npoly, nord=nord, ydata=ydata,
+#                        action=action, ivar=ivar, upper=upper, lower=lower)
+#    raise ValueError('Entered solution_arrays')
+    nfull = nn * npoly
+    bw = npoly * nord
+    a2 = action * np.sqrt(ivar)[:,None]
+
+    alpha = np.zeros((bw, nfull+bw), dtype=float)
+    beta = np.zeros((nfull+bw,), dtype=float)
+    bi = np.concatenate([np.arange(i)+(bw-i)*(bw+1) for i in range(bw,0,-1)])
+    bo = np.concatenate([np.arange(i)+(bw-i)*bw for i in range(bw,0,-1)])
+    upper += 1
+    nowidth = np.invert(upper > lower)
+    for k in range(nn-nord+1):
+        if nowidth[k]:
+            continue
+        itop = k*npoly
+        alpha.T.flat[bo+itop*bw] \
+                += np.dot(a2[lower[k]:upper[k],:].T, a2[lower[k]:upper[k],:]).flat[bi]
+        beta[itop:min(itop,nfull)+bw] \
+                += np.dot(ydata[lower[k]:upper[k]] * np.sqrt(ivar[lower[k]:upper[k]]),
+                          a2[lower[k]:upper[k],:])
+    upper -= 1
+    return alpha, beta
+
+
 def cholesky_band(l, mininf=0.0):
     """
     Compute Cholesky decomposition of banded matrix.

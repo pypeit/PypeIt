@@ -27,6 +27,32 @@ cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CO
                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
                              ctypes.c_int]
 
+solution_arrays_c = _bspline.solution_arrays
+solution_arrays_c.restype = None
+solution_arrays_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                              ctypes.c_int,
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                              ctypes.c_int]
+
+def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
+    nfull = nn * npoly
+    bw = npoly * nord
+    a2 = np.zeros(action.shape, dtype=float)
+    alpha = np.zeros((bw, nfull+bw), dtype=float)
+    beta = np.zeros((nfull+bw,), dtype=float)
+    # NOTE: Beware of the integer types for upper and lower. They must
+    # match the argtypes above and in bspline.c explicitly!! np.int32
+    # for int and np.int64 for long.
+    solution_arrays_c(nn, npoly, nord, ydata.size, ydata, ivar, np.ascontiguousarray(action),
+                      upper, lower, alpha, alpha.shape[0],
+                      beta, beta.size)
+    return alpha, beta
 
 def cholesky_band(l, mininf=0.0):
     """

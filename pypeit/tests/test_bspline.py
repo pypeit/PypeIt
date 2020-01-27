@@ -9,6 +9,29 @@ import numpy as np
 from pypeit.tests.tstutils import bspline_ext_required, data_path
 
 @bspline_ext_required
+def test_solution_array_versions():
+    # Import only when the test is performed
+    from pypeit.bspline.utilpy import solution_arrays as sol_py
+    from pypeit.bspline.utilc import solution_arrays as sol_c
+
+    d = np.load(data_path('solution_arrays.npz'))
+
+    pytime = time.perf_counter()
+    a, b = sol_py(d['nn'], d['npoly'], d['nord'], d['ydata'], d['action'], d['ivar'],
+                  d['upper'], d['lower'])
+    pytime = time.perf_counter()-pytime
+
+    ctime = time.perf_counter()
+    _a, _b = sol_c(d['nn'], d['npoly'], d['nord'], d['ydata'], d['action'], d['ivar'],
+                   d['upper'], d['lower'])
+    ctime = time.perf_counter()-ctime
+
+    assert ctime < pytime, 'C is less efficient!'
+    assert np.allclose(a, _a), 'Differences in alpha'
+    assert np.allclose(b, _b), 'Differences in beta'
+
+
+@bspline_ext_required
 def test_cholesky_band_versions():
     # Import only when the test is performed
     from pypeit.bspline.utilpy import cholesky_band as cholesky_band_py
