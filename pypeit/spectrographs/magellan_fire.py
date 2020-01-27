@@ -72,30 +72,6 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         # Ingest
         self.meta = meta
 
-    def bpm(self, filename, det, shape=None):
-        """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-        # ToDo: replace this with real bad pixel masks
-        msgs.info("Custom bad pixel mask for FIRE")
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        return bpm_img
 
 
 class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
