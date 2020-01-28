@@ -245,4 +245,3 @@ def test_coadd1d_2():
 
 # TODO: Add test for object_finding
 
-
