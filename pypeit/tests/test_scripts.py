@@ -17,7 +17,8 @@ matplotlib.use('agg')  # For Travis
 
 from astropy.io import fits
 
-from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
+from pypeit.scripts import setup, coadd_1dspec, chk_edges, view_fits, chk_flats
+#from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
@@ -145,13 +146,13 @@ def test_trace_edges():
     shutil.rmtree(outdir)
 
 
-@cooked_required
-def test_show_1dspec():
-    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
-                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
-    # Just list
-    pargs = show_1dspec.parser([spec_file, '--list'])
-    show_1dspec.main(pargs, unit_test=True)
+#@cooked_required
+#def test_show_1dspec():
+#    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+#                             'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+#    # Just list
+#    pargs = show_1dspec.parser([spec_file, '--list'])
+#    show_1dspec.main(pargs, unit_test=True)
 
 
 @cooked_required
