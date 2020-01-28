@@ -432,10 +432,10 @@ class Reduce(object):
             # Find sky
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                        thismask, left, right, inmask=inmask, sigrej=sigrej,
-                                        bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
-                                        no_poly=self.par['scienceimage']['skysub']['no_poly'],
-                                        pos_mask=(not self.ir_redux), show_fit=show_fit)
+                                           thismask, left, right, inmask=inmask, sigrej=sigrej,
+                                           bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                           no_poly=self.par['reduce']['skysub']['no_poly'],
+                                           pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True
@@ -952,17 +952,9 @@ class EchelleReduce(Reduce):
         # TODO This is a bad idea -- we want to find everything for standards
         #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
-<<<<<<< HEAD
             image, self.sciImg.ivar, self.slitmask, left, right, self.order_vec, self.maskslits,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-            inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['scienceimage']['findobj']['trace_npoly'],
-=======
-            image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'],
-            self.tslits_dict['slit_righ'], self.order_vec, self.maskslits,
-            spec_min_max=np.vstack((self.tslits_dict['spec_min'],
-                                    self.tslits_dict['spec_max'])),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
->>>>>>> deimos_merge3
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
             specobj_dict=specobj_dict,sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
@@ -1012,21 +1004,8 @@ class EchelleReduce(Reduce):
         self.waveimg = waveimg
         self.global_sky = global_sky
 
-<<<<<<< HEAD
         # TODO: Is this already available from the __init__ or could it have been overwritten?
         self.slitmask = self.slits.slit_img()
-=======
-        plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
-            self.sciImg.image, self.sciImg.ivar, self.sciImg.mask, self.tilts, self.waveimg, self.global_sky,
-            self.sciImg.rn2img, self.tslits_dict, sobjs, self.order_vec, spat_pix=spat_pix,
-            std=self.std_redux, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.par['reduce']['skysub']['bspline_spacing'],
-            box_rad_order=self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
-            sigrej=self.par['reduce']['skysub']['sky_sigrej'],
-            sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
-            model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
-            model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
->>>>>>> deimos_merge3
 
         # Select the edges to use: Selects the edges tweaked by the
         # illumination profile if they're present; otherwise, it
@@ -1035,12 +1014,12 @@ class EchelleReduce(Reduce):
         left, right = self.slits.select_edges()
 
         # Pulled out some parameters to make the method all easier to read
-        bsp = self.par['scienceimage']['skysub']['bspline_spacing']
+        bsp = self.par['reduce']['skysub']['bspline_spacing']
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        box_rad_order = self.par['scienceimage']['extraction']['boxcar_radius']/plate_scale
-        sigrej = self.par['scienceimage']['skysub']['sky_sigrej']
-        sn_gauss = self.par['scienceimage']['extraction']['sn_gauss']
-        model_full_slit = self.par['scienceimage']['extraction']['model_full_slit']
+        box_rad_order = self.par['reduce']['extraction']['boxcar_radius']/plate_scale
+        sigrej = self.par['reduce']['skysub']['sky_sigrej']
+        sn_gauss = self.par['reduce']['extraction']['sn_gauss']
+        model_full_slit = self.par['reduce']['extraction']['model_full_slit']
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
