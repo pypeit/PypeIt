@@ -350,8 +350,8 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         ]
         self.numhead = 13
 
-
-    def default_pypeit_par(self):
+    @staticmethod
+    def default_pypeit_par():
         """
         Set default parameters for XSHOOTER NIR reductions.
         """
