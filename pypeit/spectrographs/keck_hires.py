@@ -332,7 +332,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         super(KECKHIRESRSpectrograph, self).init_meta()
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, msbias=None, **null_kwargs):
         """
         Override parent bpm function with BPM specific to X-ShooterNIR.
 
@@ -342,6 +342,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -352,8 +353,14 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         """
 
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
+        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        return bpm_img
+
 
 def indexing(itt, postpix, det=None,xbin=None,ybin=None):
     """

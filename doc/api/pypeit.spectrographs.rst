@@ -6,6 +6,7 @@ Submodules
 
 .. toctree::
 
+   pypeit.spectrographs.gemini_flamingos
    pypeit.spectrographs.gemini_gmos
    pypeit.spectrographs.gemini_gnirs
    pypeit.spectrographs.keck_deimos
@@ -14,6 +15,7 @@ Submodules
    pypeit.spectrographs.keck_mosfire
    pypeit.spectrographs.keck_nires
    pypeit.spectrographs.keck_nirspec
+   pypeit.spectrographs.lbt_luci
    pypeit.spectrographs.lbt_mods
    pypeit.spectrographs.magellan_fire
    pypeit.spectrographs.magellan_mage
@@ -33,5 +35,6 @@ Module contents
 
 .. automodule:: pypeit.spectrographs
    :members:
+   :private-members:
    :undoc-members:
    :show-inheritance:

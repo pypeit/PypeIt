@@ -16,16 +16,12 @@ from pypeit.core import wave
 from pypeit.core import save
 from pypeit import specobjs
 from pypeit.core import pixels
-from pypeit.core import extract
 from pypeit.spectrographs.util import load_spectrograph
-from linetools import utils as ltu
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
 from pypeit.metadata import PypeItMetaData
-
-from linetools import utils as ltu
 
 from IPython import embed
 
@@ -86,24 +82,26 @@ class PypeIt(object):
 
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
-        #   - Grab a science file for configuration specific parameters
-        sci_file = None
+        #   - Grab a science or standard file for configuration specific parameters
+        scistd_file = None
         for idx, row in enumerate(usrdata):
-            if 'science' in row['frametype']:
-                sci_file = data_files[idx]
+            if ('science' in row['frametype']) or ('standard' in row['frametype']):
+                scistd_file = data_files[idx]
                 break
         #   - Configuration specific parameters for the spectrograph
-        if sci_file is not None:
+        if scistd_file is not None:
             msgs.info('Setting configuration-specific parameters using {0}'.format(
-                      os.path.split(sci_file)[1]))
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(sci_file).to_config()
+                      os.path.split(scistd_file)[1]))
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
         msgs.info('Built full PypeIt parameter set.')
-        # Enable after-market reduction path
+
+        # Check the output paths are ready
         if redux_path is not None:
             self.par['rdx']['redux_path'] = redux_path
+
         # TODO: Write the full parameter set here?
         # --------------------------------------------------------------
 
@@ -130,9 +128,6 @@ class PypeIt(object):
         self.reuse_masters = reuse_masters
         self.show = show
 
-        # Check the output paths are ready
-        #  This was over-writing what we may have input!!
-        #self.par['rdx']['redux_path'] = os.getcwd() if redux_path is None else redux_path
 
         # Set paths
         if self.par['calibrations']['caldir'] == 'default':
@@ -250,7 +245,7 @@ class PypeIt(object):
 
         """
         # Validate the parameter set
-        required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
+        required = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib']
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
@@ -310,7 +305,8 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames, std_outfile=std_outfile)
+                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames,
+                                                    std_outfile=std_outfile)
                     science_basename[j] = self.basename
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_dict, self.basename)
@@ -345,7 +341,7 @@ class PypeIt(object):
             return np.arange(1, ndet+1).tolist()
         return [detnum] if isinstance(detnum, int) else detnum
 
-    def reduce_exposure(self, frames, bg_frames=[], std_outfile=None):
+    def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
         Reduce a single exposure
 
@@ -375,9 +371,11 @@ class PypeIt(object):
             # TODO: Put this in a try/except block?
             ginga.clear_all()
 
+        has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
+
         # Is this an IR reduction?
         # TODO: Why specific to IR?
-        self.ir_redux = True if len(bg_frames) > 0 else False
+        self.ir_redux = True if has_bg else False
 
         # TODO: JFH Why does this need to be ordered?
         sci_dict = OrderedDict()  # This needs to be ordered
@@ -392,7 +390,7 @@ class PypeIt(object):
         for iframe in frames:
             msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
         msgs.info(msgs_string)
-        if len(bg_frames) > 0:
+        if has_bg:
             bg_msgs_string = ''
             for iframe in bg_frames:
                 bg_msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
@@ -428,29 +426,6 @@ class PypeIt(object):
 
         # Return
         return sci_dict
-
-    def flexure_correct(self, sobjs, maskslits):
-        """
-        Correct for flexure
-
-        Spectra are modified in place (wavelengths are shifted)
-
-        Args:
-            sobjs (SpecObjs):
-            maskslits (ndarray): Mask of SpecObjs
-
-        """
-
-        if self.par['flexure']['method'] != 'skip':
-            flex_list = wave.flexure_obj(sobjs, maskslits, self.par['flexure']['method'],
-                                         self.par['flexure']['spectrum'],
-                                         mxshft=self.par['flexure']['maxshift'])
-            # QA
-            # TODO: Need to fix these QA paths...
-            wave.flexure_qa(sobjs, maskslits, self.basename, self.det, flex_list,
-                            out_dir=self.par['rdx']['redux_path'])
-        else:
-            msgs.info('Skipping flexure correction.')
 
     def get_sci_metadata(self, frame, det):
         """
@@ -556,7 +531,6 @@ class PypeIt(object):
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
-        #self.sciImg = scienceimage.ScienceImage.from_file_list(
         self.sciImg = scienceimage.build_from_file_list(
             self.spectrograph, det, self.par['scienceframe']['process'],
             self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
@@ -580,6 +554,8 @@ class PypeIt(object):
         # Instantiate Reduce object
         self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
         # Required for pypeline specific object
+        # TODO -- caliBrate should be replaced by the ~3 primary Objects needed
+        #   once we have the data models in place.
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
                                            self.par, self.caliBrate,
                                            maskslits=self.maskslits,
@@ -589,43 +565,20 @@ class PypeIt(object):
                                            setup=self.setup,
                                            show=self.show,
                                            det=det, binning=self.binning)
-
+        # Show?
         if self.show:
-            self.redux.show('image', image=self.sciImg.image, chname='processed', slits=True,clear=True)
+            self.redux.show('image', image=self.sciImg.image, chname='processed',
+                            slits=True, clear=True)
 
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        # Find objects
-        self.sobjs_obj, self.nobj, self.skymask = self.redux.find_objects(
-            std_trace=std_trace, manual_extract_dict=manual_extract_dict)
+        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.run(
+            std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
+            basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+            obstime=self.obstime)
 
-        # Extract (if nobj==0, this passes back 'dummy' arrays required for spec2d outputs)
-        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.extract()
-
-        # Finish up
-        if self.sobjs_obj.nobj == 0:
-            # Print status message
-            msgs_string = 'No objects to extract for file {:s}'.format(
-                self.fitstbl['target'][frames[0]]) + msgs.newline()
-            msgs_string += 'On frames:' + msgs.newline()
-            for iframe in frames:
-                msgs_string += '{0:s}'.format(self.fitstbl['filename'][iframe]) + msgs.newline()
-            msgs.warn(msgs_string)
-        else:
-            # Purge out the negative objects if this was a near-IR reduction.
-            # TODO should we move this purge call to local_skysub_extract?? Yes.
-            if self.ir_redux:
-                self.sobjs.purge_neg()
-
-            # Flexure correction if this is not a standard star
-            if not self.std_redux:
-                self.redux.flexure_correct(self.sobjs, self.basename)
-
-            # Heliocentric
-            radec = ltu.radec_to_coord((self.fitstbl["ra"][frames[0]], self.fitstbl["dec"][frames[0]]))
-            self.redux.helio_correct(self.sobjs, radec, self.obstime)
-
+        # Return
         return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
     # TODO: Why not use self.frame?

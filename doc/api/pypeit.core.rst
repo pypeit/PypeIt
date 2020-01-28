@@ -23,6 +23,7 @@ Submodules
    pypeit.core.flux_calib
    pypeit.core.framematch
    pypeit.core.load
+   pypeit.core.meta
    pypeit.core.moment
    pypeit.core.parse
    pypeit.core.pca
@@ -43,5 +44,6 @@ Module contents
 
 .. automodule:: pypeit.core
    :members:
+   :private-members:
    :undoc-members:
    :show-inheritance:

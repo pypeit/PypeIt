@@ -25,7 +25,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 
 * `python <http://www.python.org/>`_ version 3.7 or later
 * `numpy <http://www.numpy.org/>`_ version 1.16.0 or later
-* `astropy <http://www.astropy.org/>`_ version 3.2 or later
+* `astropy <http://www.astropy.org/>`_ version 4.0 or later
 * `scipy <http://www.scipy.org/>`_ version 1.2 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
@@ -137,7 +137,8 @@ To run the test::
 
 The test takes a while to run but should run without issue if all the packages have been properly installed. 
 
-PIP
-===
+Developers
+==========
 
-For the developers, see :doc:`pyp_twine` for details on how to push a new build to PyPI.
+For developers, see :doc:`development`.
+

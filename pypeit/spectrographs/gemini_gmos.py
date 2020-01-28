@@ -12,6 +12,8 @@ from .. import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.par import pypeitpar
+from pkg_resources import resource_filename
+
 
 from IPython import embed
 
@@ -99,7 +101,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for Gemini GMOS reductions.
         """
         par = pypeitpar.PypeItPar()
         par['calibrations']['slitedges']['edge_thresh'] = 20.
@@ -126,14 +128,14 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
-        # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
+        # Splice detectors 1,2,3 when creating sensitivity function
+        par['sensfunc']['multi_spec_det'] = [1,2,3]
 
         # Set the default exposure time ranges for the frame typing
         #par['scienceframe']['exprng'] = [30, None]
@@ -348,7 +350,16 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         ]
         self.numhead = 13
 
-    def bpm(self, filename, det, shape=None):
+    @staticmethod
+    def default_pypeit_par():
+        """
+        Set default parameters for XSHOOTER NIR reductions.
+        """
+        par = GeminiGMOSSpectrograph.default_pypeit_par()
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+        return par
+
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Parameters
@@ -364,6 +375,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         """
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
 
         if det == 1:
             msgs.info("Using hard-coded BPM for det=1 on GMOSs")
@@ -442,6 +457,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
         #
         return par
+
 
 
 class GeminiGMOSNSpectrograph(GeminiGMOSSpectrograph):

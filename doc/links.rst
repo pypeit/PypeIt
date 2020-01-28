@@ -8,6 +8,7 @@
 .. _PEP 257: https://www.python.org/dev/peps/pep-0257
 .. _argparse.Namespace: https://docs.python.org/3/library/argparse.html#argparse.Namespace
 .. _argparse.ArgumentParser: https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser
+.. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 
 .. numpy
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
@@ -35,11 +36,14 @@
 .. astropy
 .. _astropy.io.fits: http://docs.astropy.org/en/stable/io/fits/index.html
 .. _astropy.io.fits.open: http://docs.astropy.org/en/stable/io/fits/api/files.html#astropy.io.fits.open
-.. _astropy.io.fits.hdu.hdulist.HDUList: http://docs.astropy.org/en/stable/io/fits/api/hdulists.html
+.. _astropy.io.fits.HDUList: http://docs.astropy.org/en/stable/io/fits/api/hdulists.html
+.. _astropy.io.fits.HDUList.writeto: http://docs.astropy.org/en/stable/io/fits/api/hdulists.html#astropy.io.fits.HDUList.writeto
 .. _astropy.io.fits.Header: http://docs.astropy.org/en/stable/io/fits/api/headers.html#header
-.. _astropy.io.fits.BinTableHDU: http://docs.astropy.org/en/stable/io/fits/api/tables.html#astropy.io.fits.BinTableHDU
-.. _astropy.io.fits.Column: http://docs.astropy.org/en/stable/io/fits/api/tables.html#astropy.io.fits.Column
+.. _astropy.io.fits.ImageHDU: https://docs.astropy.org/en/stable/io/fits/api/images.html#imagehdu
+.. _astropy.io.fits.BinTableHDU: https://docs.astropy.org/en/stable/io/fits/api/tables.html#bintablehdu
+.. _astropy.io.fits.Column: https://docs.astropy.org/en/stable/io/fits/api/tables.html#column
 .. _astropy.table.Table: https://docs.astropy.org/en/stable/table/
+.. _astropy.table.Table.read: https://docs.astropy.org/en/stable/api/astropy.table.Table.html#astropy.table.Table.read
 .. _astropy.wcs.wcs.WCS: http://docs.astropy.org/en/stable/api/astropy.wcs.WCS.html
 .. _astropy.modeling: http://docs.astropy.org/en/stable/modeling/index.html
 .. _astropy.modeling.polynomial.Legendre1D: http://docs.astropy.org/en/stable/api/astropy.modeling.polynomial.Legendre1D.html

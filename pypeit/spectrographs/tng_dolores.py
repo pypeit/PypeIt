@@ -54,10 +54,8 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         #par['calibrations']['tilts']['params'] = [1,1,1]
-        # Always sky subtract, starting with default parameters
-        par['scienceimage'] = pypeitpar.ScienceImagePar()
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters
         par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing

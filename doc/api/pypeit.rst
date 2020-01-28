@@ -21,9 +21,11 @@ Submodules
    pypeit.bitmask
    pypeit.calibrations
    pypeit.check_requirements
+   pypeit.datamodel
    pypeit.debugger
    pypeit.edgetrace
    pypeit.flatfield
+   pypeit.fluxcalibrate
    pypeit.fluxspec
    pypeit.ginga
    pypeit.io
@@ -34,6 +36,7 @@ Submodules
    pypeit.pypmsgs
    pypeit.reduce
    pypeit.sampling
+   pypeit.sensfunc
    pypeit.setup_package
    pypeit.specobj
    pypeit.specobjs
@@ -52,5 +55,6 @@ Module contents
 
 .. automodule:: pypeit
    :members:
+   :private-members:
    :undoc-members:
    :show-inheritance:

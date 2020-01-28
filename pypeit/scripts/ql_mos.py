@@ -53,16 +53,16 @@ def main(pargs):
     cfg_lines += ['    detnum = {0}'.format(pargs.det)]
     if pargs.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
-    cfg_lines += ['[calibrations]']
-    cfg_lines += ['    [[scienceframe]]']
-    cfg_lines += ['        [[process]]']
-    cfg_lines += ['              cr_reject = False']
+    cfg_lines += ['[scienceframe]']
+    cfg_lines += ['    [[process]]']
+    cfg_lines += ['          cr_reject = False']
     if pargs.user_pixflat is not None:
+        cfg_lines += ['[calibrations]']
         cfg_lines += ['    [[flatfield]]']
         cfg_lines += ['        frame = {0}'.format(pargs.user_pixflat)]
     cfg_lines += ['[scienceimage]']
     cfg_lines += ['    [[extraction]]']
-    cfg_lines += ['         boxcar_only = True']
+    cfg_lines += ['         skip_optimal = True']
     if pargs.box_radius is not None: # Boxcar radius
         cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
     cfg_lines += ['    [[findobj]]']
@@ -72,19 +72,29 @@ def main(pargs):
     data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
                   os.path.join(pargs.full_rawpath, pargs.flat),
                   os.path.join(pargs.full_rawpath,pargs.science)]
-    # Damn JFH sorting
-    asrt = np.argsort(np.array(data_files))
 
     # Setup
-    ps = pypeitsetup.PypeItSetup(np.array(data_files)[asrt].tolist(), path='./', spectrograph_name=spec,
+    ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec,
                                  cfg_lines=cfg_lines)
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
     bm = framematch.FrameTypeBitMask()
-    bits = [bm.bits[iftype] for iftype in ['arc', 'pixelflat', 'trace', 'science', 'tilt']]
-    bits_flat = 2 ** bits[1] + 2 ** bits[2] if pargs.user_pixflat is None else 2**bits[2]
-    file_bits = np.array([2 ** bits[0] + 2 ** bits[4], bits_flat,
-              2 ** bits[3]])  # 1=arc, 16=pixelflat, 32=science, trace=128
+    file_bits = np.zeros(3, dtype=bm.minimum_dtype())
+    file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'tilt'])
+    file_bits[1] = bm.turn_on(file_bits[1],
+                              ['pixelflat', 'trace'] if pargs.user_pixflat is None else 'trace')
+    file_bits[2] = bm.turn_on(file_bits[2], 'science')
+
+    # PypeItSetup sorts according to MJD
+    #   Deal with this
+    asrt = []
+    for ifile in data_files:
+        bfile = os.path.basename(ifile)
+        idx = ps.fitstbl['filename'].data.tolist().index(bfile)
+        asrt.append(idx)
+    asrt = np.array(asrt)
+
+    # Set bits
     ps.fitstbl.set_frame_types(file_bits[asrt])
     ps.fitstbl.set_combination_groups()
     # Extras

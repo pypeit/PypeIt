@@ -32,43 +32,35 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
 
     """ Calculate the spatial FWHM from an object profile. Utility routine for fit_profile
 
-    Parameters
-    ----------
-    sciimg : float ndarray shape (nspec, nspat)
-       Science frame
-    ivar: float ndarray shape (nspec, nspat)
-       inverse variance of science frame. Can be a model or deduced from the image itself.
-    mask: boolean ndarray
-       mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
-    waveimg :  float ndarray
-        Wavelength image. float 2-d array with shape (nspec, nspat)
-    skyimg: float ndarray shape (nspec, nspat)
-        Image containing our model of the sky
-    rn2_img: float ndarray shape (nspec, nspat)
-        Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
-    thismask: bool ndarray shape (nspec, nspat)
-        Image indicating which pixels are on the slit/order in question. True=Good.
-    oprof: float ndarray shape (nspec, nspat)
-        Image containing the profile of the object that we are extracting
-    box_radius: float
-        Size of boxcar window in floating point pixels in the spatial direction.
-    spec: SpecObj object (from the SpecObj class in specobj.py).
-         This is the container that holds object, trace,
-         and extraction information for the object in question. This routine operates one object at a time.
-    min_frac_use: float, optional, default = 0.05. If the sum of object profile arcoss the spatial direction
-           are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
-           object profile has been masked
-
-    Returns
-    -------
     Return value is None. The specobj object is changed in place with the boxcar and optimal dictionaries being filled
     with the extraction parameters.
 
-    Notes
-    -----
-    Revision History
-        - 11-Mar-2005  Written by J. Hennawi and S. Burles.
-        - 28-May-2018  Ported to python by J. Hennawi
+    Args:
+        sciimg (np.ndarray): float ndarray shape (nspec, nspat)
+           Science frame
+        ivar (np.ndarray): float ndarray shape (nspec, nspat)
+           inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray): boolean ndarray
+           mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg  (np.ndarray):  float ndarray
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing our model of the sky
+        rn2_img (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        thismask (np.ndarray): bool ndarray shape (nspec, nspat)
+            Image indicating which pixels are on the slit/order in question. True=Good.
+        oprof (np.ndarray): float ndarray shape (nspec, nspat)
+            Image containing the profile of the object that we are extracting
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (:class:`pypeit.specobj.SpecObj`):
+             This is the container that holds object, trace,
+             and extraction information for the object in question. This routine operates one object at a time.
+        min_frac_use (float, optional): default = 0.05. If the sum of object profile arcoss the spatial direction
+               are less than this value, the optimal extraction of this spectral pixel is masked because the majority of the
+               object profile has been masked
+
     """
     # Setup
     imgminsky = sciimg - skyimg
@@ -174,7 +166,32 @@ def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof
     return
 
 
-def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spec):
+    """
+    Perform boxcar extraction for a single SpecObj
+
+    SpecObj is filled in place
+
+    Args:
+        sciimg (np.ndarray):
+            Science image
+        ivar (np.ndarray):
+            inverse variance of science frame. Can be a model or deduced from the image itself.
+        mask (np.ndarray):
+            mask indicating which pixels are good. Good pixels = True, Bad Pixels = False
+        waveimg (np.ndarray):
+            Wavelength image. float 2-d array with shape (nspec, nspat)
+        skyimg (np.ndarray):
+            Image containing our model of the sky
+        rn2_img (np.ndarray):
+            Image containing the read noise squared (including digitization noise due to gain, i.e. this is an effective read noise)
+        box_radius (float):
+            Size of boxcar window in floating point pixels in the spatial direction.
+        spec (:class:`pypeit.specobj.SpecObj`):
+            This is the container that holds object, trace,
+            and extraction information for the object in question.
+            This routine operates one object at a time.
+    """
     # Setup
     imgminsky = sciimg - skyimg
     nspat = imgminsky.shape[1]
@@ -213,6 +230,7 @@ def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_rad
     ivar_box = 1.0/(var_box + (var_box == 0.0))
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
+    # Fill em up!
     spec.BOX_WAVE = wave_box
     spec.BOX_COUNTS = flux_box*mask_box
     spec.BOX_COUNTS_IVAR = ivar_box*mask_box
@@ -222,9 +240,6 @@ def extract_specobj_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_rad
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_RN = rn_box
     spec.BOX_RADIUS = box_radius
-
-    # TODO: Why is the returning None? It doesn't have to, right?
-    return None
 
 
 def findfwhm(model, sig_x):
@@ -1001,13 +1016,13 @@ def create_skymask_fwhm(sobjs, thismask):
     Creates a skymask from a SpecObjs object using the fwhm of each object
 
     Args:
-        sobjs: SpecObjs object
+        sobjs (:class:`pypeit.specobjs.SpecObjs`):
             Objects for which you would like to create the mask
-        thismask: ndarray, bool, shape (nspec, nspat)
+        thismask (np.ndarray): bool, shape (nspec, nspat)
             Boolean image indicating pixels which are on the slit
 
     Returns:
-        ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
+        np.ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
         the same size as thismask indicating which pixels are usable for
         global sky subtraction.  True = usable for sky subtraction,
         False = should be masked when sky subtracting.
@@ -1467,11 +1482,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         trc_inmask = np.outer(spec_mask, np.ones(len(sobjs), dtype=bool))
         xfit_fweight = fit_trace(image, xinit_fweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 idx=sobjs.name, debug=show_fits)[0]
+                                 idx=sobjs.NAME, debug=show_fits)[0]
         xinit_gweight = np.copy(xfit_fweight)
         xfit_gweight = fit_trace(image, xinit_gweight, ncoeff, bpm=np.invert(inmask),
                                  trace_bpm=np.invert(trc_inmask), fwhm=fwhm, maxdev=maxdev,
-                                 weighting='gaussian', idx=sobjs.name, debug=show_fits)[0]
+                                 weighting='gaussian', idx=sobjs.NAME, debug=show_fits)[0]
 
         # assign the final trace
         for iobj in range(nobj_reg):
@@ -1551,7 +1566,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             close = np.abs(sobjs[reg_ind].SPAT_PIXPOS - spat_pixpos[ihand]) <= 0.6*spec_fwhm[ihand]
             if np.any(close):
                 # Print out a warning
-                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].name) +
+                msgs.warn('Deleting object(s) {}'.format(sobjs[reg_ind[close]].NAME) +
                           ' because it collides with a user specified hand_extract aperture')
                 #for ihand in range(len(close)):
                 #    if close[ihand] is True:
@@ -1597,7 +1612,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                 color = 'orange'
             else:
                 color = 'blue'
-            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].name, color=color)
+            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
 
 
     return sobjs, skymask[thismask]
@@ -1680,6 +1695,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         slit_righ:  float ndarray
             Left boundary of orders to be extracted (given as floating
             pt pixels). This a 2-d array with shape (nspec, norders)
+        order_vec (np.ndarray):
+            Echelle orders.  This is written to the SpecObj objects.
+            It is ok, but not recommended to provide np.arange(norders)
         inmask: ndarray, bool, shape (nspec, nspat), default = None
             Input mask for the input image.
         fwhm: float, default = 3.0
@@ -2111,7 +2129,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         for spec in sobjs_trim:
             color = 'red' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
-            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
+            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
 
         for iobj in range(nobj_trim):
@@ -2119,7 +2137,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
                 ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
                 ## Showing the final traces from this routine
-                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.name, color='cyan')
+                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.NAME, color='cyan')
 
 
         # Labels for the points

@@ -1,6 +1,21 @@
 
-0.12.1dev
+
+0.12.3dev
 ---------
+
+- Implemented DataContainer
+- Added fits I/O methods
+- Implemented SlitTraceSet
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
+- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
+  key is not valid for the given parameter set.  NOTE: The check may
+  fail if there are identical keys for different parameter sets.
+- Modification to add_sobj() for numpy 18
+
+0.12.2 (14 Jan 2019)
+--------------------
 
 - Introduces quick look scripts for MOS and NIRES
 - Bumps dependencies including Python 3.7
@@ -10,11 +25,17 @@
 - Dynamic namp setting for LRISr when instantiating Spectrograph
 - Introduce MDM OSMOS
 
+0.12.1 (07 Jan 2019)
+--------------------
+
+- Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using
+  float number of steps in core/wave.py, and sets numpy version to 1.16
+
 0.12.0 (23 Dec 2019)
 --------------------
 
 - Implemented MOSFIRE and further implemented NIRSPEC for Y-band
-  spectroscopy. 
+  spectroscopy.
 - Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing

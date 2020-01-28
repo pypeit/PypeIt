@@ -40,7 +40,7 @@ class Calibrations(object):
     holds that info in self.calib_dict
 
     Args:
-        fitstbl (:class:`pypeit.metadata.PypeItMetaData`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
             The class holding the metadata for all the frames in this
             PypeIt run.
         par (:class:`pypeit.par.pypeitpar.PypeItPar`):
@@ -92,7 +92,9 @@ class Calibrations(object):
                  reuse_masters=False, show=False):
 
         # Check the types
-        if not isinstance(fitstbl, PypeItMetaData):
+        # TODO -- Remove this None option once we have data models for all the Calibrations
+        #  outputs and use them to feed Reduce instead of the Calibrations object
+        if not isinstance(fitstbl, PypeItMetaData) and fitstbl is not None:
             msgs.error('fitstbl must be an PypeItMetaData object')
         if not isinstance(par, pypeitpar.CalibrationsPar):
             msgs.error('Input parameters must be a CalibrationsPar instance.')
@@ -181,11 +183,12 @@ class Calibrations(object):
                 :attr:`master_key_dict`.
             master_type (:obj:`str`, :obj:`tuple`):
                 One or more keywords setting the type of master frame
-                being saved to :attr:`calib_dict`.  E.g.
-                `master_type=bpm` for the data saved to
-                `self.calib_dict['A_01_1']['bpm'].
+                being saved to :attr:`calib_dict`. E.g.
+                ``master_type=bpm`` for the data saved to
+                ``self.calib_dict['A_01_1']['bpm']``.
             data (object, :obj:`tuple`):
                 One or more data objects to save to :attr:`calib_dict`.
+
         """
         # Handle a single entry
         _master_type = master_type if isinstance(master_type, tuple) else (master_type,)
@@ -411,19 +414,6 @@ class Calibrations(object):
         # Save & return
         self._update_cache('bias', 'bias', self.msbias)
 
-        # Commenting this out for now until it gets fixed. I'm not convinced this should be here.
-
-        # If we need to make a bad pixel mask using the bias frames, do it now
-        #if self.par['badpix']:
-        #    # Instantiate the shape here, based on the shape of the bias image
-        #    self.shape = self.msbias.shape
-        #
-        #   # Build it
-        #    self.msbpm = self.spectrograph.bpm(shape=self.shape, det=self.det, msbias=self.msbias)
-        #
-        #    # Record it
-        #    self._update_cache('bpm', 'bpm', self.msbpm)
-
         return self.msbias
 
     def get_bpm(self):
@@ -431,7 +421,8 @@ class Calibrations(object):
         Load or generate the bad pixel mask
 
         TODO -- Should consider doing this outside of calibrations as it is
-        more specific to the science frame
+        more specific to the science frame - unless we want to generate a BPM
+        from the bias frame.
 
         This needs to be for the *trimmed* and correctly oriented image!
 
@@ -455,8 +446,12 @@ class Calibrations(object):
         # Build the data-section image
         sci_image_file = self.fitstbl.frame_paths(self.frame)
 
+        # Check if a bias frame exists, and if a BPM should be generated
+        msbias = None
+        if self.par['bpm_usebias'] and self._cached('bias', self.master_key_dict['bias']):
+            msbias = self.msbias
         # Build it
-        self.msbpm = self.spectrograph.bpm(sci_image_file, self.det)
+        self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=msbias)
         self.shape = self.msbpm.shape
 
         # Record it
@@ -774,13 +769,7 @@ class Calibrations(object):
         # Grab arc binning (may be different from science!)
         arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
         self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        if len(self.arc_files) == 0:  # Better be reading from Masters
-            if not self.reuse_masters:
-                msgs.error("At least one arc file is required!")
-            binspec, binspat = 1,1
-            msgs.warn("Set binning to 1x1")
-        else:
-            binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
+        binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
                                                                                 'binning'))
         # Instantiate
         self.waveCalib = wavecalib.WaveCalib(self.msarc, self.tslits_dict, self.spectrograph,
@@ -932,6 +921,11 @@ class MultiSlitCalibrations(Calibrations):
     Child of Calibrations class for performing multi-slit (and longslit)
     calibrations.  See :class:`pypeit.calibrations.Calibrations` for
     arguments.
+
+    NOTE: Echelle uses this same class.  It had been possible there would be
+    a different order of the default_steps
+
+    ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
                  show=False, steps=None):
@@ -950,7 +944,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
     # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
     # Notes on order of steps if flexure compensation is implemented

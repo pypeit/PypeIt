@@ -3,6 +3,18 @@
 Wrapper to the linetools XSpecGUI
 """
 import argparse
+import sys
+from linetools.guis.xspecgui import XSpecGui
+from PyQt5.QtWidgets import QApplication
+from astropy import units as u
+
+from pypeit import specobjs
+from pypeit import msgs
+import numpy as np
+from pypeit import utils
+from linetools.spectra.xspectrum1d import XSpectrum1D
+from pypeit.core.telluric import general_spec_reader
+from IPython import embed
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
@@ -19,58 +31,60 @@ def parser(options=None):
         args = parser.parse_args(options)
     return args
 
-
-def main(args, unit_test=False):
+#def main(args, unit_test=False):
+def main(args):
     """ Runs the XSpecGui on an input file
     """
 
-    import sys
-    import pdb
-
-    from astropy.io import fits
-    from PyQt5.QtWidgets import QApplication
-
-    from linetools.guis.xspecgui import XSpecGui
-
-    from pypeit import specobjs
-    from pypeit import msgs
-
-    from IPython import embed
-
-    sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
-
-    # List only?
-    if args.list:
-        print("Showing object names for input file...")
-        for ii in range(len(sobjs)):
-            name = sobjs[ii].name
-            print("EXT{:07d} = {}".format(ii+1, name))
-        return
-
-    # Load spectrum
-    if args.obj is not None:
-        exten = sobjs.name.index(args.obj)
-        if exten < 0:
-            msgs.error("Bad input object name: {:s}".format(args.obj))
+    try:
+        sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+    except:
+        # place holder until coadd data model is sorted out
+        wave, flux, flux_ivar, flux_mask, meta_spec, head = general_spec_reader(args.file)
+        spec = XSpectrum1D.from_tuple((wave*u.AA, flux, np.sqrt(utils.inverse(flux_ivar))), masking='none')
     else:
-        exten = args.exten-1 # 1-index in FITS file
+        # List only?
+        if args.list:
+            print("Showing object names for input file...")
+            for ii in range(len(sobjs)):
+                name = sobjs[ii].NAME
+                print("EXT{:07d} = {}".format(ii+1, name))
+            return
 
-    # Check Extraction
-    if args.extract == 'OPT':
-        if 'OPT_WAVE' not in sobjs[exten]._data.keys():
-            msgs.error("Spectrum not extracted with OPT.  Try --extract=BOX")
+        if args.obj is not None:
+            exten = sobjs.name.index(args.obj)
+            if exten < 0:
+                msgs.error("Bad input object name: {:s}".format(args.obj))
+        else:
+            exten = args.exten-1 # 1-index in FITS file
 
+        # Check Extraction
+        if args.extract == 'OPT':
+            if 'OPT_WAVE' not in sobjs[exten]._data.keys():
+                msgs.error("Spectrum not extracted with OPT.  Try --extract=BOX")
+
+        spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+
+
+    app = QApplication(sys.argv)
+    # Screen dimensions
+    width = app.desktop().screenGeometry().width()
+    scale = 2. * (width/3200.)
     # XSpectrum1D
-    spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+    #spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
 
-    if unit_test is False:
-        app = QApplication(sys.argv)
-        # Screen dimensions
-        width = app.desktop().screenGeometry().width()
-        scale = 2. * (width/3200.)
+    # JFH TODO get this unit test garbage out of here. Scripts should never have unit test arguments.
+    #if unit_test is False:
+    #    app = QApplication(sys.argv)
+    #    # Screen dimensions
+    #    width = app.desktop().screenGeometry().width()
+    #    scale = 2. * (width/3200.)
 
-    gui = XSpecGui(spec, unit_test=unit_test, screen_scale=scale)
-    if unit_test is False:
-        gui.show()
-        app.exec_()
+    #gui = XSpecGui(spec, unit_test=unit_test, screen_scale=scale)
+    gui = XSpecGui(spec, screen_scale=scale)
+    gui.show()
+    app.exec_()
+    #if unit_test is False:
+    #    gui.show()
+    #    app.exec_()
 
