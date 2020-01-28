@@ -15,24 +15,44 @@ try:
 except Exception:
     raise ImportError('Unable to load bspline C extension.  Try rebuilding pypeit.')
 
-cholesky_band_c = _bspline.cholesky_band
-cholesky_band_c.restype = int
-cholesky_band_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                            ctypes.c_int, ctypes.c_int]
+bspline_model_c = _bspline.bspline_model
+bspline_model_c.restype = None
+bspline_model_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="F_CONTIGUOUS"),
+                            np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
+                            np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
+                            np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                            np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
 
-cholesky_solve_c = _bspline.cholesky_solve
-cholesky_solve_c.restype = None
-cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                             ctypes.c_int, ctypes.c_int, 
-                             np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                             ctypes.c_int]
+def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
+    # TODO: Can we save some of these objects to self so that we
+    # don't have to recreate them?
+    # TODO: x is always 1D right?
+    yfit = np.zeros(x.size, dtype=x.dtype)
+    # TODO: Get rid of this ascontiguousarray call if possible
+#    print(action.flags['F_CONTIGUOUS'])
+    bspline_model_c(action, lower, upper, coeff.flatten('F'), n, nord, npoly, x.size, yfit)
+    return yfit
+
+
+intrv_c = _bspline.intrv
+intrv_c.restype = None
+intrv_c.argtypes = [ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                    ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                    ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS")]
+
+def intrv(nord, breakpoints, x):
+    indx = np.zeros(x.size, dtype=int)
+    intrv_c(nord, breakpoints, breakpoints.size, x, x.size, indx)
+    return indx
+
 
 solution_arrays_c = _bspline.solution_arrays
 solution_arrays_c.restype = None
 solution_arrays_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_double, flags="F_CONTIGUOUS"),
                               np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
                               np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
@@ -43,16 +63,23 @@ solution_arrays_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c
 def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
     nfull = nn * npoly
     bw = npoly * nord
-    a2 = np.zeros(action.shape, dtype=float)
-    alpha = np.zeros((bw, nfull+bw), dtype=float)
-    beta = np.zeros((nfull+bw,), dtype=float)
+    # NOTE: Declared as empty because the c code zeros them out
+    alpha = np.empty((bw, nfull+bw), dtype=float)
+    beta = np.empty((nfull+bw,), dtype=float)
     # NOTE: Beware of the integer types for upper and lower. They must
     # match the argtypes above and in bspline.c explicitly!! np.int32
     # for int and np.int64 for long.
-    solution_arrays_c(nn, npoly, nord, ydata.size, ydata, ivar, np.ascontiguousarray(action),
-                      upper, lower, alpha, alpha.shape[0],
-                      beta, beta.size)
+    # NOTE: `action` *must* be stored in fortran-style, column-major contiguous format.
+    solution_arrays_c(nn, npoly, nord, ydata.size, ydata, ivar, action,
+                      #np.ascontiguousarray(action),
+                      upper, lower, alpha, alpha.shape[0], beta, beta.size)
     return alpha, beta
+
+
+cholesky_band_c = _bspline.cholesky_band
+cholesky_band_c.restype = int
+cholesky_band_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                            ctypes.c_int, ctypes.c_int]
 
 def cholesky_band(l, mininf=0.0):
     """
@@ -87,6 +114,13 @@ def cholesky_band(l, mininf=0.0):
     err = cholesky_band_c(ll, ll.shape[0], ll.shape[1])
     return err, ll if err == -1 else l
 
+
+cholesky_solve_c = _bspline.cholesky_solve
+cholesky_solve_c.restype = None
+cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                             ctypes.c_int, ctypes.c_int, 
+                             np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                             ctypes.c_int]
 
 def cholesky_solve(a, bb):
     r"""

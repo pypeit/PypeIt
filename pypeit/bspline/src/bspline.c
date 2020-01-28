@@ -56,6 +56,50 @@ int* upper_triangle(int n, bool upper_left) {
     return bi;
 }
 
+void bspline_model(double *action, long *lower, long *upper, double *coeff, int n, int nord,
+                   int npoly, int nd, double *yfit) {
+
+    int nn = npoly*nord;    // This is the same as the number of columns in action
+    int mm = n - nord+1;
+    for (int i = 0; i < mm; ++i) {
+        if (!(upper[i]+1 > lower[i]))
+            continue;
+        for (int j = lower[i]; j <= upper[i]; ++j) {
+            yfit[j] = 0;
+            for (int k = 0; k < nn; ++k)
+                yfit[j] += action[k*nd + j] * coeff[i*npoly + k];
+        }
+    }
+}
+
+void intrv(int nord, double *breakpoints, int nb, double *x, int nx, long *indx) {
+    /*
+    Find the segment between breakpoints which contain each value in
+    the array x.
+
+    The minimum breakpoint is nbkptord -1, and the maximum is nbkpt -
+    nbkptord - 1.
+
+    Args:
+        nord:
+            Order of the fit.
+        breakpoints:
+            Locations of good breakpoints
+        x:
+            Data values, assumed to be monotonically increasing.
+        indx:
+            Replaced on output: the break-point segments.
+    */
+    int n = nb - nord;
+    int ileft = nord - 1;
+    int i;
+    for (i = 0; i < nx; ++i) {
+        while ((x[i] > breakpoints[ileft+1]) & (ileft < n - 1))
+            ileft += 1;
+        indx[i] = ileft;
+    }
+}
+
 
 void solution_arrays(int nn, int npoly, int nord, int nd, double *ydata, double *ivar,
                      double *action, long *upper, long *lower, double *alpha, int ar,
@@ -87,39 +131,34 @@ void solution_arrays(int nn, int npoly, int nord, int nd, double *ydata, double 
     int itop;
 
     // Convenience data
+    // TODO: These are big allocations.  Can we avoid them?
     double *ierr = (double*) malloc (nd * sizeof(double));
     double *a2 = (double*) malloc (nd*bw * sizeof(double));
     for (i = 0; i < nd; ++i) {
         ierr[i] = sqrt(ivar[i]);
         for (j = 0; j < bw; ++j)
-            a2[i*bw + j] = action[i*bw + j] * ierr[i];
+            a2[i*bw + j] = action[j*nd + i] * ierr[i];
     }
 
     // Zero input arrays
+    // TODO: Just assume this?
     for (i = 0; i < ar; ++i)
         for (j = 0; j < bn; ++j) {
-            if (j >= bn)
-                printf("BOGUS beta");
             beta[j] = 0;
-            if (i*bn + j >= ar*bn)
-                printf("BOGUS alpha");
             alpha[i*bn+j] = 0;
         }
 
     // Construct alpha and beta
     for (k = 0; k < nn-nord+1; ++k) {
-        if (!(upper[k]+1 > lower[k])) {
-            printf("GREATER\n");
+        if (!(upper[k]+1 > lower[k]))
             continue;
-        }
 
         itop = k*npoly;
         for (i = 0; i < nbi; ++i) {
             kk = column_to_row_major_index(bo[i]+itop*bw, ar, bn);
             flat_row_major_indices(bi[i], nd, bw, &ii, &jj);
-            for (j = lower[k]; j <= upper[k]; ++j) {
+            for (j = lower[k]; j <= upper[k]; ++j)
                 alpha[kk] += a2[j*bw+ii] * a2[j*bw+jj];
-            }
         }
         for (i = 0; i < bw; ++i)
             for (j = lower[k]; j <= upper[k]; ++j)

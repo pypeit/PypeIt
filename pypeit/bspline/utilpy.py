@@ -7,6 +7,59 @@ from IPython import embed
 
 import numpy as np
 
+
+def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
+    # TODO: Can we save some of these objects to self so that we
+    # don't have to recreate them?
+    # TODO: x is always 1D right?
+    # TODO: Used for testing bspline
+#    np.savez_compressed('bspline_model.npz', x=x, action=action, lower=lower, upper=upper,
+#                        coeff=coeff, n=n, nord=nord, npoly=npoly)
+#    raise ValueError('Entered bspline_model')
+    yfit = np.zeros(x.shape, dtype=x.dtype)
+    spot = np.arange(npoly * nord, dtype=int)
+    nowidth = np.invert(upper+1 > lower)
+    for i in range(n-nord+1):
+        if nowidth[i]:
+            continue
+        yfit[lower[i]:upper[i]+1] = np.dot(action[lower[i]:upper[i]+1,:],
+                                           coeff.flatten('F')[i*npoly+spot])
+    return yfit
+
+
+def intrv(nord, breakpoints, x):
+    """
+    Find the segment between breakpoints which contain each value in the array x.
+
+    The minimum breakpoint is nbkptord -1, and the maximum
+    is nbkpt - nbkptord - 1.
+
+    Parameters
+    ----------
+    nord : :obj:`int`
+        Order of the fit.
+    breakpoints : `numpy.ndarray`_
+        Locations of good breakpoints
+    x : :class:`numpy.ndarray`
+        Data values, assumed to be monotonically increasing.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Position of array elements with respect to breakpoints.
+    """
+    # TODO: Used for testing bspline
+#    np.savez_compressed('intrv.npz', nord=nord, breakpoints=breakpoints, x=x)
+#    raise ValueError('Entered solution_arrays')
+    n = breakpoints.size - nord
+    indx = np.zeros(x.size, dtype=int)
+    ileft = nord - 1
+    for i in range(x.size):
+        while x[i] > breakpoints[ileft+1] and ileft < n - 1:
+            ileft += 1
+        indx[i] = ileft
+    return indx
+
 def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
 
     # TODO: Used for testing bspline

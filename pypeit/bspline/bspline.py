@@ -9,14 +9,18 @@ from IPython import embed
 import numpy as np
 from scipy import special
 
-#try:
-#    from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays
-#except:
-#    warnings.warn('Unable to load bspline C extension.  Try rebuilding pypeit.  In the '
-#                  'meantime, falling back to pure python code.')
-#    from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays
+try:
+    from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays, intrv, \
+                                     bspline_model
+except:
+    warnings.warn('Unable to load bspline C extension.  Try rebuilding pypeit.  In the '
+                  'meantime, falling back to pure python code.')
+    from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
+                                        bspline_model
 
-from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays
+#from pypeit.bspline.utilpy import bspline_model
+#from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
+#                                    bspline_model
 
 class bspline(object):
     """Bspline class.
@@ -110,7 +114,7 @@ class bspline(object):
                         w = ((kwargs['placed'] >= startx) &
                              (kwargs['placed'] <= startx+rangex))
                         if w.sum() < 2:
-                            bkpt1 = np.arange(2, dtype='f') * rangex + startx
+                            bkpt1 = np.arange(2, dtype=float) * rangex + startx
                         else:
                             bkpt1 = kwargs['placed'][w]
                     elif 'bkspace' in kwargs:
@@ -118,13 +122,13 @@ class bspline(object):
                         if nbkpts < 2:
                             nbkpts = 2
                         tempbkspace = rangex/float(nbkpts-1)
-                        bkpt1 = np.arange(nbkpts, dtype='f')*tempbkspace + startx
+                        bkpt1 = np.arange(nbkpts, dtype=float)*tempbkspace + startx
                     elif 'nbkpts' in kwargs:
                         nbkpts = kwargs['nbkpts']
                         if nbkpts < 2:
                             nbkpts = 2
                         tempbkspace = rangex/float(nbkpts-1)
-                        bkpt1 = np.arange(nbkpts, dtype='f') * tempbkspace + startx
+                        bkpt1 = np.arange(nbkpts, dtype=float) * tempbkspace + startx
                     elif 'everyn' in kwargs:
                         nx = x.size
                         nbkpts = max(nx/kwargs['everyn'], 1)
@@ -273,7 +277,7 @@ class bspline(object):
         goodbk = self.mask[self.nord:]
         nn = goodbk.sum()
         if nn < self.nord:
-            yfit = np.zeros(ydata.shape, dtype='f')
+            yfit = np.zeros(ydata.shape, dtype=float)
             return (-2, yfit)
         nfull = nn * self.npoly
         bw = self.npoly * self.nord
@@ -352,6 +356,7 @@ class bspline(object):
         upper = np.zeros((n - self.nord + 1,), dtype=int) - 1
         indx = self.intrv(x)
         bf1 = self.bsplvn(x, indx)
+#        print('F_CONTIGUOUS after bsplvn: {0}'.format(bf1.flags['F_CONTIGUOUS']))
         aa = uniq(indx)
         upper[indx[aa]-self.nord+1] = aa
         rindx = indx[::-1]
@@ -360,6 +365,8 @@ class bspline(object):
         if x2 is None:
             return bf1, lower, upper
 
+#        print('x2!')
+
         if x2.size != nx:
             raise ValueError('Dimensions of x and x2 do not match.')
 
@@ -367,7 +374,7 @@ class bspline(object):
         x2norm = 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
         # TODO: Should consider faster ways of generating the temppoly arrays for poly and poly1
         if self.funcname == 'poly':
-            temppoly = np.ones((nx, self.npoly), dtype='f')
+            temppoly = np.ones((nx, self.npoly), dtype=float)
             for i in range(1, self.npoly):
                 temppoly[:, i] = temppoly[:, i-1] * x2norm
         elif self.funcname == 'poly1':
@@ -383,7 +390,9 @@ class bspline(object):
         else:
             raise ValueError('Unknown value of funcname.')
 
-        # TODO: Should consider faster way of calculating action that doesn't require a nested loop.
+        # TODO: Should consider faster way of calculating action that
+        # doesn't require a nested loop. Below might work, but it needs
+        # to be tested.
 #        _action = (bf1[:,:,None] * temppoly[:,None,:]).reshape(nx,-1)
         bw = self.npoly*self.nord
         action = np.zeros((nx, bw), dtype='d')
@@ -394,7 +403,6 @@ class bspline(object):
                 action[:, counter] = bf1[:, ii]*temppoly[:, jj]
         return action, lower, upper
 
-    # C this
     def intrv(self, x):
         """Find the segment between breakpoints which contain each value in the array x.
 
@@ -411,17 +419,9 @@ class bspline(object):
         :class:`numpy.ndarray`
             Position of array elements with respect to breakpoints.
         """
-        gb = self.breakpoints[self.mask]
-        n = gb.size - self.nord
-        indx = np.zeros(x.size, dtype=int)
-        ileft = self.nord - 1
-        for i in range(x.size):
-            while x[i] > gb[ileft+1] and ileft < n - 1:
-                ileft += 1
-            indx[i] = ileft
-        return indx
+        return intrv(self.nord, self.breakpoints[self.mask], x)
 
-    # TODO: C this
+    # TODO: C this?
     def bsplvn(self, x, ileft):
         """To be documented.
 
@@ -438,7 +438,10 @@ class bspline(object):
             To be documented.
         """
         bkpt = self.breakpoints[self.mask]
-        vnikx = np.zeros((x.size, self.nord), dtype=x.dtype)
+        # TODO: Had to set the order here to keep it consistent with
+        # utils.bspline_profile, but is this going to break things
+        # elsewhere?
+        vnikx = np.zeros((x.size, self.nord), dtype=x.dtype, order='F')
         deltap = vnikx.copy()
         deltam = vnikx.copy()
         j = 0
@@ -489,24 +492,13 @@ class bspline(object):
             if lower is None or upper is None:
                 raise ValueError('Must specify lower and upper if action is set.')
 
-        # TODO: Can we save some of these objects to self so that we
-        # don't have to recreate them?
-        yfit = np.zeros(x.shape, dtype=x.dtype)
-        spot = np.arange(self.npoly * self.nord, dtype=int)
-        goodbk = self.mask.nonzero()[0]
+        n = self.mask.sum() - self.nord
         coeffbk = self.mask[self.nord:].nonzero()[0]
         goodcoeff = self.coeff[...,coeffbk]
+        yfit = bspline_model(x, action, lower, upper, goodcoeff, n, self.nord, self.npoly)
 
-        # TODO: C this
-        nowidth = np.invert(upper+1 > lower)
-        n = self.mask.sum() - self.nord
-        for i in range(n-self.nord+1):
-            if nowidth[i]:
-                continue
-            yfit[lower[i]:upper[i]+1] = np.dot(action[lower[i]:upper[i]+1,:],
-                                               goodcoeff.flatten('F')[i*self.npoly+spot])
-
-        mask = np.ones(x.shape, dtype='bool')
+        mask = np.ones(x.shape, dtype=bool)
+        goodbk = self.mask.nonzero()[0]
         gb = self.breakpoints[goodbk]
         mask[(x < gb[self.nord-1]) | (x > gb[n])] = False
         hmm = (np.diff(goodbk) > 2).nonzero()[0]
@@ -608,7 +600,7 @@ class bspline(object):
         if nn < self.nord:
             warnings.warn('Fewer good break points than order of b-spline. Returning...')
             # KBW: Why is the dtype set to 'f' = np.float32?
-            return -2, np.zeros(ydata.shape, dtype=np.float32)
+            return -2, np.zeros(ydata.shape, dtype=float)
 
         alpha, beta = solution_arrays(nn, self.npoly, self.nord, ydata, action, invvar, upper,
                                       lower)

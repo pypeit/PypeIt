@@ -9,6 +9,46 @@ import numpy as np
 from pypeit.tests.tstutils import bspline_ext_required, data_path
 
 @bspline_ext_required
+def test_model_versions():
+    from pypeit.bspline.utilpy import bspline_model as bspline_model_py
+    from pypeit.bspline.utilc import bspline_model as bspline_model_c
+
+    d = np.load(data_path('bspline_model.npz'))
+
+    pytime = time.perf_counter()
+    mod = bspline_model_py(d['x'], d['action'], d['lower'], d['upper'], d['coeff'], d['n'],
+                           d['nord'], d['npoly'])
+    pytime = time.perf_counter() - pytime
+
+    ctime = time.perf_counter()
+    _mod = bspline_model_c(d['x'], d['action'], d['lower'], d['upper'], d['coeff'], d['n'],
+                           d['nord'], d['npoly'])
+    ctime = time.perf_counter() - ctime
+
+    assert ctime < pytime, 'C is less efficient!'
+    assert np.allclose(mod, _mod), 'Differences in index'
+
+
+@bspline_ext_required
+def test_intrv_versions():
+    from pypeit.bspline.utilpy import intrv as intrv_py
+    from pypeit.bspline.utilc import intrv as intrv_c
+
+    d = np.load(data_path('intrv.npz'))
+
+    pytime = time.perf_counter()
+    indx = intrv_py(d['nord'], d['breakpoints'], d['x'])
+    pytime = time.perf_counter() - pytime
+
+    ctime = time.perf_counter()
+    _indx = intrv_c(d['nord'], d['breakpoints'], d['x'])
+    ctime = time.perf_counter() - ctime
+
+    assert ctime < pytime, 'C is less efficient!'
+    assert np.allclose(indx, _indx), 'Differences in index'
+
+
+@bspline_ext_required
 def test_solution_array_versions():
     # Import only when the test is performed
     from pypeit.bspline.utilpy import solution_arrays as sol_py
