@@ -46,10 +46,10 @@ data_model = {
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
-    'OPT_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Optimal wavelengths in COADD2D grid'),
-    'OPT_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimal wavelengths in COADD2D grid'),
-    'OPT_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum optimal wavelengths in COADD2D grid'),
-    'OPT_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum optimal wavelengths in COADD2D grid'),
+#    'OPT_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Optimal wavelengths in COADD2D grid'),
+#    'OPT_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimal wavelengths in COADD2D grid'),
+#    'OPT_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum optimal wavelengths in COADD2D grid'),
+#    'OPT_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum optimal wavelengths in COADD2D grid'),
     #
     'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Boxcar Wavelengths (Angstroms)'),
     'BOX_FLAM': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (erg/s/cm^2/Ang)'),
@@ -69,10 +69,10 @@ data_model = {
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
-    'BOX_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Boxcar wavelengths in COADD2D grid'),
-    'BOX_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for boxcar wavelengths in COADD2D grid'),
-    'BOX_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum boxcar wavelengths in COADD2D grid'),
-    'BOX_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum boxcar wavelengths in COADD2D grid'),
+#    'BOX_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Boxcar wavelengths in COADD2D grid'),
+#    'BOX_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for boxcar wavelengths in COADD2D grid'),
+#    'BOX_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum boxcar wavelengths in COADD2D grid'),
+#    'BOX_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum boxcar wavelengths in COADD2D grid'),
     #
     'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
     #
@@ -83,20 +83,22 @@ data_model = {
     'DET': dict(otype=(int,np.integer), desc='Detector number'),
     'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
     'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
-    'SPAT_PIXPOS': dict(otype=(float,np.float32), desc='Spatial location of the trace on detector (pixel)'),
-    'SPAT_FRACPOS': dict(otype=(float,np.float32), desc='Fractional location of the object on the slit'),
+    'SPAT_PIXPOS': dict(otype=(float,np.floating), desc='Spatial location of the trace on detector (pixel)'),
+    'SPAT_FRACPOS': dict(otype=(float,np.floating), desc='Fractional location of the object on the slit'),
     #
     'SLITID': dict(otype=(int,np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
     'OBJID': dict(otype=(int, np.integer), desc='Object ID for multislit data. Each object is given an index for the slit '
                                                   'it appears increasing from from left to right. These are one based.'),
+    'NAME': dict(otype=str, desc='Name of the object following the naming model'),
     #
     'ECH_OBJID': dict(otype=(int, np.integer),
                       desc='Object ID for echelle data. Each object is given an index in the order '
                            'it appears increasing from from left to right. These are one based.'),
     'ECH_ORDERINDX': dict(otype=(int, np.integer), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
-    'ECH_FRACPOS': dict(otype=(float,np.float32), desc='Synced echelle fractional location of the object on the slit'),
+    'ECH_FRACPOS': dict(otype=(float,np.floating), desc='Synced echelle fractional location of the object on the slit'),
     'ECH_ORDER': dict(otype=(int, np.integer), desc='Physical echelle order'),
-
+    'ECH_NAME': dict(otype=str, desc='Name of the object for echelle data. Same as NAME above but order numbers are '
+                                     'omitted giving a unique name per object.')
 }
 
 
@@ -158,12 +160,14 @@ class SpecObj(object):
                 continue
             #
             setattr(slf, key, table.meta[key])
+        # JFH It is a really bad idea to dynamically generate the name when you already wrote it to a file. Just read
+        # in what you wrote out.
         # Name
-        slf.set_name()
+        #slf.set_name()
         # Return
         return slf
 
-    # TODO I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
+    # TODO: JFH I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
     # done via the copy method as it was before.
     def __init__(self, pypeline, det, objtype='unknown',
                  copy_dict=None,
@@ -186,7 +190,7 @@ class SpecObj(object):
 
 
             #self.objid = 999
-            self.name = None
+            #self.name = None
 
             # Object finding
             self.smash_peakflux = None
@@ -320,7 +324,7 @@ class SpecObj(object):
         Generate a unique index for this spectrum based on the
         slit/order, its position and for multi-slit the detector.
 
-        Sets self.name internally
+        Sets name
 
         Returns:
             str
@@ -328,32 +332,37 @@ class SpecObj(object):
         """
         if 'Echelle' in self.PYPELINE:
             # ObjID
-            self.name = naming_model['obj']
+            name = naming_model['obj']
+            ech_name = naming_model['obj']
             if 'ECH_FRACPOS' not in self._data.meta.keys():
-                self.name += '----'
+                name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
-                self.name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
-            # Order
-            self.name += '-'+naming_model['order']
-            self.name += '{:04d}'.format(self.ECH_ORDER)
+                name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
+                ech_name += '{:04d}'.format(int(np.rint(1000*self.ECH_FRACPOS)))
+            sdet = parse.get_dnum(self.DET, prefix=False)
+            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            ech_name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            # Order number
+            name += '-'+naming_model['order']
+            name += '{:04d}'.format(self.ECH_ORDER)
+            self.ECH_NAME = ech_name
+            self.NAME = name
         elif 'MultiSlit' in self.PYPELINE:
             # Spat
-            self.name = naming_model['spat']
+            name = naming_model['spat']
             if 'SPAT_PIXPOS' not in self._data.meta.keys():
-                self.name += '----'
+                name += '----'
             else:
-                self.name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
             # Slit
-            self.name += '-'+naming_model['slit']
-            self.name += '{:04d}'.format(self.SLITID)
+            name += '-'+naming_model['slit']
+            name += '{:04d}'.format(self.SLITID)
+            sdet = parse.get_dnum(self.DET, prefix=False)
+            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            self.NAME = name
         else:
             msgs.error("Bad PYPELINE")
-        # Detector
-        sdet = parse.get_dnum(self.DET, prefix=False)
-        self.name += '-{:s}{:s}'.format(naming_model['det'], sdet)
-        # Return
-        return self.name
 
 
     def copy(self):
@@ -367,7 +376,7 @@ class SpecObj(object):
         #sobj_copy = SpecObj(self.PYPELINE, self.DET,
         #                    copy_dict=self.__dict__.copy())
         # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
-        # copy changes the original object which wreaks havoe. That is why it was deepcopy before (I think).
+        # copy changes the original object which wreaks havoc. That is why it was deepcopy before (I think).
         sobj_copy = SpecObj(self.PYPELINE, self.DET,
                             copy_dict=copy.deepcopy(self.__dict__))
         # Return
@@ -392,7 +401,7 @@ class SpecObj(object):
         for attr in ['BOX', 'OPT']:
             if attr+'_WAVE' in self._data.keys():
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
-                          msgs.newline() + "{0:s}".format(str(self.name)))
+                          msgs.newline() + "{0:s}".format(str(self.NAME)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
                 self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
         # Shift sky spec too
@@ -406,7 +415,8 @@ class SpecObj(object):
         # Return
         return new_sky
 
-    def apply_flux_calib(self, sens_dict, exptime, telluric_correct=False, extinct_correct=False,
+    # TODO This should be a wrapper calling a core algorithm.
+    def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
                          airmass=None, longitude=None, latitude=None):
         """
         Apply a sensitivity function to our spectrum
@@ -432,23 +442,26 @@ class SpecObj(object):
             if attr+'_WAVE' not in self._data.keys():
                 continue
             msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
-            #
-            #try:
-            #    wave = np.copy(np.array(extract['WAVE_GRID']))
-            #except KeyError:
-            wave = self[attr+'_WAVE']
-            wave_sens = sens_dict['wave']
-            sensfunc = sens_dict['sensfunc'].copy()
 
-            # Did the user request a telluric correction from the same file?
-            if telluric_correct and 'telluric' in sens_dict.keys():
+            wave = self[attr+'_WAVE']
+            # Interpolate the sensitivity function onto the wavelength grid of the data
+
+            # TODO Telluric corrections via this method are deprecated
+            # Did the user request a telluric correction?
+            if telluric is not None:
                 # This assumes there is a separate telluric key in this dict.
-                telluric = sens_dict['telluric']
                 msgs.info('Applying telluric correction')
                 sensfunc = sensfunc * (telluric > 1e-10) / (telluric + (telluric < 1e-10))
 
-            sensfunc_obs = interpolate.interp1d(wave_sens, sensfunc, bounds_error=False,
-                                                      fill_value='extrapolate')(wave)
+            sensfunc_obs = np.zeros_like(wave)
+            wave_mask = wave > 1.0  # filter out masked regions or bad wavelengths
+            try:
+                sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=True)(wave[wave_mask])
+            except ValueError:
+                msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                           "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
+                           "further and recreate your sensfunc.")
+
             if extinct_correct:
                 if longitude is None or latitude is None:
                     msgs.error('You must specify longitude and latitude if we are extinction correcting')
@@ -473,11 +486,14 @@ class SpecObj(object):
             flam[msk] = 0.
             flam_sig[msk] = 0.
             flam_var[msk] = 0.
+            # TODO JFH We need to update the mask here. I think we need a mask for the counts and a mask for the flam,
+            # since they can in principle be different. We are masking bad sensfunc locations.
 
             # Finish
             self[attr+'_FLAM'] = flam
             self[attr+'_FLAM_SIG'] = flam_sig
             self[attr+'_FLAM_IVAR'] = flam_var
+
 
     def apply_helio(self, vel_corr, refframe):
         """
@@ -495,7 +511,7 @@ class SpecObj(object):
             if attr+'_WAVE' in self._data.keys():
                 msgs.info('Applying {0} correction to '.format(refframe)
                           + '{0} extraction for object:'.format(attr)
-                          + msgs.newline() + "{0}".format(str(self.name)))
+                          + msgs.newline() + "{0}".format(str(self.NAME)))
                 self[attr+'_WAVE'] *= vel_corr
                 # Record
                 self['VEL_TYPE'] = refframe
@@ -542,6 +558,7 @@ class SpecObj(object):
         # Return
         return xspec
 
+    # TODO JFH: This method does not work
     def show(self, extraction='optimal'):
         """
         Show the spectrum by converting it to a XSpectrum1D object
@@ -561,6 +578,6 @@ class SpecObj(object):
 
 
     def __repr__(self):
-        txt = '<{:s}: {:s}'.format(self.__class__.__name__, self.name)
+        txt = '<{:s}: {:s}'.format(self.__class__.__name__, self.NAME)
         txt += '>'
         return txt

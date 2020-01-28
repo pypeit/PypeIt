@@ -28,6 +28,47 @@ from pypeit import msgs
 from IPython import embed
 from numpy.lib.stride_tricks import as_strided
 
+def spec_atleast_2d(wave, flux, ivar, mask):
+    """
+    Utility routine to repackage spectra to have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp)
+
+    Args:
+        wave (`numpy.ndarray`_):
+            Wavelength array
+        flux (`numpy.ndarray`_):
+            Flux array
+        ivar (`numpy.ndarray`_):
+            Inverse variance array
+        mask (`numpy.ndarray`_, bool):
+            Good pixel mask True=Good.
+
+    Returns:
+        wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+
+            Reshaped arrays which all have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp) along
+            with nspec, and norders = total number of orders, detectors, or exposures
+
+
+    """
+    # Repackage the data into arrays of shape (nspec, norders)
+    if flux.ndim == 1:
+        nspec = flux.size
+        norders = 1
+        wave_arr = wave.reshape(nspec, 1)
+        flux_arr = flux.reshape(nspec, 1)
+        ivar_arr = ivar.reshape(nspec, 1)
+        mask_arr = mask.reshape(nspec, 1)
+    else:
+        nspec, norders = flux.shape
+        if wave.ndim == 1:
+            wave_arr = np.tile(wave, (norders, 1)).T
+        else:
+            wave_arr = wave
+        flux_arr = flux
+        ivar_arr = ivar
+        mask_arr = mask
+
+    return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
 
 
 def nan_mad_std(data, axis=None, func=None):
@@ -141,7 +182,7 @@ def nearest_unmasked(arr, use_indices=False):
     return np.ma.argmin(nearest, axis=1)
 
 
-def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
+def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     """
     Boxcar smooth an image along their first axis (rows).
 
@@ -187,7 +228,12 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest'):
     cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
     wimg = ndimage.convolve(wgt, kernel, mode='nearest')
     smoothed_img = np.ma.divide(cimg, wimg)
-    smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
+    if replace == 'original':
+        smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
+    elif replace == 'zero':
+        smoothed_img[smoothed_img.mask] = 0.0
+    else:
+        msgs.error('Unrecognized value of replace')
     return smoothed_img.data
 
 
@@ -764,11 +810,10 @@ def clip_ivar(flux, ivar, sn_clip, mask=None):
         ivar (ndarray):
             ivar array
         sn_clip (float):
-            Small erorr is added to input ivar so that the output
-            ivar_out will never give S/N greater than sn_clip.  This
-            prevents overly aggressive rejection in high S/N ratio
-            spectra which neverthless differ at a level greater than the
-            theoretical S/N due to systematics.
+            Small erorr is added to input ivar so that the output ivar_out will never give S/N greater than sn_clip.
+            This prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a
+            level greater than the formal S/N due to systematics.
+
         mask (ndarray, bool): mask array, True=good
 
     Returns:
@@ -794,7 +839,7 @@ def inverse(array):
     positivity and setting values <= 0 to zero.  The input array should
     be a quantity expected to always be positive, like a variance or an
     inverse variance. The quantity::
-        
+
         out = (array > 0.0)/(np.abs(array) + (array == 0.0))
 
     is returned.
@@ -1692,6 +1737,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
     if inmask is None:
         inmask = np.ones(ydata.size, dtype=bool)
 
+    nin_good = np.sum(inmask)
     iter = 0
     qdone = False
     thismask = np.copy(inmask)
@@ -1714,7 +1760,8 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
         nrej = np.sum(thismask_iter & np.invert(thismask))
         nrej_tot = np.sum(inmask & np.invert(thismask))
         msgs.info(
-            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections'.format(iter, nrej, nrej_tot))
+            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
+            'total pixels'.format(iter, nrej, nrej_tot, nin_good))
         iter += 1
 
     if (iter == maxiter) & (maxiter != 0):

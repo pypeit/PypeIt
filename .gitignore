@@ -48,4 +48,6 @@ Thumbs.db
 *.ipynb_checkpoints
 *.pytest_cache
 *.swp
+pypeit/data/telluric/*.fits
+pypeit/data/telluric/*.fits.gz
 
