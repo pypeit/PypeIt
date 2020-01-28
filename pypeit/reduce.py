@@ -430,26 +430,12 @@ class Reduce(object):
             thismask = (self.slitmask == slit)
             inmask = (self.sciImg.mask == 0) & thismask & skymask_now
             # Find sky
-<<<<<<< HEAD
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
                                         thismask, left, right, inmask=inmask, sigrej=sigrej,
                                         bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
                                         no_poly=self.par['scienceimage']['skysub']['no_poly'],
                                         pos_mask=(not self.ir_redux), show_fit=show_fit)
-=======
-            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image,
-                                                             self.sciImg.ivar,
-                                                             self.tilts, thismask,
-                                                             self.tslits_dict['slit_left'][:,slit],
-                                                             self.tslits_dict['slit_righ'][:,slit],
-                                                             inmask=inmask,
-                                                             sigrej=sigrej,
-                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
-                                                             pos_mask=(not self.ir_redux),
-                                                             show_fit=show_fit)
->>>>>>> deimos_merge3
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True
