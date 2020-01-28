@@ -609,7 +609,6 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.msillumflat = np.ones_like(rawflat)
         self.flat_model = np.zeros_like(rawflat)
 
-        debug = True
         # Model each slit independently
         for slit in range(self.slits.nslits):
             # Is this a good slit??
