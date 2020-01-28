@@ -103,7 +103,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Find object parameters
         par['scienceimage']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        #par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'

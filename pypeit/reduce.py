@@ -75,7 +75,7 @@ class Reduce(object):
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        #self.extraction_par = self.par['scienceimage']['extraction']
+        #self.extraction_par = self.par['reduce']['extraction']
         #self.wave_par = self.par['calibrations']['wavelengths']
         #self.flex_par = self.par['flexure']
         # Parse
@@ -157,7 +157,7 @@ class Reduce(object):
         # This holds the objects, pre-extraction
         self.sobjs_obj = sobjs_obj
 
-        if self.par['scienceimage']['extraction']['skip_optimal']:  # Boxcar only with global sky subtraction
+        if self.par['reduce']['extraction']['skip_optimal']:  # Boxcar only with global sky subtraction
             msgs.info("Skipping optimal extraction")
 
             # This will hold the extracted objects
@@ -189,7 +189,7 @@ class Reduce(object):
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
                                                inmask, self.caliBrate.mswave,
                                                global_sky, self.sciImg.rn2img,
-                                               self.par['scienceimage']['extraction']['boxcar_radius']/plate_scale,
+                                               self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
@@ -257,7 +257,7 @@ class Reduce(object):
             self.global_skysub(skymask=skymask_init).copy()
 
         # Second pass object finding on sky-subtracted image
-        if (not self.std_redux) and (not self.par['scienceimage']['findobj']['skip_second_find']):
+        if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.find_objects(self.sciImg.image - self.initial_sky,
                                   std_trace=std_trace, show=self.reduce_show,
@@ -269,8 +269,8 @@ class Reduce(object):
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
-            if (self.std_redux or self.par['scienceimage']['extraction']['skip_optimal'] or
-                    self.par['scienceimage']['findobj']['skip_second_find']):
+            if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
+                    self.par['reduce']['findobj']['skip_second_find']):
                 self.global_sky = self.initial_sky.copy()
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask,
@@ -403,7 +403,7 @@ class Reduce(object):
         if self.std_redux:
             sigrej = 7.0
             update_crmask = False
-            if not self.par['scienceimage']['skysub']['global_sky_std']:
+            if not self.par['reduce']['skysub']['global_sky_std']:
                 msgs.info('Skipping global sky-subtraction for standard star.')
                 return self.global_sky
         else:
@@ -428,8 +428,8 @@ class Reduce(object):
                                                              self.tslits_dict['slit_righ'][:,slit],
                                                              inmask=inmask,
                                                              sigrej=sigrej,
-                                                             bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
-                                                             no_poly=self.par['scienceimage']['skysub']['no_poly'],
+                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
                                                              pos_mask=(not self.ir_redux),
                                                              show_fit=show_fit)
             # Mask if something went wrong
@@ -737,18 +737,18 @@ class MultiSlitReduce(Reduce):
                 extract.objfind(image, thismask, self.tslits_dict['slit_left'][:,slit],
                                 self.tslits_dict['slit_righ'][:,slit], inmask=inmask,
                                 ir_redux=self.ir_redux,
-                                ncoeff=self.par['scienceimage']['findobj']['trace_npoly'],
+                                ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
-                                sig_thresh=self.par['scienceimage']['findobj']['sig_thresh'],
+                                sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
                                 hand_extract_dict=manual_extract_dict,
                                 specobj_dict=specobj_dict, show_peaks=show_peaks,
                                 show_fits=show_fits, show_trace=show_trace,
-                                trim_edg=self.par['scienceimage']['findobj']['find_trim_edge'],
-                                cont_fit=self.par['scienceimage']['findobj']['find_cont_fit'],
-                                npoly_cont=self.par['scienceimage']['findobj']['find_npoly_cont'],
-                                fwhm=self.par['scienceimage']['findobj']['find_fwhm'],
-                                maxdev=self.par['scienceimage']['findobj']['find_maxdev'],
-                                qa_title=qa_title, nperslit=self.par['scienceimage']['findobj']['maxnumber'],
+                                trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                                cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
+                                npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
+                                fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
                                 debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
 
@@ -822,12 +822,12 @@ class MultiSlitReduce(Reduce):
                     self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.sciImg.rn2img,
                     thismask, self.tslits_dict['slit_left'][:,slit], self.tslits_dict['slit_righ'][:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix,
-                    model_full_slit=self.par['scienceimage']['extraction']['model_full_slit'],
-                    box_rad=self.par['scienceimage']['extraction']['boxcar_radius']/self.get_platescale(0), #self.spectrograph.detector[self.det-1]['platescale'],
-                    sigrej=self.par['scienceimage']['skysub']['sky_sigrej'],
+                    model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
+                    box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(0), #self.spectrograph.detector[self.det-1]['platescale'],
+                    sigrej=self.par['reduce']['skysub']['sky_sigrej'],
                     model_noise=model_noise, std=self.std_redux,
-                    bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
-                    sn_gauss=self.par['scienceimage']['extraction']['sn_gauss'],
+                    bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                    sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
                     inmask=inmask, show_profile=show_profile)
 
         # Set the bit for pixels which were masked by the extraction.
@@ -946,19 +946,19 @@ class EchelleReduce(Reduce):
             self.tslits_dict['slit_righ'], self.order_vec, self.maskslits,
             spec_min_max=np.vstack((self.tslits_dict['spec_min'],
                                     self.tslits_dict['spec_max'])),
-            inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['scienceimage']['findobj']['trace_npoly'],
+            inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
-            specobj_dict=specobj_dict,sig_thresh=self.par['scienceimage']['findobj']['sig_thresh'],
+            specobj_dict=specobj_dict,sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
             show_peaks=show_peaks, show_fits=show_fits,
-            trim_edg=self.par['scienceimage']['findobj']['find_trim_edge'],
-            cont_fit=self.par['scienceimage']['findobj']['find_cont_fit'],
-            npoly_cont=self.par['scienceimage']['findobj']['find_npoly_cont'],
-            fwhm=self.par['scienceimage']['findobj']['find_fwhm'],
-            maxdev=self.par['scienceimage']['findobj']['find_maxdev'],
-            max_snr=self.par['scienceimage']['findobj']['ech_find_max_snr'],
-            min_snr=self.par['scienceimage']['findobj']['ech_find_min_snr'],
-            nabove_min_snr=self.par['scienceimage']['findobj']['ech_find_nabove_min_snr'],
+            trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+            cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
+            npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
+            fwhm=self.par['reduce']['findobj']['find_fwhm'],
+            maxdev=self.par['reduce']['findobj']['find_maxdev'],
+            max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
+            min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
+            nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
             show_trace=show_trace, debug=debug)
 
         # Steps
@@ -1000,11 +1000,11 @@ class EchelleReduce(Reduce):
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = skysub.ech_local_skysub_extract(
             self.sciImg.image, self.sciImg.ivar, self.sciImg.mask, self.tilts, self.waveimg, self.global_sky,
             self.sciImg.rn2img, self.tslits_dict, sobjs, self.order_vec, spat_pix=spat_pix,
-            std=self.std_redux, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.par['scienceimage']['skysub']['bspline_spacing'],
-            box_rad_order=self.par['scienceimage']['extraction']['boxcar_radius']/plate_scale,
-            sigrej=self.par['scienceimage']['skysub']['sky_sigrej'],
-            sn_gauss=self.par['scienceimage']['extraction']['sn_gauss'],
-            model_full_slit=self.par['scienceimage']['extraction']['model_full_slit'],
+            std=self.std_redux, fit_fwhm=fit_fwhm, min_snr=min_snr, bsp=self.par['reduce']['skysub']['bspline_spacing'],
+            box_rad_order=self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
+            sigrej=self.par['reduce']['skysub']['sky_sigrej'],
+            sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
+            model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
             model_noise=model_noise, show_profile=show_profile, show_resids=show_resids, show_fwhm=show_fwhm)
 
 

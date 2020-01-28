@@ -46,7 +46,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
 
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
 
@@ -610,7 +610,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['tilts']['sigrej2d'] = 5.0
 
         #  Sky Subtraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
 
         # Defaults for anything other than 1,1 binning
         #  Rest config_specific_par below if binning is (1,1)

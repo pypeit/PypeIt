@@ -175,7 +175,7 @@ class SlitTraceSet(DataContainer):
                                        'Shape is Nslits.'),
                  'specmax': dict(otype=np.ndarray, atype=float,
                                  descr='Maximum spectral position allowed for each slit/order.  '
-                                       'Shape is Nslits.')} 
+                                       'Shape is Nslits.')}
     """Provides the class data model."""
     # NOTE: The docstring above is for the ``datamodel`` attribute.
 
@@ -192,7 +192,7 @@ class SlitTraceSet(DataContainer):
             raise ValueError('Input left and right traces should have the same shape.')
         self.nspec, self.nslits = self.left.shape
         self.center = (self.left+self.right)/2
-        
+
         if self.nspat is None:
             self.nspat = np.amax(np.append(self.left, self.right))
         if self.spectrograph is None:
@@ -529,6 +529,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.qa_path = qa_path          # Directory for QA output
 
         self.log = None                 # Log of methods applied
+        self.spec_min = None            # spec_min, spec_max which go into the tslits_dict
+        self.spec_max = None
 
         if img is not None and load:
             msgs.error('Arguments img and load are mutually exclusive.  Choose to either trace '
@@ -543,6 +545,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 self.auto_trace(img, bpm=bpm, det=det, binning=binning, save=save, debug=debug,
                                 show_stages=show_stages)
             else:
+                # JFH Is this option every used?
                 self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=save)
 
     def _reinit_trace_data(self):
@@ -805,7 +808,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Check if the PCA decomposition is possible; this should catch
         # long slits
-        if self.can_pca():
+        if self.par['auto_pca'] and self.can_pca():
             # Use a PCA decomposition to parameterize the trace
             # functional forms
             self.pca_refine(debug=debug)
@@ -879,6 +882,19 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
+
+        # JFH I have to convert to a tslits_dict at this point in order to set the spec_min,spec_max because
+        # I need that to be written to disk. Otherwise, reading in the edges and converting to tslits_dict
+        # depends on the spectrograph object. But the spectrogaph object is configuration dependent and I can only
+        # # know that configuration with a science file. We have that information here, but we will not have it later
+        # i.e. in pypeit_show_2dspec where we need that information.
+
+        # JFH I'm doing this in this silly way of computing the tslits_dict and then running slit_spat_pos, because
+        # slit_spat_pos was never integrated as a method into EdgeTrace
+        tslits_dict = self.convert_to_tslits_dict()
+        self.spec_min, self.spec_max = self.spectrograph.slit_minmax(slit_spat_pos(
+            tslits_dict['slit_left'], tslits_dict['slit_righ'], self.nspec, self.nspat),
+            binspectral=tslits_dict['binspectral'])
         if save:
             # Save the object to a file
             self.save()
@@ -1006,7 +1022,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
         self.sobel_sig, edge_img \
-                = trace.detect_slit_edges(_img, median_iterations=self.par['filt_iter'],
+                = trace.detect_slit_edges(_img, bpm=self.bpm, median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
                                           sigdetect=self.par['edge_thresh'])
         # Empty out the images prepared for left and right tracing
@@ -1125,6 +1141,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 Convert floating-point data to this data type before
                 writing.  Default is 32-bit precision.
         """
+
         _outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
@@ -1213,6 +1230,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')])
+        if self.spec_min is not None:
+            hdu += [fits.ImageHDU(data=self.spec_min, name='SPEC_MIN'), fits.ImageHDU(data=self.spec_max, name='SPEC_MAX')]
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
@@ -1372,7 +1391,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit = hdu['CENTER_FIT'].data
         self.spat_fit_type = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
                                 else hdu['CENTER_FIT'].header['FITTYP']
-
+        self.spec_min = hdu['SPEC_MIN'].data
+        self.spec_max = hdu['SPEC_MAX'].data
         # Get the design and object data if they exist
         ext = [h.name for h in hdu]
         if 'DESIGN' in ext:
@@ -1493,6 +1513,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if include_img and include_sobel:
             msgs.error('Cannot show both the trace image and the filtered version.')
         if in_ginga:
+            # TODO JFH This can easily be fixed.
             # Currently can only show in ginga if the edges are
             # synchronized into slits
             if not self.is_synced:
@@ -1781,12 +1802,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         boxcar = 5
         if side == 'left':
             if self.sobel_sig_left is None:
-                self.sobel_sig_left = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=boxcar,
+                self.sobel_sig_left = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=boxcar,
                                                                     side='left')
             return self.sobel_sig_left
         if side == 'right':
             if self.sobel_sig_right is None:
-                self.sobel_sig_right = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=boxcar,
+                self.sobel_sig_right = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=boxcar,
                                                                      side='right')
             return self.sobel_sig_right
         msgs.error('Side must be left or right.')
@@ -2840,18 +2861,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         Determine if traces are suitable for PCA decomposition.
 
-        The criterion is that at least 5 traces must cover more than
-        the fraction of the full spectral range specified by
-        `fit_min_spec_length` in :attr:`par`. Traces that are
-        inserted are ignored.
+        The criterion is that a minimum number of traces
+        (``pca_min_edges``) must cover more than the fraction of the
+        full spectral range specified by `fit_min_spec_length` in
+        :attr:`par`. Traces that are inserted are ignored.
 
         If the PCA decomposition will be performed on the left and
         right traces separately, the function will return `False` if
-        there are fewer than 5 left *or* right edge traces.
+        there are fewer than the minimum left *or* right edge traces.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `fit_min_spec_length` and `left_right_pca`.
+        ``fit_min_spec_length``, ``left_right_pca``, and ``pca_min_edges``.
 
         .. warning::
             This function calls :func:`check_trace` using
@@ -2886,8 +2907,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Returned value depends on whether or not the left and right
         # traces are done separately
-        return np.sum(good[self.is_left]) > 4 and np.sum(good[self.is_right]) > 4 \
-                    if self.par['left_right_pca'] else np.sum(good) > 4
+        return np.sum(good[self.is_left]) > self.par['pca_min_edges'] \
+                    and np.sum(good[self.is_right]) > self.par['pca_min_edges'] \
+                    if self.par['left_right_pca'] else np.sum(good) > self.par['pca_min_edges']
 
     def predict_traces(self, spat_cen, side=None):
         """
@@ -3244,7 +3266,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             # Iterate through each side
             for i,side in enumerate(['left', 'right']):
                 # Get the image relevant to tracing
-                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=side)
+                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5, side=side)
 
                 _fit, _cen, _err, _msk, nside \
                         = trace.peak_trace(_sobel_sig, ivar=ivar, bpm=bpm,
@@ -3265,7 +3287,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     nleft = nside
         else:
             # Get the image relevant to tracing
-            _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, boxcar=5, side=None)
+            _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5, side=None)
 
             # Find and trace both peaks and troughs in the image. The
             # input trace data (`trace` argument) is the PCA prediction
@@ -4318,11 +4340,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         right = self.spat_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.binning)
         slitspat = slit_spat_pos(left, right, self.nspec, self.nspat)
-        specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
+        # specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         return SlitTraceSet(left, right, nspat=self.nspat,
-                            spectrograph=self.spectrograph.spectrograph, specmin=specmin,
-                            specmax=specmax, binspec=binspec, binspat=binspat, pad=self.par['pad'])
+                            spectrograph=self.spectrograph.spectrograph, specmin=self.spec_min,
+                            specmax=self.spec_max, binspec=binspec, binspat=binspat,
+                            pad=self.par['pad'])
 
     def load_slits(self):
         """
@@ -4365,10 +4388,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict['pad'] = self.par['pad']
         tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
         tslits_dict['spectrograph'] = self.spectrograph.spectrograph
-        slitspat = slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'], self.nspec,
-                                 self.nspat)
-        tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(slitspat, binspectral=tslits_dict['binspectral'])
+        tslits_dict['spec_min'], tslits_dict['spec_max'] = self.spec_min, self.spec_max
+        # JFH This removes the dependency on spectrograph which is likely going to need to be state dependent
+        #tslits_dict['spec_min'], tslits_dict['spec_max'] = \
+        #    self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
+        #                                  binspectral=tslits_dict['binspectral'])
+
 
         return tslits_dict
 
@@ -4417,11 +4442,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
             spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
             tslits_dict['spectrograph'] = spec.spectrograph
-            slitspat = slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'],
-                                     self.nspec, self.nspat)
-            tslits_dict['spec_min'], tslits_dict['spec_max'] \
-                    = spec.slit_minmax(slitspat, binspectral=tslits_dict['binspectral'])
-
+            tslits_dict['spec_min'], tslits_dict['spec_max'] = hdu['SPEC_MIN'].data, hdu['SPEC_MAX'].data
             indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
             if not np.any(indx):
                 raise ValueError('Could not find padding parameter in header.')
@@ -4474,6 +4495,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
         this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
         this.spat_img = np.round(this.spat_cen).astype(int)
+        this.spec_min = tslits_dict['spec_min']
+        this.spec_max = tslits_dict['spec_max']
         return this
 
     def update_using_tslits_dict(self, tslits_dict):
