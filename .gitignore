@@ -48,7 +48,7 @@ Thumbs.db
 *.ipynb_checkpoints
 *.pytest_cache
 *.swp
-pypeit/_compile.c
+pypeit/_compiler.c
 pypeit/data/telluric/*.fits
 pypeit/data/telluric/*.fits.gz
 

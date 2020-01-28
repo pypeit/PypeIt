@@ -61,12 +61,13 @@ void bspline_model(double *action, long *lower, long *upper, double *coeff, int 
 
     int nn = npoly*nord;    // This is the same as the number of columns in action
     int mm = n - nord+1;
-    for (int i = 0; i < mm; ++i) {
+    int i, j, k;
+    for (i = 0; i < mm; ++i) {
         if (!(upper[i]+1 > lower[i]))
             continue;
-        for (int j = lower[i]; j <= upper[i]; ++j) {
+        for (j = lower[i]; j <= upper[i]; ++j) {
             yfit[j] = 0;
-            for (int k = 0; k < nn; ++k)
+            for (k = 0; k < nn; ++k)
                 yfit[j] += action[k*nd + j] * coeff[i*npoly + k];
         }
     }
