@@ -152,10 +152,10 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['scienceframe']['exprng'] = [20, None]
 
         # Scienceimage parameters
-        #par['scienceimage']['sig_thresh'] = 5
-        #par['scienceimage']['maxnumber'] = 2
-        par['scienceimage']['skysub']['sky_sigrej'] = 5.0
-        par['scienceimage']['findobj']['find_trim_edge'] = [10,10]
+        #par['reduce']['sig_thresh'] = 5
+        #par['reduce']['maxnumber'] = 2
+        par['reduce']['skysub']['sky_sigrej'] = 5.0
+        par['reduce']['findobj']['find_trim_edge'] = [10,10]
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
@@ -303,10 +303,10 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Scienceimage parameters
-        par['scienceimage']['findobj']['sig_thresh'] = 5
+        par['reduce']['findobj']['sig_thresh'] = 5
         # TODO: I think this parameter was removed
-        #par['scienceimage']['maxnumber'] = 2
-        par['scienceimage']['findobj']['find_trim_edge'] = [50,50]
+        #par['reduce']['maxnumber'] = 2
+        par['reduce']['findobj']['find_trim_edge'] = [50,50]
 
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()

@@ -245,7 +245,7 @@ class PypeIt(object):
 
         """
         # Validate the parameter set
-        required = ['rdx', 'calibrations', 'scienceframe', 'scienceimage', 'flexure', 'fluxcalib']
+        required = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib']
         can_be_None = ['flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 

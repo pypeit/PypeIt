@@ -41,7 +41,7 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
 
 
         # Scienceimage default parameters
-        par['scienceimage'] = pypeitpar.ReducePar()
+        par['reduce'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters
@@ -286,14 +286,14 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
 
         # Extraction
         # Model full slit currently turned on
-        par['scienceimage']['extraction']['model_full_slit'] = False
+        par['reduce']['extraction']['model_full_slit'] = False
         # Tailored profile nsigma parameter for the standard, trying 100 (30
         # was standard
-        par['scienceimage']['extraction']['std_prof_nsigma'] = 100.
+        par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['skysub']['global_sky_std'] = True
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['skysub']['global_sky_std'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
@@ -392,13 +392,13 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
 
         # Extraction
         # Model full slit currently turned on
-        par['scienceimage']['extraction']['model_full_slit'] = True
+        par['reduce']['extraction']['model_full_slit'] = True
         # Tailored profile nsigma parameter for the standard
-        par['scienceimage']['extraction']['std_prof_nsigma'] = 100.
+        par['reduce']['extraction']['std_prof_nsigma'] = 100.
         # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['skysub']['global_sky_std'] = False
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['skysub']['global_sky_std'] = False
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
