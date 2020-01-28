@@ -164,6 +164,11 @@ def identify_traces(edge_img, max_spatial_separation=4, follow_span=10, minimum_
     if not np.all(np.isin(np.unique(edge_img), [-1,0,1])):
         msgs.error('Edge image must only have -1, 0, or 1 values.')
 
+    # No edges were detected.
+    if np.all(edge_img == 0):
+        msgs.warn('No edges were found!')
+        return np.zeros_like(edge_img, dtype=int)
+
     # Find the left and right coordinates
     lx, ly = np.where(edge_img == -1)
     rx, ry = np.where(edge_img == 1)
