@@ -817,8 +817,12 @@ class ParSet(object):
                     warnings.warn('ParSets within ParSets are not written to headers!  '
                                   'Skipping {0}.'.format(key))
                 continue
-            _value = ', '.join([str(v) for v in value]) \
-                            if isinstance(value, (list, tuple)) else value
+            if isinstance(value, list):
+                _value = '[' + ', '.join([str(v) for v in value]) + ']'
+            elif isinstance(value, tuple):
+                _value = '(' + ', '.join([str(v) for v in value]) + ')'
+            else :
+                _value = value 
             hdr['{0}K{1}'.format(prefix, str(i+1).zfill(ndig))] \
                     = (key, '{0}: Key'.format(self.__class__.__name__))
             hdr['{0}{1}'.format(prefix, str(i+1).zfill(ndig))] \
@@ -872,6 +876,21 @@ class ParSet(object):
             dict: A dictionary with the parameter keywords and
             values.
         """
+        # TODO: I don't like having to find the number of parameters first...
+        # Find the numbers of parameters
+        npar = 0
+        for k, v in hdr.items():
+            if k[:len(prefix)] == prefix:
+                if k[len(prefix)] == 'K':
+                    continue
+                try:
+                    i = int(k[len(prefix):])
+                except ValueError:
+                    continue
+                if npar < i:
+                    npar = i
+        ndig = int(numpy.log10(npar))+1 
+
         par = {}
         for k, v in hdr.items():
             # Check if this header keyword starts with the required
@@ -892,7 +911,7 @@ class ParSet(object):
                 # Assume we've found a parameter. Use the associated
                 # header card to set the keyword and add both to the
                 # output dictionary.
-                par[hdr['{0}K{1}'.format(prefix,i)]] = v
+                par[hdr['{0}K{1}'.format(prefix,str(i).zfill(ndig))]] = v
         return par
 
     @classmethod
