@@ -54,7 +54,7 @@ def show_trace(specobjs, det, viewer, ch):
     in_det = np.where(specobjs.DET == det)[0]
     for kk in in_det:
         trace = specobjs[kk]['TRACE_SPAT']
-        obj_id = specobjs[kk].name
+        obj_id = specobjs[kk].NAME
         ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 
 

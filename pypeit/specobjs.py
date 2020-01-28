@@ -386,7 +386,8 @@ class SpecObjs(object):
         elif isinstance(sobj, (np.ndarray,list)):
             self.specobjs = np.append(self.specobjs, sobj)
         elif isinstance(sobj, SpecObjs):
-            self.specobjs = np.append(self.specobjs, sobj)
+            for isobj in sobj:
+                self.specobjs = np.append(self.specobjs, isobj)
 
     def remove_sobj(self, index):
         """

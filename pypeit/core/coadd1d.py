@@ -57,8 +57,8 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
     Args:
         waves (ndarray):
             Set of N original wavelength arrays shape = (nspec, nexp)
-        masks (ndarray):
-            Good pixel mask for wavelengths. shape = (nspec, nexp). Optional.
+        masks (ndarray): optional
+            Good pixel mask for wavelengths. shape = (nspec, nexp).
         wave_method (str): optional
             Desired method for creating new wavelength grid:
 
@@ -74,15 +74,15 @@ def get_wave_grid(waves, masks=None, wave_method='linear', iref=0, wave_grid_min
             min wavelength value for the final grid
         wave_grid_max (float): optional
             max wavelength value for the final grid
-        dwave (float):
+        dwave (float): optional
             Pixel size in same units as input wavelength array (e.g. Angstroms)
             If not input, the median pixel size is calculated and used
-        dv (float):
+        dv (float): optional
             Pixel size in km/s for velocity method
             If not input, the median km/s per pixel is calculated and used
-        dloglam (float):
+        dloglam (float): optional
             Pixel size in log10(wave) for the log10 method.
-        samp_fact (float):
+        samp_fact (float): optional
             sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
             samp_fact < 1.0 undersamples (coarser)
 
@@ -237,13 +237,13 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
             input chi values
         mask (ndarray, bool):
             True = good, mask for your chi array
-        clip (float):
+        clip (float): optional
             threshold for outliers which will be clipped for the purpose of computing the renormalization factor
-        max_corr (float):
+        max_corr (float): optional
             maximum corrected sigma allowed.
-        title (str):
+        title (str): optional
             title for QA plot, will parsed to renormalize_errors_qa
-        debug (bool):
+        debug (bool): optional
             whether or not show the QA plot created by renormalize_errors_qa
 
     Returns:
@@ -1239,7 +1239,7 @@ def scale_spec(wave, flux, ivar, sn, wave_ref, flux_ref, ivar_ref, mask=None, ma
     return flux_scale, ivar_scale, scale, method_used
 
 
-def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
+def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights, min_weight=1e-8):
     '''
     Compute a stacked spectrum from a set of exposures on the specified wave_grid with proper treatment of
     weights and masking. This code uses np.histogram to combine the data using NGP and does not perform any
@@ -1313,22 +1313,22 @@ def compute_stack(wave_grid, waves, fluxes, ivars, masks, weights):
     weights_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=weights_flat)
 
     # Calculate the stacked wavelength
-    ## FW: I changed from 0.0 to 1e-4 to remove extreme values
-    ## TODO: JFH Check that 1e-4 makes sense. It seems to me it should be a smaller number.
+    ## TODO: JFH Made the minimum weight 1e-8 from 1e-4. I'm not sure what this min_weight is necessary for, or
+    # is achieving FW.
     wave_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=waves_flat*weights_flat)
-    wave_stack = (weights_total > 1e-4)*wave_stack_total/(weights_total+(weights_total==0.))
+    wave_stack = (weights_total > min_weight)*wave_stack_total/(weights_total+(weights_total==0.))
 
     # Calculate the stacked flux
     flux_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=fluxes_flat*weights_flat)
-    flux_stack = (weights_total > 1e-4)*flux_stack_total/(weights_total+(weights_total==0.))
+    flux_stack = (weights_total > min_weight)*flux_stack_total/(weights_total+(weights_total==0.))
 
     # Calculate the stacked ivar
     var_stack_total, wave_edges = np.histogram(waves_flat,bins=wave_grid,density=False,weights=vars_flat*weights_flat**2)
-    var_stack = (weights_total > 1e-4)*var_stack_total/(weights_total+(weights_total==0.))**2
+    var_stack = (weights_total > min_weight)*var_stack_total/(weights_total+(weights_total==0.))**2
     ivar_stack = utils.inverse(var_stack)
 
     # New mask for the stack
-    mask_stack = (weights_total > 1e-4) & (nused > 0.0)
+    mask_stack = (weights_total > min_weight) & (nused > 0.0)
 
     return wave_stack, flux_stack, ivar_stack, mask_stack, nused
 
@@ -2010,11 +2010,7 @@ def scale_spec_stack(wave_grid, waves, fluxes, ivars, masks, sn, weights, ref_pe
     scales = np.zeros_like(fluxes)
     scale_method_used = []
     for iexp in range(nexp):
-        if hand_scale is not None:
-            hand_scale_iexp = hand_scale[iexp]
-        else:
-            hand_scale_iexp = None
-        # TODO Create a parset for the coadd parameters!!!
+        hand_scale_iexp = None if hand_scale is None else hand_scale[iexp]
         fluxes_scale[:, iexp], ivars_scale[:, iexp], scales[:, iexp], scale_method_iexp = scale_spec(
             waves[:, iexp], fluxes[:, iexp], ivars[:, iexp], sn[iexp], wave_stack, flux_stack, ivar_stack,
             mask=masks[:, iexp], mask_ref=mask_stack, ref_percentile=ref_percentile, maxiters=maxiter_scale,
@@ -2037,9 +2033,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
 
     Args:
         waves, fluxes, ivars: (nspec, nexp) arrays
-        sn_smooth_npix (int):
+        sn_smooth_npix: int
            Numbe of pixels to median filter by when computing S/N used to decide how to scale and weight spectra
-        wave_method (str)
+        wave_method: str
            method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
            space grid in lambda. See docuementation on get_wave_grid for description of the options.
         dwave: float,
@@ -2062,9 +2058,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio
         maxiter_scale: int, default=5
             Maximum number of iterations performed for rescaling spectra.
-        sigrej_scale: flaot, default=3.0
+        sigrej_scale: float, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
-        scale_method (str):
+        scale_method: str:
             Options are poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default is 'auto' will let the
             code determine this automitically which works well.
@@ -2163,98 +2159,99 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
     Routine for coadding longslit/multi-slit spectra. Calls combspec which is the main stacking algorithm.
 
     Args:
-        waves, fluxes, ivars, masks (ndarray):
-            Arrays with shape (nspec, nexp) containing the spectra to be coadded.
-        sn_smooth_npix (int):
+        waves (ndarray):
+            Wavelength array  with shape (nspec, nexp) containing the spectra to be coadded.
+        fluxes (ndarray):
+            Flux array with shape (nspec, nexp) containing the spectra to be coadded.
+        ivars, masks (ndarray):
+            Ivar array with shape (nspec, nexp) containing the spectra to be coadded.
+        masks (ndarray):
+            Maks array with shape (nspec, nexp) containing the spectra to be coadded.
+        sn_smooth_npix (int): optional
            Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
            set to None, the code will determine the effective number of good pixels per spectrum
            in the stack that is being co-added and use 10% of this neff.
-        ex_value (str):
-           The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'
-        flux_value (bool):
-           If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the spec1d files. If False,
-           it will coadd the counts.
-        wave_method: str, default=pixel
+        wave_method: str, optional, default=pixel
            method for generating new wavelength grid with get_wave_grid. Deafult is 'linear' which creates a uniformly
            space grid in lambda. See docuementation on get_wave_grid for description of the options.
-        dwave (float):
+        dwave (float): optional
            dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
            median spacing from the data.
-        dv (float)
+        dv (float): optional
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact (float):
+        samp_fact (float): optional
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
            samp_fact < 1.0 undersamples (coarser). Default=1.0
-        wave_grid_min (float)
+        wave_grid_min (float): optional
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
-        wave_grid_max (float):
+        wave_grid_max (float): optional
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
-        maxiter_reject (int):
+        maxiter_reject (int): optional
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached. Default=5.
-        ref_percentile (float):
+        ref_percentile (float): optional
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio. Should be a number between
             0 and 100, default = 70.0
-        maxiter_scale (int):
+        maxiter_scale (int): optional
             Maximum number of iterations performed for rescaling spectra. Default=5.
-        sigrej_scale (float):
+        sigrej_scale (float): optional
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec. Default=3.0
-        scale_method (str):
+        scale_method (str): optional
             Options are auto, poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default='auto' will let the
             code determine this automitically which works well.
-        hand_scale: ndarray,
+        hand_scale (ndarray): optional
             Array of hand scale factors, not well tested
-        sn_min_polyscale: float, default = 2.0,
+        sn_min_polyscale (float): optional, default = 2.0,
             maximum SNR for perforing median scaling
-        sn_min_medscale: float, default = 0.5
+        sn_min_medscale (float): optional, default = 0.5
             minimum SNR for perforing median scaling
-        const_weights: ndarray, (nexp,)
+        const_weights (ndarray): optional, shape=(nexp,)
              Constant weight factors specif
-        maxiter_reject: int, default=5
+        maxiter_reject (int): optional, default=5
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
-        sn_clip: float, default=30.0,
+        sn_clip (float): optional, default=30.0,
             Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection
             in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
             systematics.
-        lower: float, default=3.0,
+        lower (float): optional, default=3.0,
             lower rejection threshold for djs_reject
-        upper: float: default=3.0,
+        upper (float): optional, default=3.0,
             upper rejection threshold for djs_reject
-        maxrej: int, default=None,
+        maxrej (int): optional, default=None,
             maximum number of pixels to reject in each iteration for djs_reject.
-        phot_scale_dicts: dict,
+        phot_scale_dicts (dict): optional
             Dictionary for rescaling spectra to match photometry. Not yet implemented.
-        nmaskedge: int, default=2
+        nmaskedge (int): optinoal, default=2
             Number of edge pixels to mask. This should be removed/fixed.
-        qafile: str, default=None
+        qafile (str): optional, default=None
             Root name for QA, if None, it will be determined from the outfile
-        outfile: str, default=None,
+        outfile (str): optional, default=None,
             Root name for QA, if None, it will come from the target name from the fits header.
-        debug: bool, default=False,
+        debug (bool): optinoal, default=False,
             Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
-        debug_scale (bool): default=False
+        debug_scale (bool): optional, default=False
             show interactive QA plots for the rescaling of the spectra
-        show: bool, default=False,
+        show (bool): optional, default=False,
              Show key QA plots or not
 
         Returns:
-            wave_stack, flux_stack, ivar_stack, mask_stack
+            tuple: Returns the following:
 
-        wave_stack: ndarray, (ngrid,)
-             Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
-             of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
-             elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
-             wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
-        flux_stack: ndarray, (ngrid,)
-             Final stacked spectrum on wave_stack wavelength grid
-        ivar_stack: ndarray, (ngrid,)
-             Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
-             masking.
-        mask_stack: ndarray, bool, (ngrid,)
-             Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
+            - wave_stack: ndarray, (ngrid,)
+                 Wavelength grid for stacked spectrum. As discussed above, this is the weighted average of the wavelengths
+                 of each spectrum that contriuted to a bin in the input wave_grid wavelength grid. It thus has ngrid
+                 elements, whereas wave_grid has ngrid+1 elements to specify the ngrid total number of bins. Note that
+                 wave_stack is NOT simply the wave_grid bin centers, since it computes the weighted average.
+            - flux_stack: ndarray, (ngrid,)
+                 Final stacked spectrum on wave_stack wavelength grid
+            - ivar_stack: ndarray, (ngrid,)
+                 Inverse variance spectrum on wave_stack wavelength grid. Erors are propagated according to weighting and
+                 masking.
+            - mask_stack: ndarray, bool, (ngrid,)
+                 Mask for stacked spectrum on wave_stack wavelength grid. True=Good.
     '''
 
 
@@ -2296,61 +2293,68 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     In most cases, you should use spec1d_stack_XX.fits for your scientific analyses since it reject most outliers.
 
     Args:
-        waves, fluxes, ivars, masks (ndarray):
-           Arrays with shape (nspec, norders, nexp) containing the spectra to be coadded.
-        sensfile: str, default = None for a smoothed ivar weighting when sticking different orders
-        ex_value: str, default = 'OPT' for optimal extraction, 'BOX' for boxcar extraction.
-        flux_value: bool, default=True
-           if True coadd fluxed spectrum, if False coadd spectra in counts
-        wave_method: str, default=pixel
-           method for generating new wavelength grid with get_wave_grid. Deafult is 'pixel' which creates a uniformly
-           space grid in lambda
-        A_pix: float,
+        waves (ndarray):
+           Wavelength array with shape (nspec, norders, nexp) containing the spectra to be coadded.
+        fluxes (ndarray):
+           Flux array with shape (nspec, norders, nexp) containing the spectra to be coadded.
+        ivars, masks (ndarray):
+           Ivar array with shape (nspec, norders, nexp) containing the spectra to be coadded.
+        masks (ndarray):
+           Mask array with shape (nspec, norders, nexp) containing the spectra to be coadded.
+        sensfile (str):
+           Sensitivity function required for relatively weighting of the orders.
+        nbest (int): optional, default=None
+            Number of orders to use for estimating the per exposure weights. Default is nbest=None,
+            which will just use one fourth of the orders.
+        wave_method (str): optional, default='log10'
+           method for generating new wavelength grid with get_wave_grid. Deafult is 'log10' which creates a uniformly
+           space grid in log10(lambda), which is typically the best for echelle spectrographs
+        A_pix (float): optional
            dispersion in units of A in case you want to specify it for get_wave_grid, otherwise the code computes the
            median spacing from the data.
-        v_pix: float,
+        v_pix (float): optional
            Dispersion in units of km/s in case you want to specify it in the get_wave_grid  (for the 'velocity' option),
            otherwise a median value is computed from the data.
-        samp_fact: float, default=1.0
+        samp_fact (float): optional, default=1.0
            sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
            samp_fact < 1.0 undersamples (coarser).
-        wave_grid_min: float, default=None
+        wave_grid_min (float): optional, default=None
            In case you want to specify the minimum wavelength in your wavelength grid, default=None computes from data.
-        wave_grid_max: float, default=None
+        wave_grid_max (float): optional, default=None
            In case you want to specify the maximum wavelength in your wavelength grid, default=None computes from data.
         ref_percentile (float): default = 70.0
             percentile fraction cut used for selecting minimum SNR cut for robust_median_ratio.
-        maxiter_scale: int, default=5
+        maxiter_scale (int): optional, default=5
             Maximum number of iterations performed for rescaling spectra.
-        max_median_factor: float, default=10.0
+        max_median_factor (float): optional, default=10.0
             maximum scale factor for median rescaling for robust_median_ratio if median rescaling is the method used.
-        sigrej_scale: flaot, default=3.0
+        sigrej_scale (float): optional, default=3.0
             Rejection threshold used for rejecting pixels when rescaling spectra with scale_spec.
-        scale_method: scale method, str, default=None.
+        scale_method (str): optional, default='auto'.
             Options are auto, poly, median, none, or hand. Hand is not well tested.
             User can optionally specify the rescaling method. Default 'auto' is to let the
             code determine this automitically which works well.
-        hand_scale: ndarray,
+        hand_scale (ndarray): optional, default=None
             Array of hand scale factors, not well tested
-        sn_min_polyscale: float, default = 2.0,
+        sn_min_polyscale (float): optional, default = 2.0,
             maximum SNR for perforing median scaling
-        sn_min_medscale: float, default = 0.5
+        sn_min_medscale (float): optional, default = 0.5
             minimum SNR for perforing median scaling
-        sn_smooth_npix: float, 10000.0
+        sn_smooth_npix (float): optional, default=None
             Velocity smoothing used for determining smoothly varying S/N ratio weights by sn_weights
-        maxiter_reject: int, default=5
+        maxiter_reject (int): optional, default=5
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
-        const_weights: ndarray, (nexp,)
-             Constant weight factors specif
-        maxiter_reject: int, default=5
+        const_weights (ndarray): optional, shape=(nexp,)
+             Constant weight factors specified
+        maxiter_reject (int): optional, default=5
             maximum number of iterations for stacking and rejection. The code stops iterating either when
             the output mask does not change betweeen successive iterations or when maxiter_reject is reached.
-        sn_clip: float, default=30.0,
+        sn_clip (float): optional, default=30.0,
             Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive rejection
             in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
             systematics.
-        lower: float, default=3.0,
+        lower (float): optional, default=3.0,
             lower rejection threshold for djs_reject
         upper: float: default=3.0,
             upper rejection threshold for djs_reject
@@ -2375,9 +2379,6 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
         merge_stack: bool, default=False,
             Compute an experimental combine of the high S/N combined orders in addition to the default algorithm,
             which is to compute one giant stack using all order overlaps
-        nbest (int):
-            Number of orders to use for estimating the per exposure weights. Default is nbest=None,
-            which will just use one fourth of the orders.
         debug: bool, default=False,
             Show all QA plots useful for debugging. Note there are lots of QA plots, so only set this to True if you want to inspect them all.
         debug_scale (bool): default=False
@@ -2447,15 +2448,15 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]
     rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
     weights_exp = np.tile(rms_sn_per_exp**2, (nspec, norder, 1))
-    if sensfile is not None:
-        weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
-        weights = weights_exp*weights_sens
-    else:
-        msgs.error('Using ivar weights is deprecated.')
-        msgs.warn('No sensfunc is available for weighting, using smoothed ivar weights which is not optimal!')
-        _, weights_ivar = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights,
-                                     ivar_weights=True, verbose=True)
-        weights = weights_exp*weights_ivar
+    weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
+    weights = weights_exp*weights_sens
+    #
+    # Old code below for ivar weights if the sensfile was not passed in
+    #msgs.error('Using ivar weights is deprecated.')
+    #msgs.warn('No sensfunc is available for weighting, using smoothed ivar weights which is not optimal!')
+    #_, weights_ivar = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights,
+    # ivar_weights=True, verbose=True)
+    #weights = weights_exp*weights_ivar
 
     if debug:
         weights_qa(waves, weights, masks, title='ech_combspec')
@@ -2609,15 +2610,32 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
 
 class CoAdd1d(object):
 
-    # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
+        Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
+        """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
             spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
 
+        Args:
+            spec1dfiles (list):
+               List of strings which are the spec1dfiles
+            objids (list):
+               List of strings which are the objids for the object in each spec1d file that you want to coadd
+            par (parset):
+               Pypeit parameter set object
+            sensfile (str): optional
+               File holding the sensitivity function. This is required for echelle coadds only.
+            debug (bool): optional
+               Debug. Default = False
+            show (bool):
+               Debug. Default = True
+        """
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
         self.objids = objids
@@ -2635,6 +2653,9 @@ class CoAdd1d(object):
         self.coaddfile = None
 
     def run(self):
+        """
+        Runs the coadding
+        """
 
         # Load the data
         self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
@@ -2646,7 +2667,8 @@ class CoAdd1d(object):
         Load the arrays we need for performing coadds.
 
         Returns:
-          waves, fluxes, ivars, masks, header
+            tuple:
+               - waves, fluxes, ivars, masks, header
         """
 
         for iexp in range(self.nexp):
@@ -2671,12 +2693,14 @@ class CoAdd1d(object):
         Routine to save 1d coadds to a fits file. This replaces save.save_coadd1d_to_fits
 
         Args:
-            telluric:
-            obj_model:
-            ex_value:
-            overwrite:
-
-        Returns:
+            coaddfile (str):
+               File to outuput coadded spectrum to.
+            telluric (str):
+               This is vestigial and should probably be removed.
+            obj_model (str):
+               This is vestigial and should probably be removed
+            overwrite (bool):
+               Overwrite existing file?
 
         """
 
@@ -2730,7 +2754,7 @@ class CoAdd1d(object):
         Returns:
 
         """
-        return [None]*4
+        return (None,)*4
 
 
 class MultiSlit(CoAdd1d):
@@ -2739,10 +2763,36 @@ class MultiSlit(CoAdd1d):
     """
 
     def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
+
+            Args:
+                spec1dfiles (list):
+                   List of strings which are the spec1dfiles
+                objids (list):
+                   List of strings which are the objids for the object in each spec1d file that you want to coadd
+                par (parset):
+                   Pypeit parameter set object
+                sensfile (str): optional
+                   File holding the sensitivity function. This is required for echelle coadds only.
+                debug (bool): optional
+                   Debug. Default = False
+                show (bool):
+                   Debug. Default = True
+        """
+
         super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
+
     def coadd(self):
-        wave_coadd, flux_coadd, ivar_coadd, mask_coadd = multi_combspec(
+        """
+        Perform coadd for for Multi/Longslit data using multi_combspec
+
+        Returns:
+            tuple
+              - wave, flux, ivar, mask
+
+        """
+        return multi_combspec(
             self.waves, self.fluxes, self.ivars, self.masks,
             sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
             samp_fact=self.par['samp_fact'], ref_percentile=self.par['ref_percentile'],
@@ -2752,7 +2802,7 @@ class MultiSlit(CoAdd1d):
             lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
             debug=self.debug, show=self.show)
 
-        return wave_coadd, flux_coadd, ivar_coadd, mask_coadd
+
 
 
 
@@ -2762,9 +2812,34 @@ class Echelle(CoAdd1d):
     """
 
     def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+        """
+
+            Args:
+                spec1dfiles (list):
+                   List of strings which are the spec1dfiles
+                objids (list):
+                   List of strings which are the objids for the object in each spec1d file that you want to coadd
+                par (parset):
+                   Pypeit parameter set object
+                sensfile (str): optional
+                   File holding the sensitivity function. This is required for echelle coadds only.
+                debug (bool): optional
+                   Debug. Default = False
+                show (bool):
+                   Debug. Default = True
+        """
+
         super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
+        """
+        Perform coadd for for echelle data using ech_combspec
+
+        Returns:
+            tuple
+              - wave, flux, ivar, mask
+
+        """
         (wave_coadd, flux_coadd, ivar_coadd, mask_coadd), order_stacks = ech_combspec(
             self.waves, self.fluxes, self.ivars, self.masks, self.sensfile,
             nbest=self.par['nbest'], sn_smooth_npix=self.par['sn_smooth_npix'], wave_method=self.par['wave_method'],
