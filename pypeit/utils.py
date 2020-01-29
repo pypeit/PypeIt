@@ -754,7 +754,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
     error = -1                  # Indicates that the fit should be done
     qdone = False               # True if rejection iterations are done
     exit_status = 0
-    # relative_factor = 1.0     # Doesn't need to be defined here.
+    relative_factor = 1.0
     nrel = 0 if relative is None else len(relative)
     # TODO: Why do we need both maskwork and tempin?
     tempin = np.copy(ingpm)

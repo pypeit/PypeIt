@@ -18,9 +18,17 @@ except:
     from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
                                         bspline_model
 
+# TODO: Used for testing.  Keep around for now.
 #from pypeit.bspline.utilpy import bspline_model
 #from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
 #                                    bspline_model
+
+# TODO: Types are important for the C extension. Types should be
+# limited to int, float, bool!
+# TODO: May need to add hooks to utilc.py that do the type conversion,
+# but that should be a last resort for stability.
+# TODO: This whole module needs to be cleaned up.
+
 
 class bspline(object):
     """Bspline class.
@@ -82,7 +90,7 @@ class bspline(object):
         if from_dict is not None:
             self.nord=from_dict['nord']
             self.npoly=from_dict['npoly']
-            self.breakpoints=np.array(from_dict['breakpoints'])
+            self.breakpoints=np.array(from_dict['breakpoints']).astype(float)   # Force type
             self.mask=np.array(from_dict['mask'])
             self.coeff=np.array(from_dict['coeff'])
             self.icoeff=np.array(from_dict['icoeff'])
@@ -149,7 +157,7 @@ class bspline(object):
                 # which is equally arbitrary, but still results in a crash. By requiring at least 2 bkpt, fullbkpt will
                 # have 8 elements preventing action from crashing
                 if (bkpt1.size < 2):
-                    bkpt1 = np.zeros(2,dtype=float)
+                    bkpt1 = np.zeros(2, dtype=float)
                     bkpt1[0] = x.min()
                     bkpt1[1] = x.max()
                 else:
@@ -190,16 +198,16 @@ class bspline(object):
                                           fullbkpt_init[nshortbkpt - 1] + bkspace * i)
 
             nc = fullbkpt1.size - nord
-            self.breakpoints = fullbkpt1
+            self.breakpoints = fullbkpt1.astype(float)      # Ensure type is float for C extension
             self.nord = nord
             self.npoly = npoly
-            self.mask = np.ones((fullbkpt1.size,), dtype='bool')
+            self.mask = np.ones((fullbkpt1.size,), dtype=bool)
             if npoly > 1:
-                self.coeff = np.zeros((npoly, nc), dtype='d')
-                self.icoeff = np.zeros((npoly, nc), dtype='d')
+                self.coeff = np.zeros((npoly, nc), dtype=float)
+                self.icoeff = np.zeros((npoly, nc), dtype=float)
             else:
-                self.coeff = np.zeros((nc,), dtype='d')
-                self.icoeff = np.zeros((nc,), dtype='d')
+                self.coeff = np.zeros((nc,), dtype=float)
+                self.icoeff = np.zeros((nc,), dtype=float)
             self.xmin = 0.0
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
@@ -248,6 +256,8 @@ class bspline(object):
                     funcname=self.funcname)
 
     # TODO: C this
+    # TODO: Should this be used, or should we effectively replace it
+    # with the content of utils.bspline_profile
     def fit(self, xdata, ydata, invvar, x2=None):
         """Calculate a B-spline in the least-squares sense.
 
@@ -284,13 +294,13 @@ class bspline(object):
         a1, lower, upper = self.action(xdata, x2=x2)
         foo = np.tile(invvar, bw).reshape(bw, invvar.size).transpose()
         a2 = a1 * foo
-        alpha = np.zeros((bw, nfull+bw), dtype='d')
-        beta = np.zeros((nfull+bw,), dtype='d')
-        bi = np.arange(bw, dtype='i4')
-        bo = np.arange(bw, dtype='i4')
+        alpha = np.zeros((bw, nfull+bw), dtype=float)
+        beta = np.zeros((nfull+bw,), dtype=float)
+        bi = np.arange(bw, dtype=int)
+        bo = np.arange(bw, dtype=int)
         for k in range(1, bw):
-            bi = np.append(bi, np.arange(bw-k, dtype='i4')+(bw+1)*k)
-            bo = np.append(bo, np.arange(bw-k, dtype='i4')+bw*k)
+            bi = np.append(bi, np.arange(bw-k, dtype=int)+(bw+1)*k)
+            bo = np.append(bo, np.arange(bw-k, dtype=int)+bw*k)
         for k in range(nn-self.nord+1):
             itop = k*self.npoly
             ibottom = min(itop, nfull) + bw - 1
@@ -354,7 +364,7 @@ class bspline(object):
         n = nbkpt - self.nord
         lower = np.zeros((n - self.nord + 1,), dtype=int)
         upper = np.zeros((n - self.nord + 1,), dtype=int) - 1
-        indx = self.intrv(x)
+        indx = intrv(self.nord, self.breakpoints[self.mask], x)
         bf1 = self.bsplvn(x, indx)
 #        print('F_CONTIGUOUS after bsplvn: {0}'.format(bf1.flags['F_CONTIGUOUS']))
         aa = uniq(indx)
@@ -395,7 +405,7 @@ class bspline(object):
         # to be tested.
 #        _action = (bf1[:,:,None] * temppoly[:,None,:]).reshape(nx,-1)
         bw = self.npoly*self.nord
-        action = np.zeros((nx, bw), dtype='d')
+        action = np.zeros((nx, bw), dtype=float, order='F')
         counter = -1
         for ii in range(self.nord):
             for jj in range(self.npoly):
@@ -403,23 +413,6 @@ class bspline(object):
                 action[:, counter] = bf1[:, ii]*temppoly[:, jj]
         return action, lower, upper
 
-    def intrv(self, x):
-        """Find the segment between breakpoints which contain each value in the array x.
-
-        The minimum breakpoint is nbkptord -1, and the maximum
-        is nbkpt - nbkptord - 1.
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            Data values, assumed to be monotonically increasing.
-
-        Returns
-        -------
-        :class:`numpy.ndarray`
-            Position of array elements with respect to breakpoints.
-        """
-        return intrv(self.nord, self.breakpoints[self.mask], x)
 
     # TODO: C this?
     def bsplvn(self, x, ileft):
@@ -440,7 +433,8 @@ class bspline(object):
         bkpt = self.breakpoints[self.mask]
         # TODO: Had to set the order here to keep it consistent with
         # utils.bspline_profile, but is this going to break things
-        # elsewhere?
+        # elsewhere? Ideally, we wouldn't be setting the memory order
+        # anywhere...
         vnikx = np.zeros((x.size, self.nord), dtype=x.dtype, order='F')
         deltap = vnikx.copy()
         deltam = vnikx.copy()
@@ -549,7 +543,7 @@ class bspline(object):
         if np.any(hmm >= n):
             warnings.warn('Note enough unique points in cholesky_band decomposition of b-spline matrix. Returning...')
             return -2
-        test = np.zeros(nbkpt, dtype='bool')
+        test = np.zeros(nbkpt, dtype=bool)
         for jj in range(-int(np.ceil(self.nord/2)), int(self.nord/2.)):
             foo = np.where((hmm+jj) > 0, hmm+jj, np.zeros(hmm.shape, dtype=hmm.dtype))
             inside = np.where((foo+self.nord) < n-1, foo+self.nord, np.zeros(hmm.shape, dtype=hmm.dtype)+n-1)
