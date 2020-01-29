@@ -432,7 +432,8 @@ class Reduce(object):
             # Find sky
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                           thismask, left, right, inmask=inmask, sigrej=sigrej,
+                                           thismask, left[:,slit], right[:,slit], inmask=inmask,
+                                           sigrej=sigrej,
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
