@@ -12,6 +12,40 @@ from collections import OrderedDict
 
 import numpy as np
 
+from astropy import units, coordinates
+
+import linetools
+
+from IPython import embed
+
+
+def convert_radec(ra, dec):
+    """
+    Handle multiple ra,dec inputs and return decimal degrees
+
+    Args:
+        ra (str or float or np.ndarray):
+            RA as decimal deg (float) or  hh:mm:ss.s (str)
+        dec (str or float or np.ndarray):
+            DEC as decimal deg (float) or  +dd:mm:ss.s (str)
+
+    Returns:
+        tuple:
+           float,float of ra,dec in decimal deg if input is str or float
+           np.ndarray, np.ndarray of ra,dec in decimal deg if input is np.ndarray
+
+    """
+    if isinstance(ra, str):
+        coord = linetools.utils.radec_to_coord((ra.strip(), dec.strip()))
+        return coord.ra.value, coord.dec.value
+    elif isinstance(ra, np.ndarray):
+        if isinstance(ra[0], str):
+            coords = coordinates.SkyCoord(ra,dec, unit=(units.hourangle, units.deg))
+            return coords.ra.value, coords.dec.value
+    else:
+        return ra, dec
+
+
 def define_core_meta():
     """
     Define the core set of meta data that must be defined

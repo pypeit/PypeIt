@@ -377,19 +377,16 @@ class PypeItMetaData:
                 nones = usrdata[key] == 'None'
                 usrdata[key][nones] = None
                 # Rest
-                # Allow for str RA, DEC (backward comptability)
+                # Allow for str RA, DEC (backwards compatability)
                 if key in ['ra', 'dec']:
-                    if radec_done:
+                    if radec_done:  # This has us execute the snippet only once
                         pass
-                    ra0 = usrdata['ra'][~nones][0]
-                    if isinstance(ra0, str) and ':' in ra0:
-                        coords = coordinates.SkyCoord(usrdata['ra'][~nones], usrdata['dec'][~nones],
-                                                  unit=(units.hourangle, units.deg))
-                        usrdata['ra'][~nones] = coords.ra.value
-                        usrdata['dec'][~nones] = coords.dec.value
-                        radec_done = True
                     else:
-                        usrdata[key][~nones] = usrdata[key][~nones].astype(dtype)
+                        ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
+                                                       usrdata['dec'][~nones].data)
+                        usrdata['ra'][~nones] = ras.astype(dtype)
+                        usrdata['dec'][~nones] = decs.astype(dtype)
+                        radec_done = True
                 else:
                     usrdata[key][~nones] = usrdata[key][~nones].astype(dtype)
 
