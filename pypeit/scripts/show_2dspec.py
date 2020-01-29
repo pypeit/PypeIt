@@ -54,7 +54,7 @@ def show_trace(specobjs, det, viewer, ch):
     in_det = np.where(specobjs.DET == det)[0]
     for kk in in_det:
         trace = specobjs[kk]['TRACE_SPAT']
-        obj_id = specobjs[kk].name
+        obj_id = specobjs[kk].NAME
         ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 
 
@@ -127,11 +127,10 @@ def main(args):
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
-    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
-    slitmask = pixels.tslits2mask(tslits_dict)
-    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
-    slit_ids = [edgetrace.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'],
-                                     ii)[0] for ii in range(tslits_dict['slit_left'].shape[1])]
+    slits = edgetrace.SlitTraceSet.from_file(trc_file)
+    # TODO: Never used but was created in previous version
+    #slitmask = slits.slit_img()
+
     # Show the bitmask?
     mask_in = mask if args.showmask else None
 
@@ -161,9 +160,9 @@ def main(args):
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg, bitmask=mask_in, clear=True)
                                   #, cuts=(cut_min, cut_max), wcs_match=True)
-    show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
-                     #, args.det)
+    if sobjs is not None:
+        show_trace(sobjs, args.det, viewer, ch)
+    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id) #, args.det)
 
     # SKYSUB
     image = (sciimg - skymodel) * (mask == 0)  # sky subtracted image
@@ -177,7 +176,7 @@ def main(args):
                                   bitmask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
+    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
 
 
     # SKRESIDS
@@ -187,7 +186,7 @@ def main(args):
                                   cuts=(-5.0, 5.0), bitmask = mask_in) #,wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
+    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
@@ -197,7 +196,7 @@ def main(args):
                                   cuts = (-5.0, 5.0), bitmask = mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
+    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

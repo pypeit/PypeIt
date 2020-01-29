@@ -131,6 +131,10 @@ def main(args):
     else:
         msgs.error('You must either input a coadd2d file with --file or an object name with --obj')
 
+    # Update with configuration specific parameters (which requires science file) and initialize spectrograph
+    spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
+    parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=parset.to_config())
+
     # If detector was passed as an argument override whatever was in the coadd2d_file
     if args.det is not None:
         msgs.info("Restricting reductions to detector={}".format(args.det))
@@ -200,24 +204,24 @@ def main(args):
         sci_dict[det] = {}
 
         # Instantiate Coadd2d
-        coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det,
-                                       offsets=parset['coadd2d']['offsets'],
-                                       weights=parset['coadd2d']['weights'],
-                                       par=parset, ir_redux=ir_redux,
-                                       debug_offsets=args.debug_offsets, debug=args.debug,
-                                         samp_fact=args.samp_fact)
+        coadd = coadd2d.CoAdd2d.get_instance(spec2d_files, spectrograph, parset, det=det,
+                                             offsets=parset['coadd2d']['offsets'],
+                                             weights=parset['coadd2d']['weights'],
+                                             ir_redux=ir_redux,
+                                             debug_offsets=args.debug_offsets, debug=args.debug,
+                                             samp_fact=args.samp_fact, master_dir=master_dir)
 
         # Coadd the slits
         coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
-        # Create the psuedo images
-        psuedo_dict = coadd.create_psuedo_image(coadd_dict_list)
+        # Create the pseudo images
+        pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
         # Reduce
         msgs.info('Running the extraction')
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
-            psuedo_dict, show = args.show, show_peaks = args.peaks)
-        # Save psuedo image master files
-        coadd.save_masters(master_dir)
+            pseudo_dict, show = args.show, show_peaks = args.peaks)
+        # Save pseudo image master files
+        coadd.save_masters()
 
     # Make the new Science dir
     # TODO: This needs to be defined by the user

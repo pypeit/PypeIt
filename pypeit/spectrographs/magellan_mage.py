@@ -101,9 +101,9 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3  # Allow for a short detected blue order
         # Find object parameters
-        par['scienceimage']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
+        par['reduce']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        #par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
         par['flexure'] = pypeitpar.FlexurePar()
         par['flexure']['method'] = 'skip'
@@ -183,7 +183,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
             return (fitstbl['idname'] == 'Object') \
                         & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -193,6 +193,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -204,6 +205,11 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for MAGE")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Get the binning
         hdu = fits.open(filename)
         binspatial, binspec = parse.parse_binning(hdu[0].header['BINNING'])
@@ -214,37 +220,38 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Return
         return bpm_img
 
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        return slitmask
+# TODO: Not sure if this was ever used.
+#    @staticmethod
+#    def slitmask(tslits_dict, pad=None, binning=None):
+#        """
+#         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+#         overload this function to implement instrument specific slitmask behavior, for example setting
+#         where the orders on an echelle spectrograph end
+#
+#         Parameters
+#         -----------
+#         tslits_dict: dict
+#            Trace slits dictionary with slit boundary information
+#
+#         Optional Parameters
+#         pad: int or float
+#            Padding of the slit boundaries
+#         binning: tuple
+#            Spectrograph binning in spectral and spatial directions
+#
+#         Returns
+#         -------
+#         slitmask: ndarray int
+#            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+#            indicating the slit number going from 0 to nslit-1 from left to right.
+#
+#         """
+#
+#        # These lines are always the same
+#        pad = tslits_dict['pad'] if pad is None else pad
+#        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+#
+#        return slitmask
 
     @property
     def norders(self):

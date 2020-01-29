@@ -230,12 +230,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
-        par['scienceimage']['findobj']['trace_npoly'] = 8
-        par['scienceimage']['findobj']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
-        par['scienceimage']['findobj']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['trace_npoly'] = 8
+        par['reduce']['findobj']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
+        par['reduce']['findobj']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
 
         # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
         # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
@@ -248,6 +248,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['tiltframe']['process']['bias'] = 'skip'
         par['calibrations']['standardframe']['process']['bias'] = 'skip'
         par['scienceframe']['process']['bias'] = 'skip'
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
+
 
 
         return par
@@ -288,7 +294,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-ShooterNIR.
 
@@ -298,6 +304,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -309,6 +316,11 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
 
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             bpm_dir = resource_filename('pypeit', 'data/static_calibs/vlt_xshoooter/')
             try :
@@ -344,23 +356,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
-                                   0.33141317, 0.38813936, 0.44310197, 0.49637422,
-                                   0.54839496, 0.59948157, 0.65005956, 0.70074477,
-                                   0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
-        return ord_spat_pos
+        return np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
+                         0.33141317, 0.38813936, 0.44310197, 0.49637422,
+                         0.54839496, 0.59948157, 0.65005956, 0.70074477,
+                         0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
 
     @property
     def orders(self):
         return np.arange(26, 10, -1, dtype=int)
-
 
     @property
     def spec_min_max(self):
         spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
         spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
         return np.vstack((spec_min, spec_max))
-
 
     def order_platescale(self, order_vec, binning=None):
         """
@@ -398,7 +407,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
     @property
     def loglam_minmax(self):
         return np.log10(9500.0), np.log10(26000)
-
 
 
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
@@ -488,16 +496,21 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.5
-        par['scienceimage']['skysub']['global_sky_std'] = False
-        par['scienceimage']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
-        par['scienceimage']['findobj']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
-        par['scienceimage']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
-        par['scienceimage']['findobj']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
+        par['reduce']['skysub']['bspline_spacing'] = 0.5
+        par['reduce']['skysub']['global_sky_std'] = False
+        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
+        par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
+        par['reduce']['findobj']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
 
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par
 
@@ -574,7 +587,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     def loglam_minmax(self):
         return np.log10(5000.0), np.log10(11000)
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter VIS.
 
@@ -584,6 +597,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -594,6 +608,11 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         shape = bpm_img.shape
         #
         # ToDo Ema: This is just a workaround to deal with
@@ -611,6 +630,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         if det == 1:
             bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return bpm_img
+
 
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
@@ -761,7 +781,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Right now I just took the average
         return np.full(self.norders, 0.161)*binspatial
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to X-Shooter UVB.
 
@@ -771,6 +791,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -781,6 +802,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         if det == 1:
             # TODO: This is for the 1x1 binning it should
             # change for other binning

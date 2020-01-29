@@ -9,6 +9,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pkg_resources import resource_filename
 
 from pypeit import debugger
 
@@ -71,8 +72,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = True
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
@@ -109,6 +110,15 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+
+
+
         return par
 
     # JFH Replaced with updated values based on experienced with MOSFIRE above.
@@ -311,16 +321,23 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
     # TODO: This function is unstable to shape...
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
         Parameters
         ----------
         shape : tuple, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
+
         Returns
         -------
         badpix : ndarray
         """
         bpm_img = self.empty_bpm(filename, det)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRSPEC")
         bpm_img[:, :20] = 1.
@@ -337,6 +354,13 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
         # Get it started
         super(KeckNIRSPECLowSpectrograph, self).__init__()
         self.spectrograph = 'keck_nirspec_low'
+
+
+    @property
+    def telluric_grid_file(self):
+        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
+        return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
 
 
     '''

@@ -79,7 +79,9 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     if len(all_specobjs) == 0:
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
-        all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
+        # Build the spec1d output header.
+        header = all_specobjs.build_header(head1d, spectrograph)
+        all_specobjs.write_to_fits(header, outfile1d, update_det=update_det)
         # Txt file
         # TODO JFH: Make this a method in the specobjs class.
         save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
@@ -89,13 +91,13 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
 
     return
 
-
+# JFH This routine is deprecated. The preferred way to write out 1d coadds is now in the coadd1d class.
 def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
                          header=None, ex_value='OPT', overwrite=True):
     '''
     Args:
         outfile (str): name of fitsfile you want to save to
-        waves (ndarray): one-D or two-D (nspec by nexp/norder) wavelength array
+        waves (ndarray): 1-D or 2-D (nspec by nexp/norder) wavelength array
         fluxes (ndarray): flux array
         ivars (ndarray): ivar array
         masks (ndarray): mask array
@@ -189,18 +191,23 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
         if specobj is None:
             continue
         # Append
-        names.append(specobj.name)
         spat_pixpos.append(specobj.SPAT_PIXPOS)
-        slits.append(specobj.slit_orderindx)
         if spectrograph.pypeline == 'MultiSlit':
             spat_fracpos.append(specobj.SPAT_FRACPOS)
+            slits.append(specobj.SLITID)
+            names.append(specobj.NAME)
         elif spectrograph.pypeline == 'Echelle':
             spat_fracpos.append(specobj.ECH_FRACPOS)
+            slits.append(specobj.ECH_ORDER)
+            names.append(specobj.ECH_NAME)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.keys():
             slit_pix = 2.0*specobj.BOX_RADIUS
             # Convert to arcsec
             binspectral, binspatial = parse.parse_binning(binning)
+            # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
+            # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
+            # different attribute. platescale should be a spectrograph attribute determined on the fly.
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
         else:
             boxsize.append(0.)
@@ -227,8 +234,8 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             obj_tbl['slit'] = slits
             obj_tbl['slit'].format = 'd'
         elif spectrograph.pypeline == 'Echelle':
-            obj_tbl['orderindx'] = slits
-            obj_tbl['orderindx'].format = 'd'
+            obj_tbl['order'] = slits
+            obj_tbl['order'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'

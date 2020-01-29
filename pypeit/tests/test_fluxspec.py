@@ -6,8 +6,8 @@ import os
 
 import pytest
 
-from pypeit import fluxspec
-from pypeit.scripts import flux_spec
+#from pypeit import fluxspec
+from pypeit.scripts import flux_calib
 from pypeit.tests.tstutils import cooked_required
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -78,9 +78,9 @@ def test_from_sens_func(kast_blue_files):
 @cooked_required
 def test_script():
     # Sensitivity function
-    pargs = flux_spec.parser([data_path('test.flux')])
+    pargs = flux_calib.parser([data_path('test.flux')])
     # Run
-    flux_spec.main(pargs, unit_test=True)
+    flux_calib.main(pargs, unit_test=True)
 
     # Check for output
     assert os.path.isfile('test_sensfunc.json')

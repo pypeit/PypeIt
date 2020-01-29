@@ -48,7 +48,7 @@ def test_run():
     frametype = 'pixelflat'
     par = pypeitpar.FrameGroupPar(frametype)
     flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
-                                    tslits_dict=edges.convert_to_tslits_dict())
+                                    slits=edges.get_slits())
 
     # Use the trace image
     flatField.rawflatimg = pypeitimage.PypeItImage(edges.img.copy())

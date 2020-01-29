@@ -52,7 +52,7 @@ def multi_caliBrate(fitstbl):
     par = spectrograph.config_specific_par(sci_file)
     #
     calib_par = par['calibrations']
-    calib_par['badpix'] = False
+    calib_par['bpm_usebias'] = False
     calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
@@ -121,10 +121,12 @@ def test_slits(multi_caliBrate):
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
     # Run
-    tslits_dict = multi_caliBrate.get_slits(write_qa=False)
-    # Test
-    assert isinstance(tslits_dict, dict)
-    assert isinstance(tslits_dict['maskslits'], np.ndarray)
+    slits = multi_caliBrate.get_slits(write_qa=False)
+    assert slits.spectrograph == 'shane_kast_blue', 'Wrong spectrograph'
+    assert (slits.nspec, slits.nspat) == multi_caliBrate.shape, 'Wrong image shape'
+    assert slits.nslits == 1, 'Incorrect number of slits'
+    assert slits.left.shape == (2048,1), 'Incorrect shape for left'
+    assert slits.left_tweak is None, 'Tweaks should not exist'
 
 
 @dev_suite_required
@@ -140,7 +142,8 @@ def test_wv_calib(multi_caliBrate):
     assert isinstance(wv_calib, dict)
     assert wv_calib['0'] is not None
     assert wv_calib['0']['rms'] < 0.2
-    assert isinstance(multi_caliBrate.tslits_dict['maskslits'], np.ndarray)
+    # TODO: Is this test useful?
+    assert isinstance(multi_caliBrate.slits.mask, np.ndarray)
 
 
 @dev_suite_required
@@ -156,7 +159,8 @@ def test_tilts(multi_caliBrate):
     # Run
     tilts_dict = multi_caliBrate.get_tilts()
     assert tilts_dict['tilts'].shape == (2048,350)
-    assert isinstance(multi_caliBrate.tslits_dict['maskslits'], np.ndarray)
+    # TODO: Is this test useful?
+    assert isinstance(multi_caliBrate.slits.mask, np.ndarray)
 
 
 @dev_suite_required
@@ -273,4 +277,5 @@ def test_reuse(multi_caliBrate_reuse):
 
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)
+
 

@@ -15,7 +15,6 @@ import linetools.utils
 
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit import edgetrace
 from pypeit.core import arc, qa, pixels
 from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
@@ -29,7 +28,8 @@ class WaveCalib(masterframe.MasterFrame):
     Args:
         msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
             Arc image, created by the ArcImage class
-        tslits_dict (dict or None):  TraceSlits dict
+        slits (:class:`pypeit.edgetrace.SlitTraceSet`, None):
+            Slit edges
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
@@ -67,7 +67,7 @@ class WaveCalib(masterframe.MasterFrame):
     frametype = 'wv_calib'
     master_type = 'WaveCalib'
 
-    def __init__(self, msarc, tslits_dict, spectrograph, par, binspectral=None, det=1,
+    def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
                  master_key=None, master_dir=None, reuse_masters=False, qa_path=None,
                  msbpm=None):
 
@@ -78,7 +78,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Required parameters (but can be None)
         self.msarc = msarc
-        self.tslits_dict = tslits_dict
+        self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
 
@@ -106,29 +106,28 @@ class WaveCalib(masterframe.MasterFrame):
         # code needs for execution. This also deals with arcimages that
         # have a different binning then the trace images used to defined
         # the slits
-        if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
+        if self.slits is not None and self.msarc is not None:
+            # NOTE: This uses the interneral definition of `pad` in
+            # EdgeTraceParSet
+            self.slitmask_science = self.slits.slit_img()
             gpm = self.bpm == 0 if self.bpm is not None \
                                     else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
-            self.nslits = self.tslits_dict['slit_left'].shape[1]
+            self.nslits = self.slits.nslits
             self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.tslits_dict['slit_left'])
+                                                  self.slits.left)
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.tslits_dict['slit_righ'])
+                                                  self.slits.right)
             self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.tslits_dict['slitcen'])
+                                                self.slits.center)
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
             # We want even the saturated lines in full_template for the cross-correlation
             #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
                 self.gpm &= self.msarc.image < self.nonlinear_counts
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
-                                                         self.tslits_dict['slit_righ'],
-                                                         self.tslits_dict['nspec'],
-                                                         self.tslits_dict['nspat'])
+            self.spat_coo = self.slits.spatial_coordinates()
 
         else:
             self.slitmask_science = None
@@ -163,8 +162,7 @@ class WaveCalib(masterframe.MasterFrame):
             dict:  self.wv_calib
         """
         # Obtain a list of good slits
-        ok_mask = np.where(~self.maskslits)[0]
-
+        ok_mask = np.where(np.invert(self.maskslits))[0]
         # Obtain calibration for all slits
         if method == 'simple':
             lines = self.par['lamps']
@@ -177,7 +175,7 @@ class WaveCalib(masterframe.MasterFrame):
                                                     IDwaves=self.par['IDwaves'])
         elif method == 'semi-brute':
             # TODO: THIS IS CURRENTLY BROKEN
-            debugger.set_trace()
+            embed()
             final_fit = {}
             for slit in ok_mask:
                 # HACKS BY JXP
@@ -208,30 +206,33 @@ class WaveCalib(masterframe.MasterFrame):
             arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
+            final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            # Todo : Generalise to multislit case
-            arcfitter = gui_identify.initialise(arccen, par=self.par)
-            final_fit = arcfitter.get_results()
-            slit = 0
-            if final_fit[str(slit)] is not None:
-                ans = 'y'
-                # ans = ''
-                # while ans != 'y' and ans != 'n':
-                #     ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
-                if ans == 'y' and final_fit[str(slit)]['rms'] < 0.1:
-                    # Store the results in the user reid arxiv
-                    specname = self.spectrograph.spectrograph
-                    gratname = "UNKNOWN"  # input("Please input the grating name: ")
-                    dispangl = "UNKNOWN"  # input("Please input the dispersion angle: ")
-                    templates.pypeit_identify_record(final_fit[str(slit)], self.binspectral, specname, gratname, dispangl)
-                    msgs.info("Your wavelength solution has been stored")
-                    msgs.info("Please consider sending your solution to the PYPEIT team!")
+            # TODO: Move this loop to the GUI initalise method
+            embed()
+            for slit in ok_mask:
+                arcfitter = gui_identify.initialise(arccen, slit=slit, par=self.par)
+                final_fit[str(slit)] = arcfitter.get_results()
+                if final_fit[str(slit)] is not None:
+                    ans = 'y'
+                    # ans = ''
+                    # while ans != 'y' and ans != 'n':
+                    #     ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
+                    if ans == 'y' and final_fit[str(slit)]['rms'] < self.par['rms_threshold']:
+                        # Store the results in the user reid arxiv
+                        specname = self.spectrograph.spectrograph
+                        gratname = "UNKNOWN"  # input("Please input the grating name: ")
+                        dispangl = "UNKNOWN"  # input("Please input the dispersion angle: ")
+                        templates.pypeit_identify_record(final_fit[str(slit)], self.binspectral, specname, gratname, dispangl)
+                        msgs.info("Your wavelength solution has been stored")
+                        msgs.info("Please consider sending your solution to the PYPEIT team!")
+
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
-                                           slit_spat_pos=self.slit_spat_pos)
+                                           slit_spat_pos=self.spat_coo)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
@@ -247,7 +248,7 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Remake mask (*mainly for the QA that follows*)
         self.maskslits = self.make_maskslits(len(self.maskslits))
-        ok_mask = np.where(~self.maskslits)[0]
+        ok_mask = np.where(np.invert(self.maskslits))[0]
 
         # QA
         if not skip_QA:
@@ -280,12 +281,12 @@ class WaveCalib(masterframe.MasterFrame):
         all_order = np.array([],dtype=float)
 
         # Obtain a list of good slits
-        ok_mask = np.where(~self.maskslits)[0]
+        ok_mask = np.where(np.invert(self.maskslits))[0]
         nspec = self.msarc.image.shape[0]
         for islit in wv_calib.keys():
             if int(islit) not in ok_mask:
                 continue
-            iorder, iindx = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
+            iorder, iindx = self.spectrograph.slit2order(self.spat_coo[int(islit)])
             mask_now = wv_calib[islit]['mask']
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
@@ -331,10 +332,12 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Do it
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image,
-            gpm=self.gpm)  #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
+            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm)
+        #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
         # Step
         self.steps.append(inspect.stack()[0][3])
+
+
         return arccen, arc_maskslit
 
     def save(self, outfile=None, overwrite=True):

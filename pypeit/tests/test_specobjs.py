@@ -45,6 +45,11 @@ def test_add_rm():
     sobjs.remove_sobj(2)
     assert len(sobjs.specobjs) == 2
 
+    # Numpy 18
+    sobjs1 = specobjs.SpecObjs()
+    sobjs2 = specobjs.SpecObjs()
+    sobjs2.add_sobj(sobjs1)
+
 def test_set():
     sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
     # All

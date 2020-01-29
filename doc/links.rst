@@ -8,6 +8,7 @@
 .. _PEP 257: https://www.python.org/dev/peps/pep-0257
 .. _argparse.Namespace: https://docs.python.org/3/library/argparse.html#argparse.Namespace
 .. _argparse.ArgumentParser: https://docs.python.org/3/library/argparse.html#argparse.ArgumentParser
+.. _collections.OrderedDict: https://docs.python.org/3/library/collections.html#collections.OrderedDict
 
 .. numpy
 .. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
@@ -31,6 +32,7 @@
 
 .. matplotlib
 .. _matplotlib.pyplot.imshow: http://matplotlib.org/api/pyplot_api.html#matplotlib.pyplot.imshow
+.. _matplotlib.axes.Axes: https://matplotlib.org/api/axes_api.html#matplotlib.axes.Axes
 
 .. astropy
 .. _astropy.io.fits: http://docs.astropy.org/en/stable/io/fits/index.html
