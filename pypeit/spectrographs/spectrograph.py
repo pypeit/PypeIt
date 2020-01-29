@@ -594,10 +594,10 @@ class Spectrograph(object):
             retvalue = None
             castable = False
 
-        # RA, DEC specially handled (sometimes they are decimal deg sometimes not!)
-        if meta_key in ['ra','dec'] and not castable:
+        # RA, DEC specially handled (sometimes they are decimal deg and sometimes not!)
+        if meta_key in ['ra', 'dec'] and not castable and value is not None:
             if ':' not in value:
-                msgs.error("Not sure how we got here.  Instrument specific coming")
+                msgs.error("We were expecting colon separated str for RA,DEC.  Not sure your format will work.")
             else:
                 ra = headarr[self.meta['ra']['ext']][self.meta['ra']['card']].strip()
                 dec = headarr[self.meta['dec']['ext']][self.meta['dec']['card']].strip()
@@ -627,6 +627,7 @@ class Spectrograph(object):
                                 kerror = True
                     # Bomb out?
                     if kerror:
+                        embed(header='630 of spectrograph')
                         msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
                 else:
                     msgs.warn("Required card {:s} missing from your header.  Proceeding with risk..".format(

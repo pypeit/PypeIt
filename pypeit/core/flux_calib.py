@@ -42,12 +42,10 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     standard star files (hopefully).  Priority is by order of search.
 
     Args:
-        ra (str):
-            Object right-ascension in hh:mm:ss string format (e.g.,
-            '05:06:36.6').
-        dec (str):
-            Object declination in dd:mm:ss string format (e.g.,
-            52:52:01.0')
+        ra (float):
+            Object right-ascension in decimal deg
+        dec (float):
+            Object declination in decimal deg
         toler (:class:`astropy.units.quantity.Quantity`, optional):
             Tolerance on matching archived standards to input.  Expected
             to be in arcmin.
@@ -72,12 +70,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     std_sets = ['xshooter', 'calspec', 'esofil']
 
     # SkyCoord
-    #  The following was a bad hack and violated the expected input of str for ra,dec
-    #try:
-    #    ra, dec = float(ra), float(dec)
-    #    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
-    #except:
-    obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
 
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)
@@ -260,24 +253,25 @@ def stellar_model(V, sptype):
 
     return std_dict
 
+
 def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
-    '''
+    """
     Get the standard spetrum using given information of your standard/telluric star.
 
     Args:
-        star_type: str
+        star_type (str):
             Spectral type of your standard/telluric star
-        star_mag: float
+        star_mag (float):
             Apparent magnitude of the telluric star
-        ra: str
+        ra (float):
             Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
-        dec: str
+        dec (float):
             Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
 
     Returns:
         dict: Dictionary containing the information you provided and the
         standard/telluric spectrum.
-    '''
+    """
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
         # Pull star spectral model from archive

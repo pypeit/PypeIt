@@ -13,6 +13,10 @@
   key is not valid for the given parameter set.  NOTE: The check may
   fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
+- Enable user to scale flux of coadded 1D spectrum to a filter magnitude
+- Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
+- Add more cards to spec1d header output
+- Fixes a few sensfunc bugs
 
 0.12.2 (14 Jan 2019)
 --------------------
