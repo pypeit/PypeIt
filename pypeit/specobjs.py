@@ -495,6 +495,7 @@ class SpecObjs(object):
     def build_header(self, head_fitstbl, head2d, spectrograph):
         """
         Builds the spec1d file header from the fitstbl meta data and meta data from spectrograph
+        and meta data from original header
 
         Args:
             head_fitstbl (:class:`astropy.io.fits.Header`):
@@ -508,16 +509,17 @@ class SpecObjs(object):
             :class:`astropy.io.fits.Header`:
 
         """
-        header = fits.PrimaryHDU().header
+        header = initialize_header()
         # Try to pull a few from the original header
         try:
             header['MJD-OBS'] = head_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
         except KeyError:
             header['MJD-OBS'] = head_fitstbl['MJD-OBS']
-        try:
-            header['INSTRUME'] = head2d['INSTRUME']  # Self-assigned instrument name
-        except KeyError:
-            pass
+
+        # Original Header -- What else do we want??
+        for key in ['INSTRUME']:
+            if key in head2d.keys():
+                header[key] = head2d[key]  # Self-assigned instrument name
 
         core_keys = spectrograph.header_cards_for_spec()
         for key in core_keys:
@@ -534,10 +536,8 @@ class SpecObjs(object):
         header['LON-OBS'] = telescope['longitude']
         header['LAT-OBS'] = telescope['latitude']
         header['ALT-OBS'] = telescope['elevation']
-        _ = initialize_header(header)
+        # Return
         return header
-
-
 
     def write_to_fits(self, header, outfile, overwrite=True, update_det=None):
         """

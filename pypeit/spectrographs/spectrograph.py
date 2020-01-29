@@ -605,24 +605,6 @@ class Spectrograph(object):
             retvalue = None
             castable = False
 
-        '''
-        # RA, DEC specially handled (sometimes they are decimal deg and sometimes not!)
-        if meta_key in ['ra', 'dec'] and not castable and value is not None:
-            if ':' not in value:
-                msgs.error("We were expecting colon separated str for RA,DEC.  Not sure your format will work.")
-            else:
-                ra = headarr[self.meta['ra']['ext']][self.meta['ra']['card']].strip()
-                dec = headarr[self.meta['dec']['ext']][self.meta['dec']['card']].strip()
-                coord = ltu.radec_to_coord((ra,dec))
-                if meta_key == 'ra':
-                    retvalue = coord.ra.value
-                    castable = True
-                elif meta_key == 'dec':
-                    retvalue = coord.dec.value
-                    castable = True
-                else:
-                    msgs.error("Should never get here")
-        '''
 
         # JFH Added the typing to prevent a crash below when the header value exists, but is the wrong type. This
         # causes a crash below  when the value is cast.
