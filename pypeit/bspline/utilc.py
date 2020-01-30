@@ -1,6 +1,9 @@
-# Licensed under a 3-clause BSD style license - see PYDL_LICENSE.rst
-# -*- coding: utf-8 -*-
-# Also cite https://doi.org/10.5281/zenodo.1095150 when referencing PYDL
+"""
+Implements support methods for
+:class:`pypeit.bspline.bspline.bspline`. This module specifically
+imports and wrap C functions to improve efficiency.
+"""
+
 import os
 import warnings
 import ctypes
@@ -9,12 +12,14 @@ from IPython import embed
 
 import numpy as np
 
+# Mimics astropy convention
 LIBRARY_PATH = os.path.dirname(__file__)
 try:
     _bspline = np.ctypeslib.load_library("_bspline", LIBRARY_PATH)
 except Exception:
     raise ImportError('Unable to load bspline C extension.  Try rebuilding pypeit.')
 
+#-----------------------------------------------------------------------
 bspline_model_c = _bspline.bspline_model
 bspline_model_c.restype = None
 bspline_model_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="F_CONTIGUOUS"),
@@ -64,8 +69,10 @@ def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
 #    print(action.flags['F_CONTIGUOUS'])
     bspline_model_c(action, lower, upper, coeff.flatten('F'), n, nord, npoly, x.size, yfit)
     return yfit
+#-----------------------------------------------------------------------
 
 
+#-----------------------------------------------------------------------
 intrv_c = _bspline.intrv
 intrv_c.restype = None
 intrv_c.argtypes = [ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
@@ -99,8 +106,10 @@ def intrv(nord, breakpoints, x):
     indx = np.zeros(x.size, dtype=int)
     intrv_c(nord, breakpoints, breakpoints.size, x, x.size, indx)
     return indx
+#-----------------------------------------------------------------------
 
 
+#-----------------------------------------------------------------------
 solution_arrays_c = _bspline.solution_arrays
 solution_arrays_c.restype = None
 solution_arrays_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
@@ -161,8 +170,10 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
                       #np.ascontiguousarray(action),
                       upper, lower, alpha, alpha.shape[0], beta, beta.size)
     return alpha, beta
+#-----------------------------------------------------------------------
 
 
+#-----------------------------------------------------------------------
 cholesky_band_c = _bspline.cholesky_band
 cholesky_band_c.restype = int
 cholesky_band_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
@@ -199,8 +210,10 @@ def cholesky_band(l, mininf=0.0):
     ll = l.copy()
     err = cholesky_band_c(ll, ll.shape[0], ll.shape[1])
     return err, ll if err == -1 else l
+#-----------------------------------------------------------------------
 
 
+#-----------------------------------------------------------------------
 cholesky_solve_c = _bspline.cholesky_solve
 cholesky_solve_c.restype = None
 cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
@@ -231,3 +244,4 @@ def cholesky_solve(a, bb):
     b = bb.copy()
     cholesky_solve_c(a, a.shape[0], a.shape[1], b, b.shape[0])
     return -1, b
+#-----------------------------------------------------------------------
