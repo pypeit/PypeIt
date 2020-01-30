@@ -238,6 +238,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     return smoothed_img.data
 
 
+# TODO: Could this use bisect?
 def index_of_x_eq_y(x, y, strict=False):
     """
     Return an index array that maps the elements of `x` to those of

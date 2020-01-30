@@ -7,31 +7,24 @@ import sys
 import numpy as np
 import pytest
 
-#try:
-#    tsterror = FileExistsError
-#except NameError:
-#    FileExistsError = OSError
-
 from astropy import units
 
 from pypeit.core import flux_calib
 from pypeit.core import load
 from pypeit.spectrographs.util import load_spectrograph
-
 from pypeit import specobjs
-
 from pypeit.tests.tstutils import dummy_fitstbl
-
 from pypeit.pypmsgs import PypeItError
 
-#from xastropy.xutils import afits as xafits
-#from xastropy.xutils import xdebug as xdb
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+
 # JFH This test is defunct
+# TODO: Can it be repurposed to test the relevant functionality? If
+# not, delete it.
 #def test_bspline_fit():
 #    # Testing the bspline works ok (really testing bkspace)
 #    fit_dict = linetools.utils.loadjson(data_path('flux_data.json'))

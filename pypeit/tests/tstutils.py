@@ -21,7 +21,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 
 # ----------------------------------------------------------------------
-# pytest decorators setting the tests to perform
+# pytest @decorators setting the tests to perform
 
 # Tests require the PypeIt dev-suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
@@ -46,6 +46,7 @@ bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not imp
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
     """
@@ -128,6 +129,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
     return fitstbl
+
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.

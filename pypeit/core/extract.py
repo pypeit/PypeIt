@@ -20,6 +20,7 @@ from pypeit import ginga
 from pypeit import specobj
 from pypeit import specobjs
 from pypeit import tracepca
+from pypeit import bspline
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
@@ -772,7 +773,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
 
         mode_shift_set = mode_shift_out[0]
-        temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
+#        temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
+        temp_set = bspline.bspline(None, fullbkpt=mode_shift_set.breakpoints,
+                                   nord=mode_shift_set.nord)
         temp_set.coeff = mode_shift_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_shift_set.coeff[1, :]
@@ -793,7 +796,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
         mode_stretch_set = mode_stretch_out[0]
-        temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
+#        temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
+        temp_set = bspline.bspline(None, fullbkpt=mode_stretch_set.breakpoints,
+                                   nord=mode_stretch_set.nord)
         temp_set.coeff = mode_stretch_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_stretch_set.coeff[1, :]
