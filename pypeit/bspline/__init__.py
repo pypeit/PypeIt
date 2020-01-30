@@ -1,3 +1,3 @@
 
-from pypeit.bspline.bspline import bspline, flegendre, fchebyshev
+from pypeit.bspline.bspline import bspline
 

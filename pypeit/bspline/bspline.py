@@ -7,7 +7,6 @@ import warnings
 from IPython import embed
 
 import numpy as np
-from scipy import special
 
 from pypeit.core import basis
 
@@ -624,6 +623,7 @@ class bspline(object):
         return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
 
+# TODO: Move this somewhere for more common access?
 # Faster than previous version but not as fast as if we could switch to
 # np.unique.
 def uniq(x, index=None):

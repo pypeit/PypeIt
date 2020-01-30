@@ -17,7 +17,7 @@ from IPython import embed
 
 from pypeit import msgs, utils, ginga, bspline
 from pypeit.images import maskimage
-from pypeit.core import pixels, extract
+from pypeit.core import pixels, extract, basis
 from pypeit.core.moment import moment1d
 
 def skysub_npoly(thismask):
@@ -154,7 +154,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
         npoly_fit = 1
     else:
         npoly_fit = skysub_npoly(thismask) if npoly is None else npoly
-        poly_basis = bspline.flegendre(2.0*ximg_fit - 1.0, npoly_fit)
+        poly_basis = basis.flegendre(2.0*ximg_fit - 1.0, npoly_fit)
 
     # Full fit now
     #full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp, npoly = npoly)
@@ -262,7 +262,7 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
         xmin = spatial.min()
         xmax = spatial.max()
         x2 = 2.0 * (spatial - xmin) / (xmax - xmin) - 1
-        poly_basis = bspline.flegendre(x2, npoly)
+        poly_basis = basis.flegendre(x2, npoly)
         profile_basis = np.column_stack((oprof, poly_basis))
 
     relative_mask = (np.sum(oprof, axis=1) > 1e-10)

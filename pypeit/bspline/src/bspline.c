@@ -11,11 +11,44 @@ Support algorithms for bspline.
 
 
 int column_to_row_major_index(int k, int nr, int nc) {
+    /*
+    Convert a flattened index in a column-major stored array into the
+    flattened index in row-major stored array.
+    
+    Args:
+        k:
+            Index in the flattened column-major array.
+        nr:
+            Number of array rows.
+        nc:
+            Number of array columns.
+
+    Returns:
+        Index in the flattened row-major array.
+    */
     return (k - (k/nr)*nr)*nc + k/nr;
 }
 
 
-void flat_row_major_indices(int k, int nr, int nc, int *i, int* j) {
+void flat_row_major_indices(int k, int nr, int nc, int *i, int *j) {
+    /*
+    Convert the flattened index in a row-major stored array into the
+    indices along the two axes.
+
+    Args:
+        k:
+            Index in the flattened row-major array.
+        nr:
+            Number of array rows.
+        nc:
+            Number of array columns.
+        i:
+            Index along the first axis of the row-major stored array.
+            Value pointed to is replaced.
+        j:
+            Index along the second axis of the row-major stored
+            array. Value pointed to is replaced.
+    */
     *i = k/nc;
     *j = k - *i*nc;
 }
@@ -56,9 +89,37 @@ int* upper_triangle(int n, bool upper_left) {
     return bi;
 }
 
+
 void bspline_model(double *action, long *lower, long *upper, double *coeff, int n, int nord,
                    int npoly, int nd, double *yfit) {
+    /*
+    Calculate the bspline model.
 
+    Args:
+        action:
+            Action matrix. See pypeit.bspline.bspline.bspline.action.
+            The shape of the array is expected to be ``nd`` by
+            ``npoly*nord``.
+        lower:
+            Vector with the starting indices along the second axis of
+            action used to construct the model.
+        upper:
+            Vector with the (inclusive) ending indices along the
+            second axis of action used to construct the model.
+        coeff:
+            The model coefficients used for each action.
+        n:
+            Number of unmasked measurements included in the fit.
+        nord:
+            Fit order.
+        npoly:
+            Polynomial per fit order.
+        nd:
+            Total number of data points.
+        yfit:
+            Pointer to the memory location for the bspline model.
+            Memory must have already been allocated.
+    */
     int nn = npoly*nord;    // This is the same as the number of columns in action
     int mm = n - nord+1;
     int i, j, k;
@@ -120,6 +181,41 @@ void solution_arrays(int nn, int npoly, int nord, int nd, double *ydata, double 
         - BEWARE that the type of upper and lower must match the
           input: np.int32 for int and np.int64 for long. Current
           input must be long.
+
+    Args:
+        nn:
+            Number of good break points.
+        npoly:
+            Polynomial per fit order.
+        nord:
+            Fit order.
+        nd:
+            Total number of data points.
+        ydata:
+            Data to fit
+        ivar:
+            Inverse variance in the data to fit.
+        action:
+            Action matrix. See pypeit.bspline.bspline.bspline.action.
+            The shape of the array is expected to be ``nd`` by
+            ``npoly*nord``.
+        upper:
+            Vector with the (inclusive) ending indices along the
+            second axis of action used to construct the model.
+        lower:
+            Vector with the starting indices along the second axis of
+            action used to construct the model.
+        alpha:
+            Solution matrix for Cholesky decomposition. Memory must
+            have already been allocated.
+        ar:
+            Number of rows (first axis) in alpha.
+        beta:
+            Solution vector for Cholesky decomposition. Memory must
+            have already been allocated.
+        bn:
+            Number of elements in beta. Same as the number of columns
+            in alpha.
     */
     // Get the upper triangle indices
     int bw = npoly * nord;      // This is the length of the second axis of action

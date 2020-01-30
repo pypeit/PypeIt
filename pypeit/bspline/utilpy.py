@@ -9,6 +9,35 @@ import numpy as np
 
 
 def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
+    """
+    Calculate the bspline model.
+
+    Args:
+        x (`numpy.ndarray`_):
+            The independent variable in the fit.
+        action (`numpy.ndarray`_):
+            Action matrix. See
+            :func:`pypeit.bspline.bspline.bspline.action.` The shape
+            of the array is expected to be ``nd`` by ``npoly*nord``.
+        lower (`numpy.ndarray`_):
+            Vector with the starting indices along the second axis of
+            action used to construct the model.
+        upper (`numpy.ndarray`_):
+            Vector with the (inclusive) ending indices along the
+            second axis of action used to construct the model.
+        coeff (`numpy.ndarray`_):
+            The model coefficients used for each action.
+        n (:obj:`int`):
+            Number of unmasked measurements included in the fit.
+        nord (:obj:`int`):
+            Fit order.
+        npoly (:obj:`int`):
+            Polynomial per fit order.
+
+    Returns:
+        `numpy.ndarray`: The best fitting bspline model at all
+        provided :math:`x`.
+    """
     # TODO: Can we save some of these objects to self so that we
     # don't have to recreate them?
     # TODO: x is always 1D right?
@@ -29,7 +58,8 @@ def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
 
 def intrv(nord, breakpoints, x):
     """
-    Find the segment between breakpoints which contain each value in the array x.
+    Find the segment between breakpoints which contain each value in
+    the array x.
 
     The minimum breakpoint is nbkptord -1, and the maximum
     is nbkpt - nbkptord - 1.
@@ -61,7 +91,37 @@ def intrv(nord, breakpoints, x):
     return indx
 
 def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
+    """
+    Support function that builds the arrays for Cholesky
+    decomposition.
 
+    Args: 
+        nn (:obj:`int`):
+            Number of good break points.
+        npoly (:obj:`int`):
+            Polynomial per fit order.
+        nord (:obj:`int`):
+            Fit order.
+        ydata (`numpy.ndarray`_):
+            Data to fit.
+        action (`numpy.ndarray`_):
+            Action matrix. See
+            :func:`pypeit.bspline.bspline.bspline.action`. The shape
+            of the array is expected to be ``nd`` by ``npoly*nord``.
+        ivar (`numpy.ndarray`_):
+            Inverse variance in the data to fit.
+        upper (`numpy.ndarray`_):
+            Vector with the (inclusive) ending indices along the
+            second axis of action used to construct the model.
+        lower (`numpy.ndarray`_):
+            Vector with the starting indices along the second axis of
+            action used to construct the model.
+
+    Returns:
+        tuple: Returns (1) matrix :math:`A` and (2) vector :math:`b`
+        prepared for Cholesky decomposition and used in the solution
+        to the equation :math:`Ax=b`.
+    """
     # TODO: Used for testing bspline
 #    np.savez_compressed('solution_arrays.npz', nn=nn, npoly=npoly, nord=nord, ydata=ydata,
 #                        action=action, ivar=ivar, upper=upper, lower=lower)

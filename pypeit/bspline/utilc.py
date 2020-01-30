@@ -25,6 +25,37 @@ bspline_model_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="F_CON
                             np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
 
 def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
+    """
+    Calculate the bspline model.
+
+    This method wraps a C function.
+
+    Args:
+        x (`numpy.ndarray`_):
+            The independent variable in the fit.
+        action (`numpy.ndarray`_):
+            Action matrix. See
+            :func:`pypeit.bspline.bspline.bspline.action.` The shape
+            of the array is expected to be ``nd`` by ``npoly*nord``.
+        lower (`numpy.ndarray`_):
+            Vector with the starting indices along the second axis of
+            action used to construct the model.
+        upper (`numpy.ndarray`_):
+            Vector with the (inclusive) ending indices along the
+            second axis of action used to construct the model.
+        coeff (`numpy.ndarray`_):
+            The model coefficients used for each action.
+        n (:obj:`int`):
+            Number of unmasked measurements included in the fit.
+        nord (:obj:`int`):
+            Fit order.
+        npoly (:obj:`int`):
+            Polynomial per fit order.
+
+    Returns:
+        `numpy.ndarray`: The best fitting bspline model at all
+        provided :math:`x`.
+    """
     # TODO: Can we save some of these objects to self so that we
     # don't have to recreate them?
     # TODO: x is always 1D right?
@@ -42,6 +73,29 @@ intrv_c.argtypes = [ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags=
                     ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS")]
 
 def intrv(nord, breakpoints, x):
+    """
+    Find the segment between breakpoints which contain each value in
+    the array x.
+
+    The minimum breakpoint is nbkptord -1, and the maximum
+    is nbkpt - nbkptord - 1.
+
+    This method wraps a C function.
+
+    Parameters
+    ----------
+    nord : :obj:`int`
+        Order of the fit.
+    breakpoints : `numpy.ndarray`_
+        Locations of good breakpoints
+    x : :class:`numpy.ndarray`
+        Data values, assumed to be monotonically increasing.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Position of array elements with respect to breakpoints.
+    """
     indx = np.zeros(x.size, dtype=int)
     intrv_c(nord, breakpoints, breakpoints.size, x, x.size, indx)
     return indx
@@ -61,6 +115,39 @@ solution_arrays_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c
                               ctypes.c_int]
 
 def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
+        """
+    Support function that builds the arrays for Cholesky
+    decomposition.
+
+    This method wraps a C function.
+
+    Args: 
+        nn (:obj:`int`):
+            Number of good break points.
+        npoly (:obj:`int`):
+            Polynomial per fit order.
+        nord (:obj:`int`):
+            Fit order.
+        ydata (`numpy.ndarray`_):
+            Data to fit.
+        action (`numpy.ndarray`_):
+            Action matrix. See
+            :func:`pypeit.bspline.bspline.bspline.action`. The shape
+            of the array is expected to be ``nd`` by ``npoly*nord``.
+        ivar (`numpy.ndarray`_):
+            Inverse variance in the data to fit.
+        upper (`numpy.ndarray`_):
+            Vector with the (inclusive) ending indices along the
+            second axis of action used to construct the model.
+        lower (`numpy.ndarray`_):
+            Vector with the starting indices along the second axis of
+            action used to construct the model.
+
+    Returns:
+        tuple: Returns (1) matrix :math:`A` and (2) vector :math:`b`
+        prepared for Cholesky decomposition and used in the solution
+        to the equation :math:`Ax=b`.
+    """
     nfull = nn * npoly
     bw = npoly * nord
     # NOTE: Declared as empty because the c code zeros them out
@@ -85,8 +172,7 @@ def cholesky_band(l, mininf=0.0):
     """
     Compute Cholesky decomposition of banded matrix.
 
-    This function is a wrapper for a C function that improves
-    performance.
+    This method wraps a C function.
 
     Parameters
     ----------
@@ -127,8 +213,7 @@ def cholesky_solve(a, bb):
     Solve the equation :math:`Ax=b` where :math:`A` is a
     Cholesky-banded matrix.
 
-    This function is a wrapper for a C function that improves
-    performance.
+    This method wraps a C function.
 
     Parameters
     ----------

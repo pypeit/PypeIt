@@ -30,13 +30,9 @@ def _init_basis(x, m):
     Raises:
         ValueError:
             Raised if the input order is not at least 1.
-        TypeError:
-            Raised if the provided ``func`` is not callable.
     """
     if m < 1:
         raise ValueError('Order must be at least 1.')
-    if not callable(func):
-        raise TypeError('Must provide a callable function that constructs the basis polynomials.')
     _x = np.atleast_1d(x)
     return _x, np.ones((_x.size, m), dtype=_x.dtype)
 
@@ -59,7 +55,13 @@ def _build_basis(x, m, func):
     Returns:
         `numpy.ndarray`_: An array of shape :math:`(N_x, m)` with
         the basis polynomials.
+
+    Raises:
+        TypeError:
+            Raised if the provided ``func`` is not callable.
     """
+    if not callable(func):
+        raise TypeError('Must provide a callable function that constructs the basis polynomials.')
     _x, basis = _init_basis(x, m)
     if m >= 2:
         basis[:,1] = _x
@@ -159,6 +161,4 @@ def fpoly(x, m):
         for k in range(2, m):
             basis[:,k] = basis[:,k-1] * _x
     return basis
-
-
 
