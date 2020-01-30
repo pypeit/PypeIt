@@ -8,8 +8,7 @@ Check that the installation of python is C enabled.
 try:
     from pypeit.bspline import utilc
 except:
-    warnings.warn('Unable to load bspline C extension.  Try rebuilding pypeit.  In the '
-                  'meantime, will fall back to pure python code.')
+    pass
 else:
     print('Successfully imported bspline C utilities.')
 
