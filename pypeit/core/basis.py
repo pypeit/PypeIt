@@ -1,6 +1,9 @@
 # Licensed under a 3-clause BSD style license - see PYDL_LICENSE.rst
 # -*- coding: utf-8 -*-
 # Also cite https://doi.org/10.5281/zenodo.1095150 when referencing PYDL
+"""
+Module implements a set of basis functions for fitting.
+"""
 from IPython import embed
 
 import numpy as np
@@ -21,7 +24,8 @@ def _init_basis(x, m):
     Returns:
         tuple: Returns (1) the input :math:`x` array explicitly
         converted to a `numpy.ndarray`_ and (2) a unity array with
-        the same size and data type as :math:`x`.
+        the same data type as :math:`x`. The returned shape of the
+        latter is the :math:`(N_x, m)`.
 
     Raises:
         ValueError:
@@ -35,6 +39,7 @@ def _init_basis(x, m):
         raise TypeError('Must provide a callable function that constructs the basis polynomials.')
     _x = np.atleast_1d(x)
     return _x, np.ones((_x.size, m), dtype=_x.dtype)
+
 
 def _build_basis(x, m, func):
     r"""
