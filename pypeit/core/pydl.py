@@ -6,9 +6,9 @@ from IPython import embed
 import numpy as np
 
 from pypeit import msgs
-from pypeit import debugger
 from pypeit import utils
 from pypeit import bspline
+from pypeit.core import basis
 
 """This module corresponds to the image directory in idlutils.
 """
@@ -1033,10 +1033,8 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
         #        if 'fullbkpt' in kwargs:
         #            fullbkpt = kwargs['fullbkpt']
         else:
-
-
-        
-            sset = bspline(xdata[xsort[maskwork]], nord = nord, bkpt = bkpt, fullbkpt = fullbkpt, **kwargs_bspline)
+            sset = bspline.bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt,
+                                   **kwargs_bspline)
             if maskwork.sum() < sset.nord:
                 print('Number of good data points fewer than nord.')
                 return (sset, outmask)
@@ -1297,81 +1295,81 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
 #    return leg
 
 
-def fchebyshev_split(x, m):
-    """Compute the first `m` Chebyshev polynomials, but modified to allow a
-    split in the baseline at :math:`x=0`.  The intent is to allow a model fit
-    where a constant term is different for positive and negative `x`.
+#def fchebyshev_split(x, m):
+#    """Compute the first `m` Chebyshev polynomials, but modified to allow a
+#    split in the baseline at :math:`x=0`.  The intent is to allow a model fit
+#    where a constant term is different for positive and negative `x`.
+#
+#    Parameters
+#    ----------
+#    x : array-like
+#        Compute the Chebyshev polynomials at these abscissa values.
+#    m : :class:`int`
+#        The number of Chebyshev polynomials to compute.  For example, if
+#        :math:`m = 3`, :math:`T_0 (x)`, :math:`T_1 (x)` and
+#        :math:`T_2 (x)` will be computed.
+#
+#    Returns
+#    -------
+#    :class:`numpy.ndarray`
+#    """
+#    if isinstance(x, np.ndarray):
+#        n = x.size
+#    else:
+#        n = 1
+#    if m < 2:
+#        raise ValueError('Order of polynomial must be at least 2.')
+#    try:
+#        dt = x.dtype
+#    except AttributeError:
+#        dt = np.float64
+#    leg = np.ones((m, n), dtype=dt)
+#    try:
+#        leg[0, :] = (x >= 0).astype(x.dtype)
+#    except AttributeError:
+#        leg[0, :] = np.double(x >= 0)
+#    if m > 2:
+#        leg[2, :] = x
+#    if m > 3:
+#        for k in range(3, m):
+#            leg[k, :] = 2.0 * x * leg[k-1, :] - leg[k-2, :]
+#    return leg
+#
+#
 
-    Parameters
-    ----------
-    x : array-like
-        Compute the Chebyshev polynomials at these abscissa values.
-    m : :class:`int`
-        The number of Chebyshev polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`T_0 (x)`, :math:`T_1 (x)` and
-        :math:`T_2 (x)` will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 2:
-        raise ValueError('Order of polynomial must be at least 2.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    try:
-        leg[0, :] = (x >= 0).astype(x.dtype)
-    except AttributeError:
-        leg[0, :] = np.double(x >= 0)
-    if m > 2:
-        leg[2, :] = x
-    if m > 3:
-        for k in range(3, m):
-            leg[k, :] = 2.0 * x * leg[k-1, :] - leg[k-2, :]
-    return leg
-
-
-
-def fpoly(x, m):
-    """Compute the first `m` simple polynomials.
-
-    Parameters
-    ----------
-    x : array-like
-        Compute the simple polynomials at these abscissa values.
-    m : :class:`int`
-        The number of simple polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`x^0`, :math:`x^1` and
-        :math:`x^2` will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 1:
-        raise ValueError('Order of polynomial must be at least 1.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    if m >= 2:
-        leg[1, :] = x
-    if m >= 3:
-        for k in range(2, m):
-            leg[k, :] = leg[k-1, :] * x
-    return leg
+#def fpoly(x, m):
+#    """Compute the first `m` simple polynomials.
+#
+#    Parameters
+#    ----------
+#    x : array-like
+#        Compute the simple polynomials at these abscissa values.
+#    m : :class:`int`
+#        The number of simple polynomials to compute.  For example, if
+#        :math:`m = 3`, :math:`x^0`, :math:`x^1` and
+#        :math:`x^2` will be computed.
+#
+#    Returns
+#    -------
+#    :class:`numpy.ndarray`
+#    """
+#    if isinstance(x, np.ndarray):
+#        n = x.size
+#    else:
+#        n = 1
+#    if m < 1:
+#        raise ValueError('Order of polynomial must be at least 1.')
+#    try:
+#        dt = x.dtype
+#    except AttributeError:
+#        dt = np.float64
+#    leg = np.ones((m, n), dtype=dt)
+#    if m >= 2:
+#        leg[1, :] = x
+#    if m >= 3:
+#        for k in range(2, m):
+#            leg[k, :] = leg[k-1, :] * x
+#    return leg
 
 
 def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
@@ -1438,17 +1436,17 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
     else:
         ncfit = min(ngood, ncoeff)
         function_map = {
-            'legendre': flegendre,
-            'flegendre': flegendre,
-            'chebyshev': fchebyshev,
-            'fchebyshev': fchebyshev,
-            'chebyshev_split': fchebyshev_split,
-            'fchebyshev_split': fchebyshev_split,
-            'poly': fpoly,
-            'fpoly': fpoly
+            'legendre': basis.flegendre,
+            'flegendre': basis.flegendre,
+            'chebyshev': basis.fchebyshev,
+            'fchebyshev': basis.fchebyshev,
+            'chebyshev_split': basis.fchebyshev_split,
+            'fchebyshev_split': basis.fchebyshev_split,
+            'poly': basis.fpoly,
+            'fpoly': basis.fpoly
             }
         try:
-            legarr = function_map[function_name](x, ncfit)
+            legarr = function_map[function_name](x, ncfit).T
         except KeyError:
             raise KeyError('Unknown function type: {0}'.format(function_name))
         if inputfunc is not None:
@@ -1484,7 +1482,7 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
         if len(fixed) > 0:
             res[fixed] = inputans[fixed]
         yfit = np.dot(legarr.T, res[0:ncfit])
-    return (res, yfit)
+    return res, yfit
 
 
 class TraceSet(object):

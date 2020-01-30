@@ -29,7 +29,7 @@ from pypeit.core import load
 from pypeit.core import pixels
 from pypeit.core import procimg
 from pypeit.core import tracewave
-from pypeit.core import pydl
+from pypeit.core import basis
 
 
 class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
@@ -910,7 +910,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             twod_ivar_data = twod_gpm_data.astype(float)/(twod_sig**2)
             twod_sigrej = 4.0
 
-            poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
+#            poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
+            poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \

@@ -9,6 +9,8 @@ from IPython import embed
 import numpy as np
 from scipy import special
 
+from pypeit.core import basis
+
 try:
     from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays, intrv, \
                                      bspline_model
@@ -394,9 +396,9 @@ class bspline(object):
         elif self.funcname == 'chebyshev':
             # JFH fixed bug here where temppoly needed to be transposed because of different IDL and python array conventions
             # NOTE: Transposed them in the functions themselves
-            temppoly = fchebyshev(x2norm, self.npoly)
+            temppoly = basis.fchebyshev(x2norm, self.npoly)
         elif self.funcname == 'legendre':
-            temppoly = flegendre(x2norm, self.npoly)
+            temppoly = basis.flegendre(x2norm, self.npoly)
         else:
             raise ValueError('Unknown value of funcname.')
 
@@ -679,87 +681,4 @@ def uniq(x, index=None):
         return np.flatnonzero(np.concatenate(([True], x[1:] != x[:-1], [True])))[1:]-1
     _x = x[index]
     return np.flatnonzero(np.concatenate(([True], _x[1:] != _x[:-1], [True])))[1:]-1
-
-
-def _build_basis(x, m, func):
-    r"""
-    Perform initial checks of the basis function inputs.
-
-    This is a helper function for the common operations in
-    :func:`flegendre` and :func:`fchebyshev`.
-
-    Args:
-        x (array-like):
-            Compute the basis polynomials at these abscissa values.
-        m (:obj:`int`):
-            The number of polynomials to compute. For example, if
-            :math:`m = 3`, :math:`P_0 (x)`, :math:`P_1 (x)` and
-            :math:`P_2 (x)` will be computed. Must be :math:`\geq1`.
-        func (callable):
-            Callable function that generates the basis polynomials.
-            E.g., `scipy.special.legendre` for Legendre polynomials.
-
-    Returns:
-        `numpy.ndarray`_: An array of shape :math:`(N_x, m)` with
-        the basis polynomials.
-
-    Raises:
-        ValueError:
-            Raised if the input order is not at least 1.
-        TypeError:
-            Raised if the provided ``func`` is not callable.
-
-    """
-    if m < 1:
-        raise ValueError('Order must be at least 1.')
-    if func is not callable:
-        raise TypeError('Must provide a callable function that constructs the basis polynomials.')
-    _x = np.atleast_1d(x)
-    basis = np.ones((_x.size, m), dtype=_x.dtype)
-    if m >= 2:
-        basis[:,1] = x
-    if m >= 3:
-        for k in range(2, m):
-            # TODO: Is there a faster way to set this up?
-            basis[:,k] = np.polyval(func(k), _x)
-    return basis
-
-
-def flegendre(x, m):
-    """Compute the first `m` Legendre polynomials.
-
-    Parameters
-    ----------
-    x : array-like
-        Compute the Legendre polynomials at these abscissa values.
-    m : :class:`int`
-        The number of Legendre polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`P_0 (x)`, :math:`P_1 (x)` and :math:`P_2 (x)`
-        will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    return _build_basis(x, m, special.legendre)
-
-
-def fchebyshev(x, m):
-    """Compute the first `m` Chebyshev polynomials.
-
-    Parameters
-    ----------
-    x : array-like
-        Compute the Chebyshev polynomials at these abscissa values.
-    m : :class:`int`
-        The number of Chebyshev polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`T_0 (x)`, :math:`T_1 (x)` and
-        :math:`T_2 (x)` will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    return _build_basis(x, m, special.chebyt)
-
 
