@@ -115,7 +115,7 @@ solution_arrays_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c
                               ctypes.c_int]
 
 def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
-        """
+    """
     Support function that builds the arrays for Cholesky
     decomposition.
 
