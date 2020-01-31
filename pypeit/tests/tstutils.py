@@ -34,7 +34,7 @@ cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
 
 # Tests require the bspline c extension
 try:
-    from pypeit.bspline.utilc import cholesky_band
+    from pypeit.bspline import utilc
 except:
     bspline_ext = False
 else:
