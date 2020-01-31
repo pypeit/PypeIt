@@ -84,15 +84,12 @@ def main(args):
     # Check if a solution exists
     solnname = os.path.join(mdir, MasterFrame.construct_file_name('WaveCalib', mkey, file_format='json'))
     wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) else None
-    # Select the appropriate detector
-    if wv_calib is not None:
-        wv_calib = wv_calib[str(args.det-1)]
 
     # Load the MasterFrame (if it exists and is desired)?
     wavecal = WaveCalib(msarc, tslits_dict, spec, par)
     arccen, arc_maskslit = wavecal.extract_arcs()
 
     # Launch the identify window
-    arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib=wv_calib)
+    arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib)
 
     # TODO :: Ask the user if they wish to store the result in PypeIt calibrations
