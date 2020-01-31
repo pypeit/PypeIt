@@ -6,6 +6,7 @@
 - Added fits I/O methods
 - Implemented SlitTraceSet
 - Modification to add_sobj() for numpy 18
+- Added PypeIt identify GUI script for manual wavelength calibration
 
 0.12.2 (14 Jan 2019)
 --------------------
