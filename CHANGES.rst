@@ -13,6 +13,7 @@
   key is not valid for the given parameter set.  NOTE: The check may
   fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
+- Added PypeIt identify GUI script for manual wavelength calibration
 
 0.12.2 (14 Jan 2019)
 --------------------

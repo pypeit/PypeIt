@@ -39,7 +39,7 @@ outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 def build_template(in_files, slits, wv_cuts, binspec, outroot,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=True, ifiles=None, det_cut=None, chk=False,
-                   miny=None):
+                   miny=None, overwrite=True):
     """
     Generate a full_template for a given instrument
 
@@ -132,7 +132,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         debugger.plot1d(nwwv, nwspec)
         embed(header='102')
     # Generate the table
-    write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut)
+    write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut, overwrite=overwrite)
 
 
 def pypeit_arcspec(in_file, slit):
@@ -180,12 +180,12 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
         cntr += 1
     slits = [0]
     lcut = [3200.]
-    build_template("", slits, lcut, binspec, outroot, wvspec=wvspec, lowredux=False)
+    build_template("", slits, lcut, binspec, outroot, wvspec=wvspec, lowredux=False, overwrite=False)
     # Return
     return
 
 
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None):
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
     """
     TODO: Documentation needed
     Args:
@@ -195,6 +195,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=
         outpath:
         outroot:
         det_cut:
+        order:
+        overwrite:
 
     Returns:
 
@@ -215,7 +217,7 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=
             tbl['det'][gdwv] += deti
     # Write
     outfile = os.path.join(outpath, outroot)
-    tbl.write(outfile, overwrite=True)
+    tbl.write(outfile, overwrite=overwrite)
     print("Wrote: {}".format(outfile))
 
 

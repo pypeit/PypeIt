@@ -833,7 +833,7 @@ class Identify(object):
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
 
 
-def initialise(arccen, slit=0, par=None, wv_calib=None):
+def initialise(arccen, slit=0, par=None, wv_calib_all=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
         TODO ::
@@ -847,7 +847,7 @@ def initialise(arccen, slit=0, par=None, wv_calib=None):
             The slit to be used for wavelength calibration
         par : :obj:`int`, optional
             The slit to be used for wavelength calibration
-        wv_calib : :obj:`dict`, None, optional
+        wv_calib_all : :obj:`dict`, None, optional
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
 
         Returns
@@ -858,6 +858,9 @@ def initialise(arccen, slit=0, par=None, wv_calib=None):
 
     # Double check that a WavelengthSolutionPar was input
     par = pypeitpar.WavelengthSolutionPar() if par is None else par
+
+    # If a wavelength calibration has been performed already, load it:
+    wv_calib = wv_calib_all[str(slit)]
 
     # Extract the lines that are detected in arccen
     thisarc = arccen[:, slit]
