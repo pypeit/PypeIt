@@ -51,6 +51,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     # Frame type is a class attribute
     frametype = 'bias'
     master_type = 'Bias'
+    master_version = '1.0.0'
 
     @classmethod
     def from_master_file(cls, master_file, par=None):
@@ -152,7 +153,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return
         # Save
         hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        self.pypeitImage.write(_outfile, hdr=hdr)#, iext='BIAS')
+        self.pypeitImage.write(_outfile, primary_hdr=hdr)#, iext='BIAS')
         msgs.info('Master frame written to {0}'.format(_outfile))
         #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
         #                            raw_files=self.file_list, steps=self.process_steps)

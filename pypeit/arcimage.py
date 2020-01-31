@@ -22,6 +22,8 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
     Generate an Arc Image by processing and combining one or more arc frames.
 
+    v1.0.0 -- Uses one PypeItImage datamodel
+
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the
@@ -53,9 +55,8 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     # Frametype is a class attribute
     frametype = 'arc'
     master_type = 'Arc'
+    master_version = '1.0.0'
 
-    #JFH TODO: files should be a reqiured argument for this class. save and load should be class methods
-    # which do not require an instance of the class.
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
                  master_dir=None, reuse_masters=False, msbias=None):
     
@@ -97,7 +98,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return
         #
         hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        self.pypeitImage.write(_outfile, hdr=hdr)#, iext='ARC')
+        self.pypeitImage.write(_outfile, primary_hdr=hdr)#, iext='ARC')
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):

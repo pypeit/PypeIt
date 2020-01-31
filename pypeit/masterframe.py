@@ -56,6 +56,9 @@ class MasterFrame(object):
     """
     __metaclass__ = ABCMeta
 
+    # Version
+    master_version = None
+
     # TODO: set master_type and file_format to be class attributes
     # (instead of instance attributes) that each derived class has to
     # define.
@@ -162,11 +165,12 @@ class MasterFrame(object):
         # Standard init
         _hdr = initialize_header(hdr)
 
-        # Save the master frame type and key, in case the file name is
+        # Save the master frame type and key and version, in case the file name is
         # changed.
         _hdr['MSTRTYP'] = (self.master_type, 'PypeIt: Master frame type')
         _hdr['MSTRDIR'] = (self.master_dir, 'PypeIt: Master directory')
         _hdr['MSTRKEY'] = (self.master_key, 'PypeIt: Calibration key')
+        _hdr['MSTRVER'] = (self.master_version, 'PypeIt: Master datamodel version')
         _hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
 
         # Other info, pulled from the Child

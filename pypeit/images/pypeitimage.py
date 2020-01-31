@@ -1,26 +1,22 @@
 """ Simple object to hold + process a single image.
 """
+import numpy as np
+import os
+
+from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import ginga
 
-import numpy as np
-
-from astropy.io import fits
-
 from pypeit.core import save
 from pypeit.images import maskimage
-from pypeit.io import initialize_header
+from pypeit.io import write_to_fits
 from pypeit import datamodel
 
 from IPython import embed
 
-from importlib import reload
-reload(datamodel)
 
-
-
-class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
+class PypeItImage(datamodel.DataContainer): #, maskimage.ImageMask):
     """
     Class to hold a single image from a single detector in PypeIt
     and its related images (e.g. ivar, mask).
@@ -33,13 +29,17 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
         image (np.ndarray):
         ivar (np.ndarray, optional):
         rn2img (np.ndarray, optional):
-        bpm (np.ndarray, optional):
         binning (tuple, optional):
+        bpm (np.ndarray, optional):
+            Passed to self.mask
         crmask (np.ndarray, optional):
-        mask (np.ndarray, optional):
+            Passed to self.mask
+        fullmask (np.ndarray, optional):
+            Passed to self.mask
 
     Attributes:
-        head0 (astropy.io.fits.Header):
+        mask (class:`pypeit.images.maskimage.ImageMask`):
+            Image mask(s)
 
     """
     # Set the version of this class
@@ -49,9 +49,6 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
         'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
         'rn2img': dict(otype=np.ndarray, atype=np.floating, desc='Read noise squared image'),
-        'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
-        'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
-        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Full mask'),
         'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
         'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
         'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
@@ -76,31 +73,26 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
         hdul = fits.open(file)
         # Header
         slf.HEAD0 = hdul[0].header
+        # Mask
+        slf.mask = maskimage.ImageMask.from_file(file)
+
         # Return
         return slf
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
-                 binning=None, crmask=None, mask=None):
-
-        # Internals
-        maskimage.ImageMask.__init__(self, bpm)
-        self.binning = binning
+                 binning=None, crmask=None, fullmask=None):
 
         # Setup the DataContainer
-        super(PypeItImage, self).__init__({'image': image})
+        super(PypeItImage, self).__init__({'image': image, 'ivar': ivar, 'rn2img': rn2img})
 
-        # Optional Attributes
-        if ivar is not None:
-            self.ivar = ivar
-        if rn2img is not None:
-            self.rn2img = rn2img
-        #self.head0 = None
+        # Internals need to come after
+        self.mask = maskimage.ImageMask(bpm, crmask=crmask, fullmask=fullmask)
+        self.binning = binning
 
-        # Mask attributes
-        if crmask is not None:
-            self.crmask = crmask
-        if mask is not None:
-            self.mask = mask
+    def _init_internals(self):
+
+        self.mask = None
+        self.binning = None
 
     def _bundle(self):
         """
@@ -119,7 +111,7 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
 
         # Rest of the datamodel
         for key in self.keys():
-            if key == 'image':
+            if key in ['image', 'HEAD0']:
                 continue
             # Skip None
             if self[key] is None:
@@ -138,52 +130,22 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
     def shape(self):
         return () if self.image is None else self.image.shape
 
-    def write(self, outfile, hdr=None):
+    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None):
         """
-        Write the image(s) to a multi-extension FITS file
-
-        Note: This method cannot be named "save" as it would conflict
-        with the imported module
-
-        Extensions will be:
-           PRIMARY
-           IMAGE
-           IVAR (optional)
-           MASK (optional)
-
-        Args:
-            outfile:
-            hdr (`astropy.io.fits.Header`, optional):
-                The header to write
-
+        Over-write default to_file() method to handle writing the mask
         """
-        # TODO -- Should we use the internal HEAD0 if that exists??
-        self.to_file(outfile, overwrite=True, primary_hdr=hdr)
+        # Get PypeitImage hdul
+        hdul = self.to_hdu(primary_hdr=primary_hdr, add_primary=True)
 
-        '''
-        # Chk
-        if not hasattr(self, 'image'):
-            msgs.warn("Image is not ready to save.")
-            return
+        # Mask HDU
+        mask_hdul = self.mask.to_hdu()
 
-        # Save whatever is available
-        data = [self.image]
-        ext = ['image']
+        # Combine
+        for ihdu in mask_hdul:
+            hdul.append(ihdu)
 
-        # Work on the rest
-        for item in ['ivar', 'mask']:
-            if hasattr(self, item) and getattr(self,item) is not None:
-                data.append(getattr(self, item))
-                ext.append(item)
-
-        # A few more bits
-        hdr['FLAVOR'] = self.__class__.__name__
-        hdr['VERSDM'] = self.version
-
-        # TODO -- Default to float32 for float images?
-        # Write the fits file
-        save.write_fits(hdr, data, outfile, extnames=ext)
-        '''
+        # Write
+        write_to_fits(hdul, ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
     def show(self):
         """
@@ -199,7 +161,7 @@ class PypeItImage(datamodel.DataContainer, maskimage.ImageMask):
         repr = '<{:s}: '.format(self.__class__.__name__)
         # Image
         rdict = {}
-        for attr in ['image', 'ivar', 'rn2img', 'crmask', 'mask']:
+        for attr in ['image', 'ivar', 'rn2img']:
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 rdict[attr] = True
             else:

@@ -4,6 +4,7 @@ import numpy as np
 
 from pypeit.bitmask import BitMask
 from pypeit.core import procimg
+from pypeit import datamodel
 
 from IPython import embed
 
@@ -37,7 +38,8 @@ class ImageBitMask(BitMask):
         ])
         super(ImageBitMask, self).__init__(list(mask_dict.keys()), descr=list(mask_dict.values()))
 
-class ImageMask(object):
+
+class ImageMask(datamodel.DataContainer):
     """
     Class to handle masks associated with an Image
 
@@ -48,24 +50,47 @@ class ImageMask(object):
             Cosmic Ray mask (boolean)
 
     Attributes:
-        mask (np.ndarray):
+        fullmask (np.ndarray):
             The bitmask values for the full mask
         pars (dict):
             Used to hold parameters used when creating masks
     """
 
     bitmask = ImageBitMask()
+    version = '1.0.0'
+    datamodel = {
+        'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
+        'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
+        'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full mask'),
+    }
 
-    def __init__(self, bpm, crmask=None):
+    def __init__(self, bpm, crmask=None, fullmask=None):
+
+        # Setup the DataContainer
+        super(ImageMask, self).__init__({'bpm': bpm})
 
         self.bpm = bpm
-        self.crmask = crmask
 
-        # Internals
-        self.mask = None
+        # Optional attributes
+        if crmask is not None:
+            self.crmask = crmask
+        if fullmask is not None:
+            self.fullmask = fullmask
 
-        # Data model
-        self.mask_attributes = ('bpm', 'crmask', 'mask')
+    def _bundle(self):
+        """
+        Over-write default _bundle() method to restrict to fullmask only
+
+        Note:  Unless crmask will not write to FITS as it is bool
+
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension.
+        """
+        d = []
+        if self.fullmask is not None:
+            d.append(dict(fullmask=self.fullmask))
+        return d
 
     def build_crmask(self, spectrograph, det, par, image, rawvarframe, subtract_img=None):
         """
@@ -219,5 +244,17 @@ class ImageMask(object):
         indx = crmask_new.astype(bool)
         self.mask[indx] = self.bitmask.turn_on(self.mask[indx], 'CR')
 
+    def __repr__(self):
+        repr = '<{:s}: '.format(self.__class__.__name__)
+        # Image
+        rdict = {}
+        for attr in ['bpm', 'crmask', 'fullmask']:
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                rdict[attr] = True
+            else:
+                rdict[attr] = False
+        repr += ' images={}'.format(rdict)
+        repr = repr + '>'
+        return repr
 
 

@@ -593,6 +593,9 @@ class DataContainer:
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
 
+        # Initialize internals
+        self._init_internals()
+
         # Finalize the instantiation.
         # NOTE: The key added to `__dict__` by this call is always
         # `_DataContainer__initialised`, regardless of whether or not
@@ -614,13 +617,13 @@ class DataContainer:
                                      'data model!')
 
             # Assign the values provided by the input dictionary
-            self.__dict__.update(d)
+            #self.__dict__.update(d)  # This by-passes the data model checking
 
-            ## Assign the values provided by the input dictionary
-            #for key in d:
-            #    if d[key] is None:
-            #        continue
-            #    setattr(self, key, d[key])
+            # Assign the values provided by the input dictionary
+            for key in d:
+                if d[key] is None:
+                    continue
+                setattr(self, key, d[key])
 
             # Validate the object
             # TODO: _validate isn't the greatest name for this
@@ -630,8 +633,6 @@ class DataContainer:
             # TODO: Confirm elements have otype and atypes consistent
             # with the data model?
 
-
-
         # Validate the object
         # TODO: _validate isn't the greatest name for this method...
         self._validate()
@@ -639,6 +640,12 @@ class DataContainer:
 
         if self.version is None:
             raise ValueError('Must define a version for the class.')
+
+    def _init_internals(self):
+        """
+        Add internal variables to the object before initialization completes
+        """
+        pass
 
     def _validate(self):
         """
@@ -904,7 +911,7 @@ class DataContainer:
                 self.__setitem__(item, value)
             except KeyError as e:
                 # Raise attribute error instead of key error
-                raise AttributeError('{0} is not part of the data model!'.format(item)) from e
+                raise AttributeError('{0} is not part of the internals nor data model!'.format(item)) from e
 
     def __setitem__(self, item, value):
         """
@@ -912,8 +919,12 @@ class DataContainer:
 
         Items are restricted to those defined by the datamodel.
         """
-        if item not in self.datamodel.keys():
-            raise KeyError('Key {0} not part of the data model'.format(item))
+        if item not in self.__dict__.keys():
+            raise KeyError('Key {0} not part of the internals nor data model'.format(item))
+        # Internal?
+        if item not in self.keys():
+            self.__dict__[item] = value
+            return
         # None?
         if value is None:
             self.__dict__[item] = value
@@ -937,7 +948,7 @@ class DataContainer:
 
     def keys(self):
         """
-        Return the keys for the data objects.
+        Return the keys for the data objects only
 
         Returns:
             :obj:`dict_keys`: The iterable with the data model keys.
@@ -946,7 +957,7 @@ class DataContainer:
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
-    def to_hdu(self, primary_hdr=None, add_primary=False):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None):
         """
         Construct one or more HDU extensions with the data.
 
@@ -960,7 +971,7 @@ class DataContainer:
         the HDU.
 
         Args:
-            primary_hdr (`astropy.io.fits.Header`, optional):
+            hdr (`astropy.io.fits.Header`, optional):
                 Baseline header to add to all returned HDUs. If None,
                 set by :func:`pypeit.io.initialize_header()`.
             add_primary (:obj:`bool`, optional):
@@ -972,13 +983,15 @@ class DataContainer:
                 primary HDU, such that this call::
 
                     hdr = io.initialize_header()
-                    hdu = fits.HDUList([fits.PrimaryHDU(header=hdr)] + self.to_hdu(hdr=hdr))
+                    hdu = fits.HDUList([fits.PrimaryHDU(header=primary_hdr)] + self.to_hdu(hdr=hdr))
 
                 and this call::
 
                     hdu = self.to_hdu(add_primary=True)
 
                 are identical.
+            primary_hdr (`astropy.io.fits.Header`, optional):
+                Header to add to the primary if add_primary=True
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -987,9 +1000,11 @@ class DataContainer:
         # Bundle the data
         data = self._bundle()
 
+        # Initialize the primary header (only used if add_primary=True)
+        _primary_hdr = io.initialize_header() if primary_hdr is None else primary_hdr
+
         # Initialize the base header
-        _hdr = io.initialize_header() if primary_hdr is None else primary_hdr
-        embed(header='get this right;  _hdr goes everywhere, primary_hdr goes to primary')
+        _hdr = io.initialize_header() if hdr is None else hdr
         _hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
         _hdr['DMODVER'] = (self.version, 'Datamodel version')
 
@@ -1001,7 +1016,7 @@ class DataContainer:
                 hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr)]
-        return fits.HDUList([fits.PrimaryHDU(header=_hdr)] + hdu) if add_primary else hdu
+        return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
     def from_hdu(cls, hdu):
@@ -1026,7 +1041,7 @@ class DataContainer:
         DataContainer.__init__(self, cls._parse(hdu))
         return self
 
-    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None):
+    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None):
         """
         Write the data to a file.
 
@@ -1040,6 +1055,9 @@ class DataContainer:
                 Fits file for the data. File names with '.gz'
                 extensions will be gzipped; see
                 :func:`pypeit.io.write_to_fits`.
+            primary_hdr (`astropy.io.fits.Header`, optional):
+                Primary header to add to first extension. Passed
+                directly to :func:`to_hdu`; see usage there.
             hdr (`astropy.io.fits.Header`, optional):
                 Baseline header to add to all returned HDUs. Passed
                 directly to :func:`to_hdu`; see usage there.
@@ -1050,7 +1068,7 @@ class DataContainer:
                 the DATASUM and CHECKSUM keywords fits header(s).
         """
         io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr),
-                         ofile, overwrite=overwrite, checksum=checksum)
+                         ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
     # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
