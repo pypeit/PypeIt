@@ -619,10 +619,8 @@ class DataContainer:
             # Assign the values provided by the input dictionary
             #self.__dict__.update(d)  # This by-passes the data model checking
 
-            # Assign the values provided by the input dictionary
+            ## Assign the values provided by the input dictionary
             for key in d:
-                if d[key] is None:
-                    continue
                 setattr(self, key, d[key])
 
             # Validate the object
@@ -634,7 +632,6 @@ class DataContainer:
             # with the data model?
 
         # Validate the object
-        # TODO: _validate isn't the greatest name for this method...
         self._validate()
 
 
@@ -644,6 +641,8 @@ class DataContainer:
     def _init_internals(self):
         """
         Add internal variables to the object before initialization completes
+
+        These should be set to None
         """
         pass
 
@@ -925,7 +924,7 @@ class DataContainer:
         if item not in self.keys():
             self.__dict__[item] = value
             return
-        # None?
+        # Set datamodel item to None?
         if value is None:
             self.__dict__[item] = value
             return
@@ -957,7 +956,7 @@ class DataContainer:
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None):
         """
         Construct one or more HDU extensions with the data.
 
@@ -992,6 +991,8 @@ class DataContainer:
                 are identical.
             primary_hdr (`astropy.io.fits.Header`, optional):
                 Header to add to the primary if add_primary=True
+            hdu_prefix (str, optional):
+                Prefix for HDU name
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -1016,6 +1017,11 @@ class DataContainer:
                 hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr)]
+        # Prefixes
+        if hdu_prefix is not None:
+            for ihdu in hdu:
+                ihdu.name = hdu_prefix+ihdu.name
+        # Return
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod

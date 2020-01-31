@@ -16,7 +16,7 @@ from pypeit import datamodel
 from IPython import embed
 
 
-class PypeItImage(datamodel.DataContainer): #, maskimage.ImageMask):
+class PypeItImage(datamodel.DataContainer):
     """
     Class to hold a single image from a single detector in PypeIt
     and its related images (e.g. ivar, mask).
@@ -24,6 +24,9 @@ class PypeItImage(datamodel.DataContainer): #, maskimage.ImageMask):
     Oriented in its spec,spat format
 
     The intent is to keep this object as light-weight as possible.
+
+    It does have an optional, internal attribute `mask` which is intended to hold
+    a maskimage.ImageMask DataContainer
 
     Args:
         image (np.ndarray):
@@ -67,14 +70,15 @@ class PypeItImage(datamodel.DataContainer): #, maskimage.ImageMask):
                 Loaded up PypeItImage with the primary Header attached
 
         """
-        slf = super(PypeItImage, cls).from_file(file)
-
         # Open
         hdul = fits.open(file)
+
+        slf = super(PypeItImage, cls).from_hdu(hdul)
+
         # Header
         slf.HEAD0 = hdul[0].header
         # Mask
-        slf.mask = maskimage.ImageMask.from_file(file)
+        slf.mask = maskimage.ImageMask.from_hdu(hdul)
 
         # Return
         return slf
@@ -130,15 +134,17 @@ class PypeItImage(datamodel.DataContainer): #, maskimage.ImageMask):
     def shape(self):
         return () if self.image is None else self.image.shape
 
-    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None):
-        """
-        Over-write default to_file() method to handle writing the mask
+    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None, hdu_prefix=None):
+        """ Overload to_file to add in the mask
         """
         # Get PypeitImage hdul
-        hdul = self.to_hdu(primary_hdr=primary_hdr, add_primary=True)
+        hdul = self.to_hdu(primary_hdr=primary_hdr, add_primary=True, hdu_prefix=hdu_prefix)
 
         # Mask HDU
-        mask_hdul = self.mask.to_hdu()
+        if self.mask is not None:
+            mask_hdul = self.mask.to_hdu(hdu_prefix=hdu_prefix)
+        else:
+            mask_hdul = []
 
         # Combine
         for ihdu in mask_hdul:
@@ -146,6 +152,7 @@ class PypeItImage(datamodel.DataContainer): #, maskimage.ImageMask):
 
         # Write
         write_to_fits(hdul, ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
+
 
     def show(self):
         """

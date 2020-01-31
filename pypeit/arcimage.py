@@ -5,8 +5,6 @@ Module for generating the Arc image.
 .. include:: ../links.rst
 """
 import os
-import inspect
-import numpy as np
 
 from pypeit import msgs
 from pypeit import masterframe
@@ -98,7 +96,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return
         #
         hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        self.pypeitImage.write(_outfile, primary_hdr=hdr)#, iext='ARC')
+        self.pypeitImage.to_file(_outfile, primary_hdr=hdr, prefix='ARC_')#, iext='ARC')
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
