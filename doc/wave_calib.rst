@@ -120,7 +120,7 @@ recommend that you send your solution to the PypeIt development
 team, so that others can benefit from your wavelength calibration
 solution. The file is saved in the following directory:
 
-/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.json
+/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits
 
 Common Failure Modes
 ====================
