@@ -75,7 +75,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Extras for config and frametyping
         meta['hatch'] = dict(ext=0, card='HATNUM')
-        meta['calpos'] = dict(ext=0, card='CALXPOS')
+        meta['idname'] = dict(ext=0, card='CALXPOS')
         meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
 
         # Lamps
@@ -126,13 +126,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
         if ftype in ['pixelflat', 'trace']:
             # Flats and trace frames are typed together
-            return good_exp & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == '0') & (fitstbl['calpos'] == '6')
+            return good_exp & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '6')
         if ftype in ['dark']:
             # Dark frames
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
         if ftype in ['bar']:
             # Bar frames
-            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == '0') & (fitstbl['calpos'] == '4')
+            return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '4')
         if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == '0')
         if ftype in ['pinhole']:
