@@ -833,7 +833,7 @@ class Identify(object):
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
 
 
-def initialise(arccen, slit=0, par=None, wv_calib_all=None):
+def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
         TODO ::
@@ -874,6 +874,18 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None):
         line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
     else:
         line_lists = waveio.load_line_lists(par['lamps'])
+
+    # Trim the wavelength scale if requested
+    if wavelim is not None:
+        ww = None
+        if wavelim[0] is not None and wavelim[1] is not None:
+            ww = (line_lists['wave'] > wavelim[0]) & (line_lists['wave'] < wavelim[1])
+        elif wavelim[0] is not None:
+            ww = (line_lists['wave'] > wavelim[0])
+        elif wavelim[1] is not None:
+            ww = (line_lists['wave'] < wavelim[1])
+        if ww is not None:
+            line_lists = line_lists[ww]
 
     # Create a Line2D instance for the arc spectrum
     spec = Line2D(np.arange(thisarc.size), thisarc,

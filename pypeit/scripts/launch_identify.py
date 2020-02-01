@@ -19,8 +19,8 @@ def parser(options=None):
 
     parser.add_argument('file', type=str, default=None, help='PypeIt MasterArc file')
     parser.add_argument("--lamps", default='', help="Comma separated list of calibration lamps (no spaces)", type=str)
-    parser.add_argument("--wmin", default=3000.0, help="Minimum wavelength range", type=float)
-    parser.add_argument("--wmax", default=10000.0, help="Maximum wavelength range", type=float)
+    parser.add_argument("--wmin", default=0.0, help="Minimum wavelength range", type=float)
+    parser.add_argument("--wmax", default=1.0E10, help="Maximum wavelength range", type=float)
     parser.add_argument("--slit", default=0, help="Slit number to wavelength calibrate", type=int)
     parser.add_argument("--det", default=1, help="Detector index", type=int)
 
@@ -92,7 +92,8 @@ def main(args):
     arccen, arc_maskslit = wavecal.extract_arcs()
 
     # Launch the identify window
-    arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib)
+    arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
+                                        wavelim=[args.wmin, args.wmax])
     final_fit = arcfitter.get_results()
 
     # Ask the user if they wish to store the result in PypeIt calibrations
