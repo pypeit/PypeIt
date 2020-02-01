@@ -96,7 +96,7 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return
         #
         hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        self.pypeitImage.to_file(_outfile, primary_hdr=hdr, prefix='ARC_')#, iext='ARC')
+        self.pypeitImage.to_file(_outfile, primary_hdr=hdr, hdu_prefix='ARC_')#, iext='ARC')
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
@@ -119,6 +119,6 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if master_file is None:
             return
         # Load it up
-        self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file)
+        self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file, hdu_prefix='ARC_')
         return self.pypeitImage
 

@@ -754,7 +754,7 @@ class DataContainer:
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
         """
         Parse data read from a set of HDUs.
 
@@ -851,12 +851,16 @@ class DataContainer:
         # implement this restriction.
 
         # HDUs can have dictionary elements directly.
+        if hdu_prefix is None:
+            prefix = ''
+        else:
+            prefix = hdu_prefix.upper()
         keys = np.array(list(d.keys()))
-        indx = np.isin([key.upper() for key in keys], _ext)
+        indx = np.isin([prefix+key.upper() for key in keys], _ext)
         if np.any(indx):
             for e in keys[indx]:
-                d[e] = hdu[e.upper()].data if isinstance(hdu[e.upper()], fits.ImageHDU) \
-                        else Table.read(hdu[e.upper()])
+                d[e] = hdu[prefix+e.upper()].data if isinstance(hdu[prefix+e.upper()], fits.ImageHDU) \
+                        else Table.read(hdu[prefix+e.upper()])
 
 
         for e in _ext:
@@ -992,7 +996,8 @@ class DataContainer:
             primary_hdr (`astropy.io.fits.Header`, optional):
                 Header to add to the primary if add_primary=True
             hdu_prefix (str, optional):
-                Prefix for HDU name
+                Prefix for HDU name.  Convenient (required) for writing more several
+                DataContainers of the same name
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -1025,7 +1030,7 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu):
+    def from_hdu(cls, hdu, hdu_prefix=None):
         """
         Instantiate the object from an HDU extension.
 
@@ -1044,7 +1049,7 @@ class DataContainer:
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
         self = super().__new__(cls)
-        DataContainer.__init__(self, cls._parse(hdu))
+        DataContainer.__init__(self, cls._parse(hdu, hdu_prefix=hdu_prefix))
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None):
