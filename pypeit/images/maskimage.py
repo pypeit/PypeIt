@@ -67,15 +67,7 @@ class ImageMask(datamodel.DataContainer):
     def __init__(self, bpm, crmask=None, fullmask=None):
 
         # Setup the DataContainer
-        super(ImageMask, self).__init__({'bpm': bpm})
-
-        self.bpm = bpm
-
-        # Optional attributes
-        if crmask is not None:
-            self.crmask = crmask
-        if fullmask is not None:
-            self.fullmask = fullmask
+        super(ImageMask, self).__init__({'bpm': bpm, 'crmask': crmask, 'fullmask': fullmask})
 
     def _bundle(self):
         """
@@ -201,8 +193,8 @@ class ImageMask(datamodel.DataContainer):
             indx = slitmask == -1
             mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
 
-        self.mask = mask
-        return self.mask.copy()
+        self.fullmask = mask
+        return self.fullmask.copy()
 
     def update_mask_slitmask(self, slitmask):
         """
@@ -216,7 +208,7 @@ class ImageMask(datamodel.DataContainer):
         # Pixels excluded from any slit.
         indx = slitmask == -1
         # Finish
-        self.mask[indx] = self.bitmask.turn_on(self.mask[indx], 'OFFSLITS')
+        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'OFFSLITS')
 
     def update_mask_cr(self, crmask_new):
         """
@@ -229,20 +221,9 @@ class ImageMask(datamodel.DataContainer):
             crmask_new (np.ndarray):
                 New CR mask
         """
-        '''
-        # Unset the CR bit from all places where it was set
-        CR_old = (self.bitmask.unpack(self.mask, flag='CR'))[0]
-        mask_new = np.copy(self.mask)
-        mask_new[CR_old] = self.bitmask.turn_off(mask_new[CR_old], 'CR')
-        # Now set the CR bit using the new crmask
+        self.fullmask = self.bitmask.turn_off(self.fullmask, 'CR')
         indx = crmask_new.astype(bool)
-        mask_new[indx] = self.bitmask.turn_on(mask_new[indx], 'CR')
-        # Save
-        self.mask = mask_new.copy()
-        '''
-        self.mask = self.bitmask.turn_off(self.mask, 'CR')
-        indx = crmask_new.astype(bool)
-        self.mask[indx] = self.bitmask.turn_on(self.mask[indx], 'CR')
+        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'CR')
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)

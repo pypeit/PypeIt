@@ -934,7 +934,8 @@ class DataContainer:
             return
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
-            raise TypeError('Incorrect data type for {0}!'.format(item) + 
+            embed(header='937 of datamodel')
+            raise TypeError('Incorrect data type for {0}!'.format(item) +
                             'Allowed type(s) are: {0}'.format(self.datamodel[item]['otype']))
         # Array?
         if 'atype' in self.datamodel[item].keys():

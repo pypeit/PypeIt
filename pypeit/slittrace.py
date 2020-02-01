@@ -68,30 +68,30 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
                  'pad': dict(otype=int,
                              descr='Integer number of pixels to consider beyond the slit edges.'),
                  'nslits': dict(otype=int, descr='Number of slits.'),
-                 'id': dict(otype=np.ndarray, atype=int, descr='Slit ID number'),
-                 'left': dict(otype=np.ndarray, atype=float,
+                 'id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number'),
+                 'left': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
                                     'per slit.  Shape is Nspec by Nslits.'),
-                 'right': dict(otype=np.ndarray, atype=float,
+                 'right': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all right edges, one '
                                     'per slit.  Shape is Nspec by Nslits.'),
-                 'left_tweak': dict(otype=np.ndarray, atype=float,
+                 'left_tweak': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Spatial coordinates (pixel indices) of all left '
                                           'edges, one per slit.  These traces have been adjusted '
                                           'by the flat-field.  Shape is Nspec by Nslits.'),
-                 'right_tweak': dict(otype=np.ndarray, atype=float,
+                 'right_tweak': dict(otype=np.ndarray, atype=np.floating,
                                      descr='Spatial coordinates (pixel indices) of all right '
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
-                 'center': dict(otype=np.ndarray, atype=float,
+                 'center': dict(otype=np.ndarray, atype=np.floating,
                                descr='Spatial coordinates of the slit centers.  Shape is Nspec '
                                      'by Nslits.'),
-                 'mask': dict(otype=np.ndarray, atype=bool,
+                 'mask': dict(otype=np.ndarray, atype=np.bool_,
                               descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
-                 'specmin': dict(otype=np.ndarray, atype=float,
+                 'specmin': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Minimum spectral position allowed for each slit/order.  '
                                        'Shape is Nslits.'),
-                 'specmax': dict(otype=np.ndarray, atype=float,
+                 'specmax': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Maximum spectral position allowed for each slit/order.  '
                                        'Shape is Nslits.')}
     """Provides the class data model."""
@@ -114,7 +114,9 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
         # contain self or the MasterFrame arguments.
         # TODO: Does it matter if the calling function passes the
         # keyword arguments in a different order?
-        datamodel.DataContainer.__init__(self, d={k: values[k] for k in args[1:-3]})
+        datamodel.DataContainer.__init__(self, d=dict(left=left, right=right, nspat=nspat, spectrograph=spectrograph,
+                                                      mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
+                                                      binspat=binspat, pad=pad))
 
     # TODO: Allow defaults for master_key and master_dir
     # TODO: Do we need reuse as an option, or should the calling
@@ -209,7 +211,7 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
         self.to_file(self.master_file_path, overwrite=overwrite, checksum=True)
 
     # NOTE: No need to overwrite DataContainer.to_file, because it will call this function.
-    def to_hdu(self, hdr=None, add_primary=False):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None):
         """
         Write the :class:`SlitTraceSet` data to an
         `astropy.io.fits.BinTableHDU`.
@@ -240,7 +242,7 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
             where the type depends on the value of ``add_primary``.
         """
         # TODO: Use super here?
-        return datamodel.DataContainer.to_hdu(self, hdr=self.build_master_header(hdr=hdr),
+        return datamodel.DataContainer.to_hdu(self, primary_hdr=self.build_master_header(hdr=hdr),
                                               add_primary=add_primary)
 
     def _validate(self):

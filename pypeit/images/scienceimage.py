@@ -241,8 +241,8 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
 
     # Instantiate
     slf = ScienceImage(spectrograph, det, par, pypeitImage.image, pypeitImage.ivar,
-                                pypeitImage.bpm, rn2img=pypeitImage.rn2img,
-                                crmask=pypeitImage.crmask, mask=pypeitImage.mask,
+                                pypeitImage.mask.bpm, rn2img=pypeitImage.rn2img,
+                                crmask=pypeitImage.mask.crmask, mask=pypeitImage.mask.fullmask,
                                 files=file_list)
     # Return
     return slf

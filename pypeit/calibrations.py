@@ -477,6 +477,7 @@ class Calibrations(object):
             traces are not provided, the function returns two None
             objects instead.
         """
+        embed(header='CHOKING ON FLAT IMAGE FOR SHANE_KAST_BLUE ON 2020 Jan 31 (JXP)')
 
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):

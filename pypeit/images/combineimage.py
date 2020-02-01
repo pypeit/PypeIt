@@ -143,8 +143,8 @@ class CombineImage(object):
             else:
                 ivar_stack[kk, :, :] = 1.
             # Mask cosmic rays
-            if pypeitImage.crmask is not None:
-                crmask_stack[kk, :, :] = pypeitImage.crmask
+            if pypeitImage.mask.crmask is not None:
+                crmask_stack[kk, :, :] = pypeitImage.mask.crmask
             # Read noise squared image
             if pypeitImage.rn2img is not None:
                 rn2img_stack[kk, :, :] = pypeitImage.rn2img
@@ -152,9 +152,9 @@ class CombineImage(object):
             # TODO This seems kludgy to me. Why not just pass ignore_saturation to process_one and ignore the saturation
             # when the mask is actually built, rather than untoggling the bit here
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
-                indx = pypeitImage.bitmask.flagged(pypeitImage.mask, flag=['SATURATION'])
-                pypeitImage.mask[indx] = pypeitImage.bitmask.turn_off(pypeitImage.mask[indx], 'SATURATION')
-            mask_stack[kk, :, :] = pypeitImage.mask
+                indx = pypeitImage.mask.bitmask.flagged(pypeitImage.mask.fullmask, flag=['SATURATION'])
+                pypeitImage.mask.fullmask[indx] = pypeitImage.mask.bitmask.turn_off(pypeitImage.mask.fullmask[indx], 'SATURATION')
+            mask_stack[kk, :, :] = pypeitImage.mask.fullmask
 
         # Coadd them
         weights = np.ones(nimages)/float(nimages)
@@ -168,13 +168,13 @@ class CombineImage(object):
         # Build the last one
         final_pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
                                                     ivar=utils.inverse(var_list_out[0]),
-                                                    bpm=pypeitImage.bpm,
+                                                    bpm=pypeitImage.mask.bpm,
                                                     rn2img=var_list_out[1],
                                                     crmask=np.invert(outmask),
                                                     binning=pypeitImage.binning)
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
                                                               apply_gain='apply_gain' in process_steps)
-        final_pypeitImage.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,
+        final_pypeitImage.mask.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,
                                saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
                                mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
         # Return

@@ -136,7 +136,7 @@ class PypeItImage(datamodel.DataContainer):
     def shape(self):
         return () if self.image is None else self.image.shape
 
-    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None, hdu_prefix=None):
+    def to_file(self, ofile, overwrite=True, checksum=True, primary_hdr=None, hdr=None, hdu_prefix=None):
         """ Overload to_file to add in the mask
         """
         # Get PypeitImage hdul
