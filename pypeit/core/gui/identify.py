@@ -860,7 +860,7 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None):
     par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
     # If a wavelength calibration has been performed already, load it:
-    wv_calib = wv_calib_all[str(slit)]
+    wv_calib = wv_calib_all[str(slit)] if wv_calib_all is not None else None
 
     # Extract the lines that are detected in arccen
     thisarc = arccen[:, slit]

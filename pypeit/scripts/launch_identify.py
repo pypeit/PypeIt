@@ -18,16 +18,11 @@ def parser(options=None):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type=str, default=None, help='PypeIt MasterArc file')
-    parser.add_argument("--lamps", default=None, help="Comma separated list of calibration lamps (no spaces)",
-                        action="store_true")
-    parser.add_argument("--wmin", default=3000.0, help="Minimum wavelength range",
-                        action="store_true")
-    parser.add_argument("--wmax", default=10000.0, help="Maximum wavelength range",
-                        action="store_true")
-    parser.add_argument("--slit", default=0, help="Slit number to wavelength calibrate",
-                        action="store_true")
-    parser.add_argument("--det", default=1, help="Detector index",
-                        action="store_true")
+    parser.add_argument("--lamps", default='', help="Comma separated list of calibration lamps (no spaces)", type=str)
+    parser.add_argument("--wmin", default=3000.0, help="Minimum wavelength range", type=float)
+    parser.add_argument("--wmax", default=10000.0, help="Maximum wavelength range", type=float)
+    parser.add_argument("--slit", default=0, help="Slit number to wavelength calibrate", type=int)
+    parser.add_argument("--det", default=1, help="Detector index", type=int)
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -46,8 +41,6 @@ def main(args):
     from pypeit.wavecalib import WaveCalib
     from pypeit import arcimage, edgetrace
     from pypeit.images import pypeitimage
-
-    from IPython import embed
 
     # Load the MasterArc file
     if os.path.exists(args.file):
@@ -69,7 +62,7 @@ def main(args):
     par = spec.default_pypeit_par()['calibrations']['wavelengths']
 
     # Get the lamp list
-    if args.lamps is None:
+    if args.lamps == '':
         lamplist = par['lamps']
         if lamplist is None:
             print("ERROR :: Cannot determine the lamps")
@@ -77,6 +70,12 @@ def main(args):
     else:
         lamplist = args.lamps.split(",")
     par['lamps'] = lamplist
+
+    # Extract binning information
+    binspec, binspat = parse.parse_binning(spec.get_meta_value(msarc.head0['F1'], 'binning'))
+
+    # Set the gain (read gain from headers)
+    _, _, _, _, _ = spec.get_rawimage(msarc.head0['F1'], args.det)
 
     # Load the tslits_dict
     trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Edges', mkey, file_format='fits.gz'))
@@ -87,10 +86,10 @@ def main(args):
     wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) else None
 
     # Load the MasterFrame (if it exists and is desired)?
-    wavecal = WaveCalib(msarc, tslits_dict, spec, par)
-    arccen, arc_maskslit = wavecal.extract_arcs()
+    wavecal = WaveCalib(msarc, tslits_dict, spec, par, binspectral=binspec, det=args.det,
+                        master_key=mkey, master_dir=mdir, msbpm=msarc.mask)
 
-    binspec, binspat = parse.parse_binning(spec.get_meta_value(msarc.head0['F1'], 'binning'))
+    arccen, arc_maskslit = wavecal.extract_arcs()
 
     # Launch the identify window
     arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib)
