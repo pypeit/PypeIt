@@ -66,6 +66,7 @@ wavelength solutions.
 This algorithm is optimal for fixed-format spectrographs
 (e.g. X-Shooter, ESI).
 
+.. _wvcalib-fulltemplate:
 Full Template
 -------------
 
@@ -84,6 +85,42 @@ vary (e.g. grating tilts).  We are likely to implement
 this for echelle observations (e.g. HIRES).
 
 
+Identify
+--------
+
+If you would prefer to manually wavelength calibrate, then
+you can do so with the 'identify' task. To launch this task,
+you need to have successfully traced the slit edges, and
+generated a MasterArc calibration frame. To launch a GUI,
+use the following command:
+
+    pypeit_identify MasterArc_A_1_01.fits
+
+Instructions on how to use this GUI are available by pressing
+the '?' key while hovering your mouse over the plotting window.
+Once you have completed the manual calibration, you can save
+your solution (press key 's' while hovering over the plotting
+window). The, update your .pypeit file with the following:
+
+    [calibrations]
+      [[wavelengths]]
+        method=identify
+
+and a GUI will be launched during the reduction. You can now
+load your manual wavelength solution by pressing the 'l' key
+while hovering over the plotting window.
+
+Alternatively, you can add your solution to the PypeIt database.
+If your solution is good enough (rms < 0.1 pixels), then
+pypeit_identify will automatically prompt you after you quit the
+GUI to see if you'd like to add your solution to the PypeIt
+database. Once your solution is in the database, run PypeIt
+in the standard :ref:`wvcalib-fulltemplate` mode. We also
+recommend that you send your solution to the PypeIt development
+team, so that others can benefit from your wavelength calibration
+solution. The file is saved in the following directory:
+
+/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.json
 
 Common Failure Modes
 ====================

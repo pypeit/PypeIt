@@ -43,22 +43,34 @@ class Identify(object):
     file.
     """
 
-    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=0):
+    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=0, wv_calib=None):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
         to be used for wavelength calibration.
 
-        Args:
-            canvas (Matploltib figure canvas): The canvas on which all axes are contained
-            axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
-            spec (Line2D): Matplotlib Line2D instance which contains plotting information of the plotted arc spectrum
-            specres (dict): Three element list of Matplotlib Line2D/path instances, used for residuals plotting
-            detns (ndarray): Detections from the arc spectrum
-            line_lists (Table): Contains information about the line list to be used for wavelength calibration
-            par (WavelengthSolutionPar): Calibration parameters
-            lflag_color (list): List of colors used for plotting
-            slit (int): The slit to be used for wavelength calibration
+        Parameters
+        ----------
+        canvas : Matploltib figure canvas
+            The canvas on which all axes are contained
+        axes : dict
+            Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
+        spec : Matplotlib.Line2D
+            Matplotlib Line2D instance which contains plotting information of the plotted arc spectrum
+        specres : dict
+            Three element list of Matplotlib Line2D/path instances, used for residuals plotting
+        detns : ndarray
+            Detections from the arc spectrum
+        line_lists : astropy.Table
+            Contains information about the line list to be used for wavelength calibration
+        par : class
+            WavelengthSolutionPar Calibration parameters
+        lflag_color : list
+            List of colors used for plotting
+        slit : int
+            The slit to be used for wavelength calibration
+        wv_calib : :obj:`dict`, None, optional
+            If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
         """
         # Store the axes
         self.axes = axes
@@ -127,6 +139,11 @@ class Identify(object):
         self._qconf = False  # Confirm quit message
         self._changes = False
         self._wavepix = 1   # Show wavelength (0) or pixels (1) on the x-axis of the main panel
+
+        # If an initial solution is available, load it
+        if wv_calib is not None:
+            self.load_IDs(wv_calib=wv_calib)
+            self.fitsol_fit()
 
         # Draw the spectrum
         self.replot()
@@ -778,10 +795,17 @@ class Identify(object):
         """
         self._fitregions[self._start:self._end] = self._addsub
 
-    def load_IDs(self, fname='waveid.ascii'):
+    def load_IDs(self, wv_calib=None, fname='waveid.ascii'):
         """Load line IDs
         """
-        if os.path.exists(fname):
+        if wv_calib is not None:
+            for ii in range(wv_calib['pixel_fit'].size):
+                idx = np.argmin(np.abs(self._detns-wv_calib['pixel_fit'][ii]))
+                self._lineids[idx] = wv_calib['wave_fit'][ii]
+                self._lineflg[idx] = int(wv_calib['mask'][ii])
+            self._fitdict['polyorder'] = len(wv_calib['fitc'])-1
+            msgs.info("Loaded line IDs")
+        elif os.path.exists(fname):
             data = ascii_io.read(fname, format='fixed_width')
             self._detns = data['pixel']
             self._lineids = data['wavelength']
@@ -809,22 +833,34 @@ class Identify(object):
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
 
 
-def initialise(arccen, slit=0, par=None):
+def initialise(arccen, slit=0, par=None, wv_calib_all=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
-        Args:
-            arccen (ndarray): Arc spectrum
-        slit (int): The slit to be used for wavelength calibration
-
-        Returns:
-            ident (Identify): Returns an instance of the Identify class, which contains the results of the fit
-
-        Todo:
+        TODO ::
             * Implement multislit functionality
+
+        Parameters
+        ----------
+        arccen : ndarray
+            Arc spectrum
+        slit : int, optional
+            The slit to be used for wavelength calibration
+        par : :obj:`int`, optional
+            The slit to be used for wavelength calibration
+        wv_calib_all : :obj:`dict`, None, optional
+            If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+
+        Returns
+        -------
+        class
+            Returns an instance of the Identify class, which contains the results of the fit
     """
 
     # Double check that a WavelengthSolutionPar was input
     par = pypeitpar.WavelengthSolutionPar() if par is None else par
+
+    # If a wavelength calibration has been performed already, load it:
+    wv_calib = wv_calib_all[str(slit)]
 
     # Extract the lines that are detected in arccen
     thisarc = arccen[:, slit]
@@ -888,7 +924,7 @@ def initialise(arccen, slit=0, par=None):
     axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
     # Initialise the identify window and display to screen
     fig.canvas.set_window_title('PypeIt - Identify')
-    ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit)
+    ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit, wv_calib=wv_calib)
     plt.show()
 
     # Now return the results
