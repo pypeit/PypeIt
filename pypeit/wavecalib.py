@@ -21,7 +21,6 @@ from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
 
 
-
 class WaveCalib(masterframe.MasterFrame):
     """
     Class to guide wavelength calibration
@@ -83,7 +82,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.par = par
 
         # Optional parameters
-        self.bpm = msbpm
+        self.bpm = msarc.mask if msbpm is None else msbpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
