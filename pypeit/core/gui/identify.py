@@ -20,6 +20,8 @@ from astropy.table import Table
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
                     "         Navigate (LMB drag = pan, RMB drag = zoom)",
+                   'left'  : "Advance the line list slider to the left by one",
+                   'right' : "Advance the line list slider to the right by one",
                    'p' : "Toggle pan/zoom with the cursor",
                    'q' : "Close Identify window and continue PypeIt reduction",
                    'a' : "Automatically identify lines using current solution",
@@ -580,6 +582,16 @@ class Identify(object):
 
         if key == '?':
             self.print_help()
+        elif key == 'left':
+            widx = self._slideval - 1
+            if widx < 0:
+                widx = self._lines.size-1
+            self.linelist_update(widx)
+        elif key == 'right':
+            widx = self._slideval + 1
+            if widx >= self._lines.size:
+                widx = 0
+            self.linelist_update(widx)
         elif key == 'a':
             if self._fitdict['coeff'] is not None:
                 self.auto_id()
@@ -678,11 +690,14 @@ class Identify(object):
         """Calculate the wavelength at a pixel
 
         Args:
-            xfit (ndarray, float): Pixel values that the user wishes to evaluate the wavelength
-            idx (int): Index of the arc line detections that the user wishes to evaluate the wavelength
+            xfit : ndarray, float
+                Pixel values that the user wishes to evaluate the wavelength
+            idx : ndarray, int
+                Index of the arc line detections that the user wishes to evaluate the wavelength
 
         Returns:
-            disp (ndarray, float, None): The wavelength (Angstroms) of the requested pixels
+            disp : ndarray, float, None
+                The wavelength (Angstroms) of the requested pixels
         """
         if xfit is None:
             xfit = self._detns
