@@ -437,7 +437,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = ''
             #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         if self.get_meta_value(headarr, 'dispname') == 'BM':
-            par['calibrations']['wavelengths']['method'] = 'identify'#'full_template'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = ''
             #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
 
