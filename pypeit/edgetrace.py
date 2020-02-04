@@ -1373,18 +1373,17 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     else np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
                                                     for b in np.unique(self.spat_msk)])).tolist()
 
+    # TODO: Break the ginga commands out into a separate method?
     ## TODO It is confusing that this show routine shows images flipped from the PypeIt convention.
     ## It should be rewritten to show images with spectral direction vertical like all our other QA.
-    def show(self, traceid=None, include_error=False, thin=1, in_ginga=False, include_img=False,
-             include_sobel=False, img_buffer=100, flag=None, idlabel=False):
+    def show(self, include_error=False, thin=1, in_ginga=False, include_img=False,
+             include_sobel=False, img_buffer=100, flag=None, idlabel=False, slits=None,
+             original=False):
         """
         Show a scatter plot of the current trace data and fit, if
         it's available.
 
         Args:
-            traceid (:obj:`int`, array-like, optional):
-                ID number(s) for traces to show. If None, all traces
-                are plotted.
             include_error (:obj:`bool`, optional):
                 Show the errors on the measurements
             thin (:obj:`int`, optional):
@@ -1393,8 +1392,17 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 plot all data; to show every other datum, set
                 `thin=2`.
             in_ginga (:obj:`bool`, optional):
-                Show the trace against the trace image in a ginga
-                viewer instead of a line and scatter plot.
+                Display the trace data in a ginga. If a ginga window
+                is not open, this instantiates one; otherwise, the
+                existing ginga window is cleared. The trace image is
+                shown in one window and the sobel image is shown in a
+                second. The edge traces themselves are shown in both
+                windows. Any masking is ignored except that any
+                traces that are fully masked (see
+                :func:`fully_masked_traces`) are *not* shown. If a
+                SlitTraceSet object is *not* provided, the data shown
+                is the modeled results for the trace if it exists,
+                and the measured trace locations otherwise.
             include_img (:obj:`bool`, optional):
                 Overlay the trace data on the trace image; mutually
                 exclusive with `include_sobel`.
@@ -1413,137 +1421,162 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 the specified bits are plotted.
             idlabel (:obj:`bool`, optional):
                 Label each trace by their ID numbers.
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
+                Slits to plot instead of those kept internally. Note
+                that, if this is provided, the "modeled" and
+                "measured" slit locations are identical.
+            original (:obj:`bool`, optional):
+                When ``slits`` are provided and tweaked slits are
+                available, this selects which traces to show. If
+                True, show the original slit traces; if False, show
+                the tweaked ones.
         """
         if include_img and include_sobel:
             msgs.error('Cannot show both the trace image and the filtered version.')
+
+        # Build the slit edge data to plot.
+        if slits is None:
+            # Use the internals. Any masked data is excluded; masked
+            # data to be plotted are held in a separate array. This
+            # means that errors and fits are currently never plotted
+            # for masked data.
+            _flag = None if flag in ['any', None] else np.atleast_1d(flag)
+            cen = np.ma.MaskedArray(self.spat_cen, mask=self.bitmask.flagged(self.spat_msk))
+            fit = self.spat_fit
+            err = np.ma.MaskedArray(self.spat_err, mask=np.ma.getmaskarray(cen).copy())
+            msk = None if flag is None \
+                    else np.ma.MaskedArray(self.spat_cen, mask=np.invert(
+                                           self.bitmask.flagged(self.spat_msk, flag=_flag)))
+            is_left = self.is_left
+            is_right = self.is_right
+            _include_error = include_error
+            gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                     exclude=self.bitmask.exclude_flags))
+            traceid = self.traceid
+            nslits = np.amax(traceid)   # Only used if synced is True
+            synced = self.is_synced
+        else:
+            # Use the provided SlitTraceSet
+            _include_error = False
+            if include_error:
+                msgs.warn('SlitTraceSet object has no errors.')
+            left, right = slits.select_edges(original=original)
+            cen = np.hstack((left,right))
+            fit = cen
+            msk = None
+            nslits = slits.nslits
+            is_left = np.ones(2*nslits, dtype=bool)
+            is_left[nslits:] = False
+            is_right = np.invert(is_left)
+            gpm = np.ones(2*nslits, dtype=bool)
+            traceid = np.concatenate((-np.arange(nslits), np.arange(nslits)))
+            synced = True
+
         if in_ginga:
-            # TODO JFH This can easily be fixed.
-            # Currently can only show in ginga if the edges are
-            # synchronized into slits
-            if not self.is_synced:
-                msgs.error('To show in ginga, slit edges must be left-right synchronized.')
+            # Set up the appropriate keyword arguments for the IDs
+            id_kwargs = {'slit_ids': np.arange(nslits)+1} if synced \
+                            else {'left_ids': traceid[gpm & is_left],
+                                  'right_ids': traceid[gpm & is_right]}
+            _trc = cen if fit is None else fit
+
+            # Connect to or instantiate ginga window
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
-            # Show Image
-            viewer, ch = ginga.show_image(self.img, 'Trace Image')
-            if self.is_empty:
-                msgs.info('No traces defined.')
-                return
-            # Plot traces
-            # TODO: add masking
-            right = self.traceid > 0
-            cen = self.spat_cen if self.spat_fit is None else self.spat_fit
-            ginga.show_slits(viewer, ch, cen[:,np.invert(right)], cen[:,right],
-                             self.traceid[right], pstep=thin)
+            # Clear the viewer and show the trace image
+            trace_viewer, trace_ch = ginga.show_image(self.img, chname='Trace Image', clear=True)
+            if not self.is_empty:
+                ginga.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
+                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+
+            # Show the Sobel sigma image (do *not* clear)
+            sobel_viewer, sobel_ch = ginga.show_image(self.sobel_sig, chname='Sobel Filtered')
+            if not self.is_empty:
+                ginga.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
+                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
             return
 
         # Show the traced image
         if include_img:
             img_zlim = utils.growth_lim(self.img, 0.95, fac=1.05)
-            plt.imshow(self.img.T, origin='lower', interpolation='nearest', aspect='auto',
+            plt.imshow(self.img, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=img_zlim[0], vmax=img_zlim[1])
         elif include_sobel:
             sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
-            plt.imshow(self.sobel_sig.T, origin='lower', interpolation='nearest', aspect='auto',
+            plt.imshow(self.sobel_sig, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=sob_zlim[0], vmax=sob_zlim[1])
 
         if self.is_empty:
             msgs.info('No traces defined.')
-            plt.xlim(-img_buffer, self.nspec+img_buffer)
-            plt.ylim(-img_buffer, self.nspat+img_buffer)
-            plt.xlabel('Spectral pixel index')
-            plt.ylabel('Spatial pixel index')
+            plt.xlim(-img_buffer, self.nspat+img_buffer)
+            plt.ylim(-img_buffer, self.nspec+img_buffer)
+            plt.ylabel('Spectral pixel index')
+            plt.xlabel('Spatial pixel index')
             plt.show()
             return
-
-        # Build the data to plot. Any masked data is excluded; masked
-        # data to be plotted are held in a separate array. This means
-        # that errors and fits are currently never plotted for masked
-        # data.
-        _flag = None if flag in ['any', None] else np.atleast_1d(flag)
-        cen = np.ma.MaskedArray(self.spat_cen, mask=self.bitmask.flagged(self.spat_msk))
-        err = np.ma.MaskedArray(self.spat_err, mask=np.ma.getmaskarray(cen).copy())
-        msk = None if flag is None \
-                    else np.ma.MaskedArray(self.spat_cen, mask=np.invert(
-                                            self.bitmask.flagged(self.spat_msk, flag=_flag)))
-
-        # Select the traces to show
-        trace_indx = np.ones(self.ntrace, dtype=bool) if traceid is None \
-                        else np.isin(self.traceid, np.atleast_1d(traceid))
 
         # Spectral position
         spec = np.tile(np.arange(self.nspec), (self.ntrace,1)).T
 
-        if include_error:
+        if _include_error:
+            indx = is_left | is_right
             # Show the errors
-            plt.errorbar(spec[::thin,trace_indx].ravel(), cen[::thin,trace_indx].ravel(),
-                         yerr=err[::thin,trace_indx].ravel(), fmt='none', ecolor='k',
-                         elinewidth=0.5, alpha=0.3, capthick=0, zorder=3)
-
+            plt.errorbar(cen[::thin,indx].ravel(), spec[::thin,indx].ravel(),
+                         xerr=err[::thin,indx].ravel(), fmt='none', ecolor='k', elinewidth=0.5,
+                         alpha=0.3, capthick=0, zorder=3)
         # Plot the left trace points
-        left = (self.traceid < 0) & trace_indx
-        plt.scatter(spec[::thin,left], cen[::thin,left], marker='.', color='k', s=30,
+        plt.scatter(cen[::thin,is_left], spec[::thin,is_left], marker='.', color='k', s=30,
                     lw=0, zorder=4, label='left edge measurements', alpha=0.8)
         if msk is not None:
-            plt.scatter(spec[::thin,left], msk[::thin,left], marker='x', color='C3', s=20,
+            plt.scatter(msk[::thin,is_left], spec[::thin,is_left], marker='x', color='C3', s=20,
                         lw=0.5, zorder=5, label='masked left edges', alpha=0.8)
 
         # Plot the right trace points
-        right = (self.traceid > 0) & trace_indx
-        plt.scatter(spec[::thin,right], cen[::thin,right], marker='.', color='0.7',
+        plt.scatter(cen[::thin,is_right], spec[::thin,is_right], marker='.', color='0.7',
                     s=30, lw=0, zorder=4, label='right edge measurements', alpha=0.8)
         if msk is not None:
-            plt.scatter(spec[::thin,right], msk[::thin,right], marker='x', color='C1', s=20,
+            plt.scatter(msk[::thin,is_right], spec[::thin,is_right], marker='x', color='C1', s=20,
                         lw=0.5, zorder=5, label='masked right edges', alpha=0.8)
 
         if idlabel:
             # Label the traces by their ID number
             for i in range(self.ntrace):
-                if not trace_indx[i]:
-                    continue
                 indx = np.invert(cen.mask[:,i])
                 if not np.any(indx):
                     continue
                 _spec = spec[:,i][indx]
                 _cen = cen[:,i][indx]
-                plt.text(_spec[_spec.size//2], _cen[_spec.size//2], str(self.traceid[i]),
+                plt.text(_cen[_spec.size//2], _spec[_spec.size//2], str(self.traceid[i]),
                          color='k', fontsize=16, alpha=0.7, zorder=10)
 
-        if self.spat_fit is None:
+        if fit is None:
             # No fits, so we're done
             plt.legend()
             plt.show()
             return
 
         # Plot the trace fits
-        show_fit = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                      exclude=self.bitmask.exclude_flags))
         for i in range(self.ntrace):
-            if not trace_indx[i]:
-                continue
-            if not show_fit[i]:
+            if not gpm[i]:
                 continue
             # If statement structure primarily for the labels. Only
             # difference between left and right is the color.
-            if left[i]:
-                left_line = plt.plot(spec[::thin,i], self.spat_fit[::thin,i], color='C3', lw=1,
-                                     zorder=6)
-            elif right[i]:
-                right_line = plt.plot(spec[::thin,i], self.spat_fit[::thin,i], color='C1', lw=1,
-                                      zorder=6)
+            if is_left[i]:
+                left_line = plt.plot(fit[::thin,i], spec[::thin,i], color='C3', lw=1, zorder=6)
+            elif is_right[i]:
+                right_line = plt.plot(fit[::thin,i], spec[::thin,i], color='C1', lw=1, zorder=6)
 
             if idlabel and np.all(cen.mask[:,i]):
-                plt.text(spec[self.nspec//2,i], self.spat_fit[self.nspec//2,i],
-                         str(self.traceid[i]), color='k', fontsize=16, alpha=0.7, zorder=10)
+                plt.text(spec[self.nspec//2,i], fit[self.nspec//2,i], str(traceid[i]), color='k',
+                         fontsize=16, alpha=0.7, zorder=10)
 
         # Limits and labels
-        plt.xlim(-img_buffer, self.nspec+img_buffer)
-        plt.ylim(-img_buffer, self.nspat+img_buffer)
-        if np.any(left & trace_indx & show_fit):
+        plt.xlim(-img_buffer, self.nspat+img_buffer)
+        plt.ylim(-img_buffer, self.nspec+img_buffer)
+        if np.any(is_left & gpm):
             left_line[0].set_label('left edge fit')
-        if np.any(right & trace_indx & show_fit):
+        if np.any(is_right & gpm):
             right_line[0].set_label('right edge fit')
-        plt.xlabel('Spectral pixel index')
-        plt.ylabel('Spatial pixel index')
+        plt.ylabel('Spectral pixel index')
+        plt.xlabel('Spatial pixel index')
         plt.legend()
         plt.show()
 
@@ -1577,7 +1610,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Spectral pixel coordinate vector and global plot limits
         spec = np.arange(self.nspec)
-        xlim = [-1,self.nspec]
+        ylim = [-1,self.nspec]
         img_zlim = utils.growth_lim(self.img, 0.95, fac=1.05)
         sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
 
@@ -1586,8 +1619,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         fig = plt.figure(figsize=(1.5*w,1.5*h))
 
         # Grid for plots
-        n = np.array([2,3])
-        buff = np.array([0.05, 0.03])
+        n = np.array([4,3])
+        buff = np.array([0.05, 0.02])
         strt = np.array([0.07, 0.04])
         end = np.array([0.99, 0.99])
         delt = (end-(n-1)*buff-strt)/n
@@ -1609,62 +1642,46 @@ class EdgeTraceSet(masterframe.MasterFrame):
             ii = j - jj*n[0]
 
             # Plot coordinates
-            ax_x = strt[0]+ii*(buff[0]+delt[0])
-            ax_y0 = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
+            ax_x0 = strt[0]+ii*(buff[0]+delt[0])
+            ax_y = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
 
             # Spatial pixel plot limits for this trace
             indx = np.invert(self.bitmask.flagged(self.spat_msk[:,i], flag=self.bitmask.bad_flags))
-            ylim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
-            if min_spat is not None and np.diff(ylim) < min_spat:
-                ylim = np.sum(ylim)/2 + np.array([-1,1])*min_spat/2
+            xlim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
+            if min_spat is not None and np.diff(xlim) < min_spat:
+                xlim = np.sum(xlim)/2 + np.array([-1,1])*min_spat/2
 
             # Plot the trace image and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0 + 2*delt[1]/3, delt[0], delt[1]/3.])
+            ax = fig.add_axes([ax_x0, ax_y, delt[0]/2, delt[1]])
             ax.minorticks_on()
             ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
             ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-            ax.xaxis.set_major_formatter(ticker.NullFormatter())
-            ax.imshow(self.img.T, origin='lower', interpolation='nearest', vmin=img_zlim[0],
+            ax.imshow(self.img, origin='lower', interpolation='nearest', vmin=img_zlim[0],
                       vmax=img_zlim[1], aspect='auto')
             if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
-            ax.text(0.95, 0.8, 'Trace {0}'.format(self.traceid[i]), ha='right', va='center',
-                    transform=ax.transAxes, fontsize=12)
-
-            # Plot the filtered image and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0 + delt[1]/3, delt[0], delt[1]/3.])
-            ax.minorticks_on()
-            ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
-            ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
-            ax.set_xlim(xlim)
-            ax.set_ylim(ylim)
-            ax.xaxis.set_major_formatter(ticker.NullFormatter())
-            ax.imshow(self.sobel_sig.T, origin='lower', interpolation='nearest', vmin=sob_zlim[0],
-                      vmax=sob_zlim[1], aspect='auto')
-            if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
+                ax.plot(self.spat_fit[:,i], spec, color='C3' if self.traceid[i] < 0 else 'C1')
+            ax.text(0.07, 0.93,'{0}'.format(self.traceid[i]), ha='left', va='center',
+                    transform=ax.transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.3))
             if ii == 0:
-                ax.text(-0.13, 0.5, 'Spatial Coordinate (pix)', ha='center', va='center',
+                ax.text(-0.55, 0.5, 'Spectral Coordinate (pix)', ha='center', va='center',
                         transform=ax.transAxes, rotation='vertical')
 
-            # Plot the trace centroids and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0, delt[0], delt[1]/3.])
+            # Plot the filtered image and the fit (if it exists)
+            ax = fig.add_axes([ax_x0 + delt[0]/2, ax_y, delt[0]/2, delt[1]])
             ax.minorticks_on()
             ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
             ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-            ax.scatter(spec[indx], self.spat_cen[indx,i], marker='.', s=50, color='k', lw=0)
-            nindx = np.invert(indx)
-            if np.any(nindx):
-                ax.scatter(spec[nindx], self.spat_cen[nindx,i], marker='x', s=30, color='0.5',
-                           lw=0.5)
+            ax.yaxis.set_major_formatter(ticker.NullFormatter())
+            ax.imshow(self.sobel_sig, origin='lower', interpolation='nearest', vmin=sob_zlim[0],
+                      vmax=sob_zlim[1], aspect='auto')
             if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
+                ax.plot(self.spat_fit[:,i], spec, color='C3' if self.traceid[i] < 0 else 'C1')
             if jj == n[1]-1:
-                ax.text(0.5, -0.3, 'Spectral Coordinate (pix)', ha='center', va='center',
+                ax.text(0.0, -0.1, 'Spatial Coordinate (pix)', ha='center', va='center',
                         transform=ax.transAxes)
 
             # Prepare for the next trace plot

@@ -1,4 +1,8 @@
-""" Core module for methods related to flat fielding
+"""
+Core module for methods related to flat fielding.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import inspect
 import copy

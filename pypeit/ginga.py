@@ -230,77 +230,148 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     return viewer, ch
 
-
-def show_slits(viewer, ch, lord_in, rord_in, slit_ids=None, rotate=False, pstep=50, clear=False):
-    """ Overplot slits on the image in Ginga in the given channel
+# TODO: Should we continue to allow rotate as an option?
+def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, rotate=False,
+               pstep=50, clear=False, synced=False):
+    r"""
+    Overplot slits on the image in Ginga in the given channel
 
     Args:
-        viewer (ginga.util.grc.RemoteClient):  Ginga RC viewer
-        ch (ginga.util.grc._channel_proxy): Ginga channel
-        lord_in (ndarray):  One or 2d array of left slit edges
-        rord_in (ndarray):  One or 2d array of right slit edges
-        slit_ids (list, optional): List of slit IDs (int)
-        rotate (bool, optional):
+        viewer (ginga.util.grc.RemoteClient):
+            Ginga RC viewer
+        ch (ginga.util.grc._channel_proxy):
+            Ginga channel
+        left (`numpy.ndarray`_):
+            Array with left slit edges. Shape must be :math:`(N_{\rm
+            spec},)` or :math:`(N_{\rm spec}, N_{\rm l-edge})`, and
+            can be different from ``right`` unless ``synced`` is
+            True.
+        right (`numpy.ndarray`_):
+            Array with right slit edges. Shape must be :math:`(N_{\rm
+            spec},)` or :math:`(N_{\rm spec}, N_{\rm r-edge})`, and
+            can be different from ``left`` unless ``synced`` is True.
+        slit_ids (:obj:`int`, array-like, optional):
+            ID numbers for the slits. If None, IDs run from -1 to
+            :math:`-N_{\rm slits}`. If not None, shape must be
+            :math:`(N_{\rm slits},)`. These are only used if
+            ``synced`` is True.
+        left_ids (:obj:`int`, array-like, optional):
+            ID numbers for the left edges. If None, IDs run from -1
+            to :math:`-N_{\rm l-edge}`. If not None, shape must be
+            :math:`(N_{\rm l-edge},)`. These are only used if
+            ``synced`` is False.
+        right_ids (:obj:`int`, array-like, optional):
+            ID numbers for the right edges. If None, IDs run from -1
+            to :math:`-N_{\rm r-edge}`. If not None, shape must be
+            :math:`(N_{\rm r-edge},)`. These are only used if
+            ``synced`` is False.
+        rotate (:obj:`bool`, optional):
             Rotate the image?
-        pstep (int, optional):
-            Show every pstep point of the edges as opposed to *every* point, recommended for speed
-        clear (bool, optional):
+        pstep (:obj:`bool`, optional):
+            Show every pstep point of the edges as opposed to *every*
+            point, recommended for speed.
+        clear (:obj:`bool`, optional):
             Clear the canvas?
-
+        synced (:obj:`bool`, optional):
+            Flag the left and right traces are synced into slits.
+            Otherwise, the edges are treated separately. If True, the
+            number of left and right edges must be the same and
+            ``left_ids`` and ``right_ids`` are ignored.
     """
-    # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
-    # vectors of size (nspec)
-    if lord_in.ndim == 2:
-        nslit = lord_in.shape[1]
-        lordloc = lord_in
-        rordloc = rord_in
+    # Setup the trace data and IDs
+    _left = left.reshape(-1,1) if left.ndim == 1 else left
+    nleft = _left.shape[1]
+
+    _right = right.reshape(-1,1) if right.ndim == 1 else right
+    nright = _right.shape[1]
+    
+    nspec = _left.shape[0]
+    if _right.shape[0] != nspec:
+        # TODO: Any reason to remove this restriction?
+        msgs.error('Input left and right edges have different spectral lengths.')
+
+    # Check input
+    if synced:
+        if left.shape != right.shape:
+            msgs.error('Input left and right traces must have the same shape if they have been '
+                       'synchronized into slits.')
+        if left_ids is not None or right_ids is not None:
+            msgs.warn('For showing synced edges, left and right ID numbers are ignored.')
+        nslits = left.shape[1]
+        _left_ids = None
+        _right_ids = None
+        _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
+        if len(_slit_ids) != nslits:
+            msgs.error('Incorrect number of slit IDs provided.')
+        _slit_id_loc = _left + 0.45*(_right - _left)
     else:
-        nslit = 1
-        lordloc = lord_in.reshape(lord_in.size,1)
-        rordloc = rord_in.reshape(rord_in.size,1)
-
-    slitcen = lordloc + 0.45*(rordloc - lordloc)
-    if slit_ids is None:
-        slit_ids = [str(slit) for slit in np.arange(nslit)]
-
-    # Deal with case that slit_ids is input as a scalar
-    if hasattr(slit_ids,"__len__") == False:
-        slit_ids = [slit_ids]
+        _left_ids = -np.arange(nleft) if left_ids is None else np.atleast_1d(left_ids)
+        if len(_left_ids) != nleft:
+            msgs.error('Incorrect number of left IDs provided.')
+        _left_id_loc = _left*1.05
+        _right_ids = -np.arange(nright) if right_ids is None else np.atleast_1d(right_ids)
+        if len(_right_ids) != nright:
+            msgs.error('Incorrect number of right IDs provided.')
+        _right_id_loc = _right*(1-0.05)
 
     # Canvas
     canvas = viewer.canvas(ch._chname)
     if clear:
         canvas.clear()
-    # y-axis
-    y = (np.arange(lordloc.shape[0])).tolist()
-    #ohf = lordloc.shape[0] // 2
-    top = int(2*lordloc.shape[0]/3.)
-    bot = int(0.2*lordloc.shape[0])
-    # Loop on slits
-    for slit in range(lordloc.shape[1]):
-        # Edges
-        for kk,item in enumerate([lordloc, rordloc]):
-            if kk == 0:
-                clr = str('green')
-            else:
-                clr = str('red')
-            if rotate:
-                points = list(zip(y[::pstep],item[::pstep,slit].tolist()))
-            else:
-                points = list(zip(item[::pstep,slit].tolist(),y[::pstep]))
-            canvas.add(str('path'), points, color=clr)
-        # Text -- Should use the 'real' name
-        if rotate:
-            xt, yt = float(y[top]), float(slitcen[top,slit])
-            xb, yb = float(y[bot]), float(slitcen[bot,slit])
-        else:
-            xt, yt = float(slitcen[top,slit]), float(y[top])
-            xb, yb = float(slitcen[bot,slit]), float(y[bot])
-        canvas.add(str('text'), xb, yb, str('S{:d}'.format(slit_ids[slit])), color=str('green'),
-                   fontsize=20.)
-        canvas.add(str('text'), xt, yt, str('{:d}'.format(slit)), color=str('red'),
-                   fontsize=20.)
 
+    # Spectral pixel location
+    y = np.arange(nspec)
+
+    # Label positions
+    top = int(2*nspec/3.)
+    bot = int(nspec/5.)
+
+    # Plot lefts, ...
+    for i in range(nleft):
+        points = list(zip(y[::pstep], _left[::pstep,i])) if rotate \
+                    else list(zip(_left[::pstep,i], y[::pstep]))
+        canvas.add(str('path'), points, color=str('red'))
+        if not synced:
+            # Add text
+            xt, yt = float(_left_id_loc[top,i]), float(y[top])
+            xb, yb = float(_left_id_loc[bot,i]), float(y[bot])
+            if rotate:
+                xt, yt = yt, xt
+                xb, yb = yb, xb
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('red'),
+                       fontsize=20.)
+            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('red'), fontsize=20.)
+
+    # ... then rights, ...
+    for i in range(nright):
+        points = list(zip(y[::pstep], _right[::pstep,i])) if rotate \
+                    else list(zip(_right[::pstep,i], y[::pstep]))
+        canvas.add(str('path'), points, color=str('orange'))
+        if not synced:
+            # Add text
+            xt, yt = float(_right_id_loc[top,i]), float(y[top])
+            xb, yb = float(_right_id_loc[bot,i]), float(y[bot])
+            if rotate:
+                xt, yt = yt, xt
+                xb, yb = yb, xb
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('orange'),
+                       fontsize=20.)
+            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('orange'),
+                       fontsize=20.)
+
+    # ... and then add slit labels, if synced.
+    if not synced:
+        return
+    for i in range(nslits):
+        xt, yt = float(_slit_id_loc[top,i]), float(y[top])
+        xb, yb = float(_slit_id_loc[bot,i]), float(y[bot])
+        if rotate:
+            xt, yt = yt, xt
+            xb, yb = yb, xb
+        canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('green'),
+                   fontsize=20.)
+        canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
+                   fontsize=20.) 
 
 
 def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
