@@ -1477,23 +1477,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
             # Clear the viewer and show the trace image
             trace_viewer, trace_ch = ginga.show_image(self.img, chname='Trace Image', clear=True)
-
-            # Set up the appropriate keyword arguments for the IDs
-            id_kwargs = {'slit_ids': np.arange(nslits)+1} if synced \
-                            else {'left_ids': traceid[gpm & is_left],
-                                  'right_ids': traceid[gpm & is_right]}
-
-            # Plot traces in both channels
-            _trc = cen if fit is None else fit
-            ginga.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left], _trc[:,gpm & is_right],
-                             pstep=thin, synced=synced, **id_kwargs)
-            exit()
-
             # Show the Sobel sigma image (do *not* clear)
             sobel_viewer, sobel_ch = ginga.show_image(self.sobel_sig, chname='Sobel Filtered')
             if self.is_empty:
                 msgs.info('No traces defined.')
                 return
+
+            # Set up the appropriate keyword arguments for the IDs
+            id_kwargs = {'slit_ids': np.arange(nslits)+1} if synced \
+                            else {'left_ids': traceid[gpm & is_left],
+                                  'right_ids': traceid[gpm & is_right]}
 
             # Plot traces in both channels
             _trc = cen if fit is None else fit
