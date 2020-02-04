@@ -535,16 +535,15 @@ class CoAdd2d(object):
         The class must be subclassed this class CoAdd2d.
 
         Args:
-            spec2dfiles:
+            spec2dfiles (list):
                 List of spec2d files
-            spectrograph (object):
-                (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
                 The instrument used to collect the data to be reduced.
-            par (object):
-                Parset
+            par (:class:`pypeit.par.parset.ParSet`):
+                Parset object
 
         Returns:
-            :class:`PypeIt`: One of the subclasses with :class:`PypeIt` as its
+            :class:`CoAdd2d`: One of the subclasses with :class:`CoAdd2d` as its
             base.
         """
 
