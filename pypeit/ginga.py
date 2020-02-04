@@ -328,8 +328,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     # Plot lefts, ...
     for i in range(nleft):
-        points = list(zip(_left[::pstep,i], y[::pstep])) if rotate \
-                    else list(zip(y[::pstep], _left[::pstep,i])) 
+        points = list(zip(y[::pstep], _left[::pstep,i])) if rotate \
+                    else list(zip(_left[::pstep,i], y[::pstep]))
         canvas.add(str('path'), points, color=str('red'))
         if not synced:
             # Add text
