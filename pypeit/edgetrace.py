@@ -1610,7 +1610,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Spectral pixel coordinate vector and global plot limits
         spec = np.arange(self.nspec)
-        xlim = [-1,self.nspec]
+        ylim = [-1,self.nspec]
         img_zlim = utils.growth_lim(self.img, 0.95, fac=1.05)
         sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
 
@@ -1619,8 +1619,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         fig = plt.figure(figsize=(1.5*w,1.5*h))
 
         # Grid for plots
-        n = np.array([2,3])
-        buff = np.array([0.05, 0.03])
+        n = np.array([4,3])
+        buff = np.array([0.05, 0.02])
         strt = np.array([0.07, 0.04])
         end = np.array([0.99, 0.99])
         delt = (end-(n-1)*buff-strt)/n
@@ -1642,62 +1642,46 @@ class EdgeTraceSet(masterframe.MasterFrame):
             ii = j - jj*n[0]
 
             # Plot coordinates
-            ax_x = strt[0]+ii*(buff[0]+delt[0])
-            ax_y0 = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
+            ax_x0 = strt[0]+ii*(buff[0]+delt[0])
+            ax_y = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
 
             # Spatial pixel plot limits for this trace
             indx = np.invert(self.bitmask.flagged(self.spat_msk[:,i], flag=self.bitmask.bad_flags))
-            ylim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
-            if min_spat is not None and np.diff(ylim) < min_spat:
-                ylim = np.sum(ylim)/2 + np.array([-1,1])*min_spat/2
+            xlim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
+            if min_spat is not None and np.diff(xlim) < min_spat:
+                xlim = np.sum(xlim)/2 + np.array([-1,1])*min_spat/2
 
             # Plot the trace image and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0 + 2*delt[1]/3, delt[0], delt[1]/3.])
+            ax = fig.add_axes([ax_x0, ax_y, delt[0]/2, delt[1]])
             ax.minorticks_on()
             ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
             ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-            ax.xaxis.set_major_formatter(ticker.NullFormatter())
-            ax.imshow(self.img.T, origin='lower', interpolation='nearest', vmin=img_zlim[0],
+            ax.imshow(self.img, origin='lower', interpolation='nearest', vmin=img_zlim[0],
                       vmax=img_zlim[1], aspect='auto')
             if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
-            ax.text(0.95, 0.8, 'Trace {0}'.format(self.traceid[i]), ha='right', va='center',
-                    transform=ax.transAxes, fontsize=12)
-
-            # Plot the filtered image and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0 + delt[1]/3, delt[0], delt[1]/3.])
-            ax.minorticks_on()
-            ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
-            ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
-            ax.set_xlim(xlim)
-            ax.set_ylim(ylim)
-            ax.xaxis.set_major_formatter(ticker.NullFormatter())
-            ax.imshow(self.sobel_sig.T, origin='lower', interpolation='nearest', vmin=sob_zlim[0],
-                      vmax=sob_zlim[1], aspect='auto')
-            if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
+                ax.plot(self.spat_fit[:,i], spec, color='C3' if self.traceid[i] < 0 else 'C1')
+            ax.text(0.07, 0.93,'{0}'.format(self.traceid[i]), ha='left', va='center',
+                    transform=ax.transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.3))
             if ii == 0:
-                ax.text(-0.13, 0.5, 'Spatial Coordinate (pix)', ha='center', va='center',
+                ax.text(-0.55, 0.5, 'Spectral Coordinate (pix)', ha='center', va='center',
                         transform=ax.transAxes, rotation='vertical')
 
-            # Plot the trace centroids and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0, delt[0], delt[1]/3.])
+            # Plot the filtered image and the fit (if it exists)
+            ax = fig.add_axes([ax_x0 + delt[0]/2, ax_y, delt[0]/2, delt[1]])
             ax.minorticks_on()
             ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
             ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-            ax.scatter(spec[indx], self.spat_cen[indx,i], marker='.', s=50, color='k', lw=0)
-            nindx = np.invert(indx)
-            if np.any(nindx):
-                ax.scatter(spec[nindx], self.spat_cen[nindx,i], marker='x', s=30, color='0.5',
-                           lw=0.5)
+            ax.yaxis.set_major_formatter(ticker.NullFormatter())
+            ax.imshow(self.sobel_sig, origin='lower', interpolation='nearest', vmin=sob_zlim[0],
+                      vmax=sob_zlim[1], aspect='auto')
             if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
+                ax.plot(self.spat_fit[:,i], spec, color='C3' if self.traceid[i] < 0 else 'C1')
             if jj == n[1]-1:
-                ax.text(0.5, -0.3, 'Spectral Coordinate (pix)', ha='center', va='center',
+                ax.text(0.0, -0.1, 'Spatial Coordinate (pix)', ha='center', va='center',
                         transform=ax.transAxes)
 
             # Prepare for the next trace plot
