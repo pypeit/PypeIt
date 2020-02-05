@@ -19,14 +19,14 @@ from pypeit import msgs
 from pypeit.core import coadd
 
 
-class CoAdd1d(object):
+class CoAdd1D(object):
 
     @classmethod
     def get_instance(cls, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
         """
         Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
         """
-        pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
+        pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
             spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
@@ -168,7 +168,7 @@ class CoAdd1d(object):
         return (None,)*4
 
 
-class MultiSlit(CoAdd1d):
+class MultiSlitCoAdd1D(CoAdd1D):
     """
     Child of CoAdd1d for Multislit and Longslit reductions
     """
@@ -217,7 +217,7 @@ class MultiSlit(CoAdd1d):
 
 
 
-class Echelle(CoAdd1d):
+class EchelleCoAdd1D(CoAdd1D):
     """
     Child of CoAdd1d for Echelle reductions
     """

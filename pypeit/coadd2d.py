@@ -30,7 +30,7 @@ from pypeit.spectrographs import util
 from pypeit import calibrations
 
 
-class CoAdd2d(object):
+class CoAdd2D(object):
 
     """
     Main routine to run the extraction for 2d coadds.
@@ -63,7 +63,7 @@ class CoAdd2d(object):
             base.
         """
 
-        return next(c for c in cls.__subclasses__() if c.__name__ == spectrograph.pypeline)(
+        return next(c for c in cls.__subclasses__() if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
             spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights, sn_smooth_npix=sn_smooth_npix,
             ir_redux=ir_redux, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug, **kwargs_wave)
 
@@ -650,7 +650,7 @@ class CoAdd2d(object):
 # 2) specified weights, or if weights is None and auto_weights=True,
 #    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
 
-class MultiSlit(CoAdd2d):
+class MultiSlitCoAdd2D(CoAdd2D):
     """
     Child of Coadd2d for Multislit and Longslit reductions. For documentation see CoAdd2d parent class above.
 
@@ -662,7 +662,7 @@ class MultiSlit(CoAdd2d):
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(MultiSlit, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super(MultiSlitCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                         sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
                                         debug=debug, **kwargs_wave)
@@ -709,8 +709,8 @@ class MultiSlit(CoAdd2d):
             trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
                                        self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
         # Determine the wavelength grid that we will use for the current slit/order
-        wave_bins = get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
-        dspat_bins, dspat_stack = get_spat_bins(thismask_stack, trace_stack_bri)
+        wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
+        dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
         sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
         var_list = []
@@ -828,7 +828,7 @@ class MultiSlit(CoAdd2d):
         return self.offset_slit_cen(slitid, offsets)
 
 
-class Echelle(CoAdd2d):
+class EchelleCoAdd2D(CoAdd2D):
     """
         Child of Coadd2d for Echelle reductions. For documentation see CoAdd2d parent class above.
 
@@ -843,7 +843,7 @@ class Echelle(CoAdd2d):
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(Echelle, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super(EchelleCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                       sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                       show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                                       **kwargs_wave)
