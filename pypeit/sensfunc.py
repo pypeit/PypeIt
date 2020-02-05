@@ -17,7 +17,7 @@ from pypeit.core import telluric
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
 from astropy import table
-from pypeit.core import coadd1d
+from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit.io import initialize_header
@@ -197,8 +197,8 @@ class SensFunc(object):
         msgs.info('Merging sensfunc for {:d} detectors {:}'.format(self.norderdet, self.par['multi_spec_det']))
         wave_splice_min = wave.min()
         wave_splice_max = wave.max()
-        wave_splice, _, _ = coadd1d.get_wave_grid(wave, wave_method='linear', wave_grid_min=wave_splice_min,
-                                                  wave_grid_max=wave_splice_max, samp_fact=1.0)
+        wave_splice, _, _ = coadd.get_wave_grid(wave, wave_method='linear', wave_grid_min=wave_splice_min,
+                                                wave_grid_max=wave_splice_max, samp_fact=1.0)
         sensfunc_splice = np.zeros_like(wave_splice)
         for idet in range(self.norderdet):
             wave_min = self.out_table['WAVE_MIN'][idet]

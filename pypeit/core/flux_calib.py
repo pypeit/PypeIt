@@ -23,7 +23,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
 from pypeit.wavemodel import conv2res
-from pypeit.core import pydl, load, save, coadd1d
+from pypeit.core import pydl, load, save, coadd
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
 
@@ -430,7 +430,7 @@ def apply_sensfunc_spec(wave, counts, ivar, sensfunc, airmass, exptime, mask=Non
     if debug:
         wave_mask = wave > 1.0
         fig = plt.figure(figsize=(12, 8))
-        ymin, ymax = coadd1d.get_ylim(flam, flam_ivar, outmask)
+        ymin, ymax = coadd.get_ylim(flam, flam_ivar, outmask)
         plt.plot(wave[wave_mask], flam[wave_mask], color='black', drawstyle='steps-mid', zorder=1, alpha=0.8)
         plt.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(flam_ivar[wave_mask])), zorder=2, color='red', alpha=0.7,
                        drawstyle='steps-mid', linestyle=':')
@@ -515,12 +515,12 @@ def apply_sensfunc_specobjs(specobjs, sens_meta, sens_table, airmass, exptime, e
                 xmax_ispec = wave[wave_mask].max()
                 xmin.append(xmin_ispec)
                 xmax.append(xmax_ispec)
-                ymin_ispec, ymax_ispec = coadd1d.get_ylim(flam, flam_ivar, outmask)
+                ymin_ispec, ymax_ispec = coadd.get_ylim(flam, flam_ivar, outmask)
                 ymin.append(ymin_ispec)
                 ymax.append(ymax_ispec)
 
                 med_width = (2.0 * np.ceil(0.1 / 10.0 * np.size(wave[outmask])) + 1).astype(int)
-                flam_med, flam_ivar_med = coadd1d.median_filt_spec(flam, flam_ivar, outmask, med_width)
+                flam_med, flam_ivar_med = coadd.median_filt_spec(flam, flam_ivar, outmask, med_width)
                 if extract_type == 'boxcar':
                     plt.plot(wave[wave_mask], flam_med[wave_mask], color='black', drawstyle='steps-mid', zorder=1, alpha=0.8)
                     #plt.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(flam_ivar_med[wave_mask])), zorder=2, color='m',
