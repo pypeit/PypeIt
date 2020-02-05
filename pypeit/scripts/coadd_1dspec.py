@@ -8,7 +8,7 @@ from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs
 import argparse
-from pypeit.core import coadd
+from pypeit import coadd1d
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
@@ -180,7 +180,7 @@ def main(args):
     # text files, whereas there are things like yaml and json that do this well already.
 
     # Instantiate
-    coadd = coadd.CoAdd1d.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
+    coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
                                        debug=args.debug, show=args.show)
     # Run
     coadd.run()
