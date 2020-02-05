@@ -41,19 +41,6 @@ class CoAdd2d(object):
     This performs 2d coadd specific tasks, and then also performs some
     of the tasks analogous to the pypeit.extract_one method. Docs coming
     soon....
-
-    Args:
-        stack_dict:
-        master_dir:
-        det (int):
-        samp_fact: float
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser)
-        ir_redux:
-        par:
-        show:
-        show_peaks:
-
     """
 
 
@@ -66,15 +53,12 @@ class CoAdd2d(object):
 
         The class must be subclassed this class CoAdd2d.
 
-        Args:
-            spec2dfiles (list):
-                List of spec2d files
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                The instrument used to collect the data to be reduced.
-            par (:class:`pypeit.par.parset.ParSet`):
-                Parset object
+        Parameters
+        ----------
+            See the documenation for the __init__ function below
 
-        Returns:
+        Returns
+        -------
             :class:`CoAdd2d`: One of the subclasses with :class:`CoAdd2d` as its
             base.
         """
@@ -87,24 +71,41 @@ class CoAdd2d(object):
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
 
-        Args:
-            spec2d_files:
-            det:
+        Parameters
+        ----------
+            spec2d_files (list):
+               List of spec2d files
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                The instrument used to collect the data to be reduced.
+            par (:class:`pypeit.par.parset.ParSet`):
+                Parset object
+            det (int): optional
+                Detector to reduce
             offsets (ndarray): default=None
                 Spatial offsets to be applied to each image before coadding. For the default mode of None, images
-                are registered automatically using the trace of the brightest object.
+                are registered automatically using the trace of the brightest object. Input offsets are not yet supported.
             weights (str, list or ndarray):
                 Mode for the weights used to coadd images. Options are 'auto' (default), 'uniform', or list/array of
                 weights with shape = (nexp,) can be input and will be applied to the image. Note 'auto' is not allowed
                 if offsets are input, and if set this will cause an exception.
-            sn_smooth_npix:
-            ir_redux:
-            par:
-            std:
-            show:
-            show_peaks:
-            debug:
-            **kwargs_wave:
+            sn_smooth_npix (int): optional, default=None
+                Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
+                set to None, the code will simply take 10% of the image size in the spectral direction.
+                TODO: for truncated echelle orders we should be doing something more intelligent.
+            ir_redux (bool): optional, default=False
+                Is this an near-IR reduction, True=yes. This parameter is passed to pypeit.reduce for determining the
+                reduction steps.
+            show (bool): optional, default=False
+                Show results to ginga
+            show_peaks (bool): optional, default=False
+                Show the QA for object finding algorithm peak finding to the screen.
+            debug_offset (bool): optional, default=False
+                Show QA for debugging the automatic determination of offsets to the screen.
+            debug (bool): optional, default=False
+                Show QA for debugging.
+            **kwargs_wave
+                Keyword arguments pass to `pypeit.core.coadd.get_wvae_grid` which determine how the wavelength grid
+                is created for the 2d coadding.
         """
 
         ## Use Cases:
@@ -651,7 +652,7 @@ class CoAdd2d(object):
 
 class MultiSlit(CoAdd2d):
     """
-    Child of Coadd2d for Multislit and Longslit reductions
+    Child of Coadd2d for Multislit and Longslit reductions. For documentation see CoAdd2d parent class above.
 
         # Multislit can coadd with:
         # 1) input offsets or if offsets is None, it will find the brightest trace and compute them
@@ -829,10 +830,12 @@ class MultiSlit(CoAdd2d):
 
 class Echelle(CoAdd2d):
     """
-    Child of Coadd2d for Multislit and Longslit reductions
+        Child of Coadd2d for Echelle reductions. For documentation see CoAdd2d parent class above.
+
 
         # Echelle can either stack with:
-        # 1) input offsets or if offsets is None, it will find the objid of brightest trace and stack all orders relative to the trace of this object.
+        # 1) input offsets or if offsets is None, it will find the objid of brightest trace and stack all orders relative
+             to the trace of this object.
         # 2) specified weights, or if weights is None and auto_weights=True,
         #    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
 
