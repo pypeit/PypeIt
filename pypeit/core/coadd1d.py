@@ -27,6 +27,7 @@ from pypeit import utils
 from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit import msgs
+from pypeit import io
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
