@@ -18,7 +18,7 @@ from pypeit.core import coadd2d
 from pypeit.core import save
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
-from IPython import embed
+
 
 # TODO: We need an 'io' module where we can put functions like this...
 def read_coadd2d_file(ifile):
