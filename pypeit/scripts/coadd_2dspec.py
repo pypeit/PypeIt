@@ -14,7 +14,7 @@ from astropy.io import fits
 
 from pypeit.pypeit import PypeIt
 from pypeit import par, msgs
-from pypeit.core import coadd2d
+from pypeit import coadd2d
 from pypeit.core import save
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
