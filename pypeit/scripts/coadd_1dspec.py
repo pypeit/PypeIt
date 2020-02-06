@@ -8,7 +8,7 @@ from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs
 import argparse
-from pypeit.core import coadd1d
+from pypeit import coadd1d
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
@@ -181,7 +181,7 @@ def main(args):
 
     # Instantiate
     coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
-                                         debug=args.debug, show=args.show)
+                                       debug=args.debug, show=args.show)
     # Run
     coadd.run()
     # Save to file

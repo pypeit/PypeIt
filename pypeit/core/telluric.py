@@ -13,7 +13,7 @@ from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
 from pypeit.core import save
-from pypeit.core import coadd1d
+from pypeit.core import coadd
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
@@ -494,8 +494,8 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
 
     # Name of function for title in case QA requested
     obj_model_func_name = getattr(obj_model_func, '__name__', repr(obj_model_func))
-    sigma_corr, maskchi = coadd1d.renormalize_errors(chi_vec, mask=totalmask, title = obj_model_func_name,
-                                                     debug=debug)
+    sigma_corr, maskchi = coadd.renormalize_errors(chi_vec, mask=totalmask, title = obj_model_func_name,
+                                                   debug=debug)
     ivartot = flux_ivar/sigma_corr**2
 
     return result, tell_model*obj_model, ivartot
@@ -675,7 +675,7 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     # Create a reference model and bogus noise
     flux_ref = pca_mean * tellmodel
     ivar_ref = utils.inverse((pca_mean/100.0) ** 2)
-    flam_norm_inv = coadd1d.robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=tell_mask)
+    flam_norm_inv = coadd.robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=tell_mask)
     flam_norm = 1.0/flam_norm_inv
 
     # Set the bounds for the PCA and truncate to the right dimension
@@ -720,7 +720,7 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     flam_model_mask = np.isfinite(flam_model)
     # As solve_poly_ratio is designed to multiply a scale factor into the flux, and not the flux_ref, we
     # set the flux_ref to be the data here, i.e. flux
-    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd1d.solve_poly_ratio(
+    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd.solve_poly_ratio(
         wave, flam_model, flam_model_ivar, flux, ivar, obj_params['polyorder_vec'][iord],
         mask=flam_model_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'])
 
@@ -757,7 +757,7 @@ def eval_star_model(theta, obj_dict):
     flam_true = obj_dict['flam_true']
     func = obj_dict['func']
     model = obj_dict['model']
-    ymult = coadd1d.poly_model_eval(theta, func, model, wave_star, wave_min, wave_max)
+    ymult = coadd.poly_model_eval(theta, func, model, wave_star, wave_min, wave_max)
     star_model = ymult*flam_true
 
     return star_model, (star_model > 0.0)
@@ -776,7 +776,7 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     # As solve_poly_ratio is designed to multiply a scale factor into the flux, and not the flux_ref, we
     # set the flux_ref to be the data here, i.e. flux
-    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd1d.solve_poly_ratio(
+    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd.solve_poly_ratio(
         wave, tellmodel, tellmodel_ivar, flux, ivar, obj_params['polyorder_vec'][iord],
         mask=tellmodel_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'], scale_max=1e5)
     # TODO JFH Sticky = False seems to recover better from bad initial fits. Maybe we should change this since poly ratio
@@ -786,7 +786,7 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     if(wave_min != wave.min()) or (wave_max != wave.max()):
         msgs.error('Problem with the wave_min or wave_max')
     # Polynomial model
-    polymodel = coadd1d.poly_model_eval(coeff, obj_params['func'], obj_params['model'], wave, wave_min, wave_max)
+    polymodel = coadd.poly_model_eval(coeff, obj_params['func'], obj_params['model'], wave, wave_min, wave_max)
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
@@ -1028,10 +1028,10 @@ class Telluric(object):
         self.bounds_tell = self.get_bounds_tell()
 
         # 4) Interpolate the input values onto the fixed telluric wavelength grid, clip S/N and process inmask
-        self.flux_arr, self.ivar_arr, self.mask_arr = coadd1d.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
-                                                  self.ivar_in_arr, self.mask_in_arr)
+        self.flux_arr, self.ivar_arr, self.mask_arr = coadd.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
+                                                                        self.ivar_in_arr, self.mask_in_arr)
         # This is a hack to get an interpolate mask indicating where wavelengths are good on each order
-        _, _, self.wave_mask_arr = coadd1d.interp_spec(
+        _, _, self.wave_mask_arr = coadd.interp_spec(
             self.wave_grid, self.wave_in_arr, np.ones_like(self.flux_in_arr), np.ones_like(self.ivar_in_arr),
             (self.wave_in_arr > 1.0).astype(float))
         # Clip the ivar if that is requested (sn_clip = None simply returns the ivar otherwise)
@@ -1269,8 +1269,8 @@ class Telluric(object):
                 msgs.error('If you are specifying a mask you need to pass in the corresponding wavelength grid')
             # TODO we shoudld consider refactoring the interpolator to take a list of images and masks to remove the
             # the fake zero images in the call below
-            _, _, inmask_int = coadd1d.interp_spec(self.wave_grid, wave_inmask, np.ones_like(wave_inmask),
-                                                   np.ones_like(wave_inmask), inmask)
+            _, _, inmask_int = coadd.interp_spec(self.wave_grid, wave_inmask, np.ones_like(wave_inmask),
+                                                 np.ones_like(wave_inmask), inmask)
             # If the data mask is 2d, and inmask is 1d, tile to create the inmask aligned with the data
             if mask.ndim == 2 & inmask.ndim == 1:
                 inmask_out = np.tile(inmask_int, (self.norders, 1)).T

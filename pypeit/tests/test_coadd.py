@@ -10,7 +10,7 @@ from astropy import units
 from linetools.spectra.utils import collate
 from linetools.spectra.xspectrum1d import XSpectrum1D
 
-from pypeit.core import coadd1d
+from pypeit.core import coadd
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import msgs
 from pypeit import utils
