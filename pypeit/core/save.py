@@ -411,6 +411,7 @@ def init_hdus(update_det, outfile):
     if not isinstance(update_det, list):
         update_det = [update_det]
     popme = []
+    embed(header='414 of save')
     # Find em
     for ss,hdu_name in enumerate(hdu_names):
         for det in update_det:

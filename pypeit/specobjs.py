@@ -509,7 +509,7 @@ class SpecObjs(object):
             :class:`astropy.io.fits.Header`:
 
         """
-        header = initialize_header()
+        header = initialize_header(primary=True)
         # Try to pull a few from the original header
         try:
             header['MJD-OBS'] = head_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
