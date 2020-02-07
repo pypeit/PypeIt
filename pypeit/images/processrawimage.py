@@ -160,8 +160,7 @@ class ProcessRawImage(object):
         # Build it
         self.rn2img = procimg.rn_frame(self.datasec_img,
                                        detector['gain'],
-                                       detector['ronoise'],
-                                       numamplifiers=detector['numamplifiers'])
+                                       detector['ronoise'])
         # Return
         return self.rn2img.copy()
 

@@ -267,9 +267,7 @@ def gain_frame(amp_img, gain):
     return gain_img
 
 
-
-
-def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
+def rn_frame(datasec_img, gain, ronoise, numamplifiers=None):
     """ Generate a RN image
 
     Parameters
@@ -280,6 +278,10 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
     rn_img : ndarray
       Read noise *variance* image (i.e. RN**2)
     """
+    # Determine the number of amplifiers from the datasec image
+    if numamplifiers is None:
+        numamplifiers = np.unique(datasec_img).size
+    # Check the input types
     _gain = np.asarray(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
     _ronoise = np.asarray(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
                         else np.array([ronoise])
@@ -775,7 +777,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
     if rnoise is None:
-        rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
+        rnoise = rn_frame(datasec_img, gain, ronoise)
 
     # No sky frame provided
     if skyframe is None:

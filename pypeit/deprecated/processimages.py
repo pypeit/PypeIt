@@ -599,7 +599,7 @@ class ProcessImages(object):
         if trim:
             datasec_img = procimg.trim_frame(datasec_img, datasec_img < 1)
         detector = self.spectrograph.detector[self.det-1]
-        self.rn2img = procimg.rn_frame(datasec_img, detector['gain'], detector['ronoise'], numamplifiers=detector['numamplifiers'])
+        self.rn2img = procimg.rn_frame(datasec_img, detector['gain'], detector['ronoise'])
 
         self.steps.append(inspect.stack()[0][3])
         # Return

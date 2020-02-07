@@ -327,6 +327,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Update detector parameters
         self.set_detector_par('gain', det, gainarr, force_update=True)
+        self.set_detector_par('ronoise', det, [2.7]*numamps, force_update=True)  # Note, if it's a fast read, the RON=5e-
 
         # Return
         return raw_img, [head0], exptime, rawdatasec_img, oscansec_img
@@ -355,7 +356,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
                             nonlinear       = 0.95,       # For lack of a better number!
                             numamplifiers   = 4,          # <-- This is provided in the header
                             gain            = [0]*4,  # <-- This is provided in the header
-                            ronoise         = [0]*4,  # <-- TODO : Need to set this
+                            ronoise         = [0]*4,  # <-- TODO : Need to set this for other setups
                             datasec         = ['']*4,     # <-- This is provided in the header
                             oscansec        = ['']*4,     # <-- This is provided in the header
                             suffix          = '_01'
@@ -438,7 +439,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
             #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
         if self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = ''
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_blue_BM_4375.fits'
             #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
 
         # FWHM
