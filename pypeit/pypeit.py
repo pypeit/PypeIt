@@ -151,7 +151,8 @@ class PypeIt(object):
                                                  caldir=self.calibrations_path,
                                                  qadir=self.qa_path,
                                                  reuse_masters=self.reuse_masters,
-                                                 show=self.show)
+                                                 show=self.show,
+                                                 steps=self.spectrograph.steps)
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used

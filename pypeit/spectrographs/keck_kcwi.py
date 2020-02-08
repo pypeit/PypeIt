@@ -365,6 +365,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?
+        self.steps = ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'bar', 'flats', 'wave']
 
         # Don't instantiate these until they're needed
         self.grating = None
