@@ -25,12 +25,14 @@ from pypeit.core import load
 from IPython import embed
 
 
-class WaveTilts(masterframe.MasterFrame):
+class BarFrame(masterframe.MasterFrame):
     """
-    Class to guide slit/order tracing
+    Class to guide tracing constant spatial locations within each slit
+
+    TODO :: UPDATE ALL OF THESE ARGS!!!
 
     Args:
-        msarc (ndarray): Arc image
+        msbar (ndarray): Bar image
         tslits_dict (dict or None): dict from TraceSlits class (e.g. slitpix)
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
@@ -69,11 +71,11 @@ class WaveTilts(masterframe.MasterFrame):
           Final tilts image
         gpm (np.ndarray):
             Good pixel mask
-            Eventually, we might attach this to self.msarc although that would then
-            require that we write it to disk with self.msarc.image
+            Eventually, we might attach this to self.msbar although that would then
+            require that we write it to disk with self.msbar.image
     """
     # Frametype is a class attribute
-    master_type = 'Tilts'
+    master_type = 'Bar'
 
     # TODO: __init__ should be the first function.  Move this.
     @classmethod
@@ -85,7 +87,7 @@ class WaveTilts(masterframe.MasterFrame):
             master_file (str):
 
         Returns:
-            wavetilts.WaveTilts:
+            barframe.BarFrame:
                 With tilts_dict loaded up
 
         """
@@ -103,8 +105,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Return
         return slf
 
-    # TODO This needs to be modified to take an inmask
-    def __init__(self, msarc, tslits_dict, spectrograph, par, wavepar, det=1, master_key=None,
+    def __init__(self, msbar, tslits_dict, spectrograph, par, wavepar, det=1, master_key=None,
                  master_dir=None, reuse_masters=False, qa_path=None, msbpm=None):
 
         # TODO: Perform type checking
@@ -116,7 +117,7 @@ class WaveTilts(masterframe.MasterFrame):
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, reuse_masters=reuse_masters)
 
-        self.msarc = msarc
+        self.msbar = msbar
         self.tslits_dict = tslits_dict
         self.msbpm = msbpm
         self.det = det
@@ -134,18 +135,18 @@ class WaveTilts(masterframe.MasterFrame):
         # code needs for execution. This also deals with arcimages that
         # have a different binning then the trace images used to defined
         # the slits
-        if self.tslits_dict is not None and self.msarc is not None:
+        if self.tslits_dict is not None and self.msbar is not None:
             self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
             gpm = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
-            self.shape_arc = self.msarc.image.shape
+            self.shape_arc = self.msbar.image.shape
             self.nslits = self.tslits_dict['slit_left'].shape[1]
             self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_left'])
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_righ'])
             self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.msarc.image < self.nonlinear_counts)
+            self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.msbar.image < self.nonlinear_counts)
         else:
             self.slitmask_science = None
             self.shape_science = None
@@ -183,7 +184,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         """
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(self.slitcen, self.slitmask,
-                                                           self.msarc.image, gpm=self.gpm)
+                                                           self.msbar.image, gpm=self.gpm)
             #, nonlinear_counts=self.nonlinear_counts)
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -223,11 +224,10 @@ class WaveTilts(masterframe.MasterFrame):
                                              bpm=bpm, debug_peaks=False, debug_lines=debug)
 
         if debug:
-            mean, median, stddev = stats.sigma_clipped_stats(self.msarc.image, sigma=3.)
-#            vmin, vmax = visualization.ZScaleInterval().get_limits(self.msarc.image)
+            mean, median, stddev = stats.sigma_clipped_stats(self.msbar.image, sigma=3.)
             vmin = median - 2*stddev
             vmax = median + 2*stddev
-            plt.imshow(self.msarc.image, origin='lower', interpolation='nearest', aspect='auto',
+            plt.imshow(self.msbar.image, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=vmin, vmax=vmax)
             plt.scatter(lines_spat[good], lines_spec[good], marker='x', color='k', lw=2, s=50)
             plt.scatter(lines_spat[np.invert(good)], lines_spec[np.invert(good)], marker='x', color='C3', lw=2, s=50)
@@ -336,7 +336,7 @@ class WaveTilts(masterframe.MasterFrame):
         :attr:`par`. The characteristic continuum is then rescaled to
         match the continuum at each spatial position in the
         slit/order.
-        
+
         .. note::
             The approach used here may be too simplistic (in the
             robustness of the continuum fit and then how the
@@ -352,7 +352,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         Returns:
             numpy.ndarray: Returns a 2D image with the same shape as
-            :attr:`msarc` with the model continuum.
+            :attr:`msbar` with the model continuum.
         """
         # TODO: Instead check that extract arcs has been run using the
         # "steps" attribute?
@@ -402,7 +402,7 @@ class WaveTilts(masterframe.MasterFrame):
         # implementation may be too simplistic in how it treats the
         # spatial axis.
         nspat = self.slitmask.shape[1]
-        cont_image = np.zeros(self.msarc.image.shape, dtype=float)
+        cont_image = np.zeros(self.msbar.image.shape, dtype=float)
         # TODO: Can probably do this without the for loop but this
         # still may be faster.
         for i in range(nslits):
@@ -428,7 +428,7 @@ class WaveTilts(masterframe.MasterFrame):
             # Pull out the slit pixels into a square array and mask
             # pixels off of the slit
             aligned_spec = np.tile(np.arange(nspec), (width,1)).T
-            aligned_flux = np.ma.MaskedArray(self.msarc.image[aligned_spec, _spat],
+            aligned_flux = np.ma.MaskedArray(self.msbar.image[aligned_spec, _spat],
                                              mask=_spat==-1)
 
             # Use a sigma-clipped median to determine the scaling of
@@ -488,17 +488,17 @@ class WaveTilts(masterframe.MasterFrame):
 #        show = True
 
         # Subtract arc continuum
-        _msarc = self.msarc.image.copy()
+        _msbar = self.msbar.image.copy()
         if self.par['rm_continuum']:
             continuum = self.model_arc_continuum(debug=debug)
-            _msarc -= continuum
+            _msbar -= continuum
             if debug:
                 # TODO: Put this into a function
-                vmin, vmax = visualization.ZScaleInterval().get_limits(_msarc)
+                vmin, vmax = visualization.ZScaleInterval().get_limits(_msbar)
                 w,h = plt.figaspect(1)
                 fig = plt.figure(figsize=(3*w,h))
                 ax = fig.add_axes([0.15/3, 0.1, 0.8/3, 0.8])
-                ax.imshow(self.msarc.image, origin='lower', interpolation='nearest',
+                ax.imshow(self.msbar.image, origin='lower', interpolation='nearest',
                           aspect='auto', vmin=vmin, vmax=vmax)
                 ax.set_title('MasterArc')
                 ax = fig.add_axes([1.15/3, 0.1, 0.8/3, 0.8])
@@ -506,7 +506,7 @@ class WaveTilts(masterframe.MasterFrame):
                           aspect='auto', vmin=vmin, vmax=vmax)
                 ax.set_title('Continuum')
                 ax = fig.add_axes([2.15/3, 0.1, 0.8/3, 0.8])
-                ax.imshow(_msarc, origin='lower', interpolation='nearest',
+                ax.imshow(_msbar, origin='lower', interpolation='nearest',
                           aspect='auto', vmin=vmin, vmax=vmax)
                 ax.set_title('MasterArc - Continuum')
                 plt.show()
@@ -525,7 +525,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # TODO sort out show methods for debugging
         #if show:
-        #    viewer,ch = ginga.show_image(self.msarc*(self.slitmask > -1),chname='tilts')
+        #    viewer,ch = ginga.show_image(self.msbar*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
         for slit in gdslits:
@@ -546,7 +546,7 @@ class WaveTilts(masterframe.MasterFrame):
             # function of spatial position resulting in 1D traces for
             # each line.
             msgs.info('Trace the tilts')
-            self.trace_dict = self.trace_tilts(_msarc, self.lines_spec, self.lines_spat,
+            self.trace_dict = self.trace_tilts(_msbar, self.lines_spec, self.lines_spat,
                                                thismask, self.slitcen[:,slit])
 
             # TODO: Show the traces before running the 2D fit
@@ -574,8 +574,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         if debug:
             # TODO: Add this to the show method?
-            vmin, vmax = visualization.ZScaleInterval().get_limits(_msarc)
-            plt.imshow(_msarc, origin='lower', interpolation='nearest', aspect='auto',
+            vmin, vmax = visualization.ZScaleInterval().get_limits(_msbar)
+            plt.imshow(_msbar, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=vmin, vmax=vmax)
             for slit in gdslits:
                 spat = self.all_trace_dict[slit]['tilts_spat']
@@ -705,9 +705,9 @@ class WaveTilts(masterframe.MasterFrame):
         ----------
         attr : str
             Options are:
-                - ``'fweight'``: Show the msarc image and the tilts
+                - ``'fweight'``: Show the msbar image and the tilts
                   traced by fweight
-                - ``'model'``: Show the msarc image and the poylynomial
+                - ``'model'``: Show the msbar image and the poylynomial
                   model fits to the individual arc lines that were
                   traced by fweight.
                 - ``'arcmodel'``: This illustrates the global final 2-d

@@ -17,6 +17,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import arcimage
 from pypeit import tiltimage
+from pypeit import barframe
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
@@ -369,6 +370,55 @@ class Calibrations(object):
         # TODO in the future add in a tilt_inmask
         #self._update_cache('tilt', 'tilt_inmask', self.mstilt_inmask)
         return self.mstilt
+
+    def get_bar(self):
+        """
+        Load or generate the bar frame
+
+        Requirements:
+           master_key, det, par
+
+        Returns:
+            ndarray or str: :attr:`bias`
+
+        """
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        bar_rows = self.fitstbl.find_frames('bar', calib_ID=self.calib_ID, index=True)
+        self.bar_files = self.fitstbl.frame_paths(bar_rows)
+
+        self.master_key_dict['bar'] \
+                = self.fitstbl.master_key(bar_rows[0] if len(bar_rows) > 0 else self.frame,
+                                          det=self.det)
+
+        # Grab from internal dict (or hard-drive)?
+        if self._cached('bar', self.master_key_dict['bar']):
+            self.msbar = self.calib_dict[self.master_key_dict['bar']]['bar']
+            msgs.info("Reloading the bar frame from the internal dict")
+            return self.msbar
+
+        # Instantiate
+        self.barFrame = barframe.BarFrame(self.spectrograph, files=self.bar_files,
+                                          det=self.det, par=self.par['barframe'],
+                                          master_key=self.master_key_dict['bar'],
+                                          master_dir=self.master_dir,
+                                          reuse_masters=self.reuse_masters)
+
+        # Try to load the master bias
+        self.msbar = self.barFrame.load()
+        if self.msbar is None:
+            # Build it and save it
+            self.msbar = self.barFrame.build_image()
+            if self.save_masters:
+                self.barFrame.save()
+
+        # Save & return
+        self._update_cache('bar', 'bar', self.msbar)
+
+        return self.msbar
 
     def get_bias(self):
         """
