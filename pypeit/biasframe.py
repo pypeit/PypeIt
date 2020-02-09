@@ -193,4 +193,3 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file)
                 return self.pypeitImage
             #return super(BiasFrame, self).load('BIAS', ifile=ifile, is_pypeitImage=True)
-

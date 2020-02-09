@@ -379,7 +379,7 @@ class Calibrations(object):
            master_key, det, par
 
         Returns:
-            ndarray or str: :attr:`bias`
+            ndarray or str: :attr:`bar`
 
         """
 
@@ -397,17 +397,17 @@ class Calibrations(object):
         # Grab from internal dict (or hard-drive)?
         if self._cached('bar', self.master_key_dict['bar']):
             self.msbar = self.calib_dict[self.master_key_dict['bar']]['bar']
-            msgs.info("Reloading the bar frame from the internal dict")
+            msgs.info("Reloading the bar from the internal dict")
             return self.msbar
 
         # Instantiate
         self.barFrame = barframe.BarFrame(self.spectrograph, files=self.bar_files,
-                                          det=self.det, par=self.par['barframe'],
-                                          master_key=self.master_key_dict['bar'],
-                                          master_dir=self.master_dir,
-                                          reuse_masters=self.reuse_masters)
+                                             det=self.det, par=self.par['barframe'],
+                                             master_key=self.master_key_dict['bar'],
+                                             master_dir=self.master_dir,
+                                             reuse_masters=self.reuse_masters)
 
-        # Try to load the master bias
+        # Try to load the master bar
         self.msbar = self.barFrame.load()
         if self.msbar is None:
             # Build it and save it
