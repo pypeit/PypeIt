@@ -159,6 +159,7 @@ class Calibrations(object):
         # TraceSlits)
         self.shape = None
         self.msarc = None
+        self.msbar = None
         self.msbias = None
         self.msbpm = None
         self.tslits_dict = None
