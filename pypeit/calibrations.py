@@ -382,42 +382,43 @@ class Calibrations(object):
             ndarray or str: :attr:`bar`
 
         """
-
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
         bar_rows = self.fitstbl.find_frames('bar', calib_ID=self.calib_ID, index=True)
         self.bar_files = self.fitstbl.frame_paths(bar_rows)
-
         self.master_key_dict['bar'] \
                 = self.fitstbl.master_key(bar_rows[0] if len(bar_rows) > 0 else self.frame,
                                           det=self.det)
 
-        # Grab from internal dict (or hard-drive)?
         if self._cached('bar', self.master_key_dict['bar']):
+            # Previously calculated
             self.msbar = self.calib_dict[self.master_key_dict['bar']]['bar']
-            msgs.info("Reloading the bar from the internal dict")
             return self.msbar
 
-        # Instantiate
+        # Instantiate with everything needed to generate the image (in case we do)
         self.barFrame = barframe.BarFrame(self.spectrograph, files=self.bar_files,
-                                             det=self.det, par=self.par['barframe'],
-                                             master_key=self.master_key_dict['bar'],
-                                             master_dir=self.master_dir,
-                                             reuse_masters=self.reuse_masters)
+                                          det=self.det, msbias=self.msbias,
+                                          par=self.par['barframe'],
+                                          master_key=self.master_key_dict['bar'],
+                                          master_dir=self.master_dir,
+                                          reuse_masters=self.reuse_masters)
 
-        # Try to load the master bar
+        # Load the MasterFrame (if it exists and is desired)?
         self.msbar = self.barFrame.load()
-        if self.msbar is None:
-            # Build it and save it
-            self.msbar = self.barFrame.build_image()
+        if self.msbar is None:  # Otherwise build it
+            msgs.info("Preparing a master {0:s} frame".format(self.barFrame.frametype))
+            self.msbar = self.barFrame.build_image(bias=self.msbias, bpm=self.msbpm)
+            # Need to set head0 here, since a master bar frame loaded from file will have head0 set.
+            self.msbar.head0 = self.barFrame.build_master_header(steps=self.barFrame.process_steps,
+                                                                 raw_files=self.barFrame.file_list)
+            # Save to Masters
             if self.save_masters:
                 self.barFrame.save()
 
         # Save & return
         self._update_cache('bar', 'bar', self.msbar)
-
         return self.msbar
 
     def get_bias(self):
