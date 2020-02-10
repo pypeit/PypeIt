@@ -18,7 +18,6 @@ from pypeit import msgs
 from pypeit import arcimage
 from pypeit import tiltimage
 from pypeit import barframe
-from pypeit import barprofile
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
@@ -452,12 +451,12 @@ class Calibrations(object):
             return self.bar_dict
 
         # Instantiate
-        self.barProfile = barprofile.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,
-                                                self.par['bar'],
-                                                det=self.det, master_key=self.master_key_dict['bar'],
-                                                master_dir=self.master_dir,
-                                                reuse_masters=self.reuse_masters,
-                                                qa_path=self.qa_path, msbpm=self.msbpm)
+        self.barProfile = barframe.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,
+                                              self.par['bar'],
+                                              det=self.det, master_key=self.master_key_dict['bar'],
+                                              master_dir=self.master_dir,
+                                              reuse_masters=self.reuse_masters,
+                                              qa_path=self.qa_path, msbpm=self.msbpm)
 
         # Master
         self.bar_dict = self.barProfile.load()
