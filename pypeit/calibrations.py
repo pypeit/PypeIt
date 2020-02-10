@@ -18,6 +18,7 @@ from pypeit import msgs
 from pypeit import arcimage
 from pypeit import tiltimage
 from pypeit import barframe
+from pypeit import barprofile
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
@@ -421,6 +422,58 @@ class Calibrations(object):
         # Save & return
         self._update_cache('bar', 'bar', self.msbar)
         return self.msbar
+
+    def get_bar_prof(self):
+        """
+        Trace the bar frame to obtain constant spatial positions in each slit
+
+        Requirements:
+           master_key, det, par
+
+        Returns:
+            dict: :attr:`barprof`
+
+        """
+        # Check for existing data
+        if not self._chk_objs(['msbar', 'msbpm', 'tslits_dict']):
+            msgs.error("Don't have all the objects")
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+        if 'bar' not in self.master_key_dict.keys():
+            msgs.error('Bar master key not set.  First run get_bar.')
+
+        # Return existing data
+        if self._cached('bar_dict', self.master_key_dict['bar']) \
+                and self._cached('wtmask', self.master_key_dict['bar']):
+            self.bar_dict = self.calib_dict[self.master_key_dict['bar']]['bar_dict']
+            self.wt_maskslits = self.calib_dict[self.master_key_dict['bar']]['wtmask']
+            self.tslits_dict['maskslits'] += self.wt_maskslits
+            return self.bar_dict
+
+        # Instantiate
+        self.barProfile = barprofile.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,
+                                                self.par['bar'],
+                                                det=self.det, master_key=self.master_key_dict['bar'],
+                                                master_dir=self.master_dir,
+                                                reuse_masters=self.reuse_masters,
+                                                qa_path=self.qa_path, msbpm=self.msbpm)
+
+        # Master
+        self.bar_dict = self.barProfile.load()
+        if self.bar_dict is None:
+            self.bar_dict, self.wt_maskslits \
+                = self.barProfile.run(maskslits=self.tslits_dict['maskslits'], doqa=self.write_qa,
+                                         show=self.show)
+            if self.save_masters:
+                self.barProfile.save()
+        else:
+            self.wt_maskslits = np.zeros_like(self.tslits_dict['maskslits'], dtype=bool)
+
+        # Save & return
+        self._update_cache('bar', ('bar_dict', 'wtmask'), (self.bar_dict, self.wt_maskslits))
+        self.tslits_dict['maskslits'] += self.wt_maskslits
+        return self.bar_dict
 
     def get_bias(self):
         """
