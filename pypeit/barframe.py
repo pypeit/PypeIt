@@ -265,10 +265,10 @@ class BarProfile(masterframe.MasterFrame):
         nslits = self.tslits_dict['slit_left'].shape[1]
         # Find bar traces
         specobj_dict = {'setup': "unknown", 'slitid': 999,
-                        'det': self.det, 'objtype': "bar_profile", 'pypeline': "unknown"}
+                        'det': self.det, 'objtype': "bar_profile", 'pypeline': "MultiSlit"}
         for sl in range(nslits):
             bar_traces, _ = extract.objfind(
-                self.msbar.image, self.slitmask==sl,
+                self.msbar.image, self.slitmask == sl,
                 self.tslits_dict['slit_left'][:, sl],
                 self.tslits_dict['slit_righ'][:, sl],
                 spec_min_max=np.vstack((self.tslits_dict['spec_min'],
@@ -276,8 +276,9 @@ class BarProfile(masterframe.MasterFrame):
                 ir_redux=False, ncoeff=self.par['trace_npoly'],
                 specobj_dict=specobj_dict, sig_thresh=self.par['sig_thresh'],
                 show_peaks=show_peaks, show_fits=False,
-                trim_edg=self.par['find_trim_edge'],
-                cont_fit=False, npoly_cont=0)
+                trim_edg=self.par['trim_edge'],
+                cont_fit=False, npoly_cont=0,
+                nperslit=self.spectrograph.nbars)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

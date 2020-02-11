@@ -673,7 +673,75 @@ class FlexurePar(ParSet):
 #            raise ValueError('Provided archive spectrum does not exist: {0}.'.format(
 #                             self.data['spectrum']))
 
+class BarPar(ParSet):
+    """
+    The parameter set used to hold arguments for tracing the
+    bars in a bar frame.
 
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+
+    """
+
+    def __init__(self, nbars=None, locations=None, trace_npoly=None, trim_edge=None, sig_thresh=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['nbars'] = 1
+        dtypes['nbars'] = int
+        descr['nbars'] = 'Number of bars in the '
+
+        defaults['locations'] = [0.5]
+        dtypes['locations'] = [list, numpy.ndarray]
+        descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
+
+        defaults['trace_npoly'] = 5
+        dtypes['trace_npoly'] = int
+        descr['trace_npoly'] = 'Order of the polynomial to use when fitting the trace of a single bar'
+
+        defaults['trim_edge'] = [1, 1]
+        dtypes['trim_edge'] = list
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
+
+        defaults['sig_thresh'] = 10.0
+        dtypes['sig_thresh'] = [int, float]
+        descr['sig_thresh'] = 'Significance threshold for finding a bar trace.'
+
+        # Instantiate the parameter set
+        super(BarPar, self).__init__(list(pars.keys()),
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           options=list(options.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['nbars', 'locations']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
 
 
 class Coadd1DPar(ParSet):
@@ -2945,7 +3013,7 @@ class CalibrationsPar(ParSet):
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
 
-        defaults['barprofile'] = FindObjPar()
+        defaults['barprofile'] = BarPar()
         dtypes['barprofile'] = [ ParSet, dict ]
         descr['barprofile'] = 'Define the procedure for the bar traces'
 
