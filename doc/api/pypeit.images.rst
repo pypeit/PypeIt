@@ -19,5 +19,6 @@ Module contents
 
 .. automodule:: pypeit.images
    :members:
+   :private-members:
    :undoc-members:
    :show-inheritance:

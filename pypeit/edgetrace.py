@@ -120,6 +120,7 @@ from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
+from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
@@ -127,6 +128,104 @@ from pypeit.traceimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
+
+
+class SlitTraceSet(DataContainer):
+    """
+    Defines a generic class for holding and manipulating image traces
+    organized into left-right slit pairs.
+
+    Instantiation arguments map directly to the object
+    :attr:`datamodel`.
+    """
+    # Set the version of this class
+    version = '1.0.0'
+    # Define the data model
+    datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
+                 'nspec': dict(otype=int,
+                               descr='Number of pixels in the image spectral direction.'),
+                 'nspat': dict(otype=int,
+                               descr='Number of pixels in the image spatial direction.'),
+                 'binspec': dict(otype=int,
+                                 descr='Number of pixels binned in the spectral direction.'),
+                 'binspat': dict(otype=int,
+                                 descr='Number of pixels binned in the spatial direction.'),
+                 'pad': dict(otype=int,
+                             descr='Integer number of pixels to consider beyond the slit edges.'),
+                 'nslits': dict(otype=int, descr='Number of slits.'),
+                 'left_orig': dict(otype=np.ndarray, atype=float,
+                                   descr='The original spatial coordinates (pixel indices) of all '
+                                         'left edges, one per slit.  Shape is Nspec by Nslits.'),
+                 'right_orig': dict(otype=np.ndarray, atype=float,
+                                    descr='The original spatial coordinates (pixel indices) of all '
+                                          'right edges, one per slit.  Shape is Nspec by Nslits.'),
+                 'left': dict(otype=np.ndarray, atype=float,
+                              descr='Spatial coordinates (pixel indices) of all left edges, one '
+                                    'per slit.  Shape is Nspec by Nslits.'),
+                 'right': dict(otype=np.ndarray, atype=float,
+                              descr='Spatial coordinates (pixel indices) of all right edges, one '
+                                    'per slit.  Shape is Nspec by Nslits.'),
+                 'center': dict(otype=np.ndarray, atype=float,
+                               descr='Spatial coordinates of the slit centers.  Shape is Nspec '
+                                     'by Nslits.'),
+                 'mask': dict(otype=np.ndarray, atype=bool,
+                              descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
+                 'specmin': dict(otype=np.ndarray, atype=float,
+                                 descr='Minimum spectral position allowed for each slit/order.  '
+                                       'Shape is Nslits.'),
+                 'specmax': dict(otype=np.ndarray, atype=float,
+                                 descr='Maximum spectral position allowed for each slit/order.  '
+                                       'Shape is Nslits.')} 
+    """Provides the class data model."""
+    # NOTE: The docstring above is for the ``datamodel`` attribute.
+
+    def __init__(self, left, right, nspat=None, spectrograph=None, left_orig=None, right_orig=None,
+                 mask=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        super(SlitTraceSet, self).__init__({k: values[k] for k in args[1:]})
+
+    def _validate(self):
+        """
+        Validate the slit traces.
+        """
+        if self.left.shape != self.right.shape:
+            raise ValueError('Input left and right traces should have the same shape.')
+        self.nspec, self.nslits = self.left.shape
+        self.center = (self.left+self.right)/2
+        
+        if self.nspat is None:
+            self.nspat = np.amax(np.append(self.left, self.right))
+        if self.spectrograph is None:
+            self.spectrograph = 'unknown'
+        if self.left_orig is None:
+            self.left_orig = self.left.copy()
+        if self.right_orig is None:
+            self.right_orig = self.right.copy()
+        if self.mask is None:
+            self.mask = np.zeros(self.nslits, dtype=bool)
+        if self.specmin is None:
+            self.specmin = np.full(self.nslits, -1, dtype=float)
+        if self.specmax is None:
+            self.specmax = np.full(self.nslits, self.nspec, dtype=float)
+
+    def _bundle(self):
+        """
+        Bundle the data in preparation for writing to a fits file.
+
+        See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
+        always written to a 'SLITS' extension.
+        """
+        return super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
+
+    @classmethod
+    def _parse(cls, hdu):
+        """
+        Parse the data that was previously written to a fits file.
+
+        See :func:`pypeit.datamodel.DataContainer._parse`. Data is
+        always read from the 'SLITS' extension.
+        """
+        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
 
 class EdgeTraceBitMask(BitMask):
@@ -390,6 +489,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # number to be inconsistent...
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
                                          master_key=master_key, file_format='fits.gz')
+
+        # TODO: Should make file_format a class attribute
 
         # TODO: Add type-checking for spectrograph and par
         self.spectrograph = spectrograph    # Spectrograph used to take the data
@@ -748,13 +849,16 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
+        # First manually remove some traces, just in case a user
+        # wishes to manually place a trace nearby a trace that
+        # was automatically identified. One problem with adding
+        # slits first is that we may have to sync the slits again.
+        if self.par['rm_slits'] is not None:
+            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
+
         # Add user traces
         if self.par['add_slits'] is not None:
             self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
-
-        # Remove user traces
-        if self.par['rm_slits'] is not None:
-            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
@@ -1015,7 +1119,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
             checksum (:obj:`bool`, optional):
-                Passed to `astropy.io.fits.HDUList.writeto` to add
+                Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
             float_dtype (:obj:`str`, optional):
                 Convert floating-point data to this data type before
@@ -1105,13 +1209,15 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                           name='CENTER_ERR'),
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
-                                          name='CENTER_FIT')
-                            ])
+                                          name='CENTER_FIT')])
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
             else:
                 hdu += [self.pca.to_hdu()]
+        if self.is_synced:
+            # Only write the slits datamodel if the edges have been synced
+            hdu += self.get_slits().to_hdu()
         if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
@@ -4194,6 +4300,35 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
 
+    def get_slits(self):
+        """
+        Use the data to construct and return a :class:`SlitTraceSet`
+        object.
+        """
+        if not self.is_synced:
+            msgs.error('Edges must be synced to construct SlitTraceSet object.')
+
+        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                 exclude=self.bitmask.exclude_flags))
+
+        left = self.spat_fit[:,gpm & self.is_left]
+        right = self.spat_fit[:,gpm & self.is_right]
+        binspec, binspat = parse.parse_binning(self.binning)
+        slitspat = slit_spat_pos(left, right, self.nspec, self.nspat)
+        specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
+
+        return SlitTraceSet(left, right, nspat=self.nspat,
+                            spectrograph=self.spectrograph.spectrograph, specmin=specmin,
+                            specmax=specmax, binspec=binspec, binspat=binspat, pad=self.par['pad'])
+
+    def load_slits(self):
+        """
+        Load the slit data from the master file.
+        """
+        if not self.exists():
+            msgs.error('File does not exit: {0}'.format(self.master_file_path))
+        return SlitTraceSet.from_file(self.master_file_path)
+
     def convert_to_tslits_dict(self):
         """
         Stop-gap function to construct the old tslits_dict object.
@@ -4227,9 +4362,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
         tslits_dict['pad'] = self.par['pad']
         tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
         tslits_dict['spectrograph'] = self.spectrograph.spectrograph
+        slitspat = slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'], self.nspec,
+                                 self.nspat)
         tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-            self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
-                                          binspectral=tslits_dict['binspectral'])
+            self.spectrograph.slit_minmax(slitspat, binspectral=tslits_dict['binspectral'])
 
         return tslits_dict
 
@@ -4278,9 +4414,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
             spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
             tslits_dict['spectrograph'] = spec.spectrograph
+            slitspat = slit_spat_pos(tslits_dict['slit_left'], tslits_dict['slit_righ'],
+                                     self.nspec, self.nspat)
             tslits_dict['spec_min'], tslits_dict['spec_max'] \
-                    = spec.slit_minmax(slit_spat_pos(tslits_dict),
-                                       binspectral=tslits_dict['binspectral'])
+                    = spec.slit_minmax(slitspat, binspectral=tslits_dict['binspectral'])
 
             indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
             if not np.any(indx):
@@ -4399,17 +4536,14 @@ def get_slitid(shape, lordloc, rordloc, islit, ypos=0.5):
 
 
 # TODO: This needs to be integrated into EdgeTraceSet
-def slit_spat_pos(tslits_dict):
+def slit_spat_pos(left, right, nspec, nspat):
     """
     Generate an array of the slit spat positions
     from the tslits_dict
 
     Args:
-        tslits_dict (:obj:`dict`):
-            Trace slits dict
 
     Returns:
         np.ndarray
     """
-    return (tslits_dict['slit_left'][tslits_dict['nspec']//2, :] +
-            tslits_dict['slit_righ'][tslits_dict['nspec']//2,:]) /2/tslits_dict['nspat']
+    return (left[nspec//2,:] + right[nspec//2,:])/2/nspat

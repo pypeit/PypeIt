@@ -311,16 +311,23 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         raise ValueError('No implementation for status = {0}'.format(status))
 
     # TODO: This function is unstable to shape...
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
         Parameters
         ----------
         shape : tuple, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
+
         Returns
         -------
         badpix : ndarray
         """
         bpm_img = self.empty_bpm(filename, det)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Edges of the detector are junk
         msgs.info("Custom bad pixel mask for NIRSPEC")
         bpm_img[:, :20] = 1.

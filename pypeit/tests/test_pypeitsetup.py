@@ -25,7 +25,7 @@ def data_path(filename):
 
 def get_files():
     # Check for files
-    file_root = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
+    file_root = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/shane_kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     return files
@@ -43,7 +43,7 @@ def test_init():
 @dev_suite_required
 def test_build_fitstbl():
     # Check for files
-    file_root = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/Shane_Kast_blue/600_4310_d55/b')
+    file_root = os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA/shane_kast_blue/600_4310_d55/b')
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Init
