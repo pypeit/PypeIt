@@ -10,7 +10,7 @@ import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit import msgs
+from pypeit import ginga, msgs, edgetrace
 from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
@@ -275,16 +275,14 @@ class BarProfile(masterframe.MasterFrame):
                         'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
         # TODO This is a bad idea -- we want to find everything for standards
         # sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
-        sobjs_ech, _ = extract.ech_objfind(
+        bar_traces, _ = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'],
             self.tslits_dict['slit_righ'], self.order_vec, self.maskslits,
             spec_min_max=np.vstack((self.tslits_dict['spec_min'],
                                     self.tslits_dict['spec_max'])),
-            inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-            hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
-            std_trace=std_trace,
+            inmask=inmask, ir_redux=False, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             specobj_dict=specobj_dict, sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
-            show_peaks=show_peaks, show_fits=show_fits,
+            plate_scale=plate_scale, show_peaks=show_peaks, show_fits=False,
             trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
             cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
             npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
@@ -297,21 +295,12 @@ class BarProfile(masterframe.MasterFrame):
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
-        if show:
-            self.show('image', image=image * (self.sciImg.mask == 0), chname='ech_objfind', sobjs=sobjs_ech,
-                      slits=False)
-
-        return sobjs_ech, len(sobjs_ech), skymask
-        # QA
-        if not skip_QA:
-            for slit in ok_mask:
-                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit,
-                                             out_dir=self.qa_path)
-                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile=outfile)
+        if show_trace:
+            self.show('image', image=image, chname='bar_traces', bar_traces=bar_traces,
+                      slits=True)
 
         # Return
-        self.steps.append(inspect.stack()[0][3])
-        return self.bar_prof
+        return bar_traces
 
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
@@ -468,17 +457,48 @@ class BarProfile(masterframe.MasterFrame):
 
         return self.bar_prof
 
-    def show(self, item, slit=None):
+    def show(self, attr, image=None, bar_traces=None,
+             chname=None, slits=False, clear=False):
         """
         Show one of the class internals
 
         Args:
-            item (str):
-            slit (int, optional):
+            attr : str
+                image - plot the master bar frame
+            image : ndarray
+                Image to be plotted (i.e. the master bar frame)
+            bar_traces : list
+                The bar traces
+            chname : str
+                The channel name sent to ginga
+            slits : bool
+                Overplot the slit edges?
+            clear : bool
+                Clear the plotting window in ginga?
 
         Returns:
 
         """
+        viewer, ch = None, None
+        if attr == 'image':
+            ch_name = chname if chname is not None else 'bar_traces'
+            viewer, ch = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
+        else:
+            msgs.warn("Not an option for show")
+
+        if bar_traces is not None and viewer is not None:
+            for spec in bar_traces:
+                color = 'magenta' if spec.hand_extract_flag else 'orange'
+                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
+
+        if slits:
+            if self.tslits_dict is not None and viewer is not None:
+                slit_ids = [edgetrace.get_slitid(image.shape,
+                                                 self.tslits_dict['slit_left'],
+                                                 self.tslits_dict['slit_righ'], ii)[0]
+                            for ii in range(self.tslits_dict['slit_left'].shape[1])]
+                ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'],
+                                 self.tslits_dict['slit_righ'], slit_ids)
         return
 
     def __repr__(self):
