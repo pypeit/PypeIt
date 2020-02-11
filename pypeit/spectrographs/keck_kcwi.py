@@ -404,8 +404,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         par['scienceframe']['exprng'] = [30, None]
 
         # Set the number of bars in the bar frames
-        par['calibrations']['barframe']['nbars'] = 5
-        par['calibrations']['barframe']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
+        par['calibrations']['barprofile']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
 
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0

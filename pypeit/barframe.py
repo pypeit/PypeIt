@@ -278,7 +278,7 @@ class BarProfile(masterframe.MasterFrame):
                 show_peaks=show_peaks, show_fits=False,
                 trim_edg=self.par['trim_edge'],
                 cont_fit=False, npoly_cont=0,
-                nperslit=self.spectrograph.nbars)
+                nperslit=len(self.par['locations']))
 
         # Steps
         self.steps.append(inspect.stack()[0][3])

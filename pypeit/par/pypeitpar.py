@@ -683,7 +683,7 @@ class BarPar(ParSet):
 
     """
 
-    def __init__(self, nbars=None, locations=None, trace_npoly=None, trim_edge=None, sig_thresh=None):
+    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, sig_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -699,10 +699,6 @@ class BarPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-
-        defaults['nbars'] = 1
-        dtypes['nbars'] = int
-        descr['nbars'] = 'Number of bars in the '
 
         defaults['locations'] = [0.5]
         dtypes['locations'] = [list, numpy.ndarray]
@@ -732,7 +728,7 @@ class BarPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['nbars', 'locations']
+        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'sig_thresh']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -742,6 +738,12 @@ class BarPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
 
 
 class Coadd1DPar(ParSet):
@@ -3076,7 +3078,7 @@ class CalibrationsPar(ParSet):
         pk = 'barframe'
         kwargs[pk] = FrameGroupPar.from_dict('bar', cfg[pk]) if pk in k else None
         pk = 'barprofile'
-        kwargs[pk] = FindObjPar.from_dict(cfg[pk]) if pk in k else None
+        kwargs[pk] = BarPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'traceframe'
         kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
         pk = 'standardframe'
