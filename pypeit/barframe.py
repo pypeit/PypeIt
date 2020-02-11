@@ -5,6 +5,7 @@ Module for generating a Bar image to map constant spatial locations
 .. include:: ../links.rst
 """
 import os
+import pdb
 import copy
 import inspect
 import numpy as np
@@ -247,12 +248,11 @@ class BarProfile(masterframe.MasterFrame):
             self.gpm = None
             self.nonlinear_counts = None
 
-    def build_traces(self, image, show_peaks=False, show_trace=False, debug=False):
+    def build_traces(self, show_peaks=False, show_trace=False, debug=False):
         """
         Main routine to generate the bar profile traces in all slits
 
         Args:
-             image (np.ndarray):
              show_peaks (bool, optional):
                Generate QA showing peaks identified by object finding
              show_trace (bool, optional):
@@ -263,35 +263,26 @@ class BarProfile(masterframe.MasterFrame):
             dict:  self.bar_prof
         """
         nslits = self.tslits_dict['slit_left'].shape[1]
-        order_vec = np.arange(nslits)
-        maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
-        plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
-        inmask = self.msbar.mask == 0
-        # Find objects
+        # Find bar traces
         specobj_dict = {'setup': "unknown", 'slitid': 999,
                         'det': self.det, 'objtype': "bar_profile", 'pypeline': "unknown"}
-        bar_traces, _ = extract.ech_objfind(
-            image, self.msbar.ivar, self.slitmask, self.tslits_dict['slit_left'],
-            self.tslits_dict['slit_righ'], order_vec, maskslits,
-            spec_min_max=np.vstack((self.tslits_dict['spec_min'],
-                                    self.tslits_dict['spec_max'])),
-            inmask=inmask, ir_redux=False, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
-            specobj_dict=specobj_dict, sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
-            plate_scale=plate_scale, show_peaks=show_peaks, show_fits=False,
-            trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
-            cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
-            npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
-            fwhm=self.par['reduce']['findobj']['find_fwhm'],
-            maxdev=self.par['reduce']['findobj']['find_maxdev'],
-            max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
-            min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
-            nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
-            show_trace=show_trace, debug=debug)
+        for sl in range(nslits):
+            bar_traces, _ = extract.objfind(
+                self.msbar.image, self.slitmask==sl,
+                self.tslits_dict['slit_left'][:, sl],
+                self.tslits_dict['slit_righ'][:, sl],
+                spec_min_max=np.vstack((self.tslits_dict['spec_min'],
+                                        self.tslits_dict['spec_max'])),
+                ir_redux=False, ncoeff=self.par['trace_npoly'],
+                specobj_dict=specobj_dict, sig_thresh=self.par['sig_thresh'],
+                show_peaks=show_peaks, show_fits=False,
+                trim_edg=self.par['find_trim_edge'],
+                cont_fit=False, npoly_cont=0)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show_trace:
-            self.show('image', image=image, chname='bar_traces', bar_traces=bar_traces,
+            self.show('image', image=self.msbar.image, chname='bar_traces', bar_traces=bar_traces,
                       slits=True)
 
         # Return
@@ -348,7 +339,7 @@ class BarProfile(masterframe.MasterFrame):
         self.wv_calib = waveio.load_wavelength_calibration(master_file)
         return self.wv_calib
 
-    def run(self, skip_QA=False, debug=False):
+    def run(self, show_trace=False, skip_QA=False, debug=False):
         """
         Main driver for bar profile tracing
 
@@ -361,7 +352,7 @@ class BarProfile(masterframe.MasterFrame):
         """
         ###############
         # Fill up the calibrations and generate QA
-        self.bar_prof = self.build_traces()
+        self.bar_prof = self.build_traces(show_trace=show_trace)
 
         # Pack up
         self.bar_prof['steps'] = self.steps
@@ -395,7 +386,7 @@ class BarProfile(masterframe.MasterFrame):
         viewer, ch = None, None
         if attr == 'image':
             ch_name = chname if chname is not None else 'bar_traces'
-            viewer, ch = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
+            viewer, ch = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=False)
         else:
             msgs.warn("Not an option for show")
 

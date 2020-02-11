@@ -350,7 +350,7 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
                             xgap            = 0.,
                             ygap            = 0.,
                             ysize           = 1.,
-                            platescale      = None,  # <-- TODO : Need to set this
+                            platescale      = 0.147,  # arcsec/pixel
                             darkcurr        = None,  # <-- TODO : Need to set this
                             saturation      = 65535.,
                             nonlinear       = 0.95,       # For lack of a better number!

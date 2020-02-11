@@ -455,7 +455,7 @@ class Calibrations(object):
 
         # Instantiate
         self.barProfile = barframe.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,
-                                              self.par['bar'],
+                                              self.par['barprofile'],
                                               det=self.det, binning=binning,
                                               master_key=self.master_key_dict['bar'],
                                               master_dir=self.master_dir,
@@ -466,8 +466,7 @@ class Calibrations(object):
         self.bar_dict = self.barProfile.load()
         if self.bar_dict is None:
             self.bar_dict, self.wt_maskslits \
-                = self.barProfile.run(maskslits=self.tslits_dict['maskslits'], doqa=self.write_qa,
-                                         show=self.show)
+                = self.barProfile.run(show_trace=True)#self.show)  # TODO: REMOVE THIS BEFORE MERGING PR!!
             if self.save_masters:
                 self.barProfile.save()
         else:

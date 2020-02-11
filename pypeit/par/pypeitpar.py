@@ -2871,8 +2871,8 @@ class CalibrationsPar(ParSet):
     """
     def __init__(self, caldir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
-                 pinholeframe=None, barframe=None, traceframe=None, standardframe=None, flatfield=None,
-                 wavelengths=None, slitedges=None, tilts=None):
+                 pinholeframe=None, barframe=None, barprofile=None, traceframe=None,
+                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2945,6 +2945,10 @@ class CalibrationsPar(ParSet):
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
 
+        defaults['barprofile'] = FindObjPar()
+        dtypes['barprofile'] = [ ParSet, dict ]
+        descr['barprofile'] = 'Define the procedure for the bar traces'
+
         defaults['flatfield'] = FlatFieldPar()
         dtypes['flatfield'] = [ ParSet, dict ]
         descr['flatfield'] = 'Parameters used to set the flat-field procedure'
@@ -2978,7 +2982,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias' ]
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'pinholeframe', 'barframe', 'traceframe', 'standardframe', 'flatfield',
+                             'pinholeframe', 'barframe', 'barprofile', 'traceframe', 'standardframe', 'flatfield',
                              'wavelengths', 'slitedges', 'tilts']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
@@ -3003,6 +3007,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
         pk = 'barframe'
         kwargs[pk] = FrameGroupPar.from_dict('bar', cfg[pk]) if pk in k else None
+        pk = 'barprofile'
+        kwargs[pk] = FindObjPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'traceframe'
         kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
         pk = 'standardframe'
