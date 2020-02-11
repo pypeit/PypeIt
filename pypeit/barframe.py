@@ -262,16 +262,17 @@ class BarProfile(masterframe.MasterFrame):
         Returns:
             dict:  self.bar_prof
         """
-        plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        inmask = self.sciImg.mask == 0
+        nslits = self.tslits_dict['slit_left'].shape[1]
+        order_vec = np.arange(nslits)
+        maskslits = np.zeros(self.tslits_dict['slit_left'].shape[1], dtype=bool)
+        plate_scale = self.spectrograph.order_platescale(order_vec, binning=self.binning)
+        inmask = self.msbar.mask == 0
         # Find objects
-        specobj_dict = {'setup': self.setup, 'slitid': 999,  # 'orderindx': 999,
-                        'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
-        # TODO This is a bad idea -- we want to find everything for standards
-        # sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
+        specobj_dict = {'setup': "unknown", 'slitid': 999,
+                        'det': self.det, 'objtype': "bar_profile", 'pypeline': "unknown"}
         bar_traces, _ = extract.ech_objfind(
-            image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'],
-            self.tslits_dict['slit_righ'], self.order_vec, self.maskslits,
+            image, self.msbar.ivar, self.slitmask, self.tslits_dict['slit_left'],
+            self.tslits_dict['slit_righ'], order_vec, maskslits,
             spec_min_max=np.vstack((self.tslits_dict['spec_min'],
                                     self.tslits_dict['spec_max'])),
             inmask=inmask, ir_redux=False, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
