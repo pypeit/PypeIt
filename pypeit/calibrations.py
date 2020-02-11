@@ -450,10 +450,14 @@ class Calibrations(object):
             self.tslits_dict['maskslits'] += self.wt_maskslits
             return self.bar_dict
 
+        # Extract some header info needed by the algorithm
+        binning = self.spectrograph.get_meta_value(self.arc_files[0], 'binning')
+
         # Instantiate
         self.barProfile = barframe.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,
                                               self.par['bar'],
-                                              det=self.det, master_key=self.master_key_dict['bar'],
+                                              det=self.det, binning=binning,
+                                              master_key=self.master_key_dict['bar'],
                                               master_dir=self.master_dir,
                                               reuse_masters=self.reuse_masters,
                                               qa_path=self.qa_path, msbpm=self.msbpm)

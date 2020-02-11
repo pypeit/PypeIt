@@ -15,7 +15,7 @@ from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
 from pypeit.images import pypeitimage
-from pypeit.core import procimg, extract
+from pypeit.core import procimg, extract, arc, pixels
 
 
 class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
@@ -182,7 +182,7 @@ class BarProfile(masterframe.MasterFrame):
     master_type = 'BarProfile'
 
     def __init__(self, msbar, tslits_dict, spectrograph, par, det=1,
-                 master_key=None, master_dir=None, reuse_masters=False,
+                 binning=None, master_key=None, master_dir=None, reuse_masters=False,
                  qa_path=None, msbpm=None):
 
         # MasterFrame
@@ -195,6 +195,7 @@ class BarProfile(masterframe.MasterFrame):
         self.tslits_dict = tslits_dict
         self.spectrograph = spectrograph
         self.par = par
+        self.binning = binning
 
         # Optional parameters
         self.bpm = msbar.mask if msbpm is None else msbpm
@@ -210,41 +211,34 @@ class BarProfile(masterframe.MasterFrame):
             else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
-        # TODO: Build another base class that does these things for both
-        # WaveTilts and WaveCalib?
-
         # Set the slitmask and slit boundary related attributes that the
-        # code needs for execution. This also deals with arcimages that
-        # have a different binning then the trace images used to defined
+        # code needs for execution. This also deals with barframes that
+        # have a different binning then the images used to defined
         # the slits
         if self.tslits_dict is not None and self.msbar is not None:
             self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
             gpm = self.bpm == 0 if self.bpm is not None \
                 else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
-            self.shape_arc = self.msbar.image.shape
+            self.shape_bar = self.msbar.image.shape
             self.nslits = self.tslits_dict['slit_left'].shape[1]
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+            self.slit_left = arc.resize_slits2arc(self.shape_bar, self.shape_science,
                                                   self.tslits_dict['slit_left'])
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+            self.slit_righ = arc.resize_slits2arc(self.shape_bar, self.shape_science,
                                                   self.tslits_dict['slit_righ'])
-            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+            self.slitcen = arc.resize_slits2arc(self.shape_bar, self.shape_science,
                                                 self.tslits_dict['slitcen'])
-            self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
-            # We want even the saturated lines in full_template for the cross-correlation
-            #   They will be excised in the detect_lines() method on the extracted arc
-            if self.par['method'] != 'full_template':
-                self.gpm &= self.msbar.image < self.nonlinear_counts
+            self.slitmask = arc.resize_mask2arc(self.shape_bar, self.slitmask_science)
+            self.gpm = arc.resize_mask2arc(self.shape_bar, gpm)
+            self.gpm &= self.msbar.image < self.nonlinear_counts
             self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
                                                          self.tslits_dict['slit_righ'],
                                                          self.tslits_dict['nspec'],
                                                          self.tslits_dict['nspat'])
-
         else:
             self.slitmask_science = None
             self.shape_science = None
-            self.shape_arc = None
+            self.shape_bar = None
             self.nslits = 0
             self.slit_left = None
             self.slit_righ = None
@@ -302,95 +296,13 @@ class BarProfile(masterframe.MasterFrame):
         # Return
         return bar_traces
 
-    def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
-        """
-        Evaluate 2-d wavelength solution for echelle data. Unpacks
-        wv_calib for slits to be input into  arc.fit2darc
-
-        Args:
-            wv_calib (dict): Wavelength calibration
-            debug (bool, optional):  Show debugging info
-            skip_QA (bool, optional): Skip QA
-
-        Returns:
-            dict: dictionary containing information from 2-d fit
-
-        """
-        msgs.info('Fitting 2-d wavelength solution for echelle....')
-        all_wave = np.array([], dtype=float)
-        all_pixel = np.array([], dtype=float)
-        all_order = np.array([], dtype=float)
-
-        # Obtain a list of good slits
-        ok_mask = np.where(np.invert(self.maskslits))[0]
-        nspec = self.msbar.image.shape[0]
-        for islit in wv_calib.keys():
-            if int(islit) not in ok_mask:
-                continue
-            iorder, iindx = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
-            mask_now = wv_calib[islit]['mask']
-            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
-            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
-            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'][mask_now],
-                                                          float(iorder)))
-
-        # Fit
-        fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
-                                  nspec_coeff=self.par['ech_nspec_coeff'],
-                                  norder_coeff=self.par['ech_norder_coeff'],
-                                  sigrej=self.par['ech_sigrej'], debug=debug)
-
-        self.steps.append(inspect.stack()[0][3])
-
-        # QA
-        if not skip_QA:
-            outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa',
-                                                out_dir=self.qa_path)
-            arc.fit2darc_global_qa(fit2d_dict, outfile=outfile_global)
-            outfile_orders = qa.set_qa_filename(self.master_key, 'arc_fit2d_orders_qa',
-                                                out_dir=self.qa_path)
-            arc.fit2darc_orders_qa(fit2d_dict, outfile=outfile_orders)
-
-        return fit2d_dict
-
-    # TODO: JFH this method is identical to the code in wavetilts.
-    # SHould we make it a separate function?
-    def extract_arcs(self):
-        """
-        Extract the arcs down each slit/order
-
-        Wrapper to arc.get_censpec()
-
-        Args:
-
-        Returns:
-            tuple: Returns the following:
-                - self.arccen: ndarray, (nspec, nslit): arc spectrum for
-                  all slits
-                - self.arc_maskslit: ndarray, bool (nsit): boolean array
-                  containing a mask indicating which slits are good
-
-        """
-        # Do it
-        arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msbar.image, gpm=self.gpm)
-        # , nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
-        # Step
-        self.steps.append(inspect.stack()[0][3])
-
-        return arccen, arc_maskslit
-
     def save(self, outfile=None, overwrite=True):
         """
-        Save the wavelength calibration data to a master frame.
-
-        This is largely a wrapper for
-        :func:`pypeit.core.wavecal.waveio.save_wavelength_calibration`.
+        Save the bar traces to a master frame.
 
         Args:
             outfile (:obj:`str`, optional):
-                Name for the output file.  Defaults to
-                :attr:`file_path`.
+                Name of the output file.  Defaults to :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
@@ -448,7 +360,7 @@ class BarProfile(masterframe.MasterFrame):
         """
         ###############
         # Fill up the calibrations and generate QA
-        self.bar_prof = self.build_traces(skip_QA=skip_QA)
+        self.bar_prof = self.build_traces()
 
         # Pack up
         self.bar_prof['steps'] = self.steps
