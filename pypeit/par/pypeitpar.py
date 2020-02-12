@@ -704,7 +704,7 @@ class BarPar(ParSet):
         dtypes['locations'] = [list, numpy.ndarray]
         descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
 
-        defaults['trace_npoly'] = 5
+        defaults['trace_npoly'] = 8
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of the polynomial to use when fitting the trace of a single bar'
 

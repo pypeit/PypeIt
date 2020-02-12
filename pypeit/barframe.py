@@ -266,25 +266,24 @@ class BarProfile(masterframe.MasterFrame):
         # Find bar traces
         specobj_dict = {'setup': "unknown", 'slitid': 999,
                         'det': self.det, 'objtype': "bar_profile", 'pypeline': "MultiSlit"}
+        if show_trace:
+            self.show('image', image=self.msbar.image, chname='bar_traces', slits=True)
         for sl in range(nslits):
             bar_traces, _ = extract.objfind(
                 self.msbar.image, self.slitmask == sl,
                 self.tslits_dict['slit_left'][:, sl],
                 self.tslits_dict['slit_righ'][:, sl],
-                spec_min_max=np.vstack((self.tslits_dict['spec_min'],
-                                        self.tslits_dict['spec_max'])),
                 ir_redux=False, ncoeff=self.par['trace_npoly'],
                 specobj_dict=specobj_dict, sig_thresh=self.par['sig_thresh'],
                 show_peaks=show_peaks, show_fits=False,
                 trim_edg=self.par['trim_edge'],
-                cont_fit=False, npoly_cont=0,
+                cont_fit=False, npoly_cont=0, fwhm=1,
                 nperslit=len(self.par['locations']))
+            if show_trace:
+                self.show('overplot', chname='bar_traces', bar_traces=bar_traces, slits=False)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
-        if show_trace:
-            self.show('image', image=self.msbar.image, chname='bar_traces', bar_traces=bar_traces,
-                      slits=True)
 
         # Return
         return bar_traces
@@ -388,13 +387,15 @@ class BarProfile(masterframe.MasterFrame):
         if attr == 'image':
             ch_name = chname if chname is not None else 'bar_traces'
             viewer, ch = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=False)
+        elif attr == 'overplot':
+            pass
         else:
             msgs.warn("Not an option for show")
 
         if bar_traces is not None and viewer is not None:
             for spec in bar_traces:
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
-                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
+                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, trc_name="Bar Trace", color=color)
 
         if slits:
             if self.tslits_dict is not None and viewer is not None:

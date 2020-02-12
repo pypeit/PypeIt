@@ -1178,10 +1178,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     """
 
-    #debug_all=True
+    debug_all=False
     if debug_all:
         show_peaks=True
-        #show_fits = True
+        show_fits = True
         show_trace = True
         show_cont = True
 
@@ -1216,7 +1216,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
 
     totmask = thismask & inmask & np.invert(edgmask)
-    thisimg =image*totmask
+    thisimg = image*totmask
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
