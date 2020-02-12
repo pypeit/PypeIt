@@ -17,6 +17,7 @@
 - Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
 - Add more cards to spec1d header output
 - Fixes a few sensfunc bugs
+- Added template for LRIS 600/7500
 
 0.12.2 (14 Jan 2019)
 --------------------

@@ -86,9 +86,14 @@ def rec_to_fits_type(col_element, single_row=False):
         return '{0}E'.format(n)
     if col_element.dtype == numpy.float64:
         return '{0}D'.format(n)
-    
+    if col_element.dtype.name == 'float32':  # JXP -- Hack for when slit edges are modified in the Flat making
+        return '{0}E'.format(n)
+
     # If it makes it here, assume its a string
-    l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])
+    try:
+        l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])
+    except:
+        embed(header='93 of io.py')
 #    return '{0}A'.format(l) if n==1 else '{0}A{1}'.format(l*n,l)
     return '{0}A'.format(l*n)
 
