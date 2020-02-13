@@ -255,6 +255,15 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         Read a raw KCWI data frame
 
+        NOTE: The amplifiers are arranged as follows:
+
+        (0,ny)	--------- (nx,ny)
+                | 3 | 4 |
+                ---------
+                | 1 | 2 |
+        (0,0)	--------- (nx, 0)
+
+
         Parameters
         ----------
         raw_file : str
@@ -280,10 +289,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         hdu = fits.open(fil[0])
         head0 = hdu[0].header
         raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
-        gain_img = self.detector[det-1]['gain']
 
         # Some properties of the image
         numamps = head0['NVIDINP']
+        specflip = True if head0['AMPID1'] == 2 else False
         gainmul, gainarr = head0['GAINMUL'], []
         # Exposure time (used by ProcessRawImage)
         headarr = self.get_headarr(hdu)
@@ -328,6 +337,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Update detector parameters
         self.set_detector_par('gain', det, gainarr, force_update=True)
         self.set_detector_par('ronoise', det, [2.7]*numamps, force_update=True)  # Note, if it's a fast read, the RON=5e-
+        self.set_detector_par('specflip', det, specflip, force_update=True)
 
         # Return
         return raw_img, [head0], exptime, rawdatasec_img, oscansec_img
