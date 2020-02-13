@@ -188,7 +188,7 @@ class BarProfile(masterframe.MasterFrame):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format='json',
+                                         master_key=master_key, file_format='fits',
                                          reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
