@@ -261,7 +261,7 @@ class BarProfile(masterframe.MasterFrame):
              debug (bool, optional):
 
         Returns:
-            dict:  self.bar_prof
+            dict:  self.bar_dict
         """
         bar_prof = dict({})
         nslits = self.tslits_dict['slit_left'].shape[1]
@@ -290,15 +290,25 @@ class BarProfile(masterframe.MasterFrame):
                 self.show('overplot', chname='bar_traces', bar_traces=bar_traces, slits=False)
             bar_prof['{0:d}'.format(sl)] = bar_traces.copy()
 
-        self.bar_dict = self.summarise(bar_prof)
+        bar_dict = self.generate_dict(bar_prof)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
         # Return
-        return self.bar_dict
+        return bar_dict
 
-    def summarise(self, bar_prof):
+    def generate_dict(self, bar_prof):
+        """
+        Generate a dictionary containing all of the information from the profile fitting
+
+        Args:
+            bar_prof (:obj:`dict`):
+                Dictionary of SpecObjs classes (one for each slit)
+
+        Returns:
+            dict:  bar_dict
+        """
         bar_dict = dict({})
         nbars = len(self.par['locations'])
         nspec, nslits = self.tslits_dict['slit_left'].shape
@@ -330,7 +340,7 @@ class BarProfile(masterframe.MasterFrame):
 
         # Report and save
         pdb.set_trace()
-        self.bar_prof
+        self.bar_dict
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
@@ -355,8 +365,8 @@ class BarProfile(masterframe.MasterFrame):
         # Read, save it to self, return
         msgs.info('Loading Master frame: {0}'.format(master_file))
         msgs.error("NEED TO LOAD SAVED MASTER!")
-        self.bar_prof = None
-        return self.bar_prof
+        self.bar_dict = None
+        return self.bar_dict
 
     def run(self, show_trace=False, skip_QA=False, debug=False):
         """
@@ -371,14 +381,14 @@ class BarProfile(masterframe.MasterFrame):
         """
         ###############
         # Fill up the calibrations and generate QA
-        self.bar_prof = self.build_traces(show_trace=show_trace)
+        self.bar_dict = self.build_traces(show_trace=show_trace)
 
         # Pack up
-        self.bar_prof['steps'] = self.steps
+        self.bar_dict['steps'] = self.steps
         sv_par = self.par.data.copy()
-        self.bar_prof['par'] = sv_par
+        self.bar_dict['par'] = sv_par
 
-        return self.bar_prof
+        return self.bar_dict
 
     def show(self, attr, image=None, bar_traces=None,
              chname=None, slits=False, clear=False):
