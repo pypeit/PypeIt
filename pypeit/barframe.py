@@ -315,8 +315,11 @@ class BarProfile(masterframe.MasterFrame):
         # Generate an array containing the centroid of all bars
         barprof = np.zeros((nspec, nbars, nslits))
         for sl in range(nslits):
+            sls = '{0:d}'.format(sl)
             for bar in range(nbars):
-                barprof[:, bar, sl] = bar_prof['{0:d}'.format(sl)][bar].TRACE_SPAT
+                if bar_prof[sls][bar].SLITID != sl:
+                    msgs.error("Bar profiling failed to generate dictionary")
+                barprof[:, bar, sl] = bar_prof[sls][bar].TRACE_SPAT
         # Put all of the info into a single dictionary
         bar_dict = dict(centroids=barprof)
         return bar_dict
