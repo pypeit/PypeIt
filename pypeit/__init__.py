@@ -21,7 +21,7 @@ warnings.formatwarning = short_warning
 
 
 # Set version
-__version__ = '0.12.3dev'
+__version__ = '0.12.3'
 
 # Report current coverage
 __coverage__ = 0.55
