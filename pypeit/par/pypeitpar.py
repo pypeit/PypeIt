@@ -712,9 +712,12 @@ class BarPar(ParSet):
         dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
 
-        defaults['sig_thresh'] = 10.0
+        defaults['sig_thresh'] = 1.0  # This must be low, because the routine will find the
         dtypes['sig_thresh'] = [int, float]
-        descr['sig_thresh'] = 'Significance threshold for finding a bar trace.'
+        descr['sig_thresh'] = 'Significance threshold for finding a bar trace. This should be a low' \
+                              'number to ensure that the algorithm finds all bars. The algorithm will' \
+                              'then only use the N most significant detections, where N is the number' \
+                              'of elements specified in the "locations" keyword argument'
 
         # Instantiate the parameter set
         super(BarPar, self).__init__(list(pars.keys()),
