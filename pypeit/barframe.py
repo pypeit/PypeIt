@@ -263,6 +263,7 @@ class BarProfile(masterframe.MasterFrame):
         Returns:
             dict:  self.bar_prof
         """
+        self.bar_prof = dict({})
         nslits = self.tslits_dict['slit_left'].shape[1]
         # Find bar traces
         specobj_dict = {'setup': "unknown", 'slitid': 999,
@@ -272,6 +273,7 @@ class BarProfile(masterframe.MasterFrame):
             self.show('image', image=self.msbar.image, chname='bar_traces', slits=True)
         # Go through the slits
         for sl in range(nslits):
+            msgs.info("Fitting bar traces in slit {0:d}".format(sl))
             bar_traces, _ = extract.objfind(
                 self.msbar.image, self.slitmask == sl,
                 self.tslits_dict['slit_left'][:, sl],
@@ -280,16 +282,20 @@ class BarProfile(masterframe.MasterFrame):
                 specobj_dict=specobj_dict, sig_thresh=self.par['sig_thresh'],
                 show_peaks=show_peaks, show_fits=False,
                 trim_edg=self.par['trim_edge'],
-                cont_fit=False, npoly_cont=0, fwhm=1,
+                cont_fit=False, npoly_cont=0,
                 nperslit=len(self.par['locations']))
+            if len(bar_traces) != len(self.par['locations']):
+                # Bar tracing has failed for this slit
+                msgs.warn("Bar tracing has failed on slit {0:d}".format(sl))
             if show_trace:
                 self.show('overplot', chname='bar_traces', bar_traces=bar_traces, slits=False)
+            self.bar_prof['{0:d}'.format(sl)] = bar_traces.copy()
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
         # Return
-        return bar_traces
+        return self.bar_prof
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -339,8 +345,9 @@ class BarProfile(masterframe.MasterFrame):
             return
         # Read, save it to self, return
         msgs.info('Loading Master frame: {0}'.format(master_file))
-        self.wv_calib = waveio.load_wavelength_calibration(master_file)
-        return self.wv_calib
+        msgs.error("NEED TO LOAD SAVED MASTER!")
+        self.bar_prof = None
+        return self.bar_prof
 
     def run(self, show_trace=False, skip_QA=False, debug=False):
         """
