@@ -205,6 +205,7 @@ class BarProfile(masterframe.MasterFrame):
         self.master_key = master_key
 
         # Attributes
+        self.viewer, self.channel = None, None
         self.steps = []  # steps executed
 
         # Get the non-linear count level
@@ -266,8 +267,10 @@ class BarProfile(masterframe.MasterFrame):
         # Find bar traces
         specobj_dict = {'setup': "unknown", 'slitid': 999,
                         'det': self.det, 'objtype': "bar_profile", 'pypeline': "MultiSlit"}
+        # Prepare the plotting canvas
         if show_trace:
             self.show('image', image=self.msbar.image, chname='bar_traces', slits=True)
+        # Go through the slits
         for sl in range(nslits):
             bar_traces, _ = extract.objfind(
                 self.msbar.image, self.slitmask == sl,
@@ -383,27 +386,26 @@ class BarProfile(masterframe.MasterFrame):
         Returns:
 
         """
-        viewer, ch = None, None
         if attr == 'image':
             ch_name = chname if chname is not None else 'bar_traces'
-            viewer, ch = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=False)
+            self.viewer, self.channel = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=False)
         elif attr == 'overplot':
             pass
         else:
             msgs.warn("Not an option for show")
 
-        if bar_traces is not None and viewer is not None:
+        if bar_traces is not None and self.viewer is not None:
             for spec in bar_traces:
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
-                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, trc_name="Bar Trace", color=color)
+                ginga.show_trace(self.viewer, self.channel, spec.TRACE_SPAT, trc_name="", color=color)
 
         if slits:
-            if self.tslits_dict is not None and viewer is not None:
+            if self.tslits_dict is not None and self.viewer is not None:
                 slit_ids = [edgetrace.get_slitid(image.shape,
                                                  self.tslits_dict['slit_left'],
                                                  self.tslits_dict['slit_righ'], ii)[0]
                             for ii in range(self.tslits_dict['slit_left'].shape[1])]
-                ginga.show_slits(viewer, ch, self.tslits_dict['slit_left'],
+                ginga.show_slits(self.viewer, self.channel, self.tslits_dict['slit_left'],
                                  self.tslits_dict['slit_righ'], slit_ids)
         return
 
