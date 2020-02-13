@@ -446,8 +446,6 @@ class Calibrations(object):
         if self._cached('bar_dict', self.master_key_dict['bar']) \
                 and self._cached('wtmask', self.master_key_dict['bar']):
             self.bar_dict = self.calib_dict[self.master_key_dict['bar']]['bar_dict']
-            self.wt_maskslits = self.calib_dict[self.master_key_dict['bar']]['wtmask']
-            self.tslits_dict['maskslits'] += self.wt_maskslits
             return self.bar_dict
 
         # Extract some header info needed by the algorithm
@@ -465,16 +463,12 @@ class Calibrations(object):
         # Master
         self.bar_dict = self.barProfile.load()
         if self.bar_dict is None:
-            self.bar_dict, self.wt_maskslits \
-                = self.barProfile.run(show_trace=True)#self.show)  # TODO: REMOVE THIS BEFORE MERGING PR!!
+            self.bar_dict = self.barProfile.run(self.show)
             if self.save_masters:
                 self.barProfile.save()
-        else:
-            self.wt_maskslits = np.zeros_like(self.tslits_dict['maskslits'], dtype=bool)
 
         # Save & return
-        self._update_cache('bar', ('bar_dict', 'wtmask'), (self.bar_dict, self.wt_maskslits))
-        self.tslits_dict['maskslits'] += self.wt_maskslits
+        self._update_cache('bar', 'bar_dict', self.bar_dict)
         return self.bar_dict
 
     def get_bias(self):
