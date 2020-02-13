@@ -16,7 +16,7 @@ from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
 from pypeit.images import pypeitimage
-from pypeit.core import procimg, extract, arc, pixels
+from pypeit.core import procimg, extract, arc, pixels, save, load
 
 
 class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
@@ -342,16 +342,24 @@ class BarProfile(masterframe.MasterFrame):
             return
 
         # Report and save
-        pdb.set_trace()
-        self.bar_dict
+        prihdr = self.build_master_header(steps=self.steps)
+        #   - Add the binning
+        prihdr['BINNING'] = (self.binning, 'PypeIt: Binning')
+        #   - Add the detector number
+        prihdr['DET'] = (self.det, 'PypeIt: Detector')
+        #   - Add the tracing parameters
+        self.par.to_header(prihdr)
+
+        # Set the data and extension names
+        data = [self.bar_dict['centroids']]
+        extnames = ['BARPROF']
+        # Write the output to a fits file
+        save.write_fits(prihdr, data, outfile, extnames=extnames)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
         """
-        Load a full (all slit) wavelength calibration.
-
-        This is largely a wrapper for
-        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
+        Load the profiles of the bar frame.
 
         Args:
             ifile (:obj:`str`, optional):
@@ -359,16 +367,26 @@ class BarProfile(masterframe.MasterFrame):
                 :attr:`master_file_path`.
 
         Returns:
-            dict or None: self.wv_calib
+            dict or None: self.bar_dict
         """
         # Check on whether to reuse and whether the file exists
         master_file = self.chk_load_master(ifile)
         if master_file is None:
             return
-        # Read, save it to self, return
         msgs.info('Loading Master frame: {0}'.format(master_file))
-        msgs.error("NEED TO LOAD SAVED MASTER!")
-        self.bar_dict = None
+        # Load
+        extnames = ['BARPROF']
+        *data, head0 = load.load_multiext_fits(master_file, extnames)
+
+        # Fill the dict
+        self.bar_dict = {}
+        keys = ['centroids']
+        for k in keys:
+            self.bar_dict[k] = head0[k.upper()]
+        # Data
+        for ii, ext in enumerate(extnames):
+            self.bar_dict[ext.lower()] = data[ii]
+        # Return
         return self.bar_dict
 
     def run(self, show_trace=False, skip_QA=False, debug=False):
