@@ -1471,7 +1471,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         msgs.info('No objects found')
         skymask = create_skymask_fwhm(sobjs,thismask)
         return specobjs.SpecObjs(), skymask[thismask]
-
+    else:
+        msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
     msgs.info('Fitting the object traces')
 
@@ -1493,7 +1494,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs[iobj].TRACE_SPAT = xfit_gweight[:, iobj]
             sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
             sobjs[iobj].set_name()
-
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
@@ -1613,6 +1613,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             else:
                 color = 'blue'
             ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
+
+    msgs.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 
     return sobjs, skymask[thismask]
 
