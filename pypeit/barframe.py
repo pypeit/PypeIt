@@ -263,16 +263,15 @@ class BarProfile(masterframe.MasterFrame):
         Returns:
             dict:  self.bar_prof
         """
-        self.bar_prof = dict({})
+        bar_prof = dict({})
         nslits = self.tslits_dict['slit_left'].shape[1]
-        # Find bar traces
-        specobj_dict = {'setup': "unknown", 'slitid': 999,
-                        'det': self.det, 'objtype': "bar_profile", 'pypeline': "MultiSlit"}
         # Prepare the plotting canvas
         if show_trace:
             self.show('image', image=self.msbar.image, chname='bar_traces', slits=True)
         # Go through the slits
         for sl in range(nslits):
+            specobj_dict = {'setup': "unknown", 'slitid': sl,
+                            'det': self.det, 'objtype': "bar_profile", 'pypeline': "MultiSlit"}
             msgs.info("Fitting bar traces in slit {0:d}".format(sl))
             bar_traces, _ = extract.objfind(
                 self.msbar.image, self.slitmask == sl,
@@ -289,13 +288,28 @@ class BarProfile(masterframe.MasterFrame):
                 msgs.warn("Bar tracing has failed on slit {0:d}".format(sl))
             if show_trace:
                 self.show('overplot', chname='bar_traces', bar_traces=bar_traces, slits=False)
-            self.bar_prof['{0:d}'.format(sl)] = bar_traces.copy()
+            bar_prof['{0:d}'.format(sl)] = bar_traces.copy()
+
+        self.bar_dict = self.summarise(bar_prof)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
         # Return
-        return self.bar_prof
+        return self.bar_dict
+
+    def summarise(self, bar_prof):
+        bar_dict = dict({})
+        nbars = len(self.par['locations'])
+        nspec, nslits = self.tslits_dict['slit_left'].shape
+        # Generate an array containing the centroid of all bars
+        barprof = np.zeros((nspec, nbars, nslits))
+        for sl in range(nslits):
+            for bar in range(nbars):
+                barprof[:, bar, sl] = bar_prof['{0:d}'.format(sl)][bar].TRACE_SPAT
+        # Put all of the info into a single dictionary
+        bar_dict = dict(centroids=barprof)
+        return bar_dict
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -315,13 +329,8 @@ class BarProfile(masterframe.MasterFrame):
             return
 
         # Report and save
-
-        # jsonify has the annoying property that it modifies the objects
-        # when it jsonifies them so make a copy, which converts lists to
-        # arrays, so we make a copy
-        data_for_json = copy.deepcopy(self.wv_calib)
-        gddict = linetools.utils.jsonify(data_for_json)
-        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
+        pdb.set_trace()
+        self.bar_prof
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
