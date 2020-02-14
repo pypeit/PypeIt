@@ -1,6 +1,10 @@
 
-0.12.3dev
+0.12.4dev
 ---------
+
+
+0.12.3 (13 Feb 2019)
+--------------------
 
 - Implemented DataContainer
 - Added fits I/O methods
