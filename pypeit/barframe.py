@@ -321,7 +321,7 @@ class BarProfile(masterframe.MasterFrame):
                     msgs.error("Bar profiling failed to generate dictionary")
                 barprof[:, bar, sl] = bar_prof[sls][bar].TRACE_SPAT
         # Put all of the info into a single dictionary
-        bar_dict = dict(centroids=barprof)
+        bar_dict = dict(bar_profiles=barprof)
         return bar_dict
 
     def save(self, outfile=None, overwrite=True):
@@ -351,10 +351,10 @@ class BarProfile(masterframe.MasterFrame):
         self.par.to_header(prihdr)
 
         # Set the data and extension names
-        data = [self.bar_dict['centroids']]
-        extnames = ['BARPROF']
+        data = [self.bar_dict['bar_profiles']]
+        extnames = ['BAR_PROFILES']
         # Write the output to a fits file
-        save.write_fits(prihdr, data, outfile, extnames=extnames)
+        save.write_fits(prihdr, data, _outfile, extnames=extnames)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
@@ -375,12 +375,12 @@ class BarProfile(masterframe.MasterFrame):
             return
         msgs.info('Loading Master frame: {0}'.format(master_file))
         # Load
-        extnames = ['BARPROF']
+        extnames = ['BAR_PROFILES']
         *data, head0 = load.load_multiext_fits(master_file, extnames)
 
         # Fill the dict
         self.bar_dict = {}
-        keys = ['centroids']
+        keys = []
         for k in keys:
             self.bar_dict[k] = head0[k.upper()]
         # Data
