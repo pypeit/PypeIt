@@ -16,7 +16,7 @@ import numpy as np
 from astropy.table import Table
 from astropy.io import fits
 
-from pypeit.core.gui import object_find as gui_object_find
+from pypeit.core.gui import skysub_regions as gui_skysub_regions
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
 from pypeit import edgetrace
@@ -33,7 +33,6 @@ def parser(options=None):
     parser.add_argument("--list", default=False, help="List the extensions only?",
                         action="store_true")
     parser.add_argument('--det', default=1, type=int, help="Detector")
-    parser.add_argument("--old", default=False, action="store_true", help="Used old slit tracing")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -105,11 +104,8 @@ def main(args):
     trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
 
     # TODO -- Remove this once the move to Edges is complete
-    if args.old:
-        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
-    else:
-        trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+    trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
+    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
     slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
                 for ii in range(tslits_dict['slit_left'].shape[1])]
@@ -147,4 +143,4 @@ def main(args):
     tslits_dict['trace_model'] = trace_model_dict
 
     # Finally, initialise the GUI
-    gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
+    gui_skysub_regions.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
