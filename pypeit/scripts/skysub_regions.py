@@ -118,27 +118,6 @@ def main(args):
         hdulist_1d = []
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
-    tslits_dict['objtrc'] = parse_traces(hdulist_1d, det_nm)
-
-    # TODO :: Need to include standard star trace in the spec2d files
-    std_trace = None
-
-    # Extract some trace models
-    fwhm = 2  # Start with some default value
-    # Brightest object on slit
-    trace_model_obj = None
-    trace_model_dict = dict()
-    if len(tslits_dict['objtrc']['pkflux']) > 0:
-        smash_peakflux = tslits_dict['objtrc']['pkflux']
-        ibri = smash_peakflux.argmax()
-        trace_model_obj = tslits_dict['objtrc']['traces'][ibri]
-        fwhm = tslits_dict['objtrc']['fwhm'][ibri]
-    trace_model_dict['object'] = dict(trace_model=trace_model_obj, fwhm=fwhm)
-    # Standard star trace
-    trace_model_dict['std'] = dict(trace_model=std_trace, fwhm=fwhm)
-    # Trace of the slit edge
-    trace_model_dict['slit'] = dict(trace_model=tslits_dict['slit_left'].copy(), fwhm=fwhm)
-    tslits_dict['trace_model'] = trace_model_dict
 
     # Finally, initialise the GUI
     gui_skysub_regions.initialise(args.det, frame, tslits_dict, None, printout=True)

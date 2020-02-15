@@ -104,6 +104,7 @@ class SkySubGUI(object):
         self._use_updates = True
         self._inslit = -1  # Which slit is the mouse in
         self.mmx, self.mmy = 0, 0
+        self._fitr = None  # Matplotlib shaded fit region
 
         # Draw the spectrum
         self.canvas.draw()
@@ -162,8 +163,24 @@ class SkySubGUI(object):
         self.draw_regions()
         self.canvas.draw()
 
-    def draw_regions(self):
-        return
+    def draw_regions(self, trans):
+        """Refresh the fit regions
+
+        Args:
+            trans (AxisTransform): A matplotlib axis transform from data to axes coordinates
+        """
+        if self._fitr is not None:
+            self._fitr.remove()
+        # Loop through all slits:
+        for sl in range(self._nslits):
+            # Loop through all regions on a given slit
+            for rr in range(len(self._skyreg[sl])):
+                # Fill fraction of the slit
+                diff = self.tslits_dict['slit_righ'][:,sl] - self.tslits_dict['slit_left'][:,sl]
+                reg_left = self.tslits_dict['slit_left'][:,sl] + self._skyreg[sl][rr][0]*diff
+                reg_righ = self.tslits_dict['slit_left'][:,sl] + self._skyreg[sl][rr][1]*diff
+                self._fitr = self.axes['main'].fill_between(x, y, y, facecolor='red',
+                                                            alpha=0.5, transform=trans)
 
     def draw_callback(self, event):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
@@ -410,10 +427,8 @@ def initialise(det, frame, tslits_dict, runtime=False, printout=False):
         Returns:
             ObjFindGUI: Returns an instance of the ObjFindGUI class
     """
-
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
-    tslits_dict = None
     if tslits_dict['slit_left'].ndim == 2:
         nslit = tslits_dict['slit_left'].shape[1]
     else:
