@@ -308,9 +308,9 @@ class Reduce(object):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
     def find_objects(self, image, std_trace=None,
-                            show_peaks=False, show_fits=False,
-                            show_trace=False, show=False, manual_extract_dict=None,
-                            debug=False):
+                     show_peaks=False, show_fits=False,
+                     show_trace=False, show=False, manual_extract_dict=None,
+                     debug=False):
         """
         Single pass at finding objects in the input image
 

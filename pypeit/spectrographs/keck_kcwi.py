@@ -420,6 +420,8 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
 
+        # Don't do optimal extraction for 3D data.
+        par['reduce']['extraction']['skip_optimal'] = True
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
