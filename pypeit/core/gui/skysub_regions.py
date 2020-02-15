@@ -1,10 +1,5 @@
 """
-This script allows the user to add/delete/modify object traces
-
-.. todo::
-
-    Implement color scaling with RMB click+drag
-
+This script allows the user to manually select the sky background regions
 """
 
 import os, sys
@@ -32,135 +27,40 @@ operations = dict({'cursor': "Select object trace (LMB click)\n" +
                    'p': "Toggle pan/zoom with the cursor",
                    '?': "Display the available options",
                    })
-#                   Commands that could be used for manual object location
-#                   'c': "Clear the anchor points and start again",
-#                   'm': "Insert a fitting anchor for manual object tracing",
-#                   'n': "Delete the fitting anchor nearest to the cursor",
-#                   '+/-': "Raise/Lower the order of the fitting polynomial"
 
 
-class ObjectTraces:
+class SkySubGUI(object):
     """
-    Simple class to store the object traces
-    """
-
-    def __init__(self):
-        self._det = []
-        self._add_rm = []  # Flag to say if an object was been added (1), removed (-1), or was there originally (0)
-        self._pos_spat = []
-        self._pos_spec = []
-        self._trace_spat = []
-        self._trace_spec = []
-        self._fwhm = []
-
-    @property
-    def nobj(self):
-        return len(self._det)
-
-    def from_specobj(self, sobjs, det):
-        """Fill the object traces from a SpecObjs class
-
-        Args:
-            sobjs (SpecObjs): An instance of the SpecObjs class
-            det (int): Detector to which this applies
-        """
-        nobj = sobjs.nobj
-        for ii in range(nobj):
-            pos_spat = sobjs[ii].trace_spat[sobjs[ii].trace_spat.size//2]
-            pos_spec = sobjs[ii].trace_spec[sobjs[ii].trace_spec.size//2]
-            self.add_object(det, pos_spat, pos_spec, sobjs[ii].trace_spat, sobjs[ii].trace_spec, sobjs[ii].fwhm, addrm=0)
-
-    def from_dict(self, obj_dict, det):
-        """Fill the object traces from a SpecObjs class
-
-        Args:
-            obj_dict (dict): A dictionary containing the spatial object traces and FWHM
-            det (int): Detector to which this applies
-        """
-        nobj = len(obj_dict['traces'])
-        for ii in range(nobj):
-            spec_trace = np.arange(obj_dict['traces'][ii].size)
-            pos_spat = obj_dict['traces'][ii][obj_dict['traces'][ii].size//2]
-            pos_spec = spec_trace[spec_trace.size//2]
-            self.add_object(det, pos_spat, pos_spec, obj_dict['traces'][ii], spec_trace, obj_dict['fwhm'][ii], addrm=0)
-
-    def add_object(self, det, pos_spat, pos_spec, trc_spat, trc_spec, fwhm, addrm=1):
-        """Add an object trace
-
-        Args:
-            det (int): Detector to add a slit on
-            pos_spat (float): Spatial pixel position
-            pos_spec (float): Spectral pixel position
-            trc_spat (ndarray): Spatial trace of object
-            trc_spec (ndarray): Spectral trace of object
-            fwhm (float): FWHM of the object
-            addrm (int): Flag to say if an object was been added (1), removed (-1), or was an auto found slit (0)
-        """
-        self._det.append(det)
-        self._add_rm.append(addrm)
-        self._pos_spat.append(pos_spat)
-        self._pos_spec.append(pos_spec)
-        self._trace_spat.append(trc_spat)
-        self._trace_spec.append(trc_spec)
-        self._fwhm.append(fwhm)
-
-    def delete_object(self, ind):
-        """Delete an object trace
-
-        Args:
-            ind (int): Index of object trace to remove
-        """
-        if self._add_rm[ind] == 1:
-            # If an object was added by hand, the user can delete it from the list
-            del self._det[ind]
-            del self._add_rm[ind]
-            del self._pos_spat[ind]
-            del self._pos_spec[ind]
-            del self._trace_spat[ind]
-            del self._trace_spec[ind]
-            del self._fwhm[ind]
-        else:
-            # otherwise, just flag that it needs to be removed
-            self._add_rm[ind] = -1
-
-    def get_pypeit_string(self):
-        """Construct a string that can be placed in the .pypeit file to define new object traces
-        """
-        strall = ""
-        for ii in range(self.nobj):
-            if self._add_rm[ii] == 1:
-                strall += ",{0:d}:{1:.1f}:{2:.1f}:{3:.1f}".format(self._det[ii], self._pos_spat[ii], self._pos_spec[ii], self._fwhm[ii])
-        strall += "\n"
-        return strall[1:]
-
-
-class ObjFindGUI(object):
-    """
-    GUI to interactively identify object traces. The GUI can be run within
+    GUI to interactively define the sky regions. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
     PypeIt. To initialise the GUI, call the initialise() function in this
     file.
     """
 
-    def __init__(self, canvas, image, frame, det, sobjs, trace_dict, axes, profdict,
-                 slit_ids=None, printout=False, runtime=False):
-        """Controls for the interactive Object ID tasks in PypeIt.
+    def __init__(self, canvas, image, frame, det, tslits_dict, axes,
+                 printout=False, runtime=False):
+        """Controls for the interactive sky regions definition tasks in PypeIt.
 
-        The main goal of this routine is to interactively add/delete/modify
-        object apertures.
+        The main goal of this routine is to interactively select sky background
+        regions.
 
         Args:
-            canvas (Matploltib figure canvas): The canvas on which all axes are contained
-            image (AxesImage): The image plotted to screen
-            frame (ndarray): The image data
-            det (int): Detector to add a slit on
-            sobjs (SpecObjs, None): An instance of the SpecObjs class
-            trace_dict (dict): A dictionary containing information about the object traces
-            axes (dict): Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
-            profdict (dict): Dictionary containing profile information (profile data, and the left/right lines displayinf the FWHM)
-            slit_ids (list, None): List of slit ID numbers
-            printout (bool): Should the results be printed to screen
-            runtime (bool): Is the GUI being launched during data reduction?
+            canvas : Matploltib figure canvas
+                The canvas on which all axes are contained
+            image : AxesImage
+                The image plotted to screen
+            frame : ndarray
+                The image data
+            det : int
+                Detector to add a slit on
+            tslits_dict : dict
+                Dictionary containing information about the slit traces
+            axes : dict
+                Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
+            printout : bool
+                Should the results be printed to screen
+            runtime : bool
+                Is the GUI being launched during data reduction?
         """
         # Store the axes
         self._det = det
@@ -168,23 +68,12 @@ class ObjFindGUI(object):
         self.frame = frame
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self._spectrace = np.arange(self.nspec)
-        self.profile = profdict
         self._printout = printout
         self._runtime = runtime
-        self._slit_ids = slit_ids
-        self._trcdict = trace_dict
         self.axes = axes
-        self.specobjs = sobjs
-        self.objtraces = []
-        self._object_traces = ObjectTraces()
-        self.anchors = []
-        self._obj_idx = -1
-        self._spatpos = np.arange(frame.shape[1])[np.newaxis, :].repeat(frame.shape[0], axis=0)  # Spatial coordinate (as the frame shape)
-        self.empty_mantrace()
-        if sobjs is None:
-            self._object_traces.from_dict(self._trcdict['objtrc'], det)
-        else:
-            self._object_traces.from_specobj(sobjs, det)
+        self._currslit = -1
+        self.tslits_dict = tslits_dict
+        self._nslits = tslits_dict['slit_left'].shape[1]
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
@@ -213,19 +102,12 @@ class ObjFindGUI(object):
         self._qconf = False  # Confirm quit message
         self._changes = False
         self._use_updates = True
-        self._trcmthd = 'object'
+        self._inslit = -1  # Which slit is the mouse in
         self.mmx, self.mmy = 0, 0
-        self._inslit = 0  # Which slit is the mouse in
 
         # Draw the spectrum
         self.canvas.draw()
 
-        # Initialise buttons and menu options
-        self._ax_meth_default = 'Object'
-        self._methdict = dict({'Object': [0, 'object'],
-                               'Standard Star': [1, 'std'],
-                               'Slit Edges': [2, 'slit']})
-#                               'Manual': [3, 'manual']
         self.initialise_menu()
 
     def print_help(self):
@@ -233,22 +115,17 @@ class ObjFindGUI(object):
         """
         keys = operations.keys()
         print("===============================================================")
-        print("Add/remove object traces until you are happy with the resulting")
-        print("traces. When you've finished, click one of the exit buttons on")
-        print("the right side of the page. If you click 'Continue (and save changes)'")
-        print("the object traces will be printed to the terminal, where you can")
+        print("Define the sky background regions in each slit by using the left")
+        print("mouse button to click and drag over the sky background region.")
+        print("Use the right mouse button (click and drag) to delete a region.")
+        print("If you click 'Continue (and save changes)' the sky background")
+        print("regions will be printed to the terminal, where you can")
         print("copy them into your .pypeit file.")
         print("")
-        print("thick coloured dashed lines = object traces")
-        print("thick coloured solid line   = currently selected object trace")
-        print("thin green/blue lines       = slit edges")
-        print("")
-        print("Meanings of the different coloured dashed lines:")
-        print(" green = user-defined object trace")
-        print(" blue  = trace automatically generated with PypeIt")
-        print(" red   = trace automatically generated with PypeIt (deleted)")
+        print("thin green/blue lines  = slit edges")
+        print("shaded red regions     = selected sky regions")
         print("===============================================================")
-        print("       OBJECT ID OPERATIONS")
+        print("       OTHER OPERATIONS")
         for key in keys:
             print("{0:6s} : {1:s}".format(key, operations[key]))
         print("---------------------------------------------------------------")
@@ -265,44 +142,6 @@ class ObjFindGUI(object):
         ax_exit = plt.axes([0.82, 0.79, 0.15, 0.05])
         self._ax_exit = Button(ax_exit, "Continue (don't save changes)", color=axcolor, hovercolor='y')
         self._ax_exit.on_clicked(self.button_exit)
-        # Button to select trace method
-        rax = plt.axes([0.82, 0.59, 0.15, 0.15], facecolor=axcolor)
-        rax.set_title("Select trace method:")
-        self._ax_meth = RadioButtons(rax, ('Object', 'Standard Star', 'Slit Edges'))#, 'Manual'))
-        self._ax_meth.on_clicked(self.radio_meth)
-        # Determine the best default to use:
-        if self._trcdict["trace_model"]["object"]["trace_model"] is not None:
-            self._ax_meth_default = 'Object'
-        elif self._trcdict["trace_model"]["std"]["trace_model"] is not None:
-            self._ax_meth_default = 'Standard Star'
-        elif self._trcdict["trace_model"]["slit"]["trace_model"] is not None:
-            self._ax_meth_default = 'Slit Edges'
-#        elif self._trcdict["trace_model"]["manual"]["trace_model"] is not None:
-#            self._ax_meth_default = 'Manual'
-        # Set the active method
-        self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
-
-    def radio_meth(self, label, infobox=True):
-        """Tell the code what to do when a different trace method is selected
-
-        Args:
-            label (str): The label of the radio button that was clicked
-        """
-        # Update the radio button
-        if self._methdict[label][1]:
-            self._trcmthd = self._methdict[label][1]
-        # Check if the method is available, if not, change to the default (manual is always allowed)
-        if self._trcmthd != "manual":
-            if self._trcdict["trace_model"][self._trcmthd]["trace_model"] is None:
-                self.update_infobox(message="That option is not available - changing to default", yesno=False)
-                self._ax_meth.set_active(self._methdict[self._ax_meth_default][0])
-                self._trcmthd = self._methdict[self._ax_meth_default][1]
-            else:
-                if infobox:
-                    self.update_infobox(message="Trace method set to: {0:s}".format(label), yesno=False)
-        else:
-            if infobox:
-                self.update_infobox(message="Trace method set to: {0:s}".format(label), yesno=False)
 
     def button_cont(self, event):
         """What to do when the 'exit and save' button is clicked
@@ -320,59 +159,11 @@ class ObjFindGUI(object):
         """Redraw the entire canvas
         """
         self.canvas.restore_region(self.background)
-        self.draw_objtraces()
-        self.draw_anchors()
+        self.draw_regions()
         self.canvas.draw()
 
-    def draw_objtraces(self):
-        """Draw the object traces
-        """
-        for i in self.objtraces: i.pop(0).remove()
-        self.objtraces = []
-        # Plot the object traces
-        allcols = ['DodgerBlue', 'LimeGreen', 'r']  # colors mean: [original, added, deleted]
-        for iobj in range(self._object_traces.nobj):
-            color = allcols[self._object_traces._add_rm[iobj]]
-            if iobj == self._obj_idx:
-                self.objtraces.append(self.axes['main'].plot(self._object_traces._trace_spat[iobj],
-                                                             self._object_traces._trace_spec[iobj],
-                                                             color=color,
-                                                             linestyle='-', linewidth=4, alpha=0.5))
-            else:
-                self.objtraces.append(self.axes['main'].plot(self._object_traces._trace_spat[iobj],
-                                                             self._object_traces._trace_spec[iobj],
-                                                             color=color,
-                                                             linestyle='--', linewidth=3, alpha=0.5))
-
-    def draw_anchors(self):
-        """Draw the anchors for manual tracing
-        """
-        for i in self.anchors: i.pop(0).remove()
-        self.anchors = []
-        # Plot the best fitting trace, if it exists
-        if self._mantrace["spat_trc"] is not None:
-            self.anchors.append(self.axes['main'].plot(self._mantrace["spat_trc"], self._mantrace["spec_trc"],
-                                                       'g-', linewidth=3, alpha=0.5))
-        # Plot the anchor points on top
-        self.anchors.append(self.axes['main'].plot(self._mantrace["spat_a"], self._mantrace["spec_a"], 'ro', alpha=0.5))
-
-    def draw_profile(self):
-        """Draw the object profile
-        """
-        if self._obj_idx == -1:
-            sz = self.profile['profile'].get_xdata.size
-            self.profile['profile'].set_ydata(np.zeros(sz))
-        else:
-            # Plot the extent of the FWHM
-            self.profile['fwhm'][0].set_xdata(-self._object_traces._fwhm[self._obj_idx]/2.0)
-            self.profile['fwhm'][1].set_xdata(+self._object_traces._fwhm[self._obj_idx]/2.0)
-            # Update the data shown
-            objprof = self.make_objprofile()
-            self.profile['profile'].set_ydata(objprof)
-            self.axes['profile'].set_xlim([-self._object_traces._fwhm[self._obj_idx],
-                                           +self._object_traces._fwhm[self._obj_idx]])
-            omin, omax = objprof.min(), objprof.max()
-            self.axes['profile'].set_ylim([omin-0.1*(omax-omin), omax+0.1*(omax-omin)])
+    def draw_regions(self):
+        return
 
     def draw_callback(self, event):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
@@ -382,24 +173,22 @@ class ObjFindGUI(object):
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
-        self.draw_objtraces()
+        self.draw_regions()
 
-    def get_ind_under_point(self, event):
-        """Get the index of the object trace closest to the cursor
+    def get_current_slit(self, event):
+        """Get the index of the slit closest to the cursor
 
         Args:
             event (Event): Matplotlib event instance containing information about the event
         """
-        mindist = self._spatpos.shape[0]**2
-        self._obj_idx = -1
-        for iobj in range(self._object_traces.nobj):
-            dist = (event.xdata-self._object_traces._trace_spat[iobj])**2 +\
-                   (event.ydata-self._object_traces._trace_spec[iobj])**2
-            if np.min(dist) < mindist:
-                mindist = np.min(dist)
-                self._obj_idx = iobj
-        if self._obj_idx != -1:
-            self.draw_profile()
+        # Find the current slit
+        self._currslit = -1
+        yv = np.argmin(np.abs(event.ydata-self._spectrace))
+        wsl = np.where((event.xdata > self.tslits_dict['slit_left'][yv, :]) &
+                       (event.xdata < self.tslits_dict['slit_righ'][yv, :]))[0]
+        # Double check there's only one solution
+        if wsl.size == 1:
+            self._currslit = wsl[0]
         return
 
     def get_axisID(self, event):
@@ -415,8 +204,6 @@ class ObjFindGUI(object):
             return 0
         elif event.inaxes == self.axes['info']:
             return 1
-        elif event.inaxes == self.axes['profile']:
-            return 2
         return None
 
     def mouse_move_callback(self, event):
@@ -440,11 +227,11 @@ class ObjFindGUI(object):
             return
         if event.button == 1:
             self._addsub = 1
+            self.get_current_slit(event)
         elif event.button == 3:
             self._addsub = 0
+            self.get_current_slit(event)
         if event.inaxes == self.axes['main']:
-            self._start = [event.x, event.y]
-        elif event.inaxes == self.axes['profile']:
             self._start = [event.x, event.y]
 
     def button_release_callback(self, event):
@@ -465,11 +252,6 @@ class ObjFindGUI(object):
             self.operations(answer, -1)
             self.update_infobox(default=True)
             return
-        elif event.inaxes == self.axes['profile']:
-            if (event.x == self._start[0]) and (event.y == self._start[1]):
-                self.set_fwhm(event.xdata)
-                self.update_infobox(message="FWHM updated for the selected object", yesno=False)
-            return
         elif self._respreq[0]:
             # The user is trying to do something before they have responded to a question
             return
@@ -482,8 +264,6 @@ class ObjFindGUI(object):
                 self._end = [event.x, event.y]
                 if (self._end[0] == self._start[0]) and (self._end[1] == self._start[1]):
                     # The mouse button was pressed (not dragged)
-                    self.get_ind_under_point(event)
-                    self.update_infobox(message="Object selected", yesno=False)
                     pass
                 elif self._end != self._start:
                     # The mouse button was dragged
@@ -496,7 +276,7 @@ class ObjFindGUI(object):
                         pass
         # Now plot
         self.canvas.restore_region(self.background)
-        self.draw_objtraces()
+        self.draw_regions()
         self.canvas.draw()
 
     def key_press_callback(self, event):
@@ -541,12 +321,7 @@ class ObjFindGUI(object):
                 # Switch off the required response
                 self._respreq[0] = False
                 # Deal with the response
-                if self._respreq[1] == "delete_object" and key == "y":
-                    self.delete_object()
-                elif self._respreq[1] == "clear_anchors" and key == "y":
-                    self.empty_mantrace()
-                    self.replot()
-                elif self._respreq[1] == "exit_update" and key == "y":
+                if self._respreq[1] == "exit_update" and key == "y":
                     self._use_updates = True
                     self.print_pypeit_info()
                     self.operations("qu", None)
@@ -561,189 +336,23 @@ class ObjFindGUI(object):
 
         if key == '?':
             self.print_help()
-        elif key == 'a':
-            self.add_object()
         elif key == 'c':
             if axisID == 0:
                 # If this is pressed on the main window
-                self.recenter()
-#        elif key == 'c':
-#            self._respreq = [True, "clear_anchors"]
-#            self.update_infobox(message="Are you sure you want to clear the anchors", yesno=True)
-        elif key == 'd':
-            if self._obj_idx != -1:
-                self._respreq = [True, "delete_object"]
-                self.update_infobox(message="Are you sure you want to delete this object trace", yesno=True)
-#        elif key == 'm':
-#            if self._trcmthd != 'manual':
-#                self.update_infobox(message="To add an anchor point, set the 'manual' trace method", yesno=False)
-#            else:
-#                self.add_anchor()
-#        elif key == 'n':
-#            self.remove_anchor()
+                self.clear_slits()
         elif key == 'qu' or key == 'qr':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
                 self._qconf = True
             else:
                 plt.close()
-#        elif key == '+':
-#            if self._mantrace["polyorder"] < 10:
-#                self._mantrace["polyorder"] += 1
-#                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
-#                self.fit_anchors()
-#            else:
-#                self.update_infobox(message="Polynomial order must be <= 10", yesno=False)
-#        elif key == '-':
-#            if self._mantrace["polyorder"] > 1:
-#                self._mantrace["polyorder"] -= 1
-#                self.update_infobox(message="Polynomial order = {0:d}".format(self._mantrace["polyorder"]), yesno=False)
-#                self.fit_anchors()
-#            else:
-#                self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
         self.replot()
-
-    def add_anchor(self):
-        """Add a manual anchor point
-        """
-        self._mantrace['spat_a'].append(self.mmx)
-        self._mantrace['spec_a'].append(self.mmy)
-        self.fit_anchors()
-
-    def remove_anchor(self):
-        """Remove a manual anchor point
-        """
-        # Find the anchor closest to the mouse position
-        if len(self._mantrace['spat_a']) != 0:
-            mindist = (self._mantrace['spat_a'][0]-self.mmx)**2 + (self._mantrace['spec_a'][0]-self.mmy)**2
-            minidx = 0
-            for ianc in range(1, len(self._mantrace['spat_a'])):
-                dist = (self._mantrace['spat_a'][ianc] - self.mmx) ** 2 + (self._mantrace['spec_a'][ianc] - self.mmy) ** 2
-                if dist < mindist:
-                    mindist = dist
-                    minidx = ianc
-            del self._mantrace['spat_a'][minidx]
-            del self._mantrace['spec_a'][minidx]
-        self.fit_anchors()
-
-    def fit_anchors(self):
-        """Fit the manual anchor points
-        """
-        if len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
-            self.update_infobox(message="You need to select more trace points before manually adding\n" +
-                                        "a manual object trace. To do this, use the 'm' key", yesno=False)
-        else:
-            # Fit a polynomial to the anchor points
-            coeff = np.polyfit(self._mantrace['spec_a'], self._mantrace['spat_a'], self._mantrace['polyorder'])
-            self._mantrace['spat_trc'] = np.polyval(coeff, self._mantrace['spec_trc'])
-        # Replot, regardless of whether a fit is done (a point might have been added/removed)
-        self.replot()
-
-    def get_slit(self):
-        """Find the slit that the mouse is currently in
-        """
-        ypos = int(self.mmy)
-        for sl in range(self._trcdict['slit_left'].shape[1]):
-            if (self.mmx > self._trcdict['slit_left'][ypos, sl]) and (self.mmx < self._trcdict['slit_righ'][ypos, sl]):
-                self._inslit = sl
-                return
-
-    def add_object(self):
-        if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
-            self.update_infobox(message="You need to select more trace points before manually adding\n" +
-                                        "a manual object trace. To do this, use the 'm' key", yesno=False)
-            return
-        # Add an object trace
-        spec_vec = self._mantrace['spec_trc']
-        if self._trcmthd == 'manual':
-            trace_model = self._mantrace['spat_trc'].copy()
-            # Now empty the manual tracing
-            self.empty_mantrace()
-        else:
-            if self._trcmthd == 'slit':
-                self.get_slit()
-                trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"][:, self._inslit].copy()
-            else:
-                trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"].copy()
-            spat_0 = np.interp(self.mmy, spec_vec, trace_model)
-            shift = self.mmx - spat_0
-            trace_model += shift
-        # Determine the FWHM
-        if self._object_traces.nobj != 0:
-            fwhm = self._object_traces._fwhm[0]
-        else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
-            fwhm = 2
-
-        # Finally, add this object to the list
-        self._object_traces.add_object(self._det, self.mmx, self.mmy, trace_model, self._spectrace.copy(), fwhm)
-
-    def add_object_sobj(self):
-        """Add an object to specobjs
-        """
-        if self._trcmthd == 'manual' and len(self._mantrace['spat_a']) <= self._mantrace['polyorder']:
-            self.update_infobox(message="You need to select more trace points before manually adding\n" +
-                                        "a manual object trace. To do this, use the 'm' key", yesno=False)
-            return
-        # Add an object trace
-        spec_vec = self._mantrace['spec_trc']
-        if self._trcmthd == 'manual':
-            trace_model = self._mantrace['spat_trc'].copy()
-            # Now empty the manual tracing
-            self.empty_mantrace()
-        else:
-            trace_model = self._trcdict["trace_model"][self._trcmthd]["trace_model"].copy()
-            spat_0 = np.interp(self.mmy, spec_vec, trace_model)
-            shift = self.mmx - spat_0
-            trace_model += shift
-        xsize = self._trcdict["slit_righ"] - self._trcdict["slit_left"]
-        nsamp = np.ceil(xsize.max())
-        # Extract the SpecObj parameters
-        par = self._trcdict['sobj_par']
-        # Create a SpecObj
-        thisobj = specobjs.SpecObj(par['frameshape'], par['slit_spat_pos'], par['slit_spec_pos'],
-                                   det=par['det'], setup=par['setup'], slitid=par['slitid'],
-                                   orderindx=par['orderindx'], objtype=par['objtype'])
-        thisobj.hand_extract_spat = self.mmx
-        thisobj.hand_extract_spec = self.mmy
-        thisobj.hand_extract_det = par['det']
-        thisobj.hand_extract_fwhm = None
-        thisobj.hand_extract_flag = True
-        f_ximg = RectBivariateSpline(spec_vec, np.arange(self.nspat), par["ximg"])
-        thisobj.spat_fracpos = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat,
-                                      grid=False)  # interpolate from ximg
-        thisobj.smash_peakflux = np.interp(thisobj.spat_fracpos * nsamp, np.arange(nsamp),
-                                           self._trcdict['profile'])  # interpolate from fluxconv
-        # assign the trace
-        thisobj.trace_spat = trace_model
-        thisobj.trace_spec = spec_vec
-        thisobj.spat_pixpos = thisobj.trace_spat[self.nspec//2]
-        thisobj.set_idx()
-        if self._object_traces.nobj != 0:
-            thisobj.fwhm = self._object_traces._fwhm[0]
-        else:  # Otherwise just use the fwhm parameter input to the code (or the default value)
-            thisobj.fwhm = 2
-        # Finally, add new object
-        self.specobjs.add_sobj(thisobj)
-
-    def delete_object(self):
-        """Delete an object trace
-        """
-        self._object_traces.delete_object(self._obj_idx)
-        self._obj_idx = -1
-        self.replot()
-
-    def delete_object_sobj(self):
-        """Delete a specobj
-        """
-        self.specobjs.remove_sobj(self._obj_idx)
-        self._obj_idx = -1
 
     def print_pypeit_info(self):
         """print text that the user should insert into their .pypeit file
         """
-        if 1 in self._object_traces._add_rm:
-            msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
-            print(self._object_traces.get_pypeit_string())
+        msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
+        print("STILL WORKING ON THIS!!!")
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
@@ -754,40 +363,6 @@ class ObjFindGUI(object):
         ymax = self.mmy + 0.5*(ylim[1]-ylim[0])
         self.axes['main'].set_xlim([xmin, xmax])
         self.axes['main'].set_ylim([ymin, ymax])
-
-    def make_objprofile(self):
-        """Generate an object profile from the traces
-        """
-        coords = self._spatpos - self._object_traces._trace_spat[self._obj_idx][:, np.newaxis]
-        ww = np.where(np.abs(coords) < 4*self._object_traces._fwhm[self._obj_idx])
-        bincent = self.profile['profile'].get_xdata()
-        offs = 0.5*(bincent[1]-bincent[0])
-        edges = np.append(bincent[0]-offs, bincent+offs)
-        prof, _ = np.histogram(coords[ww], bins=edges, weights=self.frame[ww])
-        return prof/ww[0].size
-
-    def set_fwhm(self, xdata):
-        """Set the FWHM using the available panel
-
-        Args:
-            xdata (float): The x coordinate selected by the user
-        """
-        self._object_traces._fwhm[self._obj_idx] = 2.0*np.abs(xdata)
-        self.draw_profile()
-        self.replot()
-        return
-
-    def get_specobjs(self):
-        """Get the updated version of SpecObjs
-
-        Returns:
-            SpecObjs: SpecObjs Class
-        """
-        if self._use_updates:
-            msgs.work("Have not updated SpecObjs yet")
-            return self.specobjs
-        else:
-            return None
 
     def update_infobox(self, message="Press '?' to list the available options",
                        yesno=True, default=False):
@@ -816,24 +391,21 @@ class ObjFindGUI(object):
         self.axes['info'].set_ylim((0, 1))
         self.canvas.draw()
 
-    def empty_mantrace(self):
-        """Generate an empty dictionary for the manual tracing
-        """
-        self._mantrace = dict(spat_a=[], spec_a=[], spat_trc=None, spec_trc=np.arange(self.nspec), polyorder=0)
-        return
 
-
-def initialise(det, frame, trace_dict, sobjs, slit_ids=None, runtime=False, printout=False):
+def initialise(det, frame, tslits_dict, runtime=False, printout=False):
     """Initialise the 'ObjFindGUI' window for interactive object tracing
 
         Args:
-            frame (ndarray): Sky subtracted science image
-            trace_dict (dict, None): Dictionary containing slit and object trace information
-            sobjs (SpecObjs, None): SpecObjs Class
-            det (int): Detector index
-            slit_ids (list, None): List of slit ID numbers
-            printout (bool): Should the results be printed to screen
-            runtime (bool): Is this GUI being launched during a data reduction?
+            frame : ndarray
+                Sky subtracted science image
+            tslits_dict : dict, None
+                Dictionary containing slit trace information
+            det : int
+                Detector index
+            printout : bool
+                Should the results be printed to screen
+            runtime : bool
+                Is this GUI being launched during a data reduction?
 
         Returns:
             ObjFindGUI: Returns an instance of the ObjFindGUI class
@@ -841,23 +413,15 @@ def initialise(det, frame, trace_dict, sobjs, slit_ids=None, runtime=False, prin
 
     # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
     # vectors of size (nspec)
-    if trace_dict['slit_left'].ndim == 2:
-        nslit = trace_dict['slit_left'].shape[1]
+    tslits_dict = None
+    if tslits_dict['slit_left'].ndim == 2:
+        nslit = tslits_dict['slit_left'].shape[1]
     else:
         nslit = 1
-        trace_dict['slit_left'] = trace_dict['slit_left'].reshape((trace_dict['slit_left'].size, 1))
-        trace_dict['slit_righ'] = trace_dict['slit_righ'].reshape((trace_dict['slit_righ'].size, 1))
-    lordloc = trace_dict['slit_left']
-    rordloc = trace_dict['slit_righ']
-
-    if trace_dict["trace_model"]["slit"]["trace_model"].ndim == 1:
-        arr = trace_dict["trace_model"]["slit"]["trace_model"]
-        trace_dict["trace_model"]["slit"]["trace_model"] = arr.reshape((arr.size, 1))
-
-
-    # Assign the slit IDs if none were provided
-    if slit_ids is None:
-        slit_ids = [str(slit) for slit in np.arange(nslit)]
+        tslits_dict['slit_left'] = tslits_dict['slit_left'].reshape((tslits_dict['slit_left'].size, 1))
+        tslits_dict['slit_righ'] = tslits_dict['slit_righ'].reshape((tslits_dict['slit_righ'].size, 1))
+    lordloc = tslits_dict['slit_left']
+    rordloc = tslits_dict['slit_righ']
 
     # Determine the scale of the image
     med = np.median(frame)
@@ -876,18 +440,6 @@ def initialise(det, frame, trace_dict, sobjs, slit_ids=None, runtime=False, prin
         ax.plot(lordloc[:, sl], specarr, 'g-')
         ax.plot(rordloc[:, sl], specarr, 'b-')
 
-    # Add an object profile axis
-    axprof = fig.add_axes([0.82, 0.05, .15, 0.30])
-    profx = np.arange(-10, 10.1, 0.1)
-    profy = np.zeros(profx.size)
-    profile = axprof.plot(profx, profy, 'k-')
-    vlinel = axprof.axvline(-1, color='r')
-    vliner = axprof.axvline(+1, color='r')
-    axprof.set_title("Object profile")
-    axprof.set_xlim((-3, 3))
-    axprof.set_ylim((0, 1))
-    axprof.set_yticks([])
-
     # Add an information GUI axis
     axinfo = fig.add_axes([0.15, .92, .7, 0.07])
     axinfo.get_xaxis().set_visible(False)
@@ -897,12 +449,11 @@ def initialise(det, frame, trace_dict, sobjs, slit_ids=None, runtime=False, prin
     axinfo.set_xlim((0, 1))
     axinfo.set_ylim((0, 1))
 
-    axes = dict(main=ax, profile=axprof, info=axinfo)
-    profdict = dict(profile=profile[0], fwhm=[vlinel, vliner])
+    axes = dict(main=ax, info=axinfo)
     # Initialise the object finding window and display to screen
-    fig.canvas.set_window_title('PypeIt - Object Tracing')
-    ofgui = ObjFindGUI(fig.canvas, image, frame, det, sobjs, trace_dict, axes, profdict,
-                       slit_ids=slit_ids, printout=printout, runtime=runtime)
+    fig.canvas.set_window_title('PypeIt - Sky regions')
+    srgui = SkySubGUI(fig.canvas, image, frame, det, tslits_dict, axes,
+                      printout=printout, runtime=runtime)
     plt.show()
 
-    return ofgui
+    return srgui
