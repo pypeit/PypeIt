@@ -4,8 +4,9 @@
 #
 # -*- coding: utf-8 -*-
 """
-This script enables the viewing of a processed FITS file
-with extras.  Run above the Science/ folder.
+This script enables the user to view a 2D FITS file
+and define the sky background regions interactively.
+Run above the Science/ folder.
 """
 
 import os
@@ -18,17 +19,14 @@ from astropy.io import fits
 from pypeit.core.gui import object_find as gui_object_find
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
-from pypeit.traceslits import TraceSlits
 from pypeit import edgetrace
 from pypeit.masterframe import MasterFrame
-from pypeit.core import trace_slits
 
 
 def parser(options=None):
 
-    parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in the'
-                                                 'interactive object finding GUI.  Run above'
-                                                 'the Science/ folder',
+    parser = argparse.ArgumentParser(description='Display a spec2d image to interactively define the'
+                                                 'sky regions GUI.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default=None, help='PYPEIT spec2d file')
