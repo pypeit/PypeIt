@@ -1,7 +1,7 @@
 
 0.12.4dev
 ---------
-
+- Implemented interactive sky region selection
 
 0.12.3 (13 Feb 2019)
 --------------------
