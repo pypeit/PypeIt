@@ -109,7 +109,7 @@ class SkySubGUI(object):
         self._use_updates = True
         self._inslit = -1  # Which slit is the mouse in
         self.mmx, self.mmy = 0, 0
-        self._fitr = None  # Matplotlib shaded fit region
+        self._fitr = []  # Matplotlib shaded fit region
 
         # Draw the spectrum
         self.canvas.draw()
@@ -169,21 +169,26 @@ class SkySubGUI(object):
         self.draw_regions()
         self.canvas.draw()
 
-    def draw_regions(self, trans):
+    def draw_regions(self):
         """Refresh the fit regions
-
-        Args:
-            trans (AxisTransform): A matplotlib axis transform from data to axes coordinates
         """
-        if self._fitr is not None:
-            self._fitr.remove()
+        # Remove the regions and reset the patches
+        for rr in range(len(self._fitr)):
+            self._fitr[rr].remove()
+        self._fitr = []
         # Loop through all slits:
         for sl in range(self._nslits):
             # Fill fraction of the slit
-            left = self.tslits_dict['slit_left'][:,sl]
-            righ = self.tslits_dict['slit_righ'][:,sl]
-            self._fitr = self.axes['main'].fill_between(self._spectrace, left, righ, where=self._skyreg[sl], facecolor='red',
-                                                        alpha=0.5, transform=trans)
+            diff = self.tslits_dict['slit_righ'][:,sl] - self.tslits_dict['slit_left'][:,sl]
+            tmp = np.zeros(self._resolution+2)
+            tmp[1:-1] = self._skyreg[sl]
+            wl = np.where(tmp[1:] > tmp[:-1])[0]
+            wr = np.where(tmp[1:] < tmp[:-1])[0]
+            for rr in range(wl.size):
+                left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
+                righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
+                self._fitr.append(self.axes['main'].fill_betweenx(self._spectrace, left, righ, facecolor='red',
+                                                                  alpha=0.5))
 
     def draw_callback(self, event):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
@@ -193,9 +198,7 @@ class SkySubGUI(object):
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
-        # Set the axis transform
-        trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
-        self.draw_regions(trans)
+        self.draw_regions()
 
     def get_current_slit(self, event):
         """Get the index of the slit closest to the cursor
@@ -296,10 +299,7 @@ class SkySubGUI(object):
                             self._end = tmp
                         # Now do something
                         self.add_region()
-        # Now plot
-        self.canvas.restore_region(self.background)
-        self.draw_regions()
-        self.canvas.draw()
+        self.replot()
 
     def key_press_callback(self, event):
         """What to do when a key is pressed
@@ -417,6 +417,7 @@ class SkySubGUI(object):
         """
         Add/subtract a defined region
         """
+        print(self._start, self._end)
         # Figure out the locations of the start values
         ys = np.argmin(np.abs(self._start[1]-self._spectrace))
         difs = self.tslits_dict['slit_righ'][ys, self._currslit] - self.tslits_dict['slit_left'][ys, self._currslit]
@@ -436,8 +437,7 @@ class SkySubGUI(object):
         if fidx > self._resolution:
             fidx = self._resolution
         # Assign the sky regions
-        print(sidx, fidx, self._currslit)
-        print(type(sidx), type(fidx), type(self._currslit))
+        print("-->", sidx, fidx, self._resolution)
         self._skyreg[self._currslit][sidx:fidx] = self._addsub
 
     def reset_regions(self):
