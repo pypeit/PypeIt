@@ -460,6 +460,9 @@ class SkySubGUI(object):
             fidx = self._resolution
         # Assign the sky regions
         self._skyreg[self._currslit][sidx:fidx] = self._addsub
+        # If some regions are removed, remove this from the "all slits" regions, as well
+        if self._addsub == 0:
+            self._allreg[sidx:fidx] = 0
 
     def add_region_all(self):
         """ Set the sky regions for all slits simultaneously
@@ -475,9 +478,12 @@ class SkySubGUI(object):
         # Apply to all slits
         for sl in range(self._nslits):
             self._skyreg[sl][xmin:xmax] = self._addsub
+        # Set the all regions parameter
+        self._allreg[xmin:xmax] = self._addsub
 
     def reset_regions(self):
         self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
+        self._allreg[:] = False
         return
 
 
