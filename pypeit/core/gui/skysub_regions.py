@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, RadioButtons
+import matplotlib.transforms as mtransforms
 from scipy.interpolate import RectBivariateSpline
 
 from pypeit import specobjs
@@ -38,7 +39,7 @@ class SkySubGUI(object):
     """
 
     def __init__(self, canvas, image, frame, det, tslits_dict, axes,
-                 printout=False, runtime=False):
+                 printout=False, runtime=False, resolution=1000):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
         The main goal of this routine is to interactively select sky background
@@ -61,6 +62,9 @@ class SkySubGUI(object):
                 Should the results be printed to screen
             runtime : bool
                 Is the GUI being launched during data reduction?
+            resolution : int
+                The resolution of the skysub definitions. It is the number of pixels to divide the
+                 slit width by (i.e. 1000 pixels means a resolution of 0.1% of the slit width).
         """
         # Store the axes
         self._det = det
@@ -74,6 +78,7 @@ class SkySubGUI(object):
         self._currslit = -1
         self.tslits_dict = tslits_dict
         self._nslits = tslits_dict['slit_left'].shape[1]
+        self._resolution = int(resolution)
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
@@ -110,6 +115,7 @@ class SkySubGUI(object):
         self.canvas.draw()
 
         self.initialise_menu()
+        self.reset_regions()
 
     def print_help(self):
         """Print the keys and descriptions that can be used for Identification
@@ -173,14 +179,11 @@ class SkySubGUI(object):
             self._fitr.remove()
         # Loop through all slits:
         for sl in range(self._nslits):
-            # Loop through all regions on a given slit
-            for rr in range(len(self._skyreg[sl])):
-                # Fill fraction of the slit
-                diff = self.tslits_dict['slit_righ'][:,sl] - self.tslits_dict['slit_left'][:,sl]
-                reg_left = self.tslits_dict['slit_left'][:,sl] + self._skyreg[sl][rr][0]*diff
-                reg_righ = self.tslits_dict['slit_left'][:,sl] + self._skyreg[sl][rr][1]*diff
-                self._fitr = self.axes['main'].fill_between(x, y, y, facecolor='red',
-                                                            alpha=0.5, transform=trans)
+            # Fill fraction of the slit
+            left = self.tslits_dict['slit_left'][:,sl]
+            righ = self.tslits_dict['slit_righ'][:,sl]
+            self._fitr = self.axes['main'].fill_between(self._spectrace, left, righ, where=self._skyreg[sl], facecolor='red',
+                                                        alpha=0.5, transform=trans)
 
     def draw_callback(self, event):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
@@ -190,7 +193,9 @@ class SkySubGUI(object):
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
-        self.draw_regions()
+        # Set the axis transform
+        trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
+        self.draw_regions(trans)
 
     def get_current_slit(self, event):
         """Get the index of the slit closest to the cursor
@@ -205,7 +210,7 @@ class SkySubGUI(object):
                        (event.xdata < self.tslits_dict['slit_righ'][yv, :]))[0]
         # Double check there's only one solution
         if wsl.size == 1:
-            self._currslit = wsl[0]
+            self._currslit = int(wsl[0])
         return
 
     def get_axisID(self, event):
@@ -290,7 +295,7 @@ class SkySubGUI(object):
                             self._start = self._end
                             self._end = tmp
                         # Now do something
-                        pass
+                        self.add_region()
         # Now plot
         self.canvas.restore_region(self.background)
         self.draw_regions()
@@ -356,7 +361,7 @@ class SkySubGUI(object):
         elif key == 'c':
             if axisID == 0:
                 # If this is pressed on the main window
-                self.clear_slits()
+                self.reset_regions()
         elif key == 'qu' or key == 'qr':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
@@ -407,6 +412,37 @@ class SkySubGUI(object):
         self.axes['info'].set_xlim((0, 1))
         self.axes['info'].set_ylim((0, 1))
         self.canvas.draw()
+
+    def add_region(self):
+        """
+        Add/subtract a defined region
+        """
+        # Figure out the locations of the start values
+        ys = np.argmin(np.abs(self._start[1]-self._spectrace))
+        difs = self.tslits_dict['slit_righ'][ys, self._currslit] - self.tslits_dict['slit_left'][ys, self._currslit]
+        sval = (self._start[0]-self.tslits_dict['slit_righ'][ys, self._currslit]) / difs
+        sidx = int(round(self._resolution*sval))
+        # Figure out the locations of the start values
+        yf = np.argmin(np.abs(self._end[1]-self._spectrace))
+        diff = self.tslits_dict['slit_righ'][yf, self._currslit] - self.tslits_dict['slit_left'][yf, self._currslit]
+        fval = (self._end[0]-self.tslits_dict['slit_righ'][yf, self._currslit]) / diff
+        fidx = int(round(self._resolution*fval))
+        # Switch the indices if needed
+        if sidx > fidx:
+            sidx, fidx = fidx, sidx
+        # Check that we are within bounds
+        if sidx < 0:
+            sidx = 0
+        if fidx > self._resolution:
+            fidx = self._resolution
+        # Assign the sky regions
+        print(sidx, fidx, self._currslit)
+        print(type(sidx), type(fidx), type(self._currslit))
+        self._skyreg[self._currslit][sidx:fidx] = self._addsub
+
+    def reset_regions(self):
+        self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
+        return
 
 
 def initialise(det, frame, tslits_dict, runtime=False, printout=False):
