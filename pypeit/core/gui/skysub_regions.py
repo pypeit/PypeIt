@@ -7,7 +7,7 @@ import copy
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button, RadioButtons
+from matplotlib.widgets import Button, Slider
 import matplotlib.transforms as mtransforms
 from scipy.interpolate import RectBivariateSpline
 
@@ -79,6 +79,8 @@ class SkySubGUI(object):
         self.tslits_dict = tslits_dict
         self._nslits = tslits_dict['slit_left'].shape[1]
         self._resolution = int(resolution)
+        self._allreg = np.zeros(int(resolution), dtype=np.bool)
+        self._specx = np.arange(int(resolution))
 
         # Unset some of the matplotlib keymaps
         matplotlib.pyplot.rcParams['keymap.fullscreen'] = ''        # toggling fullscreen (Default: f, ctrl+f)
@@ -110,6 +112,7 @@ class SkySubGUI(object):
         self._inslit = -1  # Which slit is the mouse in
         self.mmx, self.mmy = 0, 0
         self._fitr = []  # Matplotlib shaded fit region
+        self._fita = None
 
         # Draw the spectrum
         self.canvas.draw()
@@ -149,18 +152,25 @@ class SkySubGUI(object):
         ax_exit = plt.axes([0.82, 0.79, 0.15, 0.05])
         self._ax_exit = Button(ax_exit, "Continue (don't save changes)", color=axcolor, hovercolor='y')
         self._ax_exit.on_clicked(self.button_exit)
+        # Frame for the sliders
+        self.axes['allslitreg'] = plt.axes([0.82, 0.68, 0.15, 0.04], facecolor='black', title="Assign sky regions to all slits")
+        self.axes['allslitreg'].get_xaxis().set_ticks([])
+        self.axes['allslitreg'].get_yaxis().set_ticks([])
+        self.axes['allslitreg'].axvspan(0, self._resolution-1, color='lightgrey')
+        self.axes['allslitreg'].set_xlim(-self._resolution/10, self._resolution+self._resolution/10)
+        self.axes['allslitreg'].set_ylim(0, 1)
 
     def button_cont(self, event):
         """What to do when the 'exit and save' button is clicked
         """
         self._respreq = [True, "exit_update"]
-        self.update_infobox(message="Are you sure you want to exit and use the updated object traces?", yesno=True)
+        self.update_infobox(message="Are you sure you want to exit and use the newly defined sky regions?", yesno=True)
 
     def button_exit(self, event):
         """What to do when the 'exit and do not save changes' button is clicked
         """
         self._respreq = [True, "exit_restore"]
-        self.update_infobox(message="Are you sure you want to exit and use the original object traces?", yesno=True)
+        self.update_infobox(message="Are you sure you want to exit and use the default sky regions?", yesno=True)
 
     def replot(self):
         """Redraw the entire canvas
@@ -175,6 +185,8 @@ class SkySubGUI(object):
         # Remove the regions and reset the patches
         for rr in range(len(self._fitr)):
             self._fitr[rr].remove()
+        if self._fita is not None:
+            self._fita.remove()
         self._fitr = []
         # Loop through all slits:
         for sl in range(self._nslits):
@@ -189,6 +201,11 @@ class SkySubGUI(object):
                 righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
                 self._fitr.append(self.axes['main'].fill_betweenx(self._spectrace, left, righ, facecolor='red',
                                                                   alpha=0.5))
+        # Plot the region on top of the "all slits" panel
+        trans = mtransforms.blended_transform_factory(self.axes['allslitreg'].transData,
+                                                      self.axes['allslitreg'].transAxes)
+        self._fita = self.axes['allslitreg'].fill_between(self._specx, 0, 1, transform=trans,
+                                                          where=self._allreg, facecolor='red', alpha=0.5, zorder=10)
 
     def draw_callback(self, event):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
@@ -229,6 +246,8 @@ class SkySubGUI(object):
             return 0
         elif event.inaxes == self.axes['info']:
             return 1
+        elif event.inaxes == self.axes['allslitreg']:
+            return 2
         return None
 
     def mouse_move_callback(self, event):
@@ -257,7 +276,9 @@ class SkySubGUI(object):
             self._addsub = 0
             self.get_current_slit(event)
         if event.inaxes == self.axes['main']:
-            self._start = [event.x, event.y]
+            self._start = [event.xdata, event.ydata]
+        elif event.inaxes == self.axes['allslitreg']:
+            self._start = [int(round(event.xdata)), event.ydata]
 
     def button_release_callback(self, event):
         """What to do when the mouse button is released
@@ -285,18 +306,20 @@ class SkySubGUI(object):
         # Draw an actor
         axisID = self.get_axisID(event)
         if axisID is not None:
-            if axisID <= 2:
-                self._end = [event.x, event.y]
+            if axisID == 2:
+                # Set the slide l value
+                self._end = [int(round(event.xdata)), event.ydata]
+                self.add_region_all()
+            else:
+                self._end = [event.xdata, event.ydata]
                 if (self._end[0] == self._start[0]) and (self._end[1] == self._start[1]):
                     # The mouse button was pressed (not dragged)
                     pass
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
-                        if self._start > self._end:
-                            tmp = self._start
-                            self._start = self._end
-                            self._end = tmp
+                        if self._start[0] > self._end[0]:
+                            self._start[0], self._end[0] = self._end[0], self._start[0]
                         # Now do something
                         self.add_region()
         self.replot()
@@ -417,16 +440,15 @@ class SkySubGUI(object):
         """
         Add/subtract a defined region
         """
-        print(self._start, self._end)
         # Figure out the locations of the start values
         ys = np.argmin(np.abs(self._start[1]-self._spectrace))
         difs = self.tslits_dict['slit_righ'][ys, self._currslit] - self.tslits_dict['slit_left'][ys, self._currslit]
-        sval = (self._start[0]-self.tslits_dict['slit_righ'][ys, self._currslit]) / difs
+        sval = (self._start[0]-self.tslits_dict['slit_left'][ys, self._currslit]) / difs
         sidx = int(round(self._resolution*sval))
         # Figure out the locations of the start values
         yf = np.argmin(np.abs(self._end[1]-self._spectrace))
         diff = self.tslits_dict['slit_righ'][yf, self._currslit] - self.tslits_dict['slit_left'][yf, self._currslit]
-        fval = (self._end[0]-self.tslits_dict['slit_righ'][yf, self._currslit]) / diff
+        fval = (self._end[0]-self.tslits_dict['slit_left'][yf, self._currslit]) / diff
         fidx = int(round(self._resolution*fval))
         # Switch the indices if needed
         if sidx > fidx:
@@ -437,8 +459,22 @@ class SkySubGUI(object):
         if fidx > self._resolution:
             fidx = self._resolution
         # Assign the sky regions
-        print("-->", sidx, fidx, self._resolution)
         self._skyreg[self._currslit][sidx:fidx] = self._addsub
+
+    def add_region_all(self):
+        """ Set the sky regions for all slits simultaneously
+        """
+        # Do some checks
+        xmin, xmax = self._start[0], self._end[0]
+        if xmax < xmin:
+            xmin, xmax = xmax, xmin
+        if xmin < 0:
+            xmin = 0
+        if xmax > self._resolution:
+            xmax = self._resolution
+        # Apply to all slits
+        for sl in range(self._nslits):
+            self._skyreg[sl][xmin:xmax] = self._addsub
 
     def reset_regions(self):
         self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
