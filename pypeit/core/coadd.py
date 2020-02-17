@@ -2720,7 +2720,7 @@ def get_spat_bins(thismask_stack, trace_stack):
 
     dspat_stack : array of shape (nimgs, nspec, nspat)
         Image stack which has the spatial position of each exposure relative to the trace in the trace_stack for that
-        image. 
+        image.
     """
 
     nimgs, nspec, nspat = thismask_stack.shape
