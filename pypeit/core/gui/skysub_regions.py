@@ -13,6 +13,7 @@ from scipy.interpolate import RectBivariateSpline
 
 from pypeit import specobjs
 from pypeit import msgs
+from pypeit.io import write_to_fits
 
 operations = dict({'cursor': "Select object trace (LMB click)\n" +
                    "         Navigate (LMB drag = pan, RMB drag = zoom)\n" +
@@ -38,7 +39,7 @@ class SkySubGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, det, tslits_dict, axes,
+    def __init__(self, canvas, image, frame, outname, det, tslits_dict, axes,
                  printout=False, runtime=False, resolution=1000):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
@@ -52,6 +53,8 @@ class SkySubGUI(object):
                 The image plotted to screen
             frame : ndarray
                 The image data
+            outname : str
+                The output filename to save the sky regions mask
             det : int
                 Detector to add a slit on
             tslits_dict : dict
@@ -70,6 +73,7 @@ class SkySubGUI(object):
         self._det = det
         self.image = image
         self.frame = frame
+        self._outname = outname
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self._spectrace = np.arange(self.nspec)
         self._printout = printout
@@ -164,13 +168,13 @@ class SkySubGUI(object):
         """What to do when the 'exit and save' button is clicked
         """
         self._respreq = [True, "exit_update"]
-        self.update_infobox(message="Are you sure you want to exit and use the newly defined sky regions?", yesno=True)
+        self.update_infobox(message="Are you sure you want to exit and save the newly defined sky regions?", yesno=True)
 
     def button_exit(self, event):
         """What to do when the 'exit and do not save changes' button is clicked
         """
         self._respreq = [True, "exit_restore"]
-        self.update_infobox(message="Are you sure you want to exit and use the default sky regions?", yesno=True)
+        self.update_infobox(message="Are you sure you want to exit without saving the  sky regions?", yesno=True)
 
     def replot(self):
         """Redraw the entire canvas
@@ -393,11 +397,23 @@ class SkySubGUI(object):
                 plt.close()
         self.replot()
 
-    def print_pypeit_info(self):
-        """print text that the user should insert into their .pypeit file
+    def get_result(self):
+        """Save a mask containing the skysub regions, and print information
+        for what the user should include in their .pypeit file
         """
-        msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
-        print("STILL WORKING ON THIS!!!")
+        # Only do this if the user wishes to save the result
+        if self._use_updates:
+            # Generate the mask
+            inmask = self.generate_mask()
+            # Save the mask
+            write_to_fits(inmask, self._outname, name="SKYREG")
+            # Print the output to screen
+            msgs.info("Include the following info in your .pypeit file:\n")
+            print("STILL WORKING ON THIS!!!")
+        return
+
+    def generate_mask(self):
+
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
@@ -487,7 +503,7 @@ class SkySubGUI(object):
         return
 
 
-def initialize(det, frame, tslits_dict, runtime=False, printout=False):
+def initialize(det, frame, tslits_dict, outname="skyregions.fits", runtime=False, printout=False):
     """Initialize the 'ObjFindGUI' window for interactive object tracing
 
         Args:
@@ -545,7 +561,7 @@ def initialize(det, frame, tslits_dict, runtime=False, printout=False):
     axes = dict(main=ax, info=axinfo)
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Sky regions')
-    srgui = SkySubGUI(fig.canvas, image, frame, det, tslits_dict, axes,
+    srgui = SkySubGUI(fig.canvas, image, frame, outname, det, tslits_dict, axes,
                       printout=printout, runtime=runtime)
     plt.show()
 

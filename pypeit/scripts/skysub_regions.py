@@ -119,5 +119,12 @@ def main(args):
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
+    # Derive an appropriate output filename
+    prefix =
+    outname = "{0:s}_skyregions.fits".format(prefix)
+
     # Finally, initialise the GUI
-    skyreg = gui_skysub_regions.initialize(args.det, frame, tslits_dict, None, printout=True)
+    skyreg = gui_skysub_regions.initialize(args.det, frame, tslits_dict, outname=outname, runtime=False, printout=True)
+
+    # Get the results
+    skyreg.get_results()
