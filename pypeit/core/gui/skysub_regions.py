@@ -487,7 +487,6 @@ class SkySubGUI(object):
         return
 
 
-@classmethod
 def initialize(det, frame, tslits_dict, runtime=False, printout=False):
     """Initialize the 'ObjFindGUI' window for interactive object tracing
 
