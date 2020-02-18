@@ -1164,7 +1164,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Table containing meta data for the telluric/object model fit
 
     out_table: astropy.table.Table. object
-        Table containing the values for telluric model parameters and object model parameters. 
+        Table containing the values for telluric model parameters and object model parameters.
     """
 
 
@@ -1226,6 +1226,21 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
     return meta_table, out_table
 
 def create_bal_mask(wave):
+    """
+    Example of a utility function for creating a BAL mask for QSOs with BAL features. Can also be used to mask other
+    features that the user does not want to fit.
+
+    Parameters
+    ----------
+    wave : array shape (nspec,)
+       Wavelength array for the quasar in question
+
+    Returns
+    -------
+    gpm : array shape, (nspec,)
+       Good pixel mask for the fits.
+
+    """
 
     # example of a BAL mask
     bal_mask =  (wave > 12000.0) & (wave < 12100)
@@ -1377,7 +1392,6 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         plt.xlabel('Wavelength')
         plt.ylabel('Flux')
         plt.show()
-    embed()
 
     save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=star_model,
                               header=header, ex_value='OPT', overwrite=True)
