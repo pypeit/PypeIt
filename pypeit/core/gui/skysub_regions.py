@@ -34,7 +34,7 @@ class SkySubGUI(object):
     """
     GUI to interactively define the sky regions. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
-    PypeIt. To initialise the GUI, call the initialise() function in this
+    PypeIt. To initialize the GUI, call the initialize() function in this
     file.
     """
 
@@ -487,8 +487,9 @@ class SkySubGUI(object):
         return
 
 
-def initialise(det, frame, tslits_dict, runtime=False, printout=False):
-    """Initialise the 'ObjFindGUI' window for interactive object tracing
+@classmethod
+def initialize(det, frame, tslits_dict, runtime=False, printout=False):
+    """Initialize the 'ObjFindGUI' window for interactive object tracing
 
         Args:
             frame : ndarray
