@@ -408,6 +408,7 @@ class SkySubGUI(object):
             inmask = self.generate_mask()
             # Save the mask
             write_to_fits(inmask, self._outname, name="SKYREG")
+            write_to_fits(self.frame, "blah.fits", name="DELETE")  # REMOVE THIS LINE OF CODE!!!
             # Print the output to screen
             msgs.info("Include the following info in your .pypeit file:\n")
             print("STILL WORKING ON THIS!!!")
@@ -417,13 +418,13 @@ class SkySubGUI(object):
         """Generate the mask of sky regions
 
         Returns:
-            inmask : ndarray
+            ndarray : Boolean mask containing sky regions
         """
         nreg = 0
         left_edg, righ_edg = np.zeros((self.nspec, 0)), np.zeros((self.nspec, 0))
         spec_min, spec_max = np.array([]), np.array([])
         for sl in range(self._nslits):
-            diff = self.tslits_dict['slit_righ'][:,sl] - self.tslits_dict['slit_left'][:,sl]
+            diff = self.tslits_dict['slit_righ'][:, sl] - self.tslits_dict['slit_left'][:, sl]
             tmp = np.zeros(self._resolution+2)
             tmp[1:-1] = self._skyreg[sl]
             wl = np.where(tmp[1:] > tmp[:-1])[0]
@@ -438,8 +439,7 @@ class SkySubGUI(object):
                 spec_max = np.append(spec_max, self.tslits_dict[spec_max][sl])
         reg_dict = dict(pad=0, slit_left=left_edg, slit_righ=righ_edg, nslits=nreg,
                         nspec=self.nspec, nspat=self.nspat, spec_min=spec_min, spec_max=spec_max)
-        inmask = pixels.tslits2mask(reg_dict)
-        return inmask
+        return pixels.tslits2mask(reg_dict)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
