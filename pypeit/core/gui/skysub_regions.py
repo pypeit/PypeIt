@@ -373,7 +373,6 @@ class SkySubGUI(object):
                 # Deal with the response
                 if self._respreq[1] == "exit_update" and key == "y":
                     self._use_updates = True
-                    self.print_pypeit_info()
                     self.operations("qu", None)
                 elif self._respreq[1] == "exit_restore" and key == "y":
                     self._use_updates = False
@@ -432,14 +431,14 @@ class SkySubGUI(object):
             for rr in range(wl.size):
                 left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
                 righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
-                left_edg = np.append(left_edg, left, axis=1)
-                righ_edg = np.append(righ_edg, righ, axis=1)
+                left_edg = np.append(left_edg, left[:, np.newaxis], axis=1)
+                righ_edg = np.append(righ_edg, righ[:, np.newaxis], axis=1)
                 nreg += 1
-                spec_min = np.append(spec_min, self.tslits_dict[spec_min][sl])
-                spec_max = np.append(spec_max, self.tslits_dict[spec_max][sl])
+                spec_min = np.append(spec_min, self.tslits_dict['spec_min'][sl])
+                spec_max = np.append(spec_max, self.tslits_dict['spec_max'][sl])
         reg_dict = dict(pad=0, slit_left=left_edg, slit_righ=righ_edg, nslits=nreg,
                         nspec=self.nspec, nspat=self.nspat, spec_min=spec_min, spec_max=spec_max)
-        return pixels.tslits2mask(reg_dict)
+        return (pixels.tslits2mask(reg_dict) >= 0).astype(np.int)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
