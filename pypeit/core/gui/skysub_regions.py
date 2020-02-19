@@ -14,6 +14,7 @@ from scipy.interpolate import RectBivariateSpline
 from pypeit import specobjs
 from pypeit import msgs
 from pypeit.io import write_to_fits
+from pypeit.core import pixels
 
 operations = dict({'cursor': "Select object trace (LMB click)\n" +
                    "         Navigate (LMB drag = pan, RMB drag = zoom)\n" +
@@ -413,7 +414,32 @@ class SkySubGUI(object):
         return
 
     def generate_mask(self):
+        """Generate the mask of sky regions
 
+        Returns:
+            inmask : ndarray
+        """
+        nreg = 0
+        left_edg, righ_edg = np.zeros((self.nspec, 0)), np.zeros((self.nspec, 0))
+        spec_min, spec_max = np.array([]), np.array([])
+        for sl in range(self._nslits):
+            diff = self.tslits_dict['slit_righ'][:,sl] - self.tslits_dict['slit_left'][:,sl]
+            tmp = np.zeros(self._resolution+2)
+            tmp[1:-1] = self._skyreg[sl]
+            wl = np.where(tmp[1:] > tmp[:-1])[0]
+            wr = np.where(tmp[1:] < tmp[:-1])[0]
+            for rr in range(wl.size):
+                left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
+                righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
+                left_edg = np.append(left_edg, left, axis=1)
+                righ_edg = np.append(righ_edg, righ, axis=1)
+                nreg += 1
+                spec_min = np.append(spec_min, self.tslits_dict[spec_min][sl])
+                spec_max = np.append(spec_max, self.tslits_dict[spec_max][sl])
+        reg_dict = dict(pad=0, slit_left=left_edg, slit_righ=righ_edg, nslits=nreg,
+                        nspec=self.nspec, nspat=self.nspat, spec_min=spec_min, spec_max=spec_max)
+        inmask = pixels.tslits2mask(reg_dict)
+        return inmask
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
