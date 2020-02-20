@@ -122,8 +122,73 @@ class SkySubGUI(object):
         # Draw the spectrum
         self.canvas.draw()
 
-        self.initialise_menu()
+        self.initialize_menu()
         self.reset_regions()
+
+    @classmethod
+    def initialize(cls, det, frame, tslits_dict, outname="skyregions.fits", runtime=False, printout=False):
+        """Initialize the 'ObjFindGUI' window for interactive object tracing
+
+            Args:
+                frame : ndarray
+                    Sky subtracted science image
+                tslits_dict : dict, None
+                    Dictionary containing slit trace information
+                det : int
+                    Detector index
+                printout : bool
+                    Should the results be printed to screen
+                runtime : bool
+                    Is this GUI being launched during a data reduction?
+
+            Returns:
+                ObjFindGUI: Returns an instance of the ObjFindGUI class
+        """
+        # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
+        # vectors of size (nspec)
+        if tslits_dict['slit_left'].ndim == 2:
+            nslit = tslits_dict['slit_left'].shape[1]
+        else:
+            nslit = 1
+            tslits_dict['slit_left'] = tslits_dict['slit_left'].reshape((tslits_dict['slit_left'].size, 1))
+            tslits_dict['slit_righ'] = tslits_dict['slit_righ'].reshape((tslits_dict['slit_righ'].size, 1))
+        lordloc = tslits_dict['slit_left']
+        rordloc = tslits_dict['slit_righ']
+
+        # Determine the scale of the image
+        med = np.median(frame)
+        mad = np.median(np.abs(frame - med))
+        vmin = med - 3 * mad
+        vmax = med + 3 * mad
+
+        # Add the main figure axis
+        fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
+        plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.8)
+        image = ax.imshow(frame, aspect='auto', cmap='Greys', vmin=vmin, vmax=vmax)
+
+        # Overplot the slit traces
+        specarr = np.arange(lordloc.shape[0])
+        for sl in range(nslit):
+            ax.plot(lordloc[:, sl], specarr, 'g-')
+            ax.plot(rordloc[:, sl], specarr, 'b-')
+
+        # Add an information GUI axis
+        axinfo = fig.add_axes([0.15, .92, .7, 0.07])
+        axinfo.get_xaxis().set_visible(False)
+        axinfo.get_yaxis().set_visible(False)
+        axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
+                    horizontalalignment='center', verticalalignment='center')
+        axinfo.set_xlim((0, 1))
+        axinfo.set_ylim((0, 1))
+
+        axes = dict(main=ax, info=axinfo)
+        # Initialise the object finding window and display to screen
+        fig.canvas.set_window_title('PypeIt - Sky regions')
+        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, tslits_dict, axes,
+                          printout=printout, runtime=runtime)
+        plt.show()
+
+        return srgui
 
     def print_help(self):
         """Print the keys and descriptions that can be used for Identification
@@ -145,8 +210,8 @@ class SkySubGUI(object):
             print("{0:6s} : {1:s}".format(key, operations[key]))
         print("---------------------------------------------------------------")
 
-    def initialise_menu(self):
-        """Initialise the menu buttons
+    def initialize_menu(self):
+        """Initialize the menu buttons
         """
         axcolor = 'lightgoldenrodyellow'
         # Continue with reduction (using updated specobjs)
