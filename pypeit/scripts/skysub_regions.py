@@ -10,7 +10,6 @@ Run above the Science/ folder.
 """
 
 import os
-import pdb
 import argparse
 import numpy as np
 from configobj import ConfigObj
@@ -18,13 +17,16 @@ from configobj import ConfigObj
 from astropy.table import Table
 from astropy.io import fits
 
-from pypeit.core.gui import skysub_regions as gui_skysub_regions
 from pypeit import msgs
-from pypeit.core.parse import get_dnum
 from pypeit import edgetrace
+from pypeit.core.gui.skysub_regions import SkySubGUI
+from pypeit.core.parse import get_dnum
+from pypeit.core import procimg
 from pypeit.par.util import parse_pypeit_file
+from pypeit.par import PypeItPar
 from pypeit.masterframe import MasterFrame
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.metadata import PypeItMetaData
 
 
 def parser(options=None):
@@ -63,6 +65,7 @@ def get_science_frame(usrdata):
     """
     sciidx = np.array([], dtype=np.int)
     cntr = 0
+    print("\nList of science frames:")
     for tt in range(len(usrdata)):
         ftype = usrdata['frametype'][tt].split(",")
         for ff in range(len(ftype)):
@@ -90,7 +93,7 @@ def get_science_frame(usrdata):
     return idx
 
 
-def main_blah(args):
+def main(args):
 
     # Load fits file
     cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(args.file, runtime=False)
@@ -98,152 +101,52 @@ def main_blah(args):
     # Get the raw fits file name
     sciIdx = get_science_frame(usrdata)
     fname = data_files[sciIdx]
-    setup = setups[0]
 
     # Load the spectrograph
     cfg = ConfigObj(cfg_lines)
     spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[0])
+    spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[sciIdx])
     msgs.info('Loaded spectrograph {0}'.format(spectrograph.spectrograph))
+    spectrograph_cfg_lines = spectrograph.config_specific_par(fname).to_config()
+    par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
-    pdb.set_trace()
-    frame, _, _, datasec, _ = spectrograph.get_rawimage(fname, args.det)
+    # Get the master key
+    file_base = os.path.basename(fname)
+    ftdict = dict({file_base: 'science'})
+    fitstbl = PypeItMetaData(spectrograph, par, files=[data_files[sciIdx]], usrdata=Table(usrdata[sciIdx]), strict=True)
+    fitstbl.finalize_usr_build(ftdict, setups[0])
+    mkey = fitstbl.master_key(0, det=args.det)
 
-    # Init
-    sdet = get_dnum(args.det, prefix=False)
+    # Load the frame data
+    rawimage, _, _, datasec, _ = spectrograph.get_rawimage(fname, args.det)
+    rawimage = procimg.trim_frame(rawimage, datasec < 1)
+    frame = spectrograph.orient_image(rawimage, args.det)
 
-    # One detector, sky sub for now
-    names = [hdu[i].name for i in range(len(hdu))]
+    # Set paths
+    if par['calibrations']['caldir'] == 'default':
+        mdir = os.path.join(par['rdx']['redux_path'], 'Masters')
+    else:
+        mdir = par['calibrations']['caldir']
 
-    try:
-        exten = names.index('DET{:s}-PROCESSED'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} was not processed.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    sciimg = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-SKY'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no sky model.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    skymodel = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-MASK'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no bit mask.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-
-    mask = hdu[exten].data
-    frame = (sciimg - skymodel) * (mask == 0)
-
-    mdir = head0['PYPMFDIR']
     if not os.path.exists(mdir):
         mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir = mdir_base
 
-    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
-
-    # TODO -- Remove this once the move to Edges is complete
-    trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
+    # Load the tslits_dict
+    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Edges', mkey)) + '.gz'
     tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
-    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
-
-    # Object traces
-    spec1d_file = args.file.replace('spec2d', 'spec1d')
-
-    det_nm = 'DET{:s}'.format(sdet)
-    if os.path.isfile(spec1d_file):
-        hdulist_1d = fits.open(spec1d_file)
-    else:
-        hdulist_1d = []
-        msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
-                  '                          No objects were extracted.')
 
     # Derive an appropriate output filename
-    prefix = None
+    prefix = os.path.splitext(file_base)
+    if prefix[1] == ".gz":
+        prefix = os.path.splitext(prefix[0])[0]
+    else:
+        prefix = prefix[0]
     outname = "{0:s}_skyregions.fits".format(prefix)
 
     # Finally, initialise the GUI
-    skyreg = gui_skysub_regions.initialize(args.det, frame, tslits_dict, outname=outname, runtime=False, printout=True)
-
-    # Get the results
-    skyreg.get_results()
-
-
-def main(args):
-
-    # Load fits file
-    hdu = fits.open(args.file)
-    head0 = hdu[0].header
-
-    # Init
-    sdet = get_dnum(args.det, prefix=False)
-
-    # One detector, sky sub for now
-    names = [hdu[i].name for i in range(len(hdu))]
-
-    try:
-        exten = names.index('DET{:s}-PROCESSED'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} was not processed.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    sciimg = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-SKY'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no sky model.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    skymodel = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-MASK'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no bit mask.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-
-    mask = hdu[exten].data
-    frame = (sciimg - skymodel) * (mask == 0)
-    frame = (sciimg) * (mask == 0)
-
-    mdir = head0['PYPMFDIR']
-    if not os.path.exists(mdir):
-        mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
-        msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
-        mdir = mdir_base
-
-    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
-
-    # TODO -- Remove this once the move to Edges is complete
-    trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
-    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
-
-    # Object traces
-    spec1d_file = args.file.replace('spec2d', 'spec1d')
-
-    det_nm = 'DET{:s}'.format(sdet)
-    if os.path.isfile(spec1d_file):
-        hdulist_1d = fits.open(spec1d_file)
-    else:
-        hdulist_1d = []
-        msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
-                  '                          No objects were extracted.')
-
-    # Derive an appropriate output filename
-    prefix = "blah"
-    outname = "{0:s}_skyregions.fits".format(prefix)
-
-    # Finally, initialise the GUI
-    skyreg = gui_skysub_regions.initialize(args.det, frame, tslits_dict, outname=outname, runtime=False, printout=True)
+    skyreg = SkySubGUI.initialize(args.det, frame, tslits_dict, outname=outname, runtime=False, printout=True)
 
     # Get the results
     skyreg.get_result()
-

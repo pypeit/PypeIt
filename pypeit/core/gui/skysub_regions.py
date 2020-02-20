@@ -472,7 +472,6 @@ class SkySubGUI(object):
             inmask = self.generate_mask()
             # Save the mask
             write_to_fits(inmask, self._outname, name="SKYREG")
-            write_to_fits(self.frame, "blah.fits", name="DELETE")  # REMOVE THIS LINE OF CODE!!!
             # Print the output to screen
             msgs.info("Include the following info in your .pypeit file:\n")
             print("STILL WORKING ON THIS!!!")
