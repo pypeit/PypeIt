@@ -13,6 +13,8 @@ from scipy.interpolate import RectBivariateSpline
 
 from pypeit import specobjs
 from pypeit import msgs
+from pypeit.io import write_to_fits
+from pypeit.core import pixels
 
 operations = dict({'cursor': "Select object trace (LMB click)\n" +
                    "         Navigate (LMB drag = pan, RMB drag = zoom)\n" +
@@ -34,11 +36,11 @@ class SkySubGUI(object):
     """
     GUI to interactively define the sky regions. The GUI can be run within
     PypeIt during data reduction, or as a standalone script outside of
-    PypeIt. To initialise the GUI, call the initialise() function in this
+    PypeIt. To initialize the GUI, call the initialize() function in this
     file.
     """
 
-    def __init__(self, canvas, image, frame, det, tslits_dict, axes,
+    def __init__(self, canvas, image, frame, outname, det, tslits_dict, axes,
                  printout=False, runtime=False, resolution=1000):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
@@ -52,6 +54,8 @@ class SkySubGUI(object):
                 The image plotted to screen
             frame : ndarray
                 The image data
+            outname : str
+                The output filename to save the sky regions mask
             det : int
                 Detector to add a slit on
             tslits_dict : dict
@@ -70,6 +74,7 @@ class SkySubGUI(object):
         self._det = det
         self.image = image
         self.frame = frame
+        self._outname = outname
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self._spectrace = np.arange(self.nspec)
         self._printout = printout
@@ -117,8 +122,73 @@ class SkySubGUI(object):
         # Draw the spectrum
         self.canvas.draw()
 
-        self.initialise_menu()
+        self.initialize_menu()
         self.reset_regions()
+
+    @classmethod
+    def initialize(cls, det, frame, tslits_dict, outname="skyregions.fits", runtime=False, printout=False):
+        """Initialize the 'ObjFindGUI' window for interactive object tracing
+
+            Args:
+                frame : ndarray
+                    Sky subtracted science image
+                tslits_dict : dict, None
+                    Dictionary containing slit trace information
+                det : int
+                    Detector index
+                printout : bool
+                    Should the results be printed to screen
+                runtime : bool
+                    Is this GUI being launched during a data reduction?
+
+            Returns:
+                ObjFindGUI: Returns an instance of the ObjFindGUI class
+        """
+        # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
+        # vectors of size (nspec)
+        if tslits_dict['slit_left'].ndim == 2:
+            nslit = tslits_dict['slit_left'].shape[1]
+        else:
+            nslit = 1
+            tslits_dict['slit_left'] = tslits_dict['slit_left'].reshape((tslits_dict['slit_left'].size, 1))
+            tslits_dict['slit_righ'] = tslits_dict['slit_righ'].reshape((tslits_dict['slit_righ'].size, 1))
+        lordloc = tslits_dict['slit_left']
+        rordloc = tslits_dict['slit_righ']
+
+        # Determine the scale of the image
+        med = np.median(frame)
+        mad = np.median(np.abs(frame - med))
+        vmin = med - 3 * mad
+        vmax = med + 3 * mad
+
+        # Add the main figure axis
+        fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
+        plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.8)
+        image = ax.imshow(frame, aspect='auto', cmap='Greys', vmin=vmin, vmax=vmax)
+
+        # Overplot the slit traces
+        specarr = np.arange(lordloc.shape[0])
+        for sl in range(nslit):
+            ax.plot(lordloc[:, sl], specarr, 'g-')
+            ax.plot(rordloc[:, sl], specarr, 'b-')
+
+        # Add an information GUI axis
+        axinfo = fig.add_axes([0.15, .92, .7, 0.07])
+        axinfo.get_xaxis().set_visible(False)
+        axinfo.get_yaxis().set_visible(False)
+        axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
+                    horizontalalignment='center', verticalalignment='center')
+        axinfo.set_xlim((0, 1))
+        axinfo.set_ylim((0, 1))
+
+        axes = dict(main=ax, info=axinfo)
+        # Initialise the object finding window and display to screen
+        fig.canvas.set_window_title('PypeIt - Sky regions')
+        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, tslits_dict, axes,
+                          printout=printout, runtime=runtime)
+        plt.show()
+
+        return srgui
 
     def print_help(self):
         """Print the keys and descriptions that can be used for Identification
@@ -140,8 +210,8 @@ class SkySubGUI(object):
             print("{0:6s} : {1:s}".format(key, operations[key]))
         print("---------------------------------------------------------------")
 
-    def initialise_menu(self):
-        """Initialise the menu buttons
+    def initialize_menu(self):
+        """Initialize the menu buttons
         """
         axcolor = 'lightgoldenrodyellow'
         # Continue with reduction (using updated specobjs)
@@ -164,13 +234,13 @@ class SkySubGUI(object):
         """What to do when the 'exit and save' button is clicked
         """
         self._respreq = [True, "exit_update"]
-        self.update_infobox(message="Are you sure you want to exit and use the newly defined sky regions?", yesno=True)
+        self.update_infobox(message="Are you sure you want to exit and save the newly defined sky regions?", yesno=True)
 
     def button_exit(self, event):
         """What to do when the 'exit and do not save changes' button is clicked
         """
         self._respreq = [True, "exit_restore"]
-        self.update_infobox(message="Are you sure you want to exit and use the default sky regions?", yesno=True)
+        self.update_infobox(message="Are you sure you want to exit without saving the  sky regions?", yesno=True)
 
     def replot(self):
         """Redraw the entire canvas
@@ -368,7 +438,6 @@ class SkySubGUI(object):
                 # Deal with the response
                 if self._respreq[1] == "exit_update" and key == "y":
                     self._use_updates = True
-                    self.print_pypeit_info()
                     self.operations("qu", None)
                 elif self._respreq[1] == "exit_restore" and key == "y":
                     self._use_updates = False
@@ -393,11 +462,47 @@ class SkySubGUI(object):
                 plt.close()
         self.replot()
 
-    def print_pypeit_info(self):
-        """print text that the user should insert into their .pypeit file
+    def get_result(self):
+        """Save a mask containing the skysub regions, and print information
+        for what the user should include in their .pypeit file
         """
-        msgs.info("Include the following info in the manual_extract column in your .pypeit file:\n")
-        print("STILL WORKING ON THIS!!!")
+        # Only do this if the user wishes to save the result
+        if self._use_updates:
+            # Generate the mask
+            inmask = self.generate_mask()
+            # Save the mask
+            write_to_fits(inmask, self._outname, name="SKYREG")
+            # Print the output to screen
+            msgs.info("Include the following info in your .pypeit file:\n")
+            print("STILL WORKING ON THIS!!!")
+        return
+
+    def generate_mask(self):
+        """Generate the mask of sky regions
+
+        Returns:
+            ndarray : Boolean mask containing sky regions
+        """
+        nreg = 0
+        left_edg, righ_edg = np.zeros((self.nspec, 0)), np.zeros((self.nspec, 0))
+        spec_min, spec_max = np.array([]), np.array([])
+        for sl in range(self._nslits):
+            diff = self.tslits_dict['slit_righ'][:, sl] - self.tslits_dict['slit_left'][:, sl]
+            tmp = np.zeros(self._resolution+2)
+            tmp[1:-1] = self._skyreg[sl]
+            wl = np.where(tmp[1:] > tmp[:-1])[0]
+            wr = np.where(tmp[1:] < tmp[:-1])[0]
+            for rr in range(wl.size):
+                left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
+                righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
+                left_edg = np.append(left_edg, left[:, np.newaxis], axis=1)
+                righ_edg = np.append(righ_edg, righ[:, np.newaxis], axis=1)
+                nreg += 1
+                spec_min = np.append(spec_min, self.tslits_dict['spec_min'][sl])
+                spec_max = np.append(spec_max, self.tslits_dict['spec_max'][sl])
+        reg_dict = dict(pad=0, slit_left=left_edg, slit_righ=righ_edg, nslits=nreg,
+                        nspec=self.nspec, nspat=self.nspat, spec_min=spec_min, spec_max=spec_max)
+        return (pixels.tslits2mask(reg_dict) >= 0).astype(np.int)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
@@ -487,8 +592,8 @@ class SkySubGUI(object):
         return
 
 
-def initialise(det, frame, tslits_dict, runtime=False, printout=False):
-    """Initialise the 'ObjFindGUI' window for interactive object tracing
+def initialize(det, frame, tslits_dict, outname="skyregions.fits", runtime=False, printout=False):
+    """Initialize the 'ObjFindGUI' window for interactive object tracing
 
         Args:
             frame : ndarray
@@ -545,7 +650,7 @@ def initialise(det, frame, tslits_dict, runtime=False, printout=False):
     axes = dict(main=ax, info=axinfo)
     # Initialise the object finding window and display to screen
     fig.canvas.set_window_title('PypeIt - Sky regions')
-    srgui = SkySubGUI(fig.canvas, image, frame, det, tslits_dict, axes,
+    srgui = SkySubGUI(fig.canvas, image, frame, outname, det, tslits_dict, axes,
                       printout=printout, runtime=runtime)
     plt.show()
 

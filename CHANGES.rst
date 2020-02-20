@@ -1,8 +1,8 @@
 
 0.12.4dev
 ---------
+- Implemented interactive sky region selection
 - Added PypeIt identify GUI script for manual wavelength calibration
-
 
 0.12.3 (13 Feb 2019)
 --------------------

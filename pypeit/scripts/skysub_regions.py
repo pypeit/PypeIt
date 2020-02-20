@@ -12,26 +12,30 @@ Run above the Science/ folder.
 import os
 import argparse
 import numpy as np
+from configobj import ConfigObj
 
 from astropy.table import Table
-from astropy.io import fits
 
-from pypeit.core.gui import skysub_regions as gui_skysub_regions
 from pypeit import msgs
-from pypeit.core.parse import get_dnum
 from pypeit import edgetrace
+from pypeit.core.gui.skysub_regions import SkySubGUI
+from pypeit.core.parse import get_dnum
+from pypeit.core import procimg
+from pypeit.par.util import parse_pypeit_file
+from pypeit.par import PypeItPar
 from pypeit.masterframe import MasterFrame
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.metadata import PypeItMetaData
 
 
 def parser(options=None):
 
-    parser = argparse.ArgumentParser(description='Display a spec2d image to interactively define the'
-                                                 'sky regions GUI.  Run above the Science/ folder',
+    parser = argparse.ArgumentParser(description='Display a Raw science image and interactively define'
+                                                 'the sky regions using a GUI. Run in the same folder'
+                                                 'as your .pypeit file',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('file', type = str, default=None, help='PYPEIT spec2d file')
-    parser.add_argument("--list", default=False, help="List the extensions only?",
-                        action="store_true")
+    parser.add_argument('file', type = str, default=None, help='PypeIt file')
     parser.add_argument('--det', default=1, type=int, help="Detector")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
@@ -55,171 +59,93 @@ def parse_traces(hdulist_1d, det_nm):
     return traces
 
 
+def get_science_frame(usrdata):
+    """Find all of the indices that correspond to science frames
+    """
+    sciidx = np.array([], dtype=np.int)
+    cntr = 0
+    print("\nList of science frames:")
+    for tt in range(len(usrdata)):
+        ftype = usrdata['frametype'][tt].split(",")
+        for ff in range(len(ftype)):
+            if ftype[ff] == "science":
+                sciidx = np.append(sciidx, tt)
+                print("  ({0:d}) {1:s}".format(cntr+1, usrdata['filename'][tt]))
+                cntr += 1
+                break
+    # Determine which science frame the user wants
+    if cntr == 1:
+        msgs.info("Only one science frame listed in .pypeit file - using that frame")
+        idx = sciidx[0]
+    else:
+        ans = ''
+        while True:
+            ans = input(" Which frame would you like to select [1-{0:d}]: ".format(cntr))
+            try:
+                ans = int(ans)
+                if 1 <= ans <= cntr:
+                    idx = sciidx[ans-1]
+                    break
+            except ValueError:
+                pass
+            msgs.info("That is not a valid option!")
+    return idx
+
+
 def main(args):
 
-    # List only?
-    hdu = fits.open(args.file)
-    head0 = hdu[0].header
-    if args.list:
-        hdu.info()
-        return
+    # Load fits file
+    cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(args.file, runtime=False)
 
-    # Init
-    sdet = get_dnum(args.det, prefix=False)
+    # Get the raw fits file name
+    sciIdx = get_science_frame(usrdata)
+    fname = data_files[sciIdx]
 
-    # One detector, sky sub for now
-    names = [hdu[i].name for i in range(len(hdu))]
+    # Load the spectrograph
+    cfg = ConfigObj(cfg_lines)
+    spectrograph_name = cfg['rdx']['spectrograph']
+    spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[sciIdx])
+    msgs.info('Loaded spectrograph {0}'.format(spectrograph.spectrograph))
+    spectrograph_cfg_lines = spectrograph.config_specific_par(fname).to_config()
+    par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
 
-    try:
-        exten = names.index('DET{:s}-PROCESSED'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} was not processed.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    sciimg = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-SKY'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no sky model.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    skymodel = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-MASK'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no bit mask.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
+    # Get the master key
+    file_base = os.path.basename(fname)
+    ftdict = dict({file_base: 'science'})
+    fitstbl = PypeItMetaData(spectrograph, par, files=[data_files[sciIdx]], usrdata=Table(usrdata[sciIdx]), strict=True)
+    fitstbl.finalize_usr_build(ftdict, setups[0])
+    mkey = fitstbl.master_key(0, det=args.det)
 
-    mask = hdu[exten].data
-    frame = (sciimg - skymodel) * (mask == 0)
+    # Load the frame data
+    rawimage, _, _, datasec, _ = spectrograph.get_rawimage(fname, args.det)
+    rawimage = procimg.trim_frame(rawimage, datasec < 1)
+    frame = spectrograph.orient_image(rawimage, args.det)
 
-    mdir = head0['PYPMFDIR']
+    # Set paths
+    if par['calibrations']['caldir'] == 'default':
+        mdir = os.path.join(par['rdx']['redux_path'], 'Masters')
+    else:
+        mdir = par['calibrations']['caldir']
+
     if not os.path.exists(mdir):
         mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir = mdir_base
 
-    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
-
-    # TODO -- Remove this once the move to Edges is complete
-    trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
+    # Load the tslits_dict
+    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Edges', mkey)) + '.gz'
     tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
-    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
 
-    # Object traces
-    spec1d_file = args.file.replace('spec2d', 'spec1d')
-
-    det_nm = 'DET{:s}'.format(sdet)
-    if os.path.isfile(spec1d_file):
-        hdulist_1d = fits.open(spec1d_file)
+    # Derive an appropriate output filename
+    prefix = os.path.splitext(file_base)
+    if prefix[1] == ".gz":
+        prefix = os.path.splitext(prefix[0])[0]
     else:
-        hdulist_1d = []
-        msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
-                  '                          No objects were extracted.')
+        prefix = prefix[0]
+    outname = "{0:s}_skyregions.fits".format(prefix)
 
     # Finally, initialise the GUI
-    gui_skysub_regions.initialise(args.det, frame, tslits_dict, None, printout=True)
+    skyreg = SkySubGUI.initialize(args.det, frame, tslits_dict, outname=outname, runtime=False, printout=True)
 
-"""
-
-def parser(options=None):
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser = argparse.ArgumentParser(description='Launch PypeIt identify tool, display extracted'
-                                                 'MasterArc, and load linelist.'
-                                                 'Run above the Masters/ folder',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    parser.add_argument('file', type=str, default=None, help='PypeIt MasterArc file')
-    parser.add_argument("--lamps", default=None, help="Comma separated list of calibration lamps (no spaces)",
-                        action="store_true")
-    parser.add_argument("--wmin", default=3000.0, help="Minimum wavelength range",
-                        action="store_true")
-    parser.add_argument("--wmax", default=10000.0, help="Maximum wavelength range",
-                        action="store_true")
-    parser.add_argument("--slit", default=0, help="Slit number to wavelength calibrate",
-                        action="store_true")
-    parser.add_argument("--det", default=1, help="Detector index",
-                        action="store_true")
-
-    return parser.parse_args() if options is None else parser.parse_args(options)
-
-
-def main(args):
-
-    import pdb
-    import os
-    import sys
-    import astropy.io.fits as fits
-    from pypeit.masterframe import MasterFrame
-    from pypeit.spectrographs.util import load_spectrograph
-    from pypeit.core import parse
-    from pypeit.core.gui import identify as gui_identify
-    from pypeit.core.wavecal import waveio, templates
-    from pypeit.wavecalib import WaveCalib
-    from pypeit import arcimage, edgetrace
-    from pypeit.images import pypeitimage
-
-    from IPython import embed
-
-    # Load the MasterArc file
-    if os.path.exists(args.file):
-        arcfil = args.file
-    else:
-        try:
-            arcfil = "Masters/{0:s}".format(args.file)
-        except FileNotFoundError:
-            print("Could not find MasterArc file.")
-            sys.exit()
-    msarc = pypeitimage.PypeItImage.from_file(arcfil)
-
-    mdir = msarc.head0['MSTRDIR']
-    mkey = msarc.head0['MSTRKEY']
-
-    # Load the spectrograph
-    specname = msarc.head0['PYP_SPEC']
-    spec = load_spectrograph(specname)
-    par = spec.default_pypeit_par()['calibrations']['wavelengths']
-
-    # Get the lamp list
-    if args.lamps is None:
-        lamplist = par['lamps']
-        if lamplist is None:
-            print("ERROR :: Cannot determine the lamps")
-            sys.exit()
-    else:
-        lamplist = args.lamps.split(",")
-    par['lamps'] = lamplist
-
-    # Load the tslits_dict
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Edges', mkey, file_format='fits.gz'))
-    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
-
-    # Check if a solution exists
-    solnname = os.path.join(mdir, MasterFrame.construct_file_name('WaveCalib', mkey, file_format='json'))
-    wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) else None
-
-    # Load the MasterFrame (if it exists and is desired)?
-    wavecal = WaveCalib(msarc, tslits_dict, spec, par)
-    arccen, arc_maskslit = wavecal.extract_arcs()
-
-    binspec, binspat = parse.parse_binning(spec.get_meta_value(msarc.head0['F1'], 'binning'))
-
-    # Launch the identify window
-    arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib)
-    final_fit = arcfitter.get_results()
-
-    # Ask the user if they wish to store the result in PypeIt calibrations
-    ans = ''
-    while ans != 'y' and ans != 'n':
-        ans = input("Would you like to store this wavelength solution in the archive? (y/n):")
-    if ans == 'y' and final_fit['rms'] < 0.1:
-        gratname = fits.getheader(msarc.head0['F1'])[spec.meta['dispname']['card']].replace("/", "_")
-        dispangl = "UNKNOWN"
-        templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl)
-        print("Your wavelength solution has been stored")
-        print("Please consider sending your solution to the PypeIt team!")
-"""
+    # Get the results
+    skyreg.get_result()
