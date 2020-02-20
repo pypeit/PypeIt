@@ -15,7 +15,6 @@ import numpy as np
 from configobj import ConfigObj
 
 from astropy.table import Table
-from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import edgetrace
