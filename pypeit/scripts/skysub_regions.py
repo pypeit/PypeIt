@@ -19,7 +19,6 @@ from astropy.table import Table
 from pypeit import msgs
 from pypeit import edgetrace
 from pypeit.core.gui.skysub_regions import SkySubGUI
-from pypeit.core.parse import get_dnum
 from pypeit.core import procimg
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
@@ -39,24 +38,6 @@ def parser(options=None):
     parser.add_argument('--det', default=1, type=int, help="Detector")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
-
-
-def parse_traces(hdulist_1d, det_nm):
-    """Extract the relevant trace information
-    """
-    traces = dict(traces=[], fwhm=[])
-    pkflux = []
-    for hdu in hdulist_1d:
-        if det_nm in hdu.name:
-            tbl = Table(hdu.data)
-            trace = tbl['TRACE']
-            fwhm = tbl['FWHM']
-            obj_id = hdu.name.split('-')[0]
-            traces['traces'].append(trace.copy())
-            traces['fwhm'].append(np.median(fwhm))
-            pkflux.append(np.median(tbl['BOX_COUNTS']))
-    traces['pkflux'] = np.array(pkflux)
-    return traces
 
 
 def get_science_frame(usrdata):

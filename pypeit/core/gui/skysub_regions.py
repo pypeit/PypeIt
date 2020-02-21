@@ -16,16 +16,16 @@ from pypeit import msgs
 from pypeit.io import write_to_fits
 from pypeit.core import pixels
 
-operations = dict({'cursor': "Select object trace (LMB click)\n" +
-                   "         Navigate (LMB drag = pan, RMB drag = zoom)\n" +
-                   "         Note: In order to pan/zoom, you need to first activate\n" +
+operations = dict({'cursor': "Add sky region (LMB drag)\n" +
+                   "         Remove sky region (RMB drag)\n" +
+                   "         Note: If you would like to pan or zoom, you need to activate\n" +
                    "         the pan/zoom tool with the 'p' key, or by selecting the\n" +
                    "         pan/zoom tool on the Matplotlib navigation tool menu. You\n" +
                    "         can also zoom using the magnifying glass (select this option\n" +
-                   "         from the Matplotlib navigation tool menu)\n",
-                   'a': "Add a new object trace using the selected method",
+                   "         from the Matplotlib navigation tool menu). While the pan/zoom\n" +
+                   "         feature is enabled, you will not be able to update sky regions.\n",
                    'c': "Center the window at the location of the mouse",
-                   'd': "Delete selected object trace",
+                   'd': "Delete all sky regions and start again",
                    'h/r': "Return zoom to the original plotting limits",
                    'p': "Toggle pan/zoom with the cursor",
                    '?': "Display the available options",
@@ -199,7 +199,7 @@ class SkySubGUI(object):
         print("mouse button to click and drag over the sky background region.")
         print("Use the right mouse button (click and drag) to delete a region.")
         print("If you click 'Continue (and save changes)' the sky background")
-        print("regions will be printed to the terminal, where you can")
+        print("regions file will be printed to the terminal, where you can")
         print("copy them into your .pypeit file.")
         print("")
         print("thin green/blue lines  = slit edges")
@@ -232,12 +232,20 @@ class SkySubGUI(object):
 
     def button_cont(self, event):
         """What to do when the 'exit and save' button is clicked
+
+        Args:
+            event : Event
+                A matplotlib event instance
         """
         self._respreq = [True, "exit_update"]
         self.update_infobox(message="Are you sure you want to exit and save the newly defined sky regions?", yesno=True)
 
     def button_exit(self, event):
         """What to do when the 'exit and do not save changes' button is clicked
+
+        Args:
+            event : Event
+                A matplotlib event instance
         """
         self._respreq = [True, "exit_restore"]
         self.update_infobox(message="Are you sure you want to exit without saving the  sky regions?", yesno=True)
@@ -281,7 +289,8 @@ class SkySubGUI(object):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
 
         Args:
-            event (Event): A matplotlib event instance
+            event : Event
+                A matplotlib event instance
         """
         # Get the background
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
@@ -291,7 +300,8 @@ class SkySubGUI(object):
         """Get the index of the slit closest to the cursor
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event : Event
+                Matplotlib event instance containing information about the event
         """
         # Find the current slit
         self._currslit = -1
@@ -307,7 +317,8 @@ class SkySubGUI(object):
         """Get the ID of the axis where an event has occurred
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event : Event
+                Matplotlib event instance containing information about the event
 
         Returns:
             int, None: Axis where the event has occurred
@@ -325,7 +336,6 @@ class SkySubGUI(object):
         """
         if event.inaxes is None:
             return
-        axisID = self.get_axisID(event)
         if event.inaxes == self.axes['main']:
             self.mmx, self.mmy = event.xdata, event.ydata
 
@@ -333,7 +343,8 @@ class SkySubGUI(object):
         """What to do when the mouse button is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event : Event
+                Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -354,7 +365,8 @@ class SkySubGUI(object):
         """What to do when the mouse button is released
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event : Event
+                Matplotlib event instance containing information about the event
         """
         if event.inaxes is None:
             return
@@ -398,7 +410,8 @@ class SkySubGUI(object):
         """What to do when a key is pressed
 
         Args:
-            event (Event): Matplotlib event instance containing information about the event
+            event : Event
+                Matplotlib event instance containing information about the event
         """
         # Check that the event is in an axis...
         if not event.inaxes:
@@ -413,8 +426,10 @@ class SkySubGUI(object):
         """Canvas operations
 
         Args:
-            key (str): Which key has been pressed
-            axisID (int): The index of the axis where the key has been pressed (see get_axisID)
+            key : str
+                Which key has been pressed
+            axisID : int
+                The index of the axis where the key has been pressed (see get_axisID)
         """
         # Check if the user really wants to quit
         if key == 'q' and self._qconf:
@@ -450,10 +465,14 @@ class SkySubGUI(object):
 
         if key == '?':
             self.print_help()
-        elif key == 'c':
+        elif key == 'd':
             if axisID == 0:
                 # If this is pressed on the main window
                 self.reset_regions()
+        elif key == 'c':
+            if axisID == 0:
+                # If this is pressed on the main window
+                self.recenter()
         elif key == 'qu' or key == 'qr':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
@@ -519,7 +538,12 @@ class SkySubGUI(object):
         """Send a new message to the information window at the top of the canvas
 
         Args:
-            message (str): Message to be displayed
+            message : str
+                Message to be displayed
+            yesno : bool
+                Is a yes/no option desired?
+            default : bool
+                Would you like to refresh the info box and just display the default message
         """
         self.axes['info'].clear()
         if default:
@@ -542,8 +566,7 @@ class SkySubGUI(object):
         self.canvas.draw()
 
     def add_region(self):
-        """
-        Add/subtract a defined region
+        """ Add/subtract a defined region
         """
         # Figure out the locations of the start values
         ys = np.argmin(np.abs(self._start[1]-self._spectrace))
@@ -587,71 +610,7 @@ class SkySubGUI(object):
         self._allreg[xmin:xmax] = self._addsub
 
     def reset_regions(self):
+        """ Reset the sky regions for all slits simultaneously
+        """
         self._skyreg = [np.zeros(self._resolution, dtype=np.bool) for all in range(self._nslits)]
         self._allreg[:] = False
-        return
-
-
-def initialize(det, frame, tslits_dict, outname="skyregions.fits", runtime=False, printout=False):
-    """Initialize the 'ObjFindGUI' window for interactive object tracing
-
-        Args:
-            frame : ndarray
-                Sky subtracted science image
-            tslits_dict : dict, None
-                Dictionary containing slit trace information
-            det : int
-                Detector index
-            printout : bool
-                Should the results be printed to screen
-            runtime : bool
-                Is this GUI being launched during a data reduction?
-
-        Returns:
-            ObjFindGUI: Returns an instance of the ObjFindGUI class
-    """
-    # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
-    # vectors of size (nspec)
-    if tslits_dict['slit_left'].ndim == 2:
-        nslit = tslits_dict['slit_left'].shape[1]
-    else:
-        nslit = 1
-        tslits_dict['slit_left'] = tslits_dict['slit_left'].reshape((tslits_dict['slit_left'].size, 1))
-        tslits_dict['slit_righ'] = tslits_dict['slit_righ'].reshape((tslits_dict['slit_righ'].size, 1))
-    lordloc = tslits_dict['slit_left']
-    rordloc = tslits_dict['slit_righ']
-
-    # Determine the scale of the image
-    med = np.median(frame)
-    mad = np.median(np.abs(frame-med))
-    vmin = med-3*mad
-    vmax = med+3*mad
-
-    # Add the main figure axis
-    fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
-    plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.8)
-    image = ax.imshow(frame, aspect='auto', cmap = 'Greys', vmin=vmin, vmax=vmax)
-
-    # Overplot the slit traces
-    specarr = np.arange(lordloc.shape[0])
-    for sl in range(nslit):
-        ax.plot(lordloc[:, sl], specarr, 'g-')
-        ax.plot(rordloc[:, sl], specarr, 'b-')
-
-    # Add an information GUI axis
-    axinfo = fig.add_axes([0.15, .92, .7, 0.07])
-    axinfo.get_xaxis().set_visible(False)
-    axinfo.get_yaxis().set_visible(False)
-    axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
-                horizontalalignment='center', verticalalignment='center')
-    axinfo.set_xlim((0, 1))
-    axinfo.set_ylim((0, 1))
-
-    axes = dict(main=ax, info=axinfo)
-    # Initialise the object finding window and display to screen
-    fig.canvas.set_window_title('PypeIt - Sky regions')
-    srgui = SkySubGUI(fig.canvas, image, frame, outname, det, tslits_dict, axes,
-                      printout=printout, runtime=runtime)
-    plt.show()
-
-    return srgui
