@@ -13,6 +13,7 @@ from pypeit.core import skysub, extract, pixels, wave
 
 from IPython import embed
 
+
 class Reduce(object):
     """
     This class will organize and run actions related to
@@ -1018,6 +1019,121 @@ class EchelleReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
+class IFUReduce(Reduce):
+    """
+    Child of Reduce for IFU reductions
+
+    See parent doc string for Args and Attributes
+
+    """
+    def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
+        super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+
+    def get_platescale(self, dummy):
+        """
+        Return the platescale for IFU.
+        The input argument is ignored
+
+        Args:
+            dummy (:class:`pypeit.specobj.SpecObj`):
+                ignored
+
+        Returns:
+            float:
+
+        """
+        plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+        return plate_scale
+
+    def run(self, basename=None, ra=None, dec=None, obstime=None,
+            std_trace=None, manual_extract_dict=None, show_peaks=False):
+        """
+        Primary code flow for PypeIt reductions
+
+        Args:
+            basename (str, optional):
+                Required if flexure correction is to be applied
+            ra (str, optional):
+                Required if helio-centric correction is to be applied
+            dec (str, optional):
+                Required if helio-centric correction is to be applied
+            obstime (:obj:`astropy.time.Time`, optional):
+                Required if helio-centric correction is to be applied
+            std_trace (np.ndarray, optional):
+                Trace of the standard star
+            manual_extract_dict (dict, optional):
+            show_peaks (bool, optional):
+                Show peaks in find_objects methods
+
+        Returns:
+            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
+               outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
+
+        """
+        # First pass object finding
+        self.sobjs_obj, self.nobj, skymask_init = \
+            self.find_objects(self.sciImg.image, std_trace=std_trace,
+                              show_peaks=show_peaks,
+                              show=self.reduce_show & (not self.std_redux),
+                              manual_extract_dict=manual_extract_dict)
+
+        # Global sky subtract
+        self.initial_sky = \
+            self.global_skysub(skymask=skymask_init).copy()
+
+        # Second pass object finding on sky-subtracted image
+        if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
+            self.sobjs_obj, self.nobj, self.skymask = \
+                self.find_objects(self.sciImg.image - self.initial_sky,
+                                  std_trace=std_trace, show=self.reduce_show,
+                                  show_peaks=show_peaks,
+                                  manual_extract_dict=manual_extract_dict)
+        else:
+            msgs.info("Skipping 2nd run of finding objects")
+
+        # Do we have any positive objects to proceed with?
+        if self.nobj > 0:
+            # Global sky subtraction second pass. Uses skymask from object finding
+            if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
+                    self.par['reduce']['findobj']['skip_second_find']):
+                self.global_sky = self.initial_sky.copy()
+            else:
+                self.global_sky = self.global_skysub(skymask=self.skymask,
+                                                     show=self.reduce_show)
+            # Extract + Return
+            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.extract(self.global_sky,
+                                                                                                  self.sobjs_obj)
+        else:  # No objects, pass back what we have
+            self.skymodel = self.initial_sky
+            self.objmodel = np.zeros_like(self.sciImg.image)
+            # Set to sciivar. Could create a model but what is the point?
+            self.ivarmodel = np.copy(self.sciImg.ivar)
+            # Set to the initial mask in case no objects were found
+            self.outmask = self.sciImg.mask
+            # empty specobjs object from object finding
+            self.sobjs = self.sobjs_obj
+
+        # Purge out the negative objects if this was a near-IR reduction.
+        if self.ir_redux:
+            self.sobjs.purge_neg()
+
+        # Finish up
+        if self.sobjs.nobj == 0:
+            msgs.warn('No objects to extract!')
+        else:
+            # TODO -- Should we move these to redux.run()?
+            # Flexure correction if this is not a standard star
+            if not self.std_redux:
+                self.flexure_correct(self.sobjs, basename)
+            # Heliocentric
+            radec = ltu.radec_to_coord((ra, dec))
+            self.helio_correct(self.sobjs, radec, obstime)
+
+        # Return
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
+
+
 def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
@@ -1042,6 +1158,3 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
                                                          par, caliBrate, **kwargs)
-
-
-

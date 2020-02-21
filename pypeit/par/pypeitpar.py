@@ -982,6 +982,92 @@ class Coadd2DPar(ParSet):
         """
         pass
 
+
+class CubePar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant
+    to cube generation (primarily for IFU data).
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, slit_spec=None, cube_spat_num=None, cube_wave_num=None,
+                 cube_spat_min=None, cube_spat_max=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        # Cube Parameters
+        defaults['slit_spec'] = True
+        dtypes['slit_spec'] = [bool]
+        descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
+                             'If the data uses fibres for all spaxels, set this to False.'
+
+        defaults['cube_spat_num'] = None
+        dtypes['cube_spat_num'] = [float, None]
+        descr['cube_spat_num'] = 'Number of pixels in the spatial dimension. If None, the number of' \
+                                 'pixels in the spatial direction of the slit will be used. If you' \
+                                 'are reducing fibre IFU data, this parameter will be ignored'
+
+        defaults['cube_wave_num'] = None
+        dtypes['cube_wave_num'] = [float, None]
+        descr['cube_wave_num'] = 'Number of pixels in the wavelength dimension. If None, the number' \
+                                 'of pixels in the spectral direction on the raw science frame will' \
+                                 'be used.'
+
+        defaults['cube_wave_min'] = None
+        dtypes['cube_wave_min'] = [float, None]
+        descr['cube_wave_min'] = 'Minimum wavelength to use. If None, default is minimum wavelength' \
+                                 'based on wavelength solution of all spaxels'
+
+        defaults['cube_wave_max'] = None
+        dtypes['cube_wave_max'] = [float, None]
+        descr['cube_wave_max'] = 'Maximum wavelength to use. If None, default is maximum wavelength' \
+                                 'based on wavelength solution of all spaxels'
+
+
+        # Instantiate the parameter set
+        super(CubePar, self).__init__(list(pars.keys()),
+                                      values=list(pars.values()),
+                                      defaults=list(defaults.values()),
+                                      options=list(options.values()),
+                                      dtypes=list(dtypes.values()),
+                                      descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+
+        # Basic keywords
+        parkeys = ['slit_spec', 'cube_spat_num', 'cube_wave_num', 'cube_wave_min', 'cube_wave_max']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ExtractionPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
+
+
 class FluxCalibratePar(ParSet):
     """
     A parameter set holding the arguments for how to perform the flux
@@ -2614,13 +2700,17 @@ class ReducePar(ParSet):
         dtypes['extraction'] = [ ParSet, dict ]
         descr['extraction'] = 'Parameters for extraction algorithms'
 
+        defaults['cube'] = CubePar()
+        dtypes['cube'] = [ ParSet, dict ]
+        descr['cube'] = 'Parameters for cube generation algorithms'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
-                                              values=list(pars.values()),
-                                              defaults=list(defaults.values()),
-                                              options=list(options.values()),
-                                              dtypes=list(dtypes.values()),
-                                              descr=list(descr.values()))
+                                             values=list(pars.values()),
+                                             defaults=list(defaults.values()),
+                                             options=list(options.values()),
+                                             dtypes=list(dtypes.values()),
+                                             descr=list(descr.values()))
         self.validate()
 
     @classmethod

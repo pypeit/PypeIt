@@ -27,6 +27,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_kcwi_base'
         self.telescope = telescopes.KeckTelescopePar()
 
+    @property
+    def pypeline(self):
+        return 'IFU'
+
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
@@ -420,8 +424,9 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
 
-        # Don't do optimal extraction for 3D data.
-        par['reduce']['extraction']['skip_optimal'] = True
+        # Make sure that this is listed as a slit spectrograph
+        par['reduce']['cube']['slit_spec'] = True
+
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
