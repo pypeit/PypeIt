@@ -17,12 +17,11 @@ from configobj import ConfigObj
 from astropy.table import Table
 
 from pypeit import msgs
-from pypeit import edgetrace
+from pypeit import slittrace
 from pypeit.core.gui.skysub_regions import SkySubGUI
 from pypeit.core import procimg
 from pypeit.par.util import parse_pypeit_file
 from pypeit.par import PypeItPar
-from pypeit.masterframe import MasterFrame
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 
@@ -113,9 +112,8 @@ def main(args):
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir = mdir_base
 
-    # Load the tslits_dict
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Edges', mkey)) + '.gz'
-    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+    # Load the slits information
+    slits = slittrace.SlitTraceSet.from_master(mkey, mdir)
 
     # Derive an appropriate output filename
     prefix = os.path.splitext(file_base)
@@ -126,7 +124,7 @@ def main(args):
     outname = "{0:s}_skyregions.fits".format(prefix)
 
     # Finally, initialise the GUI
-    skyreg = SkySubGUI.initialize(args.det, frame, tslits_dict, outname=outname, runtime=False, printout=True)
+    skyreg = SkySubGUI.initialize(args.det, frame, slits, outname=outname, runtime=False, printout=True)
 
     # Get the results
     skyreg.get_result()
