@@ -1074,6 +1074,9 @@ class IFUReduce(Reduce):
         plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
         return plate_scale
 
+    def resample_cube(self):
+        pass
+
     def run(self, basename=None, ra=None, dec=None, obstime=None,
             std_trace=None, manual_extract_dict=None, show_peaks=False):
         """
@@ -1099,12 +1102,6 @@ class IFUReduce(Reduce):
                outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
 
         """
-        # First pass object finding
-        self.sobjs_obj, self.nobj, skymask_init = \
-            self.find_objects(self.sciImg.image, std_trace=std_trace,
-                              show_peaks=show_peaks,
-                              show=self.reduce_show & (not self.std_redux),
-                              manual_extract_dict=manual_extract_dict)
 
         # Global sky subtract
         self.initial_sky = \

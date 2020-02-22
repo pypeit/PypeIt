@@ -49,11 +49,14 @@ class ScienceImage(pypeitimage.PypeItImage):
     frametype = 'science'
 
     def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
-                 crmask=None, mask=None, files=[]):
+                 crmask=None, mask=None, files=None):
 
         # Init me
         pypeitimage.PypeItImage.__init__(self, image, ivar=ivar, rn2img=rn2img,
                                          bpm=bpm, crmask=crmask, mask=mask)
+
+        if files is None:
+            files = []
 
         # Required attribs
         self.spectrograph = spectrograph
@@ -185,6 +188,7 @@ class ScienceImage(pypeitimage.PypeItImage):
         repr = repr + '>'
         return repr
 
+
 # TODO: Make this a ScienceImage class method?
 def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_flat=None,
                          illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5):
@@ -234,14 +238,14 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
 
     combineImage = combineimage.CombineImage(spectrograph, det, par, file_list)
     pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
-                                 illum_flat=illum_flat, sigma_clip=sigma_clip,
-                                 sigrej=sigrej, maxiters=maxiters)
+                                   illum_flat=illum_flat, sigma_clip=sigma_clip,
+                                   sigrej=sigrej, maxiters=maxiters)
 
     # Instantiate
     slf = ScienceImage(spectrograph, det, par, pypeitImage.image, pypeitImage.ivar,
-                                pypeitImage.bpm, rn2img=pypeitImage.rn2img,
-                                crmask=pypeitImage.crmask, mask=pypeitImage.mask,
-                                files=file_list)
+                       pypeitImage.bpm, rn2img=pypeitImage.rn2img,
+                       crmask=pypeitImage.crmask, mask=pypeitImage.mask,
+                       files=file_list)
     # Return
     return slf
 

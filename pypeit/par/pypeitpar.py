@@ -2912,7 +2912,7 @@ class SkySubPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None):
+    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None, load_mask=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2946,6 +2946,11 @@ class SkySubPar(ParSet):
         dtypes['no_poly'] = bool
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
+        defaults['load_mask'] = False
+        dtypes['load_mask'] = bool
+        descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note,' \
+                             'if you set this to True, you must first run the pypeit_skysub_regions GUI' \
+                             'to manually select and store the regions to file.'
 
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
@@ -2961,7 +2966,7 @@ class SkySubPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly']
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'load_mask']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

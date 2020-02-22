@@ -49,16 +49,19 @@ class ScienceImage(pypeitimage.PypeItImage):
     frametype = 'cube'
 
     def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
-                 crmask=None, mask=None, files=[]):
+                 crmask=None, mask=None, files=None):
 
         # Init me
         pypeitimage.PypeItImage.__init__(self, image, ivar=ivar, rn2img=rn2img,
                                          bpm=bpm, crmask=crmask, mask=mask)
 
+        if files is None:
+            files = []
+
         # Required attribs
         self.spectrograph = spectrograph
-        if not isinstance(par, pypeitpar.ProcessImagesPar):
-            msgs.error('Provided ParSet for must be type ProcessImagesPar.')
+        if not isinstance(par, pypeitpar.CubePar):
+            msgs.error('Provided ParSet for must be type CubePar.')
         self.par = par
         self.det = det
 
