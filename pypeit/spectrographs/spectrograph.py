@@ -672,6 +672,10 @@ class Spectrograph(object):
 
         return retvalue
 
+    def set_wcs(self, hdr):
+        msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
+        return hdr
+
     def set_detector_par(self, par, det, value, force_update=False):
         """
         Update or set a parameter in the detector array

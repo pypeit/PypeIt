@@ -346,6 +346,51 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Return
         return raw_img, [head0], exptime, rawdatasec_img, oscansec_img
 
+    def set_wcs(self, hdr):
+        """Set the WCS for this spectrograph
+        """
+        ra =
+        dec =
+        wave0 =
+        crpix1 =
+        crpix2 =
+        crpix3 =
+        cd11 =
+        cd21 =
+        cd12 =
+        cd22 =
+        dwout =
+        # WCS keywords
+        hdr['WCSDIM'] = (3, 'number of dimensions in WCS')
+        hdr['WCSNAME'] = ('KCWI', 'Name of WCS')
+        hdr['EQUINOX'] = (2000, 'EQUINOX')
+        hdr['RADESYS'] = ('FK5', 'WCS system')
+        hdr['CTYPE1'] = ('RA---TAN', '')
+        hdr['CTYPE2'] = ('DEC--TAN', '')
+        hdr['CTYPE3'] = ('AWAV', 'Air Wavelengths')
+        hdr['CUNIT1'] = ('deg', 'RA units')
+        hdr['CUNIT2'] = ('deg', 'DEC units')
+        hdr['CUNIT3'] = ('Angstrom', 'Wavelength units')
+        hdr['CNAME1'] = ('KCWI RA', 'RA name')
+        hdr['CNAME2'] = ('KCWI DEC', 'DEC name')
+        hdr['CNAME3'] = ('KCWI Wavelength', 'Wavelength name')
+        hdr['CRVAL1'] = (ra, 'RA zeropoint')
+        hdr['CRVAL2'] = (dec, 'DEC zeropoint')
+        hdr['CRVAL3'] = (wave0, 'Wavelength zeropoint')
+        hdr['CRPIX1'] = (crpix1, 'RA reference pixel')
+        hdr['CRPIX2'] = (crpix2, 'DEC reference pixel')
+        hdr['CRPIX3'] = (crpix3, 'Wavelength reference pixel')
+        hdr['CD1_1'] = (cd11, 'RA degrees per column pixel')
+        hdr['CD2_1'] = (cd21, 'DEC degrees per column pixel')
+        hdr['CD1_2'] = (cd12, 'RA degrees per row pixel')
+        hdr['CD2_2'] = (cd22, 'DEC degrees per row pixel')
+        hdr['CD3_3'] = (dwout, 'Wavelength Angstroms per pixel')
+        hdr['LONPOLE'] = (180.0, 'Native longitude of Celestial pole')
+        hdr['LATPOLE'] = (0.0, 'Celestial latitude of native pole')
+        hdr['HISTORY'] = "  {0:s} {1:s}".format(kgeom.progid, systime(0, kgeom.timestamp))
+        hdr['HISTORY'] = "  {0:s} {1:s}".format(pre, systime(0))
+        return hdr
+
 
 class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
     """
