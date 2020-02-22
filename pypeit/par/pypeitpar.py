@@ -763,11 +763,11 @@ class BarPar(ParSet):
 
         # Instantiate the parameter set
         super(BarPar, self).__init__(list(pars.keys()),
-                                           values=list(pars.values()),
-                                           defaults=list(defaults.values()),
-                                           options=list(options.values()),
-                                           dtypes=list(dtypes.values()),
-                                           descr=list(descr.values()))
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          options=list(options.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
         self.validate()
 
     @classmethod
@@ -1035,7 +1035,7 @@ class CubePar(ParSet):
     """
 
     def __init__(self, slit_spec=None, cube_spat_num=None, cube_wave_num=None,
-                 cube_spat_min=None, cube_spat_max=None):
+                 cube_wave_min=None, cube_wave_max=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2718,7 +2718,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None, extraction=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2763,7 +2763,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -2776,6 +2776,8 @@ class ReducePar(ParSet):
         kwargs[pk] = SkySubPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'extraction'
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'cube'
+        kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 
