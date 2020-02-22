@@ -102,16 +102,16 @@ def test_quicklook():
         shutil.rmtree(outdir)
 
     # Raw path
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA',
-                         'keck_lris_blue', 'long_600_4000_d560')
-    ql_mos.main(ql_mos.parser(
-        ['keck_lris_blue', droot,
-         'b150910_2033.fits.gz', 'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
-         '--user_pixflat={0}'.format(
-             os.path.join(calib_dir, 'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_blue',
+                         'long_600_4000_d560')
+    ql_mos.main(ql_mos.parser(['keck_lris_blue', droot, 'b150910_2033.fits.gz',
+                               'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
+                               '--user_pixflat={0}'.format(
+                                   os.path.join(calib_dir,
+                                        'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
 
 
-@dev_suite_required
+#@dev_suite_required
 def test_trace_edges():
     # Define the output directories (HARDCODED!!)
     setupdir = os.path.join(os.getcwd(), 'setup_files')
@@ -242,4 +242,6 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
+
+# TODO: Add test for object_finding
 

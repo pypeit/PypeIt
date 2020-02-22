@@ -120,7 +120,9 @@ from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
-from pypeit.datamodel import DataContainer
+from pypeit import slittrace
+# TODO: Commented until EdgeTraceSet becomes a DataContainer
+#from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
@@ -128,104 +130,6 @@ from pypeit.traceimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
-
-
-class SlitTraceSet(DataContainer):
-    """
-    Defines a generic class for holding and manipulating image traces
-    organized into left-right slit pairs.
-
-    Instantiation arguments map directly to the object
-    :attr:`datamodel`.
-    """
-    # Set the version of this class
-    version = '1.0.0'
-    # Define the data model
-    datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
-                 'nspec': dict(otype=int,
-                               descr='Number of pixels in the image spectral direction.'),
-                 'nspat': dict(otype=int,
-                               descr='Number of pixels in the image spatial direction.'),
-                 'binspec': dict(otype=int,
-                                 descr='Number of pixels binned in the spectral direction.'),
-                 'binspat': dict(otype=int,
-                                 descr='Number of pixels binned in the spatial direction.'),
-                 'pad': dict(otype=int,
-                             descr='Integer number of pixels to consider beyond the slit edges.'),
-                 'nslits': dict(otype=int, descr='Number of slits.'),
-                 'left_orig': dict(otype=np.ndarray, atype=float,
-                                   descr='The original spatial coordinates (pixel indices) of all '
-                                         'left edges, one per slit.  Shape is Nspec by Nslits.'),
-                 'right_orig': dict(otype=np.ndarray, atype=float,
-                                    descr='The original spatial coordinates (pixel indices) of all '
-                                          'right edges, one per slit.  Shape is Nspec by Nslits.'),
-                 'left': dict(otype=np.ndarray, atype=float,
-                              descr='Spatial coordinates (pixel indices) of all left edges, one '
-                                    'per slit.  Shape is Nspec by Nslits.'),
-                 'right': dict(otype=np.ndarray, atype=float,
-                              descr='Spatial coordinates (pixel indices) of all right edges, one '
-                                    'per slit.  Shape is Nspec by Nslits.'),
-                 'center': dict(otype=np.ndarray, atype=float,
-                               descr='Spatial coordinates of the slit centers.  Shape is Nspec '
-                                     'by Nslits.'),
-                 'mask': dict(otype=np.ndarray, atype=bool,
-                              descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
-                 'specmin': dict(otype=np.ndarray, atype=float,
-                                 descr='Minimum spectral position allowed for each slit/order.  '
-                                       'Shape is Nslits.'),
-                 'specmax': dict(otype=np.ndarray, atype=float,
-                                 descr='Maximum spectral position allowed for each slit/order.  '
-                                       'Shape is Nslits.')}
-    """Provides the class data model."""
-    # NOTE: The docstring above is for the ``datamodel`` attribute.
-
-    def __init__(self, left, right, nspat=None, spectrograph=None, left_orig=None, right_orig=None,
-                 mask=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        super(SlitTraceSet, self).__init__({k: values[k] for k in args[1:]})
-
-    def _validate(self):
-        """
-        Validate the slit traces.
-        """
-        if self.left.shape != self.right.shape:
-            raise ValueError('Input left and right traces should have the same shape.')
-        self.nspec, self.nslits = self.left.shape
-        self.center = (self.left+self.right)/2
-
-        if self.nspat is None:
-            self.nspat = np.amax(np.append(self.left, self.right))
-        if self.spectrograph is None:
-            self.spectrograph = 'unknown'
-        if self.left_orig is None:
-            self.left_orig = self.left.copy()
-        if self.right_orig is None:
-            self.right_orig = self.right.copy()
-        if self.mask is None:
-            self.mask = np.zeros(self.nslits, dtype=bool)
-        if self.specmin is None:
-            self.specmin = np.full(self.nslits, -1, dtype=float)
-        if self.specmax is None:
-            self.specmax = np.full(self.nslits, self.nspec, dtype=float)
-
-    def _bundle(self):
-        """
-        Bundle the data in preparation for writing to a fits file.
-
-        See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
-        always written to a 'SLITS' extension.
-        """
-        return super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
-
-    @classmethod
-    def _parse(cls, hdu):
-        """
-        Parse the data that was previously written to a fits file.
-
-        See :func:`pypeit.datamodel.DataContainer._parse`. Data is
-        always read from the 'SLITS' extension.
-        """
-        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
 
 class EdgeTraceBitMask(BitMask):
@@ -311,7 +215,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
     then check if the trace exists and load it::
     
         edges = EdgeTraceSet(spec, par)
-        if edges.exists():
+        if edges.exists:
             edges.load()
 
     or you can attempt to load directly on instantiation::
@@ -529,8 +433,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.qa_path = qa_path          # Directory for QA output
 
         self.log = None                 # Log of methods applied
-        self.spec_min = None            # spec_min, spec_max which go into the tslits_dict
-        self.spec_max = None
 
         if img is not None and load:
             msgs.error('Arguments img and load are mutually exclusive.  Choose to either trace '
@@ -570,6 +472,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
         The number of edges (left and right) traced.
         """
         return 0 if self.traceid is None else self.traceid.size
+
+    # ADDED in rmtdict
+    @property
+    def nslits(self):
+        if self.is_synced:
+            return self.ntrace//2
+        # TODO: Maybe this should only throw a warning
+        msgs.error('Number of slits undefined because edges are not left-right synchronized.')
 
     @staticmethod
     def empty_design_table(rows=None):
@@ -882,19 +792,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
-
-        # JFH I have to convert to a tslits_dict at this point in order to set the spec_min,spec_max because
-        # I need that to be written to disk. Otherwise, reading in the edges and converting to tslits_dict
-        # depends on the spectrograph object. But the spectrogaph object is configuration dependent and I can only
-        # # know that configuration with a science file. We have that information here, but we will not have it later
-        # i.e. in pypeit_show_2dspec where we need that information.
-
-        # JFH I'm doing this in this silly way of computing the tslits_dict and then running slit_spat_pos, because
-        # slit_spat_pos was never integrated as a method into EdgeTrace
-        tslits_dict = self.convert_to_tslits_dict()
-        self.spec_min, self.spec_max = self.spectrograph.slit_minmax(slit_spat_pos(
-            tslits_dict['slit_left'], tslits_dict['slit_righ'], self.nspec, self.nspat),
-            binspectral=tslits_dict['binspectral'])
         if save:
             # Save the object to a file
             self.save()
@@ -1180,6 +1077,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   - PCA type, used for rebuilding the PCA when loading
         prihdr['PCATYPE'] = ('None' if self.pca is None else self.pca_type,
                              'PypeIt: Edge trace PCA type')
+        #   - The dispersion name is needed to setup some spectrographs
+        if self.spectrograph.dispname is not None:
+            prihdr['DISPNAME'] = (self.spectrograph.dispname, 'Spectrograph disperser')
         #   - Indicate the type if fit (TODO: Keep the fit parameters?)
         fithdr = fits.Header()
         fithdr['FITTYP'] = 'None' if self.spat_fit_type is None else self.spat_fit_type
@@ -1230,16 +1130,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')])
-        if self.spec_min is not None:
-            hdu += [fits.ImageHDU(data=self.spec_min, name='SPEC_MIN'), fits.ImageHDU(data=self.spec_max, name='SPEC_MAX')]
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
             else:
                 hdu += [self.pca.to_hdu()]
-        if self.is_synced:
-            # Only write the slits datamodel if the edges have been synced
-            hdu += self.get_slits().to_hdu()
+        # TODO: These things are going to go in slittrace.SlitTraceSet
         if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
         if self.objects is not None: 
@@ -1295,20 +1191,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 raised by :func:`_reinit`).
         """
         # Check the file exists
-        if not self.exists():
+        if not self.exists:
             msgs.error('File does not exit: {0}'.format(self.master_file_path))
         with fits.open(self.master_file_path) as hdu:
             # Re-initialize and validate
             self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
-
-    def exists(self):
-        """
-        Check if the output file already exists.
-
-        Returns:
-            bool
-        """
-        return os.path.isfile(self.master_file_path)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=False):
@@ -1378,21 +1265,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
         if len(self.files) == 0:
             self.files = None
-        self.img = hdu['TRACEIMG'].data
+
+        # TODO: These now case back to float64, regardless of how they
+        # were written (typically float32). Not sure this is a great
+        # idea, but I put it here so that get_slits always casts to
+        # float64.  Not exactly sure what make sense...
+        self.img = hdu['TRACEIMG'].data.astype(float)
         self.nspec, self.nspat = self.img.shape
         self.bpm = hdu['TRACEBPM'].data.astype(bool)
         self.det = hdu[0].header['DET']
         self.binning = hdu[0].header['BINNING']
-        self.sobel_sig = hdu['SOBELSIG'].data
+        self.sobel_sig = hdu['SOBELSIG'].data.astype(float)
         self.traceid = hdu['TRACEID'].data
-        self.spat_cen = hdu['CENTER'].data
-        self.spat_err = hdu['CENTER_ERR'].data
+        self.spat_cen = hdu['CENTER'].data.astype(float)
+        self.spat_err = hdu['CENTER_ERR'].data.astype(float)
         self.spat_msk = hdu['CENTER_MASK'].data
-        self.spat_fit = hdu['CENTER_FIT'].data
+        self.spat_fit = hdu['CENTER_FIT'].data.astype(float)
         self.spat_fit_type = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
                                 else hdu['CENTER_FIT'].header['FITTYP']
-        self.spec_min = hdu['SPEC_MIN'].data
-        self.spec_max = hdu['SPEC_MAX'].data
         # Get the design and object data if they exist
         ext = [h.name for h in hdu]
         if 'DESIGN' in ext:
@@ -1422,8 +1312,18 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.pca = [ TracePCA.from_hdu(hdu[ext]) for ext in ['LPCA', 'RPCA']] \
                             if self.par['left_right_pca'] else TracePCA.from_hdu(hdu['PCA'])
 
+        # Read the disperser if possible
+        if self.spectrograph.dispname is None:
+            try:
+                self.spectrograph.dispname = hdu[0].header['DISPNAME']
+            except:
+                # Assume the spectrgrograph *NEVER* defines the disperser
+                pass
+
+        # Read the log
         self.log = io.parse_hdr_key_group(hdu[0].header, prefix='LOG')
 
+        # Reinit the left and right sobel images
         self.sobel_sig_left = None
         self.sobel_sig_right = None
 
@@ -1448,6 +1348,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if self.spectrograph.spectrograph != hdu[0].header['PYP_SPEC']:
             msgs.error('Data used for this master frame was from a different spectrograph!')
 
+        # Check that the disperser is correct. NOTE: If disperser was
+        # None when this method was called, this will automatically be
+        # true.
+        if self.spectrograph.dispname is not None \
+                and self.spectrograph.dispname != hdu[0].header['DISPNAME']:
+            msgs.error('Current spectrograph disperser does not match file data.')
+
         # Test the parameters used are the same
         par = EdgeTracePar.from_header(hdu[0].header)
         if self.par.data != par.data:
@@ -1469,18 +1376,17 @@ class EdgeTraceSet(masterframe.MasterFrame):
                     else np.unique(np.concatenate([self.bitmask.flagged_bits(b) 
                                                     for b in np.unique(self.spat_msk)])).tolist()
 
+    # TODO: Break the ginga commands out into a separate method?
     ## TODO It is confusing that this show routine shows images flipped from the PypeIt convention.
     ## It should be rewritten to show images with spectral direction vertical like all our other QA.
-    def show(self, traceid=None, include_error=False, thin=1, in_ginga=False, include_img=False,
-             include_sobel=False, img_buffer=100, flag=None, idlabel=False):
+    def show(self, include_error=False, thin=1, in_ginga=False, include_img=False,
+             include_sobel=False, img_buffer=100, flag=None, idlabel=False, slits=None,
+             original=False):
         """
         Show a scatter plot of the current trace data and fit, if
         it's available.
 
         Args:
-            traceid (:obj:`int`, array-like, optional):
-                ID number(s) for traces to show. If None, all traces
-                are plotted.
             include_error (:obj:`bool`, optional):
                 Show the errors on the measurements
             thin (:obj:`int`, optional):
@@ -1489,8 +1395,17 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 plot all data; to show every other datum, set
                 `thin=2`.
             in_ginga (:obj:`bool`, optional):
-                Show the trace against the trace image in a ginga
-                viewer instead of a line and scatter plot.
+                Display the trace data in a ginga. If a ginga window
+                is not open, this instantiates one; otherwise, the
+                existing ginga window is cleared. The trace image is
+                shown in one window and the sobel image is shown in a
+                second. The edge traces themselves are shown in both
+                windows. Any masking is ignored except that any
+                traces that are fully masked (see
+                :func:`fully_masked_traces`) are *not* shown. If a
+                SlitTraceSet object is *not* provided, the data shown
+                is the modeled results for the trace if it exists,
+                and the measured trace locations otherwise.
             include_img (:obj:`bool`, optional):
                 Overlay the trace data on the trace image; mutually
                 exclusive with `include_sobel`.
@@ -1509,137 +1424,162 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 the specified bits are plotted.
             idlabel (:obj:`bool`, optional):
                 Label each trace by their ID numbers.
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
+                Slits to plot instead of those kept internally. Note
+                that, if this is provided, the "modeled" and
+                "measured" slit locations are identical.
+            original (:obj:`bool`, optional):
+                When ``slits`` are provided and tweaked slits are
+                available, this selects which traces to show. If
+                True, show the original slit traces; if False, show
+                the tweaked ones.
         """
         if include_img and include_sobel:
             msgs.error('Cannot show both the trace image and the filtered version.')
+
+        # Build the slit edge data to plot.
+        if slits is None:
+            # Use the internals. Any masked data is excluded; masked
+            # data to be plotted are held in a separate array. This
+            # means that errors and fits are currently never plotted
+            # for masked data.
+            _flag = None if flag in ['any', None] else np.atleast_1d(flag)
+            cen = np.ma.MaskedArray(self.spat_cen, mask=self.bitmask.flagged(self.spat_msk))
+            fit = self.spat_fit
+            err = np.ma.MaskedArray(self.spat_err, mask=np.ma.getmaskarray(cen).copy())
+            msk = None if flag is None \
+                    else np.ma.MaskedArray(self.spat_cen, mask=np.invert(
+                                           self.bitmask.flagged(self.spat_msk, flag=_flag)))
+            is_left = self.is_left
+            is_right = self.is_right
+            _include_error = include_error
+            gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                                     exclude=self.bitmask.exclude_flags))
+            traceid = self.traceid
+            nslits = np.amax(traceid)   # Only used if synced is True
+            synced = self.is_synced
+        else:
+            # Use the provided SlitTraceSet
+            _include_error = False
+            if include_error:
+                msgs.warn('SlitTraceSet object has no errors.')
+            left, right = slits.select_edges(original=original)
+            cen = np.hstack((left,right))
+            fit = cen
+            msk = None
+            nslits = slits.nslits
+            is_left = np.ones(2*nslits, dtype=bool)
+            is_left[nslits:] = False
+            is_right = np.invert(is_left)
+            gpm = np.ones(2*nslits, dtype=bool)
+            traceid = np.concatenate((-np.arange(nslits), np.arange(nslits)))
+            synced = True
+
         if in_ginga:
-            # TODO JFH This can easily be fixed.
-            # Currently can only show in ginga if the edges are
-            # synchronized into slits
-            if not self.is_synced:
-                msgs.error('To show in ginga, slit edges must be left-right synchronized.')
+            # Set up the appropriate keyword arguments for the IDs
+            id_kwargs = {'slit_ids': np.arange(nslits)+1} if synced \
+                            else {'left_ids': traceid[gpm & is_left],
+                                  'right_ids': traceid[gpm & is_right]}
+            _trc = cen if fit is None else fit
+
+            # Connect to or instantiate ginga window
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
-            # Show Image
-            viewer, ch = ginga.show_image(self.img, 'Trace Image')
-            if self.is_empty:
-                msgs.info('No traces defined.')
-                return
-            # Plot traces
-            # TODO: add masking
-            right = self.traceid > 0
-            cen = self.spat_cen if self.spat_fit is None else self.spat_fit
-            ginga.show_slits(viewer, ch, cen[:,np.invert(right)], cen[:,right],
-                             self.traceid[right], pstep=thin)
+            # Clear the viewer and show the trace image
+            trace_viewer, trace_ch = ginga.show_image(self.img, chname='Trace Image', clear=True)
+            if not self.is_empty:
+                ginga.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
+                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+
+            # Show the Sobel sigma image (do *not* clear)
+            sobel_viewer, sobel_ch = ginga.show_image(self.sobel_sig, chname='Sobel Filtered')
+            if not self.is_empty:
+                ginga.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
+                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
             return
 
         # Show the traced image
         if include_img:
             img_zlim = utils.growth_lim(self.img, 0.95, fac=1.05)
-            plt.imshow(self.img.T, origin='lower', interpolation='nearest', aspect='auto',
+            plt.imshow(self.img, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=img_zlim[0], vmax=img_zlim[1])
         elif include_sobel:
             sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
-            plt.imshow(self.sobel_sig.T, origin='lower', interpolation='nearest', aspect='auto',
+            plt.imshow(self.sobel_sig, origin='lower', interpolation='nearest', aspect='auto',
                        vmin=sob_zlim[0], vmax=sob_zlim[1])
 
         if self.is_empty:
             msgs.info('No traces defined.')
-            plt.xlim(-img_buffer, self.nspec+img_buffer)
-            plt.ylim(-img_buffer, self.nspat+img_buffer)
-            plt.xlabel('Spectral pixel index')
-            plt.ylabel('Spatial pixel index')
+            plt.xlim(-img_buffer, self.nspat+img_buffer)
+            plt.ylim(-img_buffer, self.nspec+img_buffer)
+            plt.ylabel('Spectral pixel index')
+            plt.xlabel('Spatial pixel index')
             plt.show()
             return
-
-        # Build the data to plot. Any masked data is excluded; masked
-        # data to be plotted are held in a separate array. This means
-        # that errors and fits are currently never plotted for masked
-        # data.
-        _flag = None if flag in ['any', None] else np.atleast_1d(flag)
-        cen = np.ma.MaskedArray(self.spat_cen, mask=self.bitmask.flagged(self.spat_msk))
-        err = np.ma.MaskedArray(self.spat_err, mask=np.ma.getmaskarray(cen).copy())
-        msk = None if flag is None \
-                    else np.ma.MaskedArray(self.spat_cen, mask=np.invert(
-                                            self.bitmask.flagged(self.spat_msk, flag=_flag)))
-
-        # Select the traces to show
-        trace_indx = np.ones(self.ntrace, dtype=bool) if traceid is None \
-                        else np.isin(self.traceid, np.atleast_1d(traceid))
 
         # Spectral position
         spec = np.tile(np.arange(self.nspec), (self.ntrace,1)).T
 
-        if include_error:
+        if _include_error:
+            indx = is_left | is_right
             # Show the errors
-            plt.errorbar(spec[::thin,trace_indx].ravel(), cen[::thin,trace_indx].ravel(),
-                         yerr=err[::thin,trace_indx].ravel(), fmt='none', ecolor='k',
-                         elinewidth=0.5, alpha=0.3, capthick=0, zorder=3)
-
+            plt.errorbar(cen[::thin,indx].ravel(), spec[::thin,indx].ravel(),
+                         xerr=err[::thin,indx].ravel(), fmt='none', ecolor='k', elinewidth=0.5,
+                         alpha=0.3, capthick=0, zorder=3)
         # Plot the left trace points
-        left = (self.traceid < 0) & trace_indx
-        plt.scatter(spec[::thin,left], cen[::thin,left], marker='.', color='k', s=30,
+        plt.scatter(cen[::thin,is_left], spec[::thin,is_left], marker='.', color='k', s=30,
                     lw=0, zorder=4, label='left edge measurements', alpha=0.8)
         if msk is not None:
-            plt.scatter(spec[::thin,left], msk[::thin,left], marker='x', color='C3', s=20,
+            plt.scatter(msk[::thin,is_left], spec[::thin,is_left], marker='x', color='C3', s=20,
                         lw=0.5, zorder=5, label='masked left edges', alpha=0.8)
 
         # Plot the right trace points
-        right = (self.traceid > 0) & trace_indx
-        plt.scatter(spec[::thin,right], cen[::thin,right], marker='.', color='0.7',
+        plt.scatter(cen[::thin,is_right], spec[::thin,is_right], marker='.', color='0.7',
                     s=30, lw=0, zorder=4, label='right edge measurements', alpha=0.8)
         if msk is not None:
-            plt.scatter(spec[::thin,right], msk[::thin,right], marker='x', color='C1', s=20,
+            plt.scatter(msk[::thin,is_right], spec[::thin,is_right], marker='x', color='C1', s=20,
                         lw=0.5, zorder=5, label='masked right edges', alpha=0.8)
 
         if idlabel:
             # Label the traces by their ID number
             for i in range(self.ntrace):
-                if not trace_indx[i]:
-                    continue
                 indx = np.invert(cen.mask[:,i])
                 if not np.any(indx):
                     continue
                 _spec = spec[:,i][indx]
                 _cen = cen[:,i][indx]
-                plt.text(_spec[_spec.size//2], _cen[_spec.size//2], str(self.traceid[i]),
+                plt.text(_cen[_spec.size//2], _spec[_spec.size//2], str(self.traceid[i]),
                          color='k', fontsize=16, alpha=0.7, zorder=10)
 
-        if self.spat_fit is None:
+        if fit is None:
             # No fits, so we're done
             plt.legend()
             plt.show()
             return
 
         # Plot the trace fits
-        show_fit = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                      exclude=self.bitmask.exclude_flags))
         for i in range(self.ntrace):
-            if not trace_indx[i]:
-                continue
-            if not show_fit[i]:
+            if not gpm[i]:
                 continue
             # If statement structure primarily for the labels. Only
             # difference between left and right is the color.
-            if left[i]:
-                left_line = plt.plot(spec[::thin,i], self.spat_fit[::thin,i], color='C3', lw=1,
-                                     zorder=6)
-            elif right[i]:
-                right_line = plt.plot(spec[::thin,i], self.spat_fit[::thin,i], color='C1', lw=1,
-                                      zorder=6)
+            if is_left[i]:
+                left_line = plt.plot(fit[::thin,i], spec[::thin,i], color='C3', lw=1, zorder=6)
+            elif is_right[i]:
+                right_line = plt.plot(fit[::thin,i], spec[::thin,i], color='C1', lw=1, zorder=6)
 
             if idlabel and np.all(cen.mask[:,i]):
-                plt.text(spec[self.nspec//2,i], self.spat_fit[self.nspec//2,i],
-                         str(self.traceid[i]), color='k', fontsize=16, alpha=0.7, zorder=10)
+                plt.text(spec[self.nspec//2,i], fit[self.nspec//2,i], str(traceid[i]), color='k',
+                         fontsize=16, alpha=0.7, zorder=10)
 
         # Limits and labels
-        plt.xlim(-img_buffer, self.nspec+img_buffer)
-        plt.ylim(-img_buffer, self.nspat+img_buffer)
-        if np.any(left & trace_indx & show_fit):
+        plt.xlim(-img_buffer, self.nspat+img_buffer)
+        plt.ylim(-img_buffer, self.nspec+img_buffer)
+        if np.any(is_left & gpm):
             left_line[0].set_label('left edge fit')
-        if np.any(right & trace_indx & show_fit):
+        if np.any(is_right & gpm):
             right_line[0].set_label('right edge fit')
-        plt.xlabel('Spectral pixel index')
-        plt.ylabel('Spatial pixel index')
+        plt.ylabel('Spectral pixel index')
+        plt.xlabel('Spatial pixel index')
         plt.legend()
         plt.show()
 
@@ -1673,7 +1613,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Spectral pixel coordinate vector and global plot limits
         spec = np.arange(self.nspec)
-        xlim = [-1,self.nspec]
+        ylim = [-1,self.nspec]
         img_zlim = utils.growth_lim(self.img, 0.95, fac=1.05)
         sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
 
@@ -1682,8 +1622,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         fig = plt.figure(figsize=(1.5*w,1.5*h))
 
         # Grid for plots
-        n = np.array([2,3])
-        buff = np.array([0.05, 0.03])
+        n = np.array([4,3])
+        buff = np.array([0.05, 0.02])
         strt = np.array([0.07, 0.04])
         end = np.array([0.99, 0.99])
         delt = (end-(n-1)*buff-strt)/n
@@ -1705,62 +1645,46 @@ class EdgeTraceSet(masterframe.MasterFrame):
             ii = j - jj*n[0]
 
             # Plot coordinates
-            ax_x = strt[0]+ii*(buff[0]+delt[0])
-            ax_y0 = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
+            ax_x0 = strt[0]+ii*(buff[0]+delt[0])
+            ax_y = strt[1]+(n[1]-jj-1)*(buff[1]+delt[1])
 
             # Spatial pixel plot limits for this trace
             indx = np.invert(self.bitmask.flagged(self.spat_msk[:,i], flag=self.bitmask.bad_flags))
-            ylim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
-            if min_spat is not None and np.diff(ylim) < min_spat:
-                ylim = np.sum(ylim)/2 + np.array([-1,1])*min_spat/2
+            xlim = utils.growth_lim(self.spat_cen[indx,i], 1.0, fac=2.0)
+            if min_spat is not None and np.diff(xlim) < min_spat:
+                xlim = np.sum(xlim)/2 + np.array([-1,1])*min_spat/2
 
             # Plot the trace image and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0 + 2*delt[1]/3, delt[0], delt[1]/3.])
+            ax = fig.add_axes([ax_x0, ax_y, delt[0]/2, delt[1]])
             ax.minorticks_on()
             ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
             ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-            ax.xaxis.set_major_formatter(ticker.NullFormatter())
-            ax.imshow(self.img.T, origin='lower', interpolation='nearest', vmin=img_zlim[0],
+            ax.imshow(self.img, origin='lower', interpolation='nearest', vmin=img_zlim[0],
                       vmax=img_zlim[1], aspect='auto')
             if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
-            ax.text(0.95, 0.8, 'Trace {0}'.format(self.traceid[i]), ha='right', va='center',
-                    transform=ax.transAxes, fontsize=12)
-
-            # Plot the filtered image and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0 + delt[1]/3, delt[0], delt[1]/3.])
-            ax.minorticks_on()
-            ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
-            ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
-            ax.set_xlim(xlim)
-            ax.set_ylim(ylim)
-            ax.xaxis.set_major_formatter(ticker.NullFormatter())
-            ax.imshow(self.sobel_sig.T, origin='lower', interpolation='nearest', vmin=sob_zlim[0],
-                      vmax=sob_zlim[1], aspect='auto')
-            if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
+                ax.plot(self.spat_fit[:,i], spec, color='C3' if self.traceid[i] < 0 else 'C1')
+            ax.text(0.07, 0.93,'{0}'.format(self.traceid[i]), ha='left', va='center',
+                    transform=ax.transAxes, fontsize=12, bbox=dict(facecolor='white', alpha=0.3))
             if ii == 0:
-                ax.text(-0.13, 0.5, 'Spatial Coordinate (pix)', ha='center', va='center',
+                ax.text(-0.55, 0.5, 'Spectral Coordinate (pix)', ha='center', va='center',
                         transform=ax.transAxes, rotation='vertical')
 
-            # Plot the trace centroids and the fit (if it exists)
-            ax = fig.add_axes([ax_x, ax_y0, delt[0], delt[1]/3.])
+            # Plot the filtered image and the fit (if it exists)
+            ax = fig.add_axes([ax_x0 + delt[0]/2, ax_y, delt[0]/2, delt[1]])
             ax.minorticks_on()
             ax.tick_params(which='major', length=10, direction='in', top=True, right=True)
             ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-            ax.scatter(spec[indx], self.spat_cen[indx,i], marker='.', s=50, color='k', lw=0)
-            nindx = np.invert(indx)
-            if np.any(nindx):
-                ax.scatter(spec[nindx], self.spat_cen[nindx,i], marker='x', s=30, color='0.5',
-                           lw=0.5)
+            ax.yaxis.set_major_formatter(ticker.NullFormatter())
+            ax.imshow(self.sobel_sig, origin='lower', interpolation='nearest', vmin=sob_zlim[0],
+                      vmax=sob_zlim[1], aspect='auto')
             if self.spat_fit is not None:
-                ax.plot(spec, self.spat_fit[:,i], color='C3' if self.traceid[i] < 0 else 'C1')
+                ax.plot(self.spat_fit[:,i], spec, color='C3' if self.traceid[i] < 0 else 'C1')
             if jj == n[1]-1:
-                ax.text(0.5, -0.3, 'Spectral Coordinate (pix)', ha='center', va='center',
+                ax.text(0.0, -0.1, 'Spatial Coordinate (pix)', ha='center', va='center',
                         transform=ax.transAxes)
 
             # Prepare for the next trace plot
@@ -3920,38 +3844,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         """
         if self.is_empty:
             return None
-        return self._get_fully_masked_traces(self.spat_msk, self.bitmask, flag=flag,
-                                             exclude=exclude)
-
-    @staticmethod
-    def _get_fully_masked_traces(mask, bm, flag=None, exclude=None):
-        """
-        Helper function for :func:`fully_masked_traces`, allowing for
-        the masking to be performed by :func:`load_to_tslits_dict`.
-
-        Args:
-            mask (`numpy.ndarray`_):
-                Integer array with bitmask values.
-            bm (:class:`pypeit.bitmask.BitMask`):
-                Object used to interpret the bitmask array values.
-            flag (:obj:`str`, :obj:`list`, optional):
-                The bit mask flags to select. If None, any flags are
-                used. See :func:`pypeit.bitmask.Bitmask.flagged`.
-            exclude (:obj:`str`, :obj:`list`, optional):
-                A set of flags to explicitly exclude from
-                consideration as a masked trace. I.e., if any
-                spectral pixel in the trace is flagged with one of
-                these flags, it will not be considered a fully masked
-                trace. This is typically used to exclude inserted
-                traces from being considered as a bad trace.
-
-        Returns:
-            `numpy.ndarray`_: Boolean array selecting traces that are
-            flagged at all spectral pixels.
-        """
-        bpm = np.all(bm.flagged(mask, flag=flag), axis=0)
+        bpm = np.all(self.bitmask.flagged(self.spat_msk, flag=flag), axis=0)
         if exclude is not None:
-            bpm &= np.invert(np.any(bm.flagged(mask, flag=exclude), axis=0))
+            bpm &= np.invert(np.any(self.bitmask.flagged(self.spat_msk, flag=exclude), axis=0))
         return bpm
     
     def mask_refine(self, design_file=None, allow_resync=False, debug=False):
@@ -4325,251 +4220,79 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
                                                          self.design['SLITID'], strict=True)
 
+    def slit_spatial_center(self, normalized=True, spec=None, resort=False, use_center=False):
+        """
+        Return the spatial coordinate of the center of each slit.
+
+        The slit edges must be left-right synchronized.
+
+        Args:
+            normalized (:obj:`bool`, optional):
+                Return coordinates normalized by the size of the
+                detector.
+            spec (:obj:`int`, optional):
+                Spectral position (row) at which to return the
+                spatial position. If ``None``, set at the central row
+                (i.e., ``self.nspat//2``)
+            resort (:obj:`bool`, optional):
+                Ensure that the traces are sorted. If ``False``, they
+                are assumed to be.
+            use_center (:obj:`bool`, optional):
+                Use the measured centroids to define the slit edges
+                even if the slit edges have been otherwise modeled.
+
+        Returns:
+            `numpy.ndarray`_: Spatial coordinates of the slit centers
+            in pixels or in fractions of the detector.
+        """
+        if not self.is_synced:
+            msgs.error('EdgeTraceSet must be synced to compute slit centers.')
+
+        # TODO: Use reference_row by default? Except that it's only
+        # defined if the PCA is defined.
+        _spec = self.nspat//2 if spec is None else spec
+
+        # Resort if requested
+        if resort:
+            self.spatial_sort()
+
+        # Synced, spatially sorted traces are always ordered in left,
+        # right pairs
+        trace_cen = self.spat_cen if self.spat_fit is None or use_center else self.spat_fit
+        slit_c = np.mean(trace_cen[_spec,:].reshape(-1,2), axis=1)
+        return slit_c/self.nspat if normalized else slit_c
+
     def get_slits(self):
         """
-        Use the data to construct and return a :class:`SlitTraceSet`
+        Use the data to instatiate the relevant
+        :class:`pypeit.slittrace.SlitTraceSet` object.
+
+        The traced edges must have first been organized into slits;
+        see :func:`sync`.
+
+        The :class:`pypeit.slittrace.SlitTraceSet` object will use
+        the same :attr:`master_key`, :attr:`master_dir`, and
+        :attr:`reuse_masters` as this parent :class:`EdgeTraceSet`
         object.
         """
         if not self.is_synced:
             msgs.error('Edges must be synced to construct SlitTraceSet object.')
 
+        # Select the good traces
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
 
+        # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.binning)
-        slitspat = slit_spat_pos(left, right, self.nspec, self.nspat)
-        # specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
+        slitspat = slittrace.slit_spat_pos(left, right, self.nspat)
+        specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
-        return SlitTraceSet(left, right, nspat=self.nspat,
-                            spectrograph=self.spectrograph.spectrograph, specmin=self.spec_min,
-                            specmax=self.spec_max, binspec=binspec, binspat=binspat,
-                            pad=self.par['pad'])
+        # Instantiate and return
+        return slittrace.SlitTraceSet(left=left, right=right, nspat=self.nspat,
+                                      spectrograph=self.spectrograph.spectrograph, specmin=specmin,
+                                      specmax=specmax, binspec=binspec, binspat=binspat,
+                                      pad=self.par['pad'], master_key=self.master_key,
+                                      master_dir=self.master_dir, reuse=self.reuse_masters)
 
-    def load_slits(self):
-        """
-        Load the slit data from the master file.
-        """
-        if not self.exists():
-            msgs.error('File does not exit: {0}'.format(self.master_file_path))
-        return SlitTraceSet.from_file(self.master_file_path)
-
-    def convert_to_tslits_dict(self):
-        """
-        Stop-gap function to construct the old tslits_dict object.
-        """
-        # To construct at tslits_dict, the traces must be left-right
-        # synchronized.
-        if not self.is_synced:
-            msgs.error('Edges must be synced to construct tslits_dict.')
-
-        tslits_dict = {}
-
-        # Find the traces that are *not* fully masked. This will catch
-        # slits that are masked as too short but not clipped because of
-        # par['sync_clip'] = False.
-        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                                 exclude=self.bitmask.exclude_flags))
-
-        tslits_dict['slit_left_orig'] = self.spat_fit[:,gpm & self.is_left]
-        tslits_dict['slit_righ_orig'] = self.spat_fit[:,gpm & self.is_right]
-
-        tslits_dict['slit_left'] = self.spat_fit[:,gpm & self.is_left]
-        tslits_dict['slit_righ'] = self.spat_fit[:,gpm & self.is_right]
-
-        nslits = tslits_dict['slit_left'].shape[1]
-
-        tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
-        tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
-        tslits_dict['nspec'] = self.nspec
-        tslits_dict['nspat'] = self.nspat
-        tslits_dict['nslits'] = nslits
-        tslits_dict['pad'] = self.par['pad']
-        tslits_dict['binspectral'], tslits_dict['binspatial'] = parse.parse_binning(self.binning)
-        tslits_dict['spectrograph'] = self.spectrograph.spectrograph
-        tslits_dict['spec_min'], tslits_dict['spec_max'] = self.spec_min, self.spec_max
-        # JFH This removes the dependency on spectrograph which is likely going to need to be state dependent
-        #tslits_dict['spec_min'], tslits_dict['spec_max'] = \
-        #    self.spectrograph.slit_minmax(slit_spat_pos(tslits_dict),
-        #                                  binspectral=tslits_dict['binspectral'])
-
-
-        return tslits_dict
-
-    @staticmethod
-    def load_to_tslits_dict(filename): 
-        """
-        Use the saved master file to construct the ``tslits_dict``
-        dictionary.
-
-        Args:
-            filename (:obj:`str`):
-                Name of the master file
-        
-        Returns:
-            dict: The nominal tslits_dict object.
-        """
-        if not os.path.isfile(filename):
-            raise FileNotFoundError('{0} does not exist.'.format(filename))
-
-        with fits.open(filename) as hdu:
-
-            # Find the traces that are *not* fully masked. This will
-            # catch slits that are masked as too short but not clipped
-            # because of par['sync_clip'] = False.
-            gpm = EdgeTraceSet._get_fully_masked_traces(hdu['CENTER_MASK'].data, EdgeTraceSet.bitmask,
-                                                        flag=EdgeTraceSet.bitmask.bad_flags,
-                                                        exclude=EdgeTraceSet.bitmask.exclude_flags)
-            is_left = hdu['TRACEID'].data < 0
-            is_right = hdu['TRACEID'].data > 0
-
-            tslits_dict = {}
-            tslits_dict['slit_left_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
-            tslits_dict['slit_righ_orig'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
-
-            tslits_dict['slit_left'] = hdu['CENTER_FIT'].data[:,gpm & is_left]
-            tslits_dict['slit_righ'] = hdu['CENTER_FIT'].data[:,gpm & is_right]
-            tslits_dict['slitcen'] = (tslits_dict['slit_left'] + tslits_dict['slit_righ'])/2
-
-            nslits = tslits_dict['slit_left'].shape[1]
-            tslits_dict['maskslits'] = np.zeros(nslits, dtype=bool)
-
-            tslits_dict['nspec'], tslits_dict['nspat'] = hdu['TRACEIMG'].data.shape
-            tslits_dict['nslits'] = nslits
-            tslits_dict['binspectral'], tslits_dict['binspatial'] \
-                    = parse.parse_binning(hdu[0].header['BINNING'])
-
-            spec = load_spectrograph(hdu[0].header['PYP_SPEC'])
-            tslits_dict['spectrograph'] = spec.spectrograph
-            tslits_dict['spec_min'], tslits_dict['spec_max'] = hdu['SPEC_MIN'].data, hdu['SPEC_MAX'].data
-            indx = np.array(['EdgeTracePar: pad' in h for h in hdu[0].header.comments])
-            if not np.any(indx):
-                raise ValueError('Could not find padding parameter in header.')
-            if np.sum(indx) != 1:
-                raise ValueError('More than one header includes "EdgeTracePar: pad" in comment.')
-            tslits_dict['pad'] = hdu[0].header[int(np.where(indx)[0][0])]
-
-            return tslits_dict
-
-    @classmethod
-    def from_tslits_dict(cls, tslits_dict, master_key, master_dir):
-        """
-        Stop-gap function to instantiate insofar as it can from a
-        tslits_dict.
-        """
-        # Caveats:
-        #   - par shouldn't be none in case of a subsequent call to save (see coadd2d)
-        par = EdgeTracePar()
-        this = cls(load_spectrograph(tslits_dict['spectrograph']), par, master_key=master_key,
-                   master_dir=master_dir)
-        #   - img and sobel_sig should not be None
-        this.img = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
-        this.sobel_sig = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=float)
-        this.bpm = np.zeros((tslits_dict['nspec'], tslits_dict['nspat']), dtype=bool)
-        this.nspec, this.nspat = this.img.shape
-        #   - May be able to parse the detector from the name of the
-        #   file, but just set it to 1 for now.
-        this.det = 1
-        this.binning = '{0},{1}'.format(tslits_dict['binspectral'], tslits_dict['binspatial'])
-        #   - Build the trace data
-        nslits = tslits_dict['slit_left'].shape[1]
-        #       - Force the input traces to be synced
-        if nslits != tslits_dict['slit_righ'].shape[1]:
-            msgs.error('Input dictionary has different number of left and right traces.')
-        #       - Initialize the trace arrays
-        this.traceid = np.append(-np.arange(nslits)-1, np.arange(nslits)+1)
-        this.spat_cen = np.hstack((tslits_dict['slit_left'], tslits_dict['slit_righ']))
-        #       - Resort them into synced pairs; assumes left and right
-        #         slits are correctly ordered in the input dictionary
-        srt = np.arange(2*nslits).reshape(2,-1).T.ravel()
-        this.traceid = this.traceid[srt]
-        this.spat_cen = this.spat_cen[:,srt]
-        # - Dummy data to produce a complete object
-        #   TODO: Refactor so that the object can be put in a
-        #   "read-only" state.  Then these attributes wouldn't need to
-        #   be defined, but this state would prohibit the execution of
-        #   some methods.
-        this.spat_fit = this.spat_cen.copy()
-        this.spat_fit_type = 'legendre'
-        this.spat_msk = np.zeros(this.spat_cen.shape, dtype=this.bitmask.minimum_dtype())
-        this.spat_err = np.zeros(this.spat_cen.shape, dtype=float)
-        this.spat_img = np.round(this.spat_cen).astype(int)
-        this.spec_min = tslits_dict['spec_min']
-        this.spec_max = tslits_dict['spec_max']
-        return this
-
-    def update_using_tslits_dict(self, tslits_dict):
-        """
-        Update the slit edges using a tslits_dict. This is a stop-gap
-        to allow for adjusting the slit traces based on the
-        flat-field.
-
-        Args:
-            tslits_dict (dict):
-        """
-        # If traces are updated, the PCA is no longer valid
-        self.pca = None
-        # Find the traces that are *not* fully masked
-        gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags))
-        self.spat_fit[:, gpm & self.is_left] = tslits_dict['slit_left']
-        self.spat_fit[:, gpm & self.is_right] = tslits_dict['slit_righ']
-        self.spat_fit_type = 'tweaked'
-        # TODO: Resort?
-
-# TODO: This needs to be integrated into EdgeTraceSet, or just use
-# EdgeTraceSet.traceid
-def get_slitid(shape, lordloc, rordloc, islit, ypos=0.5):
-    """
-    TODO: This is out of date!
-    Convert slit position to a slitid
-
-    Parameters
-    ----------
-    slf : SciExpObj or tuple
-    det : int
-    islit : int
-    ypos : float, optional
-
-    Returns
-    -------
-    slitid : int
-      Slit center position on the detector normalized to range from 0-10000
-    slitcen : float
-      Slitcenter relative to the detector ranging from 0-1
-    xslit : tuple
-      left, right positions of the slit edges
-    """
-    #if isinstance(slf, tuple):
-    #    shape, lordloc, rordloc = slf
-    #else:
-    #    shape = slf._mstrace[det-1].shape
-    #    lordloc = slf._lordloc[det-1]
-    #    rordloc = slf._rordloc[det-1]
-    # Index at ypos
-    yidx = int(np.round(ypos*lordloc.shape[0]))
-    # Slit at yidx
-    pixl_slit = lordloc[yidx, islit]
-    pixr_slit = rordloc[yidx, islit]
-    # Relative to full image
-    xl_slit = pixl_slit/shape[1]
-    xr_slit = pixr_slit/shape[1]
-    # Center
-    slitcen = np.mean([xl_slit, xr_slit])
-    slitid = int(np.round(slitcen*1e4))
-    # Return them all
-    return slitid, slitcen, (xl_slit, xr_slit)
-
-
-# TODO: This needs to be integrated into EdgeTraceSet
-def slit_spat_pos(left, right, nspec, nspat):
-    """
-    Generate an array of the slit spat positions
-    from the tslits_dict
-
-    Args:
-
-    Returns:
-        np.ndarray
-    """
-    return (left[nspec//2,:] + right[nspec//2,:])/2/nspat

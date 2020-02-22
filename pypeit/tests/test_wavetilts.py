@@ -42,16 +42,15 @@ def test_step_by_step(master_dir):
     parset = spectrograph.default_pypeit_par()
     par = parset['calibrations']['tilts']
     wavepar = parset['calibrations']['wavelengths']
-    waveTilts = wavetilts.WaveTilts(msarc, edges.convert_to_tslits_dict(), spectrograph, par,
-                                    wavepar, det=1, master_key=master_key, master_dir=master_dir,
+    waveTilts = wavetilts.WaveTilts(msarc, edges.get_slits(), spectrograph, par, wavepar, det=1,
+                                    master_key=master_key, master_dir=master_dir,
                                     reuse_masters=True)
     # Extract arcs
     arccen, arccen_bpm, maskslits = waveTilts.extract_arcs()
-    #waveTilts.slitcen, waveTilts.slitmask, waveTilts.inmask)
     assert arccen.shape == (2048,1)
     # Tilts in the slit
     slit = 0
-    waveTilts.slitmask = pixels.tslits2mask(waveTilts.tslits_dict)
+    waveTilts.slitmask = waveTilts.slits.slit_img()
     thismask = waveTilts.slitmask == slit
     waveTilts.lines_spec, waveTilts.lines_spat \
             = waveTilts.find_lines(arccen[:, slit], waveTilts.slitcen[:, slit], slit)
@@ -79,8 +78,8 @@ def test_run(master_dir):
     spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     wavepar = pypeitpar.WavelengthSolutionPar()
-    waveTilts = wavetilts.WaveTilts(msarc, edges.convert_to_tslits_dict(), spectrograph, par,
-                                    wavepar, det=1, master_key=master_key, master_dir=master_dir,
+    waveTilts = wavetilts.WaveTilts(msarc, edges.get_slits(), spectrograph, par, wavepar, det=1,
+                                    master_key=master_key, master_dir=master_dir,
                                     reuse_masters=True)
     # Run
     tilts_dict, mask = waveTilts.run(doqa=False)

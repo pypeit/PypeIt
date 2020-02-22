@@ -26,7 +26,6 @@ Submodules
    pypeit.edgetrace
    pypeit.flatfield
    pypeit.fluxcalibrate
-   pypeit.fluxspec
    pypeit.ginga
    pypeit.io
    pypeit.masterframe
@@ -38,6 +37,7 @@ Submodules
    pypeit.sampling
    pypeit.sensfunc
    pypeit.setup_package
+   pypeit.slittrace
    pypeit.specobj
    pypeit.specobjs
    pypeit.telescopes

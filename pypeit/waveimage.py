@@ -12,7 +12,6 @@ import os
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
-from pypeit import edgetrace
 from pypeit.core import pixels
 from pypeit.core import save
 from pypeit.core import load
@@ -24,8 +23,8 @@ class WaveImage(masterframe.MasterFrame):
     Class to generate the Wavelength Image
 
     Args:
-        tslits_dict (dict or None):
-            dict from TraceSlits class (e.g. slitpix)
+        slits (:class:`pypeit.edgetrace.SlitTraceSet`):
+            Object holding the slit edge locations
         tilts (np.ndarray or None):
             Tilt image
         wv_calib (dict or None): wavelength solution dictionary
@@ -70,15 +69,15 @@ class WaveImage(masterframe.MasterFrame):
         master_dir = head0['MSTRDIR']
         master_key = head0['MSTRKEY']
         # Instantiate
-        slf = cls(None, None, None, spectrograph, None, None, master_dir=master_dir, master_key=master_key,
-                  reuse_masters=True)
+        slf = cls(None, None, None, spectrograph, None, None, master_dir=master_dir,
+                  master_key=master_key, reuse_masters=True)
         slf.image = slf.load(ifile=master_file)
         # Return
         return slf
 
-    def __init__(self, tslits_dict, tilts, wv_calib, spectrograph, det, maskslits,
-                 master_key=None, master_dir=None, reuse_masters=False):
-
+    # TODO: Is maskslits ever anything besides slits.mask? (e.g., see calibrations.py call)
+    def __init__(self, slits, tilts, wv_calib, spectrograph, det, maskslits, master_key=None,
+                 master_dir=None, reuse_masters=False):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
@@ -87,18 +86,19 @@ class WaveImage(masterframe.MasterFrame):
         self.spectrograph = spectrograph
         self.det = det
 
-        self.tslits_dict = tslits_dict
+        # TODO: Do we need to assign slits to self?
+        self.slits = slits
         self.tilts = tilts
         self.wv_calib = wv_calib
-        if tslits_dict is not None:
-            self.slitmask = pixels.tslits2mask(self.tslits_dict)
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
-                                                         self.tslits_dict['slit_righ'],
-                                                         self.tslits_dict['nspec'],
-                                                         self.tslits_dict['nspat'])
-        else:
+        if self.slits is None:
             self.slitmask = None
             self.slit_spat_pos = None
+        else:
+            # NOTE: This uses the pad defined by EdgeTraceSetPar
+            self.slitmask = self.slits.slit_img()
+            # This selects the coordinates for the tweaked edges if
+            # they exist, original otherwise.
+            self.slit_spat_pos = self.slits.spatial_coordinates()
 
         self.maskslits = maskslits
 
@@ -138,6 +138,7 @@ class WaveImage(masterframe.MasterFrame):
         for slit in ok_slits:
             thismask = (self.slitmask == slit)
             if self.par['echelle']:
+                # TODO: Put this in `SlitTraceSet`?
                 order, indx = self.spectrograph.slit2order(self.slit_spat_pos[slit])
                 # evaluate solution
                 self.image[thismask] = utils.func_val(self.wv_calib['fit2d']['coeffs'],

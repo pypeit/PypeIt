@@ -103,18 +103,20 @@ def main(args):
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir = mdir_base
 
-    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
-
-    # TODO -- Remove this once the move to Edges is complete
-    if args.old:
-        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
-    else:
-        trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
-    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
-    slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
-                for ii in range(tslits_dict['slit_left'].shape[1])]
+#    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
+#    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
+#    # TODO -- Remove this once the move to Edges is complete
+#    if args.old:
+#        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
+#    else:
+#        trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
+#        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+#    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
+#    slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
+#                for ii in range(tslits_dict['slit_left'].shape[1])]
+    # Assumes a MasterSlit file has been written
+    slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
+                                               mdir)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -149,4 +151,5 @@ def main(args):
     tslits_dict['trace_model'] = trace_model_dict
 
     # Finally, initialise the GUI
-    gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
+    gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True,
+                               slit_ids=slits.id)
