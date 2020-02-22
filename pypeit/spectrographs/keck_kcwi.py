@@ -349,17 +349,18 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     def set_wcs(self, hdr):
         """Set the WCS for this spectrograph
         """
-        ra =
-        dec =
-        wave0 =
-        crpix1 =
-        crpix2 =
-        crpix3 =
-        cd11 =
-        cd21 =
-        cd12 =
-        cd22 =
-        dwout =
+        # TODO :: Need to set all of these!!
+        ra = None
+        dec = None
+        wave0 = None
+        crpix1 = None
+        crpix2 = None
+        crpix3 = None
+        cd11 = None
+        cd21 = None
+        cd12 = None
+        cd22 = None
+        dwout = None
         # WCS keywords
         hdr['WCSDIM'] = (3, 'number of dimensions in WCS')
         hdr['WCSNAME'] = ('KCWI', 'Name of WCS')
