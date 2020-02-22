@@ -435,7 +435,7 @@ class Calibrations(object):
 
         """
         # Check for existing data
-        if not self._chk_objs(['msbar', 'msbpm', 'tslits_dict']):
+        if not self._chk_objs(['msbar', 'msbpm', 'slits']):
             msgs.error("Don't have all the objects")
 
         # Check internals
@@ -453,7 +453,7 @@ class Calibrations(object):
         binning = self.spectrograph.get_meta_value(self.arc_files[0], 'binning')
 
         # Instantiate
-        self.barProfile = barframe.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,
+        self.barProfile = barframe.BarProfile(self.msbar, self.slits, self.spectrograph,
                                               self.par['barprofile'],
                                               det=self.det, binning=binning,
                                               master_key=self.master_key_dict['bar'],
