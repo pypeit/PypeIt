@@ -41,7 +41,7 @@ class SkySubGUI(object):
     """
 
     def __init__(self, canvas, image, frame, outname, det, slits, axes,
-                 printout=False, runtime=False, resolution=1000):
+                 printout=False, runtime=False, overwrite=False, resolution=1000):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
         The main goal of this routine is to interactively select sky background
@@ -75,6 +75,7 @@ class SkySubGUI(object):
         self.image = image
         self.frame = frame
         self._outname = outname
+        self._overwrite = overwrite
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self._spectrace = np.arange(self.nspec)
         self._printout = printout
@@ -126,16 +127,18 @@ class SkySubGUI(object):
         self.reset_regions()
 
     @classmethod
-    def initialize(cls, det, frame, slits, outname="skyregions.fits", runtime=False, printout=False):
+    def initialize(cls, det, frame, slits, overwrite=False, outname="skyregions.fits", runtime=False, printout=False):
         """Initialize the 'ObjFindGUI' window for interactive object tracing
 
             Args:
-                frame : ndarray
-                    Sky subtracted science image
-                slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
-                    Slit edges
                 det : int
                     Detector index
+                frame : ndarray
+                    Sky subtracted science image
+                slits : :class:`pypeit.slittrace.SlitTraceSet`, None
+                    Slit edges
+                overwrite : bool
+                    Overwrite existing sky region files?
                 printout : bool
                     Should the results be printed to screen
                 runtime : bool
@@ -185,7 +188,7 @@ class SkySubGUI(object):
         # Initialise the object finding window and display to screen
         fig.canvas.set_window_title('PypeIt - Sky regions')
         srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes,
-                          printout=printout, runtime=runtime)
+                          printout=printout, runtime=runtime, overwrite=overwrite)
         plt.show()
 
         return srgui
@@ -490,10 +493,7 @@ class SkySubGUI(object):
             # Generate the mask
             inmask = self.generate_mask()
             # Save the mask
-            write_to_fits(inmask, self._outname, name="SKYREG")
-            # Print the output to screen
-            msgs.info("Include the following info in your .pypeit file:\n")
-            print("STILL WORKING ON THIS!!!")
+            write_to_fits(inmask, self._outname, name="SKYREG", overwrite=self._overwrite)
         return
 
     def generate_mask(self):

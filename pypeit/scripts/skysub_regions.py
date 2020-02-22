@@ -35,6 +35,8 @@ def parser(options=None):
 
     parser.add_argument('file', type = str, default=None, help='PypeIt file')
     parser.add_argument('--det', default=1, type=int, help="Detector")
+    parser.add_argument('-o', '--overwrite', default=False, action='store_true',
+                        help='Overwrite any existing files/directories')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -118,13 +120,14 @@ def main(args):
     # Derive an appropriate output filename
     prefix = os.path.splitext(file_base)
     if prefix[1] == ".gz":
-        prefix = os.path.splitext(prefix[0])[0]
+        outname = os.path.splitext(prefix[0])[0]
     else:
-        prefix = prefix[0]
-    outname = "{0:s}_skyregions.fits".format(prefix)
+        outname = prefix[0]
+    outname = "{0:s}/MasterSkyRegions_{1:s}_{2:s}.fits.gz".format(mdir, mkey, outname)
 
     # Finally, initialise the GUI
-    skyreg = SkySubGUI.initialize(args.det, frame, slits, outname=outname, runtime=False, printout=True)
+    skyreg = SkySubGUI.initialize(args.det, frame, slits, outname=outname, overwrite=args.overwrite,
+                                  runtime=False, printout=True)
 
     # Get the results
     skyreg.get_result()
