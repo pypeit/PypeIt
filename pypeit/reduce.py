@@ -1,14 +1,16 @@
 
+import os
 import inspect
 import numpy as np
 
 from astropy import stats
+from astropy.io import fits
 from abc import ABCMeta
 
 from linetools import utils as ltu
 
 from pypeit import specobjs
-from pypeit import ginga, msgs, edgetrace
+from pypeit import ginga, msgs, masterframe
 from pypeit.core import skysub, extract, pixels, wave
 
 from IPython import embed
@@ -1055,8 +1057,10 @@ class IFUReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
+
     def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+
 
     def get_platescale(self, dummy):
         """
@@ -1103,9 +1107,36 @@ class IFUReduce(Reduce):
 
         """
 
+        # Check if the user has a pre-defined sky regions file
+        skymask_init = None
+        if self.par['reduce']['skysub']['load_mask']:
+            # Check if a master Sky Regions file exists for this science frame
+            file_base = os.path.basename(self.sciImg.files[0])
+            prefix = os.path.splitext(file_base)
+            if prefix[1] == ".gz":
+                sciName = os.path.splitext(prefix[0])[0]
+            else:
+                sciName = prefix[0]
+
+            # Setup the master frame name
+            master_dir = self.caliBrate.master_dir
+            master_key = list(self.caliBrate.calib_dict)[0] + "_" + sciName
+            mstr_skyreg = masterframe.MasterFrame("SkyRegions", file_format='fits.gz', master_dir=master_dir,
+                                                  master_key=master_key)
+            regfile = mstr_skyreg.master_file_path
+            # Check if a file exists
+            if os.path.exists(regfile):
+                msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
+                skymask_init = fits.getdata(regfile)
+            else:
+                msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
+
         # Global sky subtract
         self.initial_sky = \
-            self.global_skysub(skymask=skymask_init).copy()
+            self.global_skysub(skymask=skymask_init, show_fit=True).copy()
+
+        import pdb
+        pdb.set_trace()
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
@@ -1157,7 +1188,6 @@ class IFUReduce(Reduce):
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
-
 
 
 def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
