@@ -1081,6 +1081,31 @@ class IFUReduce(Reduce):
     def resample_cube(self):
         pass
 
+    def load_skyregions(self):
+        skymask_init = None
+        if self.par['reduce']['skysub']['load_mask']:
+            # Check if a master Sky Regions file exists for this science frame
+            file_base = os.path.basename(self.sciImg.files[0])
+            prefix = os.path.splitext(file_base)
+            if prefix[1] == ".gz":
+                sciName = os.path.splitext(prefix[0])[0]
+            else:
+                sciName = prefix[0]
+
+            # Setup the master frame name
+            master_dir = self.caliBrate.master_dir
+            master_key = list(self.caliBrate.calib_dict)[0] + "_" + sciName
+            mstr_skyreg = masterframe.MasterFrame("SkyRegions", file_format='fits.gz', master_dir=master_dir,
+                                                  master_key=master_key)
+            regfile = mstr_skyreg.master_file_path
+            # Check if a file exists
+            if os.path.exists(regfile):
+                msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
+                skymask_init = fits.getdata(regfile)
+            else:
+                msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
+        return skymask_init
+
     def run(self, basename=None, ra=None, dec=None, obstime=None,
             std_trace=None, manual_extract_dict=None, show_peaks=False):
         """
@@ -1108,28 +1133,7 @@ class IFUReduce(Reduce):
         """
 
         # Check if the user has a pre-defined sky regions file
-        skymask_init = None
-        if self.par['reduce']['skysub']['load_mask']:
-            # Check if a master Sky Regions file exists for this science frame
-            file_base = os.path.basename(self.sciImg.files[0])
-            prefix = os.path.splitext(file_base)
-            if prefix[1] == ".gz":
-                sciName = os.path.splitext(prefix[0])[0]
-            else:
-                sciName = prefix[0]
-
-            # Setup the master frame name
-            master_dir = self.caliBrate.master_dir
-            master_key = list(self.caliBrate.calib_dict)[0] + "_" + sciName
-            mstr_skyreg = masterframe.MasterFrame("SkyRegions", file_format='fits.gz', master_dir=master_dir,
-                                                  master_key=master_key)
-            regfile = mstr_skyreg.master_file_path
-            # Check if a file exists
-            if os.path.exists(regfile):
-                msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
-                skymask_init = fits.getdata(regfile)
-            else:
-                msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
+        skymask_init = self.load_skyregions()
 
         # Global sky subtract
         self.initial_sky = \

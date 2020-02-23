@@ -139,7 +139,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
             # Init bspline to get the sky breakpoints (kludgy)
             #tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
             lskyset, outmask, lsky_fit, red_chi, exit_status = utils.bspline_profile(
-                pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky), inmask = inmask_fit[pos_sky],
+                pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky), inmask=inmask_fit[pos_sky],
                 upper=sigrej, lower=sigrej, kwargs_bspline={'bkspace':bsp},
                 kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
