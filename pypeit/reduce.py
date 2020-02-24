@@ -1104,7 +1104,7 @@ class IFUReduce(Reduce):
                 skymask_init = fits.getdata(regfile)
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
-        return skymask_init
+        return skymask_init.astype(np.bool)
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
             std_trace=None, manual_extract_dict=None, show_peaks=False):
