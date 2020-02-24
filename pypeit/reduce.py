@@ -385,7 +385,7 @@ class Reduce(object):
          """
         return None, None, None
 
-    def global_skysub(self, skymask=None, update_crmask=True,
+    def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
                       show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -436,7 +436,7 @@ class Reduce(object):
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
                                            thismask, left[:,slit], right[:,slit], inmask=inmask,
-                                           sigrej=sigrej,
+                                           sigrej=sigrej, trim_edg=trim_edg,
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
@@ -1061,6 +1061,8 @@ class IFUReduce(Reduce):
     def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
 
+        # Make sure the full slit is used
+        self.slitmask = self.slits.slit_img(original=True)
 
     def get_platescale(self, dummy):
         """
@@ -1101,10 +1103,10 @@ class IFUReduce(Reduce):
             # Check if a file exists
             if os.path.exists(regfile):
                 msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
-                skymask_init = fits.getdata(regfile)
+                skymask_init = fits.getdata(regfile).astype(np.bool)
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
-        return skymask_init.astype(np.bool)
+        return skymask_init
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
             std_trace=None, manual_extract_dict=None, show_peaks=False):
@@ -1131,64 +1133,25 @@ class IFUReduce(Reduce):
                outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
 
         """
-
         # Check if the user has a pre-defined sky regions file
         skymask_init = self.load_skyregions()
 
         # Global sky subtract
-        self.initial_sky = \
-            self.global_skysub(skymask=skymask_init, show_fit=True).copy()
+        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=True).copy()
 
-        import pdb
-        pdb.set_trace()
+        from pypeit.io import write_to_fits
+        write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
+        write_to_fits(self.global_sky, "initial_sky.fits", overwrite=True)
+        write_to_fits(self.sciImg.image-self.global_sky, "skysub_science.fits", overwrite=True)
+        msgs.error("SUCCESSFUL -- UP TO HERE!")
 
-        # Second pass object finding on sky-subtracted image
-        if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
-            self.sobjs_obj, self.nobj, self.skymask = \
-                self.find_objects(self.sciImg.image - self.initial_sky,
-                                  std_trace=std_trace, show=self.reduce_show,
-                                  show_peaks=show_peaks,
-                                  manual_extract_dict=manual_extract_dict)
-        else:
-            msgs.info("Skipping 2nd run of finding objects")
+        # Resample data onto desired grid
+        # TODO :: still need to implement this step...
 
-        # Do we have any positive objects to proceed with?
-        if self.nobj > 0:
-            # Global sky subtraction second pass. Uses skymask from object finding
-            if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
-                    self.par['reduce']['findobj']['skip_second_find']):
-                self.global_sky = self.initial_sky.copy()
-            else:
-                self.global_sky = self.global_skysub(skymask=self.skymask,
-                                                     show=self.reduce_show)
-            # Extract + Return
-            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.extract(self.global_sky,
-                                                                                                  self.sobjs_obj)
-        else:  # No objects, pass back what we have
-            self.skymodel = self.initial_sky
-            self.objmodel = np.zeros_like(self.sciImg.image)
-            # Set to sciivar. Could create a model but what is the point?
-            self.ivarmodel = np.copy(self.sciImg.ivar)
-            # Set to the initial mask in case no objects were found
-            self.outmask = self.sciImg.mask
-            # empty specobjs object from object finding
-            self.sobjs = self.sobjs_obj
-
-        # Purge out the negative objects if this was a near-IR reduction.
-        if self.ir_redux:
-            self.sobjs.purge_neg()
-
-        # Finish up
-        if self.sobjs.nobj == 0:
-            msgs.warn('No objects to extract!')
-        else:
-            # TODO -- Should we move these to redux.run()?
-            # Flexure correction if this is not a standard star
-            if not self.std_redux:
-                self.flexure_correct(self.sobjs, basename)
-            # Heliocentric
-            radec = ltu.radec_to_coord((ra, dec))
-            self.helio_correct(self.sobjs, radec, obstime)
+        # TODO -- Should we move these to redux.run()?
+        # Heliocentric
+        radec = ltu.radec_to_coord((ra, dec))
+        self.helio_correct(self.sobjs, radec, obstime)
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs

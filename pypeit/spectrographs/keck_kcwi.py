@@ -472,7 +472,6 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
 
         # Make sure that this is listed as a slit spectrograph
         par['reduce']['cube']['slit_spec'] = True
-
         return par
 
     def config_specific_par(self, scifile, inp_par=None):

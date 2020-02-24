@@ -127,6 +127,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     sky_ivar = ivar[thismask][isrt]
     ximg_fit = ximg[thismask][isrt]
     inmask_fit = inmask_in[thismask][isrt]
+    inmask_prop = inmask_fit.copy()
     #spatial = spatial_img[fit_sky][isrt]
 
     # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log.
@@ -145,14 +146,14 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
             res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
             lmask = (res < 5.0) & (res > -4.0)
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
-            inmask_fit[pos_sky]=(sky_ivar[pos_sky] > 0.0) & lmask
+            inmask_fit[pos_sky] = (sky_ivar[pos_sky] > 0.0) & lmask & inmask_prop[pos_sky]
 
     # Include a polynomial basis?
     if no_poly:
         poly_basis = np.ones_like(sky)
         npoly_fit = 1
     else:
-        npoly_fit = skysub_npoly(thismask) if npoly is None else npoly
+        npoly_fit = skysub_npoly(inmask) if npoly is None else npoly
         poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly_fit).T
 
     # Full fit now
