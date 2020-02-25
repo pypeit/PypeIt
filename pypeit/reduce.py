@@ -1137,7 +1137,7 @@ class IFUReduce(Reduce):
         skymask_init = self.load_skyregions()
 
         # Global sky subtract
-        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=True).copy()
+        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
 
         from pypeit.io import write_to_fits
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
