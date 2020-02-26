@@ -14,7 +14,9 @@ from IPython import embed
 
 
 class FluxCalibrate(object):
-
+    """
+    Class for flux calibrating spectra. 
+    """
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec1dfiles, sensfiles, par=None, debug=False):
