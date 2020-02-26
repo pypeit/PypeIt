@@ -34,7 +34,6 @@ def parser(options=None):
 
 def main(args):
 
-    import pdb
     import os
     import sys
     import astropy.io.fits as fits
@@ -44,10 +43,8 @@ def main(args):
     from pypeit.core.gui import identify as gui_identify
     from pypeit.core.wavecal import waveio, templates
     from pypeit.wavecalib import WaveCalib
-    from pypeit import arcimage, edgetrace
+    from pypeit import edgetrace
     from pypeit.images import pypeitimage
-
-    from IPython import embed
 
     # Load the MasterArc file
     if os.path.exists(args.file):
