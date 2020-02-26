@@ -23,9 +23,7 @@ from pypeit import utils
 from pypeit.io import initialize_header
 
 
-# TODO Add the data model up here as a standard thing, which is an astropy table.
-# data model needs a tag on whether its merged or not. For merged specobjs, you only apply sensfunc directly coefficients
-# are then nonsense. homogenize data model to be the same for both algorithms.
+# TODO Add the data model up here as a standard thing using DataContainer.
 
 #TODO Should this be a master frame? I think not.
 #TODO Standard output location for sensfunc?
@@ -171,6 +169,19 @@ class SensFunc(object):
 
 
     def extrapolate(self, samp_fact=1.5):
+        """
+        Extrapolates the sensitivity function to cover an extra wavelength range set by the extrapl_blu extrap_red
+        parameters. This is important for making sure that the sensfunc can be applied to data with slightly different
+        wavelength coverage etc. 
+
+        Parameters
+        ----------
+        samp_fact
+
+        Returns
+        -------
+
+        """
 
         # Create a new set of oversampled and padded wavelength grids for the extrapolation
         wave_extrap_min = self.out_table['WAVE_MIN'].data * (1.0 - self.par['extrap_blu'])
