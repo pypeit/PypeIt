@@ -69,6 +69,10 @@ class SensFunc(object):
         return wave, sensfunc, meta_table, out_table, header
 
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
+        """
+        See docs above
+        
+        """
         # Arguments
         self.spec1dfile = spec1dfile
         self.sensfile = sensfile
@@ -140,6 +144,12 @@ class SensFunc(object):
         pass
 
     def save(self):
+        """
+        Saves sensitivity
+        Returns
+        -------
+
+        """
 
         # Write to outfile
         msgs.info('Writing sensitivity function results to file: {:}'.format(self.sensfile))
@@ -172,14 +182,19 @@ class SensFunc(object):
         """
         Extrapolates the sensitivity function to cover an extra wavelength range set by the extrapl_blu extrap_red
         parameters. This is important for making sure that the sensfunc can be applied to data with slightly different
-        wavelength coverage etc. 
+        wavelength coverage etc.
 
         Parameters
         ----------
-        samp_fact
+        samp_fact: float
+            Parameter governing the sampling of the wavelength grid used for the extrapolation.
 
         Returns
         -------
+        wave_extrap: ndarray
+            Extrapolated wavelength array
+        sensfunc_extrap: ndarray
+            Extrapolated sensfunc
 
         """
 
@@ -204,6 +219,21 @@ class SensFunc(object):
         return wave_extrap, sensfunc_extrap
 
     def splice(self, wave):
+        """
+        Routine to splice together sensitivity functions into one global sensitivity function for spectrographs
+        with multiple detectors extending across the wavelength direction.
+
+        Parameters
+        ----------
+        wave: ndarray, shape (nspec, norddet)
+
+        Returns
+        -------
+        wave_splice: ndarray, shape (nspec_splice,)
+        sensfunc_splice: ndarray, shape (nspec_splice,)
+
+
+        """
 
         msgs.info('Merging sensfunc for {:d} detectors {:}'.format(self.norderdet, self.par['multi_spec_det']))
         wave_splice_min = wave.min()
@@ -247,6 +277,16 @@ class IR(SensFunc):
         self.TelObj = None
 
     def compute_sensfunc(self):
+        """
+        Calls routine to compute the sensitivity function.
+
+        Returns
+        -------
+        meta_table: astropy table
+               Table containing sensfunc meta data
+        out_table: astropy table
+               Table containing sensfunc information.
+        """
 
         meta_table, out_table = telluric.sensfunc_telluric(
             self.wave, self.counts, self.counts_ivar, self.counts_mask, self.meta_spec['EXPTIME'],
@@ -266,6 +306,21 @@ class IR(SensFunc):
         return meta_table, out_table
 
     def eval_sensfunc(self, wave, iorddet):
+        """
+
+        Parameters
+        ----------
+        wave: ndarray shape (nspec)
+           Wavelength array
+
+        iorddet: int
+           Order or detector
+
+        Returns
+        -------
+        sensfunc: ndarray, shape (nspec,)
+        """
+
         # Put this stuff in a function called eval_sensfunc for each algorithm
         wave_min = self.out_table[iorddet]['WAVE_MIN']
         wave_max = self.out_table[iorddet]['WAVE_MAX']
@@ -286,6 +341,16 @@ class UVIS(SensFunc):
 
 
     def compute_sensfunc(self):
+        """
+        Calls routine to compute the sensitivity function.
+
+        Returns
+        -------
+        meta_table: astropy table
+               Table containing sensfunc meta data
+        out_table: astropy table
+               Table containing sensfunc information.
+        """
 
         meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
                                                               self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
@@ -306,6 +371,21 @@ class UVIS(SensFunc):
 
 
     def eval_sensfunc(self, wave, iorddet):
+        """
+
+        Parameters
+        ----------
+        wave: ndarray shape (nspec)
+           Wavelength array
+
+        iorddet: int
+           Order or detector
+
+        Returns
+        -------
+        sensfunc: ndarray, shape (nspec,)
+
+        """
         # This routine can extrapolate
         sensfunc = scipy.interpolate.interp1d(self.out_table['WAVE'][iorddet,:], self.out_table['SENSFUNC'][iorddet,:],
                                               bounds_error = False, fill_value='extrapolate')(wave)
