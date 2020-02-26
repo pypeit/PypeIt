@@ -15,7 +15,7 @@ from IPython import embed
 
 class FluxCalibrate(object):
     """
-    Class for flux calibrating spectra. 
+    Class for flux calibrating spectra.
     """
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -54,7 +54,6 @@ class FluxCalibrate(object):
             sensfunction:
             meta_table:
 
-        Returns:
 
         """
         pass
@@ -81,8 +80,6 @@ class MultiSlitFC(FluxCalibrate):
                sensitivity function
             meta_table (table):
                astropy table containing meta data for sensitivity function
-
-        Returns:
 
         """
 
@@ -120,8 +117,6 @@ class EchelleFC(FluxCalibrate):
                sensitivity function
             meta_table (table):
                astropy table containing meta data for sensitivity function
-
-        Returns:
 
         """
 
