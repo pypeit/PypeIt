@@ -60,7 +60,7 @@ def main(pargs):
         cfg_lines += ['[calibrations]']
         cfg_lines += ['    [[flatfield]]']
         cfg_lines += ['        frame = {0}'.format(pargs.user_pixflat)]
-    cfg_lines += ['[scienceimage]']
+    cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['         skip_optimal = True']
     if pargs.box_radius is not None: # Boxcar radius

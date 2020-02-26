@@ -17,15 +17,13 @@ from pypeit.core import telluric
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
 from astropy import table
-from pypeit.core import coadd1d
+from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit.io import initialize_header
 
 
-# TODO Add the data model up here as a standard thing, which is an astropy table.
-# data model needs a tag on whether its merged or not. For merged specobjs, you only apply sensfunc directly coefficients
-# are then nonsense. homogenize data model to be the same for both algorithms.
+# TODO Add the data model up here as a standard thing using DataContainer.
 
 #TODO Should this be a master frame? I think not.
 #TODO Standard output location for sensfunc?
@@ -171,6 +169,19 @@ class SensFunc(object):
 
 
     def extrapolate(self, samp_fact=1.5):
+        """
+        Extrapolates the sensitivity function to cover an extra wavelength range set by the extrapl_blu extrap_red
+        parameters. This is important for making sure that the sensfunc can be applied to data with slightly different
+        wavelength coverage etc. 
+
+        Parameters
+        ----------
+        samp_fact
+
+        Returns
+        -------
+
+        """
 
         # Create a new set of oversampled and padded wavelength grids for the extrapolation
         wave_extrap_min = self.out_table['WAVE_MIN'].data * (1.0 - self.par['extrap_blu'])
@@ -197,8 +208,8 @@ class SensFunc(object):
         msgs.info('Merging sensfunc for {:d} detectors {:}'.format(self.norderdet, self.par['multi_spec_det']))
         wave_splice_min = wave.min()
         wave_splice_max = wave.max()
-        wave_splice, _, _ = coadd1d.get_wave_grid(wave, wave_method='linear', wave_grid_min=wave_splice_min,
-                                                  wave_grid_max=wave_splice_max, samp_fact=1.0)
+        wave_splice, _, _ = coadd.get_wave_grid(wave, wave_method='linear', wave_grid_min=wave_splice_min,
+                                                wave_grid_max=wave_splice_max, samp_fact=1.0)
         sensfunc_splice = np.zeros_like(wave_splice)
         for idet in range(self.norderdet):
             wave_min = self.out_table['WAVE_MIN'][idet]

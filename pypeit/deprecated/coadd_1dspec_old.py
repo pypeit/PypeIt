@@ -35,7 +35,7 @@ def main(args, unit_test=False, path=''):
     from astropy.io import fits
 
     from pypeit import msgs
-    from pypeit.core import coadd1d
+    from pypeit.core import coadd
     from pypeit import specobjs
     from pypeit.spectrographs import util
 
@@ -213,11 +213,11 @@ def main(args, unit_test=False, path=''):
                 if len(scale_dict) != norder:
                     raise IOError("You need to specifiy the photometric information for every order.")
 
-            wave_stack, flux_stack, ivar_stack, mask_stack = coadd1d.ech_combspec(
+            wave_stack, flux_stack, ivar_stack, mask_stack = coadd.ech_combspec(
                 gdfiles, gdobj, sensfile=sensfile, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
                 outfile=outfile, qafile=qafile, **gparam)
 
         else:
-            wave_stack, flux_stack, ivar_stack, mask_stack = coadd1d.multi_combspec(
+            wave_stack, flux_stack, ivar_stack, mask_stack = coadd.multi_combspec(
                 gdfiles, gdobj, ex_value=ex_value, flux_value=flux_value, phot_scale_dicts=scale_dict,
                 outfile=outfile, qafile=qafile, **gparam)
