@@ -160,7 +160,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     msgs.info("Full fit in global sky sub.")
     skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, inmask=inmask_fit,
                                                                   nord=4, upper=sigrej, lower=sigrej, maxiter=maxiter,
-                                                                  kwargs_bspline = {'bkspace': bsp},
+                                                                  kwargs_bspline={'bkspace': bsp},
                                                                   kwargs_reject={'groupbadpix': True, 'maxrej': 10})
 
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related

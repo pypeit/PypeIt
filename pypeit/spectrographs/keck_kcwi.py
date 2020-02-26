@@ -472,6 +472,10 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
 
         # Make sure that this is listed as a slit spectrograph
         par['reduce']['cube']['slit_spec'] = True
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 3.0
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
