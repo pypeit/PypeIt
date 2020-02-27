@@ -71,7 +71,7 @@ class SensFunc(object):
     def __init__(self, spec1dfile, sensfile, par=None, debug=False):
         """
         See docs above
-        
+
         """
         # Arguments
         self.spec1dfile = spec1dfile
