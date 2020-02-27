@@ -53,11 +53,6 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         Set default parameters for TNG Dolores reductions.
         """
         par = pypeitpar.PypeItPar()
-        #par['calibrations']['tilts']['params'] = [1,1,1]
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
