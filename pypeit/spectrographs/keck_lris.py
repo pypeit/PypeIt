@@ -45,8 +45,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
 
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
 

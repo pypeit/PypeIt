@@ -112,7 +112,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for MMT/BINOSPEC reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'mmt_binospec'
