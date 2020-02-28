@@ -90,9 +90,9 @@ Identify
 
 If you would prefer to manually wavelength calibrate, then
 you can do so with the 'identify' task. To launch this task,
-you need to have successfully traced the slit edges, and
-generated a MasterArc calibration frame. To launch a GUI,
-use the following command:
+you need to have successfully traced the slit edges (i.e. a
+MasterEdges file must exist), and generated a MasterArc
+calibration frame. To launch a GUI, use the following command:
 
     pypeit_identify MasterArc_A_1_01.fits
 
@@ -114,13 +114,18 @@ Alternatively, you can add your solution to the PypeIt database.
 If your solution is good enough (rms < 0.1 pixels), then
 pypeit_identify will automatically prompt you after you quit the
 GUI to see if you'd like to add your solution to the PypeIt
-database. Once your solution is in the database, run PypeIt
+database. If so, you will need to move the output file into
+the master directory, which will be similar to the following
+directory:
+
+/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.json
+
+Once your solution is in the database, run PypeIt
 in the standard :ref:`wvcalib-fulltemplate` mode. We also
 recommend that you send your solution to the PypeIt development
 team, so that others can benefit from your wavelength calibration
-solution. The file is saved in the following directory:
+solution.
 
-/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.json
 
 Common Failure Modes
 ====================
