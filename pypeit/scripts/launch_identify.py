@@ -58,8 +58,6 @@ def main(args):
     msarc = pypeitimage.PypeItImage.from_file(arcfil)
 
     mdir = msarc.head0['MSTRDIR']
-    print(mdir)
-    assert(False)
     mkey = msarc.head0['MSTRKEY']
 
     # Load the spectrograph
@@ -102,6 +100,6 @@ def main(args):
     if ans == 'y' and final_fit['rms'] < 0.1:
         gratname = fits.getheader(msarc.head0['F1'])[spec.meta['dispname']['card']].replace("/", "_")
         dispangl = "UNKNOWN"
-        templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=)
+        templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=mdir)
         print("Your wavelength solution has been stored")
         print("Please consider sending your solution to the PypeIt team!")
