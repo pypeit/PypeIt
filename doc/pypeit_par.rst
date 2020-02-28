@@ -163,7 +163,7 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[process]]``: `ProcessImagesPar Keywords`_
 
-    ``[scienceimage]``: `ReducePar Keywords`_
+    ``[reduce]``: `ReducePar Keywords`_
 
         ``[[findobj]]``: `FindObjPar Keywords`_
 
@@ -199,7 +199,7 @@ Key               Type                                            Options  Defau
 ``rdx``           :class:`pypeit.par.pypeitpar.ReduxPar`          ..       `ReduxPar Keywords`_          PypIt reduction rules.                                                                                                                                                                                                                                                                
 ``calibrations``  :class:`pypeit.par.pypeitpar.CalibrationsPar`   ..       `CalibrationsPar Keywords`_   Parameters for the calibration algorithms                                                                                                                                                                                                                                             
 ``scienceframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`     ..       `FrameGroupPar Keywords`_     The frames and combination rules for the science observations                                                                                                                                                                                                                         
-``scienceimage``  :class:`pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
+``reduce``        :class:`pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
 ``flexure``       :class:`pypeit.par.pypeitpar.FlexurePar`        ..       `FlexurePar Keywords`_        Parameters used by the flexure-correction procedure.  Flexure corrections are not performed by default.  To turn on, either set the parameters in the 'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group to use the default flexure-correction parameters.
 ``fluxcalib``     :class:`pypeit.par.pypeitpar.FluxCalibratePar`  ..       `FluxCalibratePar Keywords`_  Parameters used by the flux-calibration procedure.  Flux calibration is not performed by default.  To turn on, either set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' in the 'rdx' parameter group to use the default flux-calibration parameters.    
 ``coadd1d``       :class:`pypeit.par.pypeitpar.Coadd1DPar`        ..       `Coadd1DPar Keywords`_        Par set to control 1D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
@@ -215,18 +215,18 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
-======================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_longonly``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``  ..                                            Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_longonly, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec
-``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
-``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-======================  ==========  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+======================  ==========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_longonly``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``wht_isis_red``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``  ..                                            Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_longonly, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec
+``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
+``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+======================  ==========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -242,7 +242,7 @@ Key                 Type                                                 Options
 ``caldir``          str                                                  ..       ``default``                        If provided, it must be the full path to calling directory to write master files.                                                                                                        
 ``setup``           str                                                  ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
 ``trim``            bool                                                 ..       True                               Trim the frame to isolate the data                                                                                                                                                       
-``badpix``          bool                                                 ..       True                               Make a bad pixel mask? Bias frames must be provided.                                                                                                                                     
+``bpm_usebias``     bool                                                 ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                    
 ``biasframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
 ``darkframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
 ``arcframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
@@ -426,7 +426,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
 Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
 =============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``frametype``  str                                             ``trace``, ``dark``, ``science``, ``bias``, ``pinhole``, ``arc``, ``pixelflat``, ``standard``, ``tilt``  ``science``                   Frame type.  Options are: trace, dark, science, bias, pinhole, arc, pixelflat, standard, tilt                                                                                                                                                                  
+``frametype``  str                                             ``pixelflat``, ``bias``, ``dark``, ``tilt``, ``standard``, ``pinhole``, ``trace``, ``science``, ``arc``  ``science``                   Frame type.  Options are: pixelflat, bias, dark, tilt, standard, pinhole, trace, science, arc                                                                                                                                                                  
 ``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
 ``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
 ``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
@@ -866,7 +866,7 @@ Alterations to the default parameters are::
       [[process]]
           sigclip = 5.0
           objlim = 5.0
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
   [flexure]
@@ -925,7 +925,7 @@ Alterations to the default parameters are::
       [[process]]
           sigclip = 5.0
           objlim = 5.0
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
   [flexure]
@@ -986,7 +986,7 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
       [[extraction]]
@@ -1062,7 +1062,7 @@ Alterations to the default parameters are::
           satpix = nothing
           sigclip = 20.0
           bias = skip
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
   [sensfunc]
@@ -1131,7 +1131,7 @@ Alterations to the default parameters are::
           overscan = none
           satpix = nothing
           sigclip = 20.0
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
   [sensfunc]
@@ -1361,6 +1361,7 @@ Alterations to the default parameters are::
   [rdx]
       spectrograph = wht_isis_blue
   [calibrations]
+      bpm_usebias = True
       [[biasframe]]
           number = 5
           exprng = None, 1
@@ -1409,6 +1410,68 @@ Alterations to the default parameters are::
           n_first = 3
           n_final = 5
           wv_cen = 4859.0
+          disp = 0.2
+      [[slitedges]]
+          sync_predict = nearest
+  [scienceframe]
+      exprng = 90, None
+      [[process]]
+          overscan = none
+
+WHT ISISr
+---------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = wht_isis_red
+  [calibrations]
+      bpm_usebias = True
+      [[biasframe]]
+          number = 5
+          exprng = None, 1
+          [[[process]]]
+              overscan = none
+      [[darkframe]]
+          exprng = 999999, None
+          [[[process]]]
+              overscan = none
+      [[arcframe]]
+          number = 1
+          exprng = None, 120
+          [[[process]]]
+              overscan = none
+              sigrej = -1
+      [[tiltframe]]
+          number = 1
+          [[[process]]]
+              overscan = none
+              sigrej = -1
+      [[pixelflatframe]]
+          number = 5
+          [[[process]]]
+              overscan = none
+              combine = median
+              satpix = nothing
+              sig_lohi = 10.0, 10.0
+      [[pinholeframe]]
+          exprng = 999999, None
+          [[[process]]]
+              overscan = none
+      [[traceframe]]
+          number = 3
+          [[[process]]]
+              overscan = none
+      [[standardframe]]
+          number = 1
+          exprng = None, 120
+          [[[process]]]
+              overscan = none
+      [[wavelengths]]
+          method = full_template
+          lamps = NeI, ArI, ArII, CuI
+          nonlinear_counts = 49806.6
+          sigdetect = 10.0
+          wv_cen = 6000.0
           disp = 0.2
       [[slitedges]]
           sync_predict = nearest
@@ -1521,7 +1584,7 @@ Alterations to the default parameters are::
           spec_order = 5
   [scienceframe]
       useframe = overscan
-  [scienceimage]
+  [reduce]
       [[findobj]]
           find_trim_edge = 3, 3
           find_cont_fit = False
@@ -1604,7 +1667,7 @@ Alterations to the default parameters are::
           satpix = nothing
           sigclip = 20.0
           bias = skip
-  [scienceimage]
+  [reduce]
       [[findobj]]
           trace_npoly = 8
           find_cont_fit = False
@@ -1724,7 +1787,7 @@ Alterations to the default parameters are::
           tweak_slits_thresh = 0.9
   [scienceframe]
       exprng = 30, None
-  [scienceimage]
+  [reduce]
       [[findobj]]
           sig_thresh = 5.0
           find_trim_edge = 2, 2
@@ -1747,7 +1810,7 @@ GEMINI-S FLAMINGOS
 Alterations to the default parameters are::
 
   [rdx]
-      spectrograph = magellan_fire_long
+      spectrograph = gemini_flamingos1
   [calibrations]
       [[biasframe]]
           number = 5
@@ -1801,7 +1864,7 @@ Alterations to the default parameters are::
           tracethresh = 5
   [scienceframe]
       exprng = 20, None
-  [scienceimage]
+  [reduce]
       [[findobj]]
           sig_thresh = 5
           find_trim_edge = 50, 50
@@ -1869,7 +1932,7 @@ Alterations to the default parameters are::
       exprng = 20, None
       [[process]]
           overscan = none
-  [scienceimage]
+  [reduce]
       [[findobj]]
           find_trim_edge = 10, 10
       [[skysub]]
@@ -2129,7 +2192,7 @@ Alterations to the default parameters are::
           tracethresh = 5
   [scienceframe]
       exprng = 20, None
-  [scienceimage]
+  [reduce]
       [[findobj]]
           sig_thresh = 5
           find_trim_edge = 50, 50
@@ -2185,7 +2248,7 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
-  [scienceimage]
+  [reduce]
       [[findobj]]
           find_trim_edge = 4, 4
 
@@ -2424,7 +2487,7 @@ Alterations to the default parameters are::
           overscan = none
           satpix = nothing
           sigclip = 20.0
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
       [[extraction]]
@@ -2469,7 +2532,7 @@ Alterations to the default parameters are::
           overscan = none
           satpix = nothing
           sigclip = 20.0
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
           global_sky_std = False
@@ -2521,7 +2584,7 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
-  [scienceimage]
+  [reduce]
       [[skysub]]
           bspline_spacing = 0.8
           global_sky_std = False

@@ -6,7 +6,7 @@ import os
 
 import pytest
 
-from pypeit import fluxspec
+#from pypeit import fluxspec
 from pypeit.scripts import flux_calib
 from pypeit.tests.tstutils import cooked_required
 from pypeit.spectrographs.util import load_spectrograph
