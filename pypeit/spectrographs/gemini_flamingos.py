@@ -14,12 +14,6 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Gemini/Flamingos specific code
 
-    .. note::
-        For FIRE Echelle, we usually use high gain and SUTR read mode.
-        The exposure time is usually around 900s. The detector
-        parameters below are based on such mode. Standard star and
-        calibrations are usually use Fowler 1 read mode in which case
-        the read noise is ~20 electron.
 
     """
     def __init__(self):
@@ -66,14 +60,7 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
 
 class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
     """
-    Child to handle Magellan/FIRE Echelle data
-
-    .. note::
-        For FIRE Echelle, we usually use high gain and SUTR read mode.
-        The exposure time is usually around 900s. The detector
-        parameters below are based on such mode. Standard star and
-        calibrations are usually use Fowler 1 read mode in which case
-        the read noise is ~20 electron.
+    Child to handle Gemini/Flamingos2 Echelle data
 
     """
     def __init__(self):
@@ -216,30 +203,6 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def bpm(self, filename, det, shape=None):
-        """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-        # ToDo: replace this with real bad pixel masks
-        msgs.info("Custom bad pixel mask for FLAMINGOS")
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        return bpm_img
 
 
 class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
@@ -278,7 +241,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         Set default parameters.
         """
         par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'magellan_fire_long'
+        par['rdx']['spectrograph'] = 'gemini_flamingos1'
 
         # No overscan
         for key in par['calibrations'].keys():

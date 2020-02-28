@@ -14,11 +14,13 @@ from IPython import embed
 
 
 class FluxCalibrate(object):
-
+    """
+    Class for flux calibrating spectra.
+    """
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec1dfiles, sensfiles, par=None, debug=False):
-        pypeline = fits.getheader(spec1dfiles[0])['PYPELINE']
+        pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'FC'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
             spec1dfiles, sensfiles, par=par, debug=debug)
 
@@ -52,12 +54,11 @@ class FluxCalibrate(object):
             sensfunction:
             meta_table:
 
-        Returns:
 
         """
         pass
 
-class MultiSlit(FluxCalibrate):
+class MultiSlitFC(FluxCalibrate):
     """
     Child of FluxSpec for Multislit and Longslit reductions
     """
@@ -80,8 +81,6 @@ class MultiSlit(FluxCalibrate):
             meta_table (table):
                astropy table containing meta data for sensitivity function
 
-        Returns:
-
         """
 
         # Run
@@ -96,7 +95,7 @@ class MultiSlit(FluxCalibrate):
 
 
 
-class Echelle(FluxCalibrate):
+class EchelleFC(FluxCalibrate):
     """
     Child of FluxSpec for Echelle reductions
     """
@@ -118,8 +117,6 @@ class Echelle(FluxCalibrate):
                sensitivity function
             meta_table (table):
                astropy table containing meta data for sensitivity function
-
-        Returns:
 
         """
 

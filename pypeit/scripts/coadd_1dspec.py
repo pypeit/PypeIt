@@ -8,13 +8,14 @@ from configobj import ConfigObj
 import numpy as np
 from pypeit import par, msgs
 import argparse
-from pypeit.core import coadd1d
+from pypeit import coadd1d
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
 
 from IPython import embed
 
+# TODO JFH: Put this SmartFormatter in a common place, like pypeit.pypmsgs
 
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
@@ -33,7 +34,8 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-# TODO This is basically the exact same code as read_fluxfile in the fluxing script. Consolidate them?
+# TODO This is basically the exact same code as read_fluxfile in the fluxing script. Consolidate them? Make this
+# a standard method in parse or io.
 def read_coaddfile(ifile):
     """
     Read a PypeIt .coadd1d file, akin to a standard PypeIt file
@@ -42,7 +44,7 @@ def read_coaddfile(ifile):
       The spectrograph is required
 
     Args:
-        ifile: str
+        ifile (str):
           Name of the flux file
 
     Returns:
@@ -180,8 +182,8 @@ def main(args):
     # text files, whereas there are things like yaml and json that do this well already.
 
     # Instantiate
-    coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
-                                         debug=args.debug, show=args.show)
+    coadd = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
+                                       debug=args.debug, show=args.show)
     # Run
     coadd.run()
     # Save to file
