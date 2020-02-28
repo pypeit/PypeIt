@@ -122,7 +122,6 @@ def load_1dspec_to_array(fnames, gdobj=None, order=None, ex_value='OPT', flux_va
 
     hdulist = fits.open(fname0)
     header = hdulist[0].header
-    embed()
     npix = header['NPIX']
     pypeline = header['PYPELINE']
 

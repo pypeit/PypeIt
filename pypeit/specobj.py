@@ -46,11 +46,6 @@ data_model = {
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
-#    'OPT_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Optimal wavelengths in COADD2D grid'),
-#    'OPT_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimal wavelengths in COADD2D grid'),
-#    'OPT_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum optimal wavelengths in COADD2D grid'),
-#    'OPT_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum optimal wavelengths in COADD2D grid'),
-    #
     'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Boxcar Wavelengths (Angstroms)'),
     'BOX_FLAM': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (erg/s/cm^2/Ang)'),
     'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Boxcar flux uncertainty (erg/s/cm^2/Ang)'),
@@ -69,11 +64,6 @@ data_model = {
                          desc='Fraction of pixels in the object profile subimage used for this extraction'),
     'BOX_CHI2': dict(otype=np.ndarray, atype=float,
                      desc='Reduced chi2 of the model fit for this spectral pixel'),
-#    'BOX_WAVE_GRID': dict(otype=np.ndarray, atype=float, desc='Boxcar wavelengths in COADD2D grid'),
-#    'BOX_WAVE_GRID_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for boxcar wavelengths in COADD2D grid'),
-#    'BOX_WAVE_GRID_MIN': dict(otype=np.ndarray, atype=float, desc='Minimum boxcar wavelengths in COADD2D grid'),
-#    'BOX_WAVE_GRID_MAX': dict(otype=np.ndarray, atype=float, desc='Maximum boxcar wavelengths in COADD2D grid'),
-    #
     'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
     #
     'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
@@ -160,11 +150,6 @@ class SpecObj(object):
                 continue
             #
             setattr(slf, key, table.meta[key])
-        # JFH It is a really bad idea to dynamically generate the name when you already wrote it to a file. Just read
-        # in what you wrote out.
-        # Name
-        #slf.set_name()
-        # Return
         return slf
 
     # TODO: JFH I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
@@ -187,10 +172,6 @@ class SpecObj(object):
             # set any attributes here - before initialisation
             # these remain as normal attributes
             # We may wish to eliminate *all* of these
-
-
-            #self.objid = 999
-            #self.name = None
 
             # Object finding
             self.smash_peakflux = None

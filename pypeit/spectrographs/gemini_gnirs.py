@@ -71,39 +71,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             if 'frame' in key:
                 par['calibrations'][key]['process']['overscan'] = 'none'
 
-        # Slits
-        #par['calibrations']['slitedges']['edge_thresh'] = 20.
-        #par['calibrations']['slitedges']['trace_thresh'] = 10.
-        #par['calibrations']['slitedges']['fit_order'] = 5
-        #par['calibrations']['slitedges']['max_shift_adj'] = 0.5
-        #par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
-        #par['calibrations']['slitedges']['left_right_pca'] = True
-        #par['calibrations']['slitedges']['pca_order'] = 3
-
-        # Wavelengths
-        #par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
-        #par['calibrations']['wavelengths']['sigdetect'] = 5.0
-        #par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        #par['calibrations']['wavelengths']['n_first'] = 2
-        #par['calibrations']['wavelengths']['n_final'] = [1,3,3,3,3,3]
-
-        # Reidentification parameters
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['cc_thresh'] = 0.6
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
-        #par['calibrations']['wavelengths']['ech_fix_format'] = True
-        # Echelle parameters
-        # JFH This is provisional these IDs should be checked.
-        #par['calibrations']['wavelengths']['echelle'] = True
-        #par['calibrations']['wavelengths']['ech_nspec_coeff'] = 3
-        #par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
-
-        # Tilts
-        #par['calibrations']['tilts']['tracethresh'] = [5.0,10,10,10,10,10]
-        #par['calibrations']['tilts']['sig_neigh'] = 5.0
-        #par['calibrations']['tilts']['nfwhm_neigh'] = 2.0
-
         # Flats
         par['calibrations']['flatfield']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
@@ -365,25 +332,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized disperser')
 
-
-
-#    @property
-#    def dloglam(self):
-#        dloglam = 0.000127888 # this is the average of the median dispersions
-#        return dloglam
-
-#    @property
-#    def loglam_minmax(self):
-#        return np.log10(7000), np.log10(26000)
-#
-#    def wavegrid(self, binning=None, samp_fact=1.0, midpoint=False):
-#
-#        # Define the grid for GNIRS
-#        logmin, logmax = self.loglam_minmax
-#        loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam, samp_fact=samp_fact)
-#        if midpoint:
-#            loglam_grid = loglam_grid + self.dloglam/2.0
-#        return np.power(10.0,loglam_grid)
 
 
     def bpm(self, filename, det, shape=None, msbias=None):

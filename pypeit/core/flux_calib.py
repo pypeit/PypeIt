@@ -24,7 +24,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import bspline
 from pypeit.wavemodel import conv2res
-from pypeit.core import pydl, load, save, coadd1d
+from pypeit.core import pydl, load, save, coadd
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
 
@@ -395,152 +395,6 @@ def extinction_correction(wave, airmass, extinct):
     # Return
     return flux_corr
 
-# TODO I believe this function is now deprecated.
-def apply_sensfunc_spec(wave, counts, ivar, sensfunc, airmass, exptime, mask=None, extinct_correct=True, telluric=None,
-                        longitude=None, latitude=None, debug=False):
-
-    if mask is None:
-        mask = ivar > 0.0
-
-    # Did the user request a telluric correction from the same file?
-    if telluric is not None:
-        # This assumes there is a separate telluric key in this dict.
-        msgs.info('Applying telluric correction')
-        sensfunc = sensfunc*(telluric > 1e-10)/(telluric + (telluric < 1e-10))
-
-    if extinct_correct:
-        if longitude is None or latitude is None:
-            msgs.error('You must specify longitude and latitude if we are extinction correcting')
-        # Apply Extinction if optical bands
-        msgs.info("Applying extinction correction")
-        msgs.warn("Extinction correction applyed only if the spectra covers <10000Ang.")
-        extinct = load_extinction_data(longitude,latitude)
-        ext_corr = extinction_correction(wave* units.AA, airmass, extinct)
-        senstot = sensfunc * ext_corr
-    else:
-        senstot = sensfunc.copy()
-
-    flam = counts * senstot/ exptime
-    flam_ivar = ivar / (senstot / exptime) **2
-
-    # Mask bad pixels
-    msgs.info(" Masking bad pixels")
-    outmask =  mask & (senstot>0.)
-
-    # debug
-    if debug:
-        wave_mask = wave > 1.0
-        fig = plt.figure(figsize=(12, 8))
-        ymin, ymax = coadd1d.get_ylim(flam, flam_ivar, outmask)
-        plt.plot(wave[wave_mask], flam[wave_mask], color='black', drawstyle='steps-mid', zorder=1, alpha=0.8)
-        plt.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(flam_ivar[wave_mask])), zorder=2, color='red', alpha=0.7,
-                       drawstyle='steps-mid', linestyle=':')
-        plt.ylim([ymin,ymax])
-        plt.xlim([wave[wave_mask].min(),wave[wave_mask].max()])
-        plt.xlabel('Wavelength (Angstrom)')
-        plt.ylabel('Flux')
-        plt.show()
-
-    return flam, flam_ivar, outmask
-
-def apply_sensfunc_specobjs(specobjs, sens_meta, sens_table, airmass, exptime, extinct_correct=True, tell_correct=False,
-                            longitude=None, latitude=None, debug=False, show=False):
-
-    # TODO This function should operate on a single object
-    func = sens_meta['FUNC'][0]
-    polyorder_vec = sens_meta['POLYORDER_VEC'][0]
-    nimgs = len(specobjs)
-
-    if show:
-        fig = plt.figure(figsize=(12, 8))
-        xmin, xmax = [], []
-        ymin, ymax = [], []
-
-    for ispec in range(nimgs):
-        # get the ECH_ORDER, ECH_ORDERINDX, WAVELENGTH from your science
-        sobj_ispec = specobjs[ispec]
-        ## TODO Comment on the logich here. Hard to follow
-        try:
-            ech_order, ech_orderindx, idx = sobj_ispec.ech_order, sobj_ispec.ech_orderindx, sobj_ispec.idx
-            msgs.info('Applying sensfunc to Echelle data')
-        except:
-            ech_orderindx = 0
-            idx = sobj_ispec.idx
-            msgs.info('Applying sensfunc to Longslit/Multislit data')
-
-        # Hotfix for multi-slit data where ech_orderindx is populated with 999
-        if ech_orderindx == 999:
-            msgs.info('Switch to applying sensfunc to Longslit/Multislit data')
-            ech_orderindx = 0
-            polyorder_vec = [polyorder_vec]
-
-        for extract_type in ['boxcar', 'optimal']:
-            extract = getattr(sobj_ispec, extract_type)
-
-            if len(extract) == 0:
-                continue
-            msgs.info("Fluxing {:s} extraction for:".format(extract_type) + msgs.newline() + "{}".format(idx))
-            wave = extract['WAVE'].value.copy()
-            wave_mask = wave > 1.0
-            counts = extract['COUNTS'].copy()
-            counts_ivar = extract['COUNTS_IVAR'].copy()
-            mask = extract['MASK'].copy()
-
-            # get sensfunc from the sens_table
-            coeff = sens_table[ech_orderindx]['OBJ_THETA'][0:polyorder_vec[ech_orderindx] + 2]
-            wave_min = sens_table[ech_orderindx]['WAVE_MIN']
-            wave_max = sens_table[ech_orderindx]['WAVE_MAX']
-            sensfunc = np.zeros_like(wave)
-            sensfunc[wave_mask] = np.exp(utils.func_val(coeff, wave[wave_mask], func,
-                                             minx=wave_min, maxx=wave_max))
-
-            # get telluric from the sens_table
-            if tell_correct:
-                msgs.work('Evaluate telluric!')
-                telluric = None
-            else:
-                telluric = None
-
-            flam, flam_ivar, outmask = apply_sensfunc_spec(wave, counts, counts_ivar, sensfunc, airmass, exptime,
-                                                           mask=mask, extinct_correct=extinct_correct, telluric=telluric,
-                                                           longitude=longitude, latitude=latitude, debug=debug)
-            flam_sig = np.sqrt(utils.inverse(flam_ivar))
-            # The following will be changed directly in the specobjs, so do not need to return anything.
-            extract['MASK'] = outmask
-            extract['FLAM'] = flam
-            extract['FLAM_SIG'] = flam_sig
-            extract['FLAM_IVAR'] = flam_ivar
-
-            if show:
-                xmin_ispec = wave[wave_mask].min()
-                xmax_ispec = wave[wave_mask].max()
-                xmin.append(xmin_ispec)
-                xmax.append(xmax_ispec)
-                ymin_ispec, ymax_ispec = coadd1d.get_ylim(flam, flam_ivar, outmask)
-                ymin.append(ymin_ispec)
-                ymax.append(ymax_ispec)
-
-                med_width = (2.0 * np.ceil(0.1 / 10.0 * np.size(wave[outmask])) + 1).astype(int)
-                flam_med, flam_ivar_med = coadd1d.median_filt_spec(flam, flam_ivar, outmask, med_width)
-                if extract_type == 'boxcar':
-                    plt.plot(wave[wave_mask], flam_med[wave_mask], color='black', drawstyle='steps-mid', zorder=1, alpha=0.8)
-                    #plt.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(flam_ivar_med[wave_mask])), zorder=2, color='m',
-                    #         alpha=0.7, drawstyle='steps-mid', linestyle=':')
-                else:
-                    plt.plot(wave[wave_mask], flam_med[wave_mask], color='dodgerblue', drawstyle='steps-mid', zorder=1, alpha=0.8)
-                    #plt.plot(wave[wave_mask], np.sqrt(utils.calc_ivar(flam_ivar_med[wave_mask])), zorder=2, color='red',
-                    #         alpha=0.7, drawstyle='steps-mid', linestyle=':')
-    if show:
-        xmin_final, xmax_final = np.min(xmin), np.max(xmax)
-        ymax_final = 1.3*np.median(ymax)
-        ymin_final = -0.15*ymax_final
-        plt.xlim([xmin_final, xmax_final])
-        plt.ylim([ymin_final, ymax_final])
-        plt.title('Blue is Optimal extraction and Black is Boxcar extraction',fontsize=16)
-        plt.xlabel('Wavelength (Angstrom)')
-        plt.ylabel('Flux')
-        plt.show()
-
 
 ### Routines for standard sensfunc started from here
 def find_standard(specobj_list):
@@ -862,8 +716,6 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
     '''
 
     # Mask (True = good pixels)
-    # mask for bad pixels
-    #mask_bad = np.ones_like(flux_star).astype(bool)
     # mask for recombination lines
     mask_balm = np.ones_like(flux_star).astype(bool)
     # mask for telluric regions
@@ -876,8 +728,7 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
     mask_bad[flux_star <= 0.] = False
     # Mask edges
     msgs.info(" Masking edges")
-    mask_bad[:1] = False
-    mask_bad[-1:] = False
+    mask_bad[[0, -1]] = False
     # Mask Atm. cutoff
     msgs.info(" Masking Below the atmospheric cutoff")
     atms_cutoff = wave_star <= 3000.0
@@ -1011,12 +862,10 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
     flux_obs = flux.copy()
     ivar_obs = ivar.copy()
     # preparing arrays
-    if np.all(np.invert(np.isfinite(ivar_obs))):
+    if np.any(np.invert(np.isfinite(ivar_obs))):
         msgs.warn("NaN are present in the inverse variance")
 
     # check masks
-    #if mask_bad is None:
-    #    mask_bad = np.ones_like(wave_obs,dtype=bool)
     if mask_tell is None:
         mask_tell = np.ones_like(wave_obs,dtype=bool)
     if mask_balm is None:
@@ -1443,3 +1292,5 @@ def generate_sensfunc_old(wave, counts, counts_ivar, airmass, exptime, longitude
     #sens_dict['mag_set'] = mag_set
 
     return sens_dict
+
+

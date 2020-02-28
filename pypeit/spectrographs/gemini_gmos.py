@@ -128,11 +128,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        # Always correct for flexure, starting with default parameters
+        # Always correct for flexure
         par['flexure']['method'] = 'boxcar'
         # Splice detectors 1,2,3 when creating sensitivity function
         par['sensfunc']['multi_spec_det'] = [1,2,3]
