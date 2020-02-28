@@ -26,7 +26,7 @@ from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import reduce
 from pypeit.core import extract
-from pypeit.core import load, coadd1d, pixels
+from pypeit.core import load, coadd, pixels
 from pypeit.core import parse
 from pypeit.core import combine
 from pypeit.images import scienceimage
@@ -536,20 +536,19 @@ class CoAdd2d(object):
         The class must be subclassed this class CoAdd2d.
 
         Args:
-            spec2dfiles:
+            spec2dfiles (list):
                 List of spec2d files
-            spectrograph (object):
-                (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
                 The instrument used to collect the data to be reduced.
-            par (object):
-                Parset
+            par (:class:`pypeit.par.parset.ParSet`):
+                Parset object
 
             master_dir (:obj:`str`, optional):
                 Directory for the coadding master frames. If None,
                 set by ``os.getcwd()``.
 
         Returns:
-            :class:`PypeIt`: One of the subclasses with :class:`PypeIt` as its
+            :class:`CoAdd2d`: One of the subclasses with :class:`CoAdd2d` as its
             base.
         """
 
@@ -667,8 +666,8 @@ class CoAdd2d(object):
             mask_stack[:, iexp] = sobjs[ithis].OPT_MASK
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-        rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
-                                             const_weights=const_weights)
+        rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
+                                           const_weights=const_weights)
         return rms_sn, weights.T
 
 
@@ -949,7 +948,7 @@ class CoAdd2d(object):
                 masks[:, indx] = spec.OPT_MASK
                 indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = coadd1d.get_wave_grid(waves, masks=masks, **kwargs_wave)
+        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=masks, **kwargs_wave)
 
         return wave_grid, wave_grid_mid, dsamp
 
@@ -1279,7 +1278,7 @@ class MultiSlit(CoAdd2d):
                         ivar[:, iobj] = spec.OPT_COUNTS_IVAR
                         wave[:, iobj] = spec.OPT_WAVE
                         mask[:, iobj] = spec.OPT_MASK
-                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
+                    rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
                     imax = np.argmax(rms_sn)
                     slit_snr_max[islit, iexp] = rms_sn[imax]
                     objid_max[islit, iexp] = objid_this[imax]
@@ -1380,7 +1379,7 @@ class Echelle(CoAdd2d):
                     ivar = sobjs[ind][0].OPT_COUNTS_IVAR
                     wave = sobjs[ind][0].OPT_WAVE
                     mask = sobjs[ind][0].OPT_MASK
-                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
+                    rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
                     order_snr[iord, iobj] = rms_sn
 
             # Compute the average SNR and find the brightest object

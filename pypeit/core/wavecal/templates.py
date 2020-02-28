@@ -667,6 +667,7 @@ def main(flg):
                 all_wave[:,kk] = odict[str(kk)]['wave_soln']
             else:
                 all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+
         # Write
         tbl = Table()
         tbl['wave'] = all_wave.T

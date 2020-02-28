@@ -181,6 +181,7 @@ class SpecObjs(object):
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
         detector = np.zeros(norddet, dtype=int)
         ech_orders = np.zeros(norddet, dtype=int)
+        # TODO make the extraction that is desired OPT vs BOX and optional input variable.
         for iorddet in range(norddet):
             wave[:, iorddet] = self[iorddet].OPT_WAVE
             flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
@@ -195,6 +196,7 @@ class SpecObjs(object):
                 flux_ivar[:, iorddet] = self[iorddet].OPT_COUNTS_IVAR
 
         # Populate meta data
+        # TODO Remove this hack is it needed? If PYP_SPEC is always written then it is not.
         try:
             spectrograph = load_spectrograph(self.header['PYP_SPEC'])
         except:
@@ -207,6 +209,7 @@ class SpecObjs(object):
             try:
                 meta_spec[key.upper()] = self.header[key.upper()]
             except KeyError:
+                msgs.warn('Core meta data is missing from the specobjs header ')
                 pass
         # Add the pyp spec.
         # TODO JFH: Make this an atribute of the specobj by default.
@@ -298,8 +301,8 @@ class SpecObjs(object):
         # Assign the sign and the objids
         sobjs_neg.sign = -1.0
         if sobjs_neg[0].PYPELINE == 'Echelle':
-            sobjs_neg.ECH_OBJID = -1*sobjs_neg.ECH_OBJID
-            sobjs_neg.OBJID = -1*sobjs_neg.OBJID
+            sobjs_neg.ECH_OBJID = -sobjs_neg.ECH_OBJID
+            sobjs_neg.OBJID = -sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
@@ -342,6 +345,17 @@ class SpecObjs(object):
     def name_indices(self, name):
         """
         Return the set of indices matching the input slit/order
+
+        Parameters
+        ----------
+        name: str
+           The name of the object
+
+        Returns
+        -------
+        indx: array-like, shape (nobj,)
+           Array of indices with the corresponding name.
+
         """
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_NAME == name

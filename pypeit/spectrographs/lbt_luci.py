@@ -9,13 +9,11 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 
-from pypeit import debugger
-
 
 
 class LBTLUCISpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Shane/Kast specific code
+    Class to handle LBT/LUCI specific code
     """
     def __init__(self):
         # Get it started
@@ -27,19 +25,11 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
     @staticmethod
     def default_pypeit_par():
         """
-        Set default parameters for Shane Kast reductions.
+        Set default parameters for  LBT/LUCI reductions.
 
         OLD CODE from LBT MODS
         """
         par = pypeitpar.PypeItPar()
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 5
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 1
-
-
         # Scienceimage default parameters
         par['reduce'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
@@ -413,67 +403,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         return par
 
 
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to hard-wired values used for
-        specific instrument configurations.
-
-        .. todo::
-            Document the changes made!
-
-        Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
-            adjusted for configuration specific parameter values.
-        """
-        # Start with instrument wide
-        par = super(LBTLUCI2Spectrograph, self).config_specific_par(scifile,
-                                                             inp_par=inp_par)
-
-        # Try to set the detector parameters dependent on the scifile here
-        # print("TESTESTEST", self.get_meta_value(scifile, 'idname'))
-        # print(self.detector[0]['gain'])
-        # if self.get_meta_value(scifile, 'idname') == 'standard':
-        #     self.detector[0]['ronoise'] =
-        #     print("TESTESTEST", self.get_meta_value(scifile, 'idname'))
-
-        # # Wavelength calibrations
-        # if self.get_meta_value(scifile, 'dispname') == '300/5000':
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_300_d680.fits'
-        #     par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-        #                                               'sky_LRISb_400.fits')
-        # elif self.get_meta_value(scifile, 'dispname') == '400/3400':
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_400_d560.fits'
-        #     par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-        #                                           'sky_LRISb_400.fits')
-        # elif self.get_meta_value(scifile, 'dispname') == '600/4000':
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_600_d560.fits'
-        #     par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-        #                                               'sky_LRISb_600.fits')
-        # elif self.get_meta_value(scifile, 'dispname') == '1200/3400':
-        #     par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_blue_1200_d460.fits'
-        #     par['flexure']['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
-        #                                               'sky_LRISb_600.fits')
-        #
-        # # FWHM
-        # binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
-        # par['calibrations']['wavelengths']['fwhm'] = 8.0 / binning[0]
-        #
-        # # Slit tracing
-        # # Reduce the slit parameters because the flux does not span the full detector
-        # #   It is primarily on the upper half of the detector (usually)
-        # if self.get_meta_value(scifile, 'dispname') == '300/5000':
-        #     par['calibrations']['slitedges']['smash_range'] = [0.5, 1.]
-
-        # Return
-        return par
 
     def check_headers(self, headers):
         """

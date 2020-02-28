@@ -112,7 +112,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for MMT/BINOSPEC reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'mmt_binospec'
@@ -183,29 +183,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    def bpm(self, filename, det, shape=None):
-        """
-        Override parent bpm function with BPM specific to X-Shooter VIS.
-
-        .. todo::
-            Allow for binning changes.
-
-        Parameters
-        ----------
-        det : int, REQUIRED
-        **null_kwargs:
-            Captured and never used
-
-        Returns
-        -------
-        bpix : ndarray
-          0 = ok; 1 = Mask
-
-        """
-        msgs.info("Custom bad pixel mask for BINOSPEC")
-        bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        return bpm_img
 
     def get_rawimage(self, raw_file, det):
         """
@@ -236,6 +213,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         head0 = hdu[0].header
         head1 = hdu[1].header
 
+        # TOdO Store these parameters in the DetectorPar.
         # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
         numamp = 4
 
