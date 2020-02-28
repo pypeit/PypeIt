@@ -3,6 +3,9 @@
 ---------
 - Added PypeIt identify GUI script for manual wavelength calibration
 
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
 
 0.12.3 (13 Feb 2019)
 --------------------
@@ -10,9 +13,6 @@
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
-- Refactored sensitivity function, fluxing, and coadding scripts and
-  algorithms.
-- Added support for additional near-IR spectrographs.
 - Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
   key is not valid for the given parameter set.  NOTE: The check may
   fail if there are identical keys for different parameter sets.

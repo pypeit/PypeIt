@@ -830,15 +830,20 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
 class EchelleCoAdd2D(CoAdd2D):
     """
-        Child of Coadd2d for Echelle reductions. For documentation see CoAdd2d parent class above.
+    Coadd Echelle reductions.
+    
+    For documentation see :class:`CoAdd2D`.
 
+    Echelle can either stack with:
 
-        # Echelle can either stack with:
-        # 1) input offsets or if offsets is None, it will find the objid of brightest trace and stack all orders relative
-             to the trace of this object.
-        # 2) specified weights, or if weights is None and auto_weights=True,
-        #    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
+        - input ``offsets`` or if ``offsets`` is None, it will find
+          the ``objid`` of brightest trace and stack all orders
+          relative to the trace of this object.
 
+        - specified ``weights``, or if ``weights`` is None and
+          ``auto_weights`` is True, it will use wavelength dependent
+          weights determined from the spectrum of the brightest
+          objects ``objid`` on each order
 
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
