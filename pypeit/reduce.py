@@ -1156,7 +1156,7 @@ class IFUReduce(Reduce):
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-
+# TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
 def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided

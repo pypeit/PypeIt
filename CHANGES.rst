@@ -1,6 +1,11 @@
 
 0.12.4dev
 ---------
+- Added PypeIt identify GUI script for manual wavelength calibration
+
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
 - Implemented interactive sky region selection
 - Added PypeIt identify GUI script for manual wavelength calibration
 
@@ -10,6 +15,9 @@
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
+- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
+  key is not valid for the given parameter set.  NOTE: The check may
+  fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
 
 0.12.2 (14 Jan 2019)

@@ -16,16 +16,6 @@ from astropy.io import fits
 from IPython import embed
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Echelle examples:
-## Generate sensfunc
-# pypeit_flux_spec sensfunc keck_nires --std_file=spec1d_HIP13917_V8p6_NIRES_2018Oct01T094225.598.fits
-#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml --telluric --echelle --star_type A0 --star_mag 8.6 --debug
-## flux calibrate your science.
-# pypeit_flux_spec flux keck_nires --sci_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698.fits
-#         --sensfunc_file=spec1d_HIP13917_V8p6_NIRES.yaml
-#         --flux_file=spec1d_J0252-0503_NIRES_2018Oct01T100254.698_flux.fits --echelle
-
 
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text

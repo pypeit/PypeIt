@@ -468,7 +468,7 @@ class Spectrograph(object):
         raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
         # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
         # it's easier to change here than writing another get_rawimage function in the spectrograph file.
-        if np.size(raw_img.shape)==3:
+        if raw_img.ndim == 3:
             raw_img = raw_img[0]
 
         # Extras
@@ -967,10 +967,6 @@ class Spectrograph(object):
         return np.power(10.0,loglam_grid)
 
 
-    @property
-    def telluric_grid_file(self):
-        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-        pass
 
     def __repr__(self):
         # Generate string
