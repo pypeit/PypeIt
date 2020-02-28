@@ -1,6 +1,7 @@
 
 0.12.4dev
 ---------
+- Added PypeIt identify GUI script for manual wavelength calibration
 
 - Refactored sensitivity function, fluxing, and coadding scripts and
   algorithms.
