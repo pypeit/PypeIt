@@ -16,6 +16,13 @@ from IPython import embed
 class FluxCalibrate(object):
     """
     Class for flux calibrating spectra.
+
+    Args:
+        spec1dfiles (list):
+        sensfiles (list):
+        par (pypeit.par.pypeitpar.FluxCalibrate, optional):
+        outfiles (list, optional):
+            Names of the outfiles.  If None, this is set to spec1dfiles and those are overwritten
     """
     # Superclass factory method generates the subclass instance
     @classmethod
@@ -24,10 +31,13 @@ class FluxCalibrate(object):
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
             spec1dfiles, sensfiles, par=par, debug=debug)
 
-    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False):
+    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False, outfiles=None):
 
         self.spec1dfiles = spec1dfiles
         self.sensfiles = sensfiles
+
+        # Output file names
+        self.outfiles = spec1dfiles if outfiles is None else outfiles
 
         # Load the spectrograph
         header = fits.getheader(spec1dfiles[0])
@@ -36,13 +46,13 @@ class FluxCalibrate(object):
         self.debug = debug
 
         sens_last = None
-        for spec1, sens in zip(self.spec1dfiles,self.sensfiles):
+        for spec1, sens, outfile in zip(self.spec1dfiles, self.sensfiles, self.outfiles):
             # Read in the data
             sobjs = specobjs.SpecObjs.from_fitsfile(spec1)
             if sens != sens_last:
                 wave, sensfunction, meta_table, out_table, header_sens = sensfunc.SensFunc.load(sens)
             self.flux_calib(sobjs, wave, sensfunction, meta_table)
-            sobjs.write_to_fits(sobjs.header, spec1, overwrite=True)
+            sobjs.write_to_fits(sobjs.header, outfile, overwrite=True)
 
     def flux_calib(self, sobjs, wave, sensfunction, meta_table):
         """
@@ -63,8 +73,8 @@ class MultiSlitFC(FluxCalibrate):
     Child of FluxSpec for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False):
-        super().__init__(spec1dfiles, sensfiles, par=par, debug=debug)
+    def __init__(self, spec1dfiles, sensfiles, par=None, debug=False, outfiles=None):
+        super().__init__(spec1dfiles, sensfiles, par=par, debug=debug, outfiles=outfiles)
 
 
     def flux_calib(self, sobjs, wave, sensfunction, meta_table):
