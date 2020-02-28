@@ -55,8 +55,6 @@ def main(args):
     msarc = pypeitimage.PypeItImage.from_file(arcfil)
 
     mdir = msarc.head0['MSTRDIR']
-    print(mdir)
-    assert(False)
     mkey = msarc.head0['MSTRKEY']
 
     # Load the spectrograph
@@ -106,9 +104,12 @@ def main(args):
         if ans == 'y':
             gratname = fits.getheader(msarc.head0['F1'])[spec.meta['dispname']['card']].replace("/", "_")
             dispangl = "UNKNOWN"
-            templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=mdir)
-            print("Your wavelength solution has been stored")
-            print("Please consider sending your solution to the PypeIt team!")
+            outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=mdir)
+            print("\nYour wavelength solution has been stored here:")
+            print(os.path.join(mdir, outroot))
+            print("\nIf you would like to move this to the PypeIt database, please move this file into the directory:")
+            print(templates.outpath)
+            print("\nPlease consider sending your solution to the PypeIt team!\n")
     else:
         print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], args.rmstol))
         print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
