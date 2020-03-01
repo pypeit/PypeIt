@@ -71,7 +71,7 @@ def main(pargs):
     cfg_lines += ['    [[scienceframe]]']
     cfg_lines += ['        [[process]]']
     cfg_lines += ['              cr_reject = False']
-    cfg_lines += ['[scienceimage]']
+    cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['        skip_optimal = True']
     if pargs.box_radius is not None: # Boxcar radius
