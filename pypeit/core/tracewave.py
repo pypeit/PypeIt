@@ -714,7 +714,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Avoid substantial extrapolation..
     low = spec_img_pad[thismask_grow] < np.min(tilts_spec - 20.)
     tiltpix[low] = spec_img_pad[thismask_grow][low]
-    sigma[low] = sigma[low] * 10.
+    sigma[thismask_grow][low] = sigma[thismask_grow][low] * 10.
     # high = spec_img_pad > np.max(tilts_spec+20.)
     # sigma[high] = 0.
 

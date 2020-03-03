@@ -301,8 +301,6 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             msgs.warn('No illumination flat will be applied to your data (illumflatten=False).')
             self.msillumflat = None
 
-        embed(header='307 of flatfield.py')
-
         # Return
         return self.mspixelflat, self.msillumflat
 
