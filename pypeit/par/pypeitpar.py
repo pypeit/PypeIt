@@ -2332,8 +2332,8 @@ class WaveTiltsPar(ParSet):
     """
     def __init__(self, idsonly=None, tracethresh=None, sig_neigh=None, nfwhm_neigh=None,
                  maxdev_tracefit=None, sigrej_trace=None, spat_order=None, spec_order=None,
-                 func2d=None, maxdev2d=None, sigrej2d=None, rm_continuum=None, cont_rej=None):
-#                 cont_function=None, cont_order=None,
+                 func2d=None, maxdev2d=None, sigrej2d=None, rm_continuum=None, cont_rej=None,
+                 min_extrap=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2400,6 +2400,10 @@ class WaveTiltsPar(ParSet):
                               'fit to obtain a global solution for the tilts across the slit/order. ' \
                               'This can be a single number or a list/array providing the value for each slit'
 
+
+        defaults['min_extrap'] = 150.
+        dtypes['min_extrap'] = [int, float]
+        descr['min_extrap'] = 'Sets how far below the last measured tilt line is extrapolaed in fit_tilts()'
 
         defaults['func2d'] = 'legendre2d'
         dtypes['func2d'] = str
@@ -2472,7 +2476,7 @@ class WaveTiltsPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['idsonly', 'tracethresh', 'sig_neigh', 'maxdev_tracefit', 'sigrej_trace',
                    'nfwhm_neigh', 'spat_order', 'spec_order', 'func2d', 'maxdev2d', 'sigrej2d',
-                   'rm_continuum', 'cont_rej'] #'cont_function', 'cont_order',
+                   'rm_continuum', 'cont_rej', 'min_extrap'] #'cont_function', 'cont_order',
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

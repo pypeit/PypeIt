@@ -585,7 +585,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
               maxrej=None, maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
-              doqa=True, master_key='test', slit=0, show_QA=False, out_dir=None, debug=False):
+              doqa=True, master_key='test', slit=0, show_QA=False, out_dir=None,
+              min_extrap=150., debug=False):
     """
 
     Parameters
@@ -601,6 +602,8 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     setup:
     doqa:
     show_QA:
+    min_extrap: float, optional
+        Terminate extrapolation beyond measured arc lines at this pixel below last line
     out_dir:
 
     Returns
@@ -712,7 +715,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     sigma = np.full_like(spec_img_pad, 10.0)
 
     # Avoid substantial extrapolation..
-    low = spec_img_pad[thismask_grow] < np.min(tilts_spec - 20.)
+    low = spec_img_pad[thismask_grow] < np.min(tilts_spec - min_extrap)
     tiltpix[low] = spec_img_pad[thismask_grow][low]
     sigma[thismask_grow][low] = sigma[thismask_grow][low] * 10.
     # TODO -- Condsider adding in this anti-extrapolation code too
