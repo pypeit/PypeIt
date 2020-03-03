@@ -1313,7 +1313,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             (mean, med_sn2, skythresh) = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
             (mean, med_sn2, sigma) = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
-            embed(header='1316 of extract')
             msgs.error('Object finding failed. All the elements of the fluxconv_cont spatial profile array are zero')
     else:
         pass

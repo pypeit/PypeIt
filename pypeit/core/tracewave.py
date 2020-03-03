@@ -715,13 +715,10 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     low = spec_img_pad[thismask_grow] < np.min(tilts_spec - 20.)
     tiltpix[low] = spec_img_pad[thismask_grow][low]
     sigma[thismask_grow][low] = sigma[thismask_grow][low] * 10.
-    # high = spec_img_pad > np.max(tilts_spec+20.)
-    # sigma[high] = 0.
-
-    # Kludge me
-    # zeros = np.abs(spec_img_pad[thismask_grow]) < 1.
-    # tiltpix[zeros] = 0.
-    # sigma[thismask_grow][zeros] = 10.
+    # TODO -- Condsider adding in this anti-extrapolation code too
+    #high = spec_img_pad[thismask_grow] > np.max(tilts_spec + 20.)
+    #tiltpix[high] = spec_img_pad[thismask_grow][low]
+    #sigma[thismask_grow][high] = sigma[thismask_grow][high] * 10.
 
     # JFH What I find confusing is that this last fit was actually what
     # Burles was doing on the raw tilts, so why was that failing?
