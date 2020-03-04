@@ -198,8 +198,8 @@ def test_coadd1d_1():
 
     # TODO: This is a kludge to get Travis to work.  We need a script
     # that will write the coadd files with absolute paths.
-    coadd_ifile = data_path('shane_kast_blue.coadd1d') if os.getenv('TRAVIS_BUILD_DIR') is None \
-                    else data_path('shane_kast_blue_travis.coadd1d')
+    coadd_ifile = data_path('shane_kast_blue.coadd1d') #if os.getenv('TRAVIS_BUILD_DIR') is None \
+                    #else data_path('shane_kast_blue_travis.coadd1d')
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]), test_spec_path=data_path(''))
 
     hdu = fits.open(coadd_ofile)
@@ -226,9 +226,9 @@ def test_coadd1d_2():
 
     # TODO: This is a kludge to get Travis to work.  We need a script
     # that will write the coadd files with absolute paths.
-    coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d') \
-                    if os.getenv('TRAVIS_BUILD_DIR') is None \
-                    else data_path('gemini_gnirs_32_sb_sxd_travis.coadd1d')
+    coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d') #\
+    #                if os.getenv('TRAVIS_BUILD_DIR') is None \
+    #                else data_path('gemini_gnirs_32_sb_sxd_travis.coadd1d')
 
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]), test_spec_path=data_path(''))
 
