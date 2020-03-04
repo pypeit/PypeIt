@@ -36,7 +36,6 @@ def data_path(filename):
 #    arcid_plot.main(pargs)
 
 
-
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -151,7 +150,7 @@ def test_show_1dspec():
                              'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
-    show_1dspec.main(pargs)#, unit_test=True)
+    show_1dspec.main(pargs)
 
 
 @cooked_required
@@ -197,7 +196,7 @@ def test_coadd1d_1():
         os.remove(coadd_ofile)
 
     coadd_ifile = data_path('shane_kast_blue.coadd1d')
-    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]), test_spec_path=data_path(''))
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
     assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
@@ -222,7 +221,7 @@ def test_coadd1d_2():
         os.remove(coadd_ofile)
 
     coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d')
-    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]), test_spec_path=data_path(''))
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
     assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'

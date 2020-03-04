@@ -586,7 +586,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
               maxrej=None, maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
               doqa=True, master_key='test', slit=0, show_QA=False, out_dir=None,
-              min_extrap=150., debug=False):
+              minmax_extrap=(150.,1000.), debug=False):
     """
 
     Parameters
@@ -602,8 +602,8 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     setup:
     doqa:
     show_QA:
-    min_extrap: float, optional
-        Terminate extrapolation beyond measured arc lines at this pixel below last line
+    minmax_extrap: tuple or list, optional
+        Terminate extrapolation beyond measured arc lines at this pixel value below/above last line
     out_dir:
 
     Returns
@@ -715,13 +715,12 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     sigma = np.full_like(spec_img_pad, 10.0)
 
     # Avoid substantial extrapolation..
-    low = spec_img_pad[thismask_grow] < np.min(tilts_spec - min_extrap)
+    low = spec_img_pad[thismask_grow] < np.min(tilts_spec - minmax_extrap[0])
     tiltpix[low] = spec_img_pad[thismask_grow][low]
     sigma[thismask_grow][low] = sigma[thismask_grow][low] * 10.
-    # TODO -- Condsider adding in this anti-extrapolation code too
-    #high = spec_img_pad[thismask_grow] > np.max(tilts_spec + 20.)
-    #tiltpix[high] = spec_img_pad[thismask_grow][low]
-    #sigma[thismask_grow][high] = sigma[thismask_grow][high] * 10.
+    high = spec_img_pad[thismask_grow] > np.max(tilts_spec + minmax_extrap[1])
+    tiltpix[high] = spec_img_pad[thismask_grow][high]
+    sigma[thismask_grow][high] = sigma[thismask_grow][high] * 10.
 
     # JFH What I find confusing is that this last fit was actually what
     # Burles was doing on the raw tilts, so why was that failing?
@@ -823,8 +822,7 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
                            minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
     # wavelength solution fitting
-    tilts = np.fmax(np.fmin(tilts, 1.2), -0.2)
-    return tilts
+    return np.fmax(np.fmin(tilts, 1.2), -0.2)
 
 
 def plot_tilt_2d(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
