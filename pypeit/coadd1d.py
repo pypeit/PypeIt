@@ -85,6 +85,8 @@ class CoAdd1D(object):
         for iexp in range(self.nexp):
             sobjs = specobjs.SpecObjs.from_fitsfile(self.spec1dfiles[iexp])
             indx = sobjs.name_indices(self.objids[iexp])
+            if not np.any(indx):
+                msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, mask_iexp, meta_spec, header = \
                 sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
             # Allocate arrays on first iteration
