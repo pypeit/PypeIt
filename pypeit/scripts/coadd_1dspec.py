@@ -146,11 +146,14 @@ def parser(options=None):
     return args
 
 
-def main(args):
+def main(args, test_spec_path=None):
     """ Runs the 1d coadding steps
     """
     # Load the file
     config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
+    # Append path for testing
+    if test_spec_path is not None:
+        spec1dfiles = [os.path.join(test_spec_path, ifile) for ifile in spec1dfiles]
     # Read in spectrograph from spec1dfile header
     header = fits.getheader(spec1dfiles[0])
 
@@ -172,6 +175,11 @@ def main(args):
     par.to_config(args.par_outfile)
     sensfile = par['coadd1d']['sensfuncfile']
     coaddfile = par['coadd1d']['coaddfile']
+    # Testing?
+    if test_spec_path is not None:
+        if sensfile is not None:
+            sensfile = os.path.join(test_spec_path, sensfile)
+        coaddfile = os.path.join(test_spec_path, coaddfile)
 
     if spectrograph.pypeline is 'Echelle' and sensfile is None:
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
