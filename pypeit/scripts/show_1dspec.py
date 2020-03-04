@@ -31,8 +31,7 @@ def parser(options=None):
         args = parser.parse_args(options)
     return args
 
-#def main(args, unit_test=False):
-def main(args):
+def main(args, unit_test=False):
     """ Runs the XSpecGui on an input file
     """
 
@@ -73,18 +72,14 @@ def main(args):
     # XSpectrum1D
     #spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
 
-    # JFH TODO get this unit test garbage out of here. Scripts should never have unit test arguments.
-    #if unit_test is False:
-    #    app = QApplication(sys.argv)
-    #    # Screen dimensions
-    #    width = app.desktop().screenGeometry().width()
-    #    scale = 2. * (width/3200.)
+    if unit_test is False:
+        app = QApplication(sys.argv)
+        # Screen dimensions
+        width = app.desktop().screenGeometry().width()
+        scale = 2. * (width/3200.)
 
-    #gui = XSpecGui(spec, unit_test=unit_test, screen_scale=scale)
-    gui = XSpecGui(spec, screen_scale=scale)
-    gui.show()
-    app.exec_()
-    #if unit_test is False:
-    #    gui.show()
-    #    app.exec_()
+    gui = XSpecGui(spec, unit_test=unit_test, screen_scale=scale)
+    if unit_test is False:
+        gui.show()
+        app.exec_()
 

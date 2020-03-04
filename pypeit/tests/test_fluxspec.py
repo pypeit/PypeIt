@@ -65,10 +65,6 @@ def test_from_sens_func(kast_blue_files):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
-    # Make sure the original is not fluxed
-    sobjs_orig = specobjs.SpecObjs.from_fitsfile(sci_file)
-    if 'OPT_FLAM' in sobjs_orig[0].keys():
-        raise IOError("Cooked file was corrupted.  It needs to be unfluxed!!")
     # Instantiate and run
     outfile = data_path(os.path.basename(sci_file))
     fluxCalibrate = fluxcalibrate.MultiSlitFC([sci_file], [sens_file], par=par['fluxcalib'],
