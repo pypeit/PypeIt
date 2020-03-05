@@ -2,6 +2,10 @@
 0.12.4dev
 ---------
 
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
+- Restrict extrapolation in tilt fitting
 
 0.12.3 (13 Feb 2019)
 --------------------
@@ -9,6 +13,9 @@
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
+- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
+  key is not valid for the given parameter set.  NOTE: The check may
+  fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
 
 0.12.2 (14 Jan 2019)
@@ -31,7 +38,7 @@
 --------------------
 
 - Implemented MOSFIRE and further implemented NIRSPEC for Y-band
-  spectroscopy. 
+  spectroscopy.
 - Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing

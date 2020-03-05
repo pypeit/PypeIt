@@ -14,11 +14,11 @@ from astropy.io import fits
 
 from pypeit.pypeit import PypeIt
 from pypeit import par, msgs
-from pypeit.core import coadd2d
+from pypeit import coadd2d
 from pypeit.core import save
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
-from IPython import embed
+
 
 # TODO: We need an 'io' module where we can put functions like this...
 def read_coadd2d_file(ifile):
@@ -131,6 +131,10 @@ def main(args):
     else:
         msgs.error('You must either input a coadd2d file with --file or an object name with --obj')
 
+    # Update with configuration specific parameters (which requires science file) and initialize spectrograph
+    spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
+    parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=parset.to_config())
+
     # If detector was passed as an argument override whatever was in the coadd2d_file
     if args.det is not None:
         msgs.info("Restricting reductions to detector={}".format(args.det))
@@ -200,12 +204,12 @@ def main(args):
         sci_dict[det] = {}
 
         # Instantiate Coadd2d
-        coadd = coadd2d.instantiate_me(spec2d_files, spectrograph, det=det,
-                                       offsets=parset['coadd2d']['offsets'],
-                                       weights=parset['coadd2d']['weights'],
-                                       par=parset, ir_redux=ir_redux,
-                                       debug_offsets=args.debug_offsets, debug=args.debug,
-                                         samp_fact=args.samp_fact)
+        coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, parset, det=det,
+                                             offsets=parset['coadd2d']['offsets'],
+                                             weights=parset['coadd2d']['weights'],
+                                             ir_redux=ir_redux,
+                                             debug_offsets=args.debug_offsets, debug=args.debug,
+                                             samp_fact=args.samp_fact)
 
         # Coadd the slits
         coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later

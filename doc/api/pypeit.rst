@@ -21,11 +21,13 @@ Submodules
    pypeit.bitmask
    pypeit.calibrations
    pypeit.check_requirements
+   pypeit.coadd1d
+   pypeit.coadd2d
    pypeit.datamodel
    pypeit.debugger
    pypeit.edgetrace
    pypeit.flatfield
-   pypeit.fluxspec
+   pypeit.fluxcalibrate
    pypeit.ginga
    pypeit.io
    pypeit.masterframe
@@ -35,6 +37,7 @@ Submodules
    pypeit.pypmsgs
    pypeit.reduce
    pypeit.sampling
+   pypeit.sensfunc
    pypeit.setup_package
    pypeit.specobj
    pypeit.specobjs
