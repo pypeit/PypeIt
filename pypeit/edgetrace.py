@@ -1258,6 +1258,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 PCA object(s). If the header indicates that the PCA
                 was not originally performed, this is ignored.
         """
+        hdunames = [h.name for h in hdu]
         # Read and assign data from the fits file
         self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
         if len(self.files) == 0:

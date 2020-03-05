@@ -145,10 +145,7 @@ class SensFunc(object):
 
     def save(self):
         """
-        Saves sensitivity
-        Returns
-        -------
-
+        Saves sensitivity to self.sensfile
         """
 
         # Write to outfile
