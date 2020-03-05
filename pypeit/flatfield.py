@@ -717,6 +717,14 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                          ylabel='log(flat counts)',
                                          title='Spectral Fit for slit={:d}'.format(slit))
 
+                # KBW: Added this from an edit to the deimos_merge3
+                # branch that wasn't propagated here in the merge.  Is this needed?
+                # JXP
+                plt.clf()
+                ax = plt.gca()
+                ax.scatter(spec_coo_data, spec_flat_fit)
+                embed(header='724 of flatfield.py')
+
             if sticky:
                 # Add rejected pixels to gpm
                 gpm[spec_gpm] = (spec_gpm_fit & spec_gpm_data)[np.argsort(spec_srt)]
