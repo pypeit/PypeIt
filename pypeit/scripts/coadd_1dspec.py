@@ -137,6 +137,7 @@ def parser(options=None):
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--show", default=False, action="store_true", help="show QA during coadding process")
     parser.add_argument("--par_outfile", default='coadd1d.par', action="store_true", help="Output to save the parameters")
+    parser.add_argument("--test_spec_path", type=str, help="Path for testing")
 #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
 
     if options is None:
@@ -151,6 +152,9 @@ def main(args):
     """
     # Load the file
     config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
+    # Append path for testing
+    if args.test_spec_path is not None:
+        spec1dfiles = [os.path.join(args.test_spec_path, ifile) for ifile in spec1dfiles]
     # Read in spectrograph from spec1dfile header
     header = fits.getheader(spec1dfiles[0])
 
@@ -172,6 +176,11 @@ def main(args):
     par.to_config(args.par_outfile)
     sensfile = par['coadd1d']['sensfuncfile']
     coaddfile = par['coadd1d']['coaddfile']
+    # Testing?
+    if args.test_spec_path is not None:
+        if sensfile is not None:
+            sensfile = os.path.join(args.test_spec_path, sensfile)
+        coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
     if spectrograph.pypeline is 'Echelle' and sensfile is None:
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
