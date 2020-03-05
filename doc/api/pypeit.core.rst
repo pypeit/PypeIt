@@ -15,14 +15,14 @@ Submodules
 .. toctree::
 
    pypeit.core.arc
-   pypeit.core.coadd1d
-   pypeit.core.coadd2d
+   pypeit.core.coadd
    pypeit.core.combine
    pypeit.core.extract
    pypeit.core.flat
    pypeit.core.flux_calib
    pypeit.core.framematch
    pypeit.core.load
+   pypeit.core.meta
    pypeit.core.moment
    pypeit.core.parse
    pypeit.core.pca

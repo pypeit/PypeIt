@@ -93,7 +93,7 @@ def tweak_slit_edges(slit_left_in, slit_righ_in, ximg_fit, normimg, tweak_slits_
 
 def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
              spec_samp_fine = 1.2, spec_samp_coarse = 50.0, spat_samp = 5.0, npoly = None, trim_edg = (3.0,3.0), pad =5.0,
-             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug = False):
+             tweak_slits = True, tweak_slits_thresh = 0.93, tweak_slits_maxfrac = 0.10, nonlinear_counts =1e10, debug=False):
 
 
     """ Compute pixelflat and illumination flat from a flat field image.
@@ -280,6 +280,11 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
         plt.ylabel('log(flat counts)')
         plt.title('Spectral Fit for slit={:d}'.format(slit))
         plt.show()
+        # JXP
+        plt.clf()
+        ax = plt.gca()
+        ax.scatter(pix_fit, log_flat_fit)
+        embed(header='265 of flat.py')
 
     # Evaluate and save
     spec_model = np.ones_like(flat)

@@ -1,7 +1,7 @@
-pypeit.fluxspec module
+pypeit.sensfunc module
 ======================
 
-.. automodule:: pypeit.fluxspec
+.. automodule:: pypeit.sensfunc
    :members:
    :private-members:
    :undoc-members:

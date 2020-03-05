@@ -417,18 +417,21 @@ class Identify(object):
             gd_det = np.where((self._lineflg == 1) | (self._lineflg == 2))[0]
             bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
             try:
+                n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
                 final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det,
                                                       self._lineids[gd_det], self._line_lists, bdisp,
                                                       verbose=False, n_first=self.par['n_first'],
                                                       match_toler=self.par['match_toler'],
                                                       func=self.par['func'],
-                                                      n_final=self.par['n_final'],
+                                                      n_final=n_final,
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])
             except TypeError:
-                wvcalib[str(self._slit)] = None
+                wvcalib = None
+                #wvcalib[str(self._slit)] = None
             else:
-                wvcalib[str(self._slit)] = copy.deepcopy(final_fit)
+                wvcalib = copy.deepcopy(final_fit)
+                #wvcalib[str(self._slit)] = copy.deepcopy(final_fit)
         return wvcalib
 
     def button_press_callback(self, event):
@@ -824,7 +827,8 @@ def initialise(arccen, slit=0, par=None):
     par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
     # Extract the lines that are detected in arccen
-    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(arccen[:, slit].copy(), sigdetect=par['sigdetect'],
+    thisarc = arccen[:, slit]
+    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
                                                         nonlinear_counts=par['nonlinear_counts'])
     detns = tdetns[icut]
 
@@ -836,7 +840,7 @@ def initialise(arccen, slit=0, par=None):
         line_lists = waveio.load_line_lists(par['lamps'])
 
     # Create a Line2D instance for the arc spectrum
-    spec = Line2D(np.arange(arccen.size), arccen,
+    spec = Line2D(np.arange(thisarc.size), thisarc,
                   linewidth=1, linestyle='solid', color='k',
                   drawstyle='steps', animated=True)
 
@@ -856,7 +860,7 @@ def initialise(arccen, slit=0, par=None):
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
     axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
     axres.axhline(0.0, color='r', linestyle='-')  # Zero level
-    axres.set_xlim((0, arccen.size - 1))
+    axres.set_xlim((0, thisarc.size - 1))
     axres.set_ylim((-0.3, 0.3))
     axres.set_xlabel('Pixel')
     axres.set_ylabel('Residuals (Pix)')
@@ -864,9 +868,9 @@ def initialise(arccen, slit=0, par=None):
     # pixel vs wavelength
     respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
                             c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    resfit = Line2D(np.arange(arccen.size), np.zeros(arccen.size), linewidth=1, linestyle='-', color='r')
+    resfit = Line2D(np.arange(thisarc.size), np.zeros(thisarc.size), linewidth=1, linestyle='-', color='r')
     axfit.add_line(resfit)
-    axfit.set_xlim((0, arccen.size - 1))
+    axfit.set_xlim((0, thisarc.size - 1))
     axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
     axfit.set_xlabel('Pixel')
     axfit.set_ylabel('Wavelength')

@@ -78,7 +78,9 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     if len(all_specobjs) == 0:
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
-        all_specobjs.write_to_fits(outfile1d, header=head1d, spectrograph=spectrograph, update_det=update_det)
+        # Build the spec1d output header.
+        header = all_specobjs.build_header(head1d, spectrograph)
+        all_specobjs.write_to_fits(header, outfile1d, update_det=update_det)
         # Txt file
         # TODO JFH: Make this a method in the specobjs class.
         save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
@@ -88,82 +90,6 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
 
     return
 
-
-def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
-                         header=None, ex_value='OPT', overwrite=True):
-    '''
-    Args:
-        outfile (str): name of fitsfile you want to save to
-        waves (ndarray): one-D or two-D (nspec by nexp/norder) wavelength array
-        fluxes (ndarray): flux array
-        ivars (ndarray): ivar array
-        masks (ndarray): mask array
-        header (dict): primary fits header
-        ext_value (str): 'OPT' for optimal, and 'BOX' for boxcar
-        overwrite (bool): if True, overwrite the old one, otherwise append it to the exist fits file.
-    Returns:
-        None
-    '''
-
-    # Estimate sigma from ivar
-    sigs = np.sqrt(utils.inverse(ivars))
-
-    if (os.path.exists(outfile)) and (np.invert(overwrite)):
-        hdulist = fits.open(outfile)
-        msgs.info("Reading primary HDU from existing file: {:s}".format(outfile))
-    else:
-        msgs.info("Creating an new primary HDU.")
-        prihdu = fits.PrimaryHDU()
-        if header is None:
-            msgs.warn('The primary header is none')
-        else:
-            prihdu.header = header
-        hdulist = fits.HDUList([prihdu])
-
-    if waves.ndim == 1:
-        wave_mask = waves > 1.0
-        # Add Spectrum Table
-        cols = []
-        cols += [fits.Column(array=waves[wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
-        cols += [fits.Column(array=fluxes[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
-        cols += [fits.Column(array=ivars[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
-        cols += [fits.Column(array=sigs[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
-        cols += [fits.Column(array=masks[wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
-        if telluric is not None:
-            cols += [fits.Column(array=telluric[wave_mask], name='TELLURIC', format='D')]
-        if obj_model is not None:
-            cols += [fits.Column(array=obj_model[wave_mask], name='OBJ_MODEL', format='D')]
-
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
-        hdulist.append(tbhdu)
-    else:
-        nspec = waves.shape[1]
-
-        for ispec in range(nspec):
-            wave_mask = waves[:,ispec] > 1.0
-            # Add Spectrum Table
-            cols = []
-            cols += [fits.Column(array=waves[:,ispec][wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
-            cols += [fits.Column(array=fluxes[:,ispec][wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
-            cols += [fits.Column(array=ivars[:,ispec][wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
-            cols += [fits.Column(array=sigs[:,ispec][wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
-            cols += [fits.Column(array=masks[:,ispec][wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
-
-            coldefs = fits.ColDefs(cols)
-            tbhdu = fits.BinTableHDU.from_columns(coldefs)
-            tbhdu.name = 'OBJ0001-SPEC{:04d}-{:}'.format(ispec+1, ex_value.capitalize())
-            hdulist.append(tbhdu)
-
-    if (os.path.exists(outfile)) and (np.invert(overwrite)):
-        hdulist.writeto(outfile, overwrite=True)
-        msgs.info("Appending 1D spectra to existing file {:s}".format(outfile))
-    else:
-        hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
-
-    return None
 
 
 # TODO: (KBW) I don't think core algorithms should take class
@@ -188,18 +114,23 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
         if specobj is None:
             continue
         # Append
-        names.append(specobj.name)
         spat_pixpos.append(specobj.SPAT_PIXPOS)
-        slits.append(specobj.slit_orderindx)
         if spectrograph.pypeline == 'MultiSlit':
             spat_fracpos.append(specobj.SPAT_FRACPOS)
+            slits.append(specobj.SLITID)
+            names.append(specobj.NAME)
         elif spectrograph.pypeline == 'Echelle':
             spat_fracpos.append(specobj.ECH_FRACPOS)
+            slits.append(specobj.ECH_ORDER)
+            names.append(specobj.ECH_NAME)
         # Boxcar width
         if 'BOX_RADIUS' in specobj.keys():
             slit_pix = 2.0*specobj.BOX_RADIUS
             # Convert to arcsec
             binspectral, binspatial = parse.parse_binning(binning)
+            # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
+            # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
+            # different attribute. platescale should be a spectrograph attribute determined on the fly.
             boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
         else:
             boxsize.append(0.)
@@ -226,8 +157,8 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             obj_tbl['slit'] = slits
             obj_tbl['slit'].format = 'd'
         elif spectrograph.pypeline == 'Echelle':
-            obj_tbl['orderindx'] = slits
-            obj_tbl['orderindx'].format = 'd'
+            obj_tbl['order'] = slits
+            obj_tbl['order'].format = 'd'
         obj_tbl['name'] = names
         obj_tbl['spat_pixpos'] = spat_pixpos
         obj_tbl['spat_pixpos'].format = '.1f'

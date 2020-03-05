@@ -1,15 +1,9 @@
 """ Module for Keck/MOSFIRE specific codes
 """
-import glob
-import os
-import numpy as np
-from astropy.io import fits
-
 from pkg_resources import resource_filename
-
+import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -74,8 +68,8 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = False
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
@@ -98,6 +92,14 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+
         return par
 
 
@@ -216,4 +218,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             return fitstbl['lampstat01'] == '1'
 
         raise ValueError('No implementation for status = {0}'.format(status))
+
+
 

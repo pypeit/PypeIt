@@ -230,12 +230,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
-        par['scienceimage']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
-        par['scienceimage']['findobj']['trace_npoly'] = 8
-        par['scienceimage']['findobj']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
-        par['scienceimage']['findobj']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
+        par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['trace_npoly'] = 8
+        par['reduce']['findobj']['find_npoly_cont'] = 0  # Continnum order for determining thresholds
+        par['reduce']['findobj']['find_cont_fit'] = False  # Don't attempt to fit a continuum to the trace rectified image
 
         # The settings below enable X-shooter dark subtraction from the traceframe and pixelflatframe, but enforce
         # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
@@ -248,6 +248,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['tiltframe']['process']['bias'] = 'skip'
         par['calibrations']['standardframe']['process']['bias'] = 'skip'
         par['scienceframe']['process']['bias'] = 'skip'
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits')
+
 
 
         return par
@@ -406,7 +412,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         return np.log10(9500.0), np.log10(26000)
 
 
-
 class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
@@ -494,16 +499,21 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.5
-        par['scienceimage']['skysub']['global_sky_std'] = False
-        par['scienceimage']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
-        par['scienceimage']['findobj']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
-        par['scienceimage']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
-        par['scienceimage']['findobj']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
+        par['reduce']['skysub']['bspline_spacing'] = 0.5
+        par['reduce']['skysub']['global_sky_std'] = False
+        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+        par['reduce']['findobj']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
+        par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
+        par['reduce']['findobj']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
 
         # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
         # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
         par['scienceframe']['useframe'] ='overscan'
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par
 
@@ -623,6 +633,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         if det == 1:
             bpm_img[2912//binspectral_bpm:,842//binspatial_bpm:844//binspatial_bpm] = 1.
         return bpm_img
+
 
 
 class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):

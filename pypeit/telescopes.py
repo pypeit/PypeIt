@@ -77,3 +77,10 @@ class LBTTelescopePar(TelescopePar):
                                                longitude=109.889064,
                                                latitude=32.701308,
                                                elevation=3221.0)
+
+class MMTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(MMTTelescopePar, self).__init__(name='MMT',
+                                               longitude=110.885,
+                                               latitude=31.6883,
+                                               elevation=2616.0)
