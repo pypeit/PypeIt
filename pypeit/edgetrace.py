@@ -1374,6 +1374,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 PCA object(s). If the header indicates that the PCA
                 was not originally performed, this is ignored.
         """
+        hdunames = [h.name for h in hdu]
         # Read and assign data from the fits file
         self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
         if len(self.files) == 0:
@@ -1391,8 +1392,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.spat_fit = hdu['CENTER_FIT'].data
         self.spat_fit_type = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
                                 else hdu['CENTER_FIT'].header['FITTYP']
-        self.spec_min = hdu['SPEC_MIN'].data
-        self.spec_max = hdu['SPEC_MAX'].data
+        self.spec_min = hdu['SPEC_MIN'].data if 'SPEC_MIN' in hdunames else None
+        self.spec_max = hdu['SPEC_MAX'].data if 'SPEC_MAX' in hdunames else None
         # Get the design and object data if they exist
         ext = [h.name for h in hdu]
         if 'DESIGN' in ext:

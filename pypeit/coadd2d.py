@@ -351,7 +351,7 @@ class CoAdd2D(object):
 
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
-        parcopy['scienceimage']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
+        parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
         # Instantiate Calibrations class
         caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph)
@@ -716,7 +716,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         var_list = []
 
         msgs.info('Rebinning Images')
-        sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = rebin2d(
+        sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
             wave_bins, dspat_bins, self.stack_dict['waveimg_stack'], dspat_stack, thismask_stack,
             (self.stack_dict['mask_stack'] == 0), sci_list, var_list)
         thismask = np.ones_like(sci_list_rebin[0][0,:,:],dtype=bool)
@@ -731,11 +731,11 @@ class MultiSlitCoAdd2D(CoAdd2D):
         for iexp in range(self.nexp):
             sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], ir_redux=self.ir_redux,
-                                           fwhm=self.par['scienceimage']['findobj']['find_fwhm'],
-                                           trim_edg=self.par['scienceimage']['findobj']['find_trim_edge'],
-                                           npoly_cont=self.par['scienceimage']['findobj']['find_npoly_cont'],
-                                           maxdev=self.par['scienceimage']['findobj']['find_maxdev'],
-                                           ncoeff=3, sig_thresh=self.par['scienceimage']['findobj']['sig_thresh'], nperslit=1,
+                                           fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                           trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                                           npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
+                                           maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                           ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT

@@ -1210,10 +1210,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if inmask is None:
         inmask = thismask
     # If spec_min_max was not passed in, determine it from the thismask
-    if spec_min_max is None:
+    if spec_min_max is None or np.any([s is None for s in spec_min_max]):
+        if spec_min_max is None:
+            spec_min_max = [None, None]
         ispec, ispat = np.where(thismask)
-        spec_min_max = (ispec.min(), ispec.max())
-
+        if spec_min_max[0] is None:
+            spec_min_max[0] = ispec.min()
+        if spec_min_max[1] is None:
+            spec_min_max[1] = ispec.max()
 
     totmask = thismask & inmask & np.invert(edgmask)
     thisimg = image*totmask
