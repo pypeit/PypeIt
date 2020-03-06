@@ -272,6 +272,7 @@ class WaveTilts(masterframe.MasterFrame):
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
                                       sigrej=self.par['sigrej2d'], func2d=self.par['func2d'],
                                       doqa=doqa, master_key=self.master_key, slit=slit,
+                                      minmax_extrap=self.par['minmax_extrap'],
                                       show_QA=show_QA, out_dir=self.qa_path, debug=debug)
 
         # Evaluate the fit

@@ -15,6 +15,7 @@ from astropy.io import fits
 
 from IPython import embed
 
+# TODO JFH: Put this SmartFormatter in a common place, like pypeit.pypmsgs
 
 # A trick from stackoverflow to allow multi-line output in the help:
 #https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
@@ -33,7 +34,8 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-# TODO This is basically the exact same code as read_fluxfile in the fluxing script. Consolidate them?
+# TODO This is basically the exact same code as read_fluxfile in the fluxing script. Consolidate them? Make this
+# a standard method in parse or io.
 def read_coaddfile(ifile):
     """
     Read a PypeIt .coadd1d file, akin to a standard PypeIt file
@@ -42,7 +44,7 @@ def read_coaddfile(ifile):
       The spectrograph is required
 
     Args:
-        ifile: str
+        ifile (str):
           Name of the flux file
 
     Returns:
@@ -135,6 +137,7 @@ def parser(options=None):
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--show", default=False, action="store_true", help="show QA during coadding process")
     parser.add_argument("--par_outfile", default='coadd1d.par', action="store_true", help="Output to save the parameters")
+    parser.add_argument("--test_spec_path", type=str, help="Path for testing")
 #    parser.add_argument("--plot", default=False, action="store_true", help="Show the sensitivity function?")
 
     if options is None:
@@ -149,6 +152,9 @@ def main(args):
     """
     # Load the file
     config_lines, spec1dfiles, objids = read_coaddfile(args.coadd1d_file)
+    # Append path for testing
+    if args.test_spec_path is not None:
+        spec1dfiles = [os.path.join(args.test_spec_path, ifile) for ifile in spec1dfiles]
     # Read in spectrograph from spec1dfile header
     header = fits.getheader(spec1dfiles[0])
 
@@ -170,6 +176,11 @@ def main(args):
     par.to_config(args.par_outfile)
     sensfile = par['coadd1d']['sensfuncfile']
     coaddfile = par['coadd1d']['coaddfile']
+    # Testing?
+    if args.test_spec_path is not None:
+        if sensfile is not None:
+            sensfile = os.path.join(args.test_spec_path, sensfile)
+        coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
     if spectrograph.pypeline is 'Echelle' and sensfile is None:
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
@@ -180,7 +191,7 @@ def main(args):
     # text files, whereas there are things like yaml and json that do this well already.
 
     # Instantiate
-    coadd = coadd1d.CoAdd1d.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
+    coadd = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
                                        debug=args.debug, show=args.show)
     # Run
     coadd.run()

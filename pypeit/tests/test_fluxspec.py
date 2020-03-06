@@ -1,15 +1,17 @@
 """
-Module to run tests on FluxSpec class
+Module to run tests on SensFunc and FluxCalibrate classes
 Requires files in Development suite (Cooked) and an Environmental variable
 """
 import os
 
 import pytest
 
-from pypeit import fluxspec
+from pypeit import fluxcalibrate
+from pypeit import sensfunc
 from pypeit.scripts import flux_calib
 from pypeit.tests.tstutils import cooked_required
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import specobjs
 
 
 def data_path(filename):
@@ -33,6 +35,8 @@ def kast_blue_files():
     return [std_file, sci_file]
 
 
+sens_file = data_path('sensfunc.fits')
+
 @cooked_required
 def test_gen_sensfunc(kast_blue_files):
     # Get it started
@@ -40,20 +44,18 @@ def test_gen_sensfunc(kast_blue_files):
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
     # Instantiate
-    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'])
-    assert FxSpec.frametype == 'sensfunc'
-    # Find the standard
-    FxSpec.load_objs(std_file, std=True)
-    std = FxSpec.find_standard()
-    # Generate the sensitivity function
+    sensFunc = sensfunc.UVIS(std_file, sens_file)
+    # Test the standard loaded
+    assert sensFunc.meta_spec['BINNING'] == '1,1'
+    assert sensFunc.meta_spec['TARGET'] == 'Feige 66'
 
-    sens_dict = FxSpec.generate_sensfunc()
-    #
-    assert isinstance(sens_dict, dict)
-    assert 'FEIGE66' in sens_dict['0']['std_name']
-    assert FxSpec.steps[-1] == 'generate_sensfunc'
-    # Master
-    FxSpec.save_sens_dict(FxSpec.sens_dict, outfile=data_path('sensfunc.fits'))
+    # Generate the sensitivity function
+    sensFunc.run()
+    # Test
+    assert os.path.basename(sensFunc.meta_table['CAL_FILE'][0]) == 'feige66_002.fits'
+    assert 'SENSFUNC' in sensFunc.out_table.keys()
+    # Write
+    sensFunc.save()
 
 
 @cooked_required
@@ -63,39 +65,11 @@ def test_from_sens_func(kast_blue_files):
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     std_file, sci_file = kast_blue_files
-    # Instantiate
-    FxSpec = fluxspec.instantiate_me(spectrograph, par['fluxcalib'],
-                                     sens_file=data_path('sensfunc.fits'))
-    #FxSpec = fluxspec.FluxSpec(spectrograph, par['fluxcalib'],
-    assert 'FEIGE66' in FxSpec.sens_dict['0']['std_name']
-    # Flux me some science
-    FxSpec.flux_science(sci_file)
-    assert 'OPT_FLAM' in FxSpec.sci_specobjs[0]._data.keys()
-    # Write
-    FxSpec.write_science(data_path('tmp.fits'))
-
-
-@cooked_required
-def test_script():
-    # Sensitivity function
-    pargs = flux_calib.parser([data_path('test.flux')])
-    # Run
-    flux_calib.main(pargs, unit_test=True)
-
-    # Check for output
-    assert os.path.isfile('test_sensfunc.json')
-
-
-    # DEIMOS (multi-det)
-    #pypeit_flux_spec sensfunc --std_file=spec1d_G191B2B_DEIMOS_2017Sep14T152432.fits  --instr=keck_deimos --sensfunc_file=sens.yaml --multi_det=3,7
-    '''
-    std_file = deimos_files[0]
-    pargs3 = flux_spec.parser(['sensfunc',
-                               '--std_file={:s}'.format(std_file),
-                               '--instr=keck_deimos',
-                               '--sensfunc_file={:s}'.format(data_path('tmp2.yaml')),
-                               '--multi_det=3,7'])
-    flux_spec.main(pargs3)
-    '''
-
+    # Instantiate and run
+    outfile = data_path(os.path.basename(sci_file))
+    fluxCalibrate = fluxcalibrate.MultiSlitFC([sci_file], [sens_file], par=par['fluxcalib'],
+                                              outfiles=[outfile])
+    # Test
+    sobjs = specobjs.SpecObjs.from_fitsfile(outfile)
+    assert 'OPT_FLAM' in sobjs[0].keys()
 

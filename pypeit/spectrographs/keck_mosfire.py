@@ -1,18 +1,12 @@
 """ Module for Keck/MOSFIRE specific codes
 """
-import glob
-import os
+from pkg_resources import resource_filename
 import numpy as np
-from astropy.io import fits
-
 from pypeit import msgs
 from pypeit import telescopes
-from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pkg_resources import resource_filename
-
 
 from IPython import embed
 

@@ -27,6 +27,7 @@ from pypeit import utils
 from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit import msgs
+from pypeit.core import combine
 from pypeit import io
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
@@ -2613,6 +2614,17 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
 ## Coadd2d routines follow this point
 
 def det_error_msg(exten, sdet):
+    """
+    Utility routine for printing out an error message associated with choosing detectors.
+
+    Parameters
+    ----------
+    exten : int
+       Extension number
+    sdet :  int
+       Detector number
+
+    """
     # Print out error message if extension is not found
     msgs.error("Extension {:s} for requested detector {:s} was not found.\n".format(exten)  +
                " Maybe you chose the wrong detector to coadd? "
@@ -2657,6 +2669,27 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
 
 
 def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
+    """
+    Utility routine to get the wavelength bins for 2d coadds from a mask
+
+    Parameters
+    ----------
+    thismask_stack : array of shape (nimgs, nspec, nspat)
+        Good pixel mask indicating which pixels are on slits
+
+    waveimg_stack :  array of shape (nimgs, nspec, nspat)
+        Wavelength images for each image in the image stack
+
+    wave_grid : array  shape (ngrid)
+        The wavelength grid created for the 2d coadd
+
+    Returns
+    -------
+    wave_bins : array shape (ind_upper-ind_lower + 1, )
+        Wavelength bins that are relevant given the illuminated pixels (thismask_stack) and
+        wavelength coverage (waveimg_stack) of the image stack
+
+    """
 
     # Determine the wavelength grid that we will use for the current slit/order
     # TODO This cut on waveimg_stack should not be necessary
@@ -2670,6 +2703,26 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 
 
 def get_spat_bins(thismask_stack, trace_stack):
+    """
+
+    Parameters
+    ----------
+    thismask_stack : array of shape (nimgs, nspec, nspat)
+        Good pixel mask indicating which pixels are on slits.
+
+    trace_stack : array of shape (nspec, nimgs)
+        Array holding the stack of traces for each image in the stack. This is either the trace of the center of the slit
+        or the trace of the object in question that we are stacking about.
+
+    Returns
+    -------
+    dspat_bins : array of shape (spat_max_int +1 - spat_min_int,)
+        Array of spatial bins for rectifying the image.
+
+    dspat_stack : array of shape (nimgs, nspec, nspat)
+        Image stack which has the spatial position of each exposure relative to the trace in the trace_stack for that
+        image.
+    """
 
     nimgs, nspec, nspat = thismask_stack.shape
     # Create the slit_cen_stack and determine the minimum and maximum
