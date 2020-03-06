@@ -10,7 +10,7 @@ DataContainer
 enforcing a specific datamodel on an object, and provides convenience
 routines for writing data to fits files. The class itself is an
 abstract base class that cannot be directly instantiated. As a base
-class, :class:`DataContainer` objects are versitile, but they have
+class, :class:`DataContainer` objects are versatile, but they have
 their limitations.
 
 Derived classes must do the following:
@@ -511,13 +511,21 @@ class DataContainer:
         or :func:`_validate` methods; otherwise, the class with throw
         an ``AttributeError``.
 
+    .. todo::
+
+        Add a copy method
+
     Args:
-        d (:obj:`dict`):
+        d (:obj:`dict`, optional):
             Dictionary to copy to the internal attribute dictionary.
             All of the keys in the dictionary *must* be elements of
             the ``datamodel``. Any attributes that are not part of
             the ``datamodel`` can be set in the :func:`__init__` or
-            :func:`_validate` methods of a derived class.
+            :func:`_validate` methods of a derived class. If None,
+            the object is instantiated with all of the relevant data
+            model attributes but with all of those attributes set to
+            None.
+            
     """
 
     # Define the class version
@@ -575,40 +583,45 @@ class DataContainer:
     ``otype`` *cannot* be :obj:`dict`.
     """
 
-    def __init__(self, d):
+    def __init__(self, d=None):
         # Data model must be defined
         if self.datamodel is None:
             raise ValueError('Data model for {0} is undefined!'.format(self.__class__.__name__))
-
-        # Input dictionary cannot have keys that do not exist in the
-        # data model
-        if not np.all(np.isin(list(d.keys()), list(self.datamodel.keys()), assume_unique=True)):
-            raise AttributeError('Coding error: Initialization arguments do not match data model!')
 
         # Copy the dictionary
 #        self.__dict__ = copy.deepcopy(d)
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
-        # Assign the values provided by the input dictionary
-        self.__dict__.update(d)
 
-        # Validate the object
-        # TODO: _validate isn't the greatest name for this method...
-        self._validate()
+        # Include the provided data and build-out the data model, if
+        # data were provided
+        if d is not None:
 
-        # TODO: Confirm elements have otype and atypes consistent with
-        # the data model?
+            # Input dictionary cannot have keys that do not exist in
+            # the data model
+            if not np.all(np.isin(list(d.keys()), list(self.datamodel.keys()))):
+                raise AttributeError('Coding error: Initialization arguments do not match '
+                                     'data model!')
+
+            # Assign the values provided by the input dictionary
+            self.__dict__.update(d)
+
+            # Validate the object
+            # TODO: _validate isn't the greatest name for this
+            # method...
+            self._validate()
+
+            # TODO: Confirm elements have otype and atypes consistent
+            # with the data model?
 
         # Finalize the instantiation.
         # NOTE: The key added to `__dict__` by this call is always
         # `_DataContainer__initialised`, regardless of whether or not
-        # the call to this `__init__` is from the derived class.
-        # Originally, I had been checking if the result from the
-        # `_init_key` method below was in `__dict__`, but this gives
-        # different names for the derived classes. In the end, I check
-        # if `_DataContainer__initialised` is in `self.__dict__` (as
-        # done in the SpecObj example). Is there a way we could just
-        # check a boolean instead?
+        # the call to this `__init__` is from the derived class. This
+        # is why I can check for `_DataContainer__initialised` is in
+        # `self.__dict__`, even for derived classes. But is there a way
+        # we could just check a boolean instead?
+        self._init_key = '_DataContainer__initialised'
         self.__initialised = True
 
         if self.version is None:
@@ -709,9 +722,13 @@ class DataContainer:
         """
         d = {}
         for key in self.keys():
-            if transpose_arrays and self.datamodel[key]['otype'] == np.ndarray:
+            if self[key] is not None and transpose_arrays \
+                    and self.datamodel[key]['otype'] == np.ndarray:
                 d[key] = self[key].T
             elif self.datamodel[key]['otype'] == tuple:
+                # TODO: Anything with tuple type that is None will be
+                # converted to 'None'. Is that what we want, or do we
+                # want to set it to None so that it's not written?
                 d[key] = str(self[key])
             else:
                 d[key] = self[key]
@@ -842,23 +859,15 @@ class DataContainer:
                             d[key] = d[key].T
         return d
                 
-#    @classmethod
-#    def _init_key(cls):
-#        """
-#        The key in the internal dict that establishes that the object
-#        is initialized.
-#        """
-#        return '_{0}__initialised'.format(cls.__name__)
-
     def __getattr__(self, item):
         """Maps values to attributes.
         Only called if there *isn't* an attribute with this name
         """
         try:
             return self.__getitem__(item)
-        except KeyError:
+        except KeyError as e:
             raise AttributeError('{0} is not an attribute of {1}!'.format(item,
-                                    self.__class__.__name__))
+                                    self.__class__.__name__)) from e
 
     def __setattr__(self, item, value):
         """
@@ -881,7 +890,7 @@ class DataContainer:
                 self.__setitem__(item, value)
             except KeyError as e:
                 # Raise attribute error instead of key error
-                raise AttributeError(e)
+                raise AttributeError('{0} is not part of the data model!'.format(item)) from e
 
     def __setitem__(self, item, value):
         """
@@ -909,7 +918,9 @@ class DataContainer:
         """
         return self.datamodel.keys()
 
-    def to_hdu(self, primary_hdr=None, add_primary=False):
+    # TODO: Always have this return an HDUList instead of either that
+    # or a normal list?
+    def to_hdu(self, hdr=None, add_primary=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -923,9 +934,9 @@ class DataContainer:
         the HDU.
 
         Args:
-            primary_hdr (`astropy.io.fits.Header`):
-                Header to add in the primary HDU. If None, set by
-                :func:`pypeit.io.initialize_header()`.
+            hdr (`astropy.io.fits.Header`, optional):
+                Baseline header to add to all returned HDUs. If None,
+                set by :func:`pypeit.io.initialize_header()`.
             add_primary (:obj:`bool`, optional):
                 If False, the returned object is a simple
                 :obj:`list`, with a list of HDU objects (either
@@ -934,16 +945,14 @@ class DataContainer:
                 constructs an `astropy.io.fits.HDUList` with a
                 primary HDU, such that this call::
 
-                    hdu = fits.HDUList([fits.PrimaryHDU()] + self.to_hdu())
+                    hdr = io.initialize_header()
+                    hdu = fits.HDUList([fits.PrimaryHDU(header=hdr)] + self.to_hdu(hdr=hdr))
 
                 and this call::
 
                     hdu = self.to_hdu(add_primary=True)
 
-                are identical. To give a specific primary HDU header,
-                use ``primary_hdr``; otherwise,
-                :func:`pypeit.io.initialize_header()` will be used to
-                initialize the header when ``add_primary`` is True.
+                are identical.
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -953,19 +962,19 @@ class DataContainer:
         data = self._bundle()
 
         # Initialize the base header
-        hdr = io.initialize_header() if primary_hdr is None else primary_hdr
-        hdr['DATAMOD'] = (self.__class__.__name__, 'Datamodel class')
-        hdr['DATAVER'] = (self.version, 'Datamodel version')
+        _hdr = io.initialize_header() if hdr is None else hdr
+        _hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
+        _hdr['DMODVER'] = (self.version, 'Datamodel version')
 
         # Construct the list of HDUs
         hdu = []
         for d in data:
             if isinstance(d, dict) and len(d) == 1:
                 ext = list(d.keys())[0]
-                hdu += [io.write_to_hdu(d[ext], name=ext, hdr=hdr)]
+                hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
             else:
-                hdu += [io.write_to_hdu(d, hdr=hdr)]
-        return fits.HDUList([fits.PrimaryHDU(header=hdr)] + hdu) if add_primary else hdu
+                hdu += [io.write_to_hdu(d, hdr=_hdr)]
+        return fits.HDUList([fits.PrimaryHDU(header=_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
     def from_hdu(cls, hdu):
@@ -983,13 +992,14 @@ class DataContainer:
         # need to use the `__init__` of the base class instead. So
         # below, I get an empty instance of the derived class using
         # `__new__`, call the parent `__init__`, and then return the
-        # result. This is the first time I've used `__new__` so we may
-        # want to tread carefully, but it seems to work.
+        # result. The call to `DataContainer.__init__` is explicit to
+        # deal with objects inheriting from both DataContainer and
+        # other base classes, like MasterFrame.
         self = super().__new__(cls)
-        super(cls, self).__init__(cls._parse(hdu))
+        DataContainer.__init__(self, cls._parse(hdu))
         return self
 
-    def to_file(self, ofile, overwrite=False, checksum=True):
+    def to_file(self, ofile, hdr=None, overwrite=False, checksum=True):
         """
         Write the data to a file.
 
@@ -1003,15 +1013,19 @@ class DataContainer:
                 Fits file for the data. File names with '.gz'
                 extensions will be gzipped; see
                 :func:`pypeit.io.write_to_fits`.
+            hdr (`astropy.io.fits.Header`, optional):
+                Baseline header to add to all returned HDUs. Passed
+                directly to :func:`to_hdu`; see usage there.
             overwrite (:obj:`bool`, optional):
                 Flag to overwrite any existing file.
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
         """
-        io.write_to_fits(self.to_hdu(add_primary=True), ofile, overwrite=overwrite,
+        io.write_to_fits(self.to_hdu(hdr=hdr, add_primary=True), ofile, overwrite=overwrite,
                          checksum=checksum)
 
+    # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
     def from_file(cls, ifile):
         """

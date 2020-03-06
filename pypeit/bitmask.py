@@ -172,7 +172,7 @@ class BitMask:
         Returns:
             list: List of bit keywords.
         """
-        return list(set(self.bits.keys())-set(['NULL']))
+        return [k for k in self.bits.keys() if k != 'NULL']
 
     def info(self):
         """
@@ -281,7 +281,7 @@ class BitMask:
             return []
         keys = numpy.array(self.keys())
         indx = numpy.array([1<<self.bits[k] & value != 0 for k in keys])
-        return list(keys[indx])
+        return (keys[indx]).tolist()
 
     def toggle(self, value, flag):
         """
@@ -353,10 +353,11 @@ class BitMask:
         Ensure that a bit is turned off in the provided bitmask value.
 
         Args:
-            value (uint or array): Bitmask value.  It should be less
-                than or equal to :attr:`max_value`; however, that is not
-                checked.
-            flag (list, numpy.ndarray, or str): Bit name(s) to turn off.
+            value (int, array-like):
+                Bitmask value.  It should be less than or equal to
+                :attr:`max_value`; however, that is not checked.
+            flag (str, array-like):
+                Bit name(s) to turn off.
         
         Returns:
             uint: New bitmask value after turning off the selected bit.

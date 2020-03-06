@@ -85,6 +85,8 @@ class Spectrograph(object):
         self.spectrograph = 'base'
         self.camera = 'base'
         self.telescope = None
+        self.camera = None
+        self.dispname = None
         self.detector = None
         self.naxis = None
 #        self.raw_naxis = None
@@ -849,15 +851,23 @@ class Spectrograph(object):
 
     @property
     def norders(self):
-        pass
+        return None
+
+    def check_disperser(self):
+        """
+        Ensure that the disperser is defined.
+        """
+        if self.dispname is None:
+            msgs.error('Disperser used for observations is required.  Reinit with an example '
+                       'science frame.')
 
     @property
     def order_spat_pos(self):
-        pass
+        return None
 
     @property
     def orders(self):
-        pass
+        return None
 
     @property
     def spec_min_max(self):
@@ -865,11 +875,11 @@ class Spectrograph(object):
 
     @property
     def dloglam(self):
-        pass
+        return None
 
     @property
     def loglam_minmax(self):
-        pass
+        return None
 
     def slit2order(self, slit_spat_pos):
         """

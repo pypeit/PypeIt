@@ -444,10 +444,11 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None, spec_samp_coarse=None,
-                 spat_samp=None, tweak_slits=None, tweak_slits_thresh=None, tweak_slits_maxfrac=None):
+    def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None,
+                 spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
+                 tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_pad=None,
+                 illum_iter=None, illum_rej=None, twod_fit_npoly=None):
 
-    
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -490,6 +491,7 @@ class FlatFieldPar(ParSet):
         descr['spec_samp_coarse'] = 'bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to ' \
                                     'flat field image residuals. This should be a large number unless you are trying to ' \
                                     'fit a sky flat with lots of narrow spectral features.'
+
         defaults['spat_samp'] = 5.0
         dtypes['spat_samp'] = [int, float]
         descr['spat_samp'] = 'Spatial sampling for slit illumination function. This is the width of the median ' \
@@ -514,6 +516,44 @@ class FlatFieldPar(ParSet):
                                        'which means slits would shrink or grow by at most 20% (10% on each side)'
 
 
+        defaults['rej_sticky'] = False
+        dtypes['rej_sticky'] = bool
+        descr['rej_sticky'] = 'Propagate the rejected pixels through the stages of the ' \
+                              'flat-field fitting (i.e, from the spectral fit, to the spatial ' \
+                              'fit, and finally to the 2D residual fit).  If False, pixels ' \
+                              'rejected in each stage are included in each subsequent stage.'
+
+        defaults['slit_trim'] = 3.
+        dtypes['slit_trim'] = [int, float, tuple]
+        descr['slit_trim'] = 'The number of pixels to trim each side of the slit when ' \
+                             'selecting pixels to use for fitting the spectral response ' \
+                             'function.  Single values are used for both slit edges; a ' \
+                             'two-tuple can be used to trim the left and right sides differently.'
+
+        defaults['slit_pad'] = 5.
+        dtypes['slit_pad'] = [int, float]
+        descr['slit_pad'] = 'The number of pixels to pad the slit edges when constructing the ' \
+                            'slit-illumination profile. Single value applied to both edges.'
+
+        defaults['illum_iter'] = 0
+        dtypes['illum_iter'] = int
+        descr['illum_iter'] = 'The number of rejection iterations to perform when constructing ' \
+                              'the slit-illumination profile.  No rejection iterations are ' \
+                              'performed if 0.'
+
+        defaults['illum_rej'] = 3.
+        dtypes['illum_rej'] = [int, float]
+        descr['illum_rej'] = 'The sigma threshold used in the rejection iterations used to ' \
+                             'refine the slit-illumination profile.  Rejection iterations are ' \
+                             'only performed if ``illum_iter > 0``.'
+
+        dtypes['twod_fit_npoly'] = int
+        descr['twod_fit_npoly'] = 'Order of polynomial used in the 2D bspline-polynomial fit to ' \
+                                  'flat-field image residuals. The code determines the order of ' \
+                                  'these polynomials to each slit automatically depending on ' \
+                                  'the slit width, which is why the default is None. Alter ' \
+                                  'this paramter at your own risk!'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -529,7 +569,9 @@ class FlatFieldPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse',
-                   'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac']
+                   'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
+                   'rej_sticky', 'slit_trim', 'slit_pad', 'illum_iter', 'illum_rej',
+                   'twod_fit_npoly']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -2295,9 +2337,13 @@ class EdgeTracePar(ParSet):
 #        descr['trim'] = 'How much to trim off each edge of each slit.  Each number should be 0 ' \
 #                        'or positive'
 
+        # TODO: Describe better where and how this is used.  It's not
+        # actually used in the construction of the nominal slit edges,
+        # but only in subsequent use of the slits (e.g., flat-fielding)
         defaults['pad'] = 0
         dtypes['pad'] = int
-        descr['pad'] = 'Integer number of pixels to consider beyond the slit edges.'
+        descr['pad'] = 'Integer number of pixels to consider beyond the slit edges when ' \
+                       'selecting pixels that are \'on\' the slit.'
 
 #        defaults['single'] = []
 #        dtypes['single'] = list

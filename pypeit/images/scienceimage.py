@@ -185,10 +185,9 @@ class ScienceImage(pypeitimage.PypeItImage):
         repr = repr + '>'
         return repr
 
-
-def build_from_file_list(spectrograph, det, par, bpm,
-                   file_list, bias, pixel_flat, illum_flat=None,
-                   sigma_clip=False, sigrej=None, maxiters=5):
+# TODO: Make this a ScienceImage class method?
+def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_flat=None,
+                         illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5):
     """
     Build a ScienceImage from a file list
     using a default set of process steps
@@ -210,10 +209,12 @@ def build_from_file_list(spectrograph, det, par, bpm,
             List of files
         bias (np.ndarray or None):
             Bias image
-        pixel_flat (np.ndarray):
-            Flat image
+        pixel_flat (np.ndarray, optional):
+            Flat image. If None, pixel-to-pixel response is not
+            removed.
         illum_flat (np.ndarray, optional):
-            Illumination image
+            Illumination image. If None, slit illumination profile is
+            not removed.
         sigrej (int or float, optional): Rejection threshold for sigma clipping.
              Code defaults to determining this automatically based on the numberr of images provided.
         maxiters (int, optional):
@@ -225,7 +226,7 @@ def build_from_file_list(spectrograph, det, par, bpm,
     # Process steps
     process_steps = procimg.init_process_steps(bias, par)
     process_steps += ['trim', 'apply_gain', 'orient']
-    if (pixel_flat is not None) or (illum_flat is not None):
+    if pixel_flat is not None or illum_flat is not None:
         process_steps += ['flatten']
     process_steps += ['extras']
     if par['cr_reject']:

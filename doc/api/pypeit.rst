@@ -39,6 +39,7 @@ Submodules
    pypeit.sampling
    pypeit.sensfunc
    pypeit.setup_package
+   pypeit.slittrace
    pypeit.specobj
    pypeit.specobjs
    pypeit.telescopes
