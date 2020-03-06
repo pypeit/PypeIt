@@ -128,7 +128,6 @@ class PypeIt(object):
         self.reuse_masters = reuse_masters
         self.show = show
 
-
         # Set paths
         if self.par['calibrations']['caldir'] == 'default':
             self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')

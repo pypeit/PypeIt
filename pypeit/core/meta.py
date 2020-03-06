@@ -23,6 +23,9 @@ def convert_radec(ra, dec):
     """
     Handle multiple ra,dec inputs and return decimal degrees
 
+    If ra, dec are str but do *not* have J or ':' in the RA term,
+    then they will be converted to floats
+
     Args:
         ra (str or float or np.ndarray):
             RA as decimal deg (float) or  hh:mm:ss.s (str)
@@ -40,8 +43,11 @@ def convert_radec(ra, dec):
         return coord.ra.value, coord.dec.value
     elif isinstance(ra, np.ndarray):
         if isinstance(ra[0], str):
-            coords = coordinates.SkyCoord(ra,dec, unit=(units.hourangle, units.deg))
-            return coords.ra.value, coords.dec.value
+            if (('J' in ra[0]) or (':' in ra[0])):
+                coords = coordinates.SkyCoord(ra,dec, unit=(units.hourangle, units.deg))
+                return coords.ra.value, coords.dec.value
+            else:
+                return ra.astype(float), dec.astype(float)
     else:
         return ra, dec
 
