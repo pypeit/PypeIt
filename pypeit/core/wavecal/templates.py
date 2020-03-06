@@ -36,7 +36,7 @@ else:
 outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 
-def build_template(in_files, slits, wv_cuts, binspec, outroot,
+def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=True, ifiles=None, det_cut=None, chk=False,
                    miny=None, overwrite=True):
@@ -54,6 +54,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
             Spectral binning of the archived spectrum
         outroot (str):
             Name of output archive
+        outdir (str):
+            Name of output directory
         lowredux (bool, optional):
             If true, in_files are from LowRedux
         wvspec (ndarray, optional):
@@ -72,6 +74,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         subtract_conti (bool, optional):
             Subtract the continuum for the final archive
     """
+    if outdir is None:
+        outdir = outpath
+
     # Load xidl file
     # Grab it
     # Load and splice
@@ -132,7 +137,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         debugger.plot1d(nwwv, nwspec)
         embed(header='102')
     # Generate the table
-    write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut, overwrite=overwrite)
+    write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
 
 
 def pypeit_arcspec(in_file, slit):
@@ -154,15 +159,22 @@ def pypeit_arcspec(in_file, slit):
     return wv_vac, np.array(iwv_calib['spec'])
 
 
-def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
+def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
     """From within PypeIt, generate a template file if the user manually identifies an arc spectrum
 
     Args:
-        iwv_calib (dict): Wavelength calibration returned by final_fit
-        binspec (int): Spectral binning
-        specname (str): Name of instrument
-        gratname (str): Name of grating
-        dispangl (str): Dispersion angle
+        iwv_calib : dict
+            Wavelength calibration returned by final_fit
+        binspec : int
+            Spectral binning
+        specname : str
+            Name of instrument
+        gratname : str
+            Name of grating
+        dispangl : str
+            Dispersion angle
+        outdir : str, None
+            Output directory
     """
     x = np.arange(len(iwv_calib['spec']))
     wv_vac = utils.func_val(iwv_calib['fitc'], x / iwv_calib['xnorm'], iwv_calib['function'],
@@ -180,7 +192,7 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
         cntr += 1
     slits = [0]
     lcut = [3200.]
-    build_template("", slits, lcut, binspec, outroot, wvspec=wvspec, lowredux=False, overwrite=False)
+    build_template("", slits, lcut, binspec, outroot, outdir=outdir, wvspec=wvspec, lowredux=False, overwrite=False)
     # Return
     return
 

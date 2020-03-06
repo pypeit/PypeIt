@@ -18,13 +18,16 @@ def parser(options=None):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type=str, default=None, help='PypeIt MasterArc file')
-    parser.add_argument("--lamps", default='', help="Comma separated list of calibration lamps (no spaces)", type=str)
-    parser.add_argument("--wmin", default=0.0, help="Minimum wavelength range", type=float)
-    parser.add_argument("--wmax", default=1.0E10, help="Maximum wavelength range", type=float)
-    parser.add_argument("--rmstol", default=0.1, help="Allowed RMS pixel tolerance to store solution to the archive",
-                        type=float)
-    parser.add_argument("--slit", default=0, help="Slit number to wavelength calibrate", type=int)
-    parser.add_argument("--det", default=1, help="Detector index", type=int)
+    parser.add_argument("--lamps", default=None, help="Comma separated list of calibration lamps (no spaces)",
+                        action="store_true")
+    parser.add_argument("--wmin", default=3000.0, help="Minimum wavelength range",
+                        action="store_true")
+    parser.add_argument("--wmax", default=10000.0, help="Maximum wavelength range",
+                        action="store_true")
+    parser.add_argument("--slit", default=0, help="Slit number to wavelength calibrate",
+                        action="store_true")
+    parser.add_argument("--det", default=1, help="Detector index",
+                        action="store_true")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
