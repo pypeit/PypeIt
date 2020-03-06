@@ -339,7 +339,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
               traces (:class:`pypeit.wavetilts.WaveTilts`), and fit the
               result with a bspline.  This provides the
               spatially-averaged spectral response of the instrument.
-              The data used in the fit is trimmed toward the clit
+              The data used in the fit is trimmed toward the slit
               spatial center via the ``slit_trim`` parameter in
               :attr:`flatpar`.
             - Use the bspline fit to construct and normalize out the
@@ -535,8 +535,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # Collapse the slit spatially and fit the spectral function
 
             # Create the tilts image for this slit
-            # TODO: Is the copy needed?
-            tilts = tracewave.fit2tilts(rawflat.shape, self.tilts_dict['coeffs'][:,:,slit].copy(),
+            tilts = tracewave.fit2tilts(rawflat.shape, self.tilts_dict['coeffs'][:,:,slit],
                                         self.tilts_dict['func2d'])
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
@@ -593,14 +592,6 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                          spec_flat_fit, xlabel='Spectral Pixel',
                                          ylabel='log(flat counts)',
                                          title='Spectral Fit for slit={:d}'.format(slit))
-
-                # KBW: Added this from an edit to the deimos_merge3
-                # branch that wasn't propagated here in the merge.  Is this needed?
-                # JXP
-                plt.clf()
-                ax = plt.gca()
-                ax.scatter(spec_coo_data, spec_flat_fit)
-                embed(header='724 of flatfield.py')
 
             if sticky:
                 # Add rejected pixels to gpm

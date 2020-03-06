@@ -889,9 +889,6 @@ class Calibrations(object):
         """
         Run full the full recipe of calibration steps
         """
-        # TODO: Is there anywhere in pypeit where the output from these
-        # `get_*` methods are caught? Do we need to keep returning
-        # self.* attributes?
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
         msgs.info("Calibration complete!")
