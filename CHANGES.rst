@@ -7,10 +7,23 @@
 - Added support for additional near-IR spectrographs.
 - Restrict extrapolation in tilt fitting
 - Replaces usage of the `tslits_dict` dictionary with
-  `pypeit.slittrace.SlitTraceSet` everywhere.
+  `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
+  object is now the main master file used for passing around the slit
+  edges once the edges are determined by `EdgeTraceSet`.
 - Removes usage of `pypeit.pixels.tslits2mask` and replaces it with
   `pypeit.slittrace.SlitTraceSet.slit_img`.
 - Significant changes to flat-fielding control flow.
+    - Added `rej_sticky`, `slit_trim`, `slit_pad`, `illum_iter`,
+      `illum_rej`, `twod_fit_npoly` parameters to FlatFieldPar.
+    - Illumination flat no longer removed if the user doesn't want to
+      apply it to the data.  The flat was always created, but all that
+      work was lost if the illumination correction wasn't requested.
+    - Replaced tweak edges method with a more direct algorithm.
+    - `pypeit.core.flat.fit_flat` moved to
+      `pypeit.flatfield.FlatField.fit`.
+- Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
+  sobel image to the ginga display.
+- Added `bspline_profile_qa` for generic QA of a bspline fit.
 
 0.12.3 (13 Feb 2019)
 --------------------
