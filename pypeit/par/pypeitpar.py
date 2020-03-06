@@ -700,7 +700,7 @@ class BarPar(ParSet):
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
 
-        defaults['locations'] = [0.5]
+        defaults['locations'] = [0.0, 0.5, 1.0]
         dtypes['locations'] = [list, numpy.ndarray]
         descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
 
@@ -3168,7 +3168,7 @@ class PypeItPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['rdx'] = ReduxPar()
         dtypes['rdx'] = [ ParSet, dict ]
-        descr['rdx'] = 'PypIt reduction rules.'
+        descr['rdx'] = 'PypeIt reduction rules.'
 
 #        defaults['baseprocess'] = ProcessImagesPar()
 #        dtypes['baseprocess'] = [ ParSet, dict ]
