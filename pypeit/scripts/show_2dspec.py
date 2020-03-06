@@ -134,6 +134,10 @@ def main(args):
                                      ii)[0] for ii in range(tslits_dict['slit_left'].shape[1])]
     # Show the bitmask?
     mask_in = mask if args.showmask else None
+    # Unpack the bitmask
+    bitMask = ImageBitMask()
+    bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
+            = bitMask.unpack(mask)
 
     # Object traces from spec1d file
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -145,10 +149,6 @@ def main(args):
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
-    # Unpack the bitmask
-    bitMask = ImageBitMask()
-    bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
-            = bitMask.unpack(mask)
 
     # Now show each image to a separate channel
 
@@ -159,7 +159,8 @@ def main(args):
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg, bitmask=mask_in, clear=True)
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
+                                  bitmask=bitMask, clear=True)
                                   #, cuts=(cut_min, cut_max), wcs_match=True)
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
@@ -175,7 +176,7 @@ def main(args):
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
-                                  bitmask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
+                                  bitmask=bitMask) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)

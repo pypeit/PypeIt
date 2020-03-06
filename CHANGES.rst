@@ -22,6 +22,7 @@
 - Add more cards to spec1d header output
 - Fixes a few sensfunc bugs
 - Added template for LRIS 600/7500
+- Deal with non-extracted Standard
 
 0.12.2 (14 Jan 2019)
 --------------------

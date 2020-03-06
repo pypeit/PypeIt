@@ -241,14 +241,19 @@ class SpecObjs(object):
                 the standard on each detector.
 
         Returns:
-            SpecObj or SpecObjs
+            SpecObj or SpecObjs or None
 
         """
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
             # Have to do a loop to extract the counts for all objects
-            SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+            if hasattr(self, 'OPT_COUNTS'):
+                SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+            elif not hasattr(self, 'BOX_COUNTS'):
+                return None
+            else:
+                SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             # For multiple detectors grab the requested detectors
             if multi_spec_det is not None:
                 sobjs_std = SpecObjs(header=self.header)
@@ -274,7 +279,13 @@ class SpecObjs(object):
                 for iord in range(norders):
                     ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
-                    SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
+                    # Grab SNR
+                    if hasattr(spec[0], 'OPT_COUNTS'):
+                        SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
+                    elif not hasattr(self, 'BOX_COUNTS'):
+                        return None
+                    else:
+                        SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
             # Maximize S/N
             SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
             objid_std = uni_objid[SNR_all.argmax()]
