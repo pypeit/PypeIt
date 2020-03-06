@@ -6,6 +6,7 @@
   algorithms.
 - Added support for additional near-IR spectrographs.
 - Restrict extrapolation in tilt fitting
+- Implemented interactive sky region selection
 
 0.12.3 (13 Feb 2019)
 --------------------
