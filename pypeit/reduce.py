@@ -1,17 +1,20 @@
 
+import os
 import inspect
 import numpy as np
 
 from astropy import stats
+from astropy.io import fits
 from abc import ABCMeta
 
 from linetools import utils as ltu
 
 from pypeit import specobjs
-from pypeit import ginga, msgs, edgetrace
+from pypeit import ginga, msgs, masterframe
 from pypeit.core import skysub, extract, pixels, wave
 
 from IPython import embed
+
 
 class Reduce(object):
     """
@@ -382,7 +385,7 @@ class Reduce(object):
          """
         return None, None, None
 
-    def global_skysub(self, skymask=None, update_crmask=True,
+    def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
                       show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -433,7 +436,7 @@ class Reduce(object):
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
                                            thismask, left[:,slit], right[:,slit], inmask=inmask,
-                                           sigrej=sigrej,
+                                           sigrej=sigrej, trim_edg=trim_edg,
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
@@ -1052,6 +1055,113 @@ class EchelleReduce(Reduce):
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
+
+class IFUReduce(Reduce):
+    """
+    Child of Reduce for IFU reductions
+
+    See parent doc string for Args and Attributes
+
+    """
+
+    def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
+        super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+
+        # Make sure the full slit is used
+        self.slitmask = self.slits.slit_img(original=True)
+
+    def get_platescale(self, dummy):
+        """
+        Return the platescale for IFU.
+        The input argument is ignored
+
+        Args:
+            dummy (:class:`pypeit.specobj.SpecObj`):
+                ignored
+
+        Returns:
+            float:
+
+        """
+        plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+        return plate_scale
+
+    def resample_cube(self):
+        pass
+
+    def load_skyregions(self):
+        skymask_init = None
+        if self.par['reduce']['skysub']['load_mask']:
+            # Check if a master Sky Regions file exists for this science frame
+            file_base = os.path.basename(self.sciImg.files[0])
+            prefix = os.path.splitext(file_base)
+            if prefix[1] == ".gz":
+                sciName = os.path.splitext(prefix[0])[0]
+            else:
+                sciName = prefix[0]
+
+            # Setup the master frame name
+            master_dir = self.caliBrate.master_dir
+            master_key = list(self.caliBrate.calib_dict)[0] + "_" + sciName
+            mstr_skyreg = masterframe.MasterFrame("SkyRegions", file_format='fits.gz', master_dir=master_dir,
+                                                  master_key=master_key)
+            regfile = mstr_skyreg.master_file_path
+            # Check if a file exists
+            if os.path.exists(regfile):
+                msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
+                skymask_init = fits.getdata(regfile).astype(np.bool)
+            else:
+                msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
+        return skymask_init
+
+    def run(self, basename=None, ra=None, dec=None, obstime=None,
+            std_trace=None, manual_extract_dict=None, show_peaks=False):
+        """
+        Primary code flow for PypeIt reductions
+
+        Args:
+            basename (str, optional):
+                Required if flexure correction is to be applied
+            ra (str, optional):
+                Required if helio-centric correction is to be applied
+            dec (str, optional):
+                Required if helio-centric correction is to be applied
+            obstime (:obj:`astropy.time.Time`, optional):
+                Required if helio-centric correction is to be applied
+            std_trace (np.ndarray, optional):
+                Trace of the standard star
+            manual_extract_dict (dict, optional):
+            show_peaks (bool, optional):
+                Show peaks in find_objects methods
+
+        Returns:
+            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
+               outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
+
+        """
+        # Check if the user has a pre-defined sky regions file
+        skymask_init = self.load_skyregions()
+
+        # Global sky subtract
+        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
+
+        from pypeit.io import write_to_fits
+        write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
+        write_to_fits(self.global_sky, "initial_sky.fits", overwrite=True)
+        write_to_fits(self.sciImg.image-self.global_sky, "skysub_science.fits", overwrite=True)
+        msgs.error("SUCCESSFUL -- UP TO HERE!")
+
+        # Resample data onto desired grid
+        # TODO :: still need to implement this step...
+
+        # TODO -- Should we move these to redux.run()?
+        # Heliocentric
+        radec = ltu.radec_to_coord((ra, dec))
+        self.helio_correct(self.sobjs, radec, obstime)
+
+        # Return
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
 # TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
 def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     """
@@ -1077,6 +1187,3 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
         msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
                                                          par, caliBrate, **kwargs)
-
-
-

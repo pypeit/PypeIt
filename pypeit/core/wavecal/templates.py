@@ -194,7 +194,7 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     lcut = [3200.]
     build_template("", slits, lcut, binspec, outroot, outdir=outdir, wvspec=wvspec, lowredux=False, overwrite=False)
     # Return
-    return
+    return outroot
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):

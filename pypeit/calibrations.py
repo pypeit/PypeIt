@@ -453,12 +453,12 @@ class Calibrations(object):
         binning = self.spectrograph.get_meta_value(self.arc_files[0], 'binning')
 
         # Instantiate
-        self.barProfile = barframe.BarProfile(self.msbar, self.spectrograph,
+        self.barProfile = barframe.BarProfile(self.msbar, self.slits, self.spectrograph,
                                               self.par['barprofile'],
                                               det=self.det, binning=binning,
                                               master_key=self.master_key_dict['bar'],
                                               master_dir=self.master_dir,
-                                              slits=self.slits, reuse_masters=self.reuse_masters,
+                                              reuse_masters=self.reuse_masters,
                                               qa_path=self.qa_path, msbpm=self.msbpm)
 
         # Master

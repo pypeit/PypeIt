@@ -27,7 +27,7 @@ class WaveCalib(masterframe.MasterFrame):
     Args:
         msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
             Arc image, created by the ArcImage class
-        slits (:class:`pypeit.edgetrace.SlitTraceSet`, None):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
             Slit edges
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the

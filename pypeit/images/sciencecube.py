@@ -6,7 +6,7 @@ import inspect
 
 import os
 import numpy as np
-
+from shapely.geometry import Polygon
 
 from pypeit import msgs
 
@@ -22,7 +22,7 @@ from IPython import embed
 
 class ScienceImage(pypeitimage.PypeItImage):
     """
-    Class to generate and hold a science image
+    Class to generate and hold a science cube
 
     Child of PypeItImage
 
@@ -46,7 +46,7 @@ class ScienceImage(pypeitimage.PypeItImage):
             List of filenames that went into the loaded image
 
     """
-    frametype = 'science'
+    frametype = 'cube'
 
     def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
                  crmask=None, mask=None, files=None):
@@ -60,13 +60,19 @@ class ScienceImage(pypeitimage.PypeItImage):
 
         # Required attribs
         self.spectrograph = spectrograph
-        if not isinstance(par, pypeitpar.ProcessImagesPar):
-            msgs.error('Provided ParSet for must be type ProcessImagesPar.')
+        if not isinstance(par, pypeitpar.CubePar):
+            msgs.error('Provided ParSet for must be type CubePar.')
         self.par = par
         self.det = det
 
         # Not required
         self.files = files
+
+    def calculate_area(self):
+        """Calculate the overlapping area of a pixel and voxel"""
+        voxel = Polygon([(0.1, 0.2), (1.2, 1.23), (2.5, 0.8), (0.5, 0.12)])
+        pixel = Polygon([(0, 0), (0, 1), (1, 1), (1, 0)])
+        area = voxel.intersection(pixel).area
 
     def build_crmask(self, subtract_img=None):
         """
@@ -189,9 +195,9 @@ class ScienceImage(pypeitimage.PypeItImage):
         return repr
 
 
-# TODO: Make this a ScienceImage class method?
-def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_flat=None,
-                         illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5):
+def build_from_file_list(spectrograph, det, par, bpm,
+                   file_list, bias, pixel_flat, illum_flat=None,
+                   sigma_clip=False, sigrej=None, maxiters=5):
     """
     Build a ScienceImage from a file list
     using a default set of process steps
@@ -213,12 +219,10 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
             List of files
         bias (np.ndarray or None):
             Bias image
-        pixel_flat (np.ndarray, optional):
-            Flat image. If None, pixel-to-pixel response is not
-            removed.
+        pixel_flat (np.ndarray):
+            Flat image
         illum_flat (np.ndarray, optional):
-            Illumination image. If None, slit illumination profile is
-            not removed.
+            Illumination image
         sigrej (int or float, optional): Rejection threshold for sigma clipping.
              Code defaults to determining this automatically based on the numberr of images provided.
         maxiters (int, optional):
@@ -230,7 +234,7 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
     # Process steps
     process_steps = procimg.init_process_steps(bias, par)
     process_steps += ['trim', 'apply_gain', 'orient']
-    if pixel_flat is not None or illum_flat is not None:
+    if (pixel_flat is not None) or (illum_flat is not None):
         process_steps += ['flatten']
     process_steps += ['extras']
     if par['cr_reject']:
@@ -238,14 +242,14 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
 
     combineImage = combineimage.CombineImage(spectrograph, det, par, file_list)
     pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
-                                   illum_flat=illum_flat, sigma_clip=sigma_clip,
-                                   sigrej=sigrej, maxiters=maxiters)
+                                 illum_flat=illum_flat, sigma_clip=sigma_clip,
+                                 sigrej=sigrej, maxiters=maxiters)
 
     # Instantiate
     slf = ScienceImage(spectrograph, det, par, pypeitImage.image, pypeitImage.ivar,
-                       pypeitImage.bpm, rn2img=pypeitImage.rn2img,
-                       crmask=pypeitImage.crmask, mask=pypeitImage.mask,
-                       files=file_list)
+                                pypeitImage.bpm, rn2img=pypeitImage.rn2img,
+                                crmask=pypeitImage.crmask, mask=pypeitImage.mask,
+                                files=file_list)
     # Return
     return slf
 

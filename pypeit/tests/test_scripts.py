@@ -182,7 +182,6 @@ def test_chk_flat():
     chk_flats.main(pargs)
 
 
-
 def test_coadd1d_1():
     """
     Test basic coadd using Shane Kast blue
@@ -233,5 +232,4 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
-
 

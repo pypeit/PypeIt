@@ -218,10 +218,10 @@ class BarProfile(masterframe.MasterFrame):
         # have a different binning then the images used to defined
         # the slits
         if self.slits is not None and self.msbar is not None:
-            # NOTE: This uses the internal definition of `pad`
+            # NOTE: This uses the interneral definition of `pad`
             self.slitmask_science = self.slits.slit_img()
             gpm = (self.bpm == 0) if self.bpm is not None \
-                else np.ones_like(self.slitmask_science, dtype=bool)
+                                        else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msbar.image.shape
             self.nslits = self.slits.nslits
@@ -259,7 +259,6 @@ class BarProfile(masterframe.MasterFrame):
             dict:  self.bar_dict
         """
         bar_prof = dict({})
-
         # Prepare the plotting canvas
         if show_trace:
             self.show('image', image=self.msbar.image, chname='bar_traces', slits=True)

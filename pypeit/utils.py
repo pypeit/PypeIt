@@ -695,7 +695,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     msgs.info("******************************  Iter  Chi^2  # rejected  Rel. fact   ******************************")
     msgs.info("                              ----  -----  ----------  --------- ")
 
-
     maskwork = outmask & inmask & (invvar > 0)
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')

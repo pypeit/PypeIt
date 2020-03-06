@@ -11,7 +11,7 @@ from matplotlib.widgets import Button, Slider
 import matplotlib.transforms as mtransforms
 from scipy.interpolate import RectBivariateSpline
 
-from pypeit import specobjs
+from pypeit import slittrace
 from pypeit import msgs
 from pypeit.io import write_to_fits
 from pypeit.core import pixels
@@ -40,8 +40,8 @@ class SkySubGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, outname, det, tslits_dict, axes,
-                 printout=False, runtime=False, resolution=1000):
+    def __init__(self, canvas, image, frame, outname, det, slits, axes,
+                 printout=False, runtime=False, overwrite=False, resolution=1000):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
         The main goal of this routine is to interactively select sky background
@@ -58,8 +58,8 @@ class SkySubGUI(object):
                 The output filename to save the sky regions mask
             det : int
                 Detector to add a slit on
-            tslits_dict : dict
-                Dictionary containing information about the slit traces
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
+                Slit edges
             axes : dict
                 Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
             printout : bool
@@ -75,14 +75,15 @@ class SkySubGUI(object):
         self.image = image
         self.frame = frame
         self._outname = outname
+        self._overwrite = overwrite
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
         self._spectrace = np.arange(self.nspec)
         self._printout = printout
         self._runtime = runtime
         self.axes = axes
         self._currslit = -1
-        self.tslits_dict = tslits_dict
-        self._nslits = tslits_dict['slit_left'].shape[1]
+        self.slits = slits
+        self._nslits = slits.left.shape[1]
         self._resolution = int(resolution)
         self._allreg = np.zeros(int(resolution), dtype=np.bool)
         self._specx = np.arange(int(resolution))
@@ -126,16 +127,18 @@ class SkySubGUI(object):
         self.reset_regions()
 
     @classmethod
-    def initialize(cls, det, frame, tslits_dict, outname="skyregions.fits", runtime=False, printout=False):
+    def initialize(cls, det, frame, slits, overwrite=False, outname="skyregions.fits", runtime=False, printout=False):
         """Initialize the 'ObjFindGUI' window for interactive object tracing
 
             Args:
-                frame : ndarray
-                    Sky subtracted science image
-                tslits_dict : dict, None
-                    Dictionary containing slit trace information
                 det : int
                     Detector index
+                frame : ndarray
+                    Sky subtracted science image
+                slits : :class:`pypeit.slittrace.SlitTraceSet`, None
+                    Slit edges
+                overwrite : bool
+                    Overwrite existing sky region files?
                 printout : bool
                     Should the results be printed to screen
                 runtime : bool
@@ -146,14 +149,14 @@ class SkySubGUI(object):
         """
         # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
         # vectors of size (nspec)
-        if tslits_dict['slit_left'].ndim == 2:
-            nslit = tslits_dict['slit_left'].shape[1]
+        if slits.left.ndim == 2:
+            nslit = slits.left.shape[1]
         else:
             nslit = 1
-            tslits_dict['slit_left'] = tslits_dict['slit_left'].reshape((tslits_dict['slit_left'].size, 1))
-            tslits_dict['slit_righ'] = tslits_dict['slit_righ'].reshape((tslits_dict['slit_righ'].size, 1))
-        lordloc = tslits_dict['slit_left']
-        rordloc = tslits_dict['slit_righ']
+#            tslits_dict['slit_left'] = slits.left.reshape((tslits_dict['slit_left'].size, 1))
+#            tslits_dict['slit_righ'] = tslits_dict['slit_righ'].reshape((tslits_dict['slit_righ'].size, 1))
+        lordloc = slits.left
+        rordloc = slits.right
 
         # Determine the scale of the image
         med = np.median(frame)
@@ -184,8 +187,8 @@ class SkySubGUI(object):
         axes = dict(main=ax, info=axinfo)
         # Initialise the object finding window and display to screen
         fig.canvas.set_window_title('PypeIt - Sky regions')
-        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, tslits_dict, axes,
-                          printout=printout, runtime=runtime)
+        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes,
+                          printout=printout, runtime=runtime, overwrite=overwrite)
         plt.show()
 
         return srgui
@@ -269,14 +272,14 @@ class SkySubGUI(object):
         # Loop through all slits:
         for sl in range(self._nslits):
             # Fill fraction of the slit
-            diff = self.tslits_dict['slit_righ'][:,sl] - self.tslits_dict['slit_left'][:,sl]
+            diff = self.slits.right[:, sl] - self.slits.left[:, sl]
             tmp = np.zeros(self._resolution+2)
             tmp[1:-1] = self._skyreg[sl]
             wl = np.where(tmp[1:] > tmp[:-1])[0]
             wr = np.where(tmp[1:] < tmp[:-1])[0]
             for rr in range(wl.size):
-                left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
-                righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
+                left = self.slits.left[:, sl] + wl[rr]*diff/(self._resolution-1.0)
+                righ = self.slits.left[:, sl] + wr[rr]*diff/(self._resolution-1.0)
                 self._fitr.append(self.axes['main'].fill_betweenx(self._spectrace, left, righ, facecolor='red',
                                                                   alpha=0.5))
         # Plot the region on top of the "all slits" panel
@@ -306,8 +309,8 @@ class SkySubGUI(object):
         # Find the current slit
         self._currslit = -1
         yv = np.argmin(np.abs(event.ydata-self._spectrace))
-        wsl = np.where((event.xdata > self.tslits_dict['slit_left'][yv, :]) &
-                       (event.xdata < self.tslits_dict['slit_righ'][yv, :]))[0]
+        wsl = np.where((event.xdata > self.slits.left[yv, :]) &
+                       (event.xdata < self.slits.right[yv, :]))[0]
         # Double check there's only one solution
         if wsl.size == 1:
             self._currslit = int(wsl[0])
@@ -490,10 +493,7 @@ class SkySubGUI(object):
             # Generate the mask
             inmask = self.generate_mask()
             # Save the mask
-            write_to_fits(inmask, self._outname, name="SKYREG")
-            # Print the output to screen
-            msgs.info("Include the following info in your .pypeit file:\n")
-            print("STILL WORKING ON THIS!!!")
+            write_to_fits(inmask, self._outname, name="SKYREG", overwrite=self._overwrite)
         return
 
     def generate_mask(self):
@@ -506,22 +506,28 @@ class SkySubGUI(object):
         left_edg, righ_edg = np.zeros((self.nspec, 0)), np.zeros((self.nspec, 0))
         spec_min, spec_max = np.array([]), np.array([])
         for sl in range(self._nslits):
-            diff = self.tslits_dict['slit_righ'][:, sl] - self.tslits_dict['slit_left'][:, sl]
+            diff = self.slits.right[:, sl] - self.slits.left[:, sl]
             tmp = np.zeros(self._resolution+2)
             tmp[1:-1] = self._skyreg[sl]
             wl = np.where(tmp[1:] > tmp[:-1])[0]
             wr = np.where(tmp[1:] < tmp[:-1])[0]
             for rr in range(wl.size):
-                left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
-                righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
+                left = self.slits.left[:, sl] + wl[rr]*diff/(self._resolution-1.0)
+                righ = self.slits.left[:, sl] + wr[rr]*diff/(self._resolution-1.0)
                 left_edg = np.append(left_edg, left[:, np.newaxis], axis=1)
                 righ_edg = np.append(righ_edg, righ[:, np.newaxis], axis=1)
                 nreg += 1
-                spec_min = np.append(spec_min, self.tslits_dict['spec_min'][sl])
-                spec_max = np.append(spec_max, self.tslits_dict['spec_max'][sl])
-        reg_dict = dict(pad=0, slit_left=left_edg, slit_righ=righ_edg, nslits=nreg,
-                        nspec=self.nspec, nspat=self.nspat, spec_min=spec_min, spec_max=spec_max)
-        return (pixels.tslits2mask(reg_dict) >= 0).astype(np.int)
+                spec_min = np.append(spec_min, self.slits.specmin[sl])
+                spec_max = np.append(spec_max, self.slits.specmax[sl])
+        # Instantiate the regions
+        regions = slittrace.SlitTraceSet(left_edg, righ_edg, nspat=self.slits.nspat,
+                                         spectrograph=self.slits.spectrograph,
+                                         mask=self.slits.mask,
+                                         specmin=spec_min, specmax=spec_max,
+                                         binspec=self.slits.binspec, binspat=self.slits.binspat,
+                                         pad=0)
+        # Generate the mask, and return
+        return (regions.slit_img() >= 0).astype(np.int)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
@@ -570,13 +576,13 @@ class SkySubGUI(object):
         """
         # Figure out the locations of the start values
         ys = np.argmin(np.abs(self._start[1]-self._spectrace))
-        difs = self.tslits_dict['slit_righ'][ys, self._currslit] - self.tslits_dict['slit_left'][ys, self._currslit]
-        sval = (self._start[0]-self.tslits_dict['slit_left'][ys, self._currslit]) / difs
+        difs = self.slits.right[ys, self._currslit] - self.slits.left[ys, self._currslit]
+        sval = (self._start[0]-self.slits.left[ys, self._currslit]) / difs
         sidx = int(round(self._resolution*sval))
         # Figure out the locations of the start values
         yf = np.argmin(np.abs(self._end[1]-self._spectrace))
-        diff = self.tslits_dict['slit_righ'][yf, self._currslit] - self.tslits_dict['slit_left'][yf, self._currslit]
-        fval = (self._end[0]-self.tslits_dict['slit_left'][yf, self._currslit]) / diff
+        diff = self.slits.right[yf, self._currslit] - self.slits.left[yf, self._currslit]
+        fval = (self._end[0]-self.slits.left[yf, self._currslit]) / diff
         fidx = int(round(self._resolution*fval))
         # Switch the indices if needed
         if sidx > fidx:

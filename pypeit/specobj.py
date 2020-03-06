@@ -99,7 +99,7 @@ class SpecObj(object):
 
     Args:
         pypeline (str): Name of the PypeIt pypeline method
-            Allowed options are:  MultiSlit, Echelle
+            Allowed options are:  MultiSlit, Echelle, IFU
         det (int): Detector number
         copy_dict (dict, optional): Used to set the entire internal dict of the object.
             Only used in the copy() method so far.
@@ -133,7 +133,7 @@ class SpecObj(object):
     """
     @classmethod
     def from_table(cls, table, copy_dict=None):
-        if table.meta['PYPELINE'] == 'MultiSlit':
+        if table.meta['PYPELINE'] in ['MultiSlit', 'IFU']:
             # Instantiate
             slf = cls(table.meta['PYPELINE'], table.meta['DET'],
                       slitid=table.meta['SLITID'], copy_dict=copy_dict)
@@ -209,6 +209,8 @@ class SpecObj(object):
                 self.OBJTYPE = specobj_dict['objtype']
                 if self.PYPELINE == 'MultiSlit':
                     self.SLITID = specobj_dict['slitid']
+                elif self.PYPELINE == 'IFU':
+                    self.SLITID = specobj_dict['slitid']
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = specobj_dict['order']
                     self.ECH_ORDERINDX = specobj_dict['orderindx']
@@ -218,6 +220,8 @@ class SpecObj(object):
                 # pypeline specific
                 if self.PYPELINE == 'MultiSlit':
                     self.SLITID = slitid
+                elif self.PYPELINE == 'IFU':
+                    self.SLITID = specobj_dict['slitid']
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = ech_order
                     self.ECH_ORDERINDX = orderindx
@@ -235,6 +239,8 @@ class SpecObj(object):
             return self.ECH_ORDER
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
+        elif self.PYPELINE == 'IFU':
+            return self.SLITID
         else:
             msgs.error("Uh oh")
 
@@ -244,6 +250,8 @@ class SpecObj(object):
         if self.PYPELINE == 'Echelle':
             return self.ECH_ORDERINDX
         elif self.PYPELINE == 'MultiSlit':
+            return self.SLITID
+        elif self.PYPELINE == 'IFU':
             return self.SLITID
         else:
             msgs.error("Uh oh")
@@ -338,6 +346,19 @@ class SpecObj(object):
                 name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
             # Slit
             name += '-'+naming_model['slit']
+            name += '{:04d}'.format(self.SLITID)
+            sdet = parse.get_dnum(self.DET, prefix=False)
+            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            self.NAME = name
+        elif 'IFU' in self.PYPELINE:
+            # Spat
+            name = naming_model['spat']
+            if 'SPAT_PIXPOS' not in self._data.meta.keys():
+                name += '----'
+            else:
+                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+            # Slit
+            name += '-' + naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
             sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)

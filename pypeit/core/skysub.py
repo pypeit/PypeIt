@@ -127,6 +127,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
     sky_ivar = ivar[thismask][isrt]
     ximg_fit = ximg[thismask][isrt]
     inmask_fit = inmask_in[thismask][isrt]
+    inmask_prop = inmask_fit.copy()
     #spatial = spatial_img[fit_sky][isrt]
 
     # Restrict fit to positive pixels only and mask out large outliers via a pre-fit to the log.
@@ -139,36 +140,29 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
             # Init bspline to get the sky breakpoints (kludgy)
             #tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
             lskyset, outmask, lsky_fit, red_chi, exit_status = utils.bspline_profile(
-                pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky), inmask = inmask_fit[pos_sky],
+                pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky), inmask=inmask_fit[pos_sky],
                 upper=sigrej, lower=sigrej, kwargs_bspline={'bkspace':bsp},
                 kwargs_reject={'groupbadpix': True, 'maxrej': 10})
             res = (sky[pos_sky] - np.exp(lsky_fit)) * np.sqrt(sky_ivar[pos_sky])
             lmask = (res < 5.0) & (res > -4.0)
             sky_ivar[pos_sky] = sky_ivar[pos_sky] * lmask
-            inmask_fit[pos_sky]=(sky_ivar[pos_sky] > 0.0) & lmask
+            inmask_fit[pos_sky] = (sky_ivar[pos_sky] > 0.0) & lmask & inmask_prop[pos_sky]
 
     # Include a polynomial basis?
     if no_poly:
         poly_basis = np.ones_like(sky)
         npoly_fit = 1
     else:
-        npoly_fit = skysub_npoly(thismask) if npoly is None else npoly
+        npoly_fit = skysub_npoly(inmask) if npoly is None else npoly
         poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly_fit).T
-
-    # Full fit now
-    #full_bspline = pydl.bspline(wsky, nord=4, bkspace=bsp, npoly = npoly)
-    #skyset, outmask, yfit, _ = utils.bspline_profile(wsky, sky, sky_ivar, poly_basis,
-    #                                                   fullbkpt=full_bspline.breakpoints,upper=sigrej, lower=sigrej,
-    #                                                   kwargs_reject={'groupbadpix':True, 'maxrej': 10})
-
 
     # Perform the full fit now
     msgs.info("Full fit in global sky sub.")
-    skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar,poly_basis,inmask = inmask_fit,
-                                                                  nord=4,upper=sigrej, lower=sigrej,
-                                                                  maxiter=maxiter,
-                                                                  kwargs_bspline = {'bkspace':bsp},
-                                                                  kwargs_reject={'groupbadpix':True, 'maxrej': 10})
+    skyset, outmask, yfit, _, exit_status = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, inmask=inmask_fit,
+                                                                  nord=4, upper=sigrej, lower=sigrej, maxiter=maxiter,
+                                                                  kwargs_bspline={'bkspace': bsp},
+                                                                  kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+
     # TODO JFH This is a hack for now to deal with bad fits for which iterations do not converge. This is related
     # to the groupbadpix behavior requested for the djs_reject rejection. It would be good to
     # better understand what this functionality is doing, but it makes the rejection much more quickly approach a small
