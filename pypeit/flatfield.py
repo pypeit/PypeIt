@@ -201,117 +201,6 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                                                  ignore_saturation=True)
         return self.rawflatimg
 
-#    # TODO Need to add functionality to use a different frame for the ilumination flat, e.g. a sky flat
-#    def run(self, debug=False, show=False):
-#        """
-#        Generate normalized pixel and illumination flats
-#
-#        Code flow::
-#           1.  Generate the pixelflat image (if necessary)
-#           2.  Prepare b-spline knot spacing
-#           3.  Loop on slits/orders
-#               a. Calculate the slit profile
-#               b. Normalize
-#               c. Save
-#
-#        Args:
-#            debug (:obj:`bool`, optional):
-#                Run in debug mode.
-#            show (:obj:`bool`, optional):
-#                Show the results in the ginga viewer.
-#
-#        Returns:
-#            `numpy.ndarray`_: Two arrays are returned, the normalized
-#            pixel flat data and the slit illumination correction data.
-#        """
-#        # Build the pixel flat (as needed)
-#        self.build_pixflat()
-#
-#        # Prep tck (sets self.ntckx, self.ntcky)
-#        #self._prep_tck()
-#
-#        # Setup
-#        self.mspixelflat = np.ones_like(self.rawflatimg.image)
-#        self.msillumflat = np.ones_like(self.rawflatimg.image)
-#        self.flat_model = np.zeros_like(self.rawflatimg.image)
-#        self.tslits_dict = self.slits.to_tslits_dict()
-#        self.slitmask = pixels.tslits2mask(self.tslits_dict)
-##        self.slitmask = self.slits.slit_img()
-#
-#        final_tilts = np.zeros_like(self.rawflatimg.image)
-#
-#        # If we are tweaking slits allocate the new aray to hold tweaked slit boundaries
-#        if self.flatpar['tweak_slits']:
-##            self.slits.init_tweaks()
-#            self.tslits_dict['slit_left_tweak'] = np.zeros_like(self.tslits_dict['slit_left'])
-#            self.tslits_dict['slit_righ_tweak'] = np.zeros_like(self.tslits_dict['slit_righ'])
-#
-#        inmask = np.ones_like(self.rawflatimg.image, dtype=bool) if self.msbpm is None \
-#                    else np.invert(self.msbpm)
-#        nonlinear_counts = self.spectrograph.nonlinear_counts(det=self.det)
-#
-#        # Loop on slits
-#        for slit in range(self.nslits):
-#            # Is this a good slit??
-#            if self.slits.mask[slit]:
-#                msgs.info('Skipping bad slit: {}'.format(slit))
-#                continue
-#
-#            msgs.info('Computing flat field image for slit: {:d}/{:d}'.format(slit,self.nslits-1))
-#
-#            # Fit flats for a single slit
-#            this_tilts_dict = {'tilts':self.tilts_dict['tilts'],
-#                               'coeffs':self.tilts_dict['coeffs'][:,:,slit].copy(),
-#                               'slitcen':self.tilts_dict['slitcen'][:,slit].copy(),
-#                               'func2d':self.tilts_dict['func2d']}
-#
-#            pixelflat, illumflat, flat_model, tilts_out, thismask_out, slit_left_out, \
-#                    slit_righ_out \
-#                            = flat.fit_flat(self.rawflatimg.image, this_tilts_dict, self.tslits_dict,
-#                                           slit, inmask=inmask, nonlinear_counts=nonlinear_counts,
-#                                           spec_samp_fine=self.flatpar['spec_samp_fine'],
-#                                           spec_samp_coarse=self.flatpar['spec_samp_coarse'],
-#                                           spat_samp=self.flatpar['spat_samp'],
-#                                           tweak_slits=self.flatpar['tweak_slits'],
-#                                           tweak_slits_thresh=self.flatpar['tweak_slits_thresh'],
-#                                           tweak_slits_maxfrac=self.flatpar['tweak_slits_maxfrac'],
-#                                           debug=debug)
-#
-#            self.mspixelflat[thismask_out] = pixelflat[thismask_out]
-#            self.msillumflat[thismask_out] = illumflat[thismask_out]
-#            self.flat_model[thismask_out] = flat_model[thismask_out]
-#
-#            # Did we tweak slit boundaries? If so, update the tslits_dict and the tilts_dict
-#            if self.flatpar['tweak_slits']:
-#                # TODO: Why do we need slit_left, slit_left_orig, and
-#                # slit_left_tweak? Shouldn't we only need two of these?
-#                
-##                self.slits.left[:,slit] = slit_left_out
-##                self.slits.left_tweak[:,slit] = slit_left_out
-##                self.slits.right[:,slit] = slit_righ_out
-##                self.slits.right_tweak[:,slit] = slit_righ_out
-#                self.tslits_dict['slit_left'][:,slit] = slit_left_out
-#                self.tslits_dict['slit_righ'][:,slit] = slit_righ_out
-#                self.tslits_dict['slit_left_tweak'][:,slit] = slit_left_out
-#                self.tslits_dict['slit_righ_tweak'][:,slit] = slit_righ_out
-#                final_tilts[thismask_out] = tilts_out[thismask_out]
-#
-#        # If we tweaked the slits update the tilts_dict
-#        if self.flatpar['tweak_slits']:
-#            self.tilts_dict['tilts'] = final_tilts
-#
-#        if show:
-#            # Global skysub is the first step in a new extraction so clear the channels here
-#            self.show(slits=True, wcs_match = True)
-#
-#        # If illumination flat fielding is turned off, set the illumflat to be None.
-#        if not self.flatpar['illumflatten']:
-#            msgs.warn('No illumination flat will be applied to your data (illumflatten=False).')
-#            self.msillumflat = None
-#
-#        # Return
-#        return self.mspixelflat, self.msillumflat
-
     # TODO: Need to add functionality to use a different frame for the
     # ilumination flat, e.g. a sky flat
     def run(self, debug=False, show=False):
@@ -351,18 +240,6 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(slits=True, wcs_match = True)
-
-#        # If illumination flat fielding is turned off, set the
-#        # illumflat to be None.
-#        # TODO: Why are we removing this? The illumflat is constructed
-#        # by the fit algorithm regardless. It seems like a waste to get
-#        # rid of it. Can we just use this parameter to decide if the
-#        # data should be illumination flattened at the relevant place
-#        # in the codee instead basing it on whether or not msillumflat
-#        # is None?
-#        if not self.flatpar['illumflatten']:
-#            msgs.warn('No illumination flat will be applied to your data (illumflatten=False).')
-#            self.msillumflat = None
 
         # Return
         return self.mspixelflat, self.msillumflat

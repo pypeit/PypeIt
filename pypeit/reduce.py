@@ -938,12 +938,6 @@ class EchelleReduce(Reduce):
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
 
-        # TODO: Figure out where to do this properly
-        spec_min = np.zeros(self.tslits_dict['nslits'], dtype=int) \
-                        if self.tslits_dict['spec_min'] is None else self.tslits_dict['spec_min']
-        spec_max = np.full(self.tslits_dict['nslits'], self.tslits_dict['nspec']-1, dtype=int) \
-                        if self.tslits_dict['spec_max'] is None else self.tslits_dict['spec_max']
-
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.mask == 0
         # Find objects
