@@ -1,6 +1,6 @@
 
-0.12.4dev
----------
+0.12.4 (06 Mar 2020)
+--------------------
 
 - Refactored sensitivity function, fluxing, and coadding scripts and
   algorithms.
@@ -8,7 +8,7 @@
 - Restrict extrapolation in tilt fitting
 - Implemented interactive sky region selection
 
-0.12.3 (13 Feb 2019)
+0.12.3 (13 Feb 2020)
 --------------------
 
 - Implemented DataContainer
@@ -19,7 +19,7 @@
   fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
 
-0.12.2 (14 Jan 2019)
+0.12.2 (14 Jan 2020)
 --------------------
 
 - Introduces quick look scripts for MOS and NIRES
@@ -29,7 +29,7 @@
 - Finally dealt with 'random' windowing of Shane_kast_red
 - Dynamic namp setting for LRISr when instantiating Spectrograph
 
-0.12.1 (07 Jan 2019)
+0.12.1 (07 Jan 2020)
 --------------------
 
 - Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using
