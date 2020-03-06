@@ -182,7 +182,7 @@ class BarProfile(masterframe.MasterFrame):
     frametype = 'bar_prof'
     master_type = 'BarProfile'
 
-    def __init__(self, msbar, tslits_dict, spectrograph, par, det=1,
+    def __init__(self, msbar, slits, spectrograph, par, det=1,
                  binning=None, master_key=None, master_dir=None, reuse_masters=False,
                  qa_path=None, msbpm=None):
 
@@ -193,7 +193,7 @@ class BarProfile(masterframe.MasterFrame):
 
         # Required parameters (but can be None)
         self.msbar = msbar
-        self.tslits_dict = tslits_dict
+        self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
         self.binning = binning
@@ -217,37 +217,32 @@ class BarProfile(masterframe.MasterFrame):
         # code needs for execution. This also deals with barframes that
         # have a different binning then the images used to defined
         # the slits
-        if self.tslits_dict is not None and self.msbar is not None:
-            self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
-            gpm = self.bpm == 0 if self.bpm is not None \
+        if self.slits is not None and self.msbar is not None:
+            # NOTE: This uses the internal definition of `pad`
+            self.slitmask_science = self.slits.slit_img()
+            gpm = (self.bpm == 0) if self.bpm is not None \
                 else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
-            self.shape_bar = self.msbar.image.shape
-            self.nslits = self.tslits_dict['slit_left'].shape[1]
-            self.slit_left = arc.resize_slits2arc(self.shape_bar, self.shape_science,
-                                                  self.tslits_dict['slit_left'])
-            self.slit_righ = arc.resize_slits2arc(self.shape_bar, self.shape_science,
-                                                  self.tslits_dict['slit_righ'])
-            self.slitcen = arc.resize_slits2arc(self.shape_bar, self.shape_science,
-                                                self.tslits_dict['slitcen'])
-            self.slitmask = arc.resize_mask2arc(self.shape_bar, self.slitmask_science)
-            self.gpm = arc.resize_mask2arc(self.shape_bar, gpm)
-            self.gpm &= self.msbar.image < self.nonlinear_counts
-            self.slit_spat_pos = edgetrace.slit_spat_pos(self.tslits_dict['slit_left'],
-                                                         self.tslits_dict['slit_righ'],
-                                                         self.tslits_dict['nspec'],
-                                                         self.tslits_dict['nspat'])
+            self.shape_arc = self.msbar.image.shape
+            self.nslits = self.slits.nslits
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+                                                  self.slits.left)
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+                                                  self.slits.right)
+            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+                                                  self.slits.center)
+            self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
+            self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.msbar.image < self.nonlinear_counts)
         else:
             self.slitmask_science = None
             self.shape_science = None
-            self.shape_bar = None
+            self.shape_arc = None
             self.nslits = 0
             self.slit_left = None
             self.slit_righ = None
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
-            self.nonlinear_counts = None
 
     def build_traces(self, show_peaks=False, show_trace=False, debug=False):
         """
@@ -264,19 +259,18 @@ class BarProfile(masterframe.MasterFrame):
             dict:  self.bar_dict
         """
         bar_prof = dict({})
-        nslits = self.tslits_dict['slit_left'].shape[1]
+
         # Prepare the plotting canvas
         if show_trace:
             self.show('image', image=self.msbar.image, chname='bar_traces', slits=True)
         # Go through the slits
-        for sl in range(nslits):
+        for sl in range(self.nslits):
             specobj_dict = {'setup': "unknown", 'slitid': sl,
-                            'det': self.det, 'objtype': "bar_profile", 'pypeline': "MultiSlit"}
+                            'det': self.det, 'objtype': "bar_profile", 'pypeline': "IFU"}
             msgs.info("Fitting bar traces in slit {0:d}".format(sl))
             bar_traces, _ = extract.objfind(
                 self.msbar.image, self.slitmask == sl,
-                self.tslits_dict['slit_left'][:, sl],
-                self.tslits_dict['slit_righ'][:, sl],
+                self.slit_left[:, sl], self.slit_righ[:, sl],
                 ir_redux=False, ncoeff=self.par['trace_npoly'],
                 specobj_dict=specobj_dict, sig_thresh=self.par['sig_thresh'],
                 show_peaks=show_peaks, show_fits=False,
@@ -311,7 +305,7 @@ class BarProfile(masterframe.MasterFrame):
         """
         bar_dict = dict({})
         nbars = len(self.par['locations'])
-        nspec, nslits = self.tslits_dict['slit_left'].shape
+        nspec, nslits = self.slit_left.shape
         # Generate an array containing the centroid of all bars
         barprof = np.zeros((nspec, nbars, nslits))
         for sl in range(nslits):
@@ -447,13 +441,8 @@ class BarProfile(masterframe.MasterFrame):
                 ginga.show_trace(self.viewer, self.channel, spec.TRACE_SPAT, trc_name="", color=color)
 
         if slits:
-            if self.tslits_dict is not None and self.viewer is not None:
-                slit_ids = [edgetrace.get_slitid(image.shape,
-                                                 self.tslits_dict['slit_left'],
-                                                 self.tslits_dict['slit_righ'], ii)[0]
-                            for ii in range(self.tslits_dict['slit_left'].shape[1])]
-                ginga.show_slits(self.viewer, self.channel, self.tslits_dict['slit_left'],
-                                 self.tslits_dict['slit_righ'], slit_ids)
+            if self.slits is not None and self.viewer is not None:
+                ginga.show_slits(self.viewer, self.channel, self.slit_left, self.slit_righ)
         return
 
     def __repr__(self):
