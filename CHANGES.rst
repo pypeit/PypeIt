@@ -1,5 +1,5 @@
 
-0.12.4 (06 Mar 2020)
+0.13.0 (06 Mar 2020)
 --------------------
 
 - Refactored sensitivity function, fluxing, and coadding scripts and
