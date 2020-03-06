@@ -1081,6 +1081,7 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
         gdm (np.ndarray):
             True is good
         scale_dict (dict like):
+            Usually is a Coadd1DPar() object
             Requires mag_type, filter, filter_mag
 
     Returns:

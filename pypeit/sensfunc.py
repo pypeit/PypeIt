@@ -11,9 +11,7 @@ from matplotlib import pyplot as plt
 
 from pypeit import msgs
 from pypeit import ginga
-from pypeit import masterframe
 from pypeit import specobjs
-from pypeit.par import pypeitpar
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.spectrographs.util import load_spectrograph
@@ -23,6 +21,7 @@ from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit.io import initialize_header
+from pypeit.core import meta
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -102,6 +101,8 @@ class SensFunc(object):
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
         star_dec = self.meta_spec['DEC'] if self.par['star_dec'] is None else self.par['star_dec']
+        star_ra, star_dec = meta.convert_radec(star_ra, star_dec)  # Convert to decimal deg, as need be
+
         # Read in standard star dictionary
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'], star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
