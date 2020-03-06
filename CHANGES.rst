@@ -6,6 +6,11 @@
   algorithms.
 - Added support for additional near-IR spectrographs.
 - Restrict extrapolation in tilt fitting
+- Replaces usage of the `tslits_dict` dictionary with
+  `pypeit.slittrace.SlitTraceSet` everywhere.
+- Removes usage of `pypeit.pixels.tslits2mask` and replaces it with
+  `pypeit.slittrace.SlitTraceSet.slit_img`.
+- Significant changes to flat-fielding control flow.
 
 0.12.3 (13 Feb 2019)
 --------------------
@@ -104,7 +109,7 @@
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
 - Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
-  construces a ``tslits_dict`` object directly from the Master file.
+  constructs a ``tslits_dict`` object directly from the Master file.
 
 0.11.0.1
 ---------

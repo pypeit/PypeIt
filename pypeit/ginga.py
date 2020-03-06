@@ -1,4 +1,8 @@
-""" Module for ginga routines.  Mainly for debugging
+"""
+Module for ginga routines.  Mainly for debugging
+
+.. include:: ../links.rst
+
 """
 import os
 import numpy as np
