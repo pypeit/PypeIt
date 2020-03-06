@@ -1064,6 +1064,7 @@ def load_filter_file(filter):
     # Return
     return wave, instr
 
+
 def scale_in_filter(wave, flux, gdm, scale_dict):
     """
     Scale spectra to input magnitude in given filter
