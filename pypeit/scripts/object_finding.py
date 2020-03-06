@@ -18,10 +18,8 @@ from astropy.io import fits
 from pypeit.core.gui import object_find as gui_object_find
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
-from pypeit.traceslits import TraceSlits
-from pypeit import edgetrace
 from pypeit.masterframe import MasterFrame
-from pypeit.core import trace_slits
+from pypeit import slittrace
 
 
 def parser(options=None):
@@ -98,25 +96,15 @@ def main(args):
     frame = (sciimg - skymodel) * (mask == 0)
 
     mdir = head0['PYPMFDIR']
+    mkey = head0['FRAMMKEY']
+    mast_key = '{0}_{1:02d}'.format(mkey, args.det)
     if not os.path.exists(mdir):
         mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir = mdir_base
 
-#    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-#    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
-#    # TODO -- Remove this once the move to Edges is complete
-#    if args.old:
-#        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
-#    else:
-#        trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-#        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
-#    shape = (tslits_dict['nspec'], tslits_dict['nspat'])
-#    slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
-#                for ii in range(tslits_dict['slit_left'].shape[1])]
-    # Assumes a MasterSlit file has been written
-    slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
-                                               mdir)
+    # Load the slits information
+    slits = slittrace.SlitTraceSet.from_master(mast_key, mdir)
 
     # Object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -128,6 +116,10 @@ def main(args):
         hdulist_1d = []
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
+
+    msgs.error("This code needs to be refactored since tslits_dict was removed...")
+    import pdb
+    pdb.set_trace()
     tslits_dict['objtrc'] = parse_traces(hdulist_1d, det_nm)
 
     # TODO :: Need to include standard star trace in the spec2d files
