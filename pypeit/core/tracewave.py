@@ -793,6 +793,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
 def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
     """
+    Evaluate the wavelength tilt model over the full image.
 
     Parameters
     ----------
@@ -802,15 +803,17 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
         result of griddata tilt fit
     func2d: str
         the 2d function used to fit the tilts
-    spat_shift (float):
-        Spatial shift to be added to image pixels before evaluation to deal with flexure compensation.
+    spat_shift : float
+        Spatial shift to be added to image pixels before evaluation
+        to deal with flexure compensation.
+
     Returns
     -------
     tilts: ndarray, float
-        Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+        Image indicating how spectral pixel locations move across the
+        image. This output is used in the pipeline.
 
     """
-
     # Compute the tilts image
     nspec, nspat = shape
     xnspecmin1 = float(nspec - 1)

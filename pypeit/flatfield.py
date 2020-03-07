@@ -459,12 +459,14 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
         median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
 
+        tweaked_tilts = None
         if tweak_slits:
             # NOTE: This copies the input slit edges to a set that can
             # be tweaked. Because these are copied immediately before
             # the calls to slit_img below, all the slit images use the
             # original slit edges, not any pre-existing tweaked ones.
             self.slits.init_tweaked()
+            tweaked_tilts = np.zeros((nspec,nspat), dtype=float)
 
         # TODO: This needs to include a padding check
 
@@ -696,8 +698,9 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 onslit = _slitid_img == slit
                 spat_coo = self.slits.spatial_coordinate_image(slitids=slit,
                                                                slitid_img=_slitid_img)
-                # Note that nothing changes with the tilts, since these were
-                # already extrapolated across the whole image.
+
+                # Add the relevant pixels into the new tilts image
+                tweaked_tilts[onslit] = tilts[onslit]
             else:
                 _slitid_img = slitid_img
 
@@ -830,13 +833,17 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # Construct the full flat-field model
             # TODO: Why is the 0.05 here for the illumflat compared to the 0.01 above?
             self.flat_model[onslit] = twod_model[onslit] \
-                                        * np.fmax(self.msillumflat[onslit],0.05) \
-                                        * np.fmax(spec_model[onslit],1.0)
+                                        * np.fmax(self.msillumflat[onslit], 0.05) \
+                                        * np.fmax(spec_model[onslit], 1.0)
 
             # Construct the pixel flat
             self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
             # TODO: Add some code here to treat the edges and places where fits
             # go bad?
+
+        # Update the tilts dictionary if the slit edges were tweaked
+        if tweak_slits:
+            self.tilts_dict['tilts'] = tweaked_tilts
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
