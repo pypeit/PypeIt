@@ -772,6 +772,14 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
             poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
 
+            np.savez_compressed('rmtdict.npz', twod_spec_coo_data=twod_spec_coo_data,
+                                twod_flat_data=twod_flat_data, twod_ivar_data=twod_ivar_data,
+                                poly_basis=poly_basis, inmask=twod_gpm_data, nord=4,
+                                upper=twod_sigrej, lower=twod_sigrej, bkspace=spec_samp_coarse,
+                                groupbadpix=True, maxrej=10)
+
+            exit()
+
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
