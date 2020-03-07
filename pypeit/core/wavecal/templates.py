@@ -792,7 +792,7 @@ if __name__ == '__main__':
     #flg += 2**26  # Longslit
 
     # Keck/LRIS r
-    flg += 2**27  # R600/7500
+    #flg += 2**27  # R600/7500
 
     # MDM/OSMMOS
     flg += 2**28

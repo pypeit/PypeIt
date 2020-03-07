@@ -54,7 +54,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'mdm_osmos_mdm4k'
@@ -65,13 +65,12 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         # Set pixel flat combination method
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
-        # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        # Wavelength calibration methods
+        par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI']
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
         par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        #par['calibrations']['wavelengths']['wv_cen'] = 4859.0
-        #par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         #par['fluxcalib'] = None
         # Always correct for flexure, starting with default parameters
@@ -107,10 +106,6 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-
-        # Wavelength calibrations
-        #if self.get_meta_value(scifile, 'dispname') == 'R1200B':
-        #    par['calibrations']['wavelengths']['reid_arxiv'] = 'wht_isis_blue_1200_4800.fits'
 
         # Return
         return par
