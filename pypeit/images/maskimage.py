@@ -73,7 +73,7 @@ class ImageMask(datamodel.DataContainer):
         """
         Over-write default _bundle() method to restrict to fullmask only
 
-        Note:  Unless crmask will not write to FITS as it is bool
+        Note:  crmask will not write to FITS as it is bool
 
         Returns:
             :obj:`list`: A list of dictionaries, each list element is

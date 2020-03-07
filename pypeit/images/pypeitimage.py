@@ -25,7 +25,7 @@ class PypeItImage(datamodel.DataContainer):
 
     The intent is to keep this object as light-weight as possible.
 
-    It does have an optional, internal attribute `mask` which is intended to hold
+    PypeItImage has an optional, internal attribute `mask` which is intended to hold
     a maskimage.ImageMask DataContainer
 
     Args:
