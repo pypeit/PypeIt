@@ -1,14 +1,36 @@
 
-
-0.12.3dev
+0.12.4dev
 ---------
+
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
+- Restrict extrapolation in tilt fitting
+- Replaces usage of the `tslits_dict` dictionary with
+  `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
+  object is now the main master file used for passing around the slit
+  edges once the edges are determined by `EdgeTraceSet`.
+- Removes usage of `pypeit.pixels.tslits2mask` and replaces it with
+  `pypeit.slittrace.SlitTraceSet.slit_img`.
+- Significant changes to flat-fielding control flow.
+    - Added `rej_sticky`, `slit_trim`, `slit_pad`, `illum_iter`,
+      `illum_rej`, `twod_fit_npoly` parameters to FlatFieldPar.
+    - Illumination flat no longer removed if the user doesn't want to
+      apply it to the data.  The flat was always created, but all that
+      work was lost if the illumination correction wasn't requested.
+    - Replaced tweak edges method with a more direct algorithm.
+    - `pypeit.core.flat.fit_flat` moved to
+      `pypeit.flatfield.FlatField.fit`.
+- Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
+  sobel image to the ginga display.
+- Added `bspline_profile_qa` for generic QA of a bspline fit.
+
+0.12.3 (13 Feb 2019)
+--------------------
 
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
-- Refactored sensitivity function, fluxing, and coadding scripts and
-  algorithms.
-- Added support for additional near-IR spectrographs.
 - Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
   key is not valid for the given parameter set.  NOTE: The check may
   fail if there are identical keys for different parameter sets.
@@ -100,7 +122,7 @@
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
 - Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
-  construces a ``tslits_dict`` object directly from the Master file.
+  constructs a ``tslits_dict`` object directly from the Master file.
 
 0.11.0.1
 ---------

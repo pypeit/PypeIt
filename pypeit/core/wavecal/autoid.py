@@ -1288,19 +1288,6 @@ class ArchiveReid:
         return copy.deepcopy(self.all_patt_dict), copy.deepcopy(self.wv_calib)
 
 
-#    def _parse_param(self, par, key, slit):
-#        # Find good lines for the tilts
-#        param_in = par[key]
-#        if isinstance(param_in, (float, int)):
-#            param = param_in
-#        elif isinstance(param_in, (list, np.ndarray)):
-#            param = param_in[slit]
-#        else:
-#            raise ValueError('Invalid input for parameter {:s}'.format(key))
-#
-#        return param
-
-
 
 
 

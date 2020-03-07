@@ -219,7 +219,9 @@ class ProcessRawImage(object):
             steps_copy.remove('apply_gain')
         # Flat field
         if 'flatten' in process_steps:
-            self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+            if pixel_flat is not None:
+                self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+            # TODO: Print a warning when it is None?
             steps_copy.remove('flatten')
 
         # Fresh BPM
@@ -249,6 +251,9 @@ class ProcessRawImage(object):
                                saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
                                mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
         # Error checking
+        # TODO: We shouldn't be using assert in production-level code.
+        # If we're satisfied that this is debugged now, we should
+        # remove this or replace this with a raise or msgs.error call.
         assert len(steps_copy) == 0
 
         # Return

@@ -14,11 +14,11 @@ from astropy.io import fits
 
 from pypeit.pypeit import PypeIt
 from pypeit import par, msgs
-from pypeit.core import coadd2d
+from pypeit import coadd2d
 from pypeit.core import save
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
-from IPython import embed
+
 
 # TODO: We need an 'io' module where we can put functions like this...
 def read_coadd2d_file(ifile):
@@ -204,7 +204,7 @@ def main(args):
         sci_dict[det] = {}
 
         # Instantiate Coadd2d
-        coadd = coadd2d.CoAdd2d.get_instance(spec2d_files, spectrograph, parset, det=det,
+        coadd = coadd2d.CoAdd2D.get_instance(spec2d_files, spectrograph, parset, det=det,
                                              offsets=parset['coadd2d']['offsets'],
                                              weights=parset['coadd2d']['weights'],
                                              ir_redux=ir_redux,
