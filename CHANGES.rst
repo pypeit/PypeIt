@@ -6,6 +6,7 @@
   algorithms.
 - Added support for additional near-IR spectrographs.
 - Restrict extrapolation in tilt fitting
+- Implemented interactive sky region selection
 - Replaces usage of the `tslits_dict` dictionary with
   `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
   object is now the main master file used for passing around the slit
