@@ -17,7 +17,7 @@ from IPython import embed
 
 class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle WHT/ISIS blue specific code
+    Child to handle MDM OSMOS MDM4K instrument+detector
     """
     def __init__(self):
         # Get it started
