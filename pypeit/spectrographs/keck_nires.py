@@ -9,6 +9,7 @@ from pypeit import utils
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import pixels
+from pkg_resources import resource_filename
 
 
 from pypeit import debugger
@@ -87,26 +88,32 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['illumflatten'] = False
 
         # Extraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
-        par['scienceimage']['extraction']['sn_gauss'] = 4.0
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
         par['flexure']['method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-        par['scienceimage']['extraction']['boxcar_radius'] = 0.75  # arcsec
+        par['reduce']['extraction']['boxcar_radius'] = 0.75  # arcsec
 
         # Overscan but not bias
         #  This seems like a kludge of sorts
         par['calibrations']['biasframe']['useframe'] = 'none'
 
-
         # Set the default exposure time ranges for the frame typing
-        par['calibrations']['standardframe']['exprng'] = [None, 20]
-        par['calibrations']['arcframe']['exprng'] = [20, None]
-        par['calibrations']['darkframe']['exprng'] = [20, None]
-        par['scienceframe']['exprng'] = [20, None]
+        par['calibrations']['standardframe']['exprng'] = [None, 60]
+        par['calibrations']['arcframe']['exprng'] = [100, None]
+        par['calibrations']['tiltframe']['exprng'] = [100, None]
+        par['calibrations']['darkframe']['exprng'] = [60, None]
+        par['scienceframe']['exprng'] = [60, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
         return par
 
     def init_meta(self):
@@ -148,15 +155,22 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         Check for frames of the provided type.
         """
-        # TODO: Arcs, tilts, darks?
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype in ['pinhole', 'bias']:
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
+        if ftype == 'standard':
+            return good_exp & (fitstbl['idname'] == 'Object')
+        if ftype == 'dark':
+            return good_exp & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
             return fitstbl['idname'] == 'domeflat'
-        
-        return (fitstbl['idname'] == 'object') \
-                        & framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in 'science':
+            return good_exp & (fitstbl['idname'] == 'Object')
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['idname'] == 'Object')
+        return np.zeros(len(fitstbl), dtype=bool)
+
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -240,9 +254,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     @property
     def loglam_minmax(self):
         return np.log10(9400.0), np.log10(26000)
-
-
-
 
 
 

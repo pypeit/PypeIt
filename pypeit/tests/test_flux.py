@@ -22,6 +22,8 @@ from pypeit import specobjs
 
 from pypeit.tests.tstutils import dummy_fitstbl
 
+from pypeit.pypmsgs import PypeItError
+
 #from xastropy.xutils import afits as xafits
 #from xastropy.xutils import xdebug as xdb
 
@@ -40,31 +42,31 @@ def data_path(filename):
 #    mask, tck = utils.robust_polyfit(wave, magfunc, 3, function='bspline',
 #                                       weights=np.sqrt(logivar), bspline_par=bspline_par)
 
-
-def test_gen_sensfunc():
-
-    kastr = load_spectrograph('shane_kast_red')
-
-    # Load a random spectrum for the sensitivity function
-    sfile = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
-    sobjs = specobjs.SpecObjs.from_fitsfile(sfile)
-#    telescope = telescopes.ShaneTelescopePar()
-    fitstbl = dummy_fitstbl()
-    RA = '05:06:36.6'
-    DEC = '52:52:01.0'
-
-    # Get the sensitivity function
-    sens_dict = flux_calib.generate_sensfunc(sobjs[0].BOX_WAVE,
-                                             sobjs[0].BOX_COUNTS,
-                                             sobjs[0].BOX_COUNTS_IVAR,
-                                             fitstbl['airmass'][4], fitstbl['exptime'][4],
-                                             kastr.telescope['longitude'],
-                                             kastr.telescope['latitude'],
-                                             ra=RA, dec=DEC)
-
-    # Test
-    assert isinstance(sens_dict, dict)
-    assert isinstance(sens_dict['wave_min'], units.Quantity)
+# TODO: This needs to be replaced with new tests of SensFunc!!
+#def test_gen_sensfunc():
+#
+#    kastr = load_spectrograph('shane_kast_red')
+#
+#    # Load a random spectrum for the sensitivity function
+#    sfile = data_path('spec1d_r153-J0025-0312_KASTr_2015Jan23T025323.850.fits')
+#    sobjs = specobjs.SpecObjs.from_fitsfile(sfile)
+##    telescope = telescopes.ShaneTelescopePar()
+#    fitstbl = dummy_fitstbl()
+#    RA = '05:06:36.6'
+#    DEC = '52:52:01.0'
+#
+#    # Get the sensitivity function
+#    sens_dict = flux_calib.generate_sensfunc(sobjs[0].BOX_WAVE,
+#                                             sobjs[0].BOX_COUNTS,
+#                                             sobjs[0].BOX_COUNTS_IVAR,
+#                                             fitstbl['airmass'][4], fitstbl['exptime'][4],
+#                                             kastr.telescope['longitude'],
+#                                             kastr.telescope['latitude'],
+#                                             ra=RA, dec=DEC)
+#
+#    # Test
+#    assert isinstance(sens_dict, dict)
+#    assert isinstance(sens_dict['wave_min'], units.Quantity)
 
 
 def test_find_standard():
@@ -72,18 +74,17 @@ def test_find_standard():
     std_ra = '05:06:30.6'
     std_dec = '52:49:51.0'
     # Grab
-    std_dict = flux_calib.find_standard_file(std_ra, std_dec)
+    std_dict = flux_calib.find_standard_file(std_ra, std_dec) 
     # Test
     assert std_dict['name'] == 'G191B2B'
-#    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_mod_005.fits'
-    assert std_dict['cal_file'] == 'data/standards/calspec/g191b2b_stisnic_002.fits'
+    assert os.path.split(std_dict['cal_file'])[1] == 'g191b2b_stisnic_002.fits'
     assert std_dict['std_source'] == 'calspec'
     # Fail to find
     # near G191b2b
     std_ra = '05:06:36.6'
     std_dec = '52:22:01.0'
-    std_dict = flux_calib.find_standard_file(std_ra, std_dec)
-    assert std_dict is None
+    with pytest.raises(PypeItError):
+        std_dict = flux_calib.find_standard_file(std_ra, std_dec)
 
 
 def test_load_extinction():
@@ -106,4 +107,5 @@ def test_extinction_correction():
     flux_corr = flux_calib.extinction_correction(wave, AM, extinct)
     # Test
     np.testing.assert_allclose(flux_corr[0], 4.47095192)
+
 

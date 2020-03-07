@@ -54,7 +54,7 @@ def show_trace(specobjs, det, viewer, ch):
     in_det = np.where(specobjs.DET == det)[0]
     for kk in in_det:
         trace = specobjs[kk]['TRACE_SPAT']
-        obj_id = specobjs[kk].name
+        obj_id = specobjs[kk].NAME
         ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 
 
@@ -161,7 +161,8 @@ def main(args):
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg, bitmask=mask_in, clear=True)
                                   #, cuts=(cut_min, cut_max), wcs_match=True)
-    show_trace(sobjs, args.det, viewer, ch)
+    if sobjs is not None:
+        show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'], slit_ids)
                      #, args.det)
 

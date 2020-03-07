@@ -1,13 +1,30 @@
 
-0.12.3 (13 Feb 2019)
+0.13.1 (07 Mar 2020)
+--------------------
+
+- Missed a required merge with master before tagging 0.13.0.
+
+0.13.0 (07 Mar 2020)
+--------------------
+
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
+- Restrict extrapolation in tilt fitting
+- Implemented interactive sky region selection
+
+0.12.3 (13 Feb 2020)
 --------------------
 
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
+- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
+  key is not valid for the given parameter set.  NOTE: The check may
+  fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
 
-0.12.2 (14 Jan 2019)
+0.12.2 (14 Jan 2020)
 --------------------
 
 - Introduces quick look scripts for MOS and NIRES
@@ -17,7 +34,7 @@
 - Finally dealt with 'random' windowing of Shane_kast_red
 - Dynamic namp setting for LRISr when instantiating Spectrograph
 
-0.12.1 (07 Jan 2019)
+0.12.1 (07 Jan 2020)
 --------------------
 
 - Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using
@@ -27,7 +44,7 @@
 --------------------
 
 - Implemented MOSFIRE and further implemented NIRSPEC for Y-band
-  spectroscopy. 
+  spectroscopy.
 - Fixed bug in coadd2d.
 - Add VLT/FORS filters to our database
 - Improved DEIMOS frame typing

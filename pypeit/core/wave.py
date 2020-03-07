@@ -681,7 +681,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobj.name), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobj.NAME), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][iobj]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -729,7 +729,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.name), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
@@ -834,7 +834,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].name), transform=ax.transAxes, size='large', ha='center')
+                ax.text(0.5, 0.25, '{:s}'.format(specobjs[sl][o].NAME), transform=ax.transAxes, size='large', ha='center')
             ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(flex_dict['shift'][o]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
@@ -879,7 +879,7 @@ def flexure_qa_oldbuggyversion(specobjs, maskslits, basename, det, flex_list, sl
         if slit_cen:
             plt.suptitle('Sky Comparison for Slit Center', y=1.05)
         else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.name), y=1.05)
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]

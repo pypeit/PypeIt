@@ -10,8 +10,12 @@ from configobj import ConfigObj
 
 import pytest
 
+import numpy as np
+
 import matplotlib
 matplotlib.use('agg')  # For Travis
+
+from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos
@@ -19,9 +23,11 @@ from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
 
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 #def test_arcid_plot():
 #    json_file = data_path('LRISb_600_WaveCalib_01.json')
@@ -104,7 +110,6 @@ def test_quicklook():
          '--user_pixflat={0}'.format(
              os.path.join(calib_dir, 'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
 
-
 @dev_suite_required
 def test_trace_edges():
     # Define the output directories (HARDCODED!!)
@@ -138,13 +143,14 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
+
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
                              'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
-    show_1dspec.main(pargs, unit_test=True)
+    show_1dspec.main(pargs)
 
 
 @cooked_required
@@ -164,6 +170,7 @@ def test_view_fits():
     spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
 
+
 @cooked_required
 def test_chk_flat():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
@@ -174,40 +181,57 @@ def test_chk_flat():
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
 
-def test_coadd():
-    coadd_file = data_path('coadd_UGC3672A_red.yaml')
-    args = coadd_1dspec.parser([coadd_file])
-    # Main
-    gparam, ex_value, flux_value, iobj, outfile, files, local_kwargs \
-            = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
-    # Test
-    assert len(gparam) == 2
-    assert isinstance(gparam, dict)
-    assert ex_value == 'opt'
-    assert flux_value is True
-    assert iobj == 'O210-S1467-D02-I0012'
-    assert outfile == 'UGC3672A_r.fits'
-    assert len(files) == 4
-    assert isinstance(local_kwargs, dict)
-    assert 'otol' in list(local_kwargs.keys())
-    assert 'scale_method' in list(gparam.keys())
 
 
-def test_coadd2():
-    """ Test using a list of object names
+def test_coadd1d_1():
     """
-    coadd_file = data_path('coadd_UGC3672A_red_objlist.yaml')
-    args = coadd_1dspec.parser([coadd_file])
-    # Main
-    gparam, ex_value, flux_value, iobj, outfile, files, obj_kwargs \
-            = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
-    # Test
-    assert len(iobj) == len(files)
-    # Crash it
-    coadd_file = data_path('coadd_UGC3672A_red_badlist.yaml')
-    args = coadd_1dspec.parser([coadd_file])
-    with pytest.raises(IOError):
-        gparam, ex_value, flux_value, iobj, outfile, files, _ \
-                = coadd_1dspec.main(args, unit_test=True, path=data_path('./'))
+    Test basic coadd using Shane Kast blue
+    """
+    # NOTE: flux_value is False
+    parfile = 'coadd1d.par'
+    if os.path.isfile(parfile):
+        os.remove(parfile)
+    coadd_ofile = data_path('J1217p3905_coadd.fits')
+    if os.path.isfile(coadd_ofile):
+        os.remove(coadd_ofile)
+
+    coadd_ifile = data_path('shane_kast_blue.coadd1d')
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
+
+    hdu = fits.open(coadd_ofile)
+    assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
+    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
+    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+
+    # Clean up
+    os.remove(parfile)
+    os.remove(coadd_ofile)
+
+
+def test_coadd1d_2():
+    """
+    Test combining Echelle
+    """
+    # NOTE: flux_value is False
+    parfile = 'coadd1d.par'
+    if os.path.isfile(parfile):
+        os.remove(parfile)
+    coadd_ofile = data_path('pisco_coadd.fits')
+    if os.path.isfile(coadd_ofile):
+        os.remove(coadd_ofile)
+
+    coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d')
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
+
+    hdu = fits.open(coadd_ofile)
+    assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
+    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
+    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+
+    # Clean up
+    os.remove(parfile)
+    os.remove(coadd_ofile)
+
+# TODO: Include tests for coadd2d, sensfunc, flux_calib
 
 
