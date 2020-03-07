@@ -1,5 +1,10 @@
 
-0.13.0 (06 Mar 2020)
+0.13.1 (07 Mar 2020)
+--------------------
+
+- Missed a required merge with master before tagging 0.13.0.
+
+0.13.0 (07 Mar 2020)
 --------------------
 
 - Refactored sensitivity function, fluxing, and coadding scripts and
