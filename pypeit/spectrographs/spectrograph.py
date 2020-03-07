@@ -35,6 +35,7 @@ from pkg_resources import resource_filename
 import numpy as np
 from astropy.io import fits
 
+from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit.core.wavecal import wvutils
@@ -464,7 +465,7 @@ class Spectrograph(object):
         raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
         # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
         # it's easier to change here than writing another get_rawimage function in the spectrograph file.
-        if np.size(raw_img.shape)==3:
+        if raw_img.ndim == 3:
             raw_img = raw_img[0]
 
         # Extras
@@ -516,22 +517,26 @@ class Spectrograph(object):
         # Return
         return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
+    def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False,
+                       usr_row=None, no_fussing=False):
         """
         Return meta data from a given file (or its array of headers)
 
         Args:
             inp (str or list):
               Input filename or headarr list
-            meta_key: str or list of str
-            headarr: list, optional
+            meta_key (str or list of str):
+            headarr (list, optional)
               List of headers
-            required: bool, optional
+            required (bool, optional):
               Require the meta key to be returnable
             ignore_bad_header: bool, optional
               Over-ride required;  not recommended
             usr_row: Row
               Provides user supplied frametype (and other things not used)
+            no_fussing (bool, optional):
+                No type checking or anything.  Just pass back the first value retrieved
+                Mainly for bound pairs of meta, e.g. ra/dec
 
         Returns:
             value: value or list of values
@@ -573,8 +578,15 @@ class Spectrograph(object):
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except (KeyError, TypeError):
                 value = None
+        # Return now?
+        if no_fussing:
+            return value
 
-
+        # Deal with 'special' cases
+        if meta_key in ['ra', 'dec'] and value is not None:
+            ra, dec = meta.convert_radec(self.get_meta_value(headarr, 'ra', no_fussing=True),
+                                self.get_meta_value(headarr, 'dec', no_fussing=True))
+            value = ra if meta_key == 'ra' else dec
 
         # JFH Added this bit of code to deal with situations where the header card is there but the wrong type, e.g.
         # MJD-OBS = 'null'
@@ -593,6 +605,7 @@ class Spectrograph(object):
             retvalue = None
             castable = False
 
+
         # JFH Added the typing to prevent a crash below when the header value exists, but is the wrong type. This
         # causes a crash below  when the value is cast.
         if value is None or not castable:
@@ -609,26 +622,14 @@ class Spectrograph(object):
                                 kerror = True
                     # Bomb out?
                     if kerror:
+                        embed(header='630 of spectrograph')
                         msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
                 else:
                     msgs.warn("Required card {:s} missing from your header.  Proceeding with risk..".format(
                         self.meta[meta_key]['card']))
             return None
 
-        # JFH Old code which causes a crash when the type is wrong
-        # Deal with dtype (DO THIS HERE OR IN METADATA?  I'M TORN)
-        #if self.meta_data_model[meta_key]['dtype'] == str:
-        #    value = str(value).strip()
-        #elif self.meta_data_model[meta_key]['dtype'] == int:
-        #    value = int(value)
-        #elif self.meta_data_model[meta_key]['dtype'] == float:
-        #    value = float(value)
-        #elif self.meta_data_model[meta_key]['dtype'] == tuple:
-        #    assert isinstance(value, tuple)
-        #else:
-        #    embed()
         # Return
-
         return retvalue
 
     def validate_metadata(self):
@@ -891,10 +892,6 @@ class Spectrograph(object):
         return np.power(10.0,loglam_grid)
 
 
-    @property
-    def telluric_grid_file(self):
-        """Return the grid of HITRAN atmosphere models for telluric correctinos"""
-        pass
 
     def __repr__(self):
         # Generate string

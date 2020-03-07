@@ -181,6 +181,7 @@ class SpecObjs(object):
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
         detector = np.zeros(norddet, dtype=int)
         ech_orders = np.zeros(norddet, dtype=int)
+        # TODO make the extraction that is desired OPT vs BOX and optional input variable.
         for iorddet in range(norddet):
             wave[:, iorddet] = self[iorddet].OPT_WAVE
             flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
@@ -195,6 +196,7 @@ class SpecObjs(object):
                 flux_ivar[:, iorddet] = self[iorddet].OPT_COUNTS_IVAR
 
         # Populate meta data
+        # TODO Remove this hack is it needed? If PYP_SPEC is always written then it is not.
         try:
             spectrograph = load_spectrograph(self.header['PYP_SPEC'])
         except:
@@ -207,6 +209,7 @@ class SpecObjs(object):
             try:
                 meta_spec[key.upper()] = self.header[key.upper()]
             except KeyError:
+                msgs.warn('Core meta data is missing from the specobjs header ')
                 pass
         # Add the pyp spec.
         # TODO JFH: Make this an atribute of the specobj by default.
@@ -238,14 +241,19 @@ class SpecObjs(object):
                 the standard on each detector.
 
         Returns:
-            SpecObj or SpecObjs
+            SpecObj or SpecObjs or None
 
         """
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
             # Have to do a loop to extract the counts for all objects
-            SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+            if hasattr(self, 'OPT_COUNTS'):
+                SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
+            elif not hasattr(self, 'BOX_COUNTS'):
+                return None
+            else:
+                SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             # For multiple detectors grab the requested detectors
             if multi_spec_det is not None:
                 sobjs_std = SpecObjs(header=self.header)
@@ -271,7 +279,13 @@ class SpecObjs(object):
                 for iord in range(norders):
                     ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
-                    SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
+                    # Grab SNR
+                    if hasattr(spec[0], 'OPT_COUNTS'):
+                        SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
+                    elif not hasattr(self, 'BOX_COUNTS'):
+                        return None
+                    else:
+                        SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
             # Maximize S/N
             SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
             objid_std = uni_objid[SNR_all.argmax()]
@@ -298,8 +312,8 @@ class SpecObjs(object):
         # Assign the sign and the objids
         sobjs_neg.sign = -1.0
         if sobjs_neg[0].PYPELINE == 'Echelle':
-            sobjs_neg.ECH_OBJID = -1*sobjs_neg.ECH_OBJID
-            sobjs_neg.OBJID = -1*sobjs_neg.OBJID
+            sobjs_neg.ECH_OBJID = -sobjs_neg.ECH_OBJID
+            sobjs_neg.OBJID = -sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
@@ -342,6 +356,17 @@ class SpecObjs(object):
     def name_indices(self, name):
         """
         Return the set of indices matching the input slit/order
+
+        Parameters
+        ----------
+        name: str
+           The name of the object
+
+        Returns
+        -------
+        indx: array-like, shape (nobj,)
+           Array of indices with the corresponding name.
+
         """
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_NAME == name
@@ -492,23 +517,35 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def build_header(self, head_fitstbl, spectrograph):
+    def build_header(self, head_fitstbl, head2d, spectrograph):
         """
         Builds the spec1d file header from the fitstbl meta data and meta data from spectrograph
+        and meta data from original header
+
         Args:
-            head_fitstbl (header):
+            head_fitstbl (:class:`astropy.io.fits.Header`):
                Header from fitstbl
-            spectrograph (object):
+            head2d (:class:`astropy.io.fits.Header`):
+               Header from the Raw file
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
                Spectrograph object
 
         Returns:
+            :class:`astropy.io.fits.Header`:
 
         """
-        header = fits.PrimaryHDU().header
+        header = initialize_header(primary=True)
+        # Try to pull a few from the original header
         try:
             header['MJD-OBS'] = head_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
         except KeyError:
             header['MJD-OBS'] = head_fitstbl['MJD-OBS']
+
+        # Original Header -- What else do we want??
+        for key in ['INSTRUME']:
+            if key in head2d.keys():
+                header[key] = head2d[key]  # Self-assigned instrument name
+
         core_keys = spectrograph.header_cards_for_spec()
         for key in core_keys:
             # Allow for fitstbl vs. header
@@ -519,15 +556,13 @@ class SpecObjs(object):
         # Specify which pipeline created this file
         header['PYPELINE'] = spectrograph.pypeline
         header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
-        # Observatory
+        # Observatory and Header supplied Instrument
         telescope = spectrograph.telescope
         header['LON-OBS'] = telescope['longitude']
         header['LAT-OBS'] = telescope['latitude']
         header['ALT-OBS'] = telescope['elevation']
-        _ = initialize_header(header)
+        # Return
         return header
-
-
 
     def write_to_fits(self, header, outfile, overwrite=True, update_det=None):
         """

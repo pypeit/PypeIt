@@ -3,7 +3,10 @@
 import glob
 import os
 import numpy as np
+
 from astropy.io import fits
+from astropy import units
+from astropy.coordinates import SkyCoord
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
@@ -38,11 +41,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         self.meta['dec'] = dict(ext=0, card='DEC')
         self.meta['target'] = dict(ext=0, card='OBJECT')
         self.meta['decker'] = dict(ext=0, card='MASKNAME')
-        self.meta['binning'] = dict(card=None, compound=True)
-        # TODO: Can we define the card here that compound meta uses to
-        # set the binning?  Would be better to have all header cards
-        # collected in this function...
-#        self.meta['binning'] = dict(ext=1, card='CCDSUM')
+        self.meta['binning'] = dict(card=None, compound=True)  # Uses CCDSUM
 
         self.meta['mjd'] = dict(ext=0, card='OBSEPOCH')
         self.meta['exptime'] = dict(ext=0, card='EXPTIME')
@@ -128,11 +127,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
-        # Always correct for flexure, starting with default parameters
+        # Always correct for flexure
         par['flexure']['method'] = 'boxcar'
         # Splice detectors 1,2,3 when creating sensitivity function
         par['sensfunc']['multi_spec_det'] = [1,2,3]
@@ -404,10 +399,10 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             # Apply the mask
             xbin = int(binning.split(' ')[0])
             if xbin != 2:
-                embed()
+                embed(header='403 of gemini_gmos')
             # Up high
-            badr = (898*2)//xbin # Transposed
-            bpm_img[badr:badr+(8*2)//xbin,:] = 1
+            badr = (902*2)//xbin # Transposed
+            bpm_img[badr:badr+(3*2)//xbin,:] = 1
             # Down low
             badr = (161*2)//xbin # Transposed
             bpm_img[badr,:] = 1

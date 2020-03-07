@@ -13,6 +13,7 @@ import pytest
 #    FileExistsError = OSError
 
 from astropy import units
+from astropy.coordinates import SkyCoord
 
 from pypeit.core import flux_calib
 from pypeit.core import load
@@ -21,6 +22,8 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
 
 from pypeit.tests.tstutils import dummy_fitstbl
+from pypeit.par.pypeitpar import Coadd1DPar
+
 
 from pypeit.pypmsgs import PypeItError
 
@@ -71,20 +74,18 @@ def data_path(filename):
 
 def test_find_standard():
     # G191b2b
-    std_ra = '05:06:30.6'
-    std_dec = '52:49:51.0'
+    coord = SkyCoord('J050630.6+524951.0', unit=(units.hourangle, units.deg))  #
     # Grab
-    std_dict = flux_calib.find_standard_file(std_ra, std_dec) 
+    std_dict = flux_calib.find_standard_file(coord.ra.value, coord.dec.value)
     # Test
     assert std_dict['name'] == 'G191B2B'
     assert os.path.split(std_dict['cal_file'])[1] == 'g191b2b_stisnic_002.fits'
     assert std_dict['std_source'] == 'calspec'
     # Fail to find
     # near G191b2b
-    std_ra = '05:06:36.6'
-    std_dec = '52:22:01.0'
+    coord = SkyCoord('J050630.6+522201.0', unit=(units.hourangle, units.deg))  #
     with pytest.raises(PypeItError):
-        std_dict = flux_calib.find_standard_file(std_ra, std_dec)
+        std_dict = flux_calib.find_standard_file(coord.ra.value, coord.dec.value)
 
 
 def test_load_extinction():
@@ -109,3 +110,15 @@ def test_extinction_correction():
     np.testing.assert_allclose(flux_corr[0], 4.47095192)
 
 
+def test_filter_scale():
+    # Test scale_in_filter() method which is called in coadding
+    wave = np.arange(3000.,10000.)
+    flux = np.ones_like(wave)
+    gdm = np.ones_like(wave, dtype=bool)
+    #
+    par = Coadd1DPar()
+    par['filter'] = 'DECAM-R'
+    par['filter_mag'] = 17.
+    # Run
+    scale = flux_calib.scale_in_filter(wave, flux, gdm, par)
+    assert np.isclose(scale, 41.698475048180406, rtol=1e-3)

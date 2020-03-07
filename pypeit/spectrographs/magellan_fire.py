@@ -8,14 +8,14 @@ Important Notes:
       ~220 to ~230)
 
 """
+from pkg_resources import resource_filename
 import numpy as np
-
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pkg_resources import resource_filename
+
 
 
 class MagellanFIRESpectrograph(spectrograph.Spectrograph):
@@ -89,6 +89,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
     def __init__(self):
         # Get it started
         super(MagellanFIREEchelleSpectrograph, self).__init__()
+        #TODO Rename this magallen_fire_echelle??
         self.spectrograph = 'magellan_fire'
         self.camera = 'FIRE'
         self.numhead = 1

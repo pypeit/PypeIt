@@ -16,9 +16,6 @@ from matplotlib import pyplot as plt
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import utils
-from pypeit import ginga
-from pypeit import specobjs
 from pypeit.masterframe import MasterFrame
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
@@ -26,479 +23,14 @@ from pypeit import specobjs
 from pypeit import edgetrace
 from pypeit import reduce
 from pypeit.core import extract
-from pypeit.core import load, coadd1d, pixels
+from pypeit.core import coadd, pixels
 from pypeit.core import parse
-from pypeit.core import combine
 from pypeit.images import scienceimage
 from pypeit.spectrographs import util
 from pypeit import calibrations
-from pypeit.par import PypeItPar
 
 
-
-#def reference_trace_stack(slitid, stack_dict, offsets=None, objid=None):
-#    """
-#    Utility function for determining the reference trace about which 2d coadds are performed.
-#    There are two modes of operation to determine the reference trace for the 2d coadd of a given slit/order:
-#
-#     1) offsets: we stack about the center of the slit for the slit in question with the input offsets added
-#     2) ojbid: we stack about the trace ofa reference object for this slit given for each exposure by the input objid
-#
-#    Either offsets or objid must be provided, but the code will raise an exception if both are provided.
-#
-#    Args:
-#        slitid (int):
-#           The slit or order that we are currently considering
-#        stack_dict (dict):
-#           Dictionary containing all the images and keys required for perfomring 2d coadds.
-#        offsets (list or np.ndarray):
-#           An array of offsets with the same dimensionality as the nexp, the numer of images being coadded.
-#        objid: (list or np.ndarray):
-#           An array of objids with the same dimensionality as the nexp, the number of images being coadded.
-#
-#    Returns:
-#        ref_trace_stack
-#
-#        ref_trace_stack (np.ndarray):
-#            An array with shape (nspec, nexp) containing the reference trace for each of the nexp exposures.
-#
-#    """
-#
-#    if offsets is not None and objid is not None:
-#        msgs.errror('You can only input offsets or an objid, but not both')
-#    nexp = len(offsets) if offsets is not None else len(objid)
-#    if offsets is not None:
-#        tslits_dict_list = stack_dict['tslits_dict_list']
-#        nspec, nslits = tslits_dict_list[0]['slit_left'].shape
-#        ref_trace_stack = np.zeros((nspec, nexp))
-#        for iexp, tslits_dict in enumerate(tslits_dict_list):
-#            ref_trace_stack[:, iexp] = (tslits_dict[:, slitid]['slit_left'] + tslits_dict[:, slitid]['slit_righ'])/2.0 + offsets[iexp]
-#    elif objid is not None:
-#        specobjs_list = stack_dict['specobjs_list']
-#        nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
-#        # Grab the traces, flux, wavelength and noise for this slit and objid.
-#        ref_trace_stack = np.zeros((nspec, nexp), dtype=float)
-#        for iexp, sobjs in enumerate(specobjs_list):
-#            # TODO Should be as in optimal_weights
-#            ithis = (sobjs.SLITID == slitid) & (sobjs.OBJID == objid[iexp])
-#            ref_trace_stack[:, iexp] = sobjs[ithis].TRACE_SPAT
-#    else:
-#        msgs.error('You must input either offsets or an objid to determine the stack of reference traces')
-#
-#    return ref_trace_stack
-
-#def optimal_weights(specobjs_list, slitid, objid, sn_smooth_npix, const_weights=False):
-#    """
-#    Determine optimal weights for 2d coadds. This script grabs the information from SpecObjs list for the
-#    object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
-#    each exposure.
-#
-#    Args:
-#        specobjs_list (list):
-#           list of SpecObjs objects contaning the objects that were extracted from each frame that will contribute
-#           to the coadd.
-#        slitid (int):
-#           The slitid that has the brightest object whose S/N will be used to determine the weight for each frame.
-#        objid (int):
-#           The objid index of the brightest object whose S/N will be used to determine the weight for each frame.
-#        sn_smooth_npix (float):
-#           Number of pixels used for determining smoothly varying S/N ratio weights.
-#        const_weights (bool):
-#           Use constant weights for coadding the exposures. Default=False
-#
-#    Returns:
-#        rms_sn, weights
-#
-#        rms_sn : ndarray, shape = (len(specobjs_list),)
-#            Root mean square S/N value for each input spectra
-#        weights : ndarray, shape (len(specobjs_list),)
-#            Weights to be applied to the spectra. These are signal-to-noise squared weights.
-#    """
-#
-#    nexp = len(specobjs_list)
-#    nspec = specobjs_list[0][0].TRACE_SPAT.shape[0]
-#    # Grab the traces, flux, wavelength and noise for this slit and objid.
-#    flux_stack = np.zeros((nspec, nexp), dtype=float)
-#    ivar_stack = np.zeros((nspec, nexp), dtype=float)
-#    wave_stack = np.zeros((nspec, nexp), dtype=float)
-#    mask_stack = np.zeros((nspec, nexp), dtype=bool)
-#
-#    for iexp, sobjs in enumerate(specobjs_list):
-#        embed()
-#        try:
-#            ithis = (sobjs.SLITID == slitid) & (sobjs.OBJID == objid[iexp])
-#        except AttributeError:
-#            ithis = (sobjs.ECH_ORDERINDX == slitid) & (sobjs.ECH_OBJID == objid[iexp])
-#        try:
-#            flux_stack[:,iexp] = sobjs[ithis][0].OPT_COUNTS
-#        except:
-#            embed(header='104')
-#        ivar_stack[:,iexp] = sobjs[ithis][0].OPT_COUNTS_IVAR
-#        wave_stack[:,iexp] = sobjs[ithis][0].OPT_WAVE
-#        mask_stack[:,iexp] = sobjs[ithis][0].OPT_MASK
-#
-#    # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-#    rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, sn_smooth_npix,
-#                                         const_weights=const_weights)
-#    return rms_sn, weights.T
-
-def det_error_msg(exten, sdet):
-    # Print out error message if extension is not found
-    msgs.error("Extension {:s} for requested detector {:s} was not found.\n".format(exten)  +
-               " Maybe you chose the wrong detector to coadd? "
-               "Set with --det= or check file contents with pypeit_show_2dspec Science/spec2d_XXX --list".format(sdet))
-
-
-def get_wave_ind(wave_grid, wave_min, wave_max):
-    """
-    Utility routine used by coadd2d to determine the starting and ending indices of a wavelength grid.
-
-    Args:
-        wave_grid: float ndarray
-          Wavelength grid.
-        wave_min: float
-          Minimum wavelength covered by the data in question.
-        wave_max: float
-          Maximum wavelength covered by the data in question.
-
-    Returns:
-        tuple: Returns (ind_lower, ind_upper), Integer lower and upper
-        indices into the array wave_grid that cover the interval
-        (wave_min, wave_max)
-    """
-
-    diff = wave_grid - wave_min
-    diff[diff > 0] = np.inf
-    if not np.any(diff < 0):
-        ind_lower = 0
-        msgs.warn('Your wave grid does not extend blue enough. Taking bluest point')
-    else:
-        ind_lower = np.argmin(np.abs(diff))
-    diff = wave_max - wave_grid
-    diff[diff > 0] = np.inf
-    if not np.any(diff < 0):
-        ind_upper = wave_grid.size-1
-        msgs.warn('Your wave grid does not extend red enough. Taking reddest point')
-    else:
-        ind_upper = np.argmin(np.abs(diff))
-
-    return ind_lower, ind_upper
-
-
-
-def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
-
-    # Determine the wavelength grid that we will use for the current slit/order
-    # TODO This cut on waveimg_stack should not be necessary
-    wavemask = thismask_stack & (waveimg_stack > 1.0)
-    wave_lower = waveimg_stack[wavemask].min()
-    wave_upper = waveimg_stack[wavemask].max()
-    ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
-    wave_bins = wave_grid[ind_lower:ind_upper + 1]
-
-    return wave_bins
-
-
-def get_spat_bins(thismask_stack, trace_stack):
-
-    nimgs, nspec, nspat = thismask_stack.shape
-    # Create the slit_cen_stack and determine the minimum and maximum
-    # spatial offsets that we need to cover to determine the spatial
-    # bins
-    spat_img = np.outer(np.ones(nspec), np.arange(nspat))
-    dspat_stack = np.zeros_like(thismask_stack,dtype=float)
-    spat_min = np.inf
-    spat_max = -np.inf
-    for img in range(nimgs):
-        # center of the slit replicated spatially
-        slit_cen_img = np.outer(trace_stack[:, img], np.ones(nspat))
-        dspat_iexp = (spat_img - slit_cen_img)
-        dspat_stack[img, :, :] = dspat_iexp
-        thismask_now = thismask_stack[img, :, :]
-        spat_min = np.fmin(spat_min, dspat_iexp[thismask_now].min())
-        spat_max = np.fmax(spat_max, dspat_iexp[thismask_now].max())
-
-    spat_min_int = int(np.floor(spat_min))
-    spat_max_int = int(np.ceil(spat_max))
-    dspat_bins = np.arange(spat_min_int, spat_max_int + 1, 1,dtype=float)
-
-    return dspat_bins, dspat_stack
-
-
-def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, weights='uniform'):
-    """
-    Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
-
-    Slits are 'rectified' onto a spatial and spectral grid, which
-    encompasses the spectral and spatial coverage of the image stacks.
-    The rectification uses nearest grid point interpolation to avoid
-    covariant errors.  Dithering is supported as all images are centered
-    relative to a set of reference traces in trace_stack.
-
-    Args:
-        trace_stack (`numpy.ndarray`_):
-            Stack of reference traces about which the images are
-            rectified and coadded.  If the images were not dithered then
-            this reference trace can simply be the center of the slit::
-
-                slitcen = (slit_left + slit_righ)/2
-
-            If the images were dithered, then this object can either be
-            the slitcen appropriately shifted with the dither pattern,
-            or it could be the trace of the object of interest in each
-            exposure determined by running PypeIt on the individual
-            images.  Shape is (nimgs, nspec).
-        sciimg_stack (`numpy.ndarray`_):
-            Stack of science images.  Shape is (nimgs, nspec, nspat).
-        sciivar_stack (`numpy.ndarray`_):
-            Stack of inverse variance images.  Shape is (nimgs, nspec,
-            nspat).
-        skymodel_stack (`numpy.ndarray`_):
-            Stack of the model sky.  Shape is (nimgs, nspec, nspat).
-        inmask_stack (`numpy.ndarray`_):
-            Boolean array with the input masks for each image; `True`
-            values are *good*, `False` values are *bad*.  Shape is
-            (nimgs, nspec, nspat).
-        tilts_stack (`numpy.ndarray`_):
-           Stack of the wavelength tilts traces.  Shape is (nimgs,
-           nspec, nspat).
-        waveimg_stack (`numpy.ndarray`_):
-           Stack of the wavelength images.  Shape is (nimgs, nspec,
-           nspat).
-        thismask_stack (`numpy.ndarray`_):
-            Boolean array with the masks indicating which pixels are on
-            the slit in question.  `True` values are on the slit;
-            `False` values are off the slit.  Shape is (nimgs, nspec,
-            nspat).
-        weights (`numpy.ndarray`_, optional):
-            The weights used when combining the rectified images (see
-            :func:`weighted_combine`).  If no weights are provided,
-            uniform weighting is used.  Weights are broadast to the
-            correct size of the image stacks (see
-            :func:`broadcast_weights`), as necessary.  Shape must be
-            (nimgs,), (nimgs, nspec), or (nimgs, nspec, nspat).
-        loglam_grid (`numpy.ndarray`_, optional):
-            Wavelength grid in log10(wave) onto which the image stacks
-            will be rectified.  The code will automatically choose the
-            subset of this grid encompassing the wavelength coverage of
-            the image stacks provided (see :func:`waveimg_stack`).
-            Either `loglam_grid` or `wave_grid` must be provided.
-        wave_grid (`numpy.ndarray`_, optional):
-            Same as `loglam_grid` but in angstroms instead of
-            log(angstroms). (TODO: Check units...)
-
-    Returns:
-        tuple: Returns the following (TODO: This needs to be updated):
-            - sciimg: float ndarray shape = (nspec_coadd, nspat_coadd):
-              Rectified and coadded science image
-            - sciivar: float ndarray shape = (nspec_coadd, nspat_coadd):
-              Rectified and coadded inverse variance image with correct
-              error propagation
-            - imgminsky: float ndarray shape = (nspec_coadd,
-              nspat_coadd): Rectified and coadded sky subtracted image
-            - outmask: bool ndarray shape = (nspec_coadd, nspat_coadd):
-              Output mask for rectified and coadded images. True = Good,
-              False=Bad.
-            - nused: int ndarray shape = (nspec_coadd, nspat_coadd):
-              Image of integers indicating the number of images from the
-              image stack that contributed to each pixel
-            - tilts: float ndarray shape = (nspec_coadd, nspat_coadd):
-              The averaged tilts image corresponding to the rectified
-              and coadded data.
-            - waveimg: float ndarray shape = (nspec_coadd, nspat_coadd):
-              The averaged wavelength image corresponding to the
-              rectified and coadded data.
-            - dspat: float ndarray shape = (nspec_coadd, nspat_coadd):
-              The average spatial offsets in pixels from the reference
-              trace trace_stack corresponding to the rectified and
-              coadded data.
-            - thismask: bool ndarray shape = (nspec_coadd, nspat_coadd):
-              Output mask for rectified and coadded images. True = Good,
-              False=Bad. This image is trivial, and is simply an image
-              of True values the same shape as the rectified and coadded
-              data.
-            - tslits_dict: dict: tslits_dict dictionary containing the
-              information about the slits boundaries. The slit
-              boundaries are trivial and are simply vertical traces at 0
-              and nspat_coadd-1.
-    """
-    nimgs, nspec, nspat = sciimg_stack.shape
-
-    if 'uniform' in weights:
-        msgs.info('No weights were provided. Using uniform weights.')
-        weights = np.ones(nimgs)/float(nimgs)
-
-    weights_stack = combine.broadcast_weights(weights, sciimg_stack.shape)
-
-    # Determine the wavelength grid that we will use for the current slit/order
-    wave_bins = get_wave_bins(thismask_stack, waveimg_stack, wave_grid)
-    dspat_bins, dspat_stack = get_spat_bins(thismask_stack, ref_trace_stack)
-
-    sci_list = [weights_stack, sciimg_stack, sciimg_stack - skymodel_stack, tilts_stack,
-                waveimg_stack, dspat_stack]
-    var_list = [utils.calc_ivar(sciivar_stack)]
-
-    sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack \
-            = rebin2d(wave_bins, dspat_bins, waveimg_stack, dspat_stack, thismask_stack,
-                      inmask_stack, sci_list, var_list)
-    # Now compute the final stack with sigma clipping
-    sigrej = 3.0
-    maxiters = 10
-    # sci_list_rebin[0] = rebinned weights image stack
-    # sci_list_rebin[1:] = stacks of images that we want to weighted combine
-    # sci_list_rebin[2] = rebinned sciimg-sky_model images that we used for the sigma clipping
-    sci_list_out, var_list_out, outmask, nused \
-            = combine.weighted_combine(sci_list_rebin[0], sci_list_rebin[1:], var_list_rebin,
-                               norm_rebin_stack != 0, sigma_clip=True,
-                               sigma_clip_stack=sci_list_rebin[2], sigrej=sigrej,
-                               maxiters=maxiters)
-    sciimg, imgminsky, tilts, waveimg, dspat = sci_list_out
-    sciivar = utils.calc_ivar(var_list_out[0])
-
-    # Compute the midpoints vectors, and lower/upper bins of the rectified image
-    wave_mid = ((wave_bins + np.roll(wave_bins,1))/2.0)[1:]
-    wave_min = wave_bins[:-1]
-    wave_max = wave_bins[1:]
-    dspat_mid = ((dspat_bins + np.roll(dspat_bins,1))/2.0)[1:]
-
-    # Interpolate the dspat images wherever the coadds are masked
-    # because a given pixel was not sampled. This is done because the
-    # dspat image is not allowed to have holes if it is going to work
-    # with local_skysub_extract
-    nspec_coadd, nspat_coadd = imgminsky.shape
-    spat_img_coadd, spec_img_coadd = np.meshgrid(np.arange(nspat_coadd), np.arange(nspec_coadd))
-
-    if np.any(np.invert(outmask)):
-        points_good = np.stack((spec_img_coadd[outmask], spat_img_coadd[outmask]), axis=1)
-        points_bad = np.stack((spec_img_coadd[np.invert(outmask)],
-                                spat_img_coadd[np.invert(outmask)]), axis=1)
-        values_dspat = dspat[outmask]
-        dspat_bad = scipy.interpolate.griddata(points_good, values_dspat, points_bad,
-                                               method='cubic')
-        dspat[np.invert(outmask)] = dspat_bad
-        # Points outside the convex hull of the data are set to nan. We
-        # identify those and simply assume them values from the
-        # dspat_img_fake, which is what dspat would be on a regular
-        # perfectly rectified image grid.
-        nanpix = np.isnan(dspat)
-        if np.any(nanpix):
-            dspat_img_fake = spat_img_coadd + dspat_mid[0]
-            dspat[nanpix] = dspat_img_fake[nanpix]
-
-    return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
-                wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,
-                imgminsky=imgminsky, outmask=outmask, nused=nused, tilts=tilts, waveimg=waveimg,
-                dspat=dspat, nspec=imgminsky.shape[0], nspat=imgminsky.shape[1])
-
-
-
-def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, inmask_stack, sci_list, var_list):
-    """
-    Rebin a set of images and propagate variance onto a new spectral and spatial grid. This routine effectively
-    "recitifies" images using np.histogram2d which is extremely fast and effectiveluy performs
-    nearest grid point interpolation.
-
-    Args:
-        spec_bins: float ndarray, shape = (nspec_rebin)
-           Spectral bins to rebin to.
-        spat_bins: float ndarray, shape = (nspat_rebin)
-           Spatial bins to rebin to.
-        waveimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs wavelength images with shape = (nspec, nspat) each
-        spatimg_stack: float ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs spatial position images with shape = (nspec, nspat) each
-        thismask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs images with shape = (nspec, nspat) indicating the locatons on the pixels on an image that
-            are on the slit in question.
-        inmask_stack: bool ndarray, shape = (nimgs, nspec, nspat)
-            Stack of nimgs images with shape = (nspec, nspat) indicating which pixels on an image are masked.
-            True = Good, False = Bad
-        sci_list: list
-            List of  float ndarray images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be rebinned onto the new spec_bins, spat_bins
-        var_list: list
-            List of  float ndarray variance images (each being an image stack with shape (nimgs, nspec, nspat))
-            which are to be rebbinned with proper erorr propagation
-
-    Returns:
-        tuple: Returns the following:
-            - sci_list_out: list: The list of ndarray rebinned images
-              with new shape (nimgs, nspec_rebin, nspat_rebin)
-            - var_list_out: list: The list of ndarray rebinned variance
-              images with correct error propagation with shape (nimgs,
-              nspec_rebin, nspat_rebin)
-            - norm_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
-              nspat_rebin): An image stack indicating the integer
-              occupation number of a given pixel. In other words, this
-              number would be zero for empty bins, one for bins that
-              were populated by a single pixel, etc. This image takes
-              the input inmask_stack into account. The output mask for
-              each image can be formed via outmask_rebin_satck =
-              (norm_rebin_stack > 0)
-            - nsmp_rebin_stack: int ndarray, shape (nimgs, nspec_rebin,
-              nspat_rebin): An image stack indicating the integer
-              occupation number of a given pixel taking only the
-              thismask_stack into account, but taking the inmask_stack
-              into account. This image is mainly constructed for
-              bookeeping purposes, as it represents the number of times
-              each pixel in the rebin image was populated taking only
-              the "geometry" of the rebinning into account (i.e. the
-              thismask_stack), but not the masking (inmask_stack).
-    """
-
-    shape = combine.img_list_error_check(sci_list, var_list)
-    nimgs = shape[0]
-    # allocate the output mages
-    nspec_rebin = spec_bins.size - 1
-    nspat_rebin = spat_bins.size - 1
-    shape_out = (nimgs, nspec_rebin, nspat_rebin)
-    nsmp_rebin_stack = np.zeros(shape_out)
-    norm_rebin_stack = np.zeros(shape_out)
-    sci_list_out = []
-    for ii in range(len(sci_list)):
-        sci_list_out.append(np.zeros(shape_out))
-    var_list_out = []
-    for jj in range(len(var_list)):
-        var_list_out.append(np.zeros(shape_out))
-
-    for img in range(nimgs):
-        # This fist image is purely for bookeeping purposes to determine the number of times each pixel
-        # could have been sampled
-        thismask = thismask_stack[img, :, :]
-        spec_rebin_this = waveimg_stack[img, :, :][thismask]
-        spat_rebin_this = spatimg_stack[img, :, :][thismask]
-
-        nsmp_rebin_stack[img, :, :], spec_edges, spat_edges = np.histogram2d(spec_rebin_this, spat_rebin_this,
-                                                               bins=[spec_bins, spat_bins], density=False)
-
-        finmask = thismask & inmask_stack[img,:,:]
-        spec_rebin = waveimg_stack[img, :, :][finmask]
-        spat_rebin = spatimg_stack[img, :, :][finmask]
-        norm_img, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
-                                                          bins=[spec_bins, spat_bins], density=False)
-        norm_rebin_stack[img, :, :] = norm_img
-
-        # Rebin the science images
-        for indx, sci in enumerate(sci_list):
-            weigh_sci, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
-                                                               bins=[spec_bins, spat_bins], density=False,
-                                                               weights=sci[img,:,:][finmask])
-            sci_list_out[indx][img, :, :] = (norm_img > 0.0) * weigh_sci/(norm_img + (norm_img == 0.0))
-
-        # Rebin the variance images, note the norm_img**2 factor for correct error propagation
-        for indx, var in enumerate(var_list):
-            weigh_var, spec_edges, spat_edges = np.histogram2d(spec_rebin, spat_rebin,
-                                                               bins=[spec_bins, spat_bins], density=False,
-                                                               weights=var[img, :, :][finmask])
-            var_list_out[indx][img, :, :] = (norm_img > 0.0)*weigh_var/(norm_img + (norm_img == 0.0))**2
-
-
-    return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
-
-# TODO Break up into separate methods?
-
-class CoAdd2d(object):
+class CoAdd2D(object):
 
     """
     Main routine to run the extraction for 2d coadds.
@@ -509,19 +41,6 @@ class CoAdd2d(object):
     This performs 2d coadd specific tasks, and then also performs some
     of the tasks analogous to the pypeit.extract_one method. Docs coming
     soon....
-
-    Args:
-        stack_dict:
-        master_dir:
-        det (int):
-        samp_fact: float
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser)
-        ir_redux:
-        par:
-        show:
-        show_peaks:
-
     """
 
 
@@ -534,21 +53,17 @@ class CoAdd2d(object):
 
         The class must be subclassed this class CoAdd2d.
 
-        Args:
-            spec2dfiles:
-                List of spec2d files
-            spectrograph (object):
-                (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                The instrument used to collect the data to be reduced.
-            par (object):
-                Parset
+        Parameters
+        ----------
+            See the documenation for the __init__ function below
 
-        Returns:
-            :class:`PypeIt`: One of the subclasses with :class:`PypeIt` as its
+        Returns
+        -------
+            :class:`CoAdd2d`: One of the subclasses with :class:`CoAdd2d` as its
             base.
         """
 
-        return next(c for c in cls.__subclasses__() if c.__name__ == spectrograph.pypeline)(
+        return next(c for c in cls.__subclasses__() if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
             spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights, sn_smooth_npix=sn_smooth_npix,
             ir_redux=ir_redux, show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug, **kwargs_wave)
 
@@ -556,24 +71,41 @@ class CoAdd2d(object):
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
 
-        Args:
-            spec2d_files:
-            det:
+        Parameters
+        ----------
+            spec2d_files (list):
+               List of spec2d files
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+                The instrument used to collect the data to be reduced.
+            par (:class:`pypeit.par.parset.ParSet`):
+                Parset object
+            det (int): optional
+                Detector to reduce
             offsets (ndarray): default=None
                 Spatial offsets to be applied to each image before coadding. For the default mode of None, images
-                are registered automatically using the trace of the brightest object.
+                are registered automatically using the trace of the brightest object. Input offsets are not yet supported.
             weights (str, list or ndarray):
                 Mode for the weights used to coadd images. Options are 'auto' (default), 'uniform', or list/array of
                 weights with shape = (nexp,) can be input and will be applied to the image. Note 'auto' is not allowed
                 if offsets are input, and if set this will cause an exception.
-            sn_smooth_npix:
-            ir_redux:
-            par:
-            std:
-            show:
-            show_peaks:
-            debug:
-            **kwargs_wave:
+            sn_smooth_npix (int): optional, default=None
+                Number of pixels to median filter by when computing S/N used to decide how to scale and weight spectra. If
+                set to None, the code will simply take 10% of the image size in the spectral direction.
+                TODO: for truncated echelle orders we should be doing something more intelligent.
+            ir_redux (bool): optional, default=False
+                Is this an near-IR reduction, True=yes. This parameter is passed to pypeit.reduce for determining the
+                reduction steps.
+            show (bool): optional, default=False
+                Show results to ginga
+            show_peaks (bool): optional, default=False
+                Show the QA for object finding algorithm peak finding to the screen.
+            debug_offset (bool): optional, default=False
+                Show QA for debugging the automatic determination of offsets to the screen.
+            debug (bool): optional, default=False
+                Show QA for debugging.
+            **kwargs_wave
+                Keyword arguments pass to `pypeit.core.coadd.get_wvae_grid` which determine how the wavelength grid
+                is created for the 2d coadding.
         """
 
         ## Use Cases:
@@ -659,8 +191,8 @@ class CoAdd2d(object):
             mask_stack[:, iexp] = sobjs[ithis].OPT_MASK
 
         # TODO For now just use the zero as the reference for the wavelengths? Perhaps we should be rebinning the data though?
-        rms_sn, weights = coadd1d.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
-                                             const_weights=const_weights)
+        rms_sn, weights = coadd.sn_weights(wave_stack, flux_stack, ivar_stack, mask_stack, self.sn_smooth_npix,
+                                           const_weights=const_weights)
         return rms_sn, weights.T
 
 
@@ -684,7 +216,7 @@ class CoAdd2d(object):
             else:
                 weights = self.use_weights
             # Perform the 2d coadd
-            coadd_dict = compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
+            coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
                                            self.stack_dict['sciivar_stack'],
                                            self.stack_dict['skymodel_stack'], self.stack_dict['mask_stack'] == 0,
                                            self.stack_dict['tilts_stack'], thismask_stack,
@@ -819,7 +351,7 @@ class CoAdd2d(object):
 
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
-        parcopy['scienceimage']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
+        parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
         # Instantiate Calibrations class
         caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph)
@@ -948,7 +480,7 @@ class CoAdd2d(object):
                 masks[:, indx] = spec.OPT_MASK
                 indx += 1
 
-        wave_grid, wave_grid_mid, dsamp = coadd1d.get_wave_grid(waves, masks=masks, **kwargs_wave)
+        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=masks, **kwargs_wave)
 
         return wave_grid, wave_grid_mid, dsamp
 
@@ -1026,25 +558,25 @@ class CoAdd2d(object):
             try:
                 exten = names.index('DET{:s}-PROCESSED'.format(sdet))
             except:  # Backwards compatability
-                det_error_msg(exten, sdet)
+                coadd.det_error_msg(exten, sdet)
             sciimg = hdu[exten].data
             # skymodel
             try:
                 exten = names.index('DET{:s}-SKY'.format(sdet))
             except:  # Backwards compatability
-                det_error_msg(exten, sdet)
+                coadd.det_error_msg(exten, sdet)
             skymodel = hdu[exten].data
             # Inverse variance model
             try:
                 exten = names.index('DET{:s}-IVARMODEL'.format(sdet))
             except ValueError:  # Backwards compatability
-                det_error_msg(exten, sdet)
+                coadd.det_error_msg(exten, sdet)
             sciivar = hdu[exten].data
             # Mask
             try:
                 exten = names.index('DET{:s}-MASK'.format(sdet))
             except ValueError:  # Backwards compatability
-                det_error_msg(exten, sdet)
+                coadd.det_error_msg(exten, sdet)
             mask = hdu[exten].data
             if ifile == 0:
                 # the two shapes accomodate the possibility that waveimg and tilts are binned differently
@@ -1118,9 +650,9 @@ class CoAdd2d(object):
 # 2) specified weights, or if weights is None and auto_weights=True,
 #    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
 
-class MultiSlit(CoAdd2d):
+class MultiSlitCoAdd2D(CoAdd2D):
     """
-    Child of Coadd2d for Multislit and Longslit reductions
+    Child of Coadd2d for Multislit and Longslit reductions. For documentation see CoAdd2d parent class above.
 
         # Multislit can coadd with:
         # 1) input offsets or if offsets is None, it will find the brightest trace and compute them
@@ -1130,7 +662,7 @@ class MultiSlit(CoAdd2d):
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(MultiSlit, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super(MultiSlitCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                         sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
                                         debug=debug, **kwargs_wave)
@@ -1177,14 +709,14 @@ class MultiSlit(CoAdd2d):
             trace_stack_bri[:,iexp] = (self.stack_dict['tslits_dict_list'][iexp]['slit_left'][:,slitid_bri] +
                                        self.stack_dict['tslits_dict_list'][iexp]['slit_righ'][:,slitid_bri])/2.0
         # Determine the wavelength grid that we will use for the current slit/order
-        wave_bins = get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
-        dspat_bins, dspat_stack = get_spat_bins(thismask_stack, trace_stack_bri)
+        wave_bins = coadd.get_wave_bins(thismask_stack, self.stack_dict['waveimg_stack'], self.wave_grid)
+        dspat_bins, dspat_stack = coadd.get_spat_bins(thismask_stack, trace_stack_bri)
 
         sci_list = [self.stack_dict['sciimg_stack'] - self.stack_dict['skymodel_stack']]
         var_list = []
 
         msgs.info('Rebinning Images')
-        sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = rebin2d(
+        sci_list_rebin, var_list_rebin, norm_rebin_stack, nsmp_rebin_stack = coadd.rebin2d(
             wave_bins, dspat_bins, self.stack_dict['waveimg_stack'], dspat_stack, thismask_stack,
             (self.stack_dict['mask_stack'] == 0), sci_list, var_list)
         thismask = np.ones_like(sci_list_rebin[0][0,:,:],dtype=bool)
@@ -1199,11 +731,11 @@ class MultiSlit(CoAdd2d):
         for iexp in range(self.nexp):
             sobjs_exp, _ = extract.objfind(sci_list_rebin[0][iexp,:,:], thismask, slit_left, slit_righ,
                                            inmask=inmask[iexp,:,:], ir_redux=self.ir_redux,
-                                           fwhm=self.par['scienceimage']['findobj']['find_fwhm'],
-                                           trim_edg=self.par['scienceimage']['findobj']['find_trim_edge'],
-                                           npoly_cont=self.par['scienceimage']['findobj']['find_npoly_cont'],
-                                           maxdev=self.par['scienceimage']['findobj']['find_maxdev'],
-                                           ncoeff=3, sig_thresh=self.par['scienceimage']['findobj']['sig_thresh'], nperslit=1,
+                                           fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                           trim_edg=self.par['reduce']['findobj']['find_trim_edge'],
+                                           npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
+                                           maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                           ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT
@@ -1271,7 +803,7 @@ class MultiSlit(CoAdd2d):
                         ivar[:, iobj] = spec.OPT_COUNTS_IVAR
                         wave[:, iobj] = spec.OPT_WAVE
                         mask[:, iobj] = spec.OPT_MASK
-                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
+                    rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
                     imax = np.argmax(rms_sn)
                     slit_snr_max[islit, iexp] = rms_sn[imax]
                     objid_max[islit, iexp] = objid_this[imax]
@@ -1296,20 +828,27 @@ class MultiSlit(CoAdd2d):
         return self.offset_slit_cen(slitid, offsets)
 
 
-class Echelle(CoAdd2d):
+class EchelleCoAdd2D(CoAdd2D):
     """
-    Child of Coadd2d for Multislit and Longslit reductions
+    Coadd Echelle reductions.
+    
+    For documentation see :class:`CoAdd2D`.
 
-        # Echelle can either stack with:
-        # 1) input offsets or if offsets is None, it will find the objid of brightest trace and stack all orders relative to the trace of this object.
-        # 2) specified weights, or if weights is None and auto_weights=True,
-        #    it will use wavelength dependent weights determined from the spectrum of the brightest objects objid on each order
+    Echelle can either stack with:
 
+        - input ``offsets`` or if ``offsets`` is None, it will find
+          the ``objid`` of brightest trace and stack all orders
+          relative to the trace of this object.
+
+        - specified ``weights``, or if ``weights`` is None and
+          ``auto_weights`` is True, it will use wavelength dependent
+          weights determined from the spectrum of the brightest
+          objects ``objid`` on each order
 
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
                  ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
-        super(Echelle, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
+        super(EchelleCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
                                       sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                       show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                                       **kwargs_wave)
@@ -1372,7 +911,7 @@ class Echelle(CoAdd2d):
                     ivar = sobjs[ind][0].OPT_COUNTS_IVAR
                     wave = sobjs[ind][0].OPT_WAVE
                     mask = sobjs[ind][0].OPT_MASK
-                    rms_sn, weights = coadd1d.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
+                    rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, self.sn_smooth_npix, const_weights=True)
                     order_snr[iord, iobj] = rms_sn
 
             # Compute the average SNR and find the brightest object

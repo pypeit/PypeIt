@@ -38,11 +38,6 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['number'] = 1
 
         # Scienceimage default parameters
-        par['reduce'] = pypeitpar.ReducePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -155,6 +150,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         msgs.info("Reading LBT/MODS file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
         head = hdu[0].header
+
+        # TODO These parameters should probably be stored in the detector par
 
         # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
         numamp = 4

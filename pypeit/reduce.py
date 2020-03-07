@@ -930,9 +930,15 @@ class EchelleReduce(Reduce):
                  skymask : ndarray
                      Boolean image indicating which pixels are useful for global sky subtraction
 
-         """
+        """
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
+
+        # TODO: Figure out where to do this properly
+        spec_min = np.zeros(self.tslits_dict['nslits'], dtype=int) \
+                        if self.tslits_dict['spec_min'] is None else self.tslits_dict['spec_min']
+        spec_max = np.full(self.tslits_dict['nslits'], self.tslits_dict['nspec']-1, dtype=int) \
+                        if self.tslits_dict['spec_max'] is None else self.tslits_dict['spec_max']
 
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.mask == 0
@@ -944,8 +950,7 @@ class EchelleReduce(Reduce):
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.tslits_dict['slit_left'],
             self.tslits_dict['slit_righ'], self.order_vec, self.maskslits,
-            spec_min_max=np.vstack((self.tslits_dict['spec_min'],
-                                    self.tslits_dict['spec_max'])),
+            spec_min_max=np.vstack((spec_min, spec_max)),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
@@ -1017,7 +1022,7 @@ class EchelleReduce(Reduce):
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
-
+# TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
 def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided

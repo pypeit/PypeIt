@@ -79,7 +79,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
         # Build the spec1d output header.
-        header = all_specobjs.build_header(head1d, spectrograph)
+        header = all_specobjs.build_header(head1d, head2d, spectrograph)
         all_specobjs.write_to_fits(header, outfile1d, update_det=update_det)
         # Txt file
         # TODO JFH: Make this a method in the specobjs class.
@@ -90,82 +90,6 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
 
     return
 
-# JFH This routine is deprecated. The preferred way to write out 1d coadds is now in the coadd1d class.
-def save_coadd1d_to_fits(outfile, waves, fluxes, ivars, masks, telluric=None, obj_model=None,
-                         header=None, ex_value='OPT', overwrite=True):
-    '''
-    Args:
-        outfile (str): name of fitsfile you want to save to
-        waves (ndarray): 1-D or 2-D (nspec by nexp/norder) wavelength array
-        fluxes (ndarray): flux array
-        ivars (ndarray): ivar array
-        masks (ndarray): mask array
-        header (dict): primary fits header
-        ext_value (str): 'OPT' for optimal, and 'BOX' for boxcar
-        overwrite (bool): if True, overwrite the old one, otherwise append it to the exist fits file.
-    Returns:
-        None
-    '''
-
-    # Estimate sigma from ivar
-    sigs = np.sqrt(utils.inverse(ivars))
-
-    if (os.path.exists(outfile)) and (np.invert(overwrite)):
-        hdulist = fits.open(outfile)
-        msgs.info("Reading primary HDU from existing file: {:s}".format(outfile))
-    else:
-        msgs.info("Creating an new primary HDU.")
-        prihdu = fits.PrimaryHDU()
-        if header is None:
-            msgs.warn('The primary header is none')
-        else:
-            prihdu.header = header
-        hdulist = fits.HDUList([prihdu])
-
-    if waves.ndim == 1:
-        wave_mask = waves > 1.0
-        # Add Spectrum Table
-        cols = []
-        cols += [fits.Column(array=waves[wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
-        cols += [fits.Column(array=fluxes[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
-        cols += [fits.Column(array=ivars[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
-        cols += [fits.Column(array=sigs[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
-        cols += [fits.Column(array=masks[wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
-        if telluric is not None:
-            cols += [fits.Column(array=telluric[wave_mask], name='TELLURIC', format='D')]
-        if obj_model is not None:
-            cols += [fits.Column(array=obj_model[wave_mask], name='OBJ_MODEL', format='D')]
-
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
-        hdulist.append(tbhdu)
-    else:
-        nspec = waves.shape[1]
-
-        for ispec in range(nspec):
-            wave_mask = waves[:,ispec] > 1.0
-            # Add Spectrum Table
-            cols = []
-            cols += [fits.Column(array=waves[:,ispec][wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
-            cols += [fits.Column(array=fluxes[:,ispec][wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
-            cols += [fits.Column(array=ivars[:,ispec][wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
-            cols += [fits.Column(array=sigs[:,ispec][wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
-            cols += [fits.Column(array=masks[:,ispec][wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
-
-            coldefs = fits.ColDefs(cols)
-            tbhdu = fits.BinTableHDU.from_columns(coldefs)
-            tbhdu.name = 'OBJ0001-SPEC{:04d}-{:}'.format(ispec+1, ex_value.capitalize())
-            hdulist.append(tbhdu)
-
-    if (os.path.exists(outfile)) and (np.invert(overwrite)):
-        hdulist.writeto(outfile, overwrite=True)
-        msgs.info("Appending 1D spectra to existing file {:s}".format(outfile))
-    else:
-        hdulist.writeto(outfile, overwrite=overwrite)
-        msgs.info("Wrote 1D spectra to {:s}".format(outfile))
-
-    return None
 
 
 # TODO: (KBW) I don't think core algorithms should take class
@@ -411,6 +335,7 @@ def init_hdus(update_det, outfile):
     if not isinstance(update_det, list):
         update_det = [update_det]
     popme = []
+
     # Find em
     for ss,hdu_name in enumerate(hdu_names):
         for det in update_det:

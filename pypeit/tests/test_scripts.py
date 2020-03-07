@@ -110,7 +110,6 @@ def test_quicklook():
          '--user_pixflat={0}'.format(
              os.path.join(calib_dir, 'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
 
-
 @dev_suite_required
 def test_trace_edges():
     # Define the output directories (HARDCODED!!)
@@ -151,7 +150,7 @@ def test_show_1dspec():
                              'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
-    show_1dspec.main(pargs, unit_test=True)
+    show_1dspec.main(pargs)
 
 
 @cooked_required
@@ -183,6 +182,7 @@ def test_chk_flat():
     chk_flats.main(pargs)
 
 
+
 def test_coadd1d_1():
     """
     Test basic coadd using Shane Kast blue
@@ -195,12 +195,8 @@ def test_coadd1d_1():
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
-    # TODO: This is a kludge to get Travis to work.  We need a script
-    # that will write the coadd files with absolute paths.
-    coadd_ifile = data_path('shane_kast_blue.coadd1d') if os.getenv('TRAVIS_BUILD_DIR') is None \
-                    else data_path('shane_kast_blue_travis.coadd1d')
-
-    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]))
+    coadd_ifile = data_path('shane_kast_blue.coadd1d')
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
     assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
@@ -224,13 +220,8 @@ def test_coadd1d_2():
     if os.path.isfile(coadd_ofile):
         os.remove(coadd_ofile)
 
-    # TODO: This is a kludge to get Travis to work.  We need a script
-    # that will write the coadd files with absolute paths.
-    coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d') \
-                    if os.getenv('TRAVIS_BUILD_DIR') is None \
-                    else data_path('gemini_gnirs_32_sb_sxd_travis.coadd1d')
-
-    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile]))
+    coadd_ifile = data_path('gemini_gnirs_32_sb_sxd.coadd1d')
+    coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
     assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
@@ -242,4 +233,5 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
+
 

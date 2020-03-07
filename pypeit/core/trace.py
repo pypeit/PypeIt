@@ -62,6 +62,9 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
             `scipy.ndimage.sobel`_.
         sigdetect (:obj:`float`, optional):
             Threshold for edge detection.
+        grow_bpm (:int)
+            The sobel_sig and edg_img are masked using the bpm. This is done by convolving the bpm with
+            a spatial boxcar of width grow_bpm pixels, ensuring that pixels which touched bad pixels are also masked.
 
     Returns:
         Returns two `numpy.ndarray`_ objects: (1) The image of the
@@ -786,7 +789,7 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
     if maxshift is None and maxerror is None and bitmask is None:
         # Nothing else to do
         ## TODO: JFH It seems like this shold be returning indx here and not matherr if bitmask is None.
-        return xfit, xerr, matherr
+        return xfit, xerr, indx
 
     # Flag large shifts
     if maxshift is not None:

@@ -44,9 +44,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
 
@@ -617,9 +614,6 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['scienceframe']['process']['sigclip'] = 5.
         par['scienceframe']['process']['objlim'] = 5.
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_400_8500_d560.json'
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -663,6 +657,9 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             par['calibrations']['wavelengths']['nsnippet'] = 1
         elif self.get_meta_value(scifile, 'dispname') == '600/5000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_5000.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == '600/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_600_7500.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
         elif self.get_meta_value(scifile, 'dispname') == '1200/9000':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_lris_red_1200_9000.fits'

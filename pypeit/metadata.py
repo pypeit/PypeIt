@@ -11,7 +11,7 @@ import yaml
 from collections import OrderedDict
 
 import datetime
-from astropy import table, coordinates, time
+from astropy import table, coordinates, time, units
 
 from pypeit import msgs
 from pypeit import utils
@@ -114,7 +114,7 @@ class PypeItMetaData:
                                  else self._build(files, strict=strict, usrdata=usrdata))
 
         # Sort on filename
-        self.table.sort('filename')
+        #self.table.sort('filename')  # JXP -- This was causing issues with merging, and I think we sort on MJD later
 
         # Merge with user data, if present
         if usrdata is not None:
@@ -174,7 +174,12 @@ class PypeItMetaData:
         # Build the table
         for idx, ifile in enumerate(_files):
             # User data (for frame type)
-            usr_row = None if usrdata is None else usrdata[idx]
+            if usrdata is None:
+                usr_row = None
+            else:
+                # Check
+                assert os.path.basename(ifile) == usrdata['filename'][idx]
+                usr_row = usrdata[idx]
 
             # Add the directory and file name to the table
             data['directory'][idx], data['filename'][idx] = os.path.split(ifile)
@@ -359,10 +364,11 @@ class PypeItMetaData:
 
         # Convert types if possible
         existing_keys = list(set(self.table.keys()) & set(usrdata.keys()))
+        radec_done = False
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
                 if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
-                    debugger.set_trace()
+                    import pdb; pdb.set_trace()
                 elif key in meta_data_model.keys(): # Is this meta data??
                     dtype = meta_data_model[key]['dtype']
                 else:
@@ -371,7 +377,18 @@ class PypeItMetaData:
                 nones = usrdata[key] == 'None'
                 usrdata[key][nones] = None
                 # Rest
-                usrdata[key][~nones] = usrdata[key][~nones].astype(dtype)
+                # Allow for str RA, DEC (backwards compatability)
+                if key in ['ra', 'dec']:
+                    if radec_done:  # This has us execute the snippet only once
+                        pass
+                    else:
+                        ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
+                                                       usrdata['dec'][~nones].data)
+                        usrdata['ra'][~nones] = ras.astype(dtype)
+                        usrdata['dec'][~nones] = decs.astype(dtype)
+                        radec_done = True
+                else:
+                    usrdata[key][~nones] = usrdata[key][~nones].astype(dtype)
 
         # Include the user data in the table
         for key in usrdata.keys():

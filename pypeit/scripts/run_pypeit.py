@@ -58,12 +58,8 @@ def parser(options=None):
 def main(args):
 
     import os
-    import sys
-    import traceback
 
     from pypeit import pypeit
-    from pypeit import pypeitsetup
-    from pypeit import debugger
 
     # Initiate logging for bugs and command line help
     # These messages will not be saved to a log file

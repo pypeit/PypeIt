@@ -1,18 +1,28 @@
 
-
-0.12.3dev
+0.12.4dev
 ---------
+
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
+- Restrict extrapolation in tilt fitting
+
+0.12.3 (13 Feb 2019)
+--------------------
 
 - Implemented DataContainer
 - Added fits I/O methods
 - Implemented SlitTraceSet
-- Refactored sensitivity function, fluxing, and coadding scripts and
-  algorithms.
-- Added support for additional near-IR spectrographs.
 - Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
   key is not valid for the given parameter set.  NOTE: The check may
   fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
+- Enable user to scale flux of coadded 1D spectrum to a filter magnitude
+- Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
+- Add more cards to spec1d header output
+- Fixes a few sensfunc bugs
+- Added template for LRIS 600/7500
+- Deal with non-extracted Standard
 
 0.12.2 (14 Jan 2019)
 --------------------
