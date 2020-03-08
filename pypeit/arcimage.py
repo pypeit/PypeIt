@@ -15,12 +15,22 @@ from pypeit.core import procimg
 
 from IPython import embed
 
+class ArcImage(calibrationimage.CalibrationImage):
 
-class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
+    # Set the version of this class
+    version = '1.0.0'
+
+    # Output to disk
+    output_to_disk = ('ARC_IMAGE',)
+    hdu_prefix = 'ARC_'
+    master_type = 'Arc'
+    frametype = 'arc'
+
+
+class BuildArcImage(calibrationimage.BuildCalibrationImage):#, masterframe.MasterFrame):
     """
-    Generate an Arc Image by processing and combining one or more arc frames.
+    Generate an ArcImage by processing and combining one or more arc frames.
 
-    v1.0.0 -- Uses one PypeItImage datamodel
 
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -49,14 +59,11 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             Bias image or bias-subtraction method; see
             :func:`pypeit.processimages.ProcessImages.process`.
     """
-
     # Frametype is a class attribute
     frametype = 'arc'
-    master_type = 'Arc'
-    master_version = '1.0.0'
+    image_type = ArcImage
 
-    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
-                 master_dir=None, reuse_masters=False, msbias=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None, msbias=None):
     
         # Parameters unique to this Object
         self.msbias = msbias
@@ -65,18 +72,19 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
+        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, reuse_masters=reuse_masters)
+        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        #                                 master_key=master_key, reuse_masters=reuse_masters)
         # Process steps
         self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
         self.process_steps += ['trim']
         self.process_steps += ['orient']
         self.process_steps += ['apply_gain']
 
+    '''
     def save(self, outfile=None, overwrite=True):
         """
         Save the arc master data.
@@ -121,4 +129,5 @@ class ArcImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Load it up
         self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file, hdu_prefix='ARC_')
         return self.pypeitImage
+    '''
 

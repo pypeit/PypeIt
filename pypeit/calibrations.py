@@ -19,9 +19,10 @@ from pypeit import arcimage
 from pypeit import tiltimage
 from pypeit import biasframe
 from pypeit import flatfield
-from pypeit import traceimage
 from pypeit import edgetrace
+from pypeit import masterframe
 from pypeit import slittrace
+from pypeit import traceimage
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
@@ -107,26 +108,28 @@ class Calibrations(object):
         self.par = par
         self.spectrograph = spectrograph
 
-        # Control flow
+        # Masters
         self.reuse_masters = reuse_masters
         self.master_dir = caldir
         self.save_masters = save_masters
+
+        # QA
         self.qa_path = qadir
         self.write_qa = qadir is not None
         self.show = show
 
         # Check that the masters can be reused and/or saved
-        if self.master_dir is None:
-            if self.save_masters:
-                # TODO: Default to current directory instead?
-                msgs.warn('To save masters, must provide the directory (caldir).  '
-                          'Masters will not be saved!')
-                self.save_masters = False
-            if self.reuse_masters:
-                # TODO: Default to current directory instead?
-                msgs.warn('To reuse masters, must provide the directory (caldir).  '
-                          'Masters will not be reused!')
-                self.reuse_masters = False
+        #if caldir is None:
+        #    if self.save_masters:
+        #        # TODO: Default to current directory instead?
+        #        msgs.warn('To save masters, must provide the directory (caldir).  '
+        #                  'Masters will not be saved!')
+        #        self.save_masters = False
+        #    if self.reuse_masters:
+        #        # TODO: Default to current directory instead?
+        #        msgs.warn('To reuse masters, must provide the directory (caldir).  '
+        #                  'Masters will not be reused!')
+        #        self.reuse_masters = False
 
         # Check the directories exist
         # TODO: This should be done when the masters are saved
@@ -262,6 +265,7 @@ class Calibrations(object):
 
         # Initialize the master key dict for this science/standard frame
         self.master_key_dict['frame'] = self.fitstbl.master_key(frame, det=det)
+        # Initialize the master dict for input, output
 
     def get_arc(self):
         """
@@ -286,30 +290,37 @@ class Calibrations(object):
                 = self.fitstbl.master_key(arc_rows[0] if len(arc_rows) > 0 else self.frame,
                                           det=self.det)
 
+        # Previously calculated?  If so, reuse
         if self._cached('arc', self.master_key_dict['arc']):
-            # Previously calculated
             self.msarc = self.calib_dict[self.master_key_dict['arc']]['arc']
             return self.msarc
 
-        # Instantiate with everything needed to generate the image (in case we do)
-        self.arcImage = arcimage.ArcImage(self.spectrograph, files=self.arc_files,
+        # Reuse master frame?
+        masterframe_name = masterframe.construct_file_name(arcimage.ArcImage,
+            self.master_key_dict['arc'], master_dir=self.master_dir)
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.msarc = arcimage.ArcImage.from_file(masterframe_name,
+                                                     hdu_prefix=arcimage.ArcImage.hdu_prefix)
+            return self.msarc
+
+        # Build it
+        msgs.info("Preparing a master {0:s} frame".format(arcimage.ArcImage.frametype))
+        self.buildArcImage = arcimage.BuildArcImage(self.spectrograph, files=self.arc_files,
                                           det=self.det, msbias=self.msbias,
-                                          par=self.par['arcframe'],
-                                          master_key=self.master_key_dict['arc'],
-                                          master_dir=self.master_dir,
-                                          reuse_masters=self.reuse_masters)
+                                          par=self.par['arcframe'])
+        self.msarc = arcimage.ArcImage.from_pypeitimage(
+            self.buildArcImage.build_image(bias=self.msbias, bpm=self.msbpm))
 
-        # Load the MasterFrame (if it exists and is desired)?
-        self.msarc = self.arcImage.load()
-        if self.msarc is None:  # Otherwise build it
-            msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
-            self.msarc = self.arcImage.build_image(bias=self.msbias, bpm=self.msbpm)
-            # Save to Masters
-            if self.save_masters:
-                self.arcImage.save()
-
-        # Save & return
+        # Save
+        if self.save_masters:
+            self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
+                                      self.spectrograph.spectrograph,  # Header
+                                      steps=self.buildArcImage.process_steps,
+                                      raw_files=self.arc_files)
+        embed(header='320 of calibrations')
+        # Cache
         self._update_cache('arc', 'arc', self.msarc)
+        # Return
         return self.msarc
 
 
@@ -949,10 +960,10 @@ class MultiSlitCalibrations(Calibrations):
     ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False, steps=None):
+                 show=False, steps=None, save_masters=True):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
                                                     qadir=qadir, reuse_masters=reuse_masters,
-                                                    show=show)
+                                                    show=show, save_masters=save_masters)
         self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
 
     @staticmethod

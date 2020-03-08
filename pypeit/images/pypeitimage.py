@@ -91,6 +91,15 @@ class PypeItImage(datamodel.DataContainer):
         # Return
         return slf
 
+    @classmethod
+    def from_pypeitimage(cls, pypeitImage):
+        slf = cls(pypeitImage.image, ivar=pypeitImage.ivar, rn2img=pypeitImage.rn2img)
+        if pypeitImage.mask is not None:
+            slf.mask = maskimage.ImageMask(pypeitImage.mask.bpm, crmask=pypeitImage.mask.crmask,
+                                   fullmask=pypeitImage.mask.fullmask)
+        # Return
+        return slf
+
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
                  binning=None, crmask=None, fullmask=None, prefix=None):
 

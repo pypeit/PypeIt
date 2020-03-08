@@ -15,7 +15,18 @@ from pypeit.images import calibrationimage
 from pypeit.images import pypeitimage
 
 
-class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
+class BiasImage(calibrationimage.CalibrationImage):
+    # Set the version of this class
+    version = '1.0.0'
+
+    # Output to disk
+    output_to_disk = ('BIAS_IMAGE',)
+    hdu_prefix = 'BIAS_'
+    master_type = 'Bias'
+    frametype = 'bias'
+
+
+class BiasFrame(calibrationimage.BuildCalibrationImage, masterframe.MasterFrame):
     """
     Class to generate/load the Bias image or instructions on how to deal
     with the bias.
@@ -52,6 +63,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     frametype = 'bias'
     master_type = 'Bias'
     master_version = '1.0.0'
+    image_type = BiasImage
 
     @classmethod
     def from_master_file(cls, master_file, par=None):
@@ -88,7 +100,7 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
+        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
 
         # MasterFrames: Specifically pass the ProcessImages-constructed
         # spectrograph even though it really only needs the string name
@@ -124,10 +136,10 @@ class BiasFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             msgs.info("No bias frames provided.  No bias image will be generated or used")
             return None
         # Build
-        self.pypeItImage = super(BiasFrame, self).build_image(ignore_saturation=True)
-        self.pypeitImage.ivar = None  # Zero this out as it non-sensical
+        pypeitimage = super(BiasFrame, self).build_image(ignore_saturation=True)
+        biasImage = BiasImage.from_pypeitimage(pypeitimage)
         # Return
-        return self.pypeItImage
+        return biasImage
 
     def save(self, outfile=None, overwrite=True):
         """

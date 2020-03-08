@@ -358,7 +358,7 @@ class CoAdd2D(object):
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
         # Instantiate Calibrations class
-        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph)
+        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph, save_masters=False)
         caliBrate.slits = pseudo_dict['slits']
         caliBrate.tilts_dict = dict(tilts=pseudo_dict['tilts'])
         caliBrate.mswave = pseudo_dict['waveimg']

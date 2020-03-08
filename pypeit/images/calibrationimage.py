@@ -5,18 +5,39 @@ import inspect
 import os
 import numpy as np
 
+from abc import ABCMeta
 
 from pypeit import msgs
 from pypeit.par import pypeitpar
 from pypeit.images import combineimage
+from pypeit.images import pypeitimage
+from pypeit import masterframe
 
 from IPython import embed
 
 
-class CalibrationImage(object):
+class CalibrationImage(pypeitimage.PypeItImage):
+
+    # Output to disk
+    output_to_disk = None
+    hdu_prefix = None
+    file_format = 'fits'
+
+    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
+                       raw_files=None, **kwargs):
+        # Output file
+        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        # Header
+        hdr = masterframe.build_master_header(self, master_key, master_dir,
+                                              spectrograph, steps=steps,
+                                              raw_files=raw_files)
+        # Write
+        super(CalibrationImage, self).to_file(ofile, primary_hdr=hdr,
+                                              hdu_prefix=self.hdu_prefix, **kwargs)
+
+class BuildCalibrationImage(object):
     """
-    Class to generate (and hold) a combined calibration image from a list of input images or
-    simply to hold a previously generated calibration image.
+    Class to generate (and hold) a combined calibration image from a list of input images
 
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -39,6 +60,8 @@ class CalibrationImage(object):
             List of processing steps to be used
 
     """
+    __metaclass__ = ABCMeta
+
     def __init__(self, spectrograph, det, proc_par, files=None):
 
         # Required items
@@ -126,9 +149,10 @@ class CalibrationImage(object):
 
         """
         combineImage = combineimage.CombineImage(self.spectrograph, self.det, self.proc_par, self.file_list)
-        self.pypeitImage = combineImage.run(self.process_steps, bias, bpm=bpm, ignore_saturation=ignore_saturation)
+        pypeitImage = combineImage.run(self.process_steps, bias, bpm=bpm, ignore_saturation=ignore_saturation)
+
         # Return
-        return self.pypeitImage
+        return pypeitImage
 
 
     def __repr__(self):
