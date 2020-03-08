@@ -466,6 +466,7 @@ import warnings
 from IPython import embed
 
 import numpy as np
+import inspect
 
 from astropy.io import fits
 from astropy.table import Table
@@ -637,6 +638,32 @@ class DataContainer:
 
         if self.version is None:
             raise ValueError('Must define a version for the class.')
+
+    @classmethod
+    def full_datamodel(cls):
+        """
+        Expand out the datamodel into a single dict
+        This needs to be a class method to access the datamodel without instantiation
+
+        Returns:
+            dict
+
+        """
+        #
+        full_datamodel = {}
+        for key in cls.datamodel.keys():
+            if inspect.isclass(cls.datamodel[key]['otype']) and (
+                    DataContainer in cls.datamodel[key]['otype'].__bases__):
+                sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
+                for key in sub_datamodel.keys():
+                    # Check  this is not a duplicate
+                    assert key not in full_datamodel.keys()
+                    # Assign
+                    full_datamodel[key] = sub_datamodel[key]
+            else:
+                full_datamodel[key] = cls.datamodel[key]
+        #
+        return full_datamodel
 
     def _init_internals(self):
         """
@@ -934,7 +961,6 @@ class DataContainer:
             return
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
-            embed(header='937 of datamodel')
             raise TypeError('Incorrect data type for {0}!'.format(item) +
                             'Allowed type(s) are: {0}'.format(self.datamodel[item]['otype']))
         # Array?
@@ -1020,7 +1046,11 @@ class DataContainer:
         for d in data:
             if isinstance(d, dict) and len(d) == 1:
                 ext = list(d.keys())[0]
-                hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
+                # Allow for embedded DataContainer's
+                if isinstance(d[ext], DataContainer):
+                    hdu += d[ext].to_hdu()
+                else:
+                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr)]
         # Prefixes

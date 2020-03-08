@@ -43,6 +43,10 @@ class PypeItImage(datamodel.DataContainer):
     Attributes:
         mask (class:`pypeit.images.maskimage.ImageMask`):
             Image mask(s)
+        hdu_prefix (str, optional):
+            Appended to the HDU name, if provided.
+            Mainly used to enable output of multiple PypeItImage objects
+            in more complex DataContainers
 
     """
     # Set the version of this class
@@ -55,6 +59,7 @@ class PypeItImage(datamodel.DataContainer):
         'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
         'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
         'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
+        'mask': dict(otype=maskimage.ImageMask, desc='Mask DataContainer'),
     }
 
     @classmethod
@@ -66,6 +71,7 @@ class PypeItImage(datamodel.DataContainer):
 
         Args:
             file (str):
+            hdu_prefix (str, optional):
 
         Returns:
             :class:`pypeit.images.pypeitimage.PypeItImage`:
@@ -86,19 +92,22 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
-                 binning=None, crmask=None, fullmask=None):
+                 binning=None, crmask=None, fullmask=None, prefix=None):
+
+        self.prefix = prefix
 
         # Setup the DataContainer
-        super(PypeItImage, self).__init__({'image': image, 'ivar': ivar, 'rn2img': rn2img})
+        super(PypeItImage, self).__init__({'image': image, 'ivar': ivar, 'rn2img': rn2img,
+                                          'mask': maskimage.ImageMask(bpm, crmask=crmask, fullmask=fullmask)})
 
         # Internals need to come after
-        self.mask = maskimage.ImageMask(bpm, crmask=crmask, fullmask=fullmask)
         self.binning = binning
 
     def _init_internals(self):
 
-        self.mask = None
+        #self.mask = None
         self.binning = None
+
 
     def _bundle(self):
         """
@@ -127,7 +136,10 @@ class PypeItImage(datamodel.DataContainer):
                 tmp = {}
                 tmp[key] = self[key]
                 d.append(tmp)
-            else:
+            # Deal with the mask
+            elif key == 'mask':
+                d.append(dict(mask=self.mask))
+            else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
         return d
@@ -142,15 +154,15 @@ class PypeItImage(datamodel.DataContainer):
         # Get PypeitImage hdul
         hdul = self.to_hdu(primary_hdr=primary_hdr, add_primary=True, hdu_prefix=hdu_prefix)
 
-        # Mask HDU
-        if self.mask is not None:
-            mask_hdul = self.mask.to_hdu(hdu_prefix=hdu_prefix)
-        else:
-            mask_hdul = []
+        ## Mask HDU
+        #if self.mask is not None:
+        #    mask_hdul = self.mask.to_hdu(hdu_prefix=hdu_prefix)
+        #else:
+        #    mask_hdul = []
 
-        # Combine
-        for ihdu in mask_hdul:
-            hdul.append(ihdu)
+        ## Combine
+        #for ihdu in mask_hdul:
+        #    hdul.append(ihdu)
 
         # Write
         write_to_fits(hdul, ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)

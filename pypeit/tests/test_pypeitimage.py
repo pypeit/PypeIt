@@ -16,10 +16,25 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+def test_new():
+    pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
+    # Mask
+    pypeitImage.mask.fullmask = np.zeros((1000, 1000), dtype=np.int64)
+    # Other
+    pypeitImage.BIN_SPEC = 2
+    # Full datamodel
+    full_datamodel = pypeitImage.full_datamodel()
+    assert 'fullmask' in full_datamodel.keys()
+
+    # HDU
+    hdul = pypeitImage.to_hdu()
+    pytest.set_trace()
+
+'''
+
 def test_dumb_instantiate():
     pypeitImage = pypeitimage.PypeItImage(None)
     assert pypeitImage.image is None
-
 
 def test_image():
     # Just for a dummy image
@@ -57,3 +72,4 @@ def test_load():
     assert pypeitImage.mask is not None
     assert pypeitImage.rn2img is None
     assert pypeitImage.head0 is not None
+'''
