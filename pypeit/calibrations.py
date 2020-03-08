@@ -299,8 +299,7 @@ class Calibrations(object):
         masterframe_name = masterframe.construct_file_name(arcimage.ArcImage,
             self.master_key_dict['arc'], master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.msarc = arcimage.ArcImage.from_file(masterframe_name,
-                                                     hdu_prefix=arcimage.ArcImage.hdu_prefix)
+            self.msarc = arcimage.ArcImage.from_file(masterframe_name)
             return self.msarc
 
         # Build it

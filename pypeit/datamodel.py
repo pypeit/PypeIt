@@ -838,14 +838,18 @@ class DataContainer:
                 ``transpose_arrays`` in :func:`_bound`.
 
         Returns:
-            :obj:`dict`: Dictionary used to instantiate the object.
+            tuple:
+                :obj:`dict`: Dictionary used to instantiate the object.
+                :obj:`bool`: Describes datamodel version checking passed
+                :obj:`bool`: Describes datamodel type checking passed
 
         Raises:
             TypeError:
                 Raised if ``ext``, or any of its elements if it's a
                 :obj:`list`, are not either strings or integers.
         """
-        # TODO: Add type and version checking
+        dm_version_passed = True
+        dm_type_passed = True
 
         # Get the (list of) extension(s) to parse
         if ext is not None:
@@ -886,8 +890,13 @@ class DataContainer:
         indx = np.isin([prefix+key.upper() for key in keys], _ext)
         if np.any(indx):
             for e in keys[indx]:
-                d[e] = hdu[prefix+e.upper()].data if isinstance(hdu[prefix+e.upper()], fits.ImageHDU) \
-                        else Table.read(hdu[prefix+e.upper()])
+                hduindx = prefix+e.upper()
+                # Check version (and type)?
+                dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
+                dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
+                # Grab it
+                d[e] = hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
+                        else Table.read(hdu[hduindx])
 
 
         for e in _ext:
@@ -908,7 +917,7 @@ class DataContainer:
                         d[key] = hdu[e].data[key][0] if single_row else hdu[e].data[key]
                         if transpose_table_arrays:
                             d[key] = d[key].T
-        return d
+        return d, dm_version_passed, dm_type_passed
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -1061,7 +1070,7 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, hdu_prefix=None):
+    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
         """
         Instantiate the object from an HDU extension.
 
@@ -1080,7 +1089,14 @@ class DataContainer:
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
         self = super().__new__(cls)
-        DataContainer.__init__(self, cls._parse(hdu, hdu_prefix=hdu_prefix))
+        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
+        # Check version and type?
+        if chk_version:
+            if not dm_version_passed:
+                raise IOError("Bad datamodel version in your hdu's")
+            if not dm_type_passed:
+                raise IOError("Bad datamodel type in your hdu's")
+        DataContainer.__init__(self, d)
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None):

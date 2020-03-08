@@ -35,6 +35,9 @@ class CalibrationImage(pypeitimage.PypeItImage):
         super(CalibrationImage, self).to_file(ofile, primary_hdr=hdr,
                                               hdu_prefix=self.hdu_prefix, **kwargs)
 
+    def from_master_file(self, masterframe_name):
+        embed(header='39 of calibrationimage')
+
 class BuildCalibrationImage(object):
     """
     Class to generate (and hold) a combined calibration image from a list of input images

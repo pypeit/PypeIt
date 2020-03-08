@@ -7,7 +7,6 @@ Module for generating the Arc image.
 import os
 
 from pypeit import msgs
-from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
 from pypeit.images import pypeitimage
@@ -17,8 +16,8 @@ from IPython import embed
 
 class ArcImage(calibrationimage.CalibrationImage):
 
-    # Set the version of this class
-    version = '1.0.0'
+    # Fix the version of this class by PypeItImage
+    version = pypeitimage.PypeItImage.version
 
     # Output to disk
     output_to_disk = ('ARC_IMAGE',)
