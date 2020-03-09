@@ -19,8 +19,8 @@ Getting Started
    :maxdepth: 1
 
    installing
-   code_flow
    codeconduct
+   cookbook
 
 Running PypeIt
 ++++++++++++++
@@ -31,7 +31,6 @@ Running PypeIt
    :maxdepth: 2
 
    pypeit_par
-   cookbook
    setup
    pypeit_file
    calcheck
