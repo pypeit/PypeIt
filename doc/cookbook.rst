@@ -6,28 +6,76 @@ This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
 Notes on :doc:`installing` are found elsewhere.
 
-We now also provide a set of Slides that provide a more
-visual step-by-step.  Find them here at
-the `PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
-These should be considered to contain
-the most up-to-date information.
+.. comment::
+  We now also provide a set of Slides that provide a more
+  visual step-by-step.  Find them here at
+  the `PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
+  These should be considered to contain
+  the most up-to-date information.
 
 The following outlines the standard steps for running
 PypeIt on a batch of data.  There are alternate ways to
 run these steps, but non-experts should adhere to the
 following approach.
 
-Outline
-+++++++
+Grab a buff computer
+====================
 
-Here is the basic outline of the work flow.  The
-following is for one instrument in one working directory.
+We recommend one with at least 32Gb of RAM and this might
+not be enough for many-detector instruments (e.g. DEIMOS).
 
-1. Organize/Prepare your data
+Multi-processors are good too, although only a portion of
+the code runs in parallel.
 
-  - Identify folder(s) with raw images
-  - The raw images can be gzip compressed although the Python FITS reader works much more slowly on gzipped files
-  - We will refer to that folder as RAWDIR
+Organize/Prepare your data
+==========================
+
+A word on Calibration data
+--------------------------
+
+PypeIt, as with any DRP, will work most smoothly
+if you have taken data with a good set of calibrations, e.g.
+
+  - Flats without saturation
+  - Arcs with most/all of the lines (without substantial saturation)
+  - Bias frames (when you need them)
+  - Slitmasks without overlapping slits
+  - Sensible detector binning and windowing
+
+Data with poor calibration frames will *always* be hard to reduce.
+Please take extra care to insure you are not trying to reduce data
+with bad calibrations.  This is the primary "failure mode" of PypeIt.
+
+And heaven help you if you mixed binning, grating tilt, etc. between your
+calibrations and science (although this is supported for some instruments by necessity).
+
+
+Organize your Raw data
+----------------------
+
+While PypeIt can handle one or more nights of data with a mix of gratings, tilts, and masks, you will probably find it easier to isolate one set of files at a time.
+This includes mask by mask for multi-slit observations.
+
+Place the science + calibrations in one folder.
+Copy bias (and dark) frames in each folder as needed.
+
+Or, put them all in one folder and proceed carefully.
+We will refer to that folder as RAWDIR
+
+The raw images can be gzip compressed although the Python FITS reader
+works much more slowly on gzipped files.
+
+Setup
+=====
+
+The first script you will run with PypeIt is to :ref:`pypeit_setup` which
+examines your raw files and generates a sorted list and (if instructed)
+one :doc:`pypeit_file` per instrument configuration.
+
+Complete instructions are provided in :doc:`setup`.
+
+At the end of setup, you will enter one of the folders containing
+a :doc:`pypeit_file` and proceed on.
 
 2. Run the :ref:`pypeit_setup` *without* the --custom option to handle instrument :doc:`setup`.
 
