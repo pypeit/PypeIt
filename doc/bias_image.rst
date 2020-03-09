@@ -29,6 +29,7 @@ Here is an example for the :ref:`keck-lris-red` spectrograph.
 
 .. image:: figures/bias_image.png
 
+Pretty boring, as expected.
 Note that this is only 1 of the 2 detectors for this spectrograph.
 
 Current BiasImage Data Model

@@ -122,7 +122,10 @@ Here is the order with a separate doc for each.
 Note that only a subset may be made for your spectrograph and
 specific run:
 
-  - :doc:`bias_image`
+  - View the :doc:`bias_image`
+  - Arc
+  - Tilt
+  - Check slit edges with the :doc:`slit_trace` file
 
 QA
 --
