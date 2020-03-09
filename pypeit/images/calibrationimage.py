@@ -33,10 +33,11 @@ class CalibrationImage(pypeitimage.PypeItImage):
                                               raw_files=raw_files)
         # Write
         super(CalibrationImage, self).to_file(ofile, primary_hdr=hdr,
-                                              hdu_prefix=self.hdu_prefix, **kwargs)
+                                              hdu_prefix=self.hdu_prefix,
+                                              limit_hdus=self.output_to_disk,
+                                              overwrite=True,
+                                              **kwargs)
 
-    def from_master_file(self, masterframe_name):
-        embed(header='39 of calibrationimage')
 
 class BuildCalibrationImage(object):
     """

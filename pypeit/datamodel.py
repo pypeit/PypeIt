@@ -996,7 +996,8 @@ class DataContainer:
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
+               limit_hdus=None):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1066,6 +1067,14 @@ class DataContainer:
         if hdu_prefix is not None:
             for ihdu in hdu:
                 ihdu.name = hdu_prefix+ihdu.name
+        # Limit?
+        if limit_hdus:
+            # Wish I could do this as a list iterator...
+            new_hdu = []
+            for ihdu in hdu:
+                if ihdu.name in limit_hdus:
+                    new_hdu.append(ihdu)
+            hdu = new_hdu
         # Return
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
@@ -1099,7 +1108,8 @@ class DataContainer:
         DataContainer.__init__(self, d)
         return self
 
-    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None):
+    def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
+                hdu_prefix=None, limit_hdus=None):
         """
         Write the data to a file.
 
@@ -1124,8 +1134,12 @@ class DataContainer:
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
+            hdu_prefix (:obj:`str`, optional):
+                Prefix for all HDU elements except primary
+                Passed to to_hdu()
         """
-        io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr),
+        io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
+                                     hdu_prefix=hdu_prefix, limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
     # TODO: Add options to compare the checksum and/or check the package versions
