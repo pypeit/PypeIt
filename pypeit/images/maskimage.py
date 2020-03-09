@@ -61,7 +61,7 @@ class ImageMask(datamodel.DataContainer):
     datamodel = {
         'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
         'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
-        'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full mask'),
+        'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
     }
 
     def __init__(self, bpm, crmask=None, fullmask=None):

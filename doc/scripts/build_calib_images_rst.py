@@ -26,7 +26,7 @@ def build_tbl(imgtyp):
     keys.sort()
 
     data_table = numpy.empty((len(keys)+1, 4), dtype=object)
-    data_table[0,:] = ['Key', 'Obj Type', 'Array Type', 'Description']
+    data_table[0,:] = ['HDU Name', 'Obj Type', 'Array Type', 'Description']
     keep_rows = [True]*len(data_table)
     for i,k in enumerate(keys):
         # Key
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         # ArcImage
 
         tbl_lines = build_tbl(imgtyp)
-        tbl_lines = [''] + tbl_lines
+        tbl_lines = [''] + ['Version {:s}'.format(imgtyp.version)] + [''] + tbl_lines
 
         # Insert lines
         pos = lines.index(insert_line)
