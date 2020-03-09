@@ -162,19 +162,21 @@ def pypeit_arcspec(in_file, slit):
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
     """From within PypeIt, generate a template file if the user manually identifies an arc spectrum
 
-    Args:
-        iwv_calib : dict
-            Wavelength calibration returned by final_fit
-        binspec : int
-            Spectral binning
-        specname : str
-            Name of instrument
-        gratname : str
-            Name of grating
-        dispangl : str
-            Dispersion angle
-        outdir : str, None
-            Output directory
+    Parameters
+    ----------
+
+    iwv_calib : dict
+        Wavelength calibration returned by final_fit
+    binspec : int
+        Spectral binning
+    specname : str
+        Name of instrument
+    gratname : str
+        Name of grating
+    dispangl : str
+        Dispersion angle
+    outdir : str, None
+        Output directory
     """
     x = np.arange(len(iwv_calib['spec']))
     wv_vac = utils.func_val(iwv_calib['fitc'], x / iwv_calib['xnorm'], iwv_calib['function'],

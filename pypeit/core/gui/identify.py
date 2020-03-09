@@ -836,8 +836,8 @@ class Identify(object):
 def initialise(arccen, slit=0, par=None, wv_calib_all=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
-        TODO ::
-            * Implement multislit functionality
+        .. todo::
+        * Implement multislit functionality
 
         Parameters
         ----------
