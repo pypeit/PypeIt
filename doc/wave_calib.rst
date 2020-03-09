@@ -94,6 +94,8 @@ you need to have successfully traced the slit edges (i.e. a
 MasterEdges file must exist), and generated a MasterArc
 calibration frame. To launch a GUI, use the following command:
 
+.. code-block:: bash
+
     pypeit_identify MasterArc_A_1_01.fits
 
 Instructions on how to use this GUI are available by pressing
@@ -101,6 +103,8 @@ the '?' key while hovering your mouse over the plotting window.
 Once you have completed the manual calibration, you can save
 your solution (press key 's' while hovering over the plotting
 window). The, update your .pypeit file with the following:
+
+.. code-block:: ini
 
     [calibrations]
       [[wavelengths]]
@@ -118,7 +122,7 @@ database. If so, you will need to move the output file into
 the master directory, which will be similar to the following
 directory:
 
-/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits
+``/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits``
 
 Once your solution is in the database, run PypeIt
 in the standard :ref:`wvcalib-fulltemplate` mode. We also
