@@ -86,45 +86,16 @@ Within that folder is a :doc:`pypeit_file` (e.g. keck_lris_blue_A.pypeit)
 which guides the main reduction by PypeIt.  See :doc:`pypeit_file` for
 tips on checking and editing that file.
 
-2. Run the :ref:`pypeit_setup` *without* the --custom option to handle instrument :doc:`setup`.
 
-   Inputs are the path to the raw data with the data prefix (e.g. lrisb) and then
-   one of the PypeIt-approved :doc:`instruments` (e.g. keck_lris_blue, shane_kast_red).
-   Here is an example::
+3. Run the Reduction
+====================
 
-    pypeit_setup -r /full_path/RAWDIR/lrisb  -s keck_lris_blue
+PypeIt is intended (and currently only able) to do
+an end-to-end run from calibrations through to
+2D and 1D spectra for each science and standard star frame.
 
-   This does the following:
-
- - Generates a setup_files/ folder that holds two files
- - Generates a dummy PypeIt reduction file within the folder [ignore it]
- - Generates a .sorted file which lists files sorted by setup
-
- You should scan the output WARNING messages for insufficient calibration files (e.g. missing arc frames)
-
-3. Inspect the :ref:`sorted-file` to confirm the expected instrument configuration(s)
-
-  - If needed, add more files to your RAWDIR
-  - If you do, repeat Step 2 above
-
-4. Run :ref:`pypeit_setup` *with* the --custom option
-
-  This produces one folder per setup and a custom :doc:`pypeit_file`.
-  Here is an example of the call::
-
-    pypeit_setup -r /full_path/RAWDIR/lrisb  -s keck_lris_blue -c=all
-
-  This generates one folder per setup and a unique :doc:`pypeit_file` file in each folder.
-
-
-5. Prepare the custom :doc:`pypeit_file` for reducing a given setup
-
-  - Enter one of the setup folders (e.g. kast_lris_blue_A)
-  - Modify the custom :doc:`pypeit_file` as needed
-
-    - trim/add calibration files
-    - edit frametypes
-    - Modify user-defined execution parameters
+The :doc:`running` doc describes the process in a bit
+more detail.
 
 6. Run the reduction (described in :doc:`running`)
 
