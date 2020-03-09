@@ -449,7 +449,7 @@ class Calibrations(object):
             return self.bar_dict
 
         # Extract some header info needed by the algorithm
-        binning = self.spectrograph.get_meta_value(self.arc_files[0], 'binning')
+        binning = self.spectrograph.get_meta_value(self.bar_files[0], 'binning')
 
         # Instantiate
         self.barProfile = barframe.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,

@@ -27,13 +27,22 @@ class PypeItImage(maskimage.ImageMask):
     Therefore methods to generate, save, load, etc. are all outside the Class
 
     Args:
-        image (np.ndarray):
-        ivar (np.ndarray, optional):
-        rn2img (np.ndarray, optional):
+        image : np.ndarray
+            Image
+        ivar : np.ndarray, None
+            Inverse variance image
+        rn2img : np.ndarray, None
+            Variance image of the read noise
         bpm (np.ndarray):
-        binning (tuple, optional):
-        crmask (np.ndarray, optional):
-        mask (np.ndarray, optional):
+            Bad pixel mask
+        binning : tuple, None
+            The binning of the image
+        crmask : np.ndarray, None
+            Cosmic Ray mask
+        mask : np.ndarray, None
+            Other pixels to mask
+        rawheadlst : list
+            List containing headers of the raw image file
 
     Attributes:
         head0 (astropy.io.fits.Header):
@@ -186,6 +195,7 @@ class PypeItImage(maskimage.ImageMask):
         repr += ' images={}'.format(rdict)
         repr = repr + '>'
         return repr
+
 
 def save_images():
     pass

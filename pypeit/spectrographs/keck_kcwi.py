@@ -1,8 +1,6 @@
 """ Implements KCWI-specific functions.
 """
 
-import pdb
-from matplotlib import pyplot as plt
 import glob
 import numpy as np
 
