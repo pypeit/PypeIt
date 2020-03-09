@@ -137,8 +137,8 @@ def main(args):
         mask_in = mask
         # Unpack the bitmask
         bitMask = ImageBitMask()
-        bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
-            = bitMask.unpack(mask)
+        #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
+        #    = bitMask.unpack(mask)
     else:
         mask_in = None
         bitMask = None

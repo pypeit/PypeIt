@@ -2,6 +2,12 @@
 0.13.2dev
 ---------
 - Added PypeIt identify GUI script for manual wavelength calibration
+- Enable user to scale flux of coadded 1D spectrum to a filter magnitude
+- Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
+- Add more cards to spec1d header output
+- Fixes a few sensfunc bugs
+- Added template for LRIS 600/7500
+- Deal with non-extracted Standard
 
 
 
@@ -30,12 +36,6 @@
   key is not valid for the given parameter set.  NOTE: The check may
   fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
-- Enable user to scale flux of coadded 1D spectrum to a filter magnitude
-- Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
-- Add more cards to spec1d header output
-- Fixes a few sensfunc bugs
-- Added template for LRIS 600/7500
-- Deal with non-extracted Standard
 
 0.12.2 (14 Jan 2020)
 --------------------
