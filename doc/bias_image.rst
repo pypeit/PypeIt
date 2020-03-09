@@ -32,6 +32,14 @@ Here is an example for the :ref:`keck-lris-red` spectrograph.
 Pretty boring, as expected.
 Note that this is only 1 of the 2 detectors for this spectrograph.
 
+Trouble Shooting
+================
+
+If your image appears to be in err, here are the things to consider:
+
+ - Is one or more of your input bias frames junk?
+ - Is one or more of your input bias frames mis-labeled?
+
 Current BiasImage Data Model
 ============================
 

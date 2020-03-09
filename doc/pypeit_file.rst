@@ -130,16 +130,18 @@ in the reduction.  Check them now and remove them if they are bad.
 frametype
 ---------
 
-The most common edit of a given data file is its :doc:`frametype`.
+The most common edit for a given data file is its :doc:`frametype`.
 For almost all spectrographs supported by PypeIt, you will need
-at least one `arc`, `tilt`, `pixelflat`, `trace` and `science`.
+at least one of these:
+`arc`, `tilt`, `pixelflat`, `trace` and `science`.
 
 As you can see from the above example, a given file can have
 multiple frametypes.
-Simply provide a comma-separated list, without spaces.
+Simply provide a comma-separated list, *without spaces*.
 
 Standard star exposures are very frequently mis-labeled
 as `science` (and to a lesser extent, vice-versa).
+So keep an eye out for those.
 
 near-IR
 -------

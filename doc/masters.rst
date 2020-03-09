@@ -36,8 +36,8 @@ MasterWaveCalib   JSON      Solution of 1D wavelength calibration
 
 .. _master-naming:
 
-Naming
-======
+Masters Naming
+==============
 
 The naming convention for MasterFrames is a bit obscure.
 Here is an example of one::

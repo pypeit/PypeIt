@@ -10,6 +10,7 @@ Overview
 This file describes the data model for the MasterEdges object.
 This is written to disk as a multi-extension FITS file prefixed by
 MasterEdges in the Masters/ folder.
+See the :ref:`master-naming` docs for more.
 
 It contains the core information required to describe the edges
 of each slit on a given detector (or orders for echelle).
@@ -44,7 +45,7 @@ Here is an zoom-in screen shot for the :ref:`keck-lris-red` spectrograph.
 
 A few things to note from this good-performing example:
 
- - The slits run vertically on the image
+ - The slits run nearly vertically across the image
  - The left/right edge of each slit identified is a green/red line
  - There were 13 slits identified (0 indexing)
  - The brightest `slit` is an alignment box and was discarded by the code
@@ -64,6 +65,13 @@ SlitTrace
 
 TODO:
 Describe that object here (or link to its own doc??)
+
+.. _edges-trouble:
+
+Edges Trouble Shooting
+======================
+
+At present, this is the greatest failure point of PypeIt.
 
 Current EdgeTrace Data Model
 ============================

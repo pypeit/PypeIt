@@ -111,27 +111,48 @@ more detail.
 4. Examine Calibrations
 =======================
 
+As the code runs, when a new calibration is generated the
+default is to write it to disk as a :doc:`masters` file.
+And for some of these, additional files are written to the
+:ref:`cookbook-qa` folder.
+
+We encourage you to inspect them as they come.
+
 MasterFrames
 ------------
 
-As the code runs, when a new calibration is generated the
-default is to write it to disk as a :doc:`masters` file.
-We encourage you to inspect them as they come.
+The term :doc:`masters` refers to the output files for
+calibration data.  These appear in the Masters/ folder
+and see :doc:`master-naming` for details on the naming
+convention.
 
-Here is the order with a separate doc for each.
-Note that only a subset may be made for your spectrograph and
-specific run:
+Here is the order they tend to be created
+with a separate doc for how to view each, what they should
+look like, and how to troubleshoot:.
+
 
   - View the :doc:`bias_image`
-  - Arc
-  - Tilt
-  - Check slit edges with the :doc:`slit_trace` file
+  - ArcImage
+  - TiltImage
+  - Check slit edges with the :doc:`edge_traces` file
+  - Check the wavelength solution using the :ref:`cookbook-qa` below.
+
+Note that only a subset of these may be made.
+It depends on your spectrograph and the calibration files input.
+
+.. _cookbook-qa:
 
 QA
 --
 
-  - When an exposure is fully reduced, a QA file (PDF) is generated in the QA folder
-  - Examine the output as described in the :doc:`qa` documentation
+When an exposure is fully reduced, a QA file (PDF) is generated in the QA folder.
+
+Here are the key ones to inspect:
+
+  - Wavelength solution QA
+  - Wavelength tilts QA
+
+Examine the output as described in the :doc:`qa` documentation
 
 5. Examine spectra
 ==================

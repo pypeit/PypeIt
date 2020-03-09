@@ -30,10 +30,9 @@ Running PypeIt
 .. toctree::
    :maxdepth: 2
 
-   pypeit_par
    setup
    pypeit_file
-   calcheck
+   pypeit_par
    running
    quicklook
 
