@@ -55,6 +55,7 @@ Calibrations
 .. toctree::
    :maxdepth: 2
 
+   calib_images
    calibrations
    bias
    slit_tracing

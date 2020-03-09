@@ -8,6 +8,9 @@ Blah blah
 ArcImage
 ========
 
+The arc image is the combination of all images
+labeled `arc` in the `pypeit_file`.
+
 Current ArcImage Data Model
 +++++++++++++++++++++++++++
 
