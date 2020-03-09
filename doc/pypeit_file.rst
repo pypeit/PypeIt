@@ -1,5 +1,3 @@
-.. highlight:: rest
-
 .. _pypeit_file:
 
 =====================
@@ -11,270 +9,151 @@ Overview
 
 The primary file which informs the PypeIt data
 reduction pipeline is referred to as the PypeIt
-reduction file and it has a .pypeit extension.  This
-can be generated from PypeIt scripts (*recommended*)
-or by hand if you are sufficiently familiar with the code.
+reduction file and it has a .pypeit extension.
+This should only be generated from PypeIt scripts,
+almost always the :ref:`pypeit_setup` script.
 
-This document provides guidance on generating and modifying
-the file.
+This document provides guidance on modifying the file.
 
-We *recommend* that you generate a unique PypeIt file for each
+You must have a unique PypeIt file for each
 instrument setup (modulo detectors) or for each mask.
 It is possible that you will need to modify the settings for
 different gratings, etc.  It will also enable you to more
 easily customize the associated calibration files to process.
 
-Types
-=====
-
-For reference, we distinguish between several types of PypeIt
-files.
-
-Instrument PypeIt file
-----------------------
-
-For each instrument being reduced in a working folder,
-the top-level PypeIt file is referred to as an *instrument*
-PypeIt file.  It is intended to be used to generate the
-instrument :doc:`setup` file and custom PypeIt files for the
-full reductions.
-
-The standard naming for the instrument PypeIt file is::
-
-    instrument_date.pypeit
-    e.g., lris_blue_2016-Nov-23.pypeit
-
-Custom PypeIt file
-------------------
-
-When one performs the full reduction on a set of files for
-a given setup,
-the *custom* PypeIt file is used.  We refer to it as custom
-because it may be significantly customized for the specifc
-instrument configuration and/or target.
-
-While it is possible for a custom PypeIt files to be used
-on more than one setup grouping, it is not recommended.
-
-A typical naming scheme is by setups, e.g.::
-
-    lris_blue_setup_A.pypeit
-
-although specifying by instrument configuration::
-
-    kast_blue_600_4310_d55.pypeit
-
-or target::
-
-    kast_blue_3C273.pypeit
-
-may be preferable.
-
-.. _pypeit_setup_pypeit_files:
-
-pypeit_setup
-============
-
-By default, the pypeit_setup script will generate a set of
-custom .pypeit files, one per instrument configuration.  These
-will have names like::
-
-    lris_blue_setup_A.pypeit
-
-This is the default because we expect that most users wish to
-reduce at one time the full set of exposures taken
-with the same instrument configuration.
-Of course, one can create other custom .pypeit files.
-
-
-By Example
-==========
-
-For reference, there are
-existing PypeIt files in `PypeIt development suite
-<https://github.com/pypeit/PypeIt-development-suite>`_.
-The PypeIt development suite is recommended for download
-(see :doc:`installing`), and the relevant PypeIt files are located
-in::
-
-    PypeIt-development-suite/pypeit_files/
-
-You should be able to find one that matches your instrument.
-
-.. _pypfile_by_line:
-
-Line by line
-============
-
-This section describes the various sections of a .pypeit file.
-In principle, you can use the following description to build a .pypeit
-file from scratch.  This is **not** recommended.
-The following documentation is mainly for guiding
-modifications to an existing PypeIt file.
-
-Naming
-------
-
-Create a .pypeit file. Name it anything you want, but for example,
-it's useful to have: the instrument name, the grating or grism used,
-the dichroic, etc. For example, we could call our PypeIt file
-'lris_blue_long_600_4000_d560.pypeit', for our data was collected
-on LRIS's blue arm, in long slit mode, using the 600/4000 grism
-and d560 dichroic.
-
-You can make any comments in your PypeIt file with a
-pound sign::
-
-    # This is a comment line
-
-We *recommend* you separate the main blocks of the .pypeit file
-with comments.
-
-.. _run_block:
-
-Run block
----------
-
-The first thing to include are changes to the
-default settings related to running PypeIt.
-The only one required is to set the name of the
-spectrograph::
-
-    run spectograph name_of_your_spectrograph
-
-We do recommend including several others, and the
-.pypeit files made by the `pypeit_pypfiles` (out of date!) script
-includes most of the following.
-Here are ones that one typically sets::
-
-    # Change the default settings
-    run ncpus 1                     # number of CPUs to use; can also negative integers,
-                                    so -1 means all but one CPU
-    run spectrograph lris_blue      # the spectrograph (+arm, if necessary) this set of data is from;
-                                    see README for list of available instruments
-    output verbosity 2                   # level of screen output; 0 = no output, 1 = low level of output;
-                                    2 = output everything
-    output overwrite True              # overwrite any existing output files?
-    output sorted lris_blue_long_600_4000_d560     # name of output files
-
-.. _reduce-block:
-
-Reduce block
-------------
-
-bias
-~~~~
-
-If you have no bias frames and/or wish to subtract the bias with
-the overscan region, then set the following::
-
-    bias useframe overscan
-
-
-Setup block
------------
-
-If a Setup is defined here, the value (e.g. "A" or "D") will be
-used instead of starting from the default "A" value.  But *only*
-if there is a single Setup in the PypeIt file.
-
-.. _data_block:
-
-Data block
-----------
-
-By Files
+The File
 ========
 
-This is the recommended approach when performing the
-full run (as opposed to :ref:`pypeit-setup`).
+Here is an example PypeIt reduction file::
 
-By Path Only
-============
+    # Auto-generated PypeIt file
+    # Mon 09 Mar 2020 08:28:46
 
-Next, tell PypeIt where your raw data lives!
-One specifies the full path and may use wild cards
-to include a set of files.  If the data are compressed,
-include that extension.  Multiple entries are allowed
+    # User-defined execution parameters
+    [rdx]
+    spectrograph = shane_kast_blue
 
-Here is an example::
+    # Setup
+    setup read
+     Setup A:
+       --:
+         dichroic: d55
+         disperser:
+           angle: none
+           name: 600/4310
+         slit:
+           decker: 2.0 arcsec
+           slitlen: none
+           slitwid: none
+       '01':
+         binning: 1,1
+         det: 1
+         namp: 2
+    setup end
 
     # Read in the data
     data read
-     /Users/path/to/your/raw/data/*.fits
+     path /data/Projects/Python/PypeIt-development-suite/RAW_DATA/shane_kast_blue/600_4310_d55
+    |    filename |       frametype |                 ra |                dec |     target | dispname |     decker | binning |                mjd |        airmass | exptime | dichroic |
+    | b14.fits.gz |            bias | 172.34291666666664 |  36.86833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15420034722 |            1.0 |     0.0 |      d55 |
+    | b15.fits.gz |            bias | 172.41833333333332 |  36.94444444444444 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15440162037 |            1.0 |     0.0 |      d55 |
+    | b16.fits.gz |            bias | 172.49124999999995 |  36.97833333333333 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |    57162.154603125 |            1.0 |     0.0 |      d55 |
+    | b17.fits.gz |            bias |  172.5645833333333 |  37.04694444444444 |       Bias | 600/4310 | 2.0 arcsec |     1,1 |  57162.15480474537 |            1.0 |     0.0 |      d55 |
+    | b10.fits.gz | pixelflat,trace | 144.82041666666666 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07859895833 |            1.0 |    15.0 |      d55 |
+    | b11.fits.gz | pixelflat,trace |            144.955 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07897476852 |            1.0 |    15.0 |      d55 |
+    | b12.fits.gz | pixelflat,trace |  145.0908333333333 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.079351388886 |            1.0 |    15.0 |      d55 |
+    | b13.fits.gz | pixelflat,trace | 145.22791666666666 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 | 57162.079728240744 |            1.0 |    15.0 |      d55 |
+    |  b2.fits.gz | pixelflat,trace | 143.36208333333335 |  37.43222222222222 |  Dome Flat | 600/4310 | 2.0 arcsec |     1,1 |  57162.07473645834 |            1.0 |    30.0 |      d55 |
+    | b27.fits.gz |         science | 184.40291666666664 |  39.01111111111111 | J1217p3905 | 600/4310 | 2.0 arcsec |     1,1 |  57162.20663842592 |            1.0 |  1200.0 |      d55 |
+    | b28.fits.gz |         science | 184.40416666666664 |  39.01111111111111 | J1217p3905 | 600/4310 | 2.0 arcsec |     1,1 |  57162.22085034722 |            1.0 |  1200.0 |      d55 |
+    | b24.fits.gz |        standard | 189.47833333333332 |  24.99638888888889 |   Feige 66 | 600/4310 | 2.0 arcsec |     1,1 |  57162.17554351852 | 1.039999961853 |    30.0 |      d55 |
+    |  b1.fits.gz |        tilt,arc | 140.44166666666663 |  37.43222222222222 |       Arcs | 600/4310 | 0.5 arcsec |     1,1 |  57162.06664467593 |            1.0 |    30.0 |      d55 |
     data end
 
-If you wish to skip individual files, you can specify these
-without the complete path, e.g.::
 
-    skip LB.20160406.17832.fits
+Parameter Block
+---------------
 
-These will be ignored as if they didn't exist.
+At the top of the file is the Parameter block which allows the user
+to modify the otherwise default parameters for the input spectrograph.
+The 2 lines shown in this example are the only 2 that are required.
 
-.. _spect_block:
+See :doc:`pypeit_par` for the complete list of parameters,
+the spectrograph specific settings, and the syntax for changing parameters.
 
-Spect block
+Here are notes on somewhat common edits that PypeIt users make
+(docs not yet generated!):
+
+  - Restrict reduction (including the detectors reduced)
+  - Wavelength fussing
+  - SlitEdge fussing
+  - Object finding
+
+Setup Block
 -----------
 
-Then, give PypeIt some information about your raw data. For
-example, PypeIt only accepts calibration files if they were
-created within a time window of the science frame of interest.
-You can set your own time window here. PypeIt also requires a
-certain number of each type of calibration file to be matched
-with the science frame, and here you can set what you want the
-minimum to be::
+The next block describes the instrument configuration.
+You should *not* edit any of this.
 
-    spect read
-     #fits calwin 1000.     # calibration window; default window is 12 hrs;
-                            here it is changed to 1000. hrs
-     pixelflat number 1       # number of pixel flats needed for data reduction
-     bias number 3          # number of bias frames; note that in this case,
-                            PypeIt will combine the 3 biases into a master bias
-     arc number 1           # number of arcs
-     trace number 1         # number of trace frames
-    spect end
+Data Block
+----------
 
+Last is the data block which includes the path(s) to the raw data files
+and a Table describing those files.  It is common to need to have to
+make edits of this Table.
 
-In addition to the basic calibration settings above, you
-may wish to redefine the frametype of a given file.
-Here are some examples::
+This data block is a fixed-format table.
+The | symbols need not align but the number per row must be equal.
 
-    spect read
-     set bias     b150910_2036.fits.gz
-     set bias     b150910_2037.fits.gz
-     set bias     b150910_2038.fits.gz
-     set pixelflat  b150910_2051.fits.gz
-     set trace    b150910_2051.fits.gz
-     set standard b150910_2083.fits.gz
-    spect end
+`Important:` The values in this table will over-ride anything derived
+from the FITS header.
 
+Edits to the Data Block
+=======================
 
-Whole enchilada
----------------
-With that, the most basic PypeIt file looks something like this::
+This section describes the common edits to the Data Block
+of the PypeIt file.
 
-    # Change the default settings
-    run ncpus 1
-    run spectrograph lris_blue
-    output verbosity 2
-    output overwrite True
-    output sorted lris_blue_long_600_4000_d560
+Add/Remove a File
+-----------------
 
-    # Read in the data
-    data read
-     /Users/path/to/your/raw/data/*.fits
-    data end
+You can add/remove files from the data block.
 
-    spect read
-     #fits calwin 1000.
+To add a file, the only safe move is to copy in a line from the .sorted
+file generated by :ref:`pypeit_setup`.  It needs to be formatted just like the others.
 
-     pixelflat number 1
-     bias number 3
-     arc number 1
-     trace number 1
-    spect end
+To remove a file, you may delete the line or comment it out by pre-pending a `#`.
 
-You can now run PypeIt with this .pypeit settings file! See how in
-:doc:`running`.
+Here is yet another reminder to **not** include bad calibration frames
+in the reduction.  Check them now and remove them if they are bad.
+
+frametype
+---------
+
+The most common edit of a given data file is its :doc:`frametype`.
+For almost all spectrographs supported by PypeIt, you will need
+at least one `arc`, `tilt`, `pixelflat`, `trace` and `science`.
+
+As you can see from the above example, a given file can have
+multiple frametypes.
+Simply provide a comma-separated list, without spaces.
+
+Standard star exposures are very frequently mis-labeled
+as `science` (and to a lesser extent, vice-versa).
+
+near-IR
+-------
+
+Most of the following are for near-IR spectrographs, although
+the functionality can be adopted to any instrument.
+
+calib
++++++
+
+comb_id
++++++++
+
+bkg_id
+++++++
 
 

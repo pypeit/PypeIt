@@ -27,8 +27,8 @@ not be enough for many-detector instruments (e.g. DEIMOS).
 Multi-processors are good too, although only a portion of
 the code runs in parallel.
 
-Organize/Prepare your data
-==========================
+0. Organize/Prepare your data
+=============================
 
 A word on Calibration data
 --------------------------
@@ -65,8 +65,8 @@ We will refer to that folder as RAWDIR
 The raw images can be gzip compressed although the Python FITS reader
 works much more slowly on gzipped files.
 
-Setup
-=====
+1. Setup
+========
 
 The first script you will run with PypeIt is to :ref:`pypeit_setup` which
 examines your raw files and generates a sorted list and (if instructed)
@@ -74,8 +74,17 @@ one :doc:`pypeit_file` per instrument configuration.
 
 Complete instructions are provided in :doc:`setup`.
 
-At the end of setup, you will enter one of the folders containing
-a :doc:`pypeit_file` and proceed on.
+2. Edit your PypeIt file
+========================
+
+At the end of setup, you will enter one of the generated sub-folders,
+namely the configuration that you wish to reduce, e.g.::
+
+    cd keck_lris_blue_A
+
+Within that folder is a :doc:`pypeit_file` (e.g. keck_lris_blue_A.pypeit)
+which guides the main reduction by PypeIt.  See :doc:`pypeit_file` for
+tips on checking and editing that file.
 
 2. Run the :ref:`pypeit_setup` *without* the --custom option to handle instrument :doc:`setup`.
 
