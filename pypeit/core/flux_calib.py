@@ -1065,7 +1065,7 @@ def load_filter_file(filter):
     return wave, instr
 
 
-def scale_in_filter(wave, flux, gdm, scale_dict):
+def scale_in_filter(wave, flux, gpm, scale_dict):
     """
     Scale spectra to input magnitude in given filter
 
@@ -1078,7 +1078,7 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
     Args:
         wave (np.ndarray):
         flux (np.ndarray):
-        gdm (np.ndarray):
+        gpm (np.ndarray):
             True is good
         scale_dict (dict like):
             Usually is a Coadd1DPar() object
@@ -1097,13 +1097,12 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
             regions = scale_dict['filter_mask']
         for region in regions:
             mask = region.split(':')
-            bad = (wave > float(mask[0])) & (wave < float(mask[1]))
-            gdm[bad] = False
+            gpm[(wave > float(mask[0])) & (wave < float(mask[1]))] = False
     mag_type = scale_dict['mag_type']
 
     # Parse the spectrum
-    wave = wave[gdm]
-    flux = flux[gdm]
+    wave = wave[gpm]
+    flux = flux[gpm]
 
     # Grab the instrument response function
     fwave, trans = load_filter_file(scale_dict['filter'])
