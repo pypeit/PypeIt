@@ -62,13 +62,13 @@ Calibrations
    flatfielding
    fluxing
 
-Instruments
-+++++++++++
+Spectrographs
++++++++++++++
 
 .. toctree::
    :maxdepth: 2
 
-   instruments
+   spectrographs
    deimos
    lris
    mage

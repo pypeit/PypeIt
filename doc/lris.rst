@@ -63,6 +63,11 @@ and set the following in the `reduce-block` (out of date!) of the PypeIt file::
     reduce flatfield useframe MF_lris_blue/PypeIt_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
 
 
+.. _keck-lris-red:
+
+keck_lris_red
+=============
+
 Taking Calibrations for LRISr
 =============================
 

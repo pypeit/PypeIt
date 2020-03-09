@@ -2,9 +2,12 @@
 PypeIt Cookbook
 ===============
 
+Overview
+========
+
 This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
-Notes on :doc:`installing` are found elsewhere.
+And you might want to begin with See :doc:`installing`.
 
 .. comment::
   We now also provide a set of Slides that provide a more
@@ -18,11 +21,19 @@ PypeIt on a batch of data.  There are alternate ways to
 run these steps, but non-experts should adhere to the
 following approach.
 
+A few points to note before getting started:
+
+  - If your spectrograph is an echelle, every place you read *slit* think *order*
+  - We also tend to use spectrograph and instrument interchangeably
+  - And `setup` and `configuration` too.
+  - Spectrograph specific advice is provided in their own doc page
+  - Invariably something will be out of date.  When you see an egregious example, holler on GitHub
+
 Grab a buff computer
 ====================
 
 We recommend one with at least 32Gb of RAM and this might
-not be enough for many-detector instruments (e.g. DEIMOS).
+not be enough for many-detector instruments (e.g. :doc:`deimos`).
 
 Multi-processors are good too, although only a portion of
 the code runs in parallel.
@@ -97,27 +108,46 @@ an end-to-end run from calibrations through to
 The :doc:`running` doc describes the process in a bit
 more detail.
 
-6. Run the reduction (described in :doc:`running`)
+4. Examine Calibrations
+=======================
 
-  - :ref:`run-pypeit` PypeIt_file
-  - Hope for the best...  :)
+MasterFrames
+------------
 
-7. Examine QA (:doc:`qa`)
+As the code runs, when a new calibration is generated the
+default is to write it to disk as a :doc:`masters` file.
+We encourage you to inspect them as they come.
+
+Here is the order with a separate doc for each.
+Note that only a subset may be made for your spectrograph and
+specific run:
+
+  - :doc:`bias_image`
+
+QA
+--
 
   - When an exposure is fully reduced, a QA file (PDF) is generated in the QA folder
   - Examine the output as described in the :doc:`qa` documentation
 
-8. Examine spectra
+5. Examine spectra
+==================
+
+Eventually (be patient), the code will hopefully start
+generating 2D and 1D spectra outputs.  One per standard
+and science frame.
 
   - Examine the extracted 1D spectra with :ref:`pypeit-1dspec`
   - Examine the extracted 2D spectra with :ref:`pypeit-2dspec`
 
+6. BLEEDING EDGE
+================
+
+The stuff below needs proper documenting.
+
 9.  Flux
 
 10. Coadd (see :doc:`coadding`)
-
-11. Repeat steps 5-10 for additional setups, as desired
-
 
 
 
