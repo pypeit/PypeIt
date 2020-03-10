@@ -1,13 +1,26 @@
 
-0.12.4dev
+0.13.2dev
 ---------
+- Added PypeIt identify GUI script for manual wavelength calibration
+
+
+
+
+0.13.1 (07 Mar 2020)
+--------------------
+
+- Missed a required merge with master before tagging 0.13.0.
+
+0.13.0 (07 Mar 2020)
+--------------------
 
 - Refactored sensitivity function, fluxing, and coadding scripts and
   algorithms.
 - Added support for additional near-IR spectrographs.
 - Restrict extrapolation in tilt fitting
+- Implemented interactive sky region selection
 
-0.12.3 (13 Feb 2019)
+0.12.3 (13 Feb 2020)
 --------------------
 
 - Implemented DataContainer
@@ -24,7 +37,7 @@
 - Added template for LRIS 600/7500
 - Deal with non-extracted Standard
 
-0.12.2 (14 Jan 2019)
+0.12.2 (14 Jan 2020)
 --------------------
 
 - Introduces quick look scripts for MOS and NIRES
@@ -35,7 +48,7 @@
 - Dynamic namp setting for LRISr when instantiating Spectrograph
 - Introduce MDM OSMOS
 
-0.12.1 (07 Jan 2019)
+0.12.1 (07 Jan 2020)
 --------------------
 
 - Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using
