@@ -1,16 +1,16 @@
-.. highlight:: rest
-
-*********
+=========
 Keck LRIS
-*********
+=========
 
 
 Overview
 ========
 
 This file summarizes several instrument specific
-settings that are related to the Keck/LRIS spectrogrape.
+settings that are related to the Keck/LRIS spectrograph.
 
+Common Items
+============
 
 Longslit
 ========

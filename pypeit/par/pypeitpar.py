@@ -219,7 +219,7 @@ class ProcessImagesPar(ParSet):
         defaults['overscan'] = 'savgol'
         options['overscan'] = ProcessImagesPar.valid_overscan()
         dtypes['overscan'] = str
-        descr['overscan'] = 'Method used to fit the overscan.  ' \
+        descr['overscan'] = 'Method used to fit the overscan. ' \
                             'Options are: {0}'.format(', '.join(options['overscan']))
         
         defaults['overscan_par'] = [5, 65]

@@ -1,8 +1,9 @@
-.. highlight:: rest
-
-************
+============
 Slit Tracing
-************
+============
+
+Overview
+========
 
 One of the first and most crucial steps of the pipeline
 is to auto-magically identify the slits (or orders)
@@ -22,8 +23,41 @@ Underlying the effort is the TraceSlits class which can be
 used to load the Master frame output for tracing (a FITS and
 a JSON file).
 
+Common Issues
+=============
+
+No data
+-------
+
+For multi-detector instruments (e.g. :doc:`lris`),  one or more
+of your detectors may not have any data on it.  This is most
+common for long-slit observations, but occurs occasionally
+for multi-slit.
+
+This is best mitigated by not reducing that detector at all,
+i.e. set the `detnum` key in :ref:`pypeit_par:ReduxPar Keywords`,
+e.g. to skip the first detector in a 4 detector spectrograph::
+
+    [rdx]
+      detnum = 2,3,4
+
+Too Few Slits
+-------------
+
+The default tracing uses a PCA analysis that requires a minimum
+number of slits to succeed.  If there aren't enough, you should
+revert back to the `nearest` mode by setting the `sync_predict`
+keyword in :ref:`pypeit_par:EdgeTracePar Keywords` to `nearest`, e.g.::
+
+    [calibrations]
+      [[slitedges]]
+        sync_predict = nearest
+
+
 Algorithm
 =========
+
+THIS IS SOMEWHAT OUT OF DATE
 
 Here is the flow of the algorithms.
 

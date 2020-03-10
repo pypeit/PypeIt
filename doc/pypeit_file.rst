@@ -75,8 +75,8 @@ Parameter Block
 ---------------
 
 At the top of the file is the Parameter block which allows the user
-to modify the otherwise default parameters for the input spectrograph.
-The 2 lines shown in this example are the only 2 that are required.
+to customize the otherwise default parameters for the input spectrograph.
+The two lines shown in this example are the only 2 that are required.
 
 See :doc:`pypeit_par` for the complete list of parameters,
 the spectrograph specific settings, and the syntax for changing parameters.
