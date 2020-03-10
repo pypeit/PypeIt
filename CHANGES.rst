@@ -1,7 +1,10 @@
 
 0.13.2dev
 ---------
+
 - Added PypeIt identify GUI script for manual wavelength calibration
+- Add bitmask tests and print bitmask names that are invalid when
+  exception raised.
 
 
 
