@@ -14,8 +14,6 @@ import numpy as np
 
 from astropy import units, coordinates
 
-import linetools
-
 from IPython import embed
 
 
@@ -39,8 +37,11 @@ def convert_radec(ra, dec):
 
     """
     if isinstance(ra, str):
-        coord = linetools.utils.radec_to_coord((ra.strip(), dec.strip()))
-        return coord.ra.value, coord.dec.value
+        if (('J' in ra) or (':' in ra)) or (' ' in ra.strip()):
+            coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+            return coord.ra.value, coord.dec.value
+        else:
+            return float(ra), float(dec)
     elif isinstance(ra, np.ndarray):
         if isinstance(ra[0], str):
             if (('J' in ra[0]) or (':' in ra[0])) or (' ' in ra[0].strip()):
