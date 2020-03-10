@@ -836,24 +836,25 @@ class Identify(object):
 def initialise(arccen, slit=0, par=None, wv_calib_all=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
-        .. todo::
+    .. todo::
+
         * Implement multislit functionality
 
-        Parameters
-        ----------
-        arccen : ndarray
-            Arc spectrum
-        slit : int, optional
-            The slit to be used for wavelength calibration
-        par : :obj:`int`, optional
-            The slit to be used for wavelength calibration
-        wv_calib_all : :obj:`dict`, None, optional
-            If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+    Parameters
+    ----------
+    arccen : ndarray
+        Arc spectrum
+    slit : int, optional
+        The slit to be used for wavelength calibration
+    par : :obj:`int`, optional
+        The slit to be used for wavelength calibration
+    wv_calib_all : :obj:`dict`, None, optional
+        If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
 
-        Returns
-        -------
-        class
-            Returns an instance of the Identify class, which contains the results of the fit
+    Returns
+    -------
+    class
+        Returns an instance of the Identify class, which contains the results of the fit
     """
 
     # Double check that a WavelengthSolutionPar was input

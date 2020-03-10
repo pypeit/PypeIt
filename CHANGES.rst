@@ -5,6 +5,7 @@
 - Added PypeIt identify GUI script for manual wavelength calibration
 - Add bitmask tests and print bitmask names that are invalid when
   exception raised.
+- Paramater set keywords now sorted when exported to an rst table.
 
 
 
