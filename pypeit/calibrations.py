@@ -454,55 +454,6 @@ class Calibrations(object):
 
         return self.msalign, self.align_dict
 
-    def get_bar_prof(self):
-        """
-        Trace the bar frame to obtain constant spatial positions in each slit
-
-        Requirements:
-           master_key, det, par
-
-        Returns:
-            dict: :attr:`barprof`
-
-        """
-        # Check for existing data
-        if not self._chk_objs(['msbar', 'msbpm', 'tslits_dict']):
-            msgs.error("Don't have all the objects")
-
-        # Check internals
-        self._chk_set(['det', 'calib_ID', 'par'])
-        if 'bar' not in self.master_key_dict.keys():
-            msgs.error('Bar master key not set.  First run get_bar.')
-
-        # Return existing data
-        if self._cached('bar_dict', self.master_key_dict['bar']) \
-                and self._cached('wtmask', self.master_key_dict['bar']):
-            self.bar_dict = self.calib_dict[self.master_key_dict['bar']]['bar_dict']
-            return self.bar_dict
-
-        # Extract some header info needed by the algorithm
-        binning = self.spectrograph.get_meta_value(self.bar_files[0], 'binning')
-
-        # Instantiate
-        self.barProfile = barframe.BarProfile(self.msbar, self.tslits_dict, self.spectrograph,
-                                              self.par['barprofile'],
-                                              det=self.det, binning=binning,
-                                              master_key=self.master_key_dict['bar'],
-                                              master_dir=self.master_dir,
-                                              reuse_masters=self.reuse_masters,
-                                              qa_path=self.qa_path, msbpm=self.msbpm)
-
-        # Master
-        self.bar_dict = self.barProfile.load()
-        if self.bar_dict is None:
-            self.bar_dict = self.barProfile.run(self.show)
-            if self.save_masters:
-                self.barProfile.save()
-
-        # Save & return
-        self._update_cache('bar', 'bar_dict', self.bar_dict)
-        return self.bar_dict
-
     def get_bias(self):
         """
         Load or generate the bias frame/command
@@ -1064,11 +1015,11 @@ class MultiSlitCalibrations(Calibrations):
     ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False, steps=None):
+                 show=False):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
                                                     qadir=qadir, reuse_masters=reuse_masters,
                                                     show=show)
-        self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
+        self.steps = MultiSlitCalibrations.default_steps()
 
     @staticmethod
     def default_steps():
@@ -1095,11 +1046,11 @@ class IFUCalibrations(Calibrations):
     """
 
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False, steps=None):
+                 show=False):
         super(IFUCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
                                                     qadir=qadir, reuse_masters=reuse_masters,
                                                     show=show)
-        self.steps = IFUCalibrations.default_steps() if steps is None else steps
+        self.steps = IFUCalibrations.default_steps()
 
     @staticmethod
     def default_steps():
@@ -1111,10 +1062,5 @@ class IFUCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats', 'wave']
 
-    # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
-    # Notes on order of steps if flexure compensation is implemented
-    #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
-
-        self.steps = ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats', 'wave']
