@@ -7,13 +7,18 @@ MasterEdges
 Overview
 ========
 
-This file describes the data model for the MasterEdges object.
+This file describes the MasterEdges object.
+It contains the core information required to describe the edges
+of each slit on a given detector (or orders for echelle).
+
+See below for the `Current EdgeTrace Data Model`_.
 This is written to disk as a multi-extension FITS file prefixed by
 MasterEdges in the Masters/ folder.
 See the :ref:`master-naming` docs for more.
 
-It contains the core information required to describe the edges
-of each slit on a given detector (or orders for echelle).
+We also describe how to view the slit edges
+using `pypeit_chk_edges`_.
+
 
 pypeit_chk_edges
 ================
