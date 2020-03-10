@@ -131,10 +131,10 @@ with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:.
 
 
-  - View the :doc:`bias_image`
+  - View the :doc:`master_bias`
   - ArcImage
   - TiltImage
-  - Check slit edges with the :doc:`edge_traces` file
+  - Check slit edges with the :doc:`master_edges` file
   - Check the wavelength solution using the :ref:`cookbook-qa` below.
 
 Note that only a subset of these may be made.

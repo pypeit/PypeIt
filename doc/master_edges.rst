@@ -15,13 +15,11 @@ See the :ref:`master-naming` docs for more.
 It contains the core information required to describe the edges
 of each slit on a given detector (or orders for echelle).
 
-.. _pypeit-chk-edges:
-
 pypeit_chk_edges
 ================
 
 There are currently 2 options for viewing the slit edges on the image
-used to construct them.  Each uses the :ref:`pypeit-chk-edges`
+used to construct them.  Each uses the `pypeit_chk_edges`_
 script.  Use `pypeit_chk_edges -h` to view its current usage.
 
 ginga
@@ -71,7 +69,8 @@ Describe that object here (or link to its own doc??)
 Edges Trouble Shooting
 ======================
 
-At present, this is the greatest failure point of PypeIt.
+See :doc:`slit_tracing` for a discussion of how to customize
+and fuss with slit tracing.
 
 Current EdgeTrace Data Model
 ============================

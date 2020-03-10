@@ -1,7 +1,3 @@
-.. _wavecalib:
-
-.. highlight:: rest
-
 **********************
 Wavelength Calibration
 **********************

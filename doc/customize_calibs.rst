@@ -19,8 +19,6 @@ modifying settings.
 The items are listed in the order that they are typically
 generated.
 
-.. _customize-bias:
-
 Bias
 ====
 
@@ -52,6 +50,40 @@ in tandem with overscan subtraction in which case the
 
 See the `bias` keyword in :ref:`pypeit_par:ProcessImagesPar Keywords`
 for all options.
+
+BPM
+===
+
+PypeIt generates a bad pixel mask for each detector.
+For most, it is empty.  At present, there is no customizing
+of this procedure.
+
+Arc
+===
+
+If you provide more than one arc frame in the :doc:`pypeit_file`
+then these will be combined (as controlled by the `calibid` value).
+
+Regarding customization, you can only control the processing
+of these images via :ref:`pypeit_par:ProcessImagesPar Keywords`.
+
+Tilt
+====
+
+Same as `Arc`_.
+
+Slits
+=====
+
+This aspect of PypeIt is sufficiently complex that it requires
+its own :doc:`slit_tracing` docs.  Refer to those.
+
+Wavelength Calibration
+======================
+
+This too is sufficiently complex that it requires
+a :doc:`wave_calib` doc.
+
 
 
 

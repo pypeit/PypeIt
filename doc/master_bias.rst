@@ -1,8 +1,6 @@
-.. _bias-image:
-
-================
-MasterBias Image
-================
+==========
+MasterBias
+==========
 
 Overview
 ========
