@@ -274,3 +274,7 @@ def test_reuse(multi_caliBrate_reuse):
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)
 
+#if __name__ == '__main__':
+#    test_instantiate(fitstbl())
+
+

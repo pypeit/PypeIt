@@ -20,6 +20,7 @@ Base class for handling bit masks.
 .. include:: ../links.rst
 
 """
+from IPython import embed
 import numpy
 import os
 import textwrap
@@ -178,7 +179,7 @@ class BitMask:
             list: List of bit keywords.
         """
         k = numpy.array(list(self.bits.keys()))
-        return (k[numpy.invert(k == 'NULL')]).tolist()
+        return k[[_k != 'NULL' for _k in k]].tolist()
 
     def info(self):
         """
