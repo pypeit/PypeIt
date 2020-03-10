@@ -1035,6 +1035,8 @@ class DataContainer:
             hdu_prefix (str, optional):
                 Prefix for HDU name.  Convenient (required) for writing more several
                 DataContainers of the same name
+            limit_hdus (list, optional):
+                Limit the HDUs that can be written to the items in this list
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,

@@ -15,9 +15,6 @@ from pypeit import datamodel
 
 from IPython import embed
 
-# Version fussing
-#  If this fails, you need to update the version of PypeItImage
-assert maskimage.ImageMask.version == '1.0.0'
 
 class PypeItImage(datamodel.DataContainer):
     """
@@ -62,7 +59,7 @@ class PypeItImage(datamodel.DataContainer):
         'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
         'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
         'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
-        'mask': dict(otype=maskimage.ImageMask, desc='Mask DataContainer (v1.0.0)'),
+        'mask': dict(otype=maskimage.ImageMask, desc='Mask DataContainer'),
     }
 
     datamodel = datamodel_v100.copy()
