@@ -137,7 +137,7 @@ at least one of these:
 
 As you can see from the above example, a given file can have
 multiple frametypes.
-Simply provide a comma-separated list, *without spaces*.
+Simply provide a comma-separated list, **without spaces**.
 
 Standard star exposures are very frequently mis-labeled
 as `science` (and to a lesser extent, vice-versa).
