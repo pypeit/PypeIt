@@ -1,0 +1,10 @@
+#!/usr/bin/env python
+
+"""
+Computes sensitivity function
+"""
+
+import pypeit
+
+if __name__ == '__main__':
+    print('The version of PypeIt is: {:s}'.format(pypeit.__version__))
