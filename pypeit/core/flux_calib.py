@@ -54,16 +54,16 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             star exists within the input ra, dec, and toler range.
 
     Returns:
-        dict, bool: If check is True, return True or False depending on
-        if the object is matched to a library standard star.  If check
-        is False and no match is found, return None.  Otherwise, return
+        dict or bool: If check is True, return True or False depending on
+        if the object is matched to a library standard star.
+        If check is False and no match is found, return None.  Otherwise, return
         a dictionary with the matching standard star with the following
         meta data:
 
-            - 'file': str -- Filename table
+            - 'cal_file': str -- Filename table
             - 'name': str -- Star name
-            - 'ra': str -- RA(J2000)
-            - 'dec': str -- DEC(J2000)
+            - 'std_ra': str -- RA(J2000)
+            - 'std_dec': str -- DEC(J2000)
 
     """
     # Priority
@@ -672,8 +672,8 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
         polycorrect=polycorrect, debug=debug, show_QA=False)
 
     if debug:
-        plt.plot(wave_star[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')
-        plt.plot(wave_star[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r',label='Fluxed Observed Star')
+        plt.plot(wave_star[mask_sens], flux_true[mask_sens], color='k',lw=2, label='Reference Star')
+        plt.plot(wave_star[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r', label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)
@@ -1065,7 +1065,7 @@ def load_filter_file(filter):
     return wave, instr
 
 
-def scale_in_filter(wave, flux, gdm, scale_dict):
+def scale_in_filter(wave, flux, gpm, scale_dict):
     """
     Scale spectra to input magnitude in given filter
 
@@ -1078,11 +1078,11 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
     Args:
         wave (np.ndarray):
         flux (np.ndarray):
-        gdm (np.ndarray):
+        gpm (np.ndarray):
             True is good
         scale_dict (dict like):
             Usually is a Coadd1DPar() object
-            Requires mag_type, filter, filter_mag
+            Requires mag_type, filter, filter_mag, and filter_mask
 
     Returns:
         float: scale value for the flux, i.e. newflux = flux * scale
@@ -1097,13 +1097,12 @@ def scale_in_filter(wave, flux, gdm, scale_dict):
             regions = scale_dict['filter_mask']
         for region in regions:
             mask = region.split(':')
-            bad = (wave > float(mask[0])) & (wave < float(mask[1]))
-            gdm[bad] = False
+            gpm[(wave > float(mask[0])) & (wave < float(mask[1]))] = False
     mag_type = scale_dict['mag_type']
 
     # Parse the spectrum
-    wave = wave[gdm]
-    flux = flux[gdm]
+    wave = wave[gpm]
+    flux = flux[gpm]
 
     # Grab the instrument response function
     fwave, trans = load_filter_file(scale_dict['filter'])

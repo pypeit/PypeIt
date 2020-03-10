@@ -178,7 +178,8 @@ class PypeItMetaData:
                 usr_row = None
             else:
                 # Check
-                assert os.path.basename(ifile) == usrdata['filename'][idx]
+                if os.path.basename(ifile) != usrdata['filename'][idx]:
+                    msgs.error("Input files is not sync'd to usrdata!  Something went wrong in metadata..")
                 usr_row = usrdata[idx]
 
             # Add the directory and file name to the table
@@ -368,7 +369,7 @@ class PypeItMetaData:
         if len(existing_keys) > 0 and match_type:
             for key in existing_keys:
                 if len(self.table[key].shape) > 1:  # NOT ALLOWED!!
-                    import pdb; pdb.set_trace()
+                    embed(header='372 of metadata')
                 elif key in meta_data_model.keys(): # Is this meta data??
                     dtype = meta_data_model[key]['dtype']
                 else:
@@ -378,15 +379,12 @@ class PypeItMetaData:
                 usrdata[key][nones] = None
                 # Rest
                 # Allow for str RA, DEC (backwards compatability)
-                if key in ['ra', 'dec']:
-                    if radec_done:  # This has us execute the snippet only once
-                        pass
-                    else:
-                        ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
-                                                       usrdata['dec'][~nones].data)
-                        usrdata['ra'][~nones] = ras.astype(dtype)
-                        usrdata['dec'][~nones] = decs.astype(dtype)
-                        radec_done = True
+                if key in ['ra', 'dec'] and not radec_done:
+                    ras, decs = meta.convert_radec(usrdata['ra'][~nones].data,
+                                                   usrdata['dec'][~nones].data)
+                    usrdata['ra'][~nones] = ras.astype(dtype)
+                    usrdata['dec'][~nones] = decs.astype(dtype)
+                    radec_done = True
                 else:
                     usrdata[key][~nones] = usrdata[key][~nones].astype(dtype)
 

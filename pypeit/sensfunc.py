@@ -276,7 +276,6 @@ class SensFunc(object):
         return wave_splice, sensfunc_splice
 
     def show(self):
-        plt.figure()
         plt.plot(self.wave_sens, self.sensfunc)
         plt.show()
         plt.close()
