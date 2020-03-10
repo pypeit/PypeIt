@@ -43,7 +43,7 @@ def convert_radec(ra, dec):
         return coord.ra.value, coord.dec.value
     elif isinstance(ra, np.ndarray):
         if isinstance(ra[0], str):
-            if (('J' in ra[0]) or (':' in ra[0])):
+            if (('J' in ra[0]) or (':' in ra[0])) or (' ' in ra[0].strip()):
                 coords = coordinates.SkyCoord(ra,dec, unit=(units.hourangle, units.deg))
                 return coords.ra.value, coords.dec.value
             else:
