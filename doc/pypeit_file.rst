@@ -146,8 +146,12 @@ So keep an eye out for those.
 near-IR
 -------
 
-Most of the following are for near-IR spectrographs, although
-the functionality can be adopted to any instrument.
+One key difference is that you can and probably should make modifications
+to enable A-B (or AA-BB or whatever) subtraction.  At present, the only notes
+on this are here:
+`Near-IR HOWTO <https://docs.google.com/presentation/d/1jOgwOBP9OhlhHxMTqxuc2dsBZ86PTxjje1kJ1FnSVs4/edit?usp=sharing>`_.
+This will be ingested into these `readthedocs` before long..
+
 
 calib
 +++++
