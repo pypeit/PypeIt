@@ -128,8 +128,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         if ftype in ['dark']:
             # Dark frames
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
-        if ftype in ['bar']:
-            # Bar frames
+        if ftype in ['align']:
+            # Alignment frames
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '4')
         if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == '0')
@@ -373,7 +373,6 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?
-        self.steps = ['bias', 'bpm', 'arc', 'bar', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'bar_prof', 'flats', 'wave']
 
         # Don't instantiate these until they're needed
         self.grating = None
@@ -411,8 +410,8 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [30, None]
 
-        # Set the number of bars in the bar frames
-        par['calibrations']['barprofile']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
+        # Set the number of alignments in the align frames
+        par['calibrations']['align']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
 
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0

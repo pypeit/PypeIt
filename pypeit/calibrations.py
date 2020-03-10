@@ -17,7 +17,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import arcimage
 from pypeit import tiltimage
-from pypeit import barframe
+from pypeit import alignframe
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
@@ -159,7 +159,8 @@ class Calibrations(object):
         # TraceSlits)
         self.shape = None
         self.msarc = None
-        self.msbar = None
+        self.msalign = None
+        self.alignment = None
         self.msbias = None
         self.msbpm = None
         self.tslits_dict = None
@@ -372,55 +373,86 @@ class Calibrations(object):
         #self._update_cache('tilt', 'tilt_inmask', self.mstilt_inmask)
         return self.mstilt
 
-    def get_bar(self):
+    def get_align(self):
         """
-        Load or generate the bar frame
+        Load or generate the alignment frame
 
         Requirements:
            master_key, det, par
 
         Returns:
-            ndarray or str: :attr:`bar`
+            ndarray or str: :attr:`align`
 
         """
+        # Check for existing data
+        if not self._chk_objs(['msbpm', 'tslits_dict']):
+            msgs.error("Don't have all the objects")
+
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        bar_rows = self.fitstbl.find_frames('bar', calib_ID=self.calib_ID, index=True)
-        self.bar_files = self.fitstbl.frame_paths(bar_rows)
-        self.master_key_dict['bar'] \
-                = self.fitstbl.master_key(bar_rows[0] if len(bar_rows) > 0 else self.frame,
+        align_rows = self.fitstbl.find_frames('align', calib_ID=self.calib_ID, index=True)
+        self.align_files = self.fitstbl.frame_paths(align_rows)
+        self.master_key_dict['align'] \
+                = self.fitstbl.master_key(align_rows[0] if len(align_rows) > 0 else self.frame,
                                           det=self.det)
 
-        if self._cached('bar', self.master_key_dict['bar']):
+        if self._cached('align', self.master_key_dict['align']):
             # Previously calculated
-            self.msbar = self.calib_dict[self.master_key_dict['bar']]['bar']
-            return self.msbar
+            self.msalign = self.calib_dict[self.master_key_dict['align']]['align']
+        else:
+            # Instantiate with everything needed to generate the image (in case we do)
+            self.alignFrame = alignframe.AlignFrame(self.spectrograph, files=self.align_files,
+                                              det=self.det, msbias=self.msbias,
+                                              par=self.par['alignframe'],
+                                              master_key=self.master_key_dict['align'],
+                                              master_dir=self.master_dir,
+                                              reuse_masters=self.reuse_masters)
 
-        # Instantiate with everything needed to generate the image (in case we do)
-        self.barFrame = barframe.BarFrame(self.spectrograph, files=self.bar_files,
-                                          det=self.det, msbias=self.msbias,
-                                          par=self.par['barframe'],
-                                          master_key=self.master_key_dict['bar'],
-                                          master_dir=self.master_dir,
-                                          reuse_masters=self.reuse_masters)
+            # Load the MasterFrame (if it exists and is desired)?
+            self.msalign = self.alignFrame.load()
+            if self.msalign is None:  # Otherwise build it
+                msgs.info("Preparing a master {0:s} frame".format(self.alignFrame.frametype))
+                self.msalign = self.alignFrame.build_image(bias=self.msbias, bpm=self.msbpm)
+                # Need to set head0 here, since a master align frame loaded from file will have head0 set.
+                self.msalign.head0 = self.alignFrame.build_master_header(steps=self.alignFrame.process_steps,
+                                                                     raw_files=self.alignFrame.file_list)
+                # Save to Masters
+                if self.save_masters:
+                    self.alignFrame.save()
 
-        # Load the MasterFrame (if it exists and is desired)?
-        self.msbar = self.barFrame.load()
-        if self.msbar is None:  # Otherwise build it
-            msgs.info("Preparing a master {0:s} frame".format(self.barFrame.frametype))
-            self.msbar = self.barFrame.build_image(bias=self.msbias, bpm=self.msbpm)
-            # Need to set head0 here, since a master bar frame loaded from file will have head0 set.
-            self.msbar.head0 = self.barFrame.build_master_header(steps=self.barFrame.process_steps,
-                                                                 raw_files=self.barFrame.file_list)
-            # Save to Masters
-            if self.save_masters:
-                self.barFrame.save()
+            # Store the alignment frame
+            self._update_cache('align', 'align', self.msalign)
 
-        # Save & return
-        self._update_cache('bar', 'bar', self.msbar)
-        return self.msbar
+        # Check if the alignment dictionary exists
+        if self._cached('align_dict', self.master_key_dict['align']) \
+                and self._cached('wtmask', self.master_key_dict['align']):
+            self.align_dict = self.calib_dict[self.master_key_dict['align']]['align_dict']
+        else:
+            # Extract some header info needed by the algorithm
+            binning = self.spectrograph.get_meta_value(self.align_files[0], 'binning')
+
+            # Instantiate
+            self.alignment = alignframe.Alignment(self.msalign, self.tslits_dict, self.spectrograph,
+                                                  self.par['alignprofile'],
+                                                  det=self.det, binning=binning,
+                                                  master_key=self.master_key_dict['align'],
+                                                  master_dir=self.master_dir,
+                                                  reuse_masters=self.reuse_masters,
+                                                  qa_path=self.qa_path, msbpm=self.msbpm)
+
+            # Master
+            self.align_dict = self.alignment.load()
+            if self.align_dict is None:
+                self.align_dict = self.alignment.run(self.show)
+                if self.save_masters:
+                    self.alignment.save()
+
+            # Save & return
+            self._update_cache('align', 'align_dict', self.align_dict)
+
+        return self.msalign, self.align_dict
 
     def get_bar_prof(self):
         """
@@ -1054,3 +1086,35 @@ class MultiSlitCalibrations(Calibrations):
     # Notes on order of steps if flexure compensation is implemented
     #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
+
+class IFUCalibrations(Calibrations):
+    """
+    Child of Calibrations class for performing IFU calibrations.
+    See :class:`pypeit.calibrations.Calibrations` for arguments.
+
+    """
+
+    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
+                 show=False, steps=None):
+        super(IFUCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
+                                                    qadir=qadir, reuse_masters=reuse_masters,
+                                                    show=show)
+        self.steps = IFUCalibrations.default_steps() if steps is None else steps
+
+    @staticmethod
+    def default_steps():
+        """
+        This defines the steps for calibrations and their order
+
+        Returns:
+            list: Calibration steps, in order of execution
+
+        """
+        # Order matters!
+        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+
+    # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
+    # Notes on order of steps if flexure compensation is implemented
+    #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+
+        self.steps = ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats', 'wave']

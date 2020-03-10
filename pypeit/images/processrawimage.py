@@ -132,7 +132,6 @@ class ProcessRawImage(object):
         # Generate
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
                                              detector['gain'], detector['ronoise'],
-                                             numamplifiers=detector['numamplifiers'],
                                              darkcurr=detector['darkcurr'],
                                              exptime=self.exptime,
                                              rnoise=self.rn2img)

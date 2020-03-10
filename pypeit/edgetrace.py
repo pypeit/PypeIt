@@ -1208,7 +1208,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
             compress = True
 
         # First check if a trace is available
-        if self.spat_cen is None:
+        if self.is_empty:
             msgs.error("No trace information available")
         # Build the list of extensions to write
         # TODO: Separately adding the design and object data is

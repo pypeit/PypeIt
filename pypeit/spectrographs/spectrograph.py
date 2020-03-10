@@ -91,7 +91,6 @@ class Spectrograph(object):
         self.rawdatasec_img = None
         self.oscansec_img = None
         self.slitmask = None
-        self.steps = None  # The reduction steps for this spectrograph
 
         # Default time unit
         self.timeunit = 'mjd'
