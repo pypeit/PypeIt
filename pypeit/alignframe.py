@@ -178,8 +178,8 @@ class Alignment(masterframe.MasterFrame):
             List of the processing steps performed
     """
     # Frametype is a class attribute
-    frametype = 'align_prof'
-    master_type = 'AlignProfile'
+    frametype = 'alignment'
+    master_type = 'Alignment'
 
     def __init__(self, msalign, tslits_dict, spectrograph, par, det=1,
                  binning=None, master_key=None, master_dir=None, reuse_masters=False,
@@ -270,8 +270,8 @@ class Alignment(masterframe.MasterFrame):
         # Go through the slits
         for sl in range(nslits):
             specobj_dict = {'setup': "unknown", 'slitid': sl,
-                            'det': self.det, 'objtype': "align_profile", 'pypeline': "MultiSlit"}
-            msgs.info("Fitting align traces in slit {0:d}".format(sl))
+                            'det': self.det, 'objtype': "align_profile", 'pypeline': self.spectrograph.pypeline}
+            msgs.info("Fitting alignment traces in slit {0:d}".format(sl))
             align_traces, _ = extract.objfind(
                 self.msalign.image, self.slitmask == sl,
                 self.tslits_dict['slit_left'][:, sl],
@@ -284,7 +284,7 @@ class Alignment(masterframe.MasterFrame):
                 nperslit=len(self.par['locations']))
             if len(align_traces) != len(self.par['locations']):
                 # Align tracing has failed for this slit
-                msgs.warn("Align tracing has failed on slit {0:d}".format(sl))
+                msgs.warn("Alignment tracing has failed on slit {0:d}".format(sl))
             if show_trace:
                 self.show('overplot', chname='align_traces', align_traces=align_traces, slits=False)
             align_prof['{0:d}'.format(sl)] = align_traces.copy()
