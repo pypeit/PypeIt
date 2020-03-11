@@ -53,6 +53,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.optical_model = None
         self.detector_map = None
 
+    @property
+    def pypeline(self):
+        return 'IFU'
+
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
