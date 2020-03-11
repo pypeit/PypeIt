@@ -700,7 +700,7 @@ class Identify(object):
         Returns
         -------
 
-            disp : The wavelength (Angstroms) of the requested pixels
+        disp : The wavelength (Angstroms) of the requested pixels
         """
         if xfit is None:
             xfit = self._detns
@@ -854,7 +854,8 @@ class Identify(object):
 def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
-        .. todo::
+    .. todo::
+
         * Implement multislit functionality
 
         Parameters
@@ -870,10 +871,10 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
         wavelim : :obj:`list`, None, optional
             A two element list containing the desired minimum and maximum wavelength of the linelist
 
-        Returns
-        -------
-        class
-            Returns an instance of the Identify class, which contains the results of the fit
+    Returns
+    -------
+    class
+        Returns an instance of the Identify class, which contains the results of the fit
     """
 
     # Double check that a WavelengthSolutionPar was input

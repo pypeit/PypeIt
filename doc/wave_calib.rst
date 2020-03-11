@@ -67,6 +67,7 @@ This algorithm is optimal for fixed-format spectrographs
 (e.g. X-Shooter, ESI).
 
 .. _wvcalib-fulltemplate:
+
 Full Template
 -------------
 
