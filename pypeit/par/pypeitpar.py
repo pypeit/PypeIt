@@ -715,10 +715,11 @@ class FlexurePar(ParSet):
 #            raise ValueError('Provided archive spectrum does not exist: {0}.'.format(
 #                             self.data['spectrum']))
 
-class BarPar(ParSet):
+
+class AlignPar(ParSet):
     """
     The parameter set used to hold arguments for tracing the
-    bars in a bar frame.
+    alignments in an align frame.
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
@@ -756,18 +757,18 @@ class BarPar(ParSet):
 
         defaults['sig_thresh'] = 1.0  # This must be low, because the routine will find the
         dtypes['sig_thresh'] = [int, float]
-        descr['sig_thresh'] = 'Significance threshold for finding a bar trace. This should be a low' \
+        descr['sig_thresh'] = 'Significance threshold for finding an alignment trace. This should be a low' \
                               'number to ensure that the algorithm finds all bars. The algorithm will' \
                               'then only use the N most significant detections, where N is the number' \
                               'of elements specified in the "locations" keyword argument'
 
         # Instantiate the parameter set
-        super(BarPar, self).__init__(list(pars.keys()),
-                                          values=list(pars.values()),
-                                          defaults=list(defaults.values()),
-                                          options=list(options.values()),
-                                          dtypes=list(dtypes.values()),
-                                          descr=list(descr.values()))
+        super(AlignPar, self).__init__(list(pars.keys()),
+                                            values=list(pars.values()),
+                                            defaults=list(defaults.values()),
+                                            options=list(options.values()),
+                                            dtypes=list(dtypes.values()),
+                                            descr=list(descr.values()))
         self.validate()
 
     @classmethod
@@ -1764,7 +1765,7 @@ class ReduxPar(ParSet):
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
         return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
-                'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi_blue',
+                'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
                 'vlt_fors2', 'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2',
@@ -3091,7 +3092,7 @@ class CalibrationsPar(ParSet):
     """
     def __init__(self, caldir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
-                 pinholeframe=None, barframe=None, barprofile=None, traceframe=None,
+                 pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
                  standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
 
         # Grab the parameter names and values from the function
@@ -3142,9 +3143,9 @@ class CalibrationsPar(ParSet):
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
-        defaults['barframe'] = FrameGroupPar(frametype='bar', number=0)
-        dtypes['barframe'] = [ ParSet, dict ]
-        descr['barframe'] = 'The frames and combination rules for the bar frames'
+        defaults['alignframe'] = FrameGroupPar(frametype='align', number=0)
+        dtypes['alignframe'] = [ ParSet, dict ]
+        descr['alignframe'] = 'The frames and combination rules for the align frames'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc', number=1,
                                              process=ProcessImagesPar(sigrej=-1))
@@ -3165,9 +3166,9 @@ class CalibrationsPar(ParSet):
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
 
-        defaults['barprofile'] = BarPar()
-        dtypes['barprofile'] = [ ParSet, dict ]
-        descr['barprofile'] = 'Define the procedure for the bar traces'
+        defaults['alignment'] = AlignPar()
+        dtypes['alignment'] = [ ParSet, dict ]
+        descr['alignment'] = 'Define the procedure for the alignment of traces'
 
         defaults['flatfield'] = FlatFieldPar()
         dtypes['flatfield'] = [ ParSet, dict ]
@@ -3202,7 +3203,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias' ]
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'pinholeframe', 'barframe', 'barprofile', 'traceframe', 'standardframe', 'flatfield',
+                             'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',
                              'wavelengths', 'slitedges', 'tilts']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
@@ -3225,10 +3226,10 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('pixelflat', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
-        pk = 'barframe'
-        kwargs[pk] = FrameGroupPar.from_dict('bar', cfg[pk]) if pk in k else None
-        pk = 'barprofile'
-        kwargs[pk] = BarPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'alignframe'
+        kwargs[pk] = FrameGroupPar.from_dict('align', cfg[pk]) if pk in k else None
+        pk = 'alignment'
+        kwargs[pk] = AlignPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'traceframe'
         kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
         pk = 'standardframe'

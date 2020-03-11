@@ -689,15 +689,18 @@ class Identify(object):
     def fitsol_value(self, xfit=None, idx=None):
         """Calculate the wavelength at a pixel
 
-        Args:
-            xfit : ndarray, float
-                Pixel values that the user wishes to evaluate the wavelength
-            idx : ndarray, int
-                Index of the arc line detections that the user wishes to evaluate the wavelength
+        Parameters
+        ----------
 
-        Returns:
-            disp : ndarray, float, None
-                The wavelength (Angstroms) of the requested pixels
+        xfit : ndarray, float
+            Pixel values that the user wishes to evaluate the wavelength
+        idx : ndarray, int
+            Index of the arc line detections that the user wishes to evaluate the wavelength
+
+        Returns
+        -------
+
+        disp : The wavelength (Angstroms) of the requested pixels
         """
         if xfit is None:
             xfit = self._detns
@@ -851,8 +854,9 @@ class Identify(object):
 def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
-        TODO ::
-            * Implement multislit functionality
+    .. todo::
+
+        * Implement multislit functionality
 
         Parameters
         ----------
@@ -864,11 +868,13 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
             The slit to be used for wavelength calibration
         wv_calib_all : :obj:`dict`, None, optional
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+        wavelim : :obj:`list`, None, optional
+            A two element list containing the desired minimum and maximum wavelength of the linelist
 
-        Returns
-        -------
-        class
-            Returns an instance of the Identify class, which contains the results of the fit
+    Returns
+    -------
+    class
+        Returns an instance of the Identify class, which contains the results of the fit
     """
 
     # Double check that a WavelengthSolutionPar was input
@@ -892,15 +898,12 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
 
     # Trim the wavelength scale if requested
     if wavelim is not None:
-        ww = None
-        if wavelim[0] is not None and wavelim[1] is not None:
-            ww = (line_lists['wave'] > wavelim[0]) & (line_lists['wave'] < wavelim[1])
-        elif wavelim[0] is not None:
-            ww = (line_lists['wave'] > wavelim[0])
-        elif wavelim[1] is not None:
-            ww = (line_lists['wave'] < wavelim[1])
-        if ww is not None:
-            line_lists = line_lists[ww]
+        ww = np.ones(line_lists.size, dtype=bool)
+        if wavelim[0] is not None:
+            ww &= line_lists['wave'] > wavelim[0]
+        if wavelim[1] is not None:
+            ww &= line_lists['wave'] < wavelim[1]
+        line_lists = line_lists[ww]
 
     # Create a Line2D instance for the arc spectrum
     spec = Line2D(np.arange(thisarc.size), thisarc,

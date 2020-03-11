@@ -1,8 +1,6 @@
 """ Implements KCWI-specific functions.
 """
 
-import pdb
-from matplotlib import pyplot as plt
 import glob
 import numpy as np
 
@@ -24,8 +22,40 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     def __init__(self):
         # Get it started
         super(KeckKCWISpectrograph, self).__init__()
-        self.spectrograph = 'keck_kcwi_base'
+        self.spectrograph = 'keck_kcwi'
         self.telescope = telescopes.KeckTelescopePar()
+        self.camera = 'KCWI'
+        self.detector = [pypeitpar.DetectorPar(
+                            dataext         = 0,
+                            specaxis        = 0,
+                            specflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.147,  # arcsec/pixel
+                            darkcurr        = None,  # <-- TODO : Need to set this
+                            saturation      = 65535.,
+                            nonlinear       = 0.95,       # For lack of a better number!
+                            numamplifiers   = 4,          # <-- This is provided in the header
+                            gain            = [0]*4,  # <-- This is provided in the header
+                            ronoise         = [0]*4,  # <-- TODO : Need to set this for other setups
+                            datasec         = ['']*4,     # <-- This is provided in the header
+                            oscansec        = ['']*4,     # <-- This is provided in the header
+                            suffix          = '_01'
+                            )]
+        self.numhead = 1
+        # Uses default timeunit
+        # Uses default primary_hdrext
+        # self.sky_file ?
+
+        # Don't instantiate these until they're needed
+        self.grating = None
+        self.optical_model = None
+        self.detector_map = None
+
+    @property
+    def pypeline(self):
+        return 'IFU'
 
     @property
     def pypeline(self):
@@ -53,7 +83,25 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
+        headarr = self.get_headarr(scifile)
+
+        # Templates
+        if self.get_meta_value(headarr, 'dispname') == 'BH2':
+            par['calibrations']['wavelengths']['method'] = 'identify'  # 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = ''
+            # par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+        if self.get_meta_value(headarr, 'dispname') == 'BM':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM_4375.fits'
+            # par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+
+        # FWHM
+        # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
+        # par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
+
+        # Return
         return par
+
 
     def init_meta(self):
         """
@@ -95,6 +143,56 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Ingest
         self.meta = meta
 
+    def default_pypeit_par(self):
+        """
+        Set default parameters for Keck KCWI reductions.
+        """
+        par = pypeitpar.PypeItPar()
+        par['rdx']['spectrograph'] = 'keck_kcwi'
+        # par['flexure']['method'] = 'boxcar'
+        # Set wave tilts order
+
+        # Set the slit edge parameters
+        par['calibrations']['slitedges']['fit_order'] = 4
+
+        # 1D wavelength solution
+        # par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
+        # par['calibrations']['wavelengths']['nonlinear_counts'] \
+        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        # par['calibrations']['wavelengths']['n_first'] = 3
+        # par['calibrations']['wavelengths']['match_toler'] = 2.5
+
+        # Alter the method used to combine pixel flats
+        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
+        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10., 10.]
+
+        # Set the default exposure time ranges for the frame typing
+        par['calibrations']['biasframe']['exprng'] = [None, 0.01]
+        par['calibrations']['darkframe']['exprng'] = [0.01, None]
+        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
+        par['calibrations']['traceframe']['exprng'] = [None, 30]
+        par['scienceframe']['exprng'] = [30, None]
+
+        # Set the number of alignments in the align frames
+        par['calibrations']['alignment']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
+
+        # LACosmics parameters
+        par['scienceframe']['process']['sigclip'] = 4.0
+        par['scienceframe']['process']['objlim'] = 1.5
+
+        # Don't do optimal extraction for 3D data.
+        par['reduce']['extraction']['skip_optimal'] = True
+
+        # Make sure that this is listed as a slit spectrograph
+        par['reduce']['cube']['slit_spec'] = True
+
+        # Sky subtraction parameters
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 3.0
+
+        return par
+
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'binning':
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
@@ -134,8 +232,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         if ftype in ['dark']:
             # Dark frames
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
-        if ftype in ['bar']:
-            # Bar frames
+        if ftype in ['align']:
+            # Alignment frames
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '4')
         if ftype in ['arc', 'tilt']:
             return good_exp & self.lamps(fitstbl, 'arcs') & (fitstbl['hatch'] == '0')
@@ -346,179 +444,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Return
         return raw_img, [head0], exptime, rawdatasec_img, oscansec_img
 
-    def set_wcs(self, hdr):
-        """Set the WCS for this spectrograph
-        """
-        # TODO :: Need to set all of these!!
-        ra = None
-        dec = None
-        wave0 = None
-        crpix1 = None
-        crpix2 = None
-        crpix3 = None
-        cd11 = None
-        cd21 = None
-        cd12 = None
-        cd22 = None
-        dwout = None
-        # WCS keywords
-        hdr['WCSDIM'] = (3, 'number of dimensions in WCS')
-        hdr['WCSNAME'] = ('KCWI', 'Name of WCS')
-        hdr['EQUINOX'] = (2000, 'EQUINOX')
-        hdr['RADESYS'] = ('FK5', 'WCS system')
-        hdr['CTYPE1'] = ('RA---TAN', '')
-        hdr['CTYPE2'] = ('DEC--TAN', '')
-        hdr['CTYPE3'] = ('AWAV', 'Air Wavelengths')
-        hdr['CUNIT1'] = ('deg', 'RA units')
-        hdr['CUNIT2'] = ('deg', 'DEC units')
-        hdr['CUNIT3'] = ('Angstrom', 'Wavelength units')
-        hdr['CNAME1'] = ('KCWI RA', 'RA name')
-        hdr['CNAME2'] = ('KCWI DEC', 'DEC name')
-        hdr['CNAME3'] = ('KCWI Wavelength', 'Wavelength name')
-        hdr['CRVAL1'] = (ra, 'RA zeropoint')
-        hdr['CRVAL2'] = (dec, 'DEC zeropoint')
-        hdr['CRVAL3'] = (wave0, 'Wavelength zeropoint')
-        hdr['CRPIX1'] = (crpix1, 'RA reference pixel')
-        hdr['CRPIX2'] = (crpix2, 'DEC reference pixel')
-        hdr['CRPIX3'] = (crpix3, 'Wavelength reference pixel')
-        hdr['CD1_1'] = (cd11, 'RA degrees per column pixel')
-        hdr['CD2_1'] = (cd21, 'DEC degrees per column pixel')
-        hdr['CD1_2'] = (cd12, 'RA degrees per row pixel')
-        hdr['CD2_2'] = (cd22, 'DEC degrees per row pixel')
-        hdr['CD3_3'] = (dwout, 'Wavelength Angstroms per pixel')
-        hdr['LONPOLE'] = (180.0, 'Native longitude of Celestial pole')
-        hdr['LATPOLE'] = (0.0, 'Celestial latitude of native pole')
-        hdr['HISTORY'] = "  {0:s} {1:s}".format(kgeom.progid, systime(0, kgeom.timestamp))
-        hdr['HISTORY'] = "  {0:s} {1:s}".format(pre, systime(0))
-        return hdr
-
-
-class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
-    """
-    Child to handle Keck/KCWI specific code
-    """
-    def __init__(self):
-        # Get it started
-        super(KeckKCWISpectrograph, self).__init__()
-        self.spectrograph = 'keck_kcwi_blue'
-        self.telescope = telescopes.KeckTelescopePar()
-        self.camera = 'KCWIb'
-        self.detector = [pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.147,  # arcsec/pixel
-                            darkcurr        = None,  # <-- TODO : Need to set this
-                            saturation      = 65535.,
-                            nonlinear       = 0.95,       # For lack of a better number!
-                            numamplifiers   = 4,          # <-- This is provided in the header
-                            gain            = [0]*4,  # <-- This is provided in the header
-                            ronoise         = [0]*4,  # <-- TODO : Need to set this for other setups
-                            datasec         = ['']*4,     # <-- This is provided in the header
-                            oscansec        = ['']*4,     # <-- This is provided in the header
-                            suffix          = '_01'
-                            )]
-        self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file ?
-        self.steps = ['bias', 'bpm', 'arc', 'bar', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'bar_prof', 'flats', 'wave']
-
-        # Don't instantiate these until they're needed
-        self.grating = None
-        self.optical_model = None
-        self.detector_map = None
-
-    def default_pypeit_par(self):
-        """
-        Set default parameters for Keck KCWI reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        par['rdx']['spectrograph'] = 'keck_kcwi_blue'
-        #par['flexure']['method'] = 'boxcar'
-        # Set wave tilts order
-
-        # Set the slit edge parameters
-        par['calibrations']['slitedges']['fit_order'] = 4
-
-        # 1D wavelength solution
-        #par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] \
-        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        #par['calibrations']['wavelengths']['n_first'] = 3
-        #par['calibrations']['wavelengths']['match_toler'] = 2.5
-
-        # Alter the method used to combine pixel flats
-        par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
-        par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
-
-        # Set the default exposure time ranges for the frame typing
-        par['calibrations']['biasframe']['exprng'] = [None, 0.01]
-        par['calibrations']['darkframe']['exprng'] = [0.01, None]
-        par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
-        par['calibrations']['traceframe']['exprng'] = [None, 30]
-        par['scienceframe']['exprng'] = [30, None]
-
-        # Set the number of bars in the bar frames
-        par['calibrations']['barprofile']['locations'] = [0.1, 0.3, 0.5, 0.7, 0.9]  # TODO:: Check this!!
-
-        # LACosmics parameters
-        par['scienceframe']['process']['sigclip'] = 4.0
-        par['scienceframe']['process']['objlim'] = 1.5
-
-        # Make sure that this is listed as a slit spectrograph
-        par['reduce']['cube']['slit_spec'] = True
-
-        # Sky subtraction parameters
-        par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 3.0
-        return par
-
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to hard-wired values used for
-        specific instrument configurations.
-
-        .. todo::
-            Document the changes made!
-        
-        Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
-            adjusted for configuration specific parameter values.
-        """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-
-        headarr = self.get_headarr(scifile)
-
-        # Templates
-        if self.get_meta_value(headarr, 'dispname') == 'BH2':
-            par['calibrations']['wavelengths']['method'] = 'identify'#'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = ''
-            #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-        if self.get_meta_value(headarr, 'dispname') == 'BM':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_blue_BM_4375.fits'
-            #par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-
-        # FWHM
-        #binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
-        #par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
-
-        # Return
-        return par
-
     def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to DEIMOS.
@@ -586,3 +511,49 @@ class KeckKCWIBSpectrograph(KeckKCWISpectrograph):
             bpm_img[bc[bb][2]:bc[bb][3]+1, bc[bb][0]:bc[bb][1]+1] = 1
 
         return bpm_img
+
+    def set_wcs(self, hdr):
+        """Set the WCS for this spectrograph
+        """
+        # TODO :: Need to set all of these!!
+        ra = None
+        dec = None
+        wave0 = None
+        crpix1 = None
+        crpix2 = None
+        crpix3 = None
+        cd11 = None
+        cd21 = None
+        cd12 = None
+        cd22 = None
+        dwout = None
+        # WCS keywords
+        hdr['WCSDIM'] = (3, 'number of dimensions in WCS')
+        hdr['WCSNAME'] = ('KCWI', 'Name of WCS')
+        hdr['EQUINOX'] = (2000, 'EQUINOX')
+        hdr['RADESYS'] = ('FK5', 'WCS system')
+        hdr['CTYPE1'] = ('RA---TAN', '')
+        hdr['CTYPE2'] = ('DEC--TAN', '')
+        hdr['CTYPE3'] = ('AWAV', 'Air Wavelengths')
+        hdr['CUNIT1'] = ('deg', 'RA units')
+        hdr['CUNIT2'] = ('deg', 'DEC units')
+        hdr['CUNIT3'] = ('Angstrom', 'Wavelength units')
+        hdr['CNAME1'] = ('KCWI RA', 'RA name')
+        hdr['CNAME2'] = ('KCWI DEC', 'DEC name')
+        hdr['CNAME3'] = ('KCWI Wavelength', 'Wavelength name')
+        hdr['CRVAL1'] = (ra, 'RA zeropoint')
+        hdr['CRVAL2'] = (dec, 'DEC zeropoint')
+        hdr['CRVAL3'] = (wave0, 'Wavelength zeropoint')
+        hdr['CRPIX1'] = (crpix1, 'RA reference pixel')
+        hdr['CRPIX2'] = (crpix2, 'DEC reference pixel')
+        hdr['CRPIX3'] = (crpix3, 'Wavelength reference pixel')
+        hdr['CD1_1'] = (cd11, 'RA degrees per column pixel')
+        hdr['CD2_1'] = (cd21, 'DEC degrees per column pixel')
+        hdr['CD1_2'] = (cd12, 'RA degrees per row pixel')
+        hdr['CD2_2'] = (cd22, 'DEC degrees per row pixel')
+        hdr['CD3_3'] = (dwout, 'Wavelength Angstroms per pixel')
+        hdr['LONPOLE'] = (180.0, 'Native longitude of Celestial pole')
+        hdr['LATPOLE'] = (0.0, 'Celestial latitude of native pole')
+        hdr['HISTORY'] = "  {0:s} {1:s}".format(kgeom.progid, systime(0, kgeom.timestamp))
+        hdr['HISTORY'] = "  {0:s} {1:s}".format(pre, systime(0))
+        return hdr

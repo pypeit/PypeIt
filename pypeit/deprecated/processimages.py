@@ -625,7 +625,6 @@ class ProcessImages(object):
         detector = self.spectrograph.detector[self.det-1]
         self.rawvarframe = procimg.variance_frame(datasec_img, self.stack,
                                                     detector['gain'], detector['ronoise'],
-                                                    numamplifiers=detector['numamplifiers'],
                                                     darkcurr=detector['darkcurr'],
                                                     exptime=self.exptime)
 

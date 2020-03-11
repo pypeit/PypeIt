@@ -18,6 +18,7 @@ from astropy.io import fits
 from pypeit.core.gui import object_find as gui_object_find
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
+from pypeit import edgetrace
 from pypeit.masterframe import MasterFrame
 from pypeit import slittrace
 
@@ -46,8 +47,8 @@ def parse_traces(hdulist_1d, det_nm):
     for hdu in hdulist_1d:
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
-            trace = tbl['TRACE']
-            fwhm = tbl['FWHM']
+            trace = tbl['TRACE_SPAT']
+            fwhm = tbl['FWHMFIT']
             obj_id = hdu.name.split('-')[0]
             traces['traces'].append(trace.copy())
             traces['fwhm'].append(np.median(fwhm))
@@ -143,5 +144,4 @@ def main(args):
     tslits_dict['trace_model'] = trace_model_dict
 
     # Finally, initialise the GUI
-    gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True,
-                               slit_ids=slits.id)
+    ofgui = gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slits.id)

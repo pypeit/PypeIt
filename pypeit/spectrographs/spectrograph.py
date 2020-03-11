@@ -93,7 +93,6 @@ class Spectrograph(object):
         self.rawdatasec_img = None
         self.oscansec_img = None
         self.slitmask = None
-        self.steps = None  # The reduction steps for this spectrograph
 
         # Default time unit
         self.timeunit = 'mjd'
@@ -683,13 +682,13 @@ class Spectrograph(object):
         Update or set a parameter in the detector array
 
         Args:
-            par (str):
+            par : str
               Parameter that needs to be updated
-            det: int
+            det : int
               Detector number
-            value: any type
+            value : any type
               Updated value to assign parameter 'par'
-            force_update: bool
+            force_update : bool
               Overwrite a parameter, even if it's been set
 
         """

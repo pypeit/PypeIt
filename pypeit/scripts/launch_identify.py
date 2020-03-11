@@ -79,7 +79,7 @@ def main(args):
     binspec, binspat = parse.parse_binning(spec.get_meta_value(msarc.head0['F1'], 'binning'))
 
     # Set the gain (read gain from headers)
-    _, _, _, _, _ = spec.get_rawimage(msarc.head0['F1'], args.det)
+    spec.get_rawimage(msarc.head0['F1'], args.det)
 
     # Load the slits information
     slits = slittrace.SlitTraceSet.from_master(mkey, mdir)

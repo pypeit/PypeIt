@@ -19,11 +19,11 @@ from pypeit.images import pypeitimage
 from pypeit.core import procimg, extract, arc, pixels, save, load
 
 
-class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
+class AlignFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
-    Class to generate/load the bar image
+    Class to generate/load the alignment image
 
-    This class is primarily designed to generate a Bar frame to map constant
+    This class is primarily designed to generate a Alignment frame to map constant
     spatial locations.  It also contains I/O methods for the Master frames
     of PypeIt.  The build_master() method will return a simple command
     (str) if that is the specified parameter (`par['useframe']`).
@@ -40,7 +40,7 @@ class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             The parameters used to process the frames.  If None, set
             to::
 
-                pypeitpar.FrameGroupPar('bar')
+                pypeitpar.FrameGroupPar('align')
 
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
@@ -52,8 +52,8 @@ class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     """
 
     # Frame type is a class attribute
-    frametype = 'bar'
-    master_type = 'Bar'
+    frametype = 'align'
+    master_type = 'Align'
 
     @classmethod
     def from_master_file(cls, master_file, par=None):
@@ -65,8 +65,7 @@ class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             par (:class:`pypeit.par.pypeitpar.FrameGroupPar`, optional):
 
         Returns:
-            barframe.BarFrame:
-                The PypeItImage is loaded into self.pypeitImage
+            :class:`AlignFrame`: The master align frame is loaded into self.pypeitImage.
 
         """
         # Spectrograph
@@ -107,7 +106,7 @@ class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     def save(self, outfile=None, overwrite=True):
         """
-        Save the master bar data.
+        Save the master align data.
 
         Args:
             outfile (:obj:`str`, optional):
@@ -124,12 +123,12 @@ class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return
         #
         hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        self.pypeitImage.write(_outfile, hdr=hdr, iext='BAR')
+        self.pypeitImage.write(_outfile, hdr=hdr, iext='ALIGN')
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
         """
-        Load the bar frame data from a saved master frame.
+        Load the align frame data from a saved master frame.
 
         Args:
             ifile (:obj:`str`, optional):
@@ -139,7 +138,7 @@ class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 Return the header
 
         Returns:
-            Returns a `numpy.ndarray`_ with the bar master frame image.
+            Returns a `numpy.ndarray`_ with the align master frame image.
             Also returns the primary header, if requested.
         """
         # Check on whether to reuse and whether the file exists
@@ -151,20 +150,20 @@ class BarFrame(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         return self.pypeitImage
 
 
-class BarProfile(masterframe.MasterFrame):
+class Alignment(masterframe.MasterFrame):
     """
-    Class to guide the determination of the bar traces
+    Class to guide the determination of the alignment traces
 
     Args:
-        msbar (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
-            Bar image, created by the BarFrame class
+        msalign (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
+            Align image, created by the AlignFrame class
         tslits_dict (dict or None):  TraceSlits dict
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
-        par (:class:`pypeit.par.pypeitpar.BarPar` or None):
-            The parameters used for the bar traces
+        par (:class:`pypeit.par.pypeitpar.AlignPar` or None):
+            The parameters used for the align traces
         det (int, optional): Detector number
         master_key (str, optional)
         master_dir (str, optional): Path to master frames
@@ -174,15 +173,15 @@ class BarProfile(masterframe.MasterFrame):
 
     Attributes:
         frametype : str
-            Hard-coded to 'bar_prof'
+            Hard-coded to 'align_prof'
         steps : list
             List of the processing steps performed
     """
     # Frametype is a class attribute
-    frametype = 'bar_prof'
-    master_type = 'BarProfile'
+    frametype = 'align_prof'
+    master_type = 'AlignProfile'
 
-    def __init__(self, msbar, slits, spectrograph, par, det=1,
+    def __init__(self, msalign, slits, spectrograph, par, det=1,
                  binning=None, master_key=None, master_dir=None, reuse_masters=False,
                  qa_path=None, msbpm=None):
 
@@ -192,14 +191,14 @@ class BarProfile(masterframe.MasterFrame):
                                          reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
-        self.msbar = msbar
+        self.msalign = msalign
         self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
         self.binning = binning
 
         # Optional parameters
-        self.bpm = msbar.mask if msbpm is None else msbpm
+        self.bpm = msalign.mask if msbpm is None else msbpm
         self.qa_path = qa_path
         self.det = det
         self.master_key = master_key
@@ -214,29 +213,29 @@ class BarProfile(masterframe.MasterFrame):
 
         # --------------------------------------------------------------
         # Set the slitmask and slit boundary related attributes that the
-        # code needs for execution. This also deals with barframes that
+        # code needs for execution. This also deals with alignframes that
         # have a different binning then the images used to defined
         # the slits
-        if self.slits is not None and self.msbar is not None:
-            # NOTE: This uses the interneral definition of `pad`
+        if self.slits is not None and self.msalign is not None:
+            # NOTE: This uses the internal definition of `pad`
             self.slitmask_science = self.slits.slit_img()
             gpm = (self.bpm == 0) if self.bpm is not None \
-                                        else np.ones_like(self.slitmask_science, dtype=bool)
+                else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
-            self.shape_arc = self.msbar.image.shape
+            self.shape_align = self.msalign.image.shape
             self.nslits = self.slits.nslits
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+            self.slit_left = arc.resize_slits2arc(self.shape_align, self.shape_science,
                                                   self.slits.left)
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+            self.slit_righ = arc.resize_slits2arc(self.shape_align, self.shape_science,
                                                   self.slits.right)
-            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.center)
-            self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
+            self.slitcen = arc.resize_slits2arc(self.shape_align, self.shape_science,
+                                                self.slits.center)
+            self.slitmask = arc.resize_mask2arc(self.shape_align, self.slitmask_science)
             self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.msbar.image < self.nonlinear_counts)
         else:
             self.slitmask_science = None
             self.shape_science = None
-            self.shape_arc = None
+            self.shape_align = None
             self.nslits = 0
             self.slit_left = None
             self.slit_righ = None
@@ -246,7 +245,7 @@ class BarProfile(masterframe.MasterFrame):
 
     def build_traces(self, show_peaks=False, show_trace=False, debug=False):
         """
-        Main routine to generate the bar profile traces in all slits
+        Main routine to generate the align profile traces in all slits
 
         Args:
              show_peaks (bool, optional):
@@ -256,19 +255,19 @@ class BarProfile(masterframe.MasterFrame):
              debug (bool, optional):
 
         Returns:
-            dict:  self.bar_dict
+            dict:  self.align_dict
         """
-        bar_prof = dict({})
+        align_prof = dict({})
         # Prepare the plotting canvas
         if show_trace:
-            self.show('image', image=self.msbar.image, chname='bar_traces', slits=True)
+            self.show('image', image=self.msalign.image, chname='align_traces', slits=True)
         # Go through the slits
         for sl in range(self.nslits):
             specobj_dict = {'setup': "unknown", 'slitid': sl,
-                            'det': self.det, 'objtype': "bar_profile", 'pypeline': "IFU"}
-            msgs.info("Fitting bar traces in slit {0:d}".format(sl))
-            bar_traces, _ = extract.objfind(
-                self.msbar.image, self.slitmask == sl,
+                            'det': self.det, 'objtype': "align_profile", 'pypeline': "IFU"}
+            msgs.info("Fitting align traces in slit {0:d}".format(sl))
+            align_traces, _ = extract.objfind(
+                self.msalign.image, self.slitmask == sl,
                 self.slit_left[:, sl], self.slit_righ[:, sl],
                 ir_redux=False, ncoeff=self.par['trace_npoly'],
                 specobj_dict=specobj_dict, sig_thresh=self.par['sig_thresh'],
@@ -276,50 +275,48 @@ class BarProfile(masterframe.MasterFrame):
                 trim_edg=self.par['trim_edge'],
                 cont_fit=False, npoly_cont=0,
                 nperslit=len(self.par['locations']))
-            if len(bar_traces) != len(self.par['locations']):
-                # Bar tracing has failed for this slit
-                msgs.warn("Bar tracing has failed on slit {0:d}".format(sl))
+            if len(align_traces) != len(self.par['locations']):
+                # Align tracing has failed for this slit
+                msgs.warn("Align tracing has failed on slit {0:d}".format(sl))
             if show_trace:
-                self.show('overplot', chname='bar_traces', bar_traces=bar_traces, slits=False)
-            bar_prof['{0:d}'.format(sl)] = bar_traces.copy()
+                self.show('overplot', chname='align_traces', align_traces=align_traces, slits=False)
+            align_prof['{0:d}'.format(sl)] = align_traces.copy()
 
-        bar_dict = self.generate_dict(bar_prof)
+        align_dict = self.generate_dict(align_prof)
 
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
         # Return
-        return bar_dict
+        return align_dict
 
-    def generate_dict(self, bar_prof):
+    def generate_dict(self, align_prof):
         """
         Generate a dictionary containing all of the information from the profile fitting
 
         Args:
-            bar_prof (:obj:`dict`):
+            align_prof (:obj:`dict`):
                 Dictionary of SpecObjs classes (one for each slit)
 
         Returns:
-            dict:  bar_dict
+            dict:  align_dict
         """
-        bar_dict = dict({})
         nbars = len(self.par['locations'])
         nspec, nslits = self.slit_left.shape
         # Generate an array containing the centroid of all bars
-        barprof = np.zeros((nspec, nbars, nslits))
+        alignprof = np.zeros((nspec, nbars, nslits))
         for sl in range(nslits):
             sls = '{0:d}'.format(sl)
             for bar in range(nbars):
-                if bar_prof[sls][bar].SLITID != sl:
-                    msgs.error("Bar profiling failed to generate dictionary")
-                barprof[:, bar, sl] = bar_prof[sls][bar].TRACE_SPAT
-        # Put all of the info into a single dictionary
-        bar_dict = dict(bar_profiles=barprof)
-        return bar_dict
+                if align_prof[sls][bar].SLITID != sl:
+                    msgs.error("Alignment profiling failed to generate dictionary")
+                    alignprof[:, bar, sl] = align_prof[sls][bar].TRACE_SPAT
+        # Return the profile information as a single dictionary
+        return dict(alignment_profiles=alignprof)
 
     def save(self, outfile=None, overwrite=True):
         """
-        Save the bar traces to a master frame.
+        Save the alignment traces to a master frame.
 
         Args:
             outfile (:obj:`str`, optional):
@@ -344,15 +341,15 @@ class BarProfile(masterframe.MasterFrame):
         self.par.to_header(prihdr)
 
         # Set the data and extension names
-        data = [self.bar_dict['bar_profiles']]
-        extnames = ['BAR_PROFILES']
+        data = [self.align_dict['align_profiles']]
+        extnames = ['ALIGN_PROFILES']
         # Write the output to a fits file
         save.write_fits(prihdr, data, _outfile, extnames=extnames)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
     def load(self, ifile=None):
         """
-        Load the profiles of the bar frame.
+        Load the profiles of the align frame.
 
         Args:
             ifile (:obj:`str`, optional):
@@ -360,7 +357,7 @@ class BarProfile(masterframe.MasterFrame):
                 :attr:`master_file_path`.
 
         Returns:
-            dict or None: self.bar_dict
+            dict or None: self.align_dict
         """
         # Check on whether to reuse and whether the file exists
         master_file = self.chk_load_master(ifile)
@@ -368,26 +365,27 @@ class BarProfile(masterframe.MasterFrame):
             return
         msgs.info('Loading Master frame: {0}'.format(master_file))
         # Load
-        extnames = ['BAR_PROFILES']
+        extnames = ['ALIGN_PROFILES']
         *data, head0 = load.load_multiext_fits(master_file, extnames)
 
         # Fill the dict
-        self.bar_dict = {}
+        self.align_dict = {}
         keys = []
         for k in keys:
-            self.bar_dict[k] = head0[k.upper()]
+            self.align_dict[k] = head0[k.upper()]
         # Data
         for ii, ext in enumerate(extnames):
-            self.bar_dict[ext.lower()] = data[ii]
+            self.align_dict[ext.lower()] = data[ii]
         # Return
-        return self.bar_dict
+        return self.align_dict
 
     def run(self, show_trace=False, skip_QA=False, debug=False):
         """
-        Main driver for bar profile tracing
+        Main driver for alignment profile tracing
 
         Args:
-            skip_QA : bool, optional
+            skip_QA (bool, optional):
+                Skip the QA?
 
         Returns:
             dict, ndarray:  wv_calib dict and maskslits bool array
@@ -395,47 +393,49 @@ class BarProfile(masterframe.MasterFrame):
         """
         ###############
         # Fill up the calibrations and generate QA
-        self.bar_dict = self.build_traces(show_trace=show_trace)
+        self.align_dict = self.build_traces(show_trace=show_trace)
 
         # Pack up
-        self.bar_dict['steps'] = self.steps
+        self.align_dict['steps'] = self.steps
         sv_par = self.par.data.copy()
-        self.bar_dict['par'] = sv_par
+        self.align_dict['par'] = sv_par
 
-        return self.bar_dict
+        return self.align_dict
 
-    def show(self, attr, image=None, bar_traces=None,
+    def show(self, attr, image=None, align_traces=None,
              chname=None, slits=False, clear=False):
         """
         Show one of the class internals
 
-        Args:
-            attr : str
-                image - plot the master bar frame
-            image : ndarray
-                Image to be plotted (i.e. the master bar frame)
-            bar_traces : list
-                The bar traces
-            chname : str
-                The channel name sent to ginga
-            slits : bool
-                Overplot the slit edges?
-            clear : bool
-                Clear the plotting window in ginga?
+        Parameters
+        ----------
+
+        attr : str
+            image - plot the master align frame
+        image : ndarray
+            Image to be plotted (i.e. the master align frame)
+        align_traces : list
+            The align traces
+        chname : str
+            The channel name sent to ginga
+        slits : bool
+            Overplot the slit edges?
+        clear : bool
+            Clear the plotting window in ginga?
 
         Returns:
 
         """
         if attr == 'image':
-            ch_name = chname if chname is not None else 'bar_traces'
+            ch_name = chname if chname is not None else 'align_traces'
             self.viewer, self.channel = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=False)
         elif attr == 'overplot':
             pass
         else:
             msgs.warn("Not an option for show")
 
-        if bar_traces is not None and self.viewer is not None:
-            for spec in bar_traces:
+        if align_traces is not None and self.viewer is not None:
+            for spec in align_traces:
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
                 ginga.show_trace(self.viewer, self.channel, spec.TRACE_SPAT, trc_name="", color=color)
 
