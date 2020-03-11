@@ -319,7 +319,7 @@ class Alignment(masterframe.MasterFrame):
                     msgs.error("Alignment profiling failed to generate dictionary")
                     alignprof[:, bar, sl] = align_prof[sls][bar].TRACE_SPAT
         # Return the profile information as a single dictionary
-        return dict(alignment_profiles=alignprof)
+        return dict(alignments=alignprof)
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -348,8 +348,8 @@ class Alignment(masterframe.MasterFrame):
         self.par.to_header(prihdr)
 
         # Set the data and extension names
-        data = [self.align_dict['align_profiles']]
-        extnames = ['ALIGN_PROFILES']
+        data = [self.align_dict['alignments']]
+        extnames = ['ALIGNMENTS']
         # Write the output to a fits file
         save.write_fits(prihdr, data, _outfile, extnames=extnames)
         msgs.info('Master frame written to {0}'.format(_outfile))
@@ -372,7 +372,7 @@ class Alignment(masterframe.MasterFrame):
             return
         msgs.info('Loading Master frame: {0}'.format(master_file))
         # Load
-        extnames = ['ALIGN_PROFILES']
+        extnames = ['ALIGNMENTS']
         *data, head0 = load.load_multiext_fits(master_file, extnames)
 
         # Fill the dict
