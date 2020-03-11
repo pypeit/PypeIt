@@ -1,5 +1,5 @@
 """
-Module for generating a Bar image to map constant spatial locations
+Module for generating an Alignment image to map constant spatial locations
 
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
@@ -231,7 +231,7 @@ class Alignment(masterframe.MasterFrame):
             self.slitcen = arc.resize_slits2arc(self.shape_align, self.shape_science,
                                                 self.slits.center)
             self.slitmask = arc.resize_mask2arc(self.shape_align, self.slitmask_science)
-            self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.msbar.image < self.nonlinear_counts)
+            self.gpm = (arc.resize_mask2arc(self.shape_align, gpm)) & (self.msalign.image < self.nonlinear_counts)
         else:
             self.slitmask_science = None
             self.shape_science = None
