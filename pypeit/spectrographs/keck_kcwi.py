@@ -57,10 +57,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     def pypeline(self):
         return 'IFU'
 
-    @property
-    def pypeline(self):
-        return 'IFU'
-
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
