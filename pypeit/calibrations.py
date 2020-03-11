@@ -436,7 +436,7 @@ class Calibrations(object):
 
             # Instantiate
             self.alignment = alignframe.Alignment(self.msalign, self.slits, self.spectrograph,
-                                                  self.par['alignprofile'],
+                                                  self.par['alignment'],
                                                   det=self.det, binning=binning,
                                                   master_key=self.master_key_dict['align'],
                                                   master_dir=self.master_dir,
