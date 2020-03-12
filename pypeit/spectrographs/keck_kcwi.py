@@ -313,33 +313,33 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             kk += 1
         return "_".join(lampstat)
 
-    def get_arclamps(self, filename):
-        """
-        Obtain a list of lamps, based on the header information
-        TODO :: Probably, we should just feed in the headarr infomation, so save loading the fits file again
-
-        Args:
-            filename (str):
-              Input filename
-
-        Returns:
-            lamplist: list of lamp names
-
-        """
-        headarr = self.get_headarr(filename)
-        lampkey1 = 'lampstat{:02d}'.format(1)
-        lampsta1 = 'lampshst{:02d}'.format(1)
-        ext1, cardkey1, cardsta1 = self.meta[lampkey1]['ext'], self.meta[lampkey1]['card'], self.meta[lampsta1]['card']
-        lampkey2 = 'lampstat{:02d}'.format(2)
-        lampsta2 = 'lampshst{:02d}'.format(2)
-        ext2, cardkey2, cardsta2 = self.meta[lampkey2]['ext'], self.meta[lampkey2]['card'], self.meta[lampsta2]['card']
-        if headarr[ext1][cardkey1] == 1 and headarr[ext1][cardsta1] == 1:
-            return ['FeAr']
-        elif headarr[ext2][cardkey2] == 1 and headarr[ext2][cardsta2] == 1:
-            return ['ThAr']
-        else:
-            msgs.error("Couldn't determine arc lamps from headers")
-        return
+    # def get_arclamps(self, filename):
+    #     """
+    #     Obtain a list of lamps, based on the header information
+    #     TODO :: Probably, we should just feed in the headarr infomation, so save loading the fits file again
+    #
+    #     Args:
+    #         filename (str):
+    #           Input filename
+    #
+    #     Returns:
+    #         lamplist: list of lamp names
+    #
+    #     """
+    #     headarr = self.get_headarr(filename)
+    #     lampkey1 = 'lampstat{:02d}'.format(1)
+    #     lampsta1 = 'lampshst{:02d}'.format(1)
+    #     ext1, cardkey1, cardsta1 = self.meta[lampkey1]['ext'], self.meta[lampkey1]['card'], self.meta[lampsta1]['card']
+    #     lampkey2 = 'lampstat{:02d}'.format(2)
+    #     lampsta2 = 'lampshst{:02d}'.format(2)
+    #     ext2, cardkey2, cardsta2 = self.meta[lampkey2]['ext'], self.meta[lampkey2]['card'], self.meta[lampsta2]['card']
+    #     if headarr[ext1][cardkey1] == 1 and headarr[ext1][cardsta1] == 1:
+    #         return ['FeAr']
+    #     elif headarr[ext2][cardkey2] == 1 and headarr[ext2][cardsta2] == 1:
+    #         return ['ThAr']
+    #     else:
+    #         msgs.error("Couldn't determine arc lamps from headers")
+    #     return
 
     def get_rawimage(self, raw_file, det):
         """
