@@ -18,6 +18,17 @@ from IPython import embed
 from pypeit.core import arc
 
 
+def parse_param(par, key, slit):
+    # Find good lines for the tilts
+    param_in = par[key]
+    if isinstance(param_in, (float, int)):
+        param = param_in
+    elif isinstance(param_in, (list, np.ndarray)):
+        param = param_in[slit]
+    else:
+        raise ValueError('Invalid input for parameter {:s}'.format(key))
+
+    return param
 
 def get_sampling(waves, pix_per_R=3.0):
     """
@@ -63,7 +74,6 @@ def get_sampling(waves, pix_per_R=3.0):
     #dloglam = np.median(dloglam_ord)
     resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
     pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
-
     return dwave, dloglam, resln_guess, pix_per_sigma
 
 
@@ -541,12 +551,12 @@ def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
 
     dwave_eff = dwave/samp_fact
     if log10:
-        ngrid = int(np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff))
-        loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(int(np.ceil(ngrid)))
+        ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int)
+        loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(ngrid)
         return np.power(10.0,loglam_grid)
     else:
-        ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
-        return wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
+        ngrid = np.ceil((wave_max - wave_min)/dwave_eff).astype(int)
+        return wave_min + dwave_eff*np.arange(ngrid)
 
     return wave_grid
 

@@ -13,10 +13,9 @@ from astropy.table import Table
 from linetools.spectra.xspectrum1d import XSpectrum1D
 from linetools.spectra.utils import collate
 import linetools.utils
-import IPython
 
 from pypeit import msgs
-from pypeit import debugger
+from IPython import embed
 from pypeit.core import parse
 
 

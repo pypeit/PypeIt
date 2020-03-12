@@ -3,13 +3,12 @@ import numpy as np
 from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
-from pypeit.core import coadd2d
+from pypeit.deprecated import coadd2d
 from pypeit.par import pypeitpar
 
 from pypeit.images import scienceimage
 from pypeit.images import maskimage
 
-from IPython import embed
 
 class SciImgStack(object):
     """

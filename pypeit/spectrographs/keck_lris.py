@@ -44,9 +44,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
 
@@ -487,12 +484,13 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         # Add the name of the dispersing element
         self.meta['dispname'] = dict(ext=0, card='GRISNAME')
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Args:
             filename (str):
             det (int):
+            msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
 
         Returns:
             np.ndarray:
@@ -500,6 +498,10 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         """
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
 
         # Only defined for det=1
         if det == 1:
@@ -605,7 +607,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['tilts']['sigrej2d'] = 5.0
 
         #  Sky Subtraction
-        par['scienceimage']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
 
         # Defaults for anything other than 1,1 binning
         #  Rest config_specific_par below if binning is (1,1)
@@ -700,12 +702,13 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         # Add grating tilt
         return cfg_keys+['dispangle']
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Args:
             filename (str):
             det (int):
+            msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
 
         Returns:
             np.ndarray
@@ -713,7 +716,11 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         """
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(filename, det, shape=shape)
-        
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
         # Only defined for det=2
         if det == 2:
             msgs.info("Using hard-coded BPM for det=2 on LRISr")

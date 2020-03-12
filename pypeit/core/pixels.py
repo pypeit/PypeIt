@@ -169,7 +169,11 @@ def tslits2mask(tslits_dict, pad=None):
     nspec = tslits_dict['nspec']
     nspat = tslits_dict['nspat']
     spec_min = tslits_dict['spec_min']
+    if spec_min is None:
+        spec_min = np.zeros(nslits, dtype=int)
     spec_max = tslits_dict['spec_max']
+    if spec_max is None:
+        spec_max = np.full(nslits, nspec-1, dtype=int)
     if pad is None:
         pad = tslits_dict['pad']
 

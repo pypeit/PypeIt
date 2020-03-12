@@ -18,6 +18,7 @@ from pypeit import utils
 from pypeit.core import framematch
 from pypeit.core import flux_calib
 from pypeit.core import parse
+from pypeit.core import meta
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
 from pypeit.par import ManualExtractionPar
@@ -142,118 +143,6 @@ class PypeItMetaData:
         for c,t in zip(columns, types):
             if c in self.keys():
                 self.table[c] = self.table[c].astype(t)
-
-    @staticmethod
-    def define_core_meta():
-        """
-        Define the core set of meta data that must be defined
-        to run PypeIt.
-
-        .. warning::
-
-            The keys should all be <= 8 length as they are all written
-            to the Header.
-
-        Each meta entry is a dict with the following keys:
-           - dtype: str, float, int
-           - comment: str
-           - rtol: float, optional -- Sets the relative tolerance for
-             float meta when used to set a configuration
-
-        Each meta dtype must be scalar or str.  No tuple, list, ndarray, etc.
-
-        Returns:
-            dict: core_meta
-
-        """
-        core_meta = OrderedDict()  # Mainly to format output to PypeIt file
-        # Filename
-        #core_meta['directory'] = dict(dtype=str, comment='Path to raw data file')
-        #core_meta['filename'] = dict(dtype=str, comment='Basename of raw data file')
-
-        # Target
-        core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
-        core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
-        core_meta['target'] = dict(dtype=str, comment='Name of the target')
-
-        # Instrument related
-        core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
-        core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-        core_meta['binning'] = dict(dtype=str, comment='"spatial,spectral" binning')
-
-        # Obs
-        core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
-        core_meta['airmass'] = dict(dtype=float, comment='Airmass')
-        core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
-
-        # Test me
-        for key in core_meta.keys():
-            assert len(key) <= 8
-
-        # Return
-        return core_meta
-
-
-    @staticmethod
-    def define_additional_meta():
-        """
-        Defines meta that tends to be instrument-specific and not used as widely in the code
-
-        See define_core_meta() for additional details
-
-        For meta used to define configurations, the rtol key specifies
-        the relative tolerance for a match
-
-        Returns:
-            dict: Describes the additional meta data used in PypeIt
-
-        """
-        additional_meta = {}
-
-        # Instrument (generally for configuration generation)
-        additional_meta['dichroic'] = dict(dtype=str, comment='Beam splitter')
-        additional_meta['filter1'] = dict(dtype=str, comment='First filter in optical path')
-        additional_meta['dispangle'] = dict(dtype=float, comment='Angle of the disperser', rtol=0.)
-        additional_meta['hatch'] = dict(dtype=str, comment='Position of instrument hatch')
-        additional_meta['slitwid'] = dict(dtype=float, comment='Slit width, sometimes distinct from decker')
-        additional_meta['detector'] = dict(dtype=str, comment='Name of detector')
-        additional_meta['arm'] = dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)')
-        additional_meta['datasec'] = dict(dtype=str, comment='Data section (windowing)')
-
-        # Calibration lamps
-        for kk in range(20):
-            additional_meta['lampstat{:02d}'.format(kk+1)] = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
-
-        # Misc
-        additional_meta['idname'] = dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)')
-
-
-        return additional_meta
-
-    @staticmethod
-    def get_meta_data_model():
-        """
-        Pull together all of the meta defined above to
-        generate the meta_data_model
-
-        Returns:
-            meta_data_model: dict
-
-        """
-        meta_data_model = {}
-
-        # Core
-        core_meta = PypeItMetaData.define_core_meta()
-        for key in core_meta.keys():
-            meta_data_model[key] = core_meta[key].copy()
-
-        # Additional
-        additional_meta = PypeItMetaData.define_additional_meta()
-        for key in additional_meta.keys():
-            meta_data_model[key] = additional_meta[key].copy()
-
-        # Return
-        return meta_data_model
 
     def _build(self, files, strict=True, usrdata=None):
         """
@@ -458,7 +347,7 @@ class PypeItMetaData:
             KeyError:
                 Raised if `filename` is not a key in the provided table.
         """
-        meta_data_model = self.get_meta_data_model()
+        meta_data_model = meta.get_meta_data_model()
         # Check the input
         if not isinstance(usrdata, table.Table):
             raise TypeError('Must provide an astropy.io.table.Table instance.')
@@ -1480,7 +1369,11 @@ class PypeItMetaData:
             ff.write('Setup {:s}\n'.format(setup))
             ff.write(yaml.dump(utils.yamlify(cfg)))
             ff.write('#---------------------------------------------------------\n')
-            subtbl.sort(['mjd']) # JFH added this line so that the output reads like a log file
+            mjd = subtbl['mjd'].copy()
+            # Deal with possibly None mjds if there were corrupt header cards
+            mjd[mjd == None] = -99999.0
+            isort = np.argsort(mjd)
+            subtbl = subtbl[isort]
             subtbl.write(ff, format='ascii.fixed_width')
         ff.write('##end\n')
         ff.close()

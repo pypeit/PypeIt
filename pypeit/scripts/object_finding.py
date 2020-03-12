@@ -18,10 +18,8 @@ from astropy.io import fits
 from pypeit.core.gui import object_find as gui_object_find
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
-from pypeit.traceslits import TraceSlits
 from pypeit import edgetrace
 from pypeit.masterframe import MasterFrame
-from pypeit.core import trace_slits
 
 
 def parser(options=None):
@@ -48,8 +46,8 @@ def parse_traces(hdulist_1d, det_nm):
     for hdu in hdulist_1d:
         if det_nm in hdu.name:
             tbl = Table(hdu.data)
-            trace = tbl['TRACE']
-            fwhm = tbl['FWHM']
+            trace = tbl['TRACE_SPAT']
+            fwhm = tbl['FWHMFIT']
             obj_id = hdu.name.split('-')[0]
             traces['traces'].append(trace.copy())
             traces['fwhm'].append(np.median(fwhm))
@@ -104,16 +102,11 @@ def main(args):
         mdir = mdir_base
 
     trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Trace', trace_key))
+    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Edges', trace_key))+'.gz'
 
-    # TODO -- Remove this once the move to Edges is complete
-    if args.old:
-        tslits_dict = TraceSlits.load_from_file(trc_file)[0]
-    else:
-        trc_file = trc_file.replace('Trace', 'Edges')+'.gz'
-        tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
     shape = (tslits_dict['nspec'], tslits_dict['nspat'])
-    slit_ids = [trace_slits.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
+    slit_ids = [edgetrace.get_slitid(shape, tslits_dict['slit_left'], tslits_dict['slit_righ'], ii)[0]
                 for ii in range(tslits_dict['slit_left'].shape[1])]
 
     # Object traces
@@ -149,4 +142,4 @@ def main(args):
     tslits_dict['trace_model'] = trace_model_dict
 
     # Finally, initialise the GUI
-    gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)
+    ofgui = gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slit_ids)

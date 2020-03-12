@@ -13,7 +13,7 @@ from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
 from pypeit.core import save
-from pypeit.core import coadd1d
+from pypeit.core import coadd
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
@@ -339,14 +339,19 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     # Deal with padding for the convolutions
     ind_lower_pad = np.fmax(ind_lower - tell_dict['tell_pad_pix'], 0)
     ind_upper_pad = np.fmin(ind_upper + tell_dict['tell_pad_pix'], tell_dict['wave_grid'].size - 1)
-    tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_pad - ind_upper)
+    ## FW: There is an extreme case with ind_upper == ind_upper_pad, the previous -0 won't work
+    if ind_upper_pad == ind_upper:
+        ind_upper_final = ind_upper_pad
+    else:
+        ind_upper_final = ind_upper - ind_upper_pad
+    tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_final)
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad + 1], tell_dict['dloglam'], theta_tell[4])
 
     if ntheta == 6:
         tellmodel_out = shift_telluric(tellmodel_conv, np.log10(tell_dict['wave_grid'][ind_lower_pad: ind_upper_pad+1]), tell_dict['dloglam'], theta_tell[5])
-        return tellmodel_out[tell_pad_tuple[0]:-tell_pad_tuple[1]]
+        return tellmodel_out[tell_pad_tuple[0]:ind_upper_final]
     else:
-        return tellmodel_conv[tell_pad_tuple[0]:-tell_pad_tuple[1]]
+        return tellmodel_conv[tell_pad_tuple[0]:ind_upper_final]
 
 
 ############################
@@ -489,8 +494,8 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
 
     # Name of function for title in case QA requested
     obj_model_func_name = getattr(obj_model_func, '__name__', repr(obj_model_func))
-    sigma_corr, maskchi = coadd1d.renormalize_errors(chi_vec, mask=totalmask, title = obj_model_func_name,
-                                                     debug=debug)
+    sigma_corr, maskchi = coadd.renormalize_errors(chi_vec, mask=totalmask, title = obj_model_func_name,
+                                                   debug=debug)
     ivartot = flux_ivar/sigma_corr**2
 
     return result, tell_model*obj_model, ivartot
@@ -551,7 +556,6 @@ def unpack_orders(sobjs, ret_flam=False):
 def general_spec_reader(specfile, ret_flam=False):
 
     # Place holder routine that provides a generic spectrum reader
-
     bonus = {}
     try:
         # Read in the standard spec1d file produced by Pypeit
@@ -647,6 +651,26 @@ def init_sensfunc_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
 # Sensitivity function evaluation function. Model for counts is flam_true/sensfunc
 def eval_sensfunc_model(theta, obj_dict):
+    """
+    Utility routine to evaluate a sensitivity function model
+
+    Parameters
+    ----------
+    theta : array shape (ntheta,)
+       Array containing the parameters that describe the model
+
+    obj_dict : dict
+       Dictionary containing additional arguments needed to evaluate the model
+
+    Returns
+    -------
+    counts_model : array with same shape as obj_dict['wave_star']
+       Model of the quantity being fit for the sensitivity function which is exptime*f_lam_true/sensfunc
+
+    gpm : array (bool) with same shape as obj_dict['wave_star']
+       Good pixel mask indicating where the model is valid
+
+    """
 
     wave_star = obj_dict['wave']
     wave_min = obj_dict['wave_min']
@@ -664,6 +688,48 @@ def eval_sensfunc_model(theta, obj_dict):
 # QSO Model #
 ##############
 def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
+    """
+    Routine used to initialize the quasar spectrum telluric fits
+
+    Parameters
+    ----------
+    obj_params : dict
+        Dictionary containing parameters necessary for initializing the quasar model
+
+    iord : int
+        Order in question. This is not used for initializing the qso model, but is kept here for compatibility
+        with the standard function argument list
+
+    wave : array shape (nspec,)
+        Wavelength array for the object in question
+
+    flux : array shape (nspec,)
+        Flux array for the object in question
+
+    ivar : array shape (nspec,)
+        Inverse variance array for the oejct in question
+
+    mask : array shape (nspec,)
+        Good pixel mask for the object in question
+
+    tellmodel : array shape (nspec,)
+        This is a telluric model computed on the wave wavelength grid. Initialization usually requires some initial
+        best guess for the telluric absorption, which is computed from the midpoint of the telluric model grid parameter
+        space using the resolution of the spectrograph and the airmass of the observations.
+
+    Returns
+    -------
+    obj_dict : dict
+        Dictionary containing the meta-information and variables that are used for the object model evaluations.
+        For example for the quasar model which based on a PCA decomposition, this dictionary holds the number of PCA
+        basis vectors and those basis vectors.
+
+    bounds_obj : tuple
+        Tuple of bounds for each parameter that will be fit for the object model
+
+
+
+    """
 
     pca_dict = init_pca(obj_params['pca_file'], wave, obj_params['z_qso'], obj_params['npca'])
     pca_mean = np.exp(pca_dict['components'][0, :])
@@ -671,7 +737,7 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     # Create a reference model and bogus noise
     flux_ref = pca_mean * tellmodel
     ivar_ref = utils.inverse((pca_mean/100.0) ** 2)
-    flam_norm_inv = coadd1d.robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=tell_mask)
+    flam_norm_inv = coadd.robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=tell_mask)
     flam_norm = 1.0/flam_norm_inv
 
     # Set the bounds for the PCA and truncate to the right dimension
@@ -691,6 +757,26 @@ def init_qso_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
 # QSO evaluation function. Model for QSO is a PCA spectrum
 def eval_qso_model(theta, obj_dict):
+    """
+    Routine to evaluate a sensitivity function model
+
+    Parameters
+    ----------
+    theta : array shape (ntheta,)
+       Array containing the PCA coefficients
+
+    obj_dict : dict
+       Dictionary containing additional arguments needed to evaluate the PCA model
+
+    Returns
+    -------
+    pca_model : array with same shape as the PCA vectors (tored in the obj_dict['pca_dict'])
+       PCA vectors were already interpolated onto the telluric model grid by init_qso_model
+
+    gpm : : array with same shape as the pca_model
+       Good pixel mask indicating where the model is valid
+
+    """
 
     pca_model = pca_eval(theta, obj_dict['pca_dict'])
     # TODO Is the prior evaluation slowing things down??
@@ -705,7 +791,46 @@ def eval_qso_model(theta, obj_dict):
 # Star Model #
 ##############
 def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
+    """
+    Routine used to initialize the star spectrum model for telluric fits. The star model is the true spectrum
+    of the standard star times a polynomial to accomodate situations where the star-model is not perfect.
 
+    Parameters
+    ----------
+    obj_params : dict
+        Dictionary containing parameters necessary for initializing the quasar model
+
+    iord : int
+        Order in question. This is used here because each echelle order can  have a different polynomial order
+
+    wave : array shape (nspec,)
+        Wavelength array for the object in question
+
+    flux : array shape (nspec,)
+        Flux array for the object in question
+
+    ivar : array shape (nspec,)
+        Inverse variance array for the oejct in question
+
+    mask : array shape (nspec,)
+        Good pixel mask for the object in question
+
+    tellmodel : array shape (nspec,)
+        This is a telluric model computed on the wave wavelength grid. Initialization usually requires some initial
+        best guess for the telluric absorption, which is computed from the midpoint of the telluric model grid parameter
+        space using the resolution of the spectrograph and the airmass of the observations.
+
+    Returns
+    -------
+    obj_dict : dict
+        Dictionary containing the meta-information and variables that are used for the object model evaluations.
+
+    bounds_obj : tuple
+        Tuple of bounds for each parameter that will be fit for the object model, which are here the polynomial
+        coefficients.
+
+
+    """
 
     # Model parameter guess for starting the optimizations
     flam_true = scipy.interpolate.interp1d(obj_params['std_dict']['wave'].value,
@@ -716,7 +841,7 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     flam_model_mask = np.isfinite(flam_model)
     # As solve_poly_ratio is designed to multiply a scale factor into the flux, and not the flux_ref, we
     # set the flux_ref to be the data here, i.e. flux
-    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd1d.solve_poly_ratio(
+    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd.solve_poly_ratio(
         wave, flam_model, flam_model_ivar, flux, ivar, obj_params['polyorder_vec'][iord],
         mask=flam_model_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'])
 
@@ -746,6 +871,26 @@ def init_star_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
 # Star evaluation function.
 def eval_star_model(theta, obj_dict):
+    """
+    Routine to evaluate a star spectrum model as a true model spectrum times a polynomial.
+
+    Parameters
+    ----------
+    theta : array shape (ntheta,)
+       Array containing the polynomial coefficients
+
+    obj_dict : dict
+       Dictionary containing additional arguments needed to evaluate the star model.
+
+    Returns
+    -------
+    star_model : array with same shape obj_dict['wave']
+       PCA vectors were already interpolated onto the telluric model grid by init_qso_model
+
+    gpm : array with same shape as the star_model
+       Good pixel mask indicating where the model is valid
+
+    """
 
     wave_star = obj_dict['wave']
     wave_min = obj_dict['wave_min']
@@ -753,7 +898,7 @@ def eval_star_model(theta, obj_dict):
     flam_true = obj_dict['flam_true']
     func = obj_dict['func']
     model = obj_dict['model']
-    ymult = coadd1d.poly_model_eval(theta, func, model, wave_star, wave_min, wave_max)
+    ymult = coadd.poly_model_eval(theta, func, model, wave_star, wave_min, wave_max)
     star_model = ymult*flam_true
 
     return star_model, (star_model > 0.0)
@@ -763,6 +908,45 @@ def eval_star_model(theta, obj_dict):
 # Polynomial Model #
 ####################
 def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
+    """
+    Routine used to initialize a polynomial object model for telluric fits.
+
+    Parameters
+    ----------
+    obj_params : dict
+        Dictionary containing parameters necessary for initializing the quasar model
+
+    iord : int
+        Order in question. This is used here because each echelle order can have a different polynomial order
+
+    wave : array shape (nspec,)
+        Wavelength array for the object in question
+
+    flux : array shape (nspec,)
+        Flux array for the object in question
+
+    ivar : array shape (nspec,)
+        Inverse variance array for the oejct in question
+
+    mask : array shape (nspec,)
+        Good pixel mask for the object in question
+
+    tellmodel : array shape (nspec,)
+        This is a telluric model computed on the wave wavelength grid. Initialization usually requires some initial
+        best guess for the telluric absorption, which is computed from the midpoint of the telluric model grid parameter
+        space using the resolution of the spectrograph and the airmass of the observations.
+
+    Returns
+    -------
+    obj_dict : dict
+        Dictionary containing the meta-information and variables that are used for the object model evaluations.
+
+    bounds_obj : tuple
+        Tuple of bounds for each parameter that will be fit for the object model, which are here the polynomial
+        coefficients.
+
+
+    """
 
     tellmodel_ivar = (100.0*utils.inverse(tellmodel))**2 # This is just a bogus noise to give  S/N of 100
     tellmodel_mask = np.isfinite(tellmodel) & mask
@@ -772,15 +956,17 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
 
     # As solve_poly_ratio is designed to multiply a scale factor into the flux, and not the flux_ref, we
     # set the flux_ref to be the data here, i.e. flux
-    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd1d.solve_poly_ratio(
+    scale, fit_tuple, flux_scale, ivar_scale, outmask = coadd.solve_poly_ratio(
         wave, tellmodel, tellmodel_ivar, flux, ivar, obj_params['polyorder_vec'][iord],
-        mask=tellmodel_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'])
+        mask=tellmodel_mask, mask_ref=mask, func=obj_params['func'], model=obj_params['model'], scale_max=1e5)
+    # TODO JFH Sticky = False seems to recover better from bad initial fits. Maybe we should change this since poly ratio
+    # uses a different optimizer.
 
     coeff, wave_min, wave_max = fit_tuple
     if(wave_min != wave.min()) or (wave_max != wave.max()):
         msgs.error('Problem with the wave_min or wave_max')
     # Polynomial model
-    polymodel = coadd1d.poly_model_eval(coeff, obj_params['func'], obj_params['model'], wave, wave_min, wave_max)
+    polymodel = coadd.poly_model_eval(coeff, obj_params['func'], obj_params['model'], wave, wave_min, wave_max)
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
@@ -804,445 +990,32 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     return obj_dict, bounds_obj
 
 # Polynomial evaluation function.
+# JFH This appears to just use the initial polynomial fit throughout and is not varying it. We probably want a
+# a routine that also tries to vary the polynomial??  This behavior is more akin to what molecfit does. If it works
+# okay we should leave it in.
 def eval_poly_model(theta, obj_dict):
+    """
+    Routine to evaluate a star spectrum model as a true model spectrum times a polynomial.
+
+    Parameters
+    ----------
+    theta : array shape (ntheta,)
+       Array containing the polynomial coefficients
+
+    obj_dict : dict
+       Dictionary containing additional arguments needed to evaluate the star model.
+
+    Returns
+    -------
+    star_model : array with same shape obj_dict['polymodel']
+
+    gpm : array with same shape as the star_model
+       Good pixel mask indicating where the model is valid
+
+    """
+
     return obj_dict['polymodel'], (obj_dict['polymodel'] > 0.0)
 
-
-# User defined functions
-# obj_dict, bounds_obj = init_obj_model(obj_params, iord, wave, flux, ivar, mask, tellmodel)
-# obj_model, modelmask =  eval_obj_model(theta_obj, obj_dict)
-
-class Telluric(object):
-
-    def __init__(self, wave, flux, ivar, mask, telgridfile, obj_params, init_obj_model, eval_obj_model,
-                 sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
-                 resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
-                 maxiter=3, sticky=True, lower=3.0, upper=3.0,
-                 seed=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True, debug=False):
-
-        # This init function performs the following steps:
-        # 1) assignement of relevant input arguments
-        # 2) reshape all spectra to be shape (nspec, norders) which the code operates on
-        # 3) read in and initalize the telluric grid
-        # 4) Interpolate spectra onto the fixed telluric wavelength grid, clip S/N
-        # 5) Loop over orders to initialize object models, and determine index range of fits
-        # 6) Initalize the output tables
-
-        # 1) Assign arguments
-        self.telgridfile = telgridfile
-        self.obj_params = obj_params
-        self.init_obj_model = init_obj_model
-        self.airmass_guess = airmass_guess
-        self.eval_obj_model = eval_obj_model
-        self.resln_frac_bounds = resln_frac_bounds
-        self.pix_shift_bounds = pix_shift_bounds
-        self.maxiter = maxiter
-        self.sticky = sticky
-        self.lower = lower
-        self.upper = upper
-        self.tol = tol
-        self.popsize = popsize
-        self.recombination = recombination
-        self.polish = polish
-        self.disp = disp
-        self.debug = debug
-
-        # 2) Reshape all spectra to be (nspec, norders)
-        self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.nspec_in, self.norders = \
-            self.reshape(wave, flux, ivar, mask)
-
-        # Optimizer requires a seed. This guarantees that the fit will be deterministic and hence reproducible
-        self.seed = seed if seed is not None else 777
-        rand = np.random.RandomState(seed=seed)
-        seed_vec = rand.randint(2 ** 32 - 1, size=self.norders)
-
-        # 3) Read the telluric grid and initalize associated parameters
-        self.tell_dict = self.read_telluric_grid()
-        self.wave_grid = self.tell_dict['wave_grid']
-        self.ngrid = self.wave_grid.size
-        self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] if resln_guess is None else resln_guess
-        # Model parameter guess for determining the bounds with the init_obj_model function
-        self.tell_guess = self.get_tell_guess()
-        # Set the bounds for the telluric optimization
-        self.bounds_tell = self.get_bounds_tell()
-
-        # 4) Interpolate the input values onto the fixed telluric wavelength grid, clip S/N and process inmask
-        self.flux_arr, self.ivar_arr, self.mask_arr = coadd1d.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
-                                                  self.ivar_in_arr, self.mask_in_arr)
-        # This is a hack to get an interpolate mask indicating where wavelengths are good on each order
-        _, _, self.wave_mask_arr = coadd1d.interp_spec(
-            self.wave_grid, self.wave_in_arr, np.ones_like(self.flux_in_arr), np.ones_like(self.ivar_in_arr),
-            (self.wave_in_arr > 1.0).astype(float))
-        # Clip the ivar if that is requested (sn_clip = None simply returns the ivar otherwise)
-        self.ivar_arr = utils.clip_ivar(self.flux_arr, self.ivar_arr, sn_clip, mask=self.mask_arr)
-
-        # 5) Loop over orders to initialize object models, and determine index range of fits
-        # sort the orders by the strength of their telluric absorption
-        self.ind_lower, self.ind_upper = self.get_ind_lower_upper()
-        self.srt_order_tell = self.sort_telluric()
-        # Loop over the data to:
-        #     1) determine the ind_lower, ind_upper for every order/spectrum
-        #     2) initialize the obj_dict, and bounds by running the init_obj_model callable
-        self.obj_dict_list = [None]*self.norders
-        self.bounds_obj_list = [None]*self.norders
-        self.bounds_list = [None]*self.norders
-        self.arg_dict_list = [None]*self.norders
-        self.max_ntheta_obj = 0
-        for counter, iord in enumerate(self.srt_order_tell):
-            msgs.info('Initializing object model for order: {:d}, {:d}/{:d}'.format(iord, counter, self.norders) +
-                      ' with user supplied function: {:s}'.format(self.init_obj_model.__name__))
-            tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
-                                      ind_lower=self.ind_lower[iord], ind_upper=self.ind_upper[iord])
-            obj_dict, bounds_obj = init_obj_model(obj_params, iord,
-                                                  self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1],
-                                                  self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
-                                                  self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
-                                                  self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
-                                                  tellmodel)
-            self.obj_dict_list[iord] = obj_dict
-            self.bounds_obj_list[iord] = bounds_obj
-            self.max_ntheta_obj = np.fmax(self.max_ntheta_obj, len(bounds_obj))
-            bounds_iord = bounds_obj + self.bounds_tell
-            self.bounds_list[iord] = bounds_iord
-            arg_dict_iord = dict(ivar=self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
-                                 tell_dict=self.tell_dict, ind_lower=self.ind_lower[iord], ind_upper=self.ind_upper[iord],
-                                 obj_model_func=self.eval_obj_model, obj_dict=obj_dict,
-                                 bounds=bounds_iord, seed=seed_vec[iord], debug=debug)
-            self.arg_dict_list[iord] = arg_dict_iord
-
-        # 6) Initalize the output tables
-        self.meta_table, self.out_table = self.init_output()
-
-    def run(self, only_orders=None):
-
-        only_orders = [only_orders] if (only_orders is not None and
-                                        isinstance(only_orders, (int, np.int, np.int64, np.int32))) else only_orders
-        good_orders = self.srt_order_tell if only_orders is None else only_orders
-        # Run the fits
-        self.result_list = [None]*self.norders
-        self.outmask_list = [None]*self.norders
-        self.obj_model_list = [None]*self.norders
-        self.tellmodel_list = [None]*self.norders
-        self.theta_obj_list = [None]*self.norders
-        self.theta_tell_list = [None]*self.norders
-        for counter, iord in enumerate(self.srt_order_tell):
-            if iord not in good_orders:
-                continue
-            msgs.info('Fitting object + telluric model for order: {:d}, {:d}/{:d}'.format(iord, counter, self.norders) +
-                      ' with user supplied function: {:s}'.format(self.init_obj_model.__name__))
-            self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] = utils.robust_optimize(
-                self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord], tellfit, self.arg_dict_list[iord],
-                inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
-                maxiter=self.maxiter, lower=self.lower, upper=self.upper, sticky=self.sticky,
-                tol=self.tol, popsize=self.popsize, recombination=self.recombination, polish=self.polish, disp=self.disp)
-            self.theta_obj_list[iord] = self.result_list[iord].x[:-6]
-            self.theta_tell_list[iord] = self.result_list[iord].x[-6:]
-            self.obj_model_list[iord], modelmask = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
-            self.tellmodel_list[iord] = eval_telluric(self.theta_tell_list[iord], self.tell_dict,
-                                                      ind_lower=self.ind_lower[iord],
-                                                      ind_upper=self.ind_upper[iord])
-            self.assign_output(iord)
-            if self.debug:
-                self.show_fit_qa(iord)
-
-    def save(self, outfile):
-        """
-        Method for writing astropy tables containing fits to a multi-extension fits file
-
-        Args:
-            outfile:
-
-        Returns:
-
-        """
-        # Write to outfile
-        msgs.info('Writing object and telluric models to file: {:}'.format(outfile))
-        hdu_meta = fits.table_to_hdu(self.meta_table)
-        hdu_meta.name = 'METADATA'
-        hdu_out = fits.table_to_hdu(self.out_table)
-        hdu_out.name = 'OUT_TABLE'
-        hdulist = fits.HDUList()
-        hdulist.append(hdu_meta)
-        hdulist.append(hdu_out)
-        hdulist.writeto(outfile, overwrite=True)
-
-    def show_fit_qa(self, iord):
-        """
-        Generates QA plot for telluric fitting
-
-        Args:
-            iord: the order being currently fit
-
-        """
-
-        wave_now = self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1]
-        flux_now = self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]
-        sig_now = np.sqrt(utils.inverse(self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]))
-        mask_now = self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]
-        model_now = self.tellmodel_list[iord]*self.obj_model_list[iord]
-        rejmask = mask_now & np.invert(self.outmask_list[iord])
-
-        fig = plt.figure(figsize=(12, 8))
-        plt.plot(wave_now, flux_now, drawstyle='steps-mid',
-                 color='k', label='data', alpha=0.7, zorder=5)
-        plt.plot(wave_now, sig_now, drawstyle='steps-mid', color='0.7', label='noise', alpha=0.7, zorder=1)
-        plt.plot(wave_now, model_now, drawstyle='steps-mid', color='red', linewidth=1.0, label='model',
-                 zorder=7, alpha=0.7)
-        plt.plot(wave_now[rejmask], flux_now[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-        plt.plot(wave_now[np.invert(mask_now)], flux_now[np.invert(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
-                 label='originally masked')
-        plt.ylim(-0.1 * model_now.max(), 1.3 * model_now.max())
-        plt.legend()
-        plt.xlabel('Wavelength')
-        plt.ylabel('Flux or Counts')
-        plt.title('QA plot for order: {:d}/{:d}'.format(iord, self.norders))
-        plt.show()
-
-    def init_output(self):
-        """
-        Method to initialize the outputs
-
-        Returns:
-            tuple: Returns two `astropy.table.Table`_ objects:
-                - meta_table: Table containing the meta information for
-                  the telluric model fits
-                - out_table: Table containing the telluric model fits
-                  and the object model fits.
-        """
-
-        # Allocate the meta parameter table, ext=1
-        meta_table = table.Table(meta={'name': 'Parameter Values'})
-        meta_table['TOL'] = [self.tol]
-        meta_table['POPSIZE'] = [self.popsize]
-        meta_table['RECOMBINATION'] = [self.recombination]
-        meta_table['TELGRIDFILE'] = [os.path.basename(self.telgridfile)]
-        if 'output_meta_keys' in self.obj_params:
-            for key in self.obj_params['output_meta_keys']:
-                meta_table[key.upper()] = [self.obj_params[key]]
-
-        # Allocate the output table, ext=2
-        out_table = table.Table(meta={'name': 'Object Model and Telluric Correction'})
-        out_table['WAVE'] = np.zeros((self.norders, self.nspec_in))
-        out_table['TELLURIC'] = np.zeros((self.norders, self.nspec_in))
-        out_table['OBJ_MODEL'] = np.zeros((self.norders, self.nspec_in))
-        out_table['TELL_THETA'] = np.zeros((self.norders, 6))
-        out_table['TELL_PRESS'] = np.zeros(self.norders)
-        out_table['TELL_TEMP'] = np.zeros(self.norders)
-        out_table['TELL_H2O'] = np.zeros(self.norders)
-        out_table['TELL_AIRMASS'] = np.zeros(self.norders)
-        out_table['TELL_RESLN'] = np.zeros(self.norders)
-        out_table['TELL_SHIFT'] = np.zeros(self.norders)
-        out_table['OBJ_THETA'] = np.zeros((self.norders, self.max_ntheta_obj))
-        out_table['CHI2'] = np.zeros(self.norders)
-        out_table['SUCCESS'] = np.zeros(self.norders, dtype=bool)
-        out_table['NITER'] = np.zeros(self.norders, dtype=int)
-        out_table['IND_LOWER'] = self.ind_lower
-        out_table['IND_UPPER'] = self.ind_upper
-        out_table['WAVE_MIN'] = self.wave_grid[self.ind_lower]
-        out_table['WAVE_MAX'] = self.wave_grid[self.ind_upper]
-
-
-        return meta_table, out_table
-
-    def assign_output(self, iord):
-        """
-        Routine to assign outputs to self.out_table for the order in question.
-
-        Args:
-            iord (int):
-            The order for which the output table should bbe assigned.
-
-
-        """
-
-        ## TODO Store the outmask with rejected pixels??
-        gdwave = self.wave_in_arr[:,iord] > 1.0
-        wave_in_gd = self.wave_in_arr[gdwave,iord]
-        wave_grid_now = self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1]
-        self.out_table['WAVE'][iord] = self.wave_in_arr[:,iord]
-        self.out_table['TELLURIC'][iord][gdwave] = scipy.interpolate.interp1d(
-            wave_grid_now, self.tellmodel_list[iord], kind='linear', bounds_error=False, fill_value=0.0)(wave_in_gd)
-        self.out_table['OBJ_MODEL'][iord][gdwave] = scipy.interpolate.interp1d(
-            wave_grid_now, self.obj_model_list[iord], kind='linear', bounds_error=False, fill_value=0.0)(wave_in_gd)
-        self.out_table['TELL_THETA'][iord] = self.theta_tell_list[iord]
-        self.out_table['TELL_PRESS'][iord] = self.theta_tell_list[iord][0]
-        self.out_table['TELL_TEMP'][iord] = self.theta_tell_list[iord][1]
-        self.out_table['TELL_H2O'][iord] = self.theta_tell_list[iord][2]
-        self.out_table['TELL_AIRMASS'][iord] = self.theta_tell_list[iord][3]
-        self.out_table['TELL_RESLN'][iord] = self.theta_tell_list[iord][4]
-        self.out_table['TELL_SHIFT'][iord] = self.theta_tell_list[iord][5]
-        ntheta_iord = len(self.theta_obj_list[iord])
-        self.out_table['OBJ_THETA'][iord][0:ntheta_iord+1] = self.theta_obj_list[iord]
-        self.out_table['CHI2'][iord] = self.result_list[iord].fun
-        self.out_table['SUCCESS'][iord] = self.result_list[iord].success
-        self.out_table['NITER'][iord] = self.result_list[iord].nit
-
-    # TODO Purge? This does not appear to be used at the moment.
-    def interpolate_inmask(self, mask, wave_inmask, inmask):
-        """
-        Utitlity routine to interpolate the input mask.
-        """
-
-        if inmask is not None:
-            if wave_inmask is None:
-                msgs.error('If you are specifying a mask you need to pass in the corresponding wavelength grid')
-            # TODO we shoudld consider refactoring the interpolator to take a list of images and masks to remove the
-            # the fake zero images in the call below
-            _, _, inmask_int = coadd1d.interp_spec(self.wave_grid, wave_inmask, np.ones_like(wave_inmask),
-                                                   np.ones_like(wave_inmask), inmask)
-            # If the data mask is 2d, and inmask is 1d, tile to create the inmask aligned with the data
-            if mask.ndim == 2 & inmask.ndim == 1:
-                inmask_out = np.tile(inmask_int, (self.norders, 1)).T
-            # If the data mask and inmask have the same dimensionlaity, interpolated mask has correct dimensions
-            elif mask.ndim == inmask.ndim:
-                inmask_out = inmask_int
-            else:
-                msgs.error('Unrecognized shape for data mask')
-            return (mask & inmask_out)
-        else:
-            return mask
-
-
-    def get_ind_lower_upper(self):
-        """
-        Utiltity routine to determine the ind_lower and ind_upper for each order. This trimming makes things
-        faster because then we only need to convolve the portion of the telluric model that is needed for the model fit
-        to each order, rather than convolving the entire telluric model grid.
-
-        Returns:
-            ind_lower, ind_upper
-
-            ind_lower (int):
-               Lower index into the telluric model wave_grid to trim down the telluric model.
-            ind_upper (int):
-               Upper index into the telluric model wave_grid to trim down the telluric model.
-
-        """
-
-        ind_lower = np.zeros(self.norders, dtype=int)
-        ind_upper = np.zeros(self.norders, dtype=int)
-        for iord in range(self.norders):
-            # This presumes that the data has been interpolated onto the telluric model grid
-            wave_grid_ma = np.ma.array(np.copy(self.wave_grid))
-            # For the ind lower and upper, use the good wavelength mask, not the data mask. This gives
-            # us the model everywhere where wavelengths are not zero
-            wave_grid_ma.mask = np.invert(self.wave_mask_arr[:, iord])
-            #wave_grid_ma.mask = np.invert(self.mask_arr[:,iord])
-            ind_lower[iord] = np.ma.argmin(wave_grid_ma)
-            ind_upper[iord] = np.ma.argmax(wave_grid_ma)
-        return ind_lower, ind_upper
-
-    def reshape(self, wave, flux, ivar, mask):
-        """
-        Utiltity routine to repackage all of the data to have shape (nspec, norders).
-
-        Args:
-            wave (`numpy.ndarray`_):
-              Wavelength array
-            flux (`numpy.ndarray`_):
-              Flux array
-            ivar (`numpy.ndarray`_):
-              Inverse variance array
-            mask (`numpy.ndarray`_, bool):
-              Good pixel mask True=Good.
-
-        Returns:
-            wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
-
-            Reshaped arrays, and norde = total number of orders
-
-        """
-        # Repackage the data into arrays of shape (nspec, norders)
-        if flux.ndim == 1:
-            nspec = flux.size
-            norders = 1
-            wave_arr = wave.reshape(nspec,1)
-            flux_arr = flux.reshape(nspec, 1)
-            ivar_arr = ivar.reshape(nspec, 1)
-            mask_arr = mask.reshape(nspec, 1)
-        else:
-            nspec, norders = flux.shape
-            if wave.ndim == 1:
-                wave_arr = np.tile(wave, (norders, 1)).T
-            else:
-                wave_arr = wave
-            flux_arr = flux
-            ivar_arr = ivar
-            mask_arr = mask
-
-        return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
-
-    ##########################
-    ## telluric grid methods #
-    ##########################
-    def read_telluric_grid(self, wave_min=None, wave_max=None, pad=0):
-        """
-        Wrapper for utility function read_telluric_grid
-        Args:
-            wave_min:
-            wave_max:
-            pad:
-
-        Returns:
-
-        """
-
-        return read_telluric_grid(self.telgridfile, wave_min=wave_min, wave_max=wave_max, pad=pad)
-
-
-    def get_tell_guess(self):
-        """
-        Utility routine to get the telluric guess to determine the bounds with the init_obj_model function.
-        """
-
-        tell_guess = (np.median(self.tell_dict['pressure_grid']),
-                      np.median(self.tell_dict['temp_grid']),
-                      np.median(self.tell_dict['h2o_grid']),
-                      self.airmass_guess, self.resln_guess, 0.0)
-
-        return tell_guess
-
-    def get_bounds_tell(self):
-        """
-        Utility routine to determine the telluric model grid bounds for the optimization.
-
-        """
-
-        # Set the bounds for the optimization
-        bounds_tell = [(self.tell_dict['pressure_grid'].min(), self.tell_dict['pressure_grid'].max()),
-                       (self.tell_dict['temp_grid'].min(), self.tell_dict['temp_grid'].max()),
-                       (self.tell_dict['h2o_grid'].min(), self.tell_dict['h2o_grid'].max()),
-                       (self.tell_dict['airmass_grid'].min(), self.tell_dict['airmass_grid'].max()),
-                       (self.resln_guess * self.resln_frac_bounds[0], self.resln_guess * self.resln_frac_bounds[1]),
-                       self.pix_shift_bounds]
-
-        return bounds_tell
-
-    def sort_telluric(self):
-        """
-        Utility routine to determine the order in which the telluric model is fit for multi-order data. This is done
-        by computing the median telluric absorption at the midpoint of parameters governing the telluric grid, for the
-        given the wavelengths of the data set by the ind_lower, ind_upper.
-
-        Args:
-
-        Returns:
-            srt_order_tell (`numpy.ndarray`_, int):
-                Array of sorted indices from strongest telluric absorption to weakest.
-        """
-
-        tell_med = np.zeros(self.norders)
-        # Do a quick loop over all the orders to sort them in order of strongest to weakest telluric absorption
-        for iord in range(self.norders):
-            tm_grid = self.tell_dict['tell_grid'][:, :, :, :, self.ind_lower[iord]:self.ind_upper[iord] + 1]
-            tell_model_mid = tm_grid[tm_grid.shape[0] // 2, tm_grid.shape[1] // 2, tm_grid.shape[2] // 2,
-                             tm_grid.shape[3] // 2, :]
-            tell_med[iord] = np.mean(tell_model_mid)
-
-        # Perform fits in order of telluric strength
-        srt_order_tell = tell_med.argsort()
-
-        return srt_order_tell
 
 
 def mask_star_lines(wave_star, mask_width=10.0):
@@ -1296,18 +1069,104 @@ def mask_star_lines(wave_star, mask_width=10.0):
 
     return mask_star
 
-def sensfunc_telluric(spec1dfile, telgridfile, outfile, star_type=None, star_mag=None, star_ra=None, star_dec=None,
-                      polyorder=8, mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
+def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, telgridfile,
+                      ech_orders=None,
+                      polyorder=8, mask_abs_lines=True,
+                      delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
                       sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True,
                       debug_init=False, debug=False):
+    """
+    Function to compute a sensitivity function and a telluric model from the PypeIt spec1d file of a standard star spectrum
 
+    Parameters
+    ----------
+    wave : array shape (nspec,) or (nspec, norders) the latter being for echelle data.
+        Wavelength array
 
-    # Read in the data
-    wave, counts, counts_ivar, counts_mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
-    # Read in standard star dictionary and interpolate onto regular telluric wave_grid
-    star_ra = meta_spec['core']['RA'] if star_ra is None else star_ra
-    star_dec = meta_spec['core']['DEC'] if star_dec is None else star_dec
-    std_dict = flux_calib.get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=star_ra, dec=star_dec)
+    counts : array with same shape as wave.
+        Counts for the object in question.
+
+    counts_ivar: array with same shape as wave
+        Inverse variance for the object in question.
+
+    counts_mask : array with same shape as wave
+        Good pixel mask for the object in question.
+
+    exptime : float
+        Exposure time
+
+    airmass : float
+        Airmass of the observation
+
+    std_dict : dict
+        Dictionary containing the information for the true flux of the standard star.
+
+    telgridfile : str
+        File containing grid of HITRAN atmosphere models. This file is given by spectrograph.telluric_grid_file
+
+    ech_orders : array with shape (norders,), optional
+        If passed, the true order numbers will be written to the output table.
+
+    polyorder : int, optional, default = 8
+        Polynomial order for the sensitivity function fit
+
+    mask_abs_lines : bool, optional, default=True
+        Mask proiminent stellar absorption lines?
+
+    delta_coeff_bounds : tuple, optional, default = (-20.0, 20.0)
+        Paramters setting the polynomial coefficient bounds for sensfunc optimization.
+
+    minmax_coeff_bounds : tuple, optional, default = (-5.0, 5.0)
+        Paramters setting the polynomial coefficient bounds for sensfunc optimization. Bounds are currently determined
+        as follows. We compute an initial fit to the sensfunc in the init_sensfunc_model function above. That deterines
+        a set of coefficients. The bounds are then determined according to:
+
+        [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
+                   np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))]
+
+    sn_clip : float, optional, default=30.0,
+        Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive
+        rejection in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+        systematics, which in this case is most likely the inadequecy of our telluric model to fit the data at the
+        the precision set by very high S/N ratio
+
+    only_orders : array of int, optional, default = None
+        Only fit these specific orders
+
+    tol (float): default = 1e-3
+        Relative tolerance for converage of the differential evolution optimization. See
+        scipy.optimize.differential_evolution for details.
+
+    popsize (int): default = 30
+        A multiplier for setting the total population size for the differential evolution optimization. See
+        scipy.optimize.differential_evolution for details.
+
+    recombination : float, optional, default = 0.7
+        The recombination constant for the differential evolution optimization. This should be in the range [0, 1].
+        See scipy.optimize.differential_evolution for details.
+    polish : bool, optional, default=True
+        If True then differential evolution will perform an additional optimizatino at the end to polish the best fit
+        at the end, which can improve the optimization slightly. See scipy.optimize.differential_evolution for details.
+    disp : bool, optional, default=True
+        Argument for scipy.optimize.differential_evolution which will  display status messages to the screen
+        indicating the status of the optimization. See above for a description of the output and how to know
+        if things are working well.
+
+    debug_init : bool, optional, default=False
+        Show plots to the screen useful for debugging model initialization
+
+    debug : bool, optional, default=False
+        Show plots to the screen useful for debugging the telluric/object model fits.
+
+    Returns
+    -------
+    meta_table : astropy.table.Table object
+        Table containing meta data for the telluric/object model fit
+
+    out_table: astropy.table.Table. object
+        Table containing the values for telluric model parameters and object model parameters.
+    """
+
 
     if counts.ndim == 2:
         norders = counts.shape[1]
@@ -1322,11 +1181,12 @@ def sensfunc_telluric(spec1dfile, telgridfile, outfile, star_type=None, star_mag
     else:
         polyorder_vec = np.full(norders, polyorder)
 
+    func ='legendre'
     # Initalize the object parameters
-    obj_params = dict(std_dict=std_dict, airmass=meta_spec['core']['AIRMASS'],
+    obj_params = dict(std_dict=std_dict, airmass=airmass,
                       delta_coeff_bounds=delta_coeff_bounds, minmax_coeff_bounds=minmax_coeff_bounds,
-                      polyorder_vec=polyorder_vec, exptime=meta_spec['core']['EXPTIME'],
-                      func='legendre', sigrej=3.0,
+                      polyorder_vec=polyorder_vec, exptime=exptime,
+                      func=func, sigrej=3.0,
                       std_source=std_dict['std_source'], std_ra=std_dict['std_ra'], std_dec=std_dict['std_dec'],
                       std_name=std_dict['name'], std_calfile=std_dict['cal_file'],
                       output_meta_keys=('airmass', 'polyorder_vec', 'exptime', 'func', 'std_source',
@@ -1342,15 +1202,45 @@ def sensfunc_telluric(spec1dfile, telgridfile, outfile, star_type=None, star_mag
 
     # parameters lowered for testing
     TelObj = Telluric(wave, counts, counts_ivar, mask_tot, telgridfile, obj_params,
-                      init_sensfunc_model, eval_sensfunc_model,  sn_clip=sn_clip, tol=tol, popsize=popsize, recombination=recombination,
+                      init_sensfunc_model, eval_sensfunc_model,  ech_orders=ech_orders, sn_clip=sn_clip, tol=tol,
+                      popsize=popsize, recombination=recombination,
                       polish=polish, disp=disp, debug=debug)
 
     TelObj.run(only_orders=only_orders)
-    TelObj.save(outfile)
+    # Append the sensfunc to the output table for convenience
+    meta_table, out_table = TelObj.meta_table, TelObj.out_table
+    out_table['SENSFUNC'] = np.zeros_like(TelObj.out_table['WAVE'])
+    out_table['SENSFUNC_GPM'] = np.zeros_like(TelObj.out_table['WAVE'], dtype=bool)
+    for iord in range(norders):
+        gdwave = TelObj.wave_in_arr[:, iord] > 1.0
+        wave_in_gd = TelObj.wave_in_arr[gdwave, iord]
+        wave_min = out_table[iord]['WAVE_MIN']
+        wave_max = out_table[iord]['WAVE_MAX']
+        coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
+        out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
+        out_table[iord]['SENSFUNC_GPM'][gdwave] = True
 
-    return TelObj
+    #if outfile is not None:
+    #    TelObj.save(outfile)
+
+    return meta_table, out_table
 
 def create_bal_mask(wave):
+    """
+    Example of a utility function for creating a BAL mask for QSOs with BAL features. Can also be used to mask other
+    features that the user does not want to fit.
+
+    Parameters
+    ----------
+    wave : array shape (nspec,)
+       Wavelength array for the quasar in question
+
+    Returns
+    -------
+    gpm : array shape, (nspec,)
+       Good pixel mask for the fits.
+
+    """
 
     # example of a BAL mask
     bal_mask =  (wave > 12000.0) & (wave < 12100)
@@ -1361,7 +1251,7 @@ def create_bal_mask(wave):
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, create_bal_mask=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
-                 pca_upper=3100.0, polish=True, disp=True, debug=False,
+                 pca_upper=3100.0, polish=True, disp=True, debug_init=False, debug=False,
                  show=False):
 
 
@@ -1388,6 +1278,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     TelObj.run(only_orders=only_orders)
     TelObj.save(telloutfile)
 
+    # TODO why read these in when we have them in the TelObj???
     # Apply the telluric correction
     meta_table = table.Table.read(telloutfile, hdu=1)
     out_table = table.Table.read(telloutfile, hdu=2)
@@ -1501,7 +1392,6 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         plt.xlabel('Wavelength')
         plt.ylabel('Flux')
         plt.show()
-    embed()
 
     save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=star_model,
                               header=header, ex_value='OPT', overwrite=True)
@@ -1594,3 +1484,580 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
 
 
     return TelObj
+
+
+
+class Telluric(object):
+    """
+    This class performs a joint fit of a spectrum with a model describing the object spectrum, and a model
+    of the telluric absorption from the atmosphere. The latter are generated by HITRAN atmosphere models with
+    generated with a baseline atmospheric profile model of the observatory in question. It works on multislit
+    data or echelle data. The code performs a differential evolution optimization using
+    scipy.optimize.differential_evolution. Several iterations are performed with rejection of outliers
+    (governed by the maxiter parameter below). In general it produces very good results, but is rather slow. Progress
+    can be monitored using the disp=True option, which will print out the progress to the screen. This will look like:
+
+       differential_evolution step 101: f(x)= 105392
+
+    Here f(x) represents the value of the loss function, which is essentially the chi^2 (but with the non-Gaussian
+    tails remapped, and outliers rejected). Things are going well if the result of differential evolution yields
+    a value of f(x) comparable to the number of pixels in your spectrum (or in the order in question for echelle data),
+    which are the number of degrees of freedom. If debug=True, it will show the residuals from the fit at each iteration.
+    Note that for spectra with S/N > 30, the residual distribubtion may look narrower because a floor is added to the
+    noise (see sn_clip documentation below) to prevent excessive rejection and poorly behaved fits. Basically these
+    telluric models are only good to about 3%, and so we cannot fit the data within the noise better than that,
+    which is why sn_clip is implemented.
+
+    The object model is specified by the user through two user provided functions init_obj_model and eval_obj_model,
+    as described below. The init_obj_model function is required because differential_evolution can only perform bounded
+    optimization. The bounds for the telluric are set by the grid and initialized without user involvement. But for the
+    object model, the bounds depend on the nature of the object model, which is why init_obj_model must be provided.
+
+    The telluric model is governed by six parameters:
+
+        pressure, temperature, humidity, airmass, resln, shift
+
+    Where resln is the resolution of the spectrograph and shift is a shift in pixels. The airmass of the object
+    will be used to initalize the fit (this helps with initalizing the object model), but the models are sufficiently
+    flexible that often the best fit airmass actually differs from the airmass of the spectrum.
+
+    This code can be run on stacked spectra covering a large range of airmasses and will still provide good results.
+    The resulting airmass will be an effective value, and as per above may not have much relation to the true airmass
+    of the observation. The exception to this rule is extremely high signal-to-noise ratio data S/N > 30, for which it
+    can be difficult to obtain a good fit within the noise of the data. In such cases, the user should split up the data
+    into chunks taken around the same airmass, fit those individually with this class, and then combine the resulting
+    telluric corrected spectra (not done by this class).  This will in general result in better fits, and will also
+    average down the residuals from the telluric model fit in the final averaged spectrum.
+
+    Args:
+        wave (np.ndarray):
+            Wavelength array. Must either have shape (nspec,) or (nspec, norders), the latter being for echelle data.
+        flux (np.ndarray):
+            Flux for the object in question. Same shape as wave.
+        ivar (np.ndarray):
+            Inverse variance for the object in question. Same shape as wave.
+        mask (np.ndarray):
+            Good pixel mask for the object in question. Same shape as wave.
+        telgridfile (str):
+            File containing grid of HITRAN atmosphere models. This file is given by spectrograph.telluric_grid_file
+        obj_params (dict):
+            Dictionary of parameters for initializing the object model.
+        init_obj_model (callable):
+            User defined function for initializing the object model. This function must follow the calling sequence:
+
+              obj_dict, bounds_obj = init_obj_model(obj_params, iord, wave, flux, ivar, mask, tellmodel)
+
+            See for example the documentation for init_star_model above for a detailed explanation of these paramaters
+            and return values.
+        eval_obj_model (callable):
+            User defined function for evaluating the object model at a set of parameter values theta_obj. This function
+            must follow the calling sequence:
+
+            obj_model, modelmask =  eval_obj_model(theta_obj, obj_dict)
+
+            Where obj_dict is one of the return values from the init_obj_model above. See eval_star_model above for a
+            detailed explanation of these paramaters and return values.
+        ech_orders (ndarray, int):
+            If passed the echelle orders will be added to the meta_table. ech_orders must be a numpy array of integers
+            with the shape (norders,) giving the order numbers
+        sn_clip (float): default = 30.0
+            This adds an error floor to the ivar, preventing too much rejection at high-S/N (i.e. standard stars,
+            bright objects) using the function utils.clip_ivar. A small erorr is added to the input ivar so that the
+            output ivar_out will never give S/N greater than sn_clip. This prevents overly aggressive rejection in high
+            S/N ratio spectra which neverthless differ at a level greater than the formal S/N due to the fact
+            that our telluric models are only good to about 3%.
+        airmass_guess (float): default = 1.5
+            A guess for the airmass of your object. The code fits the airmass as part of the telluric model, but this
+            initial guess is useful for initializing the object model to determine the bounds for the object model
+            parameter optimization via init_obj_model, since typically that is done by dividing out a guess for the
+            telluric absorption and then performing some kind of intial fit.
+        resln_guess (float): default = None
+            A guess for the resolution of your spectrum expressed as lambda/dlambda. The resolution is fit explicitly
+            as part of the telluric model fitting, but this guess helps determine the bounds for the optimization (see next).
+            If not provided, the  wavelength sampling of your spectrum will be used and the resolution calculated using a typical sampling
+            of 3 spectral pixels per resolution element.
+        resln_frac_bounds (tuple of floats): default = (0.5,1.5)
+            Bounds for the resolution fit optimization which is part of the telluric model. This range is in units of
+            the resln_guess, so the (0.5, 1.5) would bound the spectral resolution fit to be within the range
+            bounds_resln = (0.5*resln_guess, 1.5*resln_guess)
+        pix_shift_bounds (tuple of floats): default = (-5.0, 5.0)
+            Bounds for the pixel shift optimization in telluric model fit in units of pixels. The atmosphere
+            will be allowed to shift within this range during the fit.
+        maxiter (int): default = 3
+            Maximum number of iterations for the telluric + object model fitting. The code performs multiple
+            iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels.
+            For this reason if you run with the disp=True option, you will see that the f(x) loss function gets
+            progressively better during the iterations.
+        sticky (bool): default=True
+            Sticky parameter for the utils.djs_reject algorithm for iterative model fit rejection.  If set to True then
+            points rejected from a previous iteration are kept rejected, in other words the bad pixel mask is the OR
+            of all previous iterations and rejected pixels accumulate. If set to False, the bad pixel mask is the mask
+            from the previous iteration, and if the model  fit changes between iterations, points can alternate from being
+            rejected to not rejected. At present this code only performs optimizations with differential evolution and
+            experience shows that sticky needs to be True in order for these to converge. This is because the outliers can
+            be so large that they dominate the loss function, and one never iteratively converges to a good model fit. In
+            other words, the deformations in the model between iterations with sticky=False are too small to approach
+            a reasonable fit.
+        lower (float): default = 3.0
+            Lower rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and
+            sigma_corr is an empirically determined correction to the formal error. The distribution of input chi
+            (defined by chi = (data - model)/sigma) values is analyzed, and a correction factor to the formal error
+            sigma_corr is returned which is multiplied into the formal errors. In this way, a rejection threshold of i.e.
+            3-sigma, will always correspond to roughly the same percentile.  This renormalization is performed with
+            coadd1d.renormalize_errors function, and guarantees that rejection is not too agressive in cases where the
+            empirical errors determined from the chi-distribution differ significantly from the formal noise which is
+            used to determine chi.
+        upper (float): upper = 3.0
+            Upper rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and
+            sigma_corr is an empirically determined correction to the formal error. See above for description.
+        seed (int): default = 777
+            An initial seed for the differential evolution optimization, which is a random process. The default is
+            a seed = 777 which will be used to generate a unique seed for every order. A specific seed is used
+            because otherwise the random number generator will use the time for the seed, and the results will not
+            be reproducible.
+        tol (float): default = 1e-3
+            Relative tolerance for converage of the differential evolution optimization. See
+            scipy.optimize.differential_evolution for details.
+        popsize (int): default = 30
+            A multiplier for setting the total population size for the differential evolution optimization. See
+            scipy.optimize.differential_evolution for details.
+        recombination (float): default = 0.7
+            The recombination constant for the differential evolution optimization. This should be in the range [0, 1].
+            See scipy.optimize.differential_evolution for details.
+        polish (bool): default=True
+            If True then differential evolution will perform an additional optimizatino at the end to polish the best fit
+            at the end, which can improve the optimization slightly. See scipy.optimize.differential_evolution for details.
+        disp (bool): default=True
+            Argument for scipy.optimize.differential_evolution which will  display status messages to the screen
+            indicating the status of the optimization. See above for a description of the output and how to know
+            if things are working well.
+        debug (bool): default=False
+            If True, QA plots will be shown to the screen indicating the quality of the fits. Specifically, the residual
+            distributions will be shown at each iteration, and the fit will be shown at the end (for each order).
+            This is useful if you are running the code for the first time, but since the algorithm is slow, particularly
+            for fitting multi-order echelle data, it will require lots of clicking to close interactive matplotlib windows
+            which block execution.
+    """
+    def __init__(self, wave, flux, ivar, mask, telgridfile, obj_params, init_obj_model, eval_obj_model,
+                 ech_orders=None,
+                 sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
+                 resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
+                 maxiter=3, sticky=True, lower=3.0, upper=3.0,
+                 seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True, debug=False):
+
+        # This init function performs the following steps:
+        # 1) assignement of relevant input arguments
+        # 2) reshape all spectra to be shape (nspec, norders) which the code operates on
+        # 3) read in and initalize the telluric grid
+        # 4) Interpolate spectra onto the fixed telluric wavelength grid, clip S/N
+        # 5) Loop over orders to initialize object models, and determine index range of fits
+        # 6) Initalize the output tables
+
+        # 1) Assign arguments
+        self.telgridfile = telgridfile
+        self.obj_params = obj_params
+        self.init_obj_model = init_obj_model
+        self.airmass_guess = airmass_guess
+        self.eval_obj_model = eval_obj_model
+        self.ech_orders = ech_orders
+        self.sn_clip = sn_clip
+        self.resln_frac_bounds = resln_frac_bounds
+        self.pix_shift_bounds = pix_shift_bounds
+        self.maxiter = maxiter
+        self.sticky = sticky
+        self.lower = lower
+        self.upper = upper
+        self.tol = tol
+        self.popsize = popsize
+        self.recombination = recombination
+        self.polish = polish
+        self.disp = disp
+        self.debug = debug
+
+        # 2) Reshape all spectra to be (nspec, norders)
+        self.wave_in_arr, self.flux_in_arr, self.ivar_in_arr, self.mask_in_arr, self.nspec_in, self.norders = \
+            utils.spec_atleast_2d(wave, flux, ivar, mask)
+
+        # Optimizer requires a seed. This guarantees that the fit will be deterministic and hence reproducible
+        self.seed = seed
+        rand = np.random.RandomState(seed=self.seed)
+        seed_vec = rand.randint(2 ** 32 - 1, size=self.norders)
+
+        # 3) Read the telluric grid and initalize associated parameters
+        self.tell_dict = self.read_telluric_grid()
+        self.wave_grid = self.tell_dict['wave_grid']
+        self.ngrid = self.wave_grid.size
+        self.resln_guess = wvutils.get_sampling(self.wave_in_arr)[2] if resln_guess is None else resln_guess
+        # Model parameter guess for determining the bounds with the init_obj_model function
+        self.tell_guess = self.get_tell_guess()
+        # Set the bounds for the telluric optimization
+        self.bounds_tell = self.get_bounds_tell()
+
+        # 4) Interpolate the input values onto the fixed telluric wavelength grid, clip S/N and process inmask
+        self.flux_arr, self.ivar_arr, self.mask_arr = coadd.interp_spec(self.wave_grid, self.wave_in_arr, self.flux_in_arr,
+                                                                        self.ivar_in_arr, self.mask_in_arr)
+        # This is a hack to get an interpolate mask indicating where wavelengths are good on each order
+        _, _, self.wave_mask_arr = coadd.interp_spec(
+            self.wave_grid, self.wave_in_arr, np.ones_like(self.flux_in_arr), np.ones_like(self.ivar_in_arr),
+            (self.wave_in_arr > 1.0).astype(float))
+        # Clip the ivar if that is requested (sn_clip = None simply returns the ivar otherwise)
+        self.ivar_arr = utils.clip_ivar(self.flux_arr, self.ivar_arr, self.sn_clip, mask=self.mask_arr)
+
+        # 5) Loop over orders to initialize object models, and determine index range of fits
+        # sort the orders by the strength of their telluric absorption
+        self.ind_lower, self.ind_upper = self.get_ind_lower_upper()
+        self.srt_order_tell = self.sort_telluric()
+        # Loop over the data to:
+        #     1) determine the ind_lower, ind_upper for every order/spectrum
+        #     2) initialize the obj_dict, and bounds by running the init_obj_model callable
+        self.obj_dict_list = [None]*self.norders
+        self.bounds_obj_list = [None]*self.norders
+        self.bounds_list = [None]*self.norders
+        self.arg_dict_list = [None]*self.norders
+        self.max_ntheta_obj = 0
+        for counter, iord in enumerate(self.srt_order_tell):
+            msgs.info('Initializing object model for order: {:d}, {:d}/{:d}'.format(iord, counter, self.norders) +
+                      ' with user supplied function: {:s}'.format(self.init_obj_model.__name__))
+            tellmodel = eval_telluric(self.tell_guess, self.tell_dict,
+                                      ind_lower=self.ind_lower[iord], ind_upper=self.ind_upper[iord])
+            obj_dict, bounds_obj = init_obj_model(obj_params, iord,
+                                                  self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1],
+                                                  self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
+                                                  self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
+                                                  self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
+                                                  tellmodel)
+            self.obj_dict_list[iord] = obj_dict
+            self.bounds_obj_list[iord] = bounds_obj
+            self.max_ntheta_obj = np.fmax(self.max_ntheta_obj, len(bounds_obj))
+            bounds_iord = bounds_obj + self.bounds_tell
+            self.bounds_list[iord] = bounds_iord
+            arg_dict_iord = dict(ivar=self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
+                                 tell_dict=self.tell_dict, ind_lower=self.ind_lower[iord], ind_upper=self.ind_upper[iord],
+                                 obj_model_func=self.eval_obj_model, obj_dict=obj_dict,
+                                 bounds=bounds_iord, seed=seed_vec[iord], debug=debug)
+            self.arg_dict_list[iord] = arg_dict_iord
+
+        # 6) Initalize the output tables
+        self.meta_table, self.out_table = self.init_output()
+
+    def run(self, only_orders=None):
+        """
+        Loops over orders/slits, runs the telluric correction, and evaluates the object and telluric models.
+
+        Parameters
+        ----------
+        only_orders
+
+        Returns
+        -------
+
+        """
+
+        only_orders = [only_orders] if (only_orders is not None and
+                                        isinstance(only_orders, (int, np.int, np.int64, np.int32))) else only_orders
+        good_orders = self.srt_order_tell if only_orders is None else only_orders
+        # Run the fits
+        self.result_list = [None]*self.norders
+        self.outmask_list = [None]*self.norders
+        self.obj_model_list = [None]*self.norders
+        self.tellmodel_list = [None]*self.norders
+        self.theta_obj_list = [None]*self.norders
+        self.theta_tell_list = [None]*self.norders
+        for counter, iord in enumerate(self.srt_order_tell):
+            if iord not in good_orders:
+                continue
+            msgs.info('Fitting object + telluric model for order: {:d}, {:d}/{:d}'.format(iord, counter, self.norders) +
+                      ' with user supplied function: {:s}'.format(self.init_obj_model.__name__))
+            self.result_list[iord], ymodel, ivartot, self.outmask_list[iord] = utils.robust_optimize(
+                self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord], tellfit, self.arg_dict_list[iord],
+                inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
+                maxiter=self.maxiter, lower=self.lower, upper=self.upper, sticky=self.sticky,
+                tol=self.tol, popsize=self.popsize, recombination=self.recombination, polish=self.polish, disp=self.disp)
+            self.theta_obj_list[iord] = self.result_list[iord].x[:-6]
+            self.theta_tell_list[iord] = self.result_list[iord].x[-6:]
+            self.obj_model_list[iord], modelmask = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
+            self.tellmodel_list[iord] = eval_telluric(self.theta_tell_list[iord], self.tell_dict,
+                                                      ind_lower=self.ind_lower[iord],ind_upper=self.ind_upper[iord])
+            self.assign_output(iord)
+            if self.debug:
+                self.show_fit_qa(iord)
+
+    def save(self, outfile):
+        """
+        Method for writing astropy tables containing the telluric and object model fits to a multi-extension fits file
+
+        Args:
+            outfile:
+
+        Returns:
+
+        """
+        # Write to outfile
+        msgs.info('Writing object and telluric models to file: {:}'.format(outfile))
+        hdu_meta = fits.table_to_hdu(self.meta_table)
+        hdu_meta.name = 'METADATA'
+        hdu_out = fits.table_to_hdu(self.out_table)
+        hdu_out.name = 'OUT_TABLE'
+        hdulist = fits.HDUList()
+        hdulist.append(hdu_meta)
+        hdulist.append(hdu_out)
+        hdulist.writeto(outfile, overwrite=True)
+
+    def load(self, tellfile):
+        """
+        Method for reading telluric and object models fits from a multi-extension fits file
+
+        Args:
+            outfile:
+
+        Returns:
+
+        """
+        # Write to outfile
+        msgs.info('Reading object and telluric models from file: {:}'.format(tellfile))
+        meta_table = table.Table.read(tellfile, hdu=1)
+        out_table = table.Table.read(tellfile, hdu=2)
+
+        return meta_table, out_table
+
+    def show_fit_qa(self, iord):
+        """
+        Generates QA plot for telluric fitting
+
+        Args:
+            iord: the order being currently fit
+
+        """
+
+        wave_now = self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1]
+        flux_now = self.flux_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]
+        sig_now = np.sqrt(utils.inverse(self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]))
+        mask_now = self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]
+        model_now = self.tellmodel_list[iord]*self.obj_model_list[iord]
+        rejmask = mask_now & np.invert(self.outmask_list[iord])
+
+        fig = plt.figure(figsize=(12, 8))
+        plt.plot(wave_now, flux_now, drawstyle='steps-mid',
+                 color='k', label='data', alpha=0.7, zorder=5)
+        plt.plot(wave_now, sig_now, drawstyle='steps-mid', color='0.7', label='noise', alpha=0.7, zorder=1)
+        plt.plot(wave_now, model_now, drawstyle='steps-mid', color='red', linewidth=1.0, label='model',
+                 zorder=7, alpha=0.7)
+        plt.plot(wave_now[rejmask], flux_now[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
+        plt.plot(wave_now[np.invert(mask_now)], flux_now[np.invert(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
+                 label='originally masked')
+        plt.ylim(-0.1 * model_now.max(), 1.3 * model_now.max())
+        plt.legend()
+        plt.xlabel('Wavelength')
+        plt.ylabel('Flux or Counts')
+        plt.title('QA plot for order: {:d}/{:d}'.format(iord, self.norders))
+        plt.show()
+
+    def init_output(self):
+        """
+        Method to initialize the outputs
+
+        Returns:
+            tuple: Returns two `astropy.table.Table`_ objects:
+                - meta_table: Table containing the meta information for
+                  the telluric model fits
+                - out_table: Table containing the telluric model fits
+                  and the object model fits.
+        """
+
+        # Allocate the meta parameter table, ext=1
+        meta_table = table.Table(meta={'name': 'Parameter Values'})
+        meta_table['TOL'] = [self.tol]
+        meta_table['POPSIZE'] = [self.popsize]
+        meta_table['RECOMBINATION'] = [self.recombination]
+        meta_table['TELGRIDFILE'] = [os.path.basename(self.telgridfile)]
+        if 'output_meta_keys' in self.obj_params:
+            for key in self.obj_params['output_meta_keys']:
+                meta_table[key.upper()] = [self.obj_params[key]]
+        if self.ech_orders is not None:
+            meta_table['ECH_ORDERS'] = [self.ech_orders]
+
+        # Allocate the output table, ext=2
+        out_table = table.Table(meta={'name': 'Object Model and Telluric Correction'})
+        out_table['WAVE'] = np.zeros((self.norders, self.nspec_in))
+        out_table['TELLURIC'] = np.zeros((self.norders, self.nspec_in))
+        out_table['OBJ_MODEL'] = np.zeros((self.norders, self.nspec_in))
+        out_table['TELL_THETA'] = np.zeros((self.norders, 6))
+        out_table['TELL_PRESS'] = np.zeros(self.norders)
+        out_table['TELL_TEMP'] = np.zeros(self.norders)
+        out_table['TELL_H2O'] = np.zeros(self.norders)
+        out_table['TELL_AIRMASS'] = np.zeros(self.norders)
+        out_table['TELL_RESLN'] = np.zeros(self.norders)
+        out_table['TELL_SHIFT'] = np.zeros(self.norders)
+        out_table['OBJ_THETA'] = np.zeros((self.norders, self.max_ntheta_obj))
+        out_table['CHI2'] = np.zeros(self.norders)
+        out_table['SUCCESS'] = np.zeros(self.norders, dtype=bool)
+        out_table['NITER'] = np.zeros(self.norders, dtype=int)
+        out_table['IND_LOWER'] = self.ind_lower
+        out_table['IND_UPPER'] = self.ind_upper
+        out_table['WAVE_MIN'] = self.wave_grid[self.ind_lower]
+        out_table['WAVE_MAX'] = self.wave_grid[self.ind_upper]
+
+
+        return meta_table, out_table
+
+
+    def assign_output(self, iord):
+        """
+        Routine to assign outputs to self.out_table for the order in question.
+
+        Args:
+            iord (int):
+            The order for which the output table should bbe assigned.
+
+
+        """
+
+        ## TODO Store the outmask with rejected pixels??
+        gdwave = self.wave_in_arr[:,iord] > 1.0
+        wave_in_gd = self.wave_in_arr[gdwave,iord]
+        wave_grid_now = self.wave_grid[self.ind_lower[iord]:self.ind_upper[iord]+1]
+        self.out_table['WAVE'][iord] = self.wave_in_arr[:,iord]
+        self.out_table['TELLURIC'][iord][gdwave] = scipy.interpolate.interp1d(
+            wave_grid_now, self.tellmodel_list[iord], kind='linear', bounds_error=False, fill_value=0.0)(wave_in_gd)
+        self.out_table['OBJ_MODEL'][iord][gdwave] = scipy.interpolate.interp1d(
+            wave_grid_now, self.obj_model_list[iord], kind='linear', bounds_error=False, fill_value=0.0)(wave_in_gd)
+        self.out_table['TELL_THETA'][iord] = self.theta_tell_list[iord]
+        self.out_table['TELL_PRESS'][iord] = self.theta_tell_list[iord][0]
+        self.out_table['TELL_TEMP'][iord] = self.theta_tell_list[iord][1]
+        self.out_table['TELL_H2O'][iord] = self.theta_tell_list[iord][2]
+        self.out_table['TELL_AIRMASS'][iord] = self.theta_tell_list[iord][3]
+        self.out_table['TELL_RESLN'][iord] = self.theta_tell_list[iord][4]
+        self.out_table['TELL_SHIFT'][iord] = self.theta_tell_list[iord][5]
+        ntheta_iord = len(self.theta_obj_list[iord])
+        self.out_table['OBJ_THETA'][iord][0:ntheta_iord+1] = self.theta_obj_list[iord]
+        self.out_table['CHI2'][iord] = self.result_list[iord].fun
+        self.out_table['SUCCESS'][iord] = self.result_list[iord].success
+        self.out_table['NITER'][iord] = self.result_list[iord].nit
+
+    # TODO Purge? This does not appear to be used at the moment.
+    def interpolate_inmask(self, mask, wave_inmask, inmask):
+        """
+        Utitlity routine to interpolate the input mask.
+        """
+
+        if inmask is not None:
+            if wave_inmask is None:
+                msgs.error('If you are specifying a mask you need to pass in the corresponding wavelength grid')
+            # TODO we shoudld consider refactoring the interpolator to take a list of images and masks to remove the
+            # the fake zero images in the call below
+            _, _, inmask_int = coadd.interp_spec(self.wave_grid, wave_inmask, np.ones_like(wave_inmask),
+                                                 np.ones_like(wave_inmask), inmask)
+            # If the data mask is 2d, and inmask is 1d, tile to create the inmask aligned with the data
+            if mask.ndim == 2 & inmask.ndim == 1:
+                inmask_out = np.tile(inmask_int, (self.norders, 1)).T
+            # If the data mask and inmask have the same dimensionlaity, interpolated mask has correct dimensions
+            elif mask.ndim == inmask.ndim:
+                inmask_out = inmask_int
+            else:
+                msgs.error('Unrecognized shape for data mask')
+            return (mask & inmask_out)
+        else:
+            return mask
+
+
+    def get_ind_lower_upper(self):
+        """
+        Utiltity routine to determine the ind_lower and ind_upper for each order. This trimming makes things
+        faster because then we only need to convolve the portion of the telluric model that is needed for the model fit
+        to each order, rather than convolving the entire telluric model grid.
+
+        Returns:
+            ind_lower, ind_upper
+
+            ind_lower (int):
+               Lower index into the telluric model wave_grid to trim down the telluric model.
+            ind_upper (int):
+               Upper index into the telluric model wave_grid to trim down the telluric model.
+
+        """
+
+        ind_lower = np.zeros(self.norders, dtype=int)
+        ind_upper = np.zeros(self.norders, dtype=int)
+        for iord in range(self.norders):
+            # This presumes that the data has been interpolated onto the telluric model grid
+            wave_grid_ma = np.ma.array(np.copy(self.wave_grid))
+            # For the ind lower and upper, use the good wavelength mask, not the data mask. This gives
+            # us the model everywhere where wavelengths are not zero
+            wave_grid_ma.mask = np.invert(self.wave_mask_arr[:, iord])
+            #wave_grid_ma.mask = np.invert(self.mask_arr[:,iord])
+            ind_lower[iord] = np.ma.argmin(wave_grid_ma)
+            ind_upper[iord] = np.ma.argmax(wave_grid_ma)
+        return ind_lower, ind_upper
+
+    ##########################
+    ## telluric grid methods #
+    ##########################
+    def read_telluric_grid(self, wave_min=None, wave_max=None, pad=0):
+        """
+        Wrapper for utility function read_telluric_grid
+        Args:
+            wave_min:
+            wave_max:
+            pad:
+
+        Returns:
+
+        """
+
+        return read_telluric_grid(self.telgridfile, wave_min=wave_min, wave_max=wave_max, pad=pad)
+
+
+    def get_tell_guess(self):
+        """
+        Utility routine to get the telluric guess to determine the bounds with the init_obj_model function.
+        """
+
+        tell_guess = (np.median(self.tell_dict['pressure_grid']),
+                      np.median(self.tell_dict['temp_grid']),
+                      np.median(self.tell_dict['h2o_grid']),
+                      self.airmass_guess, self.resln_guess, 0.0)
+
+        return tell_guess
+
+    def get_bounds_tell(self):
+        """
+        Utility routine to determine the telluric model grid bounds for the optimization.
+
+        """
+
+        # Set the bounds for the optimization
+        bounds_tell = [(self.tell_dict['pressure_grid'].min(), self.tell_dict['pressure_grid'].max()),
+                       (self.tell_dict['temp_grid'].min(), self.tell_dict['temp_grid'].max()),
+                       (self.tell_dict['h2o_grid'].min(), self.tell_dict['h2o_grid'].max()),
+                       (self.tell_dict['airmass_grid'].min(), self.tell_dict['airmass_grid'].max()),
+                       (self.resln_guess * self.resln_frac_bounds[0], self.resln_guess * self.resln_frac_bounds[1]),
+                       self.pix_shift_bounds]
+
+        return bounds_tell
+
+    def sort_telluric(self):
+        """
+        Utility routine to determine the order in which the telluric model is fit for multi-order data. This is done
+        by computing the median telluric absorption at the midpoint of parameters governing the telluric grid, for the
+        given the wavelengths of the data set by the ind_lower, ind_upper.
+
+        Args:
+
+        Returns:
+            srt_order_tell (`numpy.ndarray`_, int):
+                Array of sorted indices from strongest telluric absorption to weakest.
+        """
+
+        tell_med = np.zeros(self.norders)
+        # Do a quick loop over all the orders to sort them in order of strongest to weakest telluric absorption
+        for iord in range(self.norders):
+            tm_grid = self.tell_dict['tell_grid'][:, :, :, :, self.ind_lower[iord]:self.ind_upper[iord] + 1]
+            tell_model_mid = tm_grid[tm_grid.shape[0] // 2, tm_grid.shape[1] // 2, tm_grid.shape[2] // 2,
+                             tm_grid.shape[3] // 2, :]
+            tell_med[iord] = np.mean(tell_model_mid)
+
+        # Perform fits in order of telluric strength
+        srt_order_tell = tell_med.argsort()
+
+        return srt_order_tell
+

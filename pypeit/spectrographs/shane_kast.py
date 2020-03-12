@@ -37,8 +37,6 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # Flux calibration parset
-        par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Always correct for flexure, starting with default parameters
         par['flexure']['method'] = 'boxcar'
         # Set the default exposure time ranges for the frame typing
@@ -374,9 +372,25 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # Required
         self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
-        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P')
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P', rtol=2e-4)
         # Additional (for config)
 
+    def configuration_keys(self):
+        """
+        Return the metadata keys that defines a unique instrument
+        configuration.
+
+        This list is used by :class:`pypeit.metadata.PypeItMetaData` to
+        identify the unique configurations among the list of frames read
+        for a given reduction.
+
+        Returns:
+
+            list: List of keywords of data pulled from meta
+        """
+        cfg_keys = super(ShaneKastRedSpectrograph, self).configuration_keys()
+        # Add grating tilt
+        return cfg_keys+['dispangle']
 
 class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
     """

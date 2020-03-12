@@ -53,14 +53,14 @@ def main(pargs):
     cfg_lines += ['    detnum = {0}'.format(pargs.det)]
     if pargs.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
-    cfg_lines += ['[calibrations]']
-    cfg_lines += ['    [[scienceframe]]']
-    cfg_lines += ['        [[process]]']
-    cfg_lines += ['              cr_reject = False']
+    cfg_lines += ['[scienceframe]']
+    cfg_lines += ['    [[process]]']
+    cfg_lines += ['          cr_reject = False']
     if pargs.user_pixflat is not None:
+        cfg_lines += ['[calibrations]']
         cfg_lines += ['    [[flatfield]]']
         cfg_lines += ['        frame = {0}'.format(pargs.user_pixflat)]
-    cfg_lines += ['[scienceimage]']
+    cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['         skip_optimal = True']
     if pargs.box_radius is not None: # Boxcar radius
