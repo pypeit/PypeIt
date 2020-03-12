@@ -562,7 +562,7 @@ class Calibrations(object):
         # 3) there is no master or no user supplied flat, generate the flat
         if self.mspixelflat is None and len(pixflat_image_files) != 0:
             # Run
-            self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show) #, debug=True)
+            self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show, debug=True)
 
             # Objects should point to the same data
             # TODO: Remove these lines once we're sure the coding is
@@ -596,7 +596,7 @@ class Calibrations(object):
         if self.msillumflat is None or not self.par['flatfield']['illumflatten']:
             msgs.warn('You are not illumination flat fielding your data!')
 
-#        exit()
+        exit()
 
         # Save & return
         self._update_cache('flat', ('pixelflat','illumflat'), (self.mspixelflat,self.msillumflat))

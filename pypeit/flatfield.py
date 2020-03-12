@@ -771,13 +771,19 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
             poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
 
-#            np.savez_compressed('rmtdict.npz', twod_spec_coo_data=twod_spec_coo_data,
-#                                twod_flat_data=twod_flat_data, twod_ivar_data=twod_ivar_data,
-#                                poly_basis=poly_basis, inmask=twod_gpm_data, nord=4,
-#                                upper=twod_sigrej, lower=twod_sigrej, bkspace=spec_samp_coarse,
-#                                groupbadpix=True, maxrej=10)
-#
-#            exit()
+            np.savez_compressed('rmtdict.npz', good_frac=good_frac, npoly=npoly, spat_coo=spat_coo,
+                                spec_coo=spec_coo, spec_gpm=spec_gpm, spec_coo_data=spec_coo_data,
+                                spec_flat_data=spec_flat_data, spec_ivar_data=spec_ivar_data,
+                                spec_gpm_data=spec_gpm_data, spec_model=spec_model,
+                                norm_spec=norm_spec, spat_gpm=spat_gpm,
+                                spat_coo_data=spat_coo_data, spat_flat_data=spat_flat_data,
+                                norm_spec_spat=norm_spec_spat, twod_gpm=twod_gpm,
+                                twod_spat_coo_data=twod_spat_coo_data,
+                                twod_spec_coo_data=twod_spec_coo_data,
+                                twod_flat_data=twod_flat_data, twod_ivar_data=twod_ivar_data,
+                                twod_gpm_data=twod_gpm_data, poly_basis=poly_basis, nord=4,
+                                upper=twod_sigrej, lower=twod_sigrej, bkspace=spec_samp_coarse,
+                                groupbadpix=True, maxrej=10)
 
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
@@ -787,6 +793,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
 
+            exit()
             if debug:
                 # TODO: Make a plot that shows the residuals in the 2D
                 # image
