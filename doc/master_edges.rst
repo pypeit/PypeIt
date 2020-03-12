@@ -19,16 +19,23 @@ See the :ref:`master-naming` docs for more.
 We also describe how to view the slit edges
 using `pypeit_chk_edges`_.
 
+Viewing
+=======
+
+The preferred way to view the slit edges identified
+by PypeIt is with the `pypeit_chk_edges`_ script.
+
+Use `pypeit_chk_edges -h` to view its current usage.
+
 
 pypeit_chk_edges
-================
+----------------
 
 There are currently 2 options for viewing the slit edges on the image
-used to construct them.  Each uses the `pypeit_chk_edges`_
-script.  Use `pypeit_chk_edges -h` to view its current usage.
+used to construct them.  Each uses the `pypeit_chk_edges`_ script.
 
 ginga
------
++++++
 
 This is the default mode and it requires you to first launch
 a `ginga` viewer in remote control mode::
@@ -54,7 +61,7 @@ A few things to note from this good-performing example:
  - The brightest `slit` is an alignment box and was discarded by the code
 
 matplotlib
-----------
+++++++++++
 
 To avoid ginga, use the `--mpl` flag::
 
