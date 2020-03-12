@@ -1,6 +1,19 @@
 
-0.12.4dev
+0.13.2dev
 ---------
+
+- Added PypeIt identify GUI script for manual wavelength calibration
+- Add bitmask tests and print bitmask names that are invalid when
+  exception raised.
+- Parameter set keywords now sorted when exported to an rst table.
+
+0.13.1 (07 Mar 2020)
+--------------------
+
+- Missed a required merge with master before tagging 0.13.0.
+
+0.13.0 (07 Mar 2020)
+--------------------
 
 - Refactored sensitivity function, fluxing, and coadding scripts and
   algorithms.
@@ -26,7 +39,7 @@
   sobel image to the ginga display.
 - Added `bspline_profile_qa` for generic QA of a bspline fit.
 
-0.12.3 (13 Feb 2019)
+0.12.3 (13 Feb 2020)
 --------------------
 
 - Implemented DataContainer
@@ -37,7 +50,7 @@
   fail if there are identical keys for different parameter sets.
 - Modification to add_sobj() for numpy 18
 
-0.12.2 (14 Jan 2019)
+0.12.2 (14 Jan 2020)
 --------------------
 
 - Introduces quick look scripts for MOS and NIRES
@@ -47,7 +60,7 @@
 - Finally dealt with 'random' windowing of Shane_kast_red
 - Dynamic namp setting for LRISr when instantiating Spectrograph
 
-0.12.1 (07 Jan 2019)
+0.12.1 (07 Jan 2020)
 --------------------
 
 - Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using

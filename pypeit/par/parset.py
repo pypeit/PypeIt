@@ -721,7 +721,8 @@ class ParSet(object):
         new_parsets = []
         data_table = numpy.empty((self.npar+1, 5), dtype=object)
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
-        for i,k in enumerate(self.keys()):
+        sorted_keys = numpy.sort(self.keys())
+        for i,k in enumerate(sorted_keys):
             data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatum=True)
             if isinstance(self.data[k], ParSet):
                 if type(self.data[k]).__name__ not in parsets_listed:
