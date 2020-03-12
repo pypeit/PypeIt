@@ -2,94 +2,179 @@
 PypeIt Cookbook
 ===============
 
+Overview
+========
+
 This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
-Notes on :doc:`installing` are found elsewhere.
+And you might want to begin with See :doc:`installing`.
 
-We now also provide a set of Slides that provide a more
-visual step-by-step.  Find them here at
-the `PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
-These should be considered to contain
-the most up-to-date information.
+.. comment::
+  We now also provide a set of Slides that provide a more
+  visual step-by-step.  Find them here at
+  the `PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
+  These should be considered to contain
+  the most up-to-date information.
 
 The following outlines the standard steps for running
 PypeIt on a batch of data.  There are alternate ways to
 run these steps, but non-experts should adhere to the
 following approach.
 
-Outline
-+++++++
+A few points to note before getting started:
 
-Here is the basic outline of the work flow.  The
-following is for one instrument in one working directory.
+  - If your spectrograph is an echelle, every place you read *slit* think *order*
+  - We also tend to use spectrograph and instrument interchangeably
+  - And `setup` and `configuration` too.
+  - Spectrograph specific advice is provided in their own doc page
+  - Invariably something will be out of date.  When you see an egregious example, holler on GitHub
 
-1. Organize/Prepare your data
+Grab a buff computer
+====================
 
-  - Identify folder(s) with raw images
-  - The raw images can be gzip compressed although the Python FITS reader works much more slowly on gzipped files
-  - We will refer to that folder as RAWDIR
+We recommend one with at least 32Gb of RAM and this might
+not be enough for many-detector instruments (e.g. :doc:`deimos`).
 
-2. Run the :ref:`pypeit_setup` *without* the --custom option to handle instrument :doc:`setup`.
+Multi-processors are good too, although only a portion of
+the code runs in parallel.
 
-   Inputs are the path to the raw data with the data prefix (e.g. lrisb) and then
-   one of the PypeIt-approved :doc:`instruments` (e.g. keck_lris_blue, shane_kast_red).
-   Here is an example::
+0. Organize/Prepare your data
+=============================
 
-    pypeit_setup -r /full_path/RAWDIR/lrisb  -s keck_lris_blue
+A word on Calibration data
+--------------------------
 
-   This does the following:
+PypeIt, as with any DRP, will work most smoothly
+if you have taken data with a good set of calibrations, e.g.
 
- - Generates a setup_files/ folder that holds two files
- - Generates a dummy PypeIt reduction file within the folder [ignore it]
- - Generates a .sorted file which lists files sorted by setup
+  - Flats without saturation
+  - Arcs with most/all of the lines (without substantial saturation)
+  - Bias frames (when you need them)
+  - Slitmasks without overlapping slits
+  - Sensible detector binning and windowing
 
- You should scan the output WARNING messages for insufficient calibration files (e.g. missing arc frames)
+Data with poor calibration frames will *always* be hard to reduce.
+Please take extra care to insure you are not trying to reduce data
+with bad calibrations.  This is the primary "failure mode" of PypeIt.
 
-3. Inspect the :ref:`sorted-file` to confirm the expected instrument configuration(s)
-
-  - If needed, add more files to your RAWDIR
-  - If you do, repeat Step 2 above
-
-4. Run :ref:`pypeit_setup` *with* the --custom option
-
-  This produces one folder per setup and a custom :doc:`pypeit_file`.
-  Here is an example of the call::
-
-    pypeit_setup -r /full_path/RAWDIR/lrisb  -s keck_lris_blue -c=all
-
-  This generates one folder per setup and a unique :doc:`pypeit_file` file in each folder.
+And heaven help you if you mixed binning, grating tilt, etc. between your
+calibrations and science (although this is supported for some instruments by necessity).
 
 
-5. Prepare the custom :doc:`pypeit_file` for reducing a given setup
+Organize your Raw data
+----------------------
 
-  - Enter one of the setup folders (e.g. kast_lris_blue_A)
-  - Modify the custom :doc:`pypeit_file` as needed
+While PypeIt can handle one or more nights of data with a mix of gratings, tilts, and masks, you will probably find it easier to isolate one set of files at a time.
+This includes mask by mask for multi-slit observations.
 
-    - trim/add calibration files
-    - edit frametypes
-    - Modify user-defined execution parameters
+Place the science + calibrations in one folder.
+Copy bias (and dark) frames in each folder as needed.
 
-6. Run the reduction (described in :doc:`running`)
+Or, put them all in one folder and proceed carefully.
+We will refer to that folder as RAWDIR
 
-  - :ref:`run-pypeit` PypeIt_file
-  - Hope for the best...  :)
+The raw images can be gzip compressed although the Python FITS reader
+works much more slowly on gzipped files.
 
-7. Examine QA (:doc:`qa`)
+1. Setup
+========
 
-  - When an exposure is fully reduced, a QA file (PDF) is generated in the QA folder
-  - Examine the output as described in the :doc:`qa` documentation
+The first script you will run with PypeIt is to :ref:`pypeit_setup` which
+examines your raw files and generates a sorted list and (if instructed)
+one :doc:`pypeit_file` per instrument configuration.
 
-8. Examine spectra
+Complete instructions are provided in :doc:`setup`.
+
+2. Edit your PypeIt file
+========================
+
+At the end of setup, you will enter one of the generated sub-folders,
+namely the configuration that you wish to reduce, e.g.::
+
+    cd keck_lris_blue_A
+
+Within that folder is a :doc:`pypeit_file` (e.g. `keck_lris_blue_A.pypeit`)
+which guides the main reduction by PypeIt.
+
+See the :doc:`pypeit_file` docs for
+tips on checking and editing that file.
+
+
+3. Run the Reduction
+====================
+
+PypeIt is intended (and currently only able) to do
+an end-to-end run from calibrations through to
+2D and 1D spectra for each science and standard star frame.
+
+The :doc:`running` doc describes the process in a bit
+more detail.
+
+4. Examine Calibrations
+=======================
+
+As the code runs, when a new calibration is generated the
+default is to write it to disk as a :doc:`masters` file.
+And for some of these, additional files are written to the
+:ref:`cookbook-qa` folder for inspection.
+
+We encourage you to inspect these calibration outputs
+as they come.
+
+MasterFrames
+------------
+
+The term :doc:`masters` refers to the output files for
+calibration data.  These appear in the Masters/ folder
+and see :ref:`master-naming` for details on the naming
+convention.
+
+Here is the order they tend to be created
+with a separate doc for how to view each, what they should
+look like, and how to troubleshoot:
+
+
+  - View the :doc:`master_bias` image (if you produced one)
+  - View the :doc:`master_arc` image
+  - TiltImage
+  - Check slit edges with the :doc:`master_edges` file
+  - Check the 1D wavelength solution using the :ref:`cookbook-qa` below.
+  - Check the 2D wavelength solution using the :ref:`cookbook-qa` below.
+
+Note that only a subset of these may be made.
+It depends on your spectrograph and the calibration files input.
+
+.. _cookbook-qa:
+
+QA
+--
+
+When an exposure is fully reduced, a QA file (PNG) is generated in the QA folder.
+
+Here are the key ones to inspect:
+
+  - Wavelength solution QA
+  - Wavelength tilts QA
+
+
+5. Examine Spectra
+==================
+
+Eventually (be patient), the code will hopefully start
+generating 2D and 1D spectra outputs.  One per standard
+and science frame.
 
   - Examine the extracted 1D spectra with :ref:`pypeit-1dspec`
   - Examine the extracted 2D spectra with :ref:`pypeit-2dspec`
 
+6. BLEEDING EDGE
+================
+
+The stuff below needs proper documenting.
+
 9.  Flux
 
 10. Coadd (see :doc:`coadding`)
-
-11. Repeat steps 5-10 for additional setups, as desired
-
 
 
 

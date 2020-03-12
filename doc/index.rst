@@ -19,8 +19,8 @@ Getting Started
    :maxdepth: 1
 
    installing
-   code_flow
    codeconduct
+   cookbook
 
 Running PypeIt
 ++++++++++++++
@@ -30,11 +30,9 @@ Running PypeIt
 .. toctree::
    :maxdepth: 2
 
-   pypeit_par
-   cookbook
    setup
    pypeit_file
-   calcheck
+   pypeit_par
    running
    quicklook
 
@@ -55,8 +53,8 @@ Calibrations
 .. toctree::
    :maxdepth: 2
 
+   customize_calibs
    calib_images
-   calibrations
    bias
    slit_tracing
    wave_calib
@@ -64,13 +62,13 @@ Calibrations
    flatfielding
    fluxing
 
-Instruments
-+++++++++++
+Spectrographs
++++++++++++++
 
 .. toctree::
    :maxdepth: 2
 
-   instruments
+   spectrographs
    deimos
    lris
    mage
