@@ -107,7 +107,7 @@ class SpecObj(object):
            Type of object ('unknown', 'standard', 'science')
         slitid (int, optional):
            Identifier for the slit (max=9999).
-           Multislit only
+           Multislit and IFU
         specobj_dict (dict, optional):
            Uswed in the objfind() method of extract.py to Instantiate
         orderindx (int, optional):
@@ -214,6 +214,9 @@ class SpecObj(object):
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = specobj_dict['order']
                     self.ECH_ORDERINDX = specobj_dict['orderindx']
+                elif self.PYPELINE == 'IFU':
+                    self.SLITID = specobj_dict['slitid']
+
             else:
                 self.PYPELINE = pypeline
                 self.OBJTYPE = objtype
@@ -225,8 +228,10 @@ class SpecObj(object):
                 elif self.PYPELINE == 'Echelle':
                     self.ECH_ORDER = ech_order
                     self.ECH_ORDERINDX = orderindx
+                elif self.PYPELINE == 'IFU':
+                    self.SLITID = slitid
                 else:
-                    msgs.error("Uh oh")
+                    msgs.error("Bad PYPELINE")
 
             self.FLEX_SHIFT = 0.
 
@@ -242,7 +247,7 @@ class SpecObj(object):
         elif self.PYPELINE == 'IFU':
             return self.SLITID
         else:
-            msgs.error("Uh oh")
+            msgs.error("Bad PYPELINE")
 
 
     @property
@@ -254,7 +259,7 @@ class SpecObj(object):
         elif self.PYPELINE == 'IFU':
             return self.SLITID
         else:
-            msgs.error("Uh oh")
+            msgs.error("Bad PYPELINE")
 
     def __getattr__(self, item):
         """Maps values to attributes.

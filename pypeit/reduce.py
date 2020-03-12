@@ -1184,6 +1184,6 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     """
     indx = [c.__name__ == spectrograph.pypeline+'Reduce' for c in Reduce.__subclasses__()]
     if not np.any(indx):
-        msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
+        msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
                                                          par, caliBrate, **kwargs)
