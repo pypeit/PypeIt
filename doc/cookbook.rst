@@ -93,8 +93,10 @@ namely the configuration that you wish to reduce, e.g.::
 
     cd keck_lris_blue_A
 
-Within that folder is a :doc:`pypeit_file` (e.g. keck_lris_blue_A.pypeit)
-which guides the main reduction by PypeIt.  See :doc:`pypeit_file` for
+Within that folder is a :doc:`pypeit_file` (e.g. `keck_lris_blue_A.pypeit`)
+which guides the main reduction by PypeIt.
+
+See the :doc:`pypeit_file` docs for
 tips on checking and editing that file.
 
 
@@ -114,9 +116,10 @@ more detail.
 As the code runs, when a new calibration is generated the
 default is to write it to disk as a :doc:`masters` file.
 And for some of these, additional files are written to the
-:ref:`cookbook-qa` folder.
+:ref:`cookbook-qa` folder for inspection.
 
-We encourage you to inspect them as they come.
+We encourage you to inspect these calibration outputs
+as they come.
 
 MasterFrames
 ------------
@@ -128,14 +131,15 @@ convention.
 
 Here is the order they tend to be created
 with a separate doc for how to view each, what they should
-look like, and how to troubleshoot:.
+look like, and how to troubleshoot:
 
 
   - View the :doc:`master_bias` image (if you produced one)
   - View the :doc:`master_arc` image
   - TiltImage
   - Check slit edges with the :doc:`master_edges` file
-  - Check the wavelength solution using the :ref:`cookbook-qa` below.
+  - Check the 1D wavelength solution using the :ref:`cookbook-qa` below.
+  - Check the 2D wavelength solution using the :ref:`cookbook-qa` below.
 
 Note that only a subset of these may be made.
 It depends on your spectrograph and the calibration files input.
@@ -145,16 +149,15 @@ It depends on your spectrograph and the calibration files input.
 QA
 --
 
-When an exposure is fully reduced, a QA file (PDF) is generated in the QA folder.
+When an exposure is fully reduced, a QA file (PNG) is generated in the QA folder.
 
 Here are the key ones to inspect:
 
   - Wavelength solution QA
   - Wavelength tilts QA
 
-Examine the output as described in the :doc:`qa` documentation
 
-5. Examine spectra
+5. Examine Spectra
 ==================
 
 Eventually (be patient), the code will hopefully start
