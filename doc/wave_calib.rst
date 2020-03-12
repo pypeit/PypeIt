@@ -4,8 +4,20 @@ Wavelength Calibration
 
 .. index:: wave_calib
 
-Base Algorithms
-===============
+Overview
+========
+
+This doc describes the wavelength calibration
+`Automated Algorithms`_
+the `By-Hand Approach`_ including the
+`pypeit_identify`_ script,
+`Common Failure Modes`_, and more.
+
+See :doc:`masters_wvcalib` for a discussion of the
+main outputs and good/bad examples.
+
+Automated Algorithms
+====================
 
 These notes will describe the algorithms used to perform
 wavelength calibration in 1D (i.e. down the slit/order)
@@ -80,6 +92,9 @@ observations, long-slit observations where wavelengths
 vary (e.g. grating tilts).  We are likely to implement
 this for echelle observations (e.g. HIRES).
 
+By-Hand Approach
+================
+
 
 Identify
 --------
@@ -87,8 +102,14 @@ Identify
 If you would prefer to manually wavelength calibrate, then
 you can do so with the 'identify' task. To launch this task,
 you need to have successfully traced the slit edges (i.e. a
-MasterEdges file must exist), and generated a MasterArc
-calibration frame. To launch a GUI, use the following command:
+:doc:`master_edges` file must exist), and generated a
+:doc:`master_arc`
+calibration frame.
+
+pypeit_identify
++++++++++++++++
+
+To launch the GUI, use the following command:
 
 .. code-block:: bash
 
@@ -96,6 +117,7 @@ calibration frame. To launch a GUI, use the following command:
 
 Instructions on how to use this GUI are available by pressing
 the '?' key while hovering your mouse over the plotting window.
+
 Once you have completed the manual calibration, you can save
 your solution (press key 's' while hovering over the plotting
 window). The, update your .pypeit file with the following:
@@ -112,19 +134,23 @@ while hovering over the plotting window.
 
 Alternatively, you can add your solution to the PypeIt database.
 If your solution is good enough (rms < 0.1 pixels), then
-pypeit_identify will automatically prompt you after you quit the
+`pypeit_identify`_ will automatically prompt you after you quit the
 GUI to see if you'd like to add your solution to the PypeIt
-database. If so, you will need to move the output file into
+database.
+
+If so, you will need to move the output file into
 the master directory, which will be similar to the following
 directory:
 
 ``/directory/to/PypeIt/pypeit/data/arc_lines/reid_arxiv/name_of_your_solution.fits``
 
 Once your solution is in the database, run PypeIt
-in the standard :ref:`wvcalib-fulltemplate` mode. We also
-recommend that you send your solution to the PypeIt development
-team, so that others can benefit from your wavelength calibration
-solution.
+in the standard :ref:`wvcalib-fulltemplate` mode.
+
+We also recommend that you send your solution to the
+PypeIt development (e.g. post it on GitHub) team,
+so that others can benefit from your wavelength
+calibration solution.
 
 
 Common Failure Modes
@@ -144,8 +170,8 @@ are:
 In either case, a new template may need to be generated.
 If you are confident this is the case, raise an Issue.
 
-Possible Items to Modify
-========================
+Items to Modify
+===============
 
 FWHM
 ----
@@ -191,34 +217,6 @@ the NIST database, and are labelled with a 'MURPHY' flag if the
 line also appears in the list of lines identified by
 `Murphy et al. (2007) MNRAS 378 221 <http://adsabs.harvard.edu/abs/2007MNRAS.378..221M>`_
 
-By-Hand Calibration
-===================
-
-
-
-Text Based
-----------
-
-If the automatic algorithm is failing (heaven forbid; and you should
-probably raise an Issue on PypeIt if you are sure it isn't your fault),
-you can input a set of pixel, wavelength values as a crutch in
-your .pypeit setup file.  Here is the recommended approach:
-
-#. Run PypeIt with --debug_arc on. This will force the code to stop inside ararc.py
-#. Print the pixel values to the screen
-
-   *  (Pdb) tcent
-
-#. Plot the arc spectrum.
-
-   *  (Pdb) plt.plot(yprep)
-   *  (Pdb) plt.show()
-
-#. Compare that spectrum with a known one and ID a few lines.  Write down.  Better be using vacuum wavelengths
-#. Add pixel values and wavelengths to your .pypeit file, e.g.
-
-   * arc calibrate IDpixels 872.062,902.7719,1931.0048,2452.620,3365.25658,3887.125
-   * arc calibrate IDwaves 3248.4769,3274.905,4159.763,4610.656,5402.0634,5854.110
 
 
 Flexure Correction
@@ -230,6 +228,8 @@ further details.
 
 Wavelength Frame
 ================
+
+THESE ARE OUT OF DATE
 
 PypeIt offers several frames of reference that can used for the
 wavelength scale. The first choice is whether you would like the

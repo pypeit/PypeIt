@@ -123,7 +123,7 @@ MasterFrames
 
 The term :doc:`masters` refers to the output files for
 calibration data.  These appear in the Masters/ folder
-and see :doc:`master-naming` for details on the naming
+and see :ref:`master-naming` for details on the naming
 convention.
 
 Here is the order they tend to be created
