@@ -320,6 +320,11 @@ def main(flg):
 
 # Command line execution
 if __name__ == '__main__':
+    '''
+    Usage:
+        python mk_filtercurve.py will print out the filter list.
+        python mk_filtercurve.py 8 this will append NIRCAM filters
+    '''
 
     if len(sys.argv) == 1:
         flg = 0
@@ -330,8 +335,3 @@ if __name__ == '__main__':
         flg = sys.argv[1]
 
     main(flg)
-'''
-For example
-python mk_filtercurve.py 8 
-   -- this will append NIRCAM filters
-'''
