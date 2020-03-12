@@ -29,7 +29,8 @@ The image will also be a trimmed portion of the
 raw image and also re-oriented
 so that vertical is the spectral dimension with blue at the bottom.
 
-Here is an example for the :ref:`keck-lris-red` spectrograph.
+Here is an screen shot of a `ginga` view
+for an example from the `shane_kast_red` spectrograph.
 
 .. image:: figures/arc_image.png
 
