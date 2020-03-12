@@ -266,6 +266,9 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+        elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
+            par['calibrations']['wavelengths']['method'] = 'full_template'
 
         return par
 
