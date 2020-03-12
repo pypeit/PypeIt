@@ -1,11 +1,11 @@
-**********************
+======================
 Wavelength Calibration
-**********************
+======================
 
 .. index:: wave_calib
 
-Basic Algorithms
-================
+Base Algorithms
+===============
 
 These notes will describe the algorithms used to perform
 wavelength calibration in 1D (i.e. down the slit/order)
@@ -34,7 +34,8 @@ Holy Grail
 This algorithm is based on pattern matching the detected lines
 with that expected from the lamps observed.  It has worked
 well for the low dispersion spectrographs and has been used
-to generate the templates needed for most of the other algorithms.
+to generate the templates used for most of the other algorithms.
+
 It has the great positive of requiring limited developer
 effort once a vetted line-list for the observed lamps has been
 generated.
@@ -44,8 +45,6 @@ However, we have found this algorithm is not highly robust
 high dispersion data (e.g. ThAr lamps).  At this stage, we
 recommend it be used primarily by the Developers to generate
 template spectra.
-
-.. _wvcalib-reidentify:
 
 Reidentify
 ----------
@@ -65,20 +64,19 @@ This algorithm is optimal for fixed-format spectrographs
 Full Template
 -------------
 
-This algorithm is similar to :ref:`wvcalib-reidentify` with
+This algorithm is similar to `Reidentify`_ with
 two exceptions:  (i) there is only a single template used
 (occasionally one per detector for spectra that span across
 multiple, e.g. DEIMOS); (ii) IDs from
 the input arc spectrum are generally performed on snippets
 of the full input array.  The motivation for the latter is
 to reduce non-linearities that are not well captured by the
-shift+stretch analysis of :ref:`wvcalib-reidentify`.
+shift+stretch analysis of `Reidentify`_.
 
 We recommend implementing this method for multi-slit
 observations, long-slit observations where wavelengths
 vary (e.g. grating tilts).  We are likely to implement
 this for echelle observations (e.g. HIRES).
-
 
 
 Common Failure Modes
@@ -92,7 +90,7 @@ As regards Multislit, the standard failure modes of
 the :ref:`full-template` method that is now preferred
 are:
 
- 1. The lamps used are substantially different from those archived.
+ 1. The lamps used are different from those archived.
  2. The slit spans much bluer/redder than the archived template.
 
 In either case, a new template may need to be generated.
@@ -147,6 +145,11 @@ line also appears in the list of lines identified by
 
 By-Hand Calibration
 ===================
+
+
+
+Text Based
+----------
 
 If the automatic algorithm is failing (heaven forbid; and you should
 probably raise an Issue on PypeIt if you are sure it isn't your fault),
