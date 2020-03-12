@@ -4,7 +4,6 @@ from astropy.io import fits
 from astropy.io import ascii
 from astropy.table import Table
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 from IPython import embed
@@ -215,6 +214,71 @@ def append_FORS():
     # Write
     hdulist.writeto('filtercurves.fits', overwrite=True)
 
+
+def append_NIRCam():
+    # Load
+    hdulist = fits.open('filtercurves.fits')
+    curr_filters = [hdu.name for hdu in hdulist]
+    #
+    nircam = Table.read('nircam_filter/nircam_modABmean_plus_ote_filter_properties.txt',format='ascii.basic')
+    filters = nircam['Filter']
+    for filt in filters:
+        flt_name = 'NIRCAM-{}'.format(filt)
+        if flt_name in curr_filters:
+            print("Filter {} already there, skipping".format(flt_name))
+            continue
+        # load in the transmission
+        filt_table = Table.read('nircam_filter/{:}_NRC_and_OTE_ModAB_mean.txt'.format(filt),format='ascii.basic')
+        wave = filt_table['microns']*1e4
+        trans = filt_table['throughput']
+        # Add it
+        hdu = tohdu(wave,trans,flt_name)
+        hdulist.append(hdu)
+    # Write
+    hdulist.writeto('filtercurves.fits', overwrite=True)
+
+def append_MIRI():
+    # Load
+    hdulist = fits.open('filtercurves.fits')
+    curr_filters = [hdu.name for hdu in hdulist]
+    #
+    miri = Table.read('miri_filter/miri_imaging.txt',format='ascii.basic')
+    filters = ['F560W','F770W','F1000W', 'F1130W', 'F1280W','F1500W','F1800W','F2100W','F2550W']
+    for filt in filters:
+        flt_name = 'MIRI-{}'.format(filt)
+        if flt_name in curr_filters:
+            print("Filter {} already there, skipping".format(flt_name))
+            continue
+        # load in the transmission
+        wave = miri['Wave']*1e4
+        trans = miri[filt]
+        # Add it
+        hdu = tohdu(wave,trans,flt_name)
+        hdulist.append(hdu)
+    # Write
+    hdulist.writeto('filtercurves.fits', overwrite=True)
+
+def fix_SDSS():
+
+    par = fits.open('filter_curves_sdss.fits')
+    pri_hdu = fits.PrimaryHDU()
+    hdulist = fits.HDUList(pri_hdu)
+
+    for i in ['SDSS-U','SDSS-G','SDSS-R','SDSS-I','SDSS-Z']:
+        wave, trans = par[i[-1]].data['wavelength'], par[i[-1]].data['respt']
+        hdu = tohdu(wave,trans,i)
+        hdulist.append(hdu)
+
+    # Load
+    hdulist_orig = fits.open('filtercurves.fits')
+    for i in range(len(hdulist_orig[6:])):
+        hdulist.append(hdulist_orig[6+i])
+
+    curr_filters = [hdu.name for hdu in hdulist]
+    # Write
+    hdulist.writeto('filtercurves.fits', overwrite=True)
+
+
 def write_filter_list():
     # Write the filter list
     hdulist = fits.open('filtercurves.fits')
@@ -242,6 +306,17 @@ def main(flg):
     if flg & (2**2):
         write_filter_list()
 
+    # Add NIRCam filters
+    if flg & (2**3):
+        append_NIRCam()
+
+    # Add MIRI filters
+    if flg & (2**4):
+        append_MIRI()
+
+    # Fix SDSS filters
+    if flg & (2**5):
+        fix_SDSS()
 
 # Command line execution
 if __name__ == '__main__':
@@ -255,3 +330,8 @@ if __name__ == '__main__':
         flg = sys.argv[1]
 
     main(flg)
+'''
+For example
+python mk_filtercurve.py 8 
+   -- this will append NIRCAM filters
+'''
