@@ -12,20 +12,33 @@ oringinally for echelle spectroscopy and since expanded
 to low-resolution spectrometers.  This documentation details
 the code, how to run it, and what it produces.
 
-Getting Started
-+++++++++++++++
+Users
+=====
+
+If you are mainly here to use PypeIt to reduce
+your observational data then this section is for you.
+
+Ideally, you ill need to go no further than the few links
+in this section take you.
 
 .. toctree::
    :maxdepth: 1
 
-   installing
    codeconduct
+   installing
    cookbook
 
-Running PypeIt
-++++++++++++++
+Most of the docs that follow on this page
+are for expert users or developers.
 
-`PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
+Running PypeIt
+==============
+
+This section contains quick links to the docs
+describing the primary aspects of running PypeIt.
+
+But you should be referring to the :doc:`cookbook`
+for a full description of the process.
 
 .. toctree::
    :maxdepth: 2
