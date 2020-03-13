@@ -18,7 +18,24 @@ from pypeit.core import procimg
 from IPython import embed
 
 
-class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
+class TiltImage(calibrationimage.CalibrationImage):
+    """
+    Simple DataContainer for the Tilt Image
+    """
+
+    # Peg the version of this class to that of PypeItImage
+    version = pypeitimage.PypeItImage.version
+
+    # I/O
+    output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK')
+    hdu_prefix = 'TILT_'
+
+    # Master fun
+    master_type = 'Tilt'
+    frametype = 'tilt'
+
+
+class BuildTiltImage(calibrationimage.BuildCalibrationImage):
     """
     Generate an Tilt Image by processing and combining one or more tilt frames.
 
@@ -33,11 +50,6 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the tilt frames.
-        master_key (:obj:`str`, optional):
-            The string identifier for the instrument configuration.  See
-            :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (str, optional): Path to master frames
-        reuse_masters (bool, optional): Load from disk if possible
         msbias (ndarray or str, optional): Guides bias subtraction
 
     Attributes:
@@ -48,10 +60,9 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     # Frametype is a class attribute
     frametype = 'tilt'
-    master_type = 'Tiltimg'
+    image_type = TiltImage
 
-    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
-                 master_dir=None, reuse_masters=False, msbias=None):
+    def __init__(self, spectrograph, files=None, det=1, par=None, msbias=None):
         # Parameters unique to this Object
         self.msbias = msbias
 
@@ -59,62 +70,11 @@ class TiltImage(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
 
         # Start us up
-        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
+        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det, self.par['process'],
+                                                   files=files)
 
-        # MasterFrames: Specifically pass the ProcessImages-constructed
-        # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, reuse_masters=reuse_masters)
         # Process steps
         self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
         self.process_steps += ['trim']
         self.process_steps += ['orient']
         self.process_steps += ['apply_gain']
-
-    def save(self, outfile=None, overwrite=True):
-        """
-        Save the tilt master data.
-
-        Args:
-            outfile (:obj:`str`, optional):
-                Name for the output file.  Defaults to
-                :attr:`file_path`.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file.
-        """
-        #super(TiltImage, self).save(self.pypeitImage, 'TILT', outfile=outfile, overwrite=overwrite,
-        #                           raw_files=self.file_list, steps=self.process_steps)
-        _outfile = self.master_file_path if outfile is None else outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
-        #
-        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        self.pypeitImage.to_file(_outfile, hdr=hdr, hdu_prefix='TILT_')
-        msgs.info('Master frame written to {0}'.format(_outfile))
-
-    def load(self, ifile=None):
-        """
-        Load the tilt frame data from a saved master frame.
-
-        Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header
-
-        Returns:
-            Returns a `numpy.ndarray`_ with the tilt master frame image.
-            Also returns the primary header, if requested.
-        """
-        # Check on whether to reuse and whether the file exists
-        master_file = self.chk_load_master(ifile)
-        if master_file is None:
-            return
-        else:  # Load
-            self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file)
-            return self.pypeitImage
-

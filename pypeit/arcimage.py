@@ -15,6 +15,9 @@ from IPython import embed
 
 
 class ArcImage(calibrationimage.CalibrationImage):
+    """
+    Simple DataContainer for the Arc Image
+    """
 
     # Peg the version of this class to that of PypeItImage
     version = pypeitimage.PypeItImage.version
@@ -45,13 +48,6 @@ class BuildArcImage(calibrationimage.BuildCalibrationImage):
             The 1-indexed detector number to process.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the arc frames.
-        master_key (:obj:`str`, optional):
-            The string identifier for the instrument configuration.  See
-            :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (str, optional):
-            Path to master frames
-        reuse_masters (bool, optional):
-            Load from disk if possible
         msbias (ndarray or str, optional):
             Guides bias subtraction
 

@@ -316,7 +316,6 @@ class Calibrations(object):
                                       self.spectrograph.spectrograph,  # Header
                                       steps=self.buildArcImage.process_steps,
                                       raw_files=self.arc_files)
-        embed(header='320 of calibrations')
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
         # Return
@@ -353,29 +352,35 @@ class Calibrations(object):
             self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tiltimg']
             return self.mstilt
 
-        # Instantiate with everything needed to generate the image (in case we do)
-        self.tiltImage = tiltimage.TiltImage(self.spectrograph, files=self.tilt_files,
+        # Reuse master frame?
+        masterframe_name = masterframe.construct_file_name(tiltimage.TiltImage,
+                                                           self.master_key_dict['tilt'],
+                                                           master_dir=self.master_dir)
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.mstilt = tiltimage.TiltImage.from_file(masterframe_name)
+            return self.mstilt
+
+        # Build
+        msgs.info("Preparing a master {0:s} frame".format(tiltimage.TiltImage.frametype))
+        self.buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, files=self.tilt_files,
                                           det=self.det, msbias=self.msbias,
-                                          par=self.par['tiltframe'],
-                                          master_key=self.master_key_dict['tilt'],
-                                          master_dir=self.master_dir,
-                                          reuse_masters=self.reuse_masters)
+                                          par=self.par['tiltframe'])
+        self.mstilt = tiltimage.TiltImage.from_pypeitimage(
+            self.buildtiltImage.build_image(bias=self.msbias, bpm=self.msbpm))
 
-        # Load the MasterFrame (if it exists and is desired)?
-        self.mstilt = self.tiltImage.load()
-        if self.mstilt is None:  # Otherwise build it
-            msgs.info("Preparing a master {0:s} frame".format(self.tiltImage.frametype))
-            self.mstilt = self.tiltImage.build_image(bias=self.msbias, bpm=self.msbpm)
-            # JFH Add a cr_masking option here. The image processing routines are not ready for it yet.
+        # Save to Masters
+        if self.save_masters:
+            self.mstilt.to_master_file(self.master_dir, self.master_key_dict['tilt'],  # Naming
+                                      self.spectrograph.spectrograph,  # Header
+                                      steps=self.buildtiltImage.process_steps,
+                                       raw_files=self.tilt_files)
 
-            # Save to Masters
-            if self.save_masters:
-                self.tiltImage.save()
-
-        # Save & return
+        # Cache
         self._update_cache('tilt', 'tiltimg', self.mstilt)
         # TODO in the future add in a tilt_inmask
         #self._update_cache('tilt', 'tilt_inmask', self.mstilt_inmask)
+
+        # Return
         return self.mstilt
 
     def get_bias(self):
