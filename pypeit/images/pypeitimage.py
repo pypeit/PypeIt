@@ -90,6 +90,7 @@ class PypeItImage(maskimage.ImageMask):
         self.ivar = ivar
         self.rn2img = rn2img
         self.binning = binning
+        # TODO -- This may need to be written to disk!
         self.detector_par = detector_par
         self.head0 = None
 
