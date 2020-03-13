@@ -138,7 +138,7 @@ look like, and how to troubleshoot:
   - Check the 2D wavelength solution in the :doc:`master_tilts` output
   - Check the :doc:`master_flat` images
 
-Note that only a subset of these may be made.
+Note that only a subset of these files may be made.
 It depends on your spectrograph and the calibration files input.
 
 5. Examine Spectra
