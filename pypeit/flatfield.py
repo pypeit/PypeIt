@@ -473,7 +473,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Construct three versions of the slit ID image
         #   - an image that uses the padding defined by self.slits
         slitid_img = self.slits.slit_img()
-        #   - an image that uses the padding defined by self.flatpar.
+        #   - an image that uses the extra padding defined by self.flatpar.
         #     This was always 5 pixels in the previous version.
         padded_slitid_img = self.slits.slit_img(pad=pad)
         #   - and an image that trims the width of the slit using the

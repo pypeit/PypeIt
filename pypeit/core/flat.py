@@ -229,7 +229,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
     spat_gpm_data_raw = np.ones(spat_flat_data_raw.size, dtype=bool)
 
     # Assume the density of samples in any given spatial coordinate is
-    # roughly the same at all spatial positions. Calculate the fraction
+    # roughly the same at all spatial piximgpositions. Calculate the fraction
     # of the slit width for the median filter as set by the
     # ``spat_samp`` parameter.
     med_width = int(np.ceil(np.sum(spat_gpm) * spat_samp / slitwidth))
@@ -411,7 +411,6 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
         new_right -= right_shift * slitwidth
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
-
 
 
 def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe=None):
