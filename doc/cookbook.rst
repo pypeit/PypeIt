@@ -121,9 +121,6 @@ And for some of these, additional files are written to the
 We encourage you to inspect these calibration outputs
 as they come.
 
-MasterFrames
-------------
-
 The term :doc:`masters` refers to the output files for
 calibration data.  These appear in the Masters/ folder
 and see :ref:`master-naming` for details on the naming
@@ -133,25 +130,16 @@ Here is the order they tend to be created
 with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
-
   - View the :doc:`master_bias` image (if you produced one)
   - View the :doc:`master_arc` image
   - View the :doc:`master_tilt` image
   - Check slit edges with the :doc:`master_edges` file
-  - Check the 1D wavelength solution using the :ref:`cookbook-qa` below.
-  - Check the 2D wavelength solution using the :ref:`cookbook-qa` below.
+  - Check the 1D wavelength solution in the :doc:`master_wvcalib` output
+  - Check the 2D wavelength solution in the :doc:`master_tilts` output
   - Check the :doc:`master_flat` images
 
 Note that only a subset of these may be made.
 It depends on your spectrograph and the calibration files input.
-
-QA
---
-
-As calibrations are generated, for several a series of
-PNG files are generated in the QA/PNG/ folder.
-
-This :doc:`qa` describes the key outputs.
 
 5. Examine Spectra
 ==================
