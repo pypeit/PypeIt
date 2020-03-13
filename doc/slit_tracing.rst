@@ -181,7 +181,7 @@ Here is the flow of the algorithms.
 
 #. A Sobolev S/N image is generated from the trace flat image
 #. edge detection: An initial set of edges are derived from the Sobolev
-   according to the :ref:`trace-slit-threshold`.
+   according to the `Detection Threshold`_.
 #. match edges:  An algorithm is performed to match edges into slits
    for the first time.
 #. trace (crudely) the slits: Each slit edge is traced with the trace_crude
