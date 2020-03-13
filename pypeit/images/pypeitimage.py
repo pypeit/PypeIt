@@ -97,11 +97,13 @@ class PypeItImage(datamodel.DataContainer):
 
     @classmethod
     def from_pypeitimage(cls, pypeitImage):
+        # For datamodel checking
         slf = cls(pypeitImage.image, ivar=pypeitImage.ivar, rn2img=pypeitImage.rn2img,
                   binning=pypeitImage.binning)
-        if pypeitImage.mask is not None:
-            slf.mask = maskimage.ImageMask(pypeitImage.mask.bpm, crmask=pypeitImage.mask.crmask,
-                                   fullmask=pypeitImage.mask.fullmask)
+        # Mask
+        slf.mask = pypeitImage.mask # This does not explicitly check the datamodel, but it was already checked
+        # Detector
+        slf.detector = pypeitImage.detector
         # Return
         return slf
 

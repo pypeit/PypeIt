@@ -83,3 +83,15 @@ class Detector(datamodel.DataContainer):
 
         self.binning = None
 
+    def _bundle(self):
+        """
+        Overload just to set the HDU name.
+        I suspect there is a more elegant way than this...
+
+        Returns:
+            list:
+
+        """
+        return super(Detector, self)._bundle(ext='DETECTOR')
+
+
