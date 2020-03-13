@@ -156,6 +156,9 @@ class PypeItImage(datamodel.DataContainer):
             # Deal with the mask
             elif key == 'mask':
                 d.append(dict(mask=self.mask))
+            # Deal with the detector
+            elif key == 'detector':
+                d.append(dict(detector=self.detector))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return

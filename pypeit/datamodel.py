@@ -895,26 +895,26 @@ class DataContainer:
                 dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
                 dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
                 # Grab it
-                d[e] = hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
+                d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
                         else Table.read(hdu[hduindx])
 
 
         for e in _ext:
             # Check for header elements
-            indx = np.isin([key.upper() for key in keys], list(hdu[e].header.keys()))
+            indx = np.isin([key.upper() for key in keys], list(_hdu[e].header.keys()))
             if np.any(indx):
                 for key in keys[indx]:
-                    d[key] = hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
-                                else eval(hdu[e].header[key.upper()])
+                    d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
+                                else eval(_hdu[e].header[key.upper()])
             # Parse BinTableHDUs
-            if isinstance(hdu[e], fits.BinTableHDU):
+            if isinstance(_hdu[e], fits.BinTableHDU):
                 # If the length of the table is 1, assume the table
                 # data had to be saved as a single row because of shape
                 # differences.
-                single_row = len(hdu[e].data) == 1
-                for key in hdu[e].columns.names:
+                single_row = len(_hdu[e].data) == 1
+                for key in _hdu[e].columns.names:
                     if key in cls.datamodel.keys():
-                        d[key] = hdu[e].data[key][0] if single_row else hdu[e].data[key]
+                        d[key] = _hdu[e].data[key][0] if single_row else _hdu[e].data[key]
                         if transpose_table_arrays:
                             d[key] = d[key].T
         return d, dm_version_passed, dm_type_passed

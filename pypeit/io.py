@@ -117,7 +117,8 @@ def rec_to_fits_col_dim(col_element, single_row=False):
         str: String representation of the column dimensions. Return
         None if the object is not multidimensional.
     """
-    _col_element = col_element if single_row else col_element[0]
+    #_col_element = col_element if single_row else col_element[0]
+    _col_element = col_element #if single_row else col_element[0]
     return None if len(_col_element.shape) < 2 else str(_col_element.shape[::-1])
 
 
@@ -451,9 +452,9 @@ def dict_to_hdu(d, name=None, hdr=None):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
-        cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
-                             dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                             array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
+        cols += [fits.Column(name=key, format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
+                             dim=rec_to_fits_col_dim(numpy.asarray(d[key]), single_row=single_row),
+                             array=numpy.expand_dims(d[key], 0) if single_row else numpy.asarray(d[key]))]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
