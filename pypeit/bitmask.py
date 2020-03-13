@@ -20,6 +20,7 @@ Base class for handling bit masks.
 .. include:: ../links.rst
 
 """
+from IPython import embed
 import numpy
 import os
 import textwrap
@@ -109,8 +110,10 @@ class BitMask:
         if numpy.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
         # Flags should be among the bitmask keys
-        if numpy.any([f not in self.keys() for f in _flag]):
-            raise ValueError('Some bit names not recognized.')
+        indx = numpy.array([f not in self.keys() for f in _flag])
+        if numpy.any(indx):
+            raise ValueError('The following bit names are not recognized: {0}'.format(
+                             ', '.join(_flag[indx])))
 #        # Flags should be strings
 #        if numpy.any([ not isinstance(f, str) for f in _flag ]):
 #            raise TypeError('Provided bit names must be strings!')
@@ -167,12 +170,16 @@ class BitMask:
 
     def keys(self):
         """
-        Return a list of the bits; 'NULL' keywords are ignored.
+        Return a list of the bit keywords.
+
+        Keywords are sorted by their bit value and 'NULL' keywords are
+        ignored.
         
         Returns:
             list: List of bit keywords.
         """
-        return [k for k in self.bits.keys() if k != 'NULL']
+        k = numpy.array(list(self.bits.keys()))
+        return k[[_k != 'NULL' for _k in k]].tolist()
 
     def info(self):
         """
