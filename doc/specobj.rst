@@ -4,9 +4,12 @@
 SpecObj (1D spectra)
 ====================
 
+Overview
+========
+
 This file describes the data model for the SpecObj class which is
 written to disk as a multi-extension FITS file prefixed by `spec1d`
-in the Science/ folder.
+in the *Science/* folder.
 
 For each object detected in each slit in each detector, there is
 on Table written to this FITS file.
@@ -14,7 +17,7 @@ on Table written to this FITS file.
 Naming
 ======
 
-The objects are named by:
+Each object is named by its:
  - spatial position (pixel number) on the reduced image [SPAT]
  - the slit number, zero-indexed [SLIT]
  - the detector number [DET]
@@ -23,8 +26,8 @@ For example::
 
     SPAT0176-SLIT0000-DET01
 
-Extractions
-===========
+Extraction
+==========
 
 Because there are several modes of extraction in PypeIt, there may
 be multiple outputs of the spectral arrays.  These are then prefixed

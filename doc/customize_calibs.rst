@@ -43,10 +43,10 @@ Bias Image
 ----------
 
 If the user provides one or more bias frames, the code
-can use these to construct a :doc:`bias_image` and use
+can use these to construct a :doc:`master_bias` and use
 this subtract the bias level.  Again, this can be done
 in tandem with overscan subtraction in which case the
-:doc:`bias_image` will also be overscan subtracted.
+:doc:`master_bias` will also be overscan subtracted.
 
 See the `bias` keyword in :ref:`pypeit_par:ProcessImagesPar Keywords`
 for all options.

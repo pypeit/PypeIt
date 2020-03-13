@@ -9,13 +9,6 @@ This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
 And you might want to begin with See :doc:`installing`.
 
-.. comment::
-  We now also provide a set of Slides that provide a more
-  visual step-by-step.  Find them here at
-  the `PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
-  These should be considered to contain
-  the most up-to-date information.
-
 The following outlines the standard steps for running
 PypeIt on a batch of data.  There are alternate ways to
 run these steps, but non-experts should adhere to the
@@ -116,7 +109,7 @@ more detail.
 As the code runs, when a new calibration is generated the
 default is to write it to disk as a :doc:`masters` file.
 And for some of these, additional files are written to the
-:ref:`cookbook-qa` folder for inspection.
+:doc:`qa` folder for inspection.
 
 We encourage you to inspect these calibration outputs
 as they come.

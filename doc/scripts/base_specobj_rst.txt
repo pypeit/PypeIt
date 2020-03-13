@@ -26,8 +26,8 @@ For example::
 
     SPAT0176-SLIT0000-DET01
 
-Extractions
-===========
+Extraction
+==========
 
 Because there are several modes of extraction in PypeIt, there may
 be multiple outputs of the spectral arrays.  These are then prefixed

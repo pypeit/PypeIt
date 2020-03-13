@@ -29,8 +29,8 @@ Taking Calibrations for LRISb
 =============================
 
 
-Default Settings
-++++++++++++++++
+LRISb Default Settings
+++++++++++++++++++++++
 
 Here are the deviations from the default settings
 for LRISb::
@@ -71,8 +71,8 @@ keck_lris_red
 Taking Calibrations for LRISr
 =============================
 
-Default Settings
-++++++++++++++++
+LRISr Default Settings
+++++++++++++++++++++++
 
 Here are the deviations from the default settings
 for LRISr::
