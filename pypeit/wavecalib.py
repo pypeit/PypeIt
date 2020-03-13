@@ -20,27 +20,27 @@ from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
 from pypeit import datamodel
 
-class WaveCalib(datamodel.DataContainer):
-    # Peg the version of this class to that of PypeItImage
-    version = '1.0.0'
+#class WaveCalib(datamodel.DataContainer):
+#    # Peg the version of this class to that of PypeItImage
+#    version = '1.0.0'
+#
+#    # I/O
+#    output_to_disk = None
+#    hdu_prefix = None
+#
+#    # Master fun
+#    frametype = 'wv_calib'
+#    master_type = 'WaveCalib'
+#
+#    # Data model
+#    datamodel_v100 = {
+#        'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
+#        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
+#    }
+#
+#    datamodel = datamodel_v100.copy()
 
-    # I/O
-    output_to_disk = None
-    hdu_prefix = None
-
-    # Master fun
-    frametype = 'wv_calib'
-    master_type = 'WaveCalib'
-
-    # Data model
-    datamodel_v100 = {
-        'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
-        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
-    }
-
-    datamodel = datamodel_v100.copy()
-
-class BuildWaveCalib(object):
+class WaveCalib(object):
     """
     Class to guide wavelength calibration
 
@@ -87,13 +87,12 @@ class BuildWaveCalib(object):
     master_type = 'WaveCalib'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
-                 master_key=None, master_dir=None, reuse_masters=False, qa_path=None,
-                 msbpm=None):
+                 qa_path=None, msbpm=None):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format='json',
-                                         reuse_masters=reuse_masters)
+        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        #                                 master_key=master_key, file_format='json',
+        #                                 reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.msarc = msarc
