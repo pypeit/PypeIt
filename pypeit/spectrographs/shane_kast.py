@@ -165,30 +165,34 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         super(ShaneKastBlueSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_blue'
         self.camera = 'KASTb'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.43,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 2,
-                            gain            = [1.2, 1.2],
-                            ronoise         = [3.7, 3.7],
-                            datasec         = ['[:, 1:1024]', '[:, 1025:2048]'],    # These are rows, columns on the raw frame, 1-indexed
-                            oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
-                            suffix          = '_blue'
-                            )]
-        self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
+        self.ndet = 1
+
+    def get_detector_par(self, hdu, det):
+        detector_par = [
+            # Detector 1
+            pypeitpar.DetectorPar(
+                dataext         = 0,
+                specaxis        = 1,
+                specflip        = False,
+                xgap            = 0.,
+                ygap            = 0.,
+                ysize           = 1.,
+                platescale      = 0.43,
+                darkcurr        = 0.0,
+                saturation      = 65535.,
+                nonlinear       = 0.76,
+                numamplifiers   = 2,
+                gain            = [1.2, 1.2],
+                ronoise         = [3.7, 3.7],
+                datasec         = ['[:, 1:1024]', '[:, 1025:2048]'],    # These are rows, columns on the raw frame, 1-indexed
+                oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
+                suffix          = '_blue'
+            )]
+        self.numhead = 1
+        return detector_par[det-1]
 
     def default_pypeit_par(self):
         """
@@ -206,7 +210,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         # Set wave tilts order
         par['calibrations']['tilts']['spat_order'] = 3

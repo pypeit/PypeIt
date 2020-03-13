@@ -47,6 +47,8 @@ class PypeItImage(datamodel.DataContainer):
             Appended to the HDU name, if provided.
             Mainly used to enable output of multiple PypeItImage objects
             in more complex DataContainers
+        head0 (astropy.io.fits.Header):
+        detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
 
     """
     # Set the version of this class
@@ -104,7 +106,8 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
-                 binning=None, crmask=None, fullmask=None, prefix=None):
+                 binning=None, crmask=None, fullmask=None, prefix=None,
+                 detector_par=None):
 
         self.prefix = prefix
 

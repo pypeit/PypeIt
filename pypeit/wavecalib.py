@@ -81,6 +81,8 @@ class WaveCalib(object):
             Good pixel mask
             Eventually, we might attach this to self.msarc although that would then
             require that we write it to disk with self.msarc.image
+        nonlinear_counts (float):
+            Specifies saturation level for the arc lines
     """
     # Frametype is a class attribute
     frametype = 'wv_calib'
@@ -114,7 +116,8 @@ class WaveCalib(object):
 
         # Get the non-linear count level
         self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.det)
+            else self.spectrograph.nonlinear_counts(self.msarc.detector_par)
+            #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
@@ -250,14 +253,15 @@ class WaveCalib(object):
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
-                                           slit_spat_pos=self.spat_coo)
+                                           slit_spat_pos=self.spat_coo,
+                                           nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
             final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det,
-                                             self.binspectral,
+                                             self.binspectral, nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))

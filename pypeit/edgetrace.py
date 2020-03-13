@@ -765,11 +765,17 @@ class EdgeTraceSet(object):
         # was automatically identified. One problem with adding
         # slits first is that we may have to sync the slits again.
         if self.par['rm_slits'] is not None:
-            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
+            rm_user_slits = trace.parse_user_slits(self.par['rm_slits'],
+                                                   self.det, rm=True)
+            if rm_user_slits is not None:
+                self.rm_user_traces(rm_user_slits)
 
-        # Add user traces
+            # Add user traces
         if self.par['add_slits'] is not None:
-            self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
+            add_user_slits = trace.parse_user_slits(self.par['add_slits'],
+                                                    self.det)
+            if add_user_slits is not None:
+                self.add_user_traces(add_user_slits)
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.

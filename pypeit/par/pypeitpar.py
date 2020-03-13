@@ -1626,7 +1626,7 @@ class WavelengthSolutionPar(ParSet):
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 nonlinear_counts=None, sigdetect=None, fwhm=None, reid_arxiv=None,
+                 sigdetect=None, fwhm=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
@@ -1711,10 +1711,10 @@ class WavelengthSolutionPar(ParSet):
         # These are the parameters used for arc line detection
         # TODO: Why is this not always defined by the detectors of the
         # spectrograph?
-        defaults['nonlinear_counts'] = 1e10
-        dtypes['nonlinear_counts'] = float
-        descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
-                                    'be accurately centroided'
+        #defaults['nonlinear_counts'] = None
+        #dtypes['nonlinear_counts'] = float
+        #descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
+        #                            'be accurately centroided'
 
         defaults['sigdetect'] = 5.
         dtypes['sigdetect'] =  [int, float, list, numpy.ndarray]
@@ -1860,7 +1860,7 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'nonlinear_counts', 'sigdetect',
+                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
                    'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
@@ -3523,7 +3523,7 @@ class DetectorPar(ParSet):
     def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip=None, xgap=None,
                  ygap=None, ysize=None, platescale=None, darkcurr=None, saturation=None,
                  mincounts=None, nonlinear=None, numamplifiers=None, gain=None, ronoise=None,
-                 datasec=None, oscansec=None, suffix=None):
+                 datasec=None, oscansec=None, suffix=None, det=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3641,6 +3641,10 @@ class DetectorPar(ParSet):
         dtypes['suffix'] = str
         descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
 
+        defaults['det'] = 1
+        dtypes['det'] = int
+        descr['det'] = 'PypeIt designation for detector number.  1 based indexing'
+
         # Instantiate the parameter set
         super(DetectorPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
@@ -3655,7 +3659,8 @@ class DetectorPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
                    'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
-                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix']
+                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix',
+                   'det']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

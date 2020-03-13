@@ -56,6 +56,7 @@ class ProcessRawImage(object):
         self.image = rawImage.raw_image.copy()
         self.orig_shape = rawImage.raw_image.shape
         self.exptime = rawImage.exptime
+        self.detector_par = rawImage.detector_par
 
         # Binning of the processed image
         self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
@@ -108,7 +109,7 @@ class ProcessRawImage(object):
             msgs.warn("Gain was already applied. Returning")
             return self.image.copy()
 
-        gain = np.atleast_1d(self.spectrograph.detector[self.det - 1]['gain']).tolist()
+        gain = np.atleast_1d(self.detector_par['gain']).tolist()
         # Apply
         self.image *= procimg.gain_frame(self.datasec_img, gain) #, trim=self.steps['trim'])
         self.steps[step] = True
@@ -127,12 +128,12 @@ class ProcessRawImage(object):
         """
         msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
         # Convenience
-        detector = self.spectrograph.detector[self.det-1]
+        #detector = self.spectrograph.detector[self.det-1]
         # Generate
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
-                                             detector['gain'], detector['ronoise'],
-                                             numamplifiers=detector['numamplifiers'],
-                                             darkcurr=detector['darkcurr'],
+                                             self.detector_par['gain'], self.detector_par['ronoise'],
+                                             numamplifiers=self.detector_par['numamplifiers'],
+                                             darkcurr=self.detector_par['darkcurr'],
                                              exptime=self.exptime,
                                              rnoise=self.rn2img)
         # Ivar
@@ -155,12 +156,12 @@ class ProcessRawImage(object):
         """
         msgs.info("Generating read noise image from detector properties and amplifier layout)")
         # Convenience
-        detector = self.spectrograph.detector[self.det-1]
+        #detector = self.spectrograph.detector[self.det-1]
         # Build it
         self.rn2img = procimg.rn_frame(self.datasec_img,
-                                       detector['gain'],
-                                       detector['ronoise'],
-                                       numamplifiers=detector['numamplifiers'])
+                                       self.detector_par['gain'],
+                                       self.detector_par['ronoise'],
+                                       numamplifiers=self.detector_par['numamplifiers'])
         # Return
         return self.rn2img.copy()
 
@@ -234,8 +235,8 @@ class ProcessRawImage(object):
             steps_copy.remove('extras')
 
         # Generate a PypeItImage
-        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning,
-                                                       ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
+        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning, ivar=self.ivar,
+                                              rn2img=self.rn2img, bpm=bpm, detector_par=self.detector_par)
         # Mask(s)
         if 'crmask' in process_steps:
             if 'extras' in process_steps:
@@ -245,11 +246,11 @@ class ProcessRawImage(object):
             #
             pypeitImage.mask.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image, var)
             steps_copy.remove('crmask')
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector_par,
                                                               apply_gain='apply_gain' in process_steps)
         pypeitImage.mask.build_mask(pypeitImage.image, pypeitImage.ivar,
                                saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
-                               mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
+                               mincounts=self.detector_par['mincounts'])
         # Error checking
         # TODO: We shouldn't be using assert in production-level code.
         # If we're satisfied that this is debugged now, we should
@@ -305,8 +306,8 @@ class ProcessRawImage(object):
             msgs.warn("Image was already oriented.  Returning current image")
             return self.image.copy()
         # Orient me
-        self.image = self.spectrograph.orient_image(self.image, self.det)
-        self.datasec_img = self.spectrograph.orient_image(self.datasec_img, self.det)
+        self.image = self.spectrograph.orient_image(self.detector_par, self.image)#, self.det)
+        self.datasec_img = self.spectrograph.orient_image(self.detector_par, self.datasec_img)#, self.det)
         #
         self.steps[step] = True
 

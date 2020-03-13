@@ -172,11 +172,11 @@ class CombineImage(object):
                                                     rn2img=var_list_out[1],
                                                     crmask=np.invert(outmask),
                                                     binning=pypeitImage.binning)
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
+        nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector_par,
                                                               apply_gain='apply_gain' in process_steps)
         final_pypeitImage.mask.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,
                                saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
-                               mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
+                               mincounts=pypeitImage.detector_par['mincounts'])
         # Return
         return final_pypeitImage
 
