@@ -146,10 +146,10 @@ It depends on your spectrograph and the calibration files input.
 
 Eventually (be patient), the code will hopefully start
 generating 2D and 1D spectra outputs.  One per standard
-and science frame.
+and science frame, located in the *Science/* folder.
 
+  - Examine the 2D spectral images :doc:`out_spec2D`
   - Examine the extracted 1D spectra with :ref:`pypeit-1dspec`
-  - Examine the extracted 2D spectra with :ref:`pypeit-2dspec`
 
 6. BLEEDING EDGE
 ================

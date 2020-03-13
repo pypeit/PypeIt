@@ -50,32 +50,6 @@ Wrapper around the linetools XSpecGUI.  Grabs a single
       --extract EXTRACT  Extraction method. Default is boxcar. ['box', 'opt']
 
 
-.. _pypeit-2dspec:
-
-pypeit_show_2dspec
-==================
-
-This script displays the sky-subtracted 2D image for a single
-detector in a Ginga RC viewer.  It also overlays the slits and
-any objects extracted.  It should be called from the reduction
-directory, i.e. above the Science folder where the spec2d image
-is located.  Here is the usage::
-
-    unix> pypeit_show_2dspec -h
-    usage: pypeit_show_2dspec [-h] [--list] [--det DET] file
-
-    Display spec2d image in a Ginga viewer
-
-    positional arguments:
-      file        PypeIt spec2d file
-
-    optional arguments:
-      -h, --help  show this help message and exit
-      --list      List the extensions only? (default: False)
-      --det DET   Detector (default: 1)
-
-The script can be called multiple times to load multiple detectors
-into one Ginga viewer.
 
 pypeit_view_fits
 ================
