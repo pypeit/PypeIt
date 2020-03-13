@@ -638,7 +638,7 @@ class Reduce(object):
         if sobjs is not None:
             for spec in sobjs:
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
-                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
+                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
         if slits:
             if self.slits is not None:
