@@ -414,7 +414,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 are closed.
 
         """
-        
+        # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
         # TODO: break up this function!  Can it be partitioned into a
         # series of "core" methods?
 
