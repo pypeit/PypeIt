@@ -112,7 +112,7 @@ class Spectrograph(object):
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def nonlinear_counts(self, det, detector_par, datasec_img=None, apply_gain=True):
+    def nonlinear_counts(self, detector_par, datasec_img=None, apply_gain=True):
         """
         Return the counts at which the detector response becomes
         non-linear.
@@ -120,8 +120,7 @@ class Spectrograph(object):
         Default is to apply the gain, i.e. return this is counts not ADU
 
         Args:
-            det (:obj:`int`):
-                1-indexed detector number.
+            detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
             datasec_img (np.ndarray, optional):
                 If provided, nonlinear_counts is returned as an image.
                 DO NOT USE THIS OPTION; IT IS NOT YET IMPLEMENTED
@@ -137,11 +136,11 @@ class Spectrograph(object):
             same shape is returned
         """
         # Deal with gain
-        gain = np.atleast_1d(detector_par[det-1]['gain']).tolist()
+        gain = np.atleast_1d(detector_par['gain']).tolist()
         if not apply_gain:  # Set to 1 if gain is not to be applied
             gain = [1. for item in gain]
         # Calculation without gain
-        nonlinear_counts = detector_par[det-1]['saturation']*detector_par[det-1]['nonlinear']
+        nonlinear_counts = detector_par['saturation']*detector_par['nonlinear']
         # Finish
         if datasec_img is not None:  # 2D image
             nonlinear_counts = nonlinear_counts * procimg.gain_frame(datasec_img, gain)
@@ -185,7 +184,7 @@ class Spectrograph(object):
     #        if not isinstance(d, pypeitpar.DetectorPar):
     #            raise TypeError('Detector parameters must be specified using DetectorPar.')
 
-    def raw_is_transposed(self, detector_par, det=1):
+    def raw_is_transposed(self, detector_par):
         """
         Indicates that raw files read by `astropy.io.fits`_ yields an
         image with the spatial dimension along rows, meaning that the
@@ -193,13 +192,12 @@ class Spectrograph(object):
         the spectral dimension along rows.
 
         Args:
-            det (:obj:`int`, optional):
-                1-indexed detector number.
+            detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
 
         Returns:
             :obj:`bool`: Flag that transpose is required.
         """
-        return detector_par[det-1]['specaxis'] == 1
+        return detector_par['specaxis'] == 1
 
     '''
     # THIS WILL PROBABLY NEED TO COME BACK
@@ -235,11 +233,12 @@ class Spectrograph(object):
         header_cards += ['filename']  # For fluxing
         return header_cards
 
-    def orient_image(self, detector_par, rawimage, det):
+    def orient_image(self, detector_par, rawimage):
         """
-        Orient the image into the PypeIt frame
+        Orient the image into the PypeIt spec,spat configuration
 
         Args:
+            detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
             rawimage (np.ndarray):
                 Image in the raw frame
             det (int):
@@ -251,13 +250,13 @@ class Spectrograph(object):
         """
         image = rawimage.copy()
         # Transpose?
-        if self.raw_is_transposed(det):
+        if self.raw_is_transposed(detector_par):
             image = image.T
         # Flip spectral axis?
-        if detector_par[det-1]['specflip'] is True:
+        if detector_par['specflip'] is True:
             image = np.flip(image, axis=0)
         # Flip spatial axis?
-        if detector_par[det-1]['spatflip'] is True:
+        if detector_par['spatflip'] is True:
             image = np.flip(image, axis=1)
         return image
 
@@ -289,10 +288,10 @@ class Spectrograph(object):
         """
         # Load the raw frame
         if filename is not None:
-            _, _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
+            detector_par, _, _, _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
             # Trim + reorient
             trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
-            orient = self.orient_image(trim, det)
+            orient = self.orient_image(detector_par, trim)#, det)
             #
             shape = orient.shape
         else: # This is risky if you don't really know what you are doing!
@@ -453,9 +452,11 @@ class Spectrograph(object):
 
         Returns:
             tuple:
+                detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`)
                 raw_img (np.ndarray) -- Raw image for this detector
                 hdu (astropy.io.fits.HDUList)
                 exptime (float)
+                binning (str)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
 

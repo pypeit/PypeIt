@@ -3477,7 +3477,7 @@ class DetectorPar(ParSet):
     def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip=None, xgap=None,
                  ygap=None, ysize=None, platescale=None, darkcurr=None, saturation=None,
                  mincounts=None, nonlinear=None, numamplifiers=None, gain=None, ronoise=None,
-                 datasec=None, oscansec=None, suffix=None):
+                 datasec=None, oscansec=None, suffix=None, det=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3595,6 +3595,10 @@ class DetectorPar(ParSet):
         dtypes['suffix'] = str
         descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
 
+        defaults['det'] = 1
+        dtypes['det'] = int
+        descr['det'] = 'PypeIt designation for detector number.  1 based indexing'
+
         # Instantiate the parameter set
         super(DetectorPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
@@ -3609,7 +3613,8 @@ class DetectorPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
                    'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
-                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix']
+                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix',
+                   'det']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

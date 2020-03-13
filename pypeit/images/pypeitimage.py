@@ -37,6 +37,7 @@ class PypeItImage(maskimage.ImageMask):
 
     Attributes:
         head0 (astropy.io.fits.Header):
+        detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
 
     """
     @classmethod
@@ -78,7 +79,7 @@ class PypeItImage(maskimage.ImageMask):
         return pypeitImage
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
-                 binning=None, crmask=None, mask=None):
+                 binning=None, crmask=None, mask=None, detector_par=None):
 
         maskimage.ImageMask.__init__(self, bpm)
 
@@ -89,6 +90,7 @@ class PypeItImage(maskimage.ImageMask):
         self.ivar = ivar
         self.rn2img = rn2img
         self.binning = binning
+        self.detector_par = detector_par
         self.head0 = None
 
         # Mask attributes
