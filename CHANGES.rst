@@ -6,6 +6,7 @@
 - Add bitmask tests and print bitmask names that are invalid when
   exception raised.
 - Parameter set keywords now sorted when exported to an rst table.
+- docs docs and more docs
 
 0.13.1 (07 Mar 2020)
 --------------------
