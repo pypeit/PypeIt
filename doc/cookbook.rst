@@ -140,22 +140,18 @@ look like, and how to troubleshoot:
   - Check slit edges with the :doc:`master_edges` file
   - Check the 1D wavelength solution using the :ref:`cookbook-qa` below.
   - Check the 2D wavelength solution using the :ref:`cookbook-qa` below.
+  - Check the :doc:`master_flat` images
 
 Note that only a subset of these may be made.
 It depends on your spectrograph and the calibration files input.
 
-.. _cookbook-qa:
-
 QA
 --
 
-When an exposure is fully reduced, a QA file (PNG) is generated in the QA folder.
+As calibrations are generated, for several a series of
+PNG files are generated in the QA/PNG/ folder.
 
-Here are the key ones to inspect:
-
-  - Wavelength solution QA
-  - Wavelength tilts QA
-
+This :doc:`qa` describes the key outputs.
 
 5. Examine Spectra
 ==================
