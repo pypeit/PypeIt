@@ -151,6 +151,16 @@ class Calibrations(object):
         # Internals
         self._reset_internals()
 
+    def _prep_calibrations(self, ctype):
+        # Grab rows and files
+        rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
+        image_files = self.fitstbl.frame_paths(rows)
+        # Update the internal dict
+        self.master_key_dict[ctype] \
+            = self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
+        # Return
+        return image_files
+
     def _reset_internals(self):
         """
         Reset all of the key internals to None or an empty object
@@ -284,11 +294,12 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
-        self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        self.master_key_dict['arc'] \
-                = self.fitstbl.master_key(arc_rows[0] if len(arc_rows) > 0 else self.frame,
-                                          det=self.det)
+        arc_files = self._prep_calibrations('arc')
+        #arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
+        #self.arc_files = self.fitstbl.frame_paths(arc_rows)
+        #self.master_key_dict['arc'] \
+        #        = self.fitstbl.master_key(arc_rows[0] if len(arc_rows) > 0 else self.frame,
+        #                                  det=self.det)
 
         # Previously calculated?  If so, reuse
         if self._cached('arc', self.master_key_dict['arc']):
@@ -304,7 +315,7 @@ class Calibrations(object):
 
         # Build it
         msgs.info("Preparing a master {0:s} frame".format(arcimage.ArcImage.frametype))
-        self.buildArcImage = arcimage.BuildArcImage(self.spectrograph, files=self.arc_files,
+        self.buildArcImage = arcimage.BuildArcImage(self.spectrograph, files=arc_files,
                                           det=self.det, msbias=self.msbias,
                                           par=self.par['arcframe'])
         self.msarc = arcimage.ArcImage.from_pypeitimage(
@@ -315,7 +326,7 @@ class Calibrations(object):
             self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
                                       self.spectrograph.spectrograph,  # Header
                                       steps=self.buildArcImage.process_steps,
-                                      raw_files=self.arc_files)
+                                      raw_files=arc_files)
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
         # Return
@@ -339,13 +350,12 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        tilt_rows = self.fitstbl.find_frames('tilt', calib_ID=self.calib_ID, index=True)
-        if len(tilt_rows) == 0:
-            msgs.error('Must identify tilt frames to construct tilt image.')
-        self.tilt_files = self.fitstbl.frame_paths(tilt_rows)
-        self.master_key_dict['tilt'] \
-                = self.fitstbl.master_key(tilt_rows[0] if len(tilt_rows) > 0 else self.frame,
-                                          det=self.det)
+        tilt_files = self._prep_calibrations('tilt')
+        #tilt_rows = self.fitstbl.find_frames('tilt', calib_ID=self.calib_ID, index=True)
+        #self.tilt_files = self.fitstbl.frame_paths(tilt_rows)
+        #self.master_key_dict['tilt'] \
+        #        = self.fitstbl.master_key(tilt_rows[0] if len(tilt_rows) > 0 else self.frame,
+        #                                  det=self.det)
 
         if self._cached('tiltimg', self.master_key_dict['tilt']):
             # Previously calculated
@@ -362,7 +372,7 @@ class Calibrations(object):
 
         # Build
         msgs.info("Preparing a master {0:s} frame".format(tiltimage.TiltImage.frametype))
-        self.buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, files=self.tilt_files,
+        self.buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, files=tilt_files,
                                           det=self.det, msbias=self.msbias,
                                           par=self.par['tiltframe'])
         self.mstilt = tiltimage.TiltImage.from_pypeitimage(
@@ -373,7 +383,7 @@ class Calibrations(object):
             self.mstilt.to_master_file(self.master_dir, self.master_key_dict['tilt'],  # Naming
                                       self.spectrograph.spectrograph,  # Header
                                       steps=self.buildtiltImage.process_steps,
-                                       raw_files=self.tilt_files)
+                                       raw_files=tilt_files)
 
         # Cache
         self._update_cache('tilt', 'tiltimg', self.mstilt)
@@ -399,12 +409,13 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
-        self.bias_files = self.fitstbl.frame_paths(bias_rows)
+        bias_files = self._prep_calibrations('bias')
+        #bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
+        #self.bias_files = self.fitstbl.frame_paths(bias_rows)
 
-        self.master_key_dict['bias'] \
-                = self.fitstbl.master_key(bias_rows[0] if len(bias_rows) > 0 else self.frame,
-                                          det=self.det)
+        #self.master_key_dict['bias'] \
+        #        = self.fitstbl.master_key(bias_rows[0] if len(bias_rows) > 0 else self.frame,
+        #                                  det=self.det)
 
         # Grab from internal dict (or hard-drive)?
         if self._cached('bias', self.master_key_dict['bias']):
@@ -413,19 +424,26 @@ class Calibrations(object):
             return self.msbias
 
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, files=self.bias_files,
-                                             det=self.det, par=self.par['biasframe'],
-                                             master_key=self.master_key_dict['bias'],
-                                             master_dir=self.master_dir,
-                                             reuse_masters=self.reuse_masters)
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, files=bias_files,
+                                             det=self.det, par=self.par['biasframe'])
+                                             #master_key=self.master_key_dict['bias'],
+                                             #master_dir=self.master_dir,
+                                             #reuse_masters=self.reuse_masters)
 
+        # Construct the name, in case we need it
+        masterframe_name = masterframe.construct_file_name(biasframe.BiasImage,
+                                                           self.master_key_dict['bias'],
+                                                           master_dir=self.master_dir)
         # Try to load the master bias
-        self.msbias = self.biasFrame.load()
+        self.msbias = self.biasFrame.load(masterframe_name, reuse_masters=self.reuse_masters)
         if self.msbias is None:
             # Build it and save it
             self.msbias = self.biasFrame.build_image()
             if self.save_masters:
-                self.biasFrame.save()
+                self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
+                                          self.spectrograph.spectrograph,  # Header
+                                          steps=self.biasFrame.process_steps,
+                                          raw_files=bias_files)
 
         # Save & return
         self._update_cache('bias', 'bias', self.msbias)
@@ -633,9 +651,8 @@ class Calibrations(object):
         self._update_cache('flat', ('pixelflat','illumflat'), (self.mspixelflat,self.msillumflat))
         return self.mspixelflat, self.msillumflat
 
-    # TODO: if write_qa need to provide qa_path!
     # TODO: why do we allow redo here?
-    def get_slits(self, redo=False, write_qa=True):
+    def get_slits(self, redo=False):
         """
         Load or generate the definition of the slit boundaries.
 
@@ -644,8 +661,6 @@ class Calibrations(object):
 
         Args:
             redo (bool): Redo
-            write_qa (bool, optional):
-              Generate the QA?  Turn off for testing..
 
         Returns:
             Returns the :class:`SlitTraceSet` object (also kept
@@ -663,59 +678,71 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        trace_rows = self.fitstbl.find_frames('trace', calib_ID=self.calib_ID, index=True)
-        self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
-        self.master_key_dict['trace'] \
-                = self.fitstbl.master_key(trace_rows[0] if len(trace_rows) > 0 else self.frame,
-                                          det=self.det)
+        trace_image_files = self._prep_calibrations('trace')
+        #trace_rows = self.fitstbl.find_frames('trace', calib_ID=self.calib_ID, index=True)
+        #self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
+        #self.master_key_dict['trace'] \
+        #        = self.fitstbl.master_key(trace_rows[0] if len(trace_rows) > 0 else self.frame,
+        #                                  det=self.det)
 
-        # Return already generated data
+        # Previously calculated?  If so, reuse
         if self._cached('trace', self.master_key_dict['trace']) and not redo:
             self.slits = self.calib_dict[self.master_key_dict['trace']]['trace']
             return self.slits
 
-        # Instantiate. This will load the master-frame file if it
-        # exists, and returns None otherwise.
-        self.slits = slittrace.SlitTraceSet.from_master(self.master_key_dict['trace'],
-                                                        self.master_dir, reuse=self.reuse_masters)
-        if self.slits is None:
-            # Slits don't exist or we're not resusing them
+        # Reuse master frame?
+        slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
+                                                           self.master_key_dict['trace'],
+                                                           master_dir=self.master_dir)
+        if os.path.isfile(slit_masterframe_name) and self.reuse_masters:
+            self.slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+            return self.slits
+        #self.slits = slittrace.SlitTraceSet.from_master(self.master_key_dict['trace'],
+        #                                                self.master_dir, reuse=self.reuse_masters)
 
-            # TODO: Add a from_master function to EdgeTraceSet
+        # Slits don't exist or we're not resusing them
+        # Reuse master frame?
+        edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
+                                                           self.master_key_dict['trace'],
+                                                           master_dir=self.master_dir)
+        if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
+            self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
+        else:
             self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
-                                                master_key=self.master_key_dict['trace'],
-                                                master_dir=self.master_dir,
-                                                qa_path=self.qa_path if write_qa else None)
+                                                files=trace_image_files)
+            # Build the trace image
+            self.buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, files=trace_image_files,
+                                                    det=self.det,
+                                                    par=self.par['traceframe'],
+                                                    bias=self.msbias)
+            self.traceImage = traceimage.TraceImage.from_pypeitimage(
+                self.buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm))
 
-            if self.reuse_masters and self.edges.exists:
-                self.edges.load()
-            else:
-                # Build the trace image
-                self.traceImage = traceimage.TraceImage(self.spectrograph,
-                                                        files=self.trace_image_files, det=self.det,
-                                                        par=self.par['traceframe'],
-                                                        bias=self.msbias)
-                self.traceImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            try:
+                self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
+                                      save=False) # self.save_masters) #, debug=True, show_stages=True)
+            except:
+                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                                master_key=self.master_key_dict['trace'])
+                msgs.error('Crashed out of finding the slits. Have saved the work done to '
+                           'disk but it needs fixing.')
+                return None
+            else:  # This is not elegant..
+                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                                master_key=self.master_key_dict['trace'])
 
-                try:
-                    self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                          save=self.save_masters) #, debug=True, show_stages=True)
-                except:
-                    self.edges.save()
-                    msgs.error('Crashed out of finding the slits. Have saved the work done to '
-                               'disk but it needs fixing.')
-                    return None
+            # Show the result if requested
+            if self.show:
+                self.edges.show(thin=10, in_ginga=True)
 
-                # Show the result if requested
-                if self.show:
-                    self.edges.show(thin=10, in_ginga=True)
-
-            # Get the slits from the result of the edge tracing, delete
-            # the edges object, and save the slits, if requested
-            self.slits = self.edges.get_slits()
-            self.edges = None
-            if self.save_masters:
-                self.slits.to_master()
+        # Get the slits from the result of the edge tracing, delete
+        # the edges object, and save the slits, if requested
+        self.slits = self.edges.get_slits()
+        self.edges = None
+        if self.save_masters:
+            self.slits.to_master_file(self.master_dir, self.master_key_dict['trace'],  # Naming
+                                      self.spectrograph.spectrograph,  # Header
+                                      raw_files=trace_image_files)
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)

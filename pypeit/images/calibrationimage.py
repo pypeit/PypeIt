@@ -155,6 +155,9 @@ class BuildCalibrationImage(object):
         combineImage = combineimage.CombineImage(self.spectrograph, self.det, self.proc_par, self.file_list)
         pypeitImage = combineImage.run(self.process_steps, bias, bpm=bpm, ignore_saturation=ignore_saturation)
 
+        # Grab the binning
+        pypeitImage.binning = self.spectrograph.get_meta_value(self.file_list[0], 'binning')
+
         # Return
         return pypeitImage
 

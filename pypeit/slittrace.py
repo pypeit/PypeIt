@@ -24,7 +24,7 @@ from pypeit import datamodel
 # to limit MasterFrame to essentially just be the class that maintains
 # our master-frame naming convention. Or make MasterFrame inherit from
 # DataContainer.
-class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
+class SlitTraceSet(datamodel.DataContainer):
     """
     Defines a generic class for holding and manipulating image traces
     organized into left-right slit pairs.
@@ -48,12 +48,15 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
             :class:`pypeit.masterframe.MasterFrame` components of
             :class:`SlitTraceSet` are used.
     """
+    frametype = 'slits'
     master_type = 'Slits'
     """Name for type of master frame."""
-    master_format = 'fits.gz'
+    file_format = 'fits.gz'
     """File format for the master frame file."""
     # Set the version of this class
     version = '1.0.0'
+    hdu_prefix = None
+    output_to_disk = None
     """SlitTraceSet data model version."""
     # Define the data model
     datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
@@ -104,9 +107,9 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
                  master_dir=None, reuse=False):
 
         # Instantiate the MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format=self.master_format,
-                                         reuse_masters=reuse)
+        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        #                                 master_key=master_key, file_format=self.master_format,
+        #                                 reuse_masters=reuse)
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -118,11 +121,11 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
                                                       mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
                                                       binspat=binspat, pad=pad))
 
-    # TODO: Allow defaults for master_key and master_dir
-    # TODO: Do we need reuse as an option, or should the calling
-    # function just decide if the masters should be reused?
-    @classmethod
-    def from_master(cls, master_key, master_dir, reuse=True):
+    ## TODO: Allow defaults for master_key and master_dir
+    ## TODO: Do we need reuse as an option, or should the calling
+    ## function just decide if the masters should be reused?
+    #@classmethod
+    #def from_master(cls, master_key, master_dir, reuse=True):
         """
         Attempt to load the :class:`SlitTraceSet` from an existing
         master-frame file.
@@ -146,17 +149,17 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
             object or ``None``; ``None`` is returned if ``reuse`` is
             False or the master-frame was not found on disk.
         """
-        if not reuse:
-            return None
-        # Use MasterFrame to get the name of the file
-        # TODO: This feels like over-kill
-        ifile = masterframe.MasterFrame(cls.master_type, master_dir=master_dir,
-                                        master_key=master_key, file_format=cls.master_format,
-                                        reuse_masters=reuse).chk_load_master(None)
-        if ifile is None:
-            return None
-        msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
-        return cls.from_file(ifile)
+    #    if not reuse:
+    #        return None
+    #    # Use MasterFrame to get the name of the file
+    #    # TODO: This feels like over-kill
+    #    ifile = masterframe.MasterFrame(cls.master_type, master_dir=master_dir,
+    #                                    master_key=master_key, file_format=cls.master_format,
+    #                                    reuse_masters=reuse).chk_load_master(None)
+    #    if ifile is None:
+    #        return None
+    #    msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
+    #    return cls.from_file(ifile)
 
     # NOTE: Don't need to overload the DataContainer.from_file method
     # because it simply calls this from_hdu method.
@@ -187,7 +190,8 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
                         hdr['MSTRTYP'], self.master_type))
         # TODO: Throw warning if reuse masters from header is False?
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=hdr['MSTRDIR'],
-                                         master_key=hdr['MSTRKEY'], file_format=self.master_format,
+                                         master_key=hdr['MSTRKEY'],
+                                         file_format=self.file_format, #self.master_format,
                                          reuse_masters=hdr['MSTRREU'])
         # Instantiate the DataContainer
         datamodel.DataContainer.__init__(self, cls._parse(hdu))
@@ -196,7 +200,8 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
     # TODO: I think the default overwriting should be False everywhere.
     # Until that happens, it's changed to True here to match other
     # MasterFrames.
-    def to_master(self, overwrite=True):
+    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
+                       raw_files=None, **kwargs):
         """
         Write the object to the master-frame file.
 
@@ -208,42 +213,53 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Flag to overwrite any existing file.
         """
-        self.to_file(self.master_file_path, overwrite=overwrite, checksum=True)
+        # Output file
+        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        # Header
+        hdr = masterframe.build_master_header(self, master_key, master_dir,
+                                              spectrograph, steps=steps,
+                                              raw_files=raw_files)
+        self.to_file(ofile, primary_hdr=hdr, hdu_prefix=self.hdu_prefix,
+                                              limit_hdus=self.output_to_disk,
+                                              overwrite=True,
+                                              **kwargs)
+        #self.to_file(self.master_file_path, overwrite=overwrite, checksum=True)
 
     # NOTE: No need to overwrite DataContainer.to_file, because it will call this function.
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None):
-        """
-        Write the :class:`SlitTraceSet` data to an
-        `astropy.io.fits.BinTableHDU`.
-
-        This is a basic wrapper for
-        :func:`pypeit.datamodel.DataContainer.to_hdu` that includes
-        the nominal :class:`pypeit.masterframe.MasterFrame` header
-        data.
-
-        Args:
-            hdr (`astropy.io.fits.Header`, optional):
-                Baseline header to add to all returned HDUs. The
-                relevant :class:`pypeit.masterframe.MasterFrame` and
-                :class:`SlitTraceSet` keywords are always
-                added/edited in this baseline header.
-            add_primary (:obj:`bool`, optional):
-                If False, the returned object is a simple :obj:`list`
-                object with a single element, the
-                `astropy.io.fits.BinTableHDU`_ with the
-                :class:`SlitTraceSet` data. If True, the method
-                constructs an `astropy.io.fits.HDUList` with a
-                primary HDU. The nominal
-                :func:`pypeit.masterframe.MasterFrame` header data is
-                included in all returned HDUs.
-
-        Returns:
-            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
-            where the type depends on the value of ``add_primary``.
-        """
-        # TODO: Use super here?
-        return datamodel.DataContainer.to_hdu(self, primary_hdr=self.build_master_header(hdr=hdr),
-                                              add_primary=add_primary)
+#    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
+#               limit_hdus=None):
+#        """
+#        Write the :class:`SlitTraceSet` data to an
+#        `astropy.io.fits.BinTableHDU`.
+#
+#        This is a basic wrapper for
+#        :func:`pypeit.datamodel.DataContainer.to_hdu` that includes
+#        the nominal :class:`pypeit.masterframe.MasterFrame` header
+#        data.
+#
+#        Args:
+#            hdr (`astropy.io.fits.Header`, optional):
+#                Baseline header to add to all returned HDUs. The
+#                relevant :class:`pypeit.masterframe.MasterFrame` and
+#                :class:`SlitTraceSet` keywords are always
+#                added/edited in this baseline header.
+#            add_primary (:obj:`bool`, optional):
+#                If False, the returned object is a simple :obj:`list`
+#                object with a single element, the
+#                `astropy.io.fits.BinTableHDU`_ with the
+#                :class:`SlitTraceSet` data. If True, the method
+#                constructs an `astropy.io.fits.HDUList` with a
+#                primary HDU. The nominal
+#                :func:`pypeit.masterframe.MasterFrame` header data is
+#                included in all returned HDUs.
+#
+#        Returns:
+#            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
+#            where the type depends on the value of ``add_primary``.
+#        """
+#        # TODO: Use super here?
+#        return datamodel.DataContainer.to_hdu(self, primary_hdr=self.build_master_header(hdr=hdr),
+#                                              add_primary=add_primary)
 
     def _validate(self):
         """

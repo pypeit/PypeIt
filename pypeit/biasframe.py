@@ -26,7 +26,7 @@ class BiasImage(calibrationimage.CalibrationImage):
     frametype = 'bias'
 
 
-class BiasFrame(calibrationimage.BuildCalibrationImage, masterframe.MasterFrame):
+class BiasFrame(calibrationimage.BuildCalibrationImage):
     """
     Class to generate/load the Bias image or instructions on how to deal
     with the bias.
@@ -65,32 +65,32 @@ class BiasFrame(calibrationimage.BuildCalibrationImage, masterframe.MasterFrame)
     master_version = '1.0.0'
     image_type = BiasImage
 
-    @classmethod
-    def from_master_file(cls, master_file, par=None):
-        """
-        Instantiate from a master file
-
-        Args:
-            master_file (str):
-            par (:class:`pypeit.par.pypeitpar.FrameGroupPar`, optional):
-
-        Returns:
-            biasframe.BiasFrame:
-                The PypeItImage is loaded into self.pypeitImage
-
-        """
-        # Spectrograph
-        spectrograph, extras = masterframe.items_from_master_file(master_file)
-        head0 = extras[0]
-        # Master info
-        master_dir = head0['MSTRDIR']
-        master_key = head0['MSTRKEY']
-        # Instantiate
-        slf = cls(spectrograph, par=par, master_dir=master_dir, master_key=master_key,
-                  reuse_masters=True)
-        slf.pypeitImage = slf.load(ifile=master_file)
-        # Return
-        return slf
+    #@classmethod
+    #def from_master_file(cls, master_file, par=None):
+    #    """
+    #    Instantiate from a master file
+#
+#        Args:
+#            master_file (str):
+#            par (:class:`pypeit.par.pypeitpar.FrameGroupPar`, optional):
+#
+#        Returns:
+#            biasframe.BiasFrame:
+#                The PypeItImage is loaded into self.pypeitImage
+#
+#        """
+#        # Spectrograph
+#        spectrograph, extras = masterframe.items_from_master_file(master_file)
+#        head0 = extras[0]
+#        # Master info
+#        master_dir = head0['MSTRDIR']
+#        master_key = head0['MSTRKEY']
+#        # Instantiate
+#        slf = cls(spectrograph, par=par, master_dir=master_dir, master_key=master_key,
+#                  reuse_masters=True)
+#        slf.pypeitImage = slf.load(ifile=master_file)
+#        # Return
+#        return slf
 
     # Keep order same as processimages (or else!)
     def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
@@ -141,43 +141,42 @@ class BiasFrame(calibrationimage.BuildCalibrationImage, masterframe.MasterFrame)
         # Return
         return biasImage
 
-    def save(self, outfile=None, overwrite=True):
-        """
-        Save the bias master data.
+    #def save(self, outfile=None, overwrite=True):
+    #    """
+    #    Save the bias master data.
+#
+#        Args:
+#            outfile (:obj:`str`, optional):
+#                Name for the output file.  Defaults to
+#                :attr:`file_path`.
+#            overwrite (:obj:`bool`, optional):
+#                Overwrite any existing file.
+#        """
+#        # Some checks
+#        if self.pypeitImage is None:
+#            msgs.warn('No MasterBias to save!')
+#            return
+#        # Proceed
+#        _outfile = self.master_file_path if outfile is None else outfile
+#        # Check if it exists
+#        if os.path.exists(_outfile) and not overwrite:
+#            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+#                      + 'Set overwrite=True to overwrite it.')
+#            return
+#        # Save
+#        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
+#        self.pypeitImage.to_file(_outfile, primary_hdr=hdr, hdu_prefix='BIAS_')#, iext='BIAS')
+#        msgs.info('Master frame written to {0}'.format(_outfile))
+#        #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
+#        #                            raw_files=self.file_list, steps=self.process_steps)
 
-        Args:
-            outfile (:obj:`str`, optional):
-                Name for the output file.  Defaults to
-                :attr:`file_path`.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file.
-        """
-        # Some checks
-        if self.pypeitImage is None:
-            msgs.warn('No MasterBias to save!')
-            return
-        # Proceed
-        _outfile = self.master_file_path if outfile is None else outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
-        # Save
-        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-        self.pypeitImage.to_file(_outfile, primary_hdr=hdr, hdu_prefix='BIAS_')#, iext='BIAS')
-        msgs.info('Master frame written to {0}'.format(_outfile))
-        #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
-        #                            raw_files=self.file_list, steps=self.process_steps)
-
-    def load(self, ifile=None):
+    def load(self, ifile, reuse_masters=False):
         """
         Load the bias frame according to how par['useframe'] is set.
         
         Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`file_path`.
+            ifile (:obj:`str`):
+                Name of the master frame file.
 
         Returns:
             Returns either the `numpy.ndarray`_ with the bias image
@@ -196,10 +195,9 @@ class BiasFrame(calibrationimage.BuildCalibrationImage, masterframe.MasterFrame)
         # 3) User wants bias subtractions
         if self.par['useframe'] in ['bias', 'dark']:
             # Check on whether to reuse and whether the file exists
-            master_file = self.chk_load_master(ifile)
-            if master_file is None:
-                return
-            else:  # Load
-                self.pypeitImage = pypeitimage.PypeItImage.from_file(master_file, hdu_prefix='BIAS_')
+            if os.path.isfile(ifile) and reuse_masters:
+                self.pypeitImage = BiasImage.from_file(ifile, hdu_prefix='BIAS_')
                 return self.pypeitImage
+            else:
+                return None
 

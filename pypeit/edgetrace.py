@@ -192,7 +192,8 @@ class EdgeTraceBitMask(BitMask):
         return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT']
 
 
-class EdgeTraceSet(masterframe.MasterFrame):
+# TODO -- Make a DataContainer
+class EdgeTraceSet(object):
     r"""
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
@@ -295,6 +296,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         load (:obj:`bool`, optional):
             Attempt to load existing output. If True and the file
             does not exist, an error is raised.
+        files (:obj:`list`, optional):
+            List of the raw files used to construct the TraceImage
+            Only used to update the header of the output file
 
     Attributes:
         spectrograph
@@ -384,15 +388,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             when tracing.
     """
     master_type = 'Edges'
+    version = '1.0.0'
+    file_format = 'fits.gz'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
-    def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
-                 img=None, bpm=None, det=1, binning=None, auto=False, debug=False,
-                 show_stages=False, save=False, load=False):
 
-        # TODO: It's possible for the master key and the detector
-        # number to be inconsistent...
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format='fits.gz')
+    def __init__(self, spectrograph, par, img=None, bpm=None, det=1, binning=None,
+                 auto=False, debug=False, show_stages=False, save=False, load=False,
+                 files=None):
 
         # TODO: Should make file_format a class attribute
 
@@ -429,8 +431,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                         # the edge traces
         self.objects = None             # Table that collates object information, if available
                                         # in the slit-mask design, matched to the `design` table.
-
-        self.qa_path = qa_path          # Directory for QA output
 
         self.log = None                 # Log of methods applied
 
@@ -655,8 +655,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             - Use :func:`add_user_traces` and :func:`rm_user_traces`
               to add and remove traces as defined by the
               user-provided lists in the :attr:`par`.
-            - If :attr:`qa_path` is not None, the QA plots are
-              constructed and written; see :func:`qa_plot`.
             - Use :func:`save` to save the results, if requested.
 
         Args:
@@ -784,12 +782,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
             
         # TODO: Add mask_refine() when it's ready
 
-        # Write the qa plots
-        # TODO: Should maybe have a keyword argument that will allow
-        # this to be skipped, even if the path is not None.
-        if self.qa_path is not None:
-            self.qa_plot(fileroot=self.file_name.split('.')[0])
-
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
         if save:
@@ -858,9 +850,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Add debugging argument and hooks
         # Parse the input based on its type
         if isinstance(img, TraceImage):
-            self.files = img.file_list
-            _img = img.pypeitImage.image
-            self.binning = img.pypeitImage.binning
+            _img = img.image
+            #_img = img.pypeitImage.image
+            self.binning = img.binning
             # TODO: does TraceImage have a mask?
         else:
             _img = img
@@ -1021,12 +1013,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if save:
             self.save()
 
-    def save(self, outfile=None, overwrite=True, checksum=True, float_dtype='float32'):
+    def save(self, outfile, overwrite=True, checksum=True, float_dtype='float32',
+             master_dir=None, master_key=None):
         """
         Save the trace object for later re-instantiation.
 
         Args:
-            outfile (:obj:`str`, optional):
+            outfile (:obj:`str`):
                 Name for the output file.  Defaults to
                 :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
@@ -1039,20 +1032,27 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 writing.  Default is 32-bit precision.
         """
 
-        _outfile = self.master_file_path if outfile is None else outfile
+        #_outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.error('Master file exists: {0}'.format(_outfile) + msgs.newline()
+        if os.path.exists(outfile) and not overwrite:
+            msgs.error('Master file exists: {0}'.format(outfile) + msgs.newline()
                        + 'Set overwrite=True to overwrite it.')
 
         # Report name before starting to write it
-        msgs.info('Writing master frame to {0}'.format(_outfile))
+        msgs.info('Writing master frame to {0}'.format(outfile))
 
         # Build the primary header
         #   - Initialize with basic metadata
-        prihdr = self.build_master_header()
+        #prihdr = self.build_master_header()
+        # Header
+        if master_key is not None:
+            prihdr = masterframe.build_master_header(self, master_key, master_dir,
+                                              self.spectrograph.spectrograph, #steps=steps,
+                                              raw_files=self.files)
+        else:
+            prihdr = io.initialize_header()
         #   - Add the qa path
-        prihdr['QADIR'] = (self.qa_path, 'PypeIt: QA directory')
+        #prihdr['QADIR'] = (self.qa_path, 'PypeIt: QA directory')
         #   - Add metadata specific to this class -- This is added as PYP_SPEC in the build_master_header() call
         #prihdr['SPECT'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph Name')
         #   - List the processed raw files, if available
@@ -1103,8 +1103,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Determine if the file should be compressed
         compress = False
-        if _outfile.split('.')[-1] == 'gz':
-            _outfile = _outfile[:_outfile.rfind('.')] 
+        if outfile.split('.')[-1] == 'gz':
+            outfile = outfile[:outfile.rfind('.')]
             compress = True
 
         # Build the list of extensions to write
@@ -1139,14 +1139,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
             hdu += [fits.BinTableHDU(data=self.objects, name='OBJECTS')]
         # Write the fits file; note not everything is written. Some
         # arrays are reconstruced by the load function.
-        hdu.writeto(_outfile, overwrite=True, checksum=checksum)
+        hdu.writeto(outfile, overwrite=True, checksum=checksum)
 
         # Compress the file if the output filename has a '.gz'
         # extension; this is slow but still faster than if you have
         # astropy.io.fits do it directly
         if compress:
-            msgs.info('Compressing file to: {0}.gz'.format(_outfile))
-            io.compress_file(_outfile, overwrite=overwrite)
+            msgs.info('Compressing file to: {0}.gz'.format(outfile))
+            io.compress_file(outfile, overwrite=overwrite)
 
     def load(self, validate=True, rebuild_pca=False):
         """
@@ -1224,9 +1224,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
             this = cls(load_spectrograph(hdu[0].header['PYP_SPEC']),
-                       EdgeTracePar.from_header(hdu[0].header),
-                       master_key=hdu[0].header['MSTRKEY'], master_dir=hdu[0].header['MSTRDIR'],
-                       qa_path=hdu[0].header['QADIR'])
+                       EdgeTracePar.from_header(hdu[0].header))
 
             # Re-initialize and validate
             this._reinit(hdu, rebuild_pca=rebuild_pca)
@@ -4291,6 +4289,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         return slittrace.SlitTraceSet(left=left, right=right, nspat=self.nspat,
                                       spectrograph=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
-                                      pad=self.par['pad'], master_key=self.master_key,
-                                      master_dir=self.master_dir, reuse=self.reuse_masters)
+                                      pad=self.par['pad'])#, master_key=self.master_key,
+                                      #master_dir=self.master_dir, reuse=self.reuse_masters)
 
