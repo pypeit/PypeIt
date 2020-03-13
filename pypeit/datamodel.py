@@ -781,7 +781,7 @@ class DataContainer:
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None, debug=False):
         """
         Parse data read from a set of HDUs.
 
@@ -913,6 +913,8 @@ class DataContainer:
                 # differences.
                 single_row = len(_hdu[e].data) == 1
                 for key in _hdu[e].columns.names:
+                    if debug:
+                        embed(header='917 of datamodel')
                     if key in cls.datamodel.keys():
                         d[key] = _hdu[e].data[key][0] if single_row else _hdu[e].data[key]
                         if transpose_table_arrays:

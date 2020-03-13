@@ -27,7 +27,7 @@ class TiltImage(calibrationimage.CalibrationImage):
     version = pypeitimage.PypeItImage.version
 
     # I/O
-    output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK')
+    output_to_disk = ('TILT_IMAGE', 'TILT_FULLMASK', 'TILT_DETECTOR')
     hdu_prefix = 'TILT_'
 
     # Master fun

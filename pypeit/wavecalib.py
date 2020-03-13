@@ -57,11 +57,9 @@ class WaveCalib(object):
             The parameters used for the wavelength solution
         binspectral (int, optional): Binning of the Arc in the spectral dimension
         det (int, optional): Detector number
-        master_key (str, optional)
-        master_dir (str, optional): Path to master frames
-        reuse_masters (bool, optional):  Load from disk if possible
-        qa_path (str, optional):  For QA
         msbpm (ndarray, optional): Bad pixel mask image
+        qa_path (str, optional):  For QA
+        master_key (:obj:`str`, optional):  For naming QA only
 
     Attributes:
         frametype : str
@@ -89,7 +87,7 @@ class WaveCalib(object):
     master_type = 'WaveCalib'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
-                 qa_path=None, msbpm=None):
+                 qa_path=None, msbpm=None, master_key=None):
 
         # MasterFrame
         #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
@@ -376,7 +374,7 @@ class WaveCalib(object):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _outfile = self.master_file_path if outfile is None else outfile
+        _outfile = outfile # self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -393,7 +391,7 @@ class WaveCalib(object):
         linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
-    def load(self, ifile=None):
+    def load(self, ifile):
         """
         Load a full (all slit) wavelength calibration.
 
@@ -409,12 +407,7 @@ class WaveCalib(object):
             dict or None: self.wv_calib
         """
         # Check on whether to reuse and whether the file exists
-        master_file = self.chk_load_master(ifile)
-        if master_file is None:
-            return
-        # Read, save it to self, return
-        msgs.info('Loading Master frame: {0}'.format(master_file))
-        self.wv_calib = waveio.load_wavelength_calibration(master_file)
+        self.wv_calib = waveio.load_wavelength_calibration(ifile)
         return self.wv_calib
 
     def make_maskslits(self, nslit):
@@ -439,7 +432,7 @@ class WaveCalib(object):
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, skip_QA=False, debug=False):
+    def run(self, skip_QA=False, debug=False, master_key=None):
         """
         Main driver for wavelength calibration
 
@@ -461,7 +454,7 @@ class WaveCalib(object):
         self.arccen, self.maskslits = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
-        self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
+        self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA, master_key=master_key)
 
         # Return
         if self.par['echelle'] is True:

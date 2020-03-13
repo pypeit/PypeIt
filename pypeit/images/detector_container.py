@@ -64,6 +64,7 @@ class Detector(datamodel.DataContainer):
                         'data sections can be obtained, one per amplifier. If defined ' \
                         'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'),
         'det': dict(otype=int, desc='PypeIt designation for detector number.  1-based indexing'),
+        'binning': dict(otype=str, desc='Binning in PypeIt orientation (not the original)'),
     }
 
     datamodel = datamodel_v100.copy()
@@ -79,14 +80,9 @@ class Detector(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
-    def _init_internals(self):
-
-        self.binning = None
-
     def _bundle(self):
         """
-        Overload just to set the HDU name.
-        I suspect there is a more elegant way than this...
+        Overload for the HDU name
 
         Returns:
             list:

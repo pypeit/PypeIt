@@ -193,6 +193,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         #        suffix          = '_blue'
         #    )]
         detector = detector_container.Detector(
+            det=1,
             dataext=0,
             specaxis=1,
             specflip=False,
@@ -202,16 +203,19 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
             mincounts=-1e10,
             nonlinear=0.76,
             numamplifiers=2,
-            gain=[1.2, 1.2],
-            ronoise=[3.7, 3.7],
-            det=1,
+            gain=np.asarray([1.2, 1.2]),
+            ronoise=np.asarray([3.7, 3.7]),
             xgap=0.,
             ygap=0.,
             ysize=1.,
             darkcurr=0.0,
-            datasec=['[:, 1:1024]', '[:, 1025:2048]'],  # These are rows, columns on the raw frame, 1-indexed
-            oscansec=['[:, 2050:2080]', '[:, 2081:2111]'])
+            datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),  # These are rows, columns on the raw frame, 1-indexed
+            oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
+        )
         # suffix='_blue'
+
+        # Set the binning
+        detector.binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
 
         self.numhead = 1
         return detector

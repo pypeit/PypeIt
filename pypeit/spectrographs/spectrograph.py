@@ -468,10 +468,10 @@ class Spectrograph(object):
         hdu = fits.open(raw_file)
 
         # Grab the DetectorPar
-        detector_par = self.get_detector_par(hdu, det)
+        detector = self.get_detector_par(hdu, det)
 
         # Raw image
-        raw_img = hdu[detector_par['dataext']].data.astype(float)
+        raw_img = hdu[detector['dataext']].data.astype(float)
         # TODO -- Move to FLAMINGOS2 spectrograph
         # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
         # it's easier to change here than writing another get_rawimage function in the spectrograph file.
@@ -486,7 +486,7 @@ class Spectrograph(object):
 
         # Rawdatasec, oscansec images
         binning = self.get_meta_value(headarr, 'binning')
-        if detector_par['specaxis'] == 1:
+        if detector['specaxis'] == 1:
             binning_raw = (',').join(binning.split(',')[::-1])
         else:
             binning_raw = binning
@@ -499,17 +499,17 @@ class Spectrograph(object):
             #  Code like the following maybe useful
             #hdr = hdu[detector[det - 1]['dataext']].header
             #image_sections = [hdr[key] for key in detector[det - 1][section]]
-            # Grab from DetectorPar in the Spectrograph class
-            image_sections = detector_par[section]
-            if not isinstance(image_sections, list):
-                image_sections = [image_sections]
+            # Grab from Detector
+            image_sections = detector[section]
+            #if not isinstance(image_sections, list):
+            #    image_sections = [image_sections]
             # Always assume normal FITS header formatting
             one_indexed = True
             include_last = True
 
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
-            for i in range(detector_par['numamplifiers']):
+            for i in range(detector['numamplifiers']):
 
                 if image_sections[i] is not None:
                     # Convert the data section from a string to a slice
@@ -525,7 +525,7 @@ class Spectrograph(object):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return detector_par, raw_img, hdu, exptime, binning, rawdatasec_img, oscansec_img
+        return detector, raw_img, hdu, exptime, binning, rawdatasec_img, oscansec_img
 
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """

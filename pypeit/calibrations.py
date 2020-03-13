@@ -836,24 +836,31 @@ class Calibrations(object):
             return self.wv_calib
 
         # Grab arc binning (may be different from science!)
-        arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
-        self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
-                                                                                'binning'))
+        #arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
+        #self.arc_files = self.fitstbl.frame_paths(arc_rows)
+        #binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
+        #                                                                        'binning'))
+        # TODO : Do this internally when we have a wv_calib DataContainer
+        binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
+
         # Instantiate
         self.waveCalib = wavecalib.WaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], binspectral=binspec,
-                                             det=self.det, master_key=self.master_key_dict['arc'],
-                                             master_dir=self.master_dir,
-                                             reuse_masters=self.reuse_masters,
+                                             det=self.det,
+                                             master_key=self.master_key_dict['arc'],  # For QA naming
                                              qa_path=self.qa_path, msbpm=self.msbpm)
+                                             #master_dir=self.master_dir,
+                                             #reuse_masters=self.reuse_masters,
         # Load from disk (MasterFrame)?
-        self.wv_calib = self.waveCalib.load()
-        if self.wv_calib is None:
+        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, self.master_key_dict['arc'],
+                                                           master_dir=self.master_dir)
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.wv_calib = self.waveCalib.load(masterframe_name)
+        else:
             self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
-                self.waveCalib.save()
+                self.waveCalib.save(outfile=masterframe_name)
 
         # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
         # TODO: This should either be done here or save as part of the

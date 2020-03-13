@@ -188,13 +188,8 @@ class SlitTraceSet(datamodel.DataContainer):
         if hdr['MSTRTYP'] != self.master_type:
             msgs.warn('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
                         hdr['MSTRTYP'], self.master_type))
-        # TODO: Throw warning if reuse masters from header is False?
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=hdr['MSTRDIR'],
-                                         master_key=hdr['MSTRKEY'],
-                                         file_format=self.file_format, #self.master_format,
-                                         reuse_masters=hdr['MSTRREU'])
         # Instantiate the DataContainer
-        datamodel.DataContainer.__init__(self, cls._parse(hdu))
+        datamodel.DataContainer.__init__(self, cls._parse(hdu)[0])
         return self
 
     # TODO: I think the default overwriting should be False everywhere.
@@ -335,7 +330,7 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._parse`. Data is
         always read from the 'SLITS' extension.
         """
-        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
+        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True, debug=True)
 
     def _set_slitids(self, specfrac=0.5):
         """

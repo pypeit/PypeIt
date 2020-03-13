@@ -19,7 +19,7 @@ class TraceImage(calibrationimage.CalibrationImage):
     version = pypeitimage.PypeItImage.version
 
     # I/O
-    output_to_disk = ('TRACe_IMAGE', 'TRACE_FULLMASK')
+    output_to_disk = ('TRACe_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
     hdu_prefix = 'TRACE_'
 
     # Master fun
