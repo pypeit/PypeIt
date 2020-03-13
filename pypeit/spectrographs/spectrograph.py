@@ -656,27 +656,6 @@ class Spectrograph(object):
 
         return retvalue
 
-    def set_detector_par(self, par, det, value, force_update=False):
-        """
-        Update or set a parameter in the detector array
-
-        Args:
-            par : str
-              Parameter that needs to be updated
-            det : int
-              Detector number
-            value : any type
-              Updated value to assign parameter 'par'
-            force_update : bool
-              Overwrite a parameter, even if it's been set
-
-        """
-        # Update the value
-        if self.detector[det-1][par] is None or force_update:
-            msgs.info("Updating detector {0:d} parameter: {1:s}".format(det, par))
-            self.detector[det-1][par] = deepcopy(value)
-        return
-
     def validate_metadata(self):
         """
         Validates the meta definitions of the Spectrograph

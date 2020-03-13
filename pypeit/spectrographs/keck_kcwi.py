@@ -313,34 +313,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             kk += 1
         return "_".join(lampstat)
 
-    # def get_arclamps(self, filename):
-    #     """
-    #     Obtain a list of lamps, based on the header information
-    #     TODO :: Probably, we should just feed in the headarr infomation, so save loading the fits file again
-    #
-    #     Args:
-    #         filename (str):
-    #           Input filename
-    #
-    #     Returns:
-    #         lamplist: list of lamp names
-    #
-    #     """
-    #     headarr = self.get_headarr(filename)
-    #     lampkey1 = 'lampstat{:02d}'.format(1)
-    #     lampsta1 = 'lampshst{:02d}'.format(1)
-    #     ext1, cardkey1, cardsta1 = self.meta[lampkey1]['ext'], self.meta[lampkey1]['card'], self.meta[lampsta1]['card']
-    #     lampkey2 = 'lampstat{:02d}'.format(2)
-    #     lampsta2 = 'lampshst{:02d}'.format(2)
-    #     ext2, cardkey2, cardsta2 = self.meta[lampkey2]['ext'], self.meta[lampkey2]['card'], self.meta[lampsta2]['card']
-    #     if headarr[ext1][cardkey1] == 1 and headarr[ext1][cardsta1] == 1:
-    #         return ['FeAr']
-    #     elif headarr[ext2][cardkey2] == 1 and headarr[ext2][cardsta2] == 1:
-    #         return ['ThAr']
-    #     else:
-    #         msgs.error("Couldn't determine arc lamps from headers")
-    #     return
-
     def get_rawimage(self, raw_file, det):
         """
         Read a raw KCWI data frame
@@ -382,8 +354,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Some properties of the image
         numamps = head0['NVIDINP']
-        specflip = True if head0['AMPID1'] == 2 else False
-        gainmul, gainarr = head0['GAINMUL'], []
         # Exposure time (used by ProcessRawImage)
         headarr = self.get_headarr(hdu)
         exptime = self.get_meta_value(headarr, 'exptime')
@@ -411,10 +381,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 # Flip the datasec
                 datasec = datasec[::-1]
 
-                if section == 'DSEC':  # Only do this once
-                    # Assign the gain for this amplifier
-                    gainarr += [head0["GAIN{0:1d}".format(i+1)]*gainmul]
-
                 # Assign the amplifier
                 pix_img[datasec] = i+1
 
@@ -423,11 +389,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 rawdatasec_img = pix_img.copy()
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
-
-        # Update detector parameters
-        self.set_detector_par('gain', det, gainarr, force_update=True)
-        self.set_detector_par('ronoise', det, [2.7]*numamps, force_update=True)  # Note, if it's a fast read, the RON=5e-
-        self.set_detector_par('specflip', det, specflip, force_update=True)
 
         # Return
         return raw_img, [head0], exptime, rawdatasec_img, oscansec_img
