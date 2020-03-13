@@ -5,7 +5,7 @@ import numpy as np
 
 from IPython import embed
 
-
+# TODO -- Turn this into a DataContainer??
 class RawImage(object):
     """
     Class to load and hold a raw image
@@ -30,6 +30,8 @@ class RawImage(object):
             HDUList of the file
         exptime (float):
             Exposure time
+        detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
+        binning (:obj:`str`):
     """
     def __init__(self, filename, spectrograph, det):
 
@@ -39,7 +41,7 @@ class RawImage(object):
         self.det = det
 
         # Load the raw image and the other items of interest
-        self.raw_image, self.hdu, self.exptime, self.rawdatasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
+        self.detector_par, self.raw_image, self.hdu, self.exptime, self.binning, self.rawdatasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
             self.filename, self.det)
 
     def __repr__(self):

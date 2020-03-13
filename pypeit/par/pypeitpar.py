@@ -1669,7 +1669,7 @@ class WavelengthSolutionPar(ParSet):
         # These are the parameters used for arc line detection
         # TODO: Why is this not always defined by the detectors of the
         # spectrograph?
-        defaults['nonlinear_counts'] = 1e10
+        defaults['nonlinear_counts'] = None
         dtypes['nonlinear_counts'] = float
         descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
                                     'be accurately centroided'

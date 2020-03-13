@@ -168,8 +168,9 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
+        self.ndet = 1
 
-    def get_detector_par(self, raw_file):
+    def get_detector_par(self, hdu, det):
         detector_par = [
             # Detector 1
             pypeitpar.DetectorPar(
@@ -191,7 +192,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
                 suffix          = '_blue'
             )]
         self.numhead = 1
-        return detector_par
+        return detector_par[det-1]
 
     def default_pypeit_par(self):
         """
@@ -209,7 +210,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         # Set wave tilts order
         par['calibrations']['tilts']['spat_order'] = 3

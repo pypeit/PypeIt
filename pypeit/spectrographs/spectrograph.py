@@ -96,7 +96,7 @@ class Spectrograph(object):
         # Default extension with the primary header data
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
-        self.numhead = 0
+        #self.numhead = 0
 
         self.minexp = 0  # NEED TO TIE TO INSTRUMENT PAR INSTEAD
 
@@ -439,7 +439,7 @@ class Spectrograph(object):
         """
         self.meta = {}
 
-    def get_detector_par(self, raw_file):
+    def get_detector_par(self, hdu, det):
         pass
 
     def get_rawimage(self, raw_file, det):
@@ -458,15 +458,17 @@ class Spectrograph(object):
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
-                binning_raw (tuple)
 
         """
+        # Open
+        hdu = fits.open(raw_file)
+
         # Grab the DetectorPar
-        detector_par = self.get_detector_par(raw_file)
+        detector_par = self.get_detector_par(hdu, det)
 
         # Raw image
-        hdu = fits.open(raw_file)
-        raw_img = hdu[detector_par[det-1]['dataext']].data.astype(float)
+        raw_img = hdu[detector_par['dataext']].data.astype(float)
+        # TODO -- Move to FLAMINGOS2 spectrograph
         # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
         # it's easier to change here than writing another get_rawimage function in the spectrograph file.
         if raw_img.ndim == 3:
@@ -480,7 +482,7 @@ class Spectrograph(object):
 
         # Rawdatasec, oscansec images
         binning = self.get_meta_value(headarr, 'binning')
-        if detector_par[det - 1]['specaxis'] == 1:
+        if detector_par['specaxis'] == 1:
             binning_raw = (',').join(binning.split(',')[::-1])
         else:
             binning_raw = binning
@@ -494,7 +496,7 @@ class Spectrograph(object):
             #hdr = hdu[detector[det - 1]['dataext']].header
             #image_sections = [hdr[key] for key in detector[det - 1][section]]
             # Grab from DetectorPar in the Spectrograph class
-            image_sections = detector_par[det-1][section]
+            image_sections = detector_par[section]
             if not isinstance(image_sections, list):
                 image_sections = [image_sections]
             # Always assume normal FITS header formatting
@@ -503,7 +505,7 @@ class Spectrograph(object):
 
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
-            for i in range(detector_par[det-1]['numamplifiers']):
+            for i in range(detector_par['numamplifiers']):
 
                 if image_sections[i] is not None:
                     # Convert the data section from a string to a slice
@@ -519,7 +521,7 @@ class Spectrograph(object):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return detector_par, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+        return detector_par, raw_img, hdu, exptime, binning, rawdatasec_img, oscansec_img
 
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False, usr_row=None):
         """
@@ -695,10 +697,11 @@ class Spectrograph(object):
                 else:
                     msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
                               + 'Proceeding, but should consider removing this file!')
-                    return ['None']*self.numhead
+                    return ['None']*999 # self.numhead
         else:
             hdu = inp
-        return [hdu[k].header for k in range(self.numhead)]
+        return [hdu[k].header for k in range(len(hdu))]
+        #return [hdu[k].header for k in range(self.numhead)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
