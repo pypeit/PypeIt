@@ -414,6 +414,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 are closed.
 
         """
+        
         # TODO: break up this function!  Can it be partitioned into a
         # series of "core" methods?
 
