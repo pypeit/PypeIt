@@ -259,7 +259,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                       wcs_match=wcs_match, clear=True)
         viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1),
                                       wcs_match=wcs_match)
-        viewer, ch = ginga.show_image(self.rawflatimg, chname='flat', wcs_match=wcs_match)
+        viewer, ch = ginga.show_image(self.rawflatimg.image, chname='flat', wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
 
         if slits and self.slits is not None:
