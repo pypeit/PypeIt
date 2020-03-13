@@ -18,7 +18,6 @@ class ArcImage(calibrationimage.CalibrationImage):
     """
     Simple DataContainer for the Arc Image
     """
-
     # Peg the version of this class to that of PypeItImage
     version = pypeitimage.PypeItImage.version
 

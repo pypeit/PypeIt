@@ -15,13 +15,32 @@ import linetools.utils
 
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit.core import arc, qa, pixels
+from pypeit.core import arc, qa
 from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
+from pypeit import datamodel
 
+class WaveCalib(datamodel.DataContainer):
+    # Peg the version of this class to that of PypeItImage
+    version = '1.0.0'
 
+    # I/O
+    output_to_disk = None
+    hdu_prefix = None
 
-class WaveCalib(masterframe.MasterFrame):
+    # Master fun
+    frametype = 'wv_calib'
+    master_type = 'WaveCalib'
+
+    # Data model
+    datamodel_v100 = {
+        'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
+        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
+    }
+
+    datamodel = datamodel_v100.copy()
+
+class BuildWaveCalib(object):
     """
     Class to guide wavelength calibration
 
