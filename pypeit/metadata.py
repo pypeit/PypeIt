@@ -565,7 +565,11 @@ class PypeItMetaData:
                     {'--':
                         {'disperser': {'name': dispname, 'angle':dispangle},
                          'dichroic': dichroic,
-                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen}}}}
+                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
+                         'binning': binning,
+                         }
+                     }
+                 }
         #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
         #for d in _det:
         #    setup[skey][str(d).zfill(2)] \
