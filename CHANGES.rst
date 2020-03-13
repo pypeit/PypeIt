@@ -6,20 +6,6 @@
 - Add bitmask tests and print bitmask names that are invalid when
   exception raised.
 - Parameter set keywords now sorted when exported to an rst table.
-
-0.13.1 (07 Mar 2020)
---------------------
-
-- Missed a required merge with master before tagging 0.13.0.
-
-0.13.0 (07 Mar 2020)
---------------------
-
-- Refactored sensitivity function, fluxing, and coadding scripts and
-  algorithms.
-- Added support for additional near-IR spectrographs.
-- Restrict extrapolation in tilt fitting
-- Implemented interactive sky region selection
 - Replaces usage of the `tslits_dict` dictionary with
   `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
   object is now the main master file used for passing around the slit
@@ -38,6 +24,20 @@
 - Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
   sobel image to the ginga display.
 - Added `bspline_profile_qa` for generic QA of a bspline fit.
+
+0.13.1 (07 Mar 2020)
+--------------------
+
+- Missed a required merge with master before tagging 0.13.0.
+
+0.13.0 (07 Mar 2020)
+--------------------
+
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
+- Restrict extrapolation in tilt fitting
+- Implemented interactive sky region selection
 
 0.12.3 (13 Feb 2020)
 --------------------
