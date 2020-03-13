@@ -19,7 +19,7 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import ginga
-from pypeit import edgetrace
+from pypeit import slittrace
 from pypeit import specobjs
 from pypeit.core import pixels
 from pypeit.core.parse import get_dnum
@@ -127,7 +127,7 @@ def main(args):
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
 
-    slits = edgetrace.SlitTraceSet.from_file(trc_file)
+    slits = slittrace.SlitTraceSet.from_file(trc_file)
     # TODO: Never used but was created in previous version
     #slitmask = slits.slit_img()
 
