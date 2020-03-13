@@ -47,9 +47,9 @@ A word on Calibration data
 PypeIt, as with any DRP, will work most smoothly
 if you have taken data with a good set of calibrations, e.g.
 
+  - Bias frames (optional)
   - Flats without saturation
   - Arcs with most/all of the lines (without substantial saturation)
-  - Bias frames (when you need them)
   - Slitmasks without overlapping slits
   - Sensible detector binning and windowing
 
@@ -68,12 +68,12 @@ While PypeIt can handle one or more nights of data with a mix of gratings, tilts
 This includes mask by mask for multi-slit observations.
 
 Place the science + calibrations in one folder.
-Copy bias (and dark) frames in each folder as needed.
+Copy bias (and dark) frames into each folder as needed.
 
 Or, put them all in one folder and proceed carefully.
 We will refer to that folder as RAWDIR
 
-The raw images can be gzip compressed although the Python FITS reader
+The raw images can be gzip-compressed although the Python FITS reader
 works much more slowly on gzipped files.
 
 1. Setup
@@ -149,7 +149,7 @@ generating 2D and 1D spectra outputs.  One per standard
 and science frame, located in the *Science/* folder.
 
   - Examine the 2D spectral images :doc:`out_spec2D`
-  - Examine the extracted 1D spectra with :ref:`pypeit-1dspec`
+  - Examine the extracted 1D spectra :doc:`out_spec1D`
 
 6. BLEEDING EDGE
 ================

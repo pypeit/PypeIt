@@ -1,5 +1,3 @@
-.. highlight:: rest
-
 .. _specobj:
 
 ====================
@@ -11,14 +9,44 @@ written to disk as a multi-extension FITS file prefixed by `spec1d`
 in the Science/ folder.
 
 For each object detected in each slit in each detector, there is
-on Table written to this FITS file.  The objects are named by the
-spatial position (pixel number) on the reduced image, the slit number, and
-the detector number, e.g. SPAT0176-SLIT0000-DET01.
+on Table written to this FITS file.
 
+Naming
+======
+
+The objects are named by:
+ - spatial position (pixel number) on the reduced image [SPAT]
+ - the slit number, zero-indexed [SLIT]
+ - the detector number [DET]
+
+For example::
+
+    SPAT0176-SLIT0000-DET01
+
+Extractions
+===========
+
+Because there are several modes of extraction in PypeIt, there may
+be multiple outputs of the spectral arrays.  These are then prefixed
+by the extraction mode.
+
++-----------------+------------------------------------------------------------+
+| Extraction Mode | Description                                                |
++=================+============================================================+
+| BOXCAR          | Top-hat extraction around the trace.  The precise window   |
+|                 | used is defined by the BOXCAR_APERTURE, in pixels.         |
++-----------------+------------------------------------------------------------+
+| OPTIMAL         | Standard Horne algorithm for extraction using the fitted   |
+|                 | spatial profile.  An estimate of this profile is given by  |
+|                 | OBJ_FWHM                                                   |
++-----------------+------------------------------------------------------------+
+
+Therefore, the integrated counts for a boxcar extraction are given by the
+BOXCAR_COUNTS array with variance BOXCAR_VAR.
 
 
 Current SpecObj Data Model
-++++++++++++++++++++++++++
+==========================
 
 ====================  ===============  ==========  ============================================================================================================================================
 Key                   Obj Type         Array Type  Description                                                                                                                                 

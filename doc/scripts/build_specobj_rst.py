@@ -32,7 +32,7 @@ if __name__ == '__main__':
 
     # Start to append the automatically generated documentation
     lines += ['Current SpecObj Data Model']
-    lines += ['++++++++++++++++++++++++++']
+    lines += ['==========================']
     lines += ['']
 
     data_model = specobj.data_model

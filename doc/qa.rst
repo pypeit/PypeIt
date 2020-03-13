@@ -18,7 +18,7 @@ When the code completes (or crashes out), a set of
 HTML files are generated in the QA/ folder.  There
 is one HTML file per MasterFrame set and one
 HTML file per science exposure.  Example names are
-MF_A.html.
+*MF_A.html*.
 
 Open in your browser and have at em.
 Quick links are provided to allow one to jump between

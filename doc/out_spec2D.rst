@@ -56,7 +56,7 @@ pypeit_show_2dspec
 This script displays the sky-subtracted 2D image for a single
 detector in a *ginga* RC viewer.  It also overlays the slits and
 any objects extracted.  It should be called from the reduction
-directory, i.e. above the Science folder where the spec2d image
+directory, i.e. above the *Science/* folder where the spec2d image
 is located.
 
 Here is the usage (possibly out of date;  use *pypeit_show_2dspec -h*)::
@@ -98,6 +98,9 @@ This opens 4 tabs for the:
 
 Red/green lines indicate slit edges.  Orange lines (if present)
 indicate object traces.
+
+As you mouse around, the x-values shown at the bottom indicate
+the wavelength.
 
 Coming Soon
 ===========
