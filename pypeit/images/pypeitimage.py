@@ -8,9 +8,8 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import ginga
 
-from pypeit.core import save
 from pypeit.images import maskimage
-from pypeit.io import write_to_fits
+from pypeit.images import detector_container
 from pypeit import datamodel
 
 from IPython import embed
@@ -62,6 +61,7 @@ class PypeItImage(datamodel.DataContainer):
         'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
         'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
         'mask': dict(otype=maskimage.ImageMask, desc='Mask DataContainer'),
+        'detector': dict(otype=detector_container.Detector, desc='Detector DataContainer'),
     }
 
     datamodel = datamodel_v100.copy()
@@ -107,13 +107,15 @@ class PypeItImage(datamodel.DataContainer):
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
                  binning=None, crmask=None, fullmask=None, prefix=None,
-                 detector_par=None):
+                 detector=None):
 
         self.prefix = prefix
 
         # Setup the DataContainer
         super(PypeItImage, self).__init__({'image': image, 'ivar': ivar, 'rn2img': rn2img,
-                                          'mask': maskimage.ImageMask(bpm, crmask=crmask, fullmask=fullmask)})
+                                          'mask': maskimage.ImageMask(bpm, crmask=crmask, fullmask=fullmask),
+                                          'detector': detector}
+                                          )
 
         # Internals need to come after
         self.binning = binning

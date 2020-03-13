@@ -30,7 +30,7 @@ class RawImage(object):
             HDUList of the file
         exptime (float):
             Exposure time
-        detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
+        detector(:class:`pypeit.images.detector_container.Detector`):
         binning (:obj:`str`):
     """
     def __init__(self, filename, spectrograph, det):
@@ -41,7 +41,7 @@ class RawImage(object):
         self.det = det
 
         # Load the raw image and the other items of interest
-        self.detector_par, self.raw_image, self.hdu, self.exptime, self.binning, self.rawdatasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
+        self.detector, self.raw_image, self.hdu, self.exptime, self.binning, self.rawdatasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
             self.filename, self.det)
 
     def __repr__(self):
