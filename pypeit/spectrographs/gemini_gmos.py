@@ -399,7 +399,7 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
             # Apply the mask
             xbin = int(binning.split(' ')[0])
             if xbin != 2:
-                embed(header='403 of gemini_gmos')
+                msgs.error("Not prepared for GMOS data wihout 2x binning!")
             # Up high
             badr = (902*2)//xbin # Transposed
             bpm_img[badr:badr+(3*2)//xbin,:] = 1

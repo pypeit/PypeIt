@@ -250,10 +250,10 @@ class SpecObjs(object):
             # Have to do a loop to extract the counts for all objects
             if hasattr(self, 'OPT_COUNTS'):
                 SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
-            elif not hasattr(self, 'BOX_COUNTS'):
-                return None
-            else:
+            elif hasattr(self, 'BOX_COUNTS'):
                 SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
+            else:
+                return None
             # For multiple detectors grab the requested detectors
             if multi_spec_det is not None:
                 sobjs_std = SpecObjs(header=self.header)
@@ -282,10 +282,10 @@ class SpecObjs(object):
                     # Grab SNR
                     if hasattr(spec[0], 'OPT_COUNTS'):
                         SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
-                    elif not hasattr(self, 'BOX_COUNTS'):
-                        return None
-                    else:
+                    elif hasattr(spec[0], 'BOX_COUNTS'):
                         SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
+                    else:
+                        return None
             # Maximize S/N
             SNR_all = np.sqrt(np.sum(SNR**2,axis=0))
             objid_std = uni_objid[SNR_all.argmax()]

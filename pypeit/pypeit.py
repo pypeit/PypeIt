@@ -480,7 +480,7 @@ class PypeIt(object):
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
-                # No standard extracted??
+                # No standard extracted on this detector??
                 if sobjs_std is None:
                     return None
                 std_trace = sobjs_std.TRACE_SPAT
