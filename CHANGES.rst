@@ -1,7 +1,11 @@
 
 0.13.2dev
 ---------
+
 - Added PypeIt identify GUI script for manual wavelength calibration
+- Add bitmask tests and print bitmask names that are invalid when
+  exception raised.
+- Parameter set keywords now sorted when exported to an rst table.
 - Enable user to scale flux of coadded 1D spectrum to a filter magnitude
 - Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
 - Add more cards to spec1d header output
