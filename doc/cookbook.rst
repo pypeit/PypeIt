@@ -136,7 +136,7 @@ look like, and how to troubleshoot:
 
   - View the :doc:`master_bias` image (if you produced one)
   - View the :doc:`master_arc` image
-  - TiltImage
+  - View the :doc:`master_tilt` image
   - Check slit edges with the :doc:`master_edges` file
   - Check the 1D wavelength solution using the :ref:`cookbook-qa` below.
   - Check the 2D wavelength solution using the :ref:`cookbook-qa` below.

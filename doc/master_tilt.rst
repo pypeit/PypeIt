@@ -1,15 +1,18 @@
-=========
-MasterArc
-=========
+==========
+MasterTilt
+==========
 
 Overview
 ========
 
-This file describes the data model for the `MasterArc`_ image.
-It is generally a simple combination of all input arc frames.
+This file describes the data model for the `MasterTilt`_ image.
+For optical spectrographs, it is typically
+the combination of all input arc frames.
+For near-IR spectrographs, it is likely
+one or more science frames.
 
 The image is written to disk as a multi-extension FITS file
-prefixed by `MasterArc`_ in the Masters/ folder.
+prefixed by `MasterTilt`_ in the Masters/ folder.
 See :ref:`masters:Masters Naming` for the naming convention.
 
 
@@ -19,9 +22,9 @@ Inspecting
 The first extension is the combined image.
 You can view it with any standard image viewer, e.g.::
 
-    ginga Masters/MasterArc_A_1_01.fits
+    ginga Masters/MasterTilt_A_1_01.fits
 
-Most often you use only one arc frame and this appears
+Most often you use only one tilt frame and this appears
 very similar to the raw image.  If you do stack several,
 the output could be quite different.
 
@@ -34,21 +37,22 @@ for an example from the `shane_kast_red` spectrograph.
 
 .. image:: figures/arc_image.png
 
-Yup, an arc.
+Actually, I cheated. This is an :doc:`master_arc` image.
+But, they are identical for this instrument.
 
 Trouble Shooting
 ================
 
 If your image appears to be in err, here are the things to consider:
 
- - Is one or more of your input arc frames junk?
- - Is one or more of your input arc frames mis-labeled?
+ - Is one or more of your input tilt frames junk?
+ - Is one or more of your input tilt frames mis-labeled?
 
-Current ArcImage Data Model
-===========================
+Current TiltImage Data Model
+============================
 
 Internally, the image is held in
-:class:`pypeit.arcimage.ArcImage`
+:class:`pypeit.tiltimage.TiltImage`
 which is a :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
