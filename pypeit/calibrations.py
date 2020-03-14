@@ -568,8 +568,8 @@ class Calibrations(object):
             # Objects should point to the same data
             # TODO: Remove these lines once we're sure the coding is
             # correct so that they're not tripped.
-            assert self.slits is self.flatField.slits
-            assert self.tilts_dict is self.flatField.tilts_dict
+            # assert self.slits is self.flatField.slits
+            # assert self.tilts_dict is self.flatField.tilts_dict
 
             # JXP paused around here
             embed(header='593 of calibrations')
@@ -589,7 +589,7 @@ class Calibrations(object):
                     # Objects should point to the same data
                     # TODO: Remove this line once we're sure the coding
                     # is correct so that they're not tripped.
-                    assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
+                    # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
                     # Update the WaveTilts master
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.save()

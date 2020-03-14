@@ -120,23 +120,16 @@ def main(args):
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir=mdir_base
 
-    trace_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    trc_file = '{0}.gz'.format(os.path.join(mdir,
-                                            MasterFrame.construct_file_name('Edges', trace_key)))
+    slits = slittrace.SlitTraceSet.from_master(head0['TRACMKEY'], mdir)
 
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
-
-    slits = slittrace.SlitTraceSet.from_file(trc_file)
-    # TODO: Never used but was created in previous version
-    #slitmask = slits.slit_img()
 
     # Show the bitmask?
     mask_in = mask if args.showmask else None
 
     # Object traces from spec1d file
     spec1d_file = args.file.replace('spec2d', 'spec1d')
-
     if os.path.isfile(spec1d_file):
         sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     else:

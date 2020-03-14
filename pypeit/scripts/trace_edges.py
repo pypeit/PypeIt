@@ -146,7 +146,10 @@ def main(args):
                                        auto=True, debug=args.debug, show_stages=args.show,
                                        qa_path=qa_path)
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+        # Write the MasterEdges file
         edges.save()
+        # Write the MasterSlits file
+        edges.get_slits().to_master()
 
     return 0
 

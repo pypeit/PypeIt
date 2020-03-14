@@ -59,8 +59,6 @@ class BuildWaveImage(object):
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
         det (int or None):
-        maskslits (np.ndarray or None):
-            True = skip this slit
 
     Attributes:
         image (np.ndarray): Wavelength image
@@ -87,14 +85,14 @@ class BuildWaveImage(object):
         master_dir = head0['MSTRDIR']
         master_key = head0['MSTRKEY']
         # Instantiate
-        slf = cls(None, None, None, spectrograph, None, None, master_dir=master_dir,
+        slf = cls(None, None, None, spectrograph, None, master_dir=master_dir,
                   master_key=master_key, reuse_masters=True)
         slf.image = slf.load(ifile=master_file)
         # Return
         return slf
 
     # TODO: Is maskslits ever anything besides slits.mask? (e.g., see calibrations.py call)
-    def __init__(self, slits, tilts, wv_calib, spectrograph, det, maskslits):
+    def __init__(self, slits, tilts, wv_calib, spectrograph, det):
 
         # MasterFrame
         #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
@@ -117,8 +115,6 @@ class BuildWaveImage(object):
             # they exist, original otherwise.
             self.slit_spat_pos = self.slits.spatial_coordinates()
 
-        self.maskslits = maskslits
-
         # For echelle order, primarily
         # TODO: only echelle is ever used.  Do we need to keep the whole
         # thing?
@@ -137,7 +133,7 @@ class BuildWaveImage(object):
 
         """
         # Loop on slits
-        ok_slits = np.where(np.invert(self.maskslits))[0]
+        ok_slits = np.where(np.invert(self.slits.mask))[0]
         self.image = np.zeros_like(self.tilts)
         nspec = self.slitmask.shape[0]
 

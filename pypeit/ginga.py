@@ -236,7 +236,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
 # TODO: Should we continue to allow rotate as an option?
 def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=None, rotate=False,
-               pstep=50, clear=False, synced=False):
+               pstep=50, clear=False, synced=True):
     r"""
     Overplot slits on the image in Ginga in the given channel
 

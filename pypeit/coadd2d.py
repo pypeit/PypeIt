@@ -408,9 +408,9 @@ class CoAdd2D(object):
         master_key_dict = self.stack_dict['master_key_dict']
 
         # TODO: These saving operations are a temporary kludge
-        waveImage = WaveImage(None, None, None, self.spectrograph,  # spectrograph is needed for header
-                              None, None, master_key=master_key_dict['arc'],
-                              master_dir=self.master_dir)
+        # spectrograph is needed for header
+        waveImage = WaveImage(None, None, None, self.spectrograph, None,
+                              master_key=master_key_dict['arc'], master_dir=self.master_dir)
         waveImage.save(image=self.pseudo_dict['waveimg'])
 
         # TODO: Assumes overwrite=True
@@ -591,6 +591,10 @@ class CoAdd2D(object):
 
             # Slit Traces and slitmask
             # TODO: Don't understand this if statement
+            # Joe's response: I think the idea was something like if
+            # I'm co-adding the same mask or echelle data from
+            # different nights with different calibrations, then there
+            # could be more than one slit trace master file.
             if tracefile != tracefiles[ifile]:
                 slits = slittrace.SlitTraceSet.from_file(tracefiles[ifile])
                 # Check the spectrograph names
@@ -627,12 +631,6 @@ class CoAdd2D(object):
         master_key_dict['arc'] = head2d['ARCMKEY'] + '_{:02d}'.format(self.det)
         master_key_dict['trace'] = head2d['TRACMKEY'] + '_{:02d}'.format(self.det)
         master_key_dict['flat'] = head2d['FLATMKEY'] + '_{:02d}'.format(self.det)
-
-        # TODO In the future get this stuff from the headers once data model finalized
-        # TODO: spectrograph already exists in self and is a required
-        # argument of the init. So I use it here, and force it to be
-        # the same as what's read by the SlitTraceSet file above.
-        #spectrograph = util.load_spectrograph(tslits_dict['spectrograph'])
 
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,

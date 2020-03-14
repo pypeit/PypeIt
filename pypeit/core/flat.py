@@ -229,7 +229,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
     spat_gpm_data_raw = np.ones(spat_flat_data_raw.size, dtype=bool)
 
     # Assume the density of samples in any given spatial coordinate is
-    # roughly the same at all spatial piximgpositions. Calculate the fraction
+    # roughly the same at all spatial positions. Calculate the fraction
     # of the slit width for the median filter as set by the
     # ``spat_samp`` parameter.
     med_width = int(np.ceil(np.sum(spat_gpm) * spat_samp / slitwidth))
@@ -253,7 +253,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
         interp = interpolate.interp1d(spat_coo_data[spat_gpm_data_raw], spat_flat_data,
                                       bounds_error=False, fill_value=0.0, assume_sorted=True)
         resid = spat_flat_data_raw - interp(spat_coo_data)
-        sigma = np.std(np.absolute(resid))
+        sigma = np.std(resid)
         spat_gpm_data_raw = np.absolute(resid) < illum_rej*sigma
 
     # TODO: Provide a report?

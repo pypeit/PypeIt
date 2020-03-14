@@ -31,8 +31,10 @@ def test_build_me():
     master_key = 'A_01_aa'
     master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
     det = 1
+    #wvImg = waveimage.WaveImage(slits, tilts_dict['tilts'], wv_calib, spectrograph, det,
+    #                            master_key=master_key, master_dir=master_dir, reuse_masters=True)
     wvImg = waveimage.BuildWaveImage(slits, tilts_dict['tilts'], wv_calib, spectrograph, det,
-                                slits.mask, master_key=master_key, master_dir=master_dir,
+                                master_key=master_key, master_dir=master_dir,
                                 reuse_masters=True)
     # Build
     wave = wvImg.build_wave()
