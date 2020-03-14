@@ -39,6 +39,12 @@ from pypeit.images import pypeitimage
 #    flatField.mspixelflatnrm[word] /= nrmvals
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
+def test_flatimages():
+    procimg = np.ones((1000,100)) * 10.
+    flatImages = flatfield.FlatImages(procimg, np.ones_like(procimg),
+                                      np.ones_like(procimg), None)
+    assert flatImages.flat_model is None
+
 @cooked_required
 def test_run():
     # Masters

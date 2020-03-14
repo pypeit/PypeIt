@@ -15,7 +15,6 @@ from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import flatfield
 from pypeit import wavetilts
-from pypeit.masterframe import MasterFrame
 from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData

@@ -17,6 +17,9 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+def test_waveimage():
+    wvimg = np.ones((1000,100)) * 10.
+    waveImage = waveimage.WaveImage(wvimg)
 
 @cooked_required
 def test_build_me():
@@ -28,7 +31,7 @@ def test_build_me():
     master_key = 'A_01_aa'
     master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
     det = 1
-    wvImg = waveimage.WaveImage(slits, tilts_dict['tilts'], wv_calib, spectrograph, det,
+    wvImg = waveimage.BuildWaveImage(slits, tilts_dict['tilts'], wv_calib, spectrograph, det,
                                 slits.mask, master_key=master_key, master_dir=master_dir,
                                 reuse_masters=True)
     # Build

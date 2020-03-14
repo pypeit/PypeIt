@@ -60,17 +60,17 @@ class WaveTilts(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
-    def to_master_file(self, master_key, master_dir, spectrograph, **kwargs):
-        # Output file
-        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
-        # Header
-        hdr = masterframe.build_master_header(self, master_key, master_dir, spectrograph)
-        # Write
-        super(WaveTilts, self).to_file(ofile, primary_hdr=hdr,
-                                              hdu_prefix=self.hdu_prefix,
-                                              limit_hdus=self.output_to_disk,
-                                              overwrite=True,
-                                              **kwargs)
+    #def to_master_file(self, master_key, master_dir, spectrograph, **kwargs):
+    #    # Output file
+    #    ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+    #    # Header
+    #    hdr = masterframe.build_master_header(self, master_key, master_dir, spectrograph)
+    #    # Write
+    #    super(WaveTilts, self).to_file(ofile, primary_hdr=hdr,
+    #                                          hdu_prefix=self.hdu_prefix,
+    #                                          limit_hdus=self.output_to_disk,
+    #                                          overwrite=True,
+    #                                          **kwargs)
 
 
 class BuildWaveTilts(object):
