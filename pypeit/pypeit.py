@@ -567,14 +567,12 @@ class PypeIt(object):
         msgs.sciexp = self.sciImg
 
         # Instantiate Reduce object
-        # TODO: Do we need these maskslits to be part of self?
-        self.maskslits = self.caliBrate.slits.mask.copy()
         # Required for pypeline specific object
         # TODO -- caliBrate should be replaced by the ~3 primary Objects needed
         #   once we have the data models in place.
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
                                            self.par, self.caliBrate,
-                                           maskslits=self.maskslits,
+                                           maskslits=self.caliBrate.slits.mask.copy(),
                                            ir_redux=self.ir_redux,
                                            std_redux=self.std_redux,
                                            objtype=self.objtype,

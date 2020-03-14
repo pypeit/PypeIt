@@ -574,40 +574,35 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
             spatial coordinates.
         """
         left, right = self.select_edges(original=original)
-        return slit_spat_pos(left, right, self.nspat)
+        return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
+    @staticmethod
+    def slit_spat_pos(left, right, nspat):
+        r"""
+        Return a fidicial, normalized spatial coordinate for each slit.
 
-# TODO: Move this to a core module?
-def slit_spat_pos(left, right, nspat):
-    r"""
-    Return a fidicial, normalized spatial coordinate for each slit.
-
-    This is not a method in either
-    :class:`pypeit.edgetrace.EdgeTraceSet` or :class:`SlitTraceSet`
-    because both need it.
-        
-    The fiducial coordinates are given by::
+        The fiducial coordinates are given by::
    
+            nspec = left.shape[0]
+            (left[nspec//2,:] + right[nspec//2,:])/2/nspat
+
+        Args:
+            left (`numpy.ndarray`_):
+                Array with left slit edges. Shape is :math:`(N_{\rm
+                spec},N_{\rm slits})`.
+            right (`numpy.ndarray`_):
+                Array with right slit edges. Shape is :math:`(N_{\rm
+                spec},N_{\rm slits})`.
+            nspat (:obj:`int`):
+                Number of pixels in the spatial direction in the image
+                used to trace the slit edges.
+
+        Returns:
+            `numpy.ndarray`_: Vector with the list of floating point
+            spatial coordinates.
+        """
+        if left.shape != right.shape:
+            msgs.error('Left and right traces must have the same shape.')
         nspec = left.shape[0]
-        (left[nspec//2,:] + right[nspec//2,:])/2/nspat
-
-    Args:
-        left (`numpy.ndarray`_):
-            Array with left slit edges. Shape is :math:`(N_{\rm
-            spec},N_{\rm slits})`.
-        right (`numpy.ndarray`_):
-            Array with right slit edges. Shape is :math:`(N_{\rm
-            spec},N_{\rm slits})`.
-        nspat (:obj:`int`):
-            Number of pixels in the spatial direction in the image
-            used to trace the slit edges.
-
-    Returns:
-        `numpy.ndarray`_: Vector with the list of floating point
-        spatial coordinates.
-    """
-    if left.shape != right.shape:
-        msgs.error('Left and right traces must have the same shape.')
-    nspec = left.shape[0]
-    return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
+        return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 

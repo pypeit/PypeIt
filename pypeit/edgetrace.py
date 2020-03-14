@@ -4292,7 +4292,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.binning)
-        slitspat = slittrace.slit_spat_pos(left, right, self.nspat)
+        slitspat = slittrace.SlitTraceSet.slit_spat_pos(left, right, self.nspat)
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return
