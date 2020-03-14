@@ -40,10 +40,10 @@ def main(args):
     from pypeit.masterframe import MasterFrame
     from pypeit.spectrographs.util import load_spectrograph
     from pypeit.core import parse
-    from pypeit.core.gui import identify as gui_identify
+    from pypeit.core import gui
     from pypeit.core.wavecal import waveio, templates
     from pypeit.wavecalib import WaveCalib
-    from pypeit import edgetrace
+    from pypeit import slittrace
     from pypeit.images import pypeitimage
 
     # Load the MasterArc file
@@ -75,22 +75,21 @@ def main(args):
         lamplist = args.lamps.split(",")
     par['lamps'] = lamplist
 
-    # Load the tslits_dict
-    trc_file = os.path.join(mdir, MasterFrame.construct_file_name('Edges', mkey, file_format='fits.gz'))
-    tslits_dict = edgetrace.EdgeTraceSet.from_file(trc_file).convert_to_tslits_dict()
+    # Load the slits
+    slits = slittrace.SlitTraceSet.from_master(mkey, mdir)
 
     # Check if a solution exists
     solnname = os.path.join(mdir, MasterFrame.construct_file_name('WaveCalib', mkey, file_format='json'))
     wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) else None
 
     # Load the MasterFrame (if it exists and is desired)?
-    wavecal = WaveCalib(msarc, tslits_dict, spec, par)
+    wavecal = WaveCalib(msarc, slits, spec, par)
     arccen, arc_maskslit = wavecal.extract_arcs()
 
     binspec, binspat = parse.parse_binning(spec.get_meta_value(msarc.head0['F1'], 'binning'))
 
     # Launch the identify window
-    arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib)
+    arcfitter = gui.identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib)
     final_fit = arcfitter.get_results()
 
     # Ask the user if they wish to store the result in PypeIt calibrations

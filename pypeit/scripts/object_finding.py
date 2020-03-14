@@ -15,7 +15,7 @@ import numpy as np
 from astropy.table import Table
 from astropy.io import fits
 
-from pypeit.core.gui import object_find as gui_object_find
+from pypeit.core import gui
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
 from pypeit import edgetrace
@@ -117,37 +117,42 @@ def main(args):
                                                mdir)
 
     # Object traces
-    spec1d_file = args.file.replace('spec2d', 'spec1d')
+    left, right = slits.select_edges()
 
-    det_nm = 'DET{:s}'.format(sdet)
+    # Get object traces
+    spec1d_file = args.file.replace('spec2d', 'spec1d')
     if os.path.isfile(spec1d_file):
         hdulist_1d = fits.open(spec1d_file)
     else:
         hdulist_1d = []
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
-    tslits_dict['objtrc'] = parse_traces(hdulist_1d, det_nm)
+    obj_trace = parse_traces(hdulist_1d, 'DET{:s}'.format(sdet))
 
     # TODO :: Need to include standard star trace in the spec2d files
     std_trace = None
 
     # Extract some trace models
     fwhm = 2  # Start with some default value
+    # TODO: Dictionaries like this are a pet peeve of mine.  I'd prefer
+    # either individual objects or a class with a well-formed data model.
+    # TODO: Why do all of these dictionary elements need fwhm?  Can they
+    # be different?
+    trace_models = dict()
     # Brightest object on slit
-    trace_model_obj = None
-    trace_model_dict = dict()
-    if len(tslits_dict['objtrc']['pkflux']) > 0:
-        smash_peakflux = tslits_dict['objtrc']['pkflux']
+    trace_models['object'] = dict(trace_model=None, fwhm=fwhm)
+    if len(obj_trace['pkflux']) > 0:
+        smash_peakflux = obj_trace['pkflux']
         ibri = smash_peakflux.argmax()
-        trace_model_obj = tslits_dict['objtrc']['traces'][ibri]
-        fwhm = tslits_dict['objtrc']['fwhm'][ibri]
-    trace_model_dict['object'] = dict(trace_model=trace_model_obj, fwhm=fwhm)
+        trace_models['object']['trace_model'] = obj_trace['traces'][ibri]
+        trace_models['object']['fwhm'] = obj_trace['fwhm'][ibri]
     # Standard star trace
-    trace_model_dict['std'] = dict(trace_model=std_trace, fwhm=fwhm)
+    trace_models['std'] = dict(trace_model=std_trace, fwhm=trace_models['object']['fwhm'])
     # Trace of the slit edge
-    trace_model_dict['slit'] = dict(trace_model=tslits_dict['slit_left'].copy(), fwhm=fwhm)
-    tslits_dict['trace_model'] = trace_model_dict
+    # TODO: Any particular reason to use the lefts?
+    trace_models['slit'] = dict(trace_model=left.copy(), fwhm=trace_models['object']['fwhm'])
 
     # Finally, initialise the GUI
-    gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True,
-                               slit_ids=slits.id)
+    gui.object_find.initialise(args.det, frame, left, right, obj_trace, trace_models, None,
+                               printout=True, slit_ids=slits.id)
+

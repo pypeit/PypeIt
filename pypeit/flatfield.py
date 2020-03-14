@@ -286,7 +286,7 @@ class FlatField(calibrationimage.CalibrationImage):
                                       wcs_match=wcs_match, clear=True)
         viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1),
                                       wcs_match=wcs_match)
-        viewer, ch = ginga.show_image(self.rawflatimg, chname='flat', wcs_match=wcs_match)
+        viewer, ch = ginga.show_image(self.rawflatimg.image, chname='flat', wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
 
         if slits and self.slits is not None:
@@ -427,8 +427,7 @@ class FlatField(calibrationimage.CalibrationImage):
         ``slit_pad``, ``illum_iter``, ``illum_rej``, and
         ``twod_fit_npoly``.
 
-        Revision History
-        ----------------
+        **Revision History**:
 
             - 11-Mar-2005  First version written by Scott Burles.
             - 2005-2018    Improved by J. F. Hennawi and J. X. Prochaska
@@ -441,6 +440,7 @@ class FlatField(calibrationimage.CalibrationImage):
                 are closed.
 
         """
+        # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
         # TODO: break up this function!  Can it be partitioned into a
         # series of "core" methods?
 
@@ -486,19 +486,21 @@ class FlatField(calibrationimage.CalibrationImage):
 
         median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
 
+        tweaked_tilts = None
         if tweak_slits:
             # NOTE: This copies the input slit edges to a set that can
             # be tweaked. Because these are copied immediately before
             # the calls to slit_img below, all the slit images use the
             # original slit edges, not any pre-existing tweaked ones.
             self.slits.init_tweaked()
+            tweaked_tilts = np.zeros((nspec,nspat), dtype=float)
 
         # TODO: This needs to include a padding check
 
         # Construct three versions of the slit ID image
         #   - an image that uses the padding defined by self.slits
         slitid_img = self.slits.slit_img()
-        #   - an image that uses the padding defined by self.flatpar.
+        #   - an image that uses the extra padding defined by self.flatpar.
         #     This was always 5 pixels in the previous version.
         padded_slitid_img = self.slits.slit_img(pad=pad)
         #   - and an image that trims the width of the slit using the
@@ -545,7 +547,7 @@ class FlatField(calibrationimage.CalibrationImage):
                 # Approximate number of pixels sampling each spatial pixel
                 # for this (original) slit.
                 npercol = np.fmax(np.floor(np.sum(onslit)/nspec),1.0)
-                npoly  = max(1, int(np.ceil(npercol/10.)))
+                npoly  = np.clip(7, 1, int(np.ceil(npercol/10.)))
             
             # TODO: Always calculate the optimized `npoly` and warn the
             # user if npoly is provided but higher than the nominal
@@ -725,8 +727,9 @@ class FlatField(calibrationimage.CalibrationImage):
                 onslit = _slitid_img == slit
                 spat_coo = self.slits.spatial_coordinate_image(slitids=slit,
                                                                slitid_img=_slitid_img)
-                # Note that nothing changes with the tilts, since these were
-                # already extrapolated across the whole image.
+
+                # Add the relevant pixels into the new tilts image
+                tweaked_tilts[onslit] = tilts[onslit]
             else:
                 _slitid_img = slitid_img
 
@@ -798,6 +801,20 @@ class FlatField(calibrationimage.CalibrationImage):
 
             poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
 
+#            np.savez_compressed('rmtdict.npz', good_frac=good_frac, npoly=npoly, spat_coo=spat_coo,
+#                                spec_coo=spec_coo, spec_gpm=spec_gpm, spec_coo_data=spec_coo_data,
+#                                spec_flat_data=spec_flat_data, spec_ivar_data=spec_ivar_data,
+#                                spec_gpm_data=spec_gpm_data, spec_model=spec_model,
+#                                norm_spec=norm_spec, spat_gpm=spat_gpm,
+#                                spat_coo_data=spat_coo_data, spat_flat_data=spat_flat_data,
+#                                norm_spec_spat=norm_spec_spat, twod_gpm=twod_gpm,
+#                                twod_spat_coo_data=twod_spat_coo_data,
+#                                twod_spec_coo_data=twod_spec_coo_data,
+#                                twod_flat_data=twod_flat_data, twod_ivar_data=twod_ivar_data,
+#                                twod_gpm_data=twod_gpm_data, poly_basis=poly_basis, nord=4,
+#                                upper=twod_sigrej, lower=twod_sigrej, bkspace=spec_samp_coarse,
+#                                groupbadpix=True, maxrej=10)
+
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
@@ -859,13 +876,17 @@ class FlatField(calibrationimage.CalibrationImage):
             # Construct the full flat-field model
             # TODO: Why is the 0.05 here for the illumflat compared to the 0.01 above?
             self.flat_model[onslit] = twod_model[onslit] \
-                                        * np.fmax(self.msillumflat[onslit],0.05) \
-                                        * np.fmax(spec_model[onslit],1.0)
+                                        * np.fmax(self.msillumflat[onslit], 0.05) \
+                                        * np.fmax(spec_model[onslit], 1.0)
 
             # Construct the pixel flat
             self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
             # TODO: Add some code here to treat the edges and places where fits
             # go bad?
+
+        # Update the tilts dictionary if the slit edges were tweaked
+        if tweak_slits:
+            self.tilts_dict['tilts'] = tweaked_tilts
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0

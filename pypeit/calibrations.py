@@ -584,15 +584,11 @@ class Calibrations(object):
 
             # JXP -- NEED TO MERGE IN KYLE'S UPDATES
 
-            # TODO: Tilts are unchanged, right?
-#            # If we tweaked the slits, update the wavetilts and
-#            # tslits_dict to reflect new slit edges
-#            if self.par['flatfield']['tweak_slits']:
-#                # flatfield updates slits directly and only alters the
-#                # *_tweak set. This updates the MasterEdges
-#                msgs.info('Using slit boundary tweaks from IllumFlat and updated tilts image')
-##                self.tslits_dict = self.flatField.tslits_dict
-#                self.wavetilts = self.flatField.wavetilts
+            # Objects should point to the same data
+            # TODO: Remove these lines once we're sure the coding is
+            # correct so that they're not tripped.
+            assert self.slits is self.flatField.slits
+            assert self.tilts_dict is self.flatField.tilts_dict
 
             # Save to Masters
             if self.save_masters:
@@ -602,19 +598,16 @@ class Calibrations(object):
                 # profile, re-write them so that the tweaked slits are
                 # included.
                 if self.par['flatfield']['tweak_slits']:
+                    # Update the SlitTraceSet master
                     self.slits.to_master()
-
-#                # If we tweaked the slits update the master files for tilts and slits
-#                # TODO: These should be saved separately
-#                if self.par['flatfield']['tweak_slits']:
-#                    msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
-#                    # flatfield updates slits directly and only alters
-#                    # the *_tweak set. This updates the MasterEdges
-#                    # file with the new data from the flat-field slit
-#                    # tweaks.
-#                    # TODO: Make SlitTraceSet a masterframe?
-#                    self.edges.update_slits(self.slits)
-#                    self.edges.save()
+                    # TODO: The waveTilts datamodel needs to be improved
+                    # Objects should point to the same data
+                    # TODO: Remove this line once we're sure the coding
+                    # is correct so that they're not tripped.
+                    assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
+                    # Update the WaveTilts master
+                    self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
+                    self.waveTilts.save()
 
                     # TODO: Tilts are unchanged, right?
 #                    # Write the final_tilts using the new slit boundaries to the MasterTilts file
@@ -627,16 +620,15 @@ class Calibrations(object):
         # TODO: These will barf if self.wavetilts['tilts'] isn't
         # defined.
         if self.mspixelflat is None:
-#            self.mspixelflat = np.ones_like(self.wavetilts['tilts'])
             msgs.warn('You are not pixel flat fielding your data!!!')
         if self.msillumflat is None or not self.par['flatfield']['illumflatten']:
-#            self.msillumflat = np.ones_like(self.wavetilts['tilts'])
             msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
         self._update_cache('flat', ('pixelflat','illumflat'), (self.mspixelflat,self.msillumflat))
         return self.mspixelflat, self.msillumflat
 
+    # TODO: if write_qa, need to provide qa_path!
     # TODO: why do we allow redo here?
     def get_slits(self, redo=False):
         """
