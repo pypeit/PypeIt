@@ -23,13 +23,8 @@ from pypeit import slittrace
 
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
-from pypeit.images import pypeitimage
 from pypeit import datamodel
 from pypeit.core import flat
-from pypeit.core import save
-from pypeit.core import load
-from pypeit.core import pixels
-from pypeit.core import procimg
 from pypeit.core import tracewave
 from pypeit.core import pydl
 
@@ -118,7 +113,7 @@ class FlatField(object):
     For the primary methods, see :func:`run`.
 
     Args:
-        rawflatimg (`np.ndarray`):
+        rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
             Processed, combined set of pixelflat images
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the instrument used to
@@ -163,36 +158,35 @@ class FlatField(object):
     frametype = 'pixelflat'
     master_type = 'Flat'
 
-    # TODO: Why is par passed in here?
-    @classmethod
-    def from_master_file(cls, master_file, par=None):
-        """
-        Instantiate the class from a master file
+#    # TODO: Why is par passed in here?
+#    @classmethod
+#    def from_master_file(cls, master_file, par=None):
+#        """
+#        Instantiate the class from a master file
+#
+#        Args:
+#            master_file (str):
+#            par (:class:`pypeit.par.pypeitpar.PypeItPar`, optional):
+#                Full par set
+#
+#        Returns:
+#            :class:`pypeit.flatfield.FlatField`:
+#                With the flat images loaded up
+#
+#        """
+#        # Spectrograph
+#        spectrograph, extras = masterframe.items_from_master_file(master_file)
+#        head0 = extras[0]
+#        # Par
+#        if par is None:
+#            par = spectrograph.default_pypeit_par()
+#        # Instantiate, load, return
+#        self = cls(spectrograph, par['calibrations']['pixelflatframe'],
+#                   master_dir=head0['MSTRDIR'], master_key=head0['MSTRKEY'], reuse_masters=True)
+#        self.load()
+#        return self
 
-        Args:
-            master_file (str):
-            par (:class:`pypeit.par.pypeitpar.PypeItPar`, optional):
-                Full par set
-
-        Returns:
-            :class:`pypeit.flatfield.FlatField`:
-                With the flat images loaded up
-
-        """
-        # Spectrograph
-        spectrograph, extras = masterframe.items_from_master_file(master_file)
-        head0 = extras[0]
-        # Par
-        if par is None:
-            par = spectrograph.default_pypeit_par()
-        # Instantiate, load, return
-        self = cls(spectrograph, par['calibrations']['pixelflatframe'],
-                   master_dir=head0['MSTRDIR'], master_key=head0['MSTRKEY'], reuse_masters=True)
-        self.load()
-        return self
-
-    def __init__(self, rawflatimg, spectrograph, flatpar,
-                 det=1, slits=None, wavetilts=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar, det=1, slits=None, wavetilts=None):
 
         # Defatuls
         self.spectrograph = spectrograph
@@ -502,19 +496,15 @@ class FlatField(object):
                 are closed.
 
         """
+        # TODO: break up this function!  Can it be partitioned into a series of "core" methods?
         # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
-        # TODO: break up this function!  Can it be partitioned into a
-        # series of "core" methods?
+        # TODO: JXP This definitely needs breaking up..
 
         # TODO: The difference between run() and fit() is pretty minimal
         # if we just built rawflatimg here...
 
-        # Flat must have been constructed
-        if self.rawflatimg is None:
-            raise ValueError('The flat-field image has not been built: run build_pixflat first.')
-
-        # Set parameters (for convenience; get rid of this and just use
-        # the parameter values directly?)
+        # Set parameters (for convenience;
+        # TODO get rid of this and just use  the parameter values directly
         spec_samp_fine = self.flatpar['spec_samp_fine']
         spec_samp_coarse = self.flatpar['spec_samp_coarse']
         spat_samp = self.flatpar['spat_samp']
@@ -535,7 +525,7 @@ class FlatField(object):
         nspec, nspat = self.rawflatimg.image.shape
         # TODO: The above should be the same as self.slits.nspec, self.slits.nspat
         rawflat = self.rawflatimg.image
-        gpm = np.ones_like(rawflat, dtype=bool) if self.msbpm is None else np.invert(self.msbpm)
+        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.mask.bpm is None else np.invert(self.rawflatimg.mask.bpm)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))
@@ -544,7 +534,7 @@ class FlatField(object):
         ivar_log = gpm_log.astype(float)/0.5**2
 
         # Other setup
-        nonlinear_counts = self.spectrograph.nonlinear_counts(det=self.det)
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
 
         median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
 

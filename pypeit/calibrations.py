@@ -156,7 +156,12 @@ class Calibrations(object):
         rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
         image_files = self.fitstbl.frame_paths(rows)
         # Update the internal dict
-        self.master_key_dict[ctype] \
+        #   Kludge for flats
+        if ctype == 'pixelflat':
+            _ctype = 'flat'
+        else:
+            _ctype = ctype
+        self.master_key_dict[_ctype] \
             = self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
         # Return
         return image_files
@@ -244,8 +249,7 @@ class Calibrations(object):
                 # Found the previous master in memory
                 msgs.info('Using {0} for {1} found in cache.'.format(master_type, master_key))
                 return True
-        # Master key exists but no master in memory for this specific
-        # type
+        # Master key exists but no master in memory for this specific type
         self.calib_dict[master_key][master_type] = {}
         return False
 
@@ -507,6 +511,7 @@ class Calibrations(object):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
+        # Prep
         pixflat_image_files = self._prep_calibrations('pixelflat')
 
         # Return cached images
@@ -514,13 +519,12 @@ class Calibrations(object):
             self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
             return self.flatimages
 
+        masterframe_name = masterframe.construct_file_name(flatfield.FlatImages,
+                                                           self.master_key_dict['flat'], master_dir=self.master_dir)
         # The following if-elif-else does:
         #   1.  First try to load a user-supplied image
         #   2.  Try to load a MasterFrame (if reuse_masters is True)
         #   3.  Build from scratch
-        masterframe_name = masterframe.construct_file_name(flatfield.FlatImages,
-                                                           self.master_key_dict['flat'], master_dir=self.master_dir)
-
         # TODO: We need to document this format for the user!
         if self.par['flatfield']['frame'] != 'pixelflat':
             # - Name is explicitly correct?
