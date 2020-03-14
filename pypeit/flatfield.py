@@ -431,7 +431,7 @@ class FlatField(object):
               coordinate system defined by the left slit edge.  The data
               included in the spatial (illumination) profile calculation
               is expanded beyond the nominal slit edges using the
-              ``slit_pad`` parameter in :attr:`flatpar`.  The raw,
+              ``slit_illum_pad`` parameter in :attr:`flatpar`.  The raw,
               collapsed data is then median filtered (see ``spat_samp``
               in :attr:`flatpar`) and Gaussian filtered; see
               :func:`pypeit.core.flat.illum_filter`.  This creates an
@@ -480,7 +480,7 @@ class FlatField(object):
         ``spec_samp_fine``, ``spec_samp_coarse``, ``spat_samp``,
         ``tweak_slits``, ``tweak_slits_thresh``,
         ``tweak_slits_maxfrac``, ``rej_sticky``, ``slit_trim``,
-        ``slit_pad``, ``illum_iter``, ``illum_rej``, and
+        ``slit_illum_pad``, ``illum_iter``, ``illum_rej``, and
         ``twod_fit_npoly``.
 
         **Revision History**:
@@ -515,7 +515,7 @@ class FlatField(object):
         # propagated to the next stage
         sticky = self.flatpar['rej_sticky']
         trim = self.flatpar['slit_trim']
-        pad = self.flatpar['slit_pad']
+        pad = self.flatpar['slit_illum_pad']
         # Iteratively construct the illumination profile by rejecting outliers
         illum_iter = self.flatpar['illum_iter']
         illum_rej = self.flatpar['illum_rej']
@@ -538,7 +538,6 @@ class FlatField(object):
 
         median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
 
-        tweaked_tilts = None
         if tweak_slits:
             # NOTE: This copies the input slit edges to a set that can
             # be tweaked. Because these are copied immediately before
@@ -546,6 +545,8 @@ class FlatField(object):
             # original slit edges, not any pre-existing tweaked ones.
             self.slits.init_tweaked()
             tweaked_tilts = np.zeros((nspec,nspat), dtype=float)
+        else:
+            tweaked_tilts = None
 
         # TODO: This needs to include a padding check
 
@@ -667,15 +668,16 @@ class FlatField(object):
 
             if exit_status > 1:
                 # TODO: Should this fault?
-                msgs.warn('Problem in bspline fit!')
+                msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
+                          'slit {0} and continuing!'.format(slit))
+                continue
 
             # Debugging/checking spectral fit
             debug=True
             if debug:
-                utils.bspline_profile_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
-                                         spec_flat_fit, xlabel='Spectral Pixel',
-                                         ylabel='log(flat counts)',
-                                         title='Spectral Fit for slit={:d}'.format(slit))
+                utils.bspline_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
+                                 spec_flat_fit, xlabel='Spectral Pixel', ylabel='log(flat counts)',
+                                 title='Spectral Fit for slit={:d}'.format(slit))
 
             if sticky:
                 # Add rejected pixels to gpm
@@ -755,8 +757,14 @@ class FlatField(object):
                                             np.ones_like(spat_flat_data), nord=4, upper=5.0,
                                             lower=5.0, fullbkpt=spat_bspl.breakpoints)
 
-            # Compute the model illumination profile
-            self.msillumflat[onslit_padded] = spat_bspl.value(spat_coo[onslit_padded])[0]
+            if exit_status > 1:
+                # TODO: Should this fault?
+                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
+                          'included in flat-field model for slit {0}!'.format(slit))
+                # TODO: Should this continue instead of just leaving the msillumflat with ones?
+            else:
+                # Compute the model illumination profile
+                self.msillumflat[onslit_padded] = spat_bspl.value(spat_coo[onslit_padded])[0]
             # ----------------------------------------------------------
 
             # ----------------------------------------------------------
@@ -789,8 +797,8 @@ class FlatField(object):
             # Add an approximate pixel axis at the top
             if debug:
                 # TODO: Move this into a qa plot that gets saved
-                ax = utils.bspline_profile_qa(spat_coo_data, spat_flat_data, spat_bspl,
-                                              spat_gpm_fit, spat_flat_fit, show=False)
+                ax = utils.bspline_qa(spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit,
+                                      spat_flat_fit, show=False)
                 ax.scatter(spat_coo_data, spat_flat_data_raw, marker='.', s=1, zorder=0, color='k',
                            label='raw data')
                 # Force the center of the slit to be at the center of the plot for the hline
@@ -924,7 +932,11 @@ class FlatField(object):
 
             # Save the 2D residual model
             twod_model = np.ones_like(rawflat)
-            twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
+            if exit_status > 1:
+                msgs.warn('Two-dimensional fit to flat-field data failed!  No higher order '
+                          'flat-field corrections included in model of slit {0}!'.format(slit))
+            else:
+                twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
 
             # Construct the full flat-field model
             # TODO: Why is the 0.05 here for the illumflat compared to the 0.01 above?

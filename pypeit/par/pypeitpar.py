@@ -446,7 +446,7 @@ class FlatFieldPar(ParSet):
     """
     def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
-                 tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_pad=None,
+                 tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None):
 
         # Grab the parameter names and values from the function
@@ -530,10 +530,11 @@ class FlatFieldPar(ParSet):
                              'function.  Single values are used for both slit edges; a ' \
                              'two-tuple can be used to trim the left and right sides differently.'
 
-        defaults['slit_pad'] = 5.
-        dtypes['slit_pad'] = [int, float]
-        descr['slit_pad'] = 'The number of pixels to pad the slit edges when constructing the ' \
-                            'slit-illumination profile. Single value applied to both edges.'
+        defaults['slit_illum_pad'] = 5.
+        dtypes['slit_illum_pad'] = [int, float]
+        descr['slit_illum_pad'] = 'The number of pixels to pad the slit edges when constructing ' \
+                                  'the slit-illumination profile. Single value applied to both ' \
+                                  'edges.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
@@ -570,7 +571,7 @@ class FlatFieldPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
-                   'rej_sticky', 'slit_trim', 'slit_pad', 'illum_iter', 'illum_rej',
+                   'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
                    'twod_fit_npoly']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
