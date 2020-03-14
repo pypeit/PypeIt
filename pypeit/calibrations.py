@@ -502,118 +502,96 @@ class Calibrations(object):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            # TODO: Why does this not return unity arrays, like what's
-            # done below?
             return flatfield.FlatImages(None, None, None, None)
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        #pixflat_rows = self.fitstbl.find_frames('pixelflat', calib_ID=self.calib_ID, index=True)
-        #pixflat_image_files = self.fitstbl.frame_paths(pixflat_rows)
         pixflat_image_files = self._prep_calibrations('pixelflat')
-        # Allow for user-supplied file (e.g. LRISb)
-        #self.master_key_dict['flat'] \
-        #        = self.fitstbl.master_key(pixflat_rows[0] if len(pixflat_rows) > 0 else self.frame,
-        #                                  det=self.det)
 
-        # Return already generated data
-        if self._cached('pixelflat', self.master_key_dict['flat']) \
-                and self._cached('illumflat', self.master_key_dict['flat']):
+        # Return cached images
+        if self._cached('flatimages', self.master_key_dict['flat']):
             self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
-            #self.mspixelflat = self.calib_dict[self.master_key_dict['flat']]['pixelflat']
-            #self.msillumflat = self.calib_dict[self.master_key_dict['flat']]['illumflat']
-            #return self.mspixelflat, self.msillumflat
             return self.flatimages
 
+        # The following if-elif-else does:
+        #   1.  First try to load a user-supplied image
+        #   2.  Try to load a MasterFrame (if reuse_masters is True)
+        #   3.  Build from scratch
         masterframe_name = masterframe.construct_file_name(flatfield.FlatImages,
                                                            self.master_key_dict['flat'], master_dir=self.master_dir)
 
-        # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
         # TODO: We need to document this format for the user!
         if self.par['flatfield']['frame'] != 'pixelflat':
             # - Name is explicitly correct?
             if os.path.isfile(self.par['flatfield']['frame']):
                 flat_file = self.par['flatfield']['frame']
-            # - Is it in the master directory?
+            # - Or is it in the master directory?
             elif os.path.isfile(os.path.join(self.flatField.master_dir,
                                              self.par['flatfield']['frame'])):
                 flat_file = os.path.join(self.flatField.master_dir, self.par['flatfield']['frame'])
             else:
                 msgs.error('Could not find user-defined flatfield file: {0}'.format(
                     self.par['flatfield']['frame']))
+            # Load
             msgs.info('Using user-defined file: {0}'.format(flat_file))
             with fits.open(flat_file) as hdu:
                 pixelflat = hdu[self.det].data
+            # Build
             self.flatimages = flatfield.FlatImages(None, pixelflat, None, None)
         elif os.path.isfile(masterframe_name) and self.reuse_masters:
+            # Load MasterFrame
             self.flatimages = flatfield.FlatImages.from_file(masterframe_name)
         else:
-            # Build it up!
+            # Process/combine the input pixelflat frames
             buildflatImage = flatfield.BuildFlatImage(self.spectrograph, self.det,
                                                       self.par['pixelflatframe']['process'],
                                                       pixflat_image_files, bias=self.msbias)
             pixflatimage = buildflatImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             # Normalize and illumination
-            self.flatField = flatfield.FlatField(
-                pixflatimage, self.spectrograph, self.par['flatfield'],
+            flatField = flatfield.FlatField(pixflatimage, self.spectrograph, self.par['flatfield'],
                 det=self.det, slits=self.slits, wavetilts=self.wavetilts)
             # Run
-            self.flatimages = self.flatField.run(show=self.show)
+            self.flatimages = flatField.run(show=self.show)
 
-
-            # JXP -- NEED TO MERGE IN KYLE'S UPDATES
-
-            # Objects should point to the same data
-            # TODO: Remove these lines once we're sure the coding is
-            # correct so that they're not tripped.
-            # assert self.slits is self.flatField.slits
-            # assert self.tilts_dict is self.flatField.tilts_dict
-
-            # JXP paused around here
-            embed(header='593 of calibrations')
             # Save to Masters
             if self.save_masters:
                 self.flatimages.to_master_file(self.master_dir, self.master_key_dict['flat'],  # Naming
                                            self.spectrograph.spectrograph,  # Header
-                                           steps=self.flatField.steps)
+                                           steps=flatField.steps)
 
                 # If slits were tweaked by the slit illumination
                 # profile, re-write them so that the tweaked slits are
                 # included.
                 if self.par['flatfield']['tweak_slits']:
                     # Update the SlitTraceSet master
-                    self.slits.to_master()
+                    self.slits.to_master_file(self.master_dir, self.master_key_dict['trace'],  # Naming
+                                              self.spectrograph.spectrograph)
+                    #self.slits.to_master()
                     # TODO: The waveTilts datamodel needs to be improved
                     # Objects should point to the same data
                     # TODO: Remove this line once we're sure the coding
                     # is correct so that they're not tripped.
                     # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
                     # Update the WaveTilts master
-                    self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
-                    self.waveTilts.save()
-
-                    # TODO: Tilts are unchanged, right?
-#                    # Write the final_tilts using the new slit boundaries to the MasterTilts file
-#                    self.waveTilts.final_tilts = self.flatField.wavetilts['tilts']
-#                    self.waveTilts.wavetilts = self.flatField.wavetilts
-#                    self.waveTilts.save()
+                    self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
+                    self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
+                                                  self.spectrograph.spectrograph)
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning
         # TODO: These will barf if self.wavetilts['tilts'] isn't
         # defined.
-        if self.mspixelflat is None:
+        if self.flatimages.pixelflat is None:
             msgs.warn('You are not pixel flat fielding your data!!!')
-        if self.msillumflat is None or not self.par['flatfield']['illumflatten']:
+        if self.flatimages.illumflat is None or not self.par['flatfield']['illumflatten']:
             msgs.warn('You are not illumination flat fielding your data!')
 
-        # Save & return
-        self._update_cache('flat', ('pixelflat','illumflat'), (self.mspixelflat,self.msillumflat))
-        return self.mspixelflat, self.msillumflat
+        # Cache & return
+        self._update_cache('flat', 'flatimages', self.flatimages)
+        return self.flatimages
 
-    # TODO: if write_qa, need to provide qa_path!
     # TODO: why do we allow redo here?
     def get_slits(self, redo=False):
         """
@@ -642,11 +620,6 @@ class Calibrations(object):
 
         # Prep
         trace_image_files = self._prep_calibrations('trace')
-        #trace_rows = self.fitstbl.find_frames('trace', calib_ID=self.calib_ID, index=True)
-        #self.trace_image_files = self.fitstbl.frame_paths(trace_rows)
-        #self.master_key_dict['trace'] \
-        #        = self.fitstbl.master_key(trace_rows[0] if len(trace_rows) > 0 else self.frame,
-        #                                  det=self.det)
 
         # Previously calculated?  If so, reuse
         if self._cached('trace', self.master_key_dict['trace']) and not redo:
@@ -660,26 +633,25 @@ class Calibrations(object):
         if os.path.isfile(slit_masterframe_name) and self.reuse_masters:
             self.slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
             return self.slits
-        #self.slits = slittrace.SlitTraceSet.from_master(self.master_key_dict['trace'],
-        #                                                self.master_dir, reuse=self.reuse_masters)
 
         # Slits don't exist or we're not resusing them
-        # Reuse master frame?
         edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
                                                            self.master_key_dict['trace'],
                                                            master_dir=self.master_dir)
+        # Reuse master frame?
         if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
             self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
         else:
+            # Build me
             self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
                                                 files=trace_image_files)
             # Build the trace image
-            self.buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, files=trace_image_files,
+            buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, files=trace_image_files,
                                                     det=self.det,
                                                     par=self.par['traceframe'],
                                                     bias=self.msbias)
             self.traceImage = traceimage.TraceImage.from_pypeitimage(
-                self.buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm))
+                buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm))
 
             try:
                 self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
@@ -751,7 +723,7 @@ class Calibrations(object):
             # Instantiate
             # TODO we are regenerating this mask a lot in this module. Could reduce that
             buildwaveImage = waveimage.BuildWaveImage(self.slits, self.wavetilts['tilts'], self.wv_calib,
-                                             self.spectrograph, self.det, self.slits.mask)
+                                             self.spectrograph, self.det)
             self.mswave = buildwaveImage.build_wave()
             # Save to hard-drive
             if self.save_masters:
