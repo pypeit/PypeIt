@@ -913,22 +913,23 @@ class Calibrations(object):
         # Instantiate
         self.waveTilts = wavetilts.WaveTilts(self.mstilt, self.slits, self.spectrograph,
                                              self.par['tilts'], self.par['wavelengths'],
-                                             det=self.det, master_key=self.master_key_dict['tilt'],
-                                             master_dir=self.master_dir,
-                                             reuse_masters=self.reuse_masters,
-                                             qa_path=self.qa_path, msbpm=self.msbpm)
+                                             det=self.det,
+                                             qa_path=self.qa_path, msbpm=self.msbpm,
+                                             master_key=self.master_key_dict['tilt'])
+        masterframe_name = masterframe.construct_file_name(wavetilts.WaveTilts, self.master_key_dict['tilt'],
+                                                           master_dir=self.master_dir)
 
         # Master
-        self.tilts_dict = self.waveTilts.load()
-        if self.tilts_dict is None:
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.tilts_dict = self.waveTilts.load(masterframe_name)
+            self.wt_maskslits = np.zeros(self.slits.nslits, dtype=bool)
+        else:
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.tilts_dict, self.wt_maskslits \
                     = self.waveTilts.run(maskslits=self.slits.mask, doqa=self.write_qa,
                                          show=self.show)
             if self.save_masters:
-                self.waveTilts.save()
-        else:
-            self.wt_maskslits = np.zeros(self.slits.nslits, dtype=bool)
+                self.waveTilts.save(masterframe_name, self.master_dir)
 
         # Save & return
         self._update_cache('tilt', ('tilts_dict','wtmask'), (self.tilts_dict,self.wt_maskslits))

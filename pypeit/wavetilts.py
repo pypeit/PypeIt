@@ -40,18 +40,12 @@ class WaveTilts(masterframe.MasterFrame):
         wavepar (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
             The parameters used for the wavelength solution
         det (int): Detector index
-        master_key (:obj:`str`, optional):
-            The string identifier for the instrument configuration.  See
-            :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (:obj:`str`, optional):
-            Path to master frames.
-        reuse_masters (:obj:`bool`, optional):
-            Load master files from disk, if possible.
         qa_path (:obj:`str`, optional):
             Directory for QA output.
         msbpm (`numpy.ndarray`_, optional):
             Bad pixel mask.  If not provided, a dummy array with no
             masking is generated.
+        master_key (:obj:`str`, optional):  For naming QA only
 
 
     Attributes:
@@ -75,8 +69,9 @@ class WaveTilts(masterframe.MasterFrame):
     """
     # Frametype is a class attribute
     master_type = 'Tilts'
+    file_format = 'fits'
+    version = '1.0.0'
 
-    # TODO: __init__ should be the first function.  Move this.
     @classmethod
     def from_master_file(cls, master_file):
         """
@@ -92,36 +87,36 @@ class WaveTilts(masterframe.MasterFrame):
         """
         # Spectrograph
         spectrograph, extras = masterframe.items_from_master_file(master_file)
-        head0 = extras[0]
+        #head0 = extras[0]
         # Master info
-        master_dir = head0['MSTRDIR']
-        master_key = head0['MSTRKEY']
+        #master_dir = head0['MSTRDIR']
+        #master_key = head0['MSTRKEY']
         # Instantiate
-        slf = cls(None, None, spectrograph, None, None, master_dir=master_dir, master_key=master_key,
-                  reuse_masters=True)
+        slf = cls(None, None, spectrograph, None, None)#, master_dir=master_dir, master_key=master_key, reuse_masters=True)
         # Load
         slf.tilts_dict = slf.load(ifile=master_file)
         # Return
         return slf
 
     # TODO This needs to be modified to take an inmask
-    def __init__(self, msarc, slits, spectrograph, par, wavepar, det=1, master_key=None,
-                 master_dir=None, reuse_masters=False, qa_path=None, msbpm=None):
+    def __init__(self, msarc, slits, spectrograph, par, wavepar, det=1, qa_path=None, msbpm=None,
+                 master_key=None):
 
         # TODO: Perform type checking
         self.spectrograph = spectrograph
         self.par = par
         self.wavepar = wavepar
 
-        # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, reuse_masters=reuse_masters)
+        ## MasterFrame
+        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        #                                 master_key=master_key, reuse_masters=reuse_masters)
 
         self.msarc = msarc
         self.slits = slits
         self.msbpm = msbpm
         self.det = det
         self.qa_path = qa_path
+        self.master_key = master_key
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
@@ -129,7 +124,7 @@ class WaveTilts(masterframe.MasterFrame):
 
         # Get the non-linear count level
         self.nonlinear_counts = 1e10 if self.spectrograph is None \
-                                    else self.spectrograph.nonlinear_counts(det=self.det)
+            else self.spectrograph.nonlinear_counts(self.msarc.detector)
 
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that
@@ -607,18 +602,19 @@ class WaveTilts(masterframe.MasterFrame):
                            'spat_order':self.spat_order, 'spec_order':self.spec_order}
         return self.tilts_dict, maskslits
 
-    def save(self, outfile=None, overwrite=True):
+    def save(self, outfile, master_dir, overwrite=True):
         """
         Save the wavelength tilts data to a master frame
 
         Args:
-            outfile (:obj:`str`, optional):
+            outfile (:obj:`str`):
                 Name for the output file.  Defaults to
                 :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _outfile = self.master_file_path if outfile is None else outfile
+        #_outfile = self.master_file_path if outfile is None else outfile
+        _outfile = outfile #is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -628,8 +624,12 @@ class WaveTilts(masterframe.MasterFrame):
         # Log
         msgs.info('Saving master frame to {0}'.format(_outfile))
 
+        hdr = masterframe.build_master_header(self, self.master_key,
+                                              master_dir, self.spectrograph.spectrograph,
+                                              steps=self.steps)
+
         # Build the header
-        hdr = self.build_master_header(steps=self.steps)
+        #hdr = self.build_master_header(steps=self.steps)
         #   - Set the master frame type
         hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
         #   - Tilts metadata
@@ -642,14 +642,14 @@ class WaveTilts(masterframe.MasterFrame):
         extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
         save.write_fits(hdr, data, _outfile, extnames=extnames)
 
-    def load(self, ifile=None):
+    def load(self, ifile):
         """
         Load the tilts data.
 
         This is largely a wrapper for :func:`pypeit.wavetilts.WaveTilts.load_from_file`.
 
         Args:
-            ifile (:obj:`str`, optional):
+            ifile (:obj:`str`):
                 Name of the master frame file.  Defaults to
                 :attr:`master_file_path`.
             return_header (:obj:`bool`, optional):
@@ -662,13 +662,13 @@ class WaveTilts(masterframe.MasterFrame):
             per expected return object).
         """
         # Check on whether to reuse and whether the file exists
-        master_file = self.chk_load_master(ifile)
-        if master_file is None:
-            return
-        msgs.info('Loading Master frame: {0}'.format(master_file))
+        #master_file = self.chk_load_master(ifile)
+        #if master_file is None:
+        #    return
+        msgs.info('Loading Master frame: {0}'.format(ifile))
         # Load
         extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
-        *data, head0 = load.load_multiext_fits(master_file, extnames)
+        *data, head0 = load.load_multiext_fits(ifile, extnames)
 
         # Fill the dict
         self.tilts_dict = {}
