@@ -472,6 +472,7 @@ from astropy.io import fits
 from astropy.table import Table
 
 from pypeit import io
+from pypeit import masterframe
 
 class DataContainer:
     """
@@ -1145,6 +1146,30 @@ class DataContainer:
         io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
                                      hdu_prefix=hdu_prefix, limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
+
+    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
+                       raw_files=None, **kwargs):
+        """
+        Wrapper on to_file() that deals with masterframe naming and header
+
+        self.hdu_prefix and self.output_to_disk must be set (or None)
+
+        Args:
+            master_dir:
+            master_key:
+            spectrograph:
+            steps:
+            raw_files:
+            **kwargs: passed to to_file()
+        """
+        # Output file
+        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        # Header
+        hdr = masterframe.build_master_header(self, master_key, master_dir,
+                                              spectrograph, steps=steps,
+                                              raw_files=raw_files)
+        self.to_file(ofile, primary_hdr=hdr, hdu_prefix=self.hdu_prefix,
+                     limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
 
     # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod

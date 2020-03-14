@@ -12,13 +12,38 @@ import os
 from pypeit import msgs
 from pypeit import utils
 from pypeit import masterframe
+from pypeit import datamodel
 from pypeit.core import pixels
 from pypeit.core import save
 from pypeit.core import load
 from IPython import embed
 
 
-class WaveImage(masterframe.MasterFrame):
+class WaveImage(datamodel.DataContainer):
+    version = '1.0.0'
+
+    # I/O
+    output_to_disk = None #('WVTILTS_IMAGE', 'WVTILTS_FULLMASK', 'WVTILTS_DETECTOR_CONTAINER')
+    hdu_prefix = None
+
+    # Master fun
+    master_type = 'Wave'
+    file_format = 'fits'
+
+    datamodel = {
+        'waveimg':  dict(otype=np.ndarray, atype=np.floating, desc='2D Wavelength image'),
+    }
+
+    def __init__(self, waveimg):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+
+
+class BuildWaveImage(object):
     """
     Class to generate the Wavelength Image
 
@@ -36,13 +61,6 @@ class WaveImage(masterframe.MasterFrame):
         det (int or None):
         maskslits (np.ndarray or None):
             True = skip this slit
-        master_key (:obj:`str`, optional):
-            The string identifier for the instrument configuration.  See
-            :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (str, optional):
-            Path to master frames
-        reuse_masters (bool, optional):
-            Load from disk if possible
 
     Attributes:
         image (np.ndarray): Wavelength image
@@ -76,12 +94,11 @@ class WaveImage(masterframe.MasterFrame):
         return slf
 
     # TODO: Is maskslits ever anything besides slits.mask? (e.g., see calibrations.py call)
-    def __init__(self, slits, tilts, wv_calib, spectrograph, det, maskslits, master_key=None,
-                 master_dir=None, reuse_masters=False):
+    def __init__(self, slits, tilts, wv_calib, spectrograph, det, maskslits):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, reuse_masters=reuse_masters)
+        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        #                                 master_key=master_key, reuse_masters=reuse_masters)
         # Required parameters
         self.spectrograph = spectrograph
         self.det = det
@@ -159,81 +176,10 @@ class WaveImage(masterframe.MasterFrame):
 
         # Return
         self.steps.append(inspect.stack()[0][3])
-        return self.image
+        return WaveImage(self.image)
 
     def __repr__(self):
         # Generate sets string
         txt = '<{:s}: >'.format(self.__class__.__name__)
         return txt
-
-    def save(self, outfile=None, overwrite=True, image=None):
-        """
-        Save the master wavelength image.
-
-        Args:
-            outfile (:obj:`str`, optional):
-                Name for the output file.  Defaults to
-                :attr:`file_path`.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file.
-        """
-        _outfile = self.master_file_path if outfile is None else outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
-        # Setup the items
-        hdr = self.build_master_header(steps=self.steps)
-        _image = self.image if image is None else image
-        # Save to a multi-extension FITS
-        save.write_fits(hdr, [_image], _outfile, extnames=['WAVE'])
-        msgs.info('Master frame written to {0}'.format(_outfile))
-
-    def load(self, ifile=None, return_header=False):
-        """
-        Load the wavelength image data from a saved master frame.
-
-        Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header
-
-        Returns:
-            tuple: Returns an `numpy.ndarray`_ with the wavelength image.
-        """
-        #return super(WaveImage, self).load('WAVE', ifile=ifile, return_header=return_header)
-        master_file = self.chk_load_master(ifile)
-        if master_file is None:
-            return None
-        # Load
-        self.image, head0 = load.load_multiext_fits(master_file, ['WAVE'])
-        # Return
-        return self.image
-
-    '''
-    @staticmethod
-    def load_from_file(filename, return_header=False):
-        """
-        Load the wavelength image data from a saved master frame.
-
-        Args:
-            filename (:obj:`str`, optional):
-                Name of the master frame file.
-            return_header (:obj:`bool`, optional):
-                Return the header
-
-        Returns:
-            tuple: Returns an `numpy.ndarray`_ with the wavelength
-            image.  Also returns the primary header, if requested.
-        """
-        # Use of super() to call staticmethods of the base class seems
-        # like a bit of a mess (bound vs. unbound methods).  There's a
-        # syntax that works, but for now, I'm just going to call the
-        # static method explicitly without using super().  See:
-        # https://stackoverflow.com/questions/26788214/super-and-staticmethod-interaction
-        return MasterFrame.load_from_file(filename, 'WAVE', return_header=return_header)
-    '''
 

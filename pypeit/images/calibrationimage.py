@@ -28,20 +28,20 @@ class CalibrationImage(pypeitimage.PypeItImage):
     def from_master_file(cls, filename, **kwargs):
         return super(CalibrationImage, cls).from_file(filename, hdu_prefix=cls.hdu_prefix, **kwargs)
 
-    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
-                       raw_files=None, **kwargs):
-        # Output file
-        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
-        # Header
-        hdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              spectrograph, steps=steps,
-                                              raw_files=raw_files)
-        # Write
-        super(CalibrationImage, self).to_file(ofile, primary_hdr=hdr,
-                                              hdu_prefix=self.hdu_prefix,
-                                              limit_hdus=self.output_to_disk,
-                                              overwrite=True,
-                                              **kwargs)
+    #def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
+    #                   raw_files=None, **kwargs):
+    #    # Output file
+    #    ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+    #    # Header
+    #    hdr = masterframe.build_master_header(self, master_key, master_dir,
+    #                                          spectrograph, steps=steps,
+    #                                          raw_files=raw_files)
+    #    # Write
+    #    super(CalibrationImage, self).to_file(ofile, primary_hdr=hdr,
+    #                                          hdu_prefix=self.hdu_prefix,
+    #                                          limit_hdus=self.output_to_disk,
+    #                                          overwrite=True,
+    #                                          **kwargs)
 
 
 class BuildCalibrationImage(object):

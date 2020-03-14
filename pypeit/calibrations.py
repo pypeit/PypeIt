@@ -575,7 +575,9 @@ class Calibrations(object):
             embed(header='593 of calibrations')
             # Save to Masters
             if self.save_masters:
-                self.flatField.save()
+                self.flatimages.to_master_file(self.master_dir, self.master_key_dict['flat'],  # Naming
+                                           self.spectrograph.spectrograph,  # Header
+                                           steps=self.flatField.steps)
 
                 # If slits were tweaked by the slit illumination
                 # profile, re-write them so that the tweaked slits are
@@ -736,28 +738,28 @@ class Calibrations(object):
         # No wavelength calibration requested
         if self.par['wavelengths']['reference'] == 'pixel':
             msgs.warn('No wavelength calibration performed!')
-            self.mswave = self.wavetilts['tilts'] * (self.wavetilts['tilts'].shape[0]-1.0)
+            self.mswave = waveimage.WaveImage(self.wavetilts['tilts'] * (self.wavetilts['tilts'].shape[0]-1.0))
             self.calib_dict[self.master_key_dict['arc']]['wave'] = self.mswave
             return self.mswave
 
-        # Instantiate
-        # TODO we are regenerating this mask a lot in this module. Could reduce that
-
-        self.waveImage = waveimage.WaveImage(self.slits, self.wavetilts['tilts'], self.wv_calib,
-                                             self.spectrograph, self.det, self.slits.mask,
-                                             master_key=self.master_key_dict['arc'],
-                                             master_dir=self.master_dir,
-                                             reuse_masters=self.reuse_masters)
-
-        # Attempt to load master
-        self.mswave = self.waveImage.load()
-        if self.mswave is None:
-            self.mswave = self.waveImage.build_wave()
+        # Load?
+        masterframe_name = masterframe.construct_file_name(
+            waveimage.WaveImage, self.master_key_dict['arc'], master_dir=self.master_dir)
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.mswave = waveimage.WaveImage.from_file(masterframe_name)
+        else:  # Build
+            # Instantiate
+            # TODO we are regenerating this mask a lot in this module. Could reduce that
+            buildwaveImage = waveimage.BuildWaveImage(self.slits, self.wavetilts['tilts'], self.wv_calib,
+                                             self.spectrograph, self.det, self.slits.mask)
+            self.mswave = buildwaveImage.build_wave()
             # Save to hard-drive
             if self.save_masters:
-                self.waveImage.save()
+                self.mswave.to_master_file(self.master_dir, self.master_key_dict['tilts'],  # Naming
+                                          self.spectrograph.spectrograph,  # Header
+                                          steps=buildwaveImage.steps)
 
-        # Save & return
+        # Cache & return
         self._update_cache('arc', 'wave', self.mswave)
         return self.mswave
 
