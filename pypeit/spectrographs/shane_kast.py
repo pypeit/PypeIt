@@ -192,7 +192,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         #        oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
         #        suffix          = '_blue'
         #    )]
-        detector = detector_container.Detector(
+        detector = detector_container.DetectorContainer(
             det=1,
             dataext=0,
             specaxis=1,

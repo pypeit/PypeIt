@@ -310,8 +310,7 @@ class Calibrations(object):
         masterframe_name = masterframe.construct_file_name(arcimage.ArcImage,
             self.master_key_dict['arc'], master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.msarc = arcimage.ArcImage.from_file(masterframe_name)
-            embed(header='314 of calibrations')
+            self.msarc = arcimage.ArcImage.from_master_file(masterframe_name)
             return self.msarc
 
         # Build it
@@ -368,7 +367,7 @@ class Calibrations(object):
                                                            self.master_key_dict['tilt'],
                                                            master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.mstilt = tiltimage.TiltImage.from_file(masterframe_name)
+            self.mstilt = tiltimage.TiltImage.from_master_file(masterframe_name)
             return self.mstilt
 
         # Build

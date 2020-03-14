@@ -85,6 +85,7 @@ class WaveCalib(object):
     # Frametype is a class attribute
     frametype = 'wv_calib'
     master_type = 'WaveCalib'
+    file_format = 'json'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
@@ -432,7 +433,7 @@ class WaveCalib(object):
         self.maskslits = mask
         return self.maskslits
 
-    def run(self, skip_QA=False, debug=False, master_key=None):
+    def run(self, skip_QA=False, debug=False):
         """
         Main driver for wavelength calibration
 
@@ -454,7 +455,7 @@ class WaveCalib(object):
         self.arccen, self.maskslits = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
-        self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA, master_key=master_key)
+        self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
         # Return
         if self.par['echelle'] is True:
