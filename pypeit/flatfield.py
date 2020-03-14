@@ -18,6 +18,8 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
 from pypeit import masterframe
+# NOTE: only used by the FlatField.show method
+from pypeit import slittrace
 
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
@@ -81,6 +83,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
     frametype = 'pixelflat'
     master_type = 'Flat'
 
+    # TODO: Why is par passed in here?
     @classmethod
     def from_master_file(cls, master_file, par=None):
         """
@@ -102,18 +105,11 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Par
         if par is None:
             par = spectrograph.default_pypeit_par()
-        # Master info
-        master_dir = head0['MSTRDIR']
-        master_key = head0['MSTRKEY']
-        # Instantiate
-        slf = cls(spectrograph, par['calibrations']['pixelflatframe'], master_dir=master_dir,
-                  master_key=master_key, reuse_masters=True)
-        # Load
-        rawflatimg, slf.mspixelflat, slf.msillumflat = slf.load(ifile=master_file)
-        # Convert rawflatimg to a PypeItImage
-        slf.rawflatimg = pypeitimage.PypeItImage(rawflatimg)
-        # Return
-        return slf
+        # Instantiate, load, return
+        self = cls(spectrograph, par['calibrations']['pixelflatframe'],
+                   master_dir=head0['MSTRDIR'], master_key=head0['MSTRKEY'], reuse_masters=True)
+        self.load()
+        return self
 
     def __init__(self, spectrograph, par, files=None, det=1, master_key=None,
                  master_dir=None, reuse_masters=False, flatpar=None, msbias=None, msbpm=None,
@@ -244,15 +240,18 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Return
         return self.mspixelflat, self.msillumflat
 
-    def show(self, slits=True, wcs_match=True):
+    def show(self, show_slits=True, wcs_match=True):
         """
-        Show all of the flat field products
+        Show all of the flat field products in ginga.
 
         Args:
-            slits (bool, optional):
-            wcs_match (bool, optional):
-
+            show_slits (:obj:`bool`, optional):
+                Overlay the slit edges on the flat-field images
+            wcs_match (:obj:`bool`, optional):
+                Match the WCS of the flat-field images
         """
+        ginga.connect_to_ginga(raise_err=True, allow_new=True)
+
         # TODO: Add an option that shows the relevant stuff in a
         # matplotlib window.
         viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
@@ -262,8 +261,22 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         viewer, ch = ginga.show_image(self.rawflatimg.image, chname='flat', wcs_match=wcs_match)
         viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
 
-        if slits and self.slits is not None:
-            ginga.show_slits(viewer, ch, self.slits.left, self.slits.right, self.slits.id)
+        if not show_slits:
+            return
+
+        # Get the slits
+        if self.slits is None:
+            # Try to load the slits
+            try:
+                slits = slittrace.SlitTraceSet.from_master(self.master_key, self.master_dir)
+            except:
+                msgs.warn('Could not load slits to show with flat-field images.')
+                slits = None
+        else:
+            slits = self.slits
+        # Show them if they exist
+        if slits is not None:
+            ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
 
     def save(self, outfile=None, overwrite=True):
         """
@@ -318,10 +331,14 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             return None, None, None
         # Load
         ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
-        self.rawflatimg, self.mspixelflat, self.msillumflat, self.flat_model, head0 \
+        rawflatimg, self.mspixelflat, self.msillumflat, self.flat_model, head0 \
                 = load.load_multiext_fits(master_file, ext)
+        # TODO: Moved this here from `from_master_file`. The type of
+        # rawflatimg feels like a mess...
+        self.rawflatimg = pypeitimage.PypeItImage(rawflatimg)
+
         # Return
-        return self.rawflatimg, self.mspixelflat, self.msillumflat
+        return self.rawflatimg.image, self.mspixelflat, self.msillumflat
 
     def fit(self, debug=False):
         """
@@ -473,8 +490,9 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Construct three versions of the slit ID image
         #   - an image that uses the padding defined by self.slits
         slitid_img = self.slits.slit_img()
-        #   - an image that uses the extra padding defined by self.flatpar.
-        #     This was always 5 pixels in the previous version.
+        #   - an image that uses the extra padding defined by
+        #     self.flatpar. This was always 5 pixels in the previous
+        #     version.
         padded_slitid_img = self.slits.slit_img(pad=pad)
         #   - and an image that trims the width of the slit using the
         #     parameter in self.flatpar. This was always 3 pixels in
