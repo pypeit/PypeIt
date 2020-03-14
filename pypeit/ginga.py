@@ -324,16 +324,16 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         canvas.clear()
 
     # Spectral pixel location
-    y = np.arange(nspec)
+    y = np.arange(nspec).astype(float)
 
     # Label positions
     top = int(2*nspec/3.)
     bot = int(nspec/5.)
 
-    # Plot lefts, ...
+    # Plot lefts, ...   Points need to be int or float.  the .tolist() on each array insures this
     for i in range(nleft):
-        points = list(zip(y[::pstep], _left[::pstep,i])) if rotate \
-                    else list(zip(_left[::pstep,i], y[::pstep]))
+        points = list(zip(y[::pstep].tolist(), _left[::pstep,i].tolist())) if rotate \
+                    else list(zip(_left[::pstep,i].tolist(), y[::pstep].tolist()))
         canvas.add(str('path'), points, color=str('red'))
         if not synced:
             # Add text
@@ -348,8 +348,8 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     # ... then rights, ...
     for i in range(nright):
-        points = list(zip(y[::pstep], _right[::pstep,i])) if rotate \
-                    else list(zip(_right[::pstep,i], y[::pstep]))
+        points = list(zip(y[::pstep].tolist(), _right[::pstep,i].tolist())) if rotate \
+                    else list(zip(_right[::pstep,i].tolist(), y[::pstep].tolist()))
         canvas.add(str('path'), points, color=str('orange'))
         if not synced:
             # Add text
