@@ -30,6 +30,7 @@ def_det = dict(
     ygap=0.,
     ysize=1.,
     darkcurr=0.0,
+    binning='1,1',
     datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),  # These are rows, columns on the raw frame, 1-indexed
     oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']))
 

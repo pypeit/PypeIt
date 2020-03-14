@@ -114,7 +114,7 @@ class WaveCalib(object):
 
         # Get the non-linear count level
         self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.msarc.detector_par)
+            else self.spectrograph.nonlinear_counts(self.msarc.detector)
             #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------

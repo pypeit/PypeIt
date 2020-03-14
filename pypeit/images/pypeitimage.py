@@ -61,7 +61,7 @@ class PypeItImage(datamodel.DataContainer):
         'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
         'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
         'mask': dict(otype=maskimage.ImageMask, desc='Mask DataContainer'),
-        'detector': dict(otype=detector_container.Detector, desc='Detector DataContainer'),
+        'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
     }
 
     datamodel = datamodel_v100.copy()
@@ -91,6 +91,8 @@ class PypeItImage(datamodel.DataContainer):
         slf.HEAD0 = hdul[0].header
         # Mask
         slf.mask = maskimage.ImageMask.from_hdu(hdul, hdu_prefix=hdu_prefix)
+        # Detector
+        slf.detector = detector_container.DetectorContainer.from_hdu(hdul, hdu_prefix=hdu_prefix)
 
         # Return
         return slf

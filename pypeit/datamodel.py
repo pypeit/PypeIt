@@ -894,6 +894,8 @@ class DataContainer:
                 # Check version (and type)?
                 dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
                 dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
+                if not dm_type_passed:
+                    import pdb; pdb.set_trace()
                 # Grab it
                 d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
                         else Table.read(hdu[hduindx])
@@ -913,10 +915,8 @@ class DataContainer:
                 # differences.
                 single_row = len(_hdu[e].data) == 1
                 for key in _hdu[e].columns.names:
-                    if debug:
-                        embed(header='917 of datamodel')
                     if key in cls.datamodel.keys():
-                        d[key] = _hdu[e].data[key][0] if single_row else _hdu[e].data[key]
+                        d[key] = _hdu[e].data[key][0] if (single_row and _hdu[e].data[key].ndim > 1) else _hdu[e].data[key]
                         if transpose_table_arrays:
                             d[key] = d[key].T
         return d, dm_version_passed, dm_type_passed

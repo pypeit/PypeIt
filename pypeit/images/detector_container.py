@@ -15,7 +15,7 @@ from pypeit import datamodel
 from IPython import embed
 
 
-class Detector(datamodel.DataContainer):
+class DetectorContainer(datamodel.DataContainer):
     """
     Class to hold a Detector
 
@@ -70,7 +70,8 @@ class Detector(datamodel.DataContainer):
     datamodel = datamodel_v100.copy()
 
     def __init__(self, dataext, specaxis, specflip, spatflip, platescale, saturation,
-                 mincounts, nonlinear, numamplifiers, gain, ronoise, det,  # Up to here are required
+                 mincounts, nonlinear, numamplifiers, gain, ronoise, det,
+                 binning, # Up to here are required
                  xgap=None, ygap=None, ysize=None, darkcurr=None,
                  datasec=None, oscansec=None):
 
@@ -88,6 +89,6 @@ class Detector(datamodel.DataContainer):
             list:
 
         """
-        return super(Detector, self)._bundle(ext='DETECTOR')
+        return super(DetectorContainer, self)._bundle(ext='DETECTOR_CONTAINER')
 
 

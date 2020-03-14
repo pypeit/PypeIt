@@ -8,6 +8,10 @@ import numpy as np
 
 from pypeit.slittrace import SlitTraceSet
 
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
+
 def test_init():
 
     slits = SlitTraceSet(left=np.full((1000,3), 2, dtype=float),
@@ -63,5 +67,42 @@ def test_io():
     # Clean up
     os.remove(slits.master_file_path)
     os.remove(other_ofile)
-   
+
+
+def test_io_single():
+    slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
+                         nspat=10, spectrograph='dummy', master_key='dummy',
+                         master_dir=os.getcwd())
+
+    # Remove any existing file from previous runs that were interrupted
+
+    # Try to save it
+    slits.to_file(data_path('tst_slittrace.fits'))
+
+    _slits = SlitTraceSet.from_file(data_path('tst_slittrace.fits'))
+
+    assert np.array_equal(_slits.left, np.full((1000, 3), 2, dtype=float)), 'Bad left read'
+    # And that it's the same as the existing one
+    assert np.array_equal(_slits.left, slits.left), 'Bad left read'
+
+    # Try to read/write to a custom file name
+    # Remove existing file from previous runs that were interrupted
+    other_ofile = 'test.fits.gz'
+    if os.path.isfile(other_ofile):
+        os.remove(other_ofile)
+
+    # Test write
+    slits.to_file(other_ofile)
+
+    # Test overwrite
+    slits.to_file(other_ofile, overwrite=True)
+
+    # Test from_file
+    _slits = SlitTraceSet.from_file(other_ofile)
+    assert np.array_equal(slits.right, _slits.right), 'Bad read from_file'
+
+    # Clean up
+    os.remove(slits.master_file_path)
+    os.remove(other_ofile)
+
 
