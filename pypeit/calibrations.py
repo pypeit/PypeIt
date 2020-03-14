@@ -296,11 +296,8 @@ class Calibrations(object):
 
         # Prep
         arc_files = self._prep_calibrations('arc')
-        #arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
-        #self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        #self.master_key_dict['arc'] \
-        #        = self.fitstbl.master_key(arc_rows[0] if len(arc_rows) > 0 else self.frame,
-        #                                  det=self.det)
+        masterframe_name = masterframe.construct_file_name(
+            arcimage.ArcImage, self.master_key_dict['arc'], master_dir=self.master_dir)
 
         # Previously calculated?  If so, reuse
         if self._cached('arc', self.master_key_dict['arc']):
@@ -308,23 +305,21 @@ class Calibrations(object):
             return self.msarc
 
         # Reuse master frame?
-        masterframe_name = masterframe.construct_file_name(arcimage.ArcImage,
-            self.master_key_dict['arc'], master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msarc = arcimage.ArcImage.from_master_file(masterframe_name)
         else:  # Build it
             msgs.info("Preparing a master {0:s} frame".format(arcimage.ArcImage.frametype))
-            self.buildArcImage = arcimage.BuildArcImage(self.spectrograph, files=arc_files,
-                                              det=self.det, msbias=self.msbias,
-                                              par=self.par['arcframe'])
-            self.msarc = arcimage.ArcImage.from_pypeitimage(
-                self.buildArcImage.build_image(bias=self.msbias, bpm=self.msbpm))
+            buildArcImage = arcimage.BuildArcImage(self.spectrograph, self.det,
+                                                        self.par['arcframe']['process'],
+                                                        arc_files,
+                                                        bias=self.msbias)
+            self.msarc = buildArcImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             # Save
             if self.save_masters:
                 self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
                                           self.spectrograph.spectrograph,  # Header
-                                          steps=self.buildArcImage.process_steps,
+                                          steps=buildArcImage.process_steps,
                                           raw_files=arc_files)
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
@@ -350,11 +345,6 @@ class Calibrations(object):
 
         # Prep
         tilt_files = self._prep_calibrations('tilt')
-        #tilt_rows = self.fitstbl.find_frames('tilt', calib_ID=self.calib_ID, index=True)
-        #self.tilt_files = self.fitstbl.frame_paths(tilt_rows)
-        #self.master_key_dict['tilt'] \
-        #        = self.fitstbl.master_key(tilt_rows[0] if len(tilt_rows) > 0 else self.frame,
-        #                                  det=self.det)
 
         if self._cached('tiltimg', self.master_key_dict['tilt']):
             # Previously calculated
@@ -371,9 +361,9 @@ class Calibrations(object):
 
         # Build
         msgs.info("Preparing a master {0:s} frame".format(tiltimage.TiltImage.frametype))
-        self.buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, files=tilt_files,
-                                          det=self.det, msbias=self.msbias,
-                                          par=self.par['tiltframe'])
+        self.buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, self.det,
+                                                       self.par['tiltframe']['process'],
+                                                       tilt_files, bias=self.msbias)
         self.mstilt = tiltimage.TiltImage.from_pypeitimage(
             self.buildtiltImage.build_image(bias=self.msbias, bpm=self.msbpm))
 
@@ -409,12 +399,6 @@ class Calibrations(object):
 
         # Prep
         bias_files = self._prep_calibrations('bias')
-        #bias_rows = self.fitstbl.find_frames('bias', calib_ID=self.calib_ID, index=True)
-        #self.bias_files = self.fitstbl.frame_paths(bias_rows)
-
-        #self.master_key_dict['bias'] \
-        #        = self.fitstbl.master_key(bias_rows[0] if len(bias_rows) > 0 else self.frame,
-        #                                  det=self.det)
 
         # Grab from internal dict (or hard-drive)?
         if self._cached('bias', self.master_key_dict['bias']):
@@ -423,11 +407,8 @@ class Calibrations(object):
             return self.msbias
 
         # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, files=bias_files,
-                                             det=self.det, par=self.par['biasframe'])
-                                             #master_key=self.master_key_dict['bias'],
-                                             #master_dir=self.master_dir,
-                                             #reuse_masters=self.reuse_masters)
+        self.biasFrame = biasframe.BiasFrame(self.spectrograph, self.par['biasframe'],
+                                             self.det, files=bias_files)
 
         # Construct the name, in case we need it
         masterframe_name = masterframe.construct_file_name(biasframe.BiasImage,
@@ -569,7 +550,7 @@ class Calibrations(object):
             msgs.info('Using user-defined file: {0}'.format(flat_file))
             with fits.open(flat_file) as hdu:
                 pixelflat = hdu[self.det].data
-            self.flatimages = flatfield.FlatImages.(None, pixelflat, None, None)
+            self.flatimages = flatfield.FlatImages(None, pixelflat, None, None)
         elif os.path.isfile(masterframe_name) and self.reuse_masters:
             self.flatimages = flatfield.FlatImages.from_file(masterframe_name)
         else:

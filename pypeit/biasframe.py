@@ -60,59 +60,23 @@ class BiasFrame(calibrationimage.BuildCalibrationImage):
     """
 
     # Frame type is a class attribute
-    frametype = 'bias'
-    master_type = 'Bias'
-    master_version = '1.0.0'
+    #frametype = 'bias'
+    #master_type = 'Bias'
+    #master_version = '1.0.0'
+
     image_type = BiasImage
 
-    #@classmethod
-    #def from_master_file(cls, master_file, par=None):
-    #    """
-    #    Instantiate from a master file
-#
-#        Args:
-#            master_file (str):
-#            par (:class:`pypeit.par.pypeitpar.FrameGroupPar`, optional):
-#
-#        Returns:
-#            biasframe.BiasFrame:
-#                The PypeItImage is loaded into self.pypeitImage
-#
-#        """
-#        # Spectrograph
-#        spectrograph, extras = masterframe.items_from_master_file(master_file)
-#        head0 = extras[0]
-#        # Master info
-#        master_dir = head0['MSTRDIR']
-#        master_key = head0['MSTRKEY']
-#        # Instantiate
-#        slf = cls(spectrograph, par=par, master_dir=master_dir, master_key=master_key,
-#                  reuse_masters=True)
-#        slf.pypeitImage = slf.load(ifile=master_file)
-#        # Return
-#        return slf
+    postbias_process_steps = ['trim']
+    postbias_process_steps += ['orient']
 
-    # Keep order same as processimages (or else!)
-    def __init__(self, spectrograph, files=None, det=1, par=None, master_key=None,
-                 master_dir=None, reuse_masters=False):
+    def __init__(self, spectrograph, par, det, files=None):
 
-        # Parameters
-        self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
+        self.par = par
 
         # Start us up
-        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
-
-        # MasterFrames: Specifically pass the ProcessImages-constructed
-        # spectrograph even though it really only needs the string name
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, reuse_masters=reuse_masters)
-
-        # Processing steps
-        self.process_steps = []
-        if self.par['process']['overscan'].lower() != 'none':
-            self.process_steps.append('subtract_overscan')
-        self.process_steps += ['trim']
-        self.process_steps += ['orient']
+        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det,
+                                                        self.par['process'], files,
+                                                        bias=None)
 
     def build_image(self, overwrite=False, trim=True):
         """
@@ -141,34 +105,6 @@ class BiasFrame(calibrationimage.BuildCalibrationImage):
         # Return
         return biasImage
 
-    #def save(self, outfile=None, overwrite=True):
-    #    """
-    #    Save the bias master data.
-#
-#        Args:
-#            outfile (:obj:`str`, optional):
-#                Name for the output file.  Defaults to
-#                :attr:`file_path`.
-#            overwrite (:obj:`bool`, optional):
-#                Overwrite any existing file.
-#        """
-#        # Some checks
-#        if self.pypeitImage is None:
-#            msgs.warn('No MasterBias to save!')
-#            return
-#        # Proceed
-#        _outfile = self.master_file_path if outfile is None else outfile
-#        # Check if it exists
-#        if os.path.exists(_outfile) and not overwrite:
-#            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-#                      + 'Set overwrite=True to overwrite it.')
-#            return
-#        # Save
-#        hdr = self.build_master_header(steps=self.process_steps, raw_files=self.file_list)
-#        self.pypeitImage.to_file(_outfile, primary_hdr=hdr, hdu_prefix='BIAS_')#, iext='BIAS')
-#        msgs.info('Master frame written to {0}'.format(_outfile))
-#        #super(BiasFrame, self).save(self.pypeitImage, 'BIAS', outfile=outfile, overwrite=overwrite,
-#        #                            raw_files=self.file_list, steps=self.process_steps)
 
     def load(self, ifile, reuse_masters=False):
         """

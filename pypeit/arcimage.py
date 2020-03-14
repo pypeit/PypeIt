@@ -34,45 +34,11 @@ class BuildArcImage(calibrationimage.BuildCalibrationImage):
     """
     Generate an ArcImage by processing and combining one or more arc frames.
 
-
-    Args:
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The `Spectrograph` instance that sets the
-            instrument used to take the observations.  Used to set
-            :attr:`spectrograph`.
-        files (:obj:`list`, optional):
-            The list of files to process.
-            Can be an empty list or None
-        det (:obj:`int`, optional):
-            The 1-indexed detector number to process.
-        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
-            The parameters used to type and process the arc frames.
-        msbias (ndarray or str, optional):
-            Guides bias subtraction
-
-    Attributes:
-        msbias (ndarray):
-            Bias image or bias-subtraction method; see
-            :func:`pypeit.processimages.ProcessImages.process`.
+    See :class:`pypeit.images.BuildCalibrationImage` for the __init__
     """
-    # Frametype is a class attribute
-    frametype = 'arc'
+    # Define the processing steps *after* bias/overscan subtraction
+    postbias_process_steps = ['trim']
+    postbias_process_steps += ['orient']
+    postbias_process_steps += ['apply_gain']
+
     image_type = ArcImage
-
-    def __init__(self, spectrograph, files=None, det=1, par=None, msbias=None):
-    
-        # Parameters unique to this Object
-        self.msbias = msbias
-
-        # Parameters
-        self.par = pypeitpar.FrameGroupPar(self.frametype) if par is None else par
-
-        # Start us up
-        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det, self.par['process'], files=files)
-
-        # Process steps
-        self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
-        self.process_steps += ['trim']
-        self.process_steps += ['orient']
-        self.process_steps += ['apply_gain']
-

@@ -12,6 +12,7 @@ from pypeit.par import pypeitpar
 from pypeit.images import combineimage
 from pypeit.images import pypeitimage
 from pypeit import masterframe
+from pypeit.core import procimg
 
 from IPython import embed
 
@@ -50,15 +51,15 @@ class BuildCalibrationImage(object):
     Args:
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph used to take the data.
-        det (:obj:`int`, optional):
+        det (:obj:`int`):
             The 1-indexed detector number to process.
-        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar` or None):
+        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
             Parameters that dictate the processing of the images.  See
-            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-            defaults.
-
-        files (list, optional):
-            List of filenames to be combined
+            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the defaults.
+        files (list):
+            List of filenames to be processed and combined
+        bias (`np.ndarray`, str, optional):
+            Bias image or str or None describing how to bias subtract
 
     Attributes:
         pypeitImage (:class:`pypeit.images.pypeitimage.PypeItImage`):
@@ -70,7 +71,24 @@ class BuildCalibrationImage(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, spectrograph, det, proc_par, files=None):
+    # Define the processing steps *after* bias/overscan subtraction
+    postbias_process_steps = []
+    """
+    Provides a list of steps for processing the images, e.g.
+    trim, orient, apply_gain
+    
+    See :func:`pypeit.images.processrawimage.ProcessRawImage.process` for all options
+    and the order in which these are applied.
+    """
+
+    # Set the image type
+    image_type = pypeitimage.PypeItImage
+    """
+    This describes the image :class:`pypeit.datamodel.DataContainer` generated
+    by this class.
+    """
+
+    def __init__(self, spectrograph, det, proc_par, files, bias=None):
 
         # Required items
         self.spectrograph = spectrograph
@@ -80,13 +98,13 @@ class BuildCalibrationImage(object):
         self._set_files(files)
 
         # Required parameters
-        if proc_par is not None:
-            if not isinstance(proc_par, pypeitpar.ProcessImagesPar):
-                msgs.error('Provided ParSet for must be type ProcessImagesPar.')
+        if not isinstance(proc_par, pypeitpar.ProcessImagesPar):
+            msgs.error('Provided ParSet for must be type ProcessImagesPar.')
         self.proc_par = proc_par  # This must be named this way as it is frequently a child
 
-        # Process steps
-        self.process_steps = []
+        # Init Process steps
+        self.process_steps = procimg.init_process_steps(bias, self.proc_par)
+        self.process_steps += self.postbias_process_steps
 
         # Standard output
         self.pypeitImage = None
@@ -159,12 +177,11 @@ class BuildCalibrationImage(object):
         combineImage = combineimage.CombineImage(self.spectrograph, self.det, self.proc_par, self.file_list)
         pypeitImage = combineImage.run(self.process_steps, bias, bpm=bpm, ignore_saturation=ignore_saturation)
 
-        # Grab the binning
-        pypeitImage.binning = self.spectrograph.get_meta_value(self.file_list[0], 'binning')
+        # Recast to final image_type
+        final_image = self.image_type.from_pypeitimage(pypeitImage)
 
         # Return
-        return pypeitImage
-
+        return final_image
 
     def __repr__(self):
         return ('<{:s}: nfiles={}, steps={}>'.format(
