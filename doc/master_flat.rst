@@ -92,7 +92,8 @@ Current FlatImages Data Model
 Internally, the image is held in
 :class:`pypeit.flatfield.FlatImages`
 which is a :class:`pypeit.datamodel.DataContainer`.
+
 The datamodel written to disk is:
 
-TO APPEAR HERE
+.. include:: include/datamodel_flatimages.rst
 
