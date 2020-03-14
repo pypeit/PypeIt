@@ -177,8 +177,9 @@ class Calibrations(object):
         self.slits = None
         self.wavecalib = None
         self.wavetilts = None
-        self.mspixelflat = None
-        self.msillumflat = None
+        #self.mspixelflat = None
+        #self.msillumflat = None
+        self.flatimages = None
         self.mswave = None
         self.calib_ID = None
         self.master_key_dict = {}
@@ -311,22 +312,20 @@ class Calibrations(object):
             self.master_key_dict['arc'], master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msarc = arcimage.ArcImage.from_master_file(masterframe_name)
-            return self.msarc
+        else:  # Build it
+            msgs.info("Preparing a master {0:s} frame".format(arcimage.ArcImage.frametype))
+            self.buildArcImage = arcimage.BuildArcImage(self.spectrograph, files=arc_files,
+                                              det=self.det, msbias=self.msbias,
+                                              par=self.par['arcframe'])
+            self.msarc = arcimage.ArcImage.from_pypeitimage(
+                self.buildArcImage.build_image(bias=self.msbias, bpm=self.msbpm))
 
-        # Build it
-        msgs.info("Preparing a master {0:s} frame".format(arcimage.ArcImage.frametype))
-        self.buildArcImage = arcimage.BuildArcImage(self.spectrograph, files=arc_files,
-                                          det=self.det, msbias=self.msbias,
-                                          par=self.par['arcframe'])
-        self.msarc = arcimage.ArcImage.from_pypeitimage(
-            self.buildArcImage.build_image(bias=self.msbias, bpm=self.msbpm))
-
-        # Save
-        if self.save_masters:
-            self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
-                                      self.spectrograph.spectrograph,  # Header
-                                      steps=self.buildArcImage.process_steps,
-                                      raw_files=arc_files)
+            # Save
+            if self.save_masters:
+                self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
+                                          self.spectrograph.spectrograph,  # Header
+                                          steps=self.buildArcImage.process_steps,
+                                          raw_files=arc_files)
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
         # Return
@@ -510,70 +509,49 @@ class Calibrations(object):
             traces are not provided, the function returns two None
             objects instead.
         """
-        embed(header='CHOKING ON FLAT IMAGE FOR SHANE_KAST_BLUE ON 2020 Jan 31 (JXP)')
-
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('Must have the arc, bpm, slits, and wv_calib defined to proceed!')
 
         if self.par['flatfield']['method'] is 'skip':
             # User does not want to flat-field
-            self.mspixelflat = None
-            self.msillumflat = None
             msgs.warn('Parameter calibrations.flatfield.method is set to skip. You are NOT '
                       'flatfielding your data!!!')
             # TODO: Why does this not return unity arrays, like what's
             # done below?
-            return self.mspixelflat, self.msillumflat
+            return flatfield.FlatImages(None, None, None, None)
 
         # Slit and tilt traces are required to flat-field the data
         if not self._chk_objs(['slits', 'wavetilts']):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            # User cannot flat-field
-            self.mspixelflat = None
-            self.msillumflat = None
             # TODO: Why does this not return unity arrays, like what's
             # done below?
-            return self.mspixelflat, self.msillumflat
+            return flatfield.FlatImages(None, None, None, None)
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        pixflat_rows = self.fitstbl.find_frames('pixelflat', calib_ID=self.calib_ID, index=True)
-        # TODO: Why aren't these set to self
-        #   KBW: They're kept in self.flatField.files
-        pixflat_image_files = self.fitstbl.frame_paths(pixflat_rows)
+        #pixflat_rows = self.fitstbl.find_frames('pixelflat', calib_ID=self.calib_ID, index=True)
+        #pixflat_image_files = self.fitstbl.frame_paths(pixflat_rows)
+        pixflat_image_files = self._prep_calibrations('pixelflat')
         # Allow for user-supplied file (e.g. LRISb)
-        self.master_key_dict['flat'] \
-                = self.fitstbl.master_key(pixflat_rows[0] if len(pixflat_rows) > 0 else self.frame,
-                                          det=self.det)
+        #self.master_key_dict['flat'] \
+        #        = self.fitstbl.master_key(pixflat_rows[0] if len(pixflat_rows) > 0 else self.frame,
+        #                                  det=self.det)
 
         # Return already generated data
         if self._cached('pixelflat', self.master_key_dict['flat']) \
                 and self._cached('illumflat', self.master_key_dict['flat']):
-            self.mspixelflat = self.calib_dict[self.master_key_dict['flat']]['pixelflat']
-            self.msillumflat = self.calib_dict[self.master_key_dict['flat']]['illumflat']
-            return self.mspixelflat, self.msillumflat
+            self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
+            #self.mspixelflat = self.calib_dict[self.master_key_dict['flat']]['pixelflat']
+            #self.msillumflat = self.calib_dict[self.master_key_dict['flat']]['illumflat']
+            #return self.mspixelflat, self.msillumflat
+            return self.flatimages
 
-        # Instantiate
-        # TODO: This should automatically attempt to load and instatiate
-        # from a file if it exists.
-        # TODO: msbpm is not passed?
-        self.flatField = flatfield.FlatField(self.spectrograph, self.par['pixelflatframe'],
-                                             files=pixflat_image_files, det=self.det,
-                                             master_key=self.master_key_dict['flat'],
-                                             master_dir=self.master_dir,
-                                             reuse_masters=self.reuse_masters,
-                                             flatpar=self.par['flatfield'], msbias=self.msbias,
-                                             slits=self.slits, wavetilts=self.wavetilts)
-
-        # --- Pixel flats
-
-        # 1)  Try to load master files from disk (MasterFrame)?
-        # TODO: Is this just to get illumflat if the pixel flat is provided?
-        _, self.mspixelflat, self.msillumflat = self.flatField.load()
+        masterframe_name = masterframe.construct_file_name(flatfield.FlatImages,
+                                                           self.master_key_dict['flat'], master_dir=self.master_dir)
 
         # 2) Did the user specify a flat? If so load it in  (e.g. LRISb with pixel flat)?
         # TODO: We need to document this format for the user!
@@ -587,16 +565,24 @@ class Calibrations(object):
                 flat_file = os.path.join(self.flatField.master_dir, self.par['flatfield']['frame'])
             else:
                 msgs.error('Could not find user-defined flatfield file: {0}'.format(
-                           self.par['flatfield']['frame']))
+                    self.par['flatfield']['frame']))
             msgs.info('Using user-defined file: {0}'.format(flat_file))
             with fits.open(flat_file) as hdu:
-                self.mspixelflat = hdu[self.det].data
-            self.msillumflat = None
-
-        # 3) there is no master or no user supplied flat, generate the flat
-        if self.mspixelflat is None and len(pixflat_image_files) != 0:
+                pixelflat = hdu[self.det].data
+            self.flatimages = flatfield.FlatImages.(None, pixelflat, None, None)
+        elif os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.flatimages = flatfield.FlatImages.from_file(masterframe_name)
+        else:
+            # Build it up!
+            self.flatField = flatfield.FlatField(self.spectrograph, self.par['pixelflatframe'],
+                                                 files=pixflat_image_files, det=self.det,
+                                                 flatpar=self.par['flatfield'], msbias=self.msbias,
+                                                 slits=self.slits, wavetilts=self.wavetilts)
             # Run
-            self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show)
+            self.flatimages = self.flatField.run(show=self.show)
+
+
+            # JXP -- NEED TO MERGE IN KYLE'S UPDATES
 
             # TODO: Tilts are unchanged, right?
 #            # If we tweaked the slits, update the wavetilts and

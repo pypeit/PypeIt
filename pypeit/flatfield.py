@@ -22,6 +22,7 @@ from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import calibrationimage
 from pypeit.images import pypeitimage
+from pypeit import datamodel
 from pypeit.core import flat
 from pypeit.core import save
 from pypeit.core import load
@@ -31,7 +32,33 @@ from pypeit.core import tracewave
 from pypeit.core import pydl
 
 
-class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
+class FlatImages(datamodel.DataContainer):
+    version = '1.0.0'
+
+    # I/O
+    output_to_disk = None #('WVTILTS_IMAGE', 'WVTILTS_FULLMASK', 'WVTILTS_DETECTOR_CONTAINER')
+    hdu_prefix = None
+
+    # Master fun
+    master_type = 'Flat'
+    file_format = 'fits'
+
+    datamodel = {
+        'procflat':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined flats'),
+        'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
+        'illumflat': dict(otype=np.ndarray, atype=np.floating, desc='Illumination flat'),
+        'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+    }
+
+    def __init__(self, procflat, pixelflat, illumflat, flat_model):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+
+class FlatField(calibrationimage.CalibrationImage):
     """
     Builds pixel-level flat-field and the illumination flat-field.
 
@@ -63,7 +90,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             corrections.  If None, the default parameters are used.
         slits (:class:`pypeit.edgetrace.SlitTraceSet`):
             The current slit traces.
-        tilts_dict (:obj:`dict`, optional):
+        wavetilts (:obj:`dict`, optional):
             The current wavelength tilt traces; see
             :class:`pypeit.wavetilts.WaveTilts`.
         reuse_masters (:obj:`bool`, optional):
@@ -115,9 +142,9 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Return
         return slf
 
-    def __init__(self, spectrograph, par, files=None, det=1, master_key=None,
-                 master_dir=None, reuse_masters=False, flatpar=None, msbias=None, msbpm=None,
-                 slits=None, tilts_dict=None):
+    def __init__(self, spectrograph, par, files=None,
+                 det=1, flatpar=None, msbias=None, msbpm=None,
+                 slits=None, wavetilts=None):
 
         # Image processing parameters
         if not isinstance(par, pypeitpar.FrameGroupPar):
@@ -129,17 +156,17 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
                                                    files=files)
         #   - Construction and interface as a master frame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, reuse_masters=reuse_masters)
+        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        #                                 master_key=master_key, reuse_masters=reuse_masters)
 
         # FieldFlattening parameters
         self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
 
-        # Input master frame data
+        # Input data
         self.msbias = msbias
         self.msbpm = msbpm
         self.slits = slits
-        self.tilts_dict = tilts_dict
+        self.wavetilts = wavetilts
 
         # Attributes unique to this Object
         self.rawflatimg = None      # Un-normalized pixel flat as a PypeItImage
@@ -186,7 +213,6 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if self.rawflatimg is None or force:
             # Process steps
             self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
-            ## JFH We never need untrimmed images. Why is this even an option?
             if trim:
                 self.process_steps += ['trim']
             self.process_steps += ['apply_gain']
@@ -242,7 +268,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             self.show(slits=True, wcs_match = True)
 
         # Return
-        return self.mspixelflat, self.msillumflat
+        return FlatImages(self.rawflatimg, self.mspixelflat,
+                          self.msillumflat, self.flat_model)
 
     def show(self, slits=True, wcs_match=True):
         """
@@ -265,63 +292,63 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         if slits and self.slits is not None:
             ginga.show_slits(viewer, ch, self.slits.left, self.slits.right, self.slits.id)
 
-    def save(self, outfile=None, overwrite=True):
-        """
-        Save the flat-field master data to a FITS file
+#    def save(self, outfile=None, overwrite=True):
+#        """
+#        Save the flat-field master data to a FITS file
+#
+#        Extensions are:
+#            RAWFLAT
+#            PIXELFLAT
+#            ILLUMFLAT
+#            MODEL
+#
+#        Args:
+#            outfile (:obj:`str`, optional):
+#                Name for the output file.  Defaults to
+#                :attr:`file_path`.
+#            overwrite (:obj:`bool`, optional):
+#                Overwrite any existing file.
+#        """
+#        _outfile = self.master_file_path if outfile is None else outfile
+#        # Check if it exists
+#        if os.path.exists(_outfile) and not overwrite:
+#            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+#                      + 'Set overwrite=True to overwrite it.')
+#            return
+#
+#        # Setup the items
+#        hdr = self.build_master_header(steps=self.steps, raw_files=self.file_list)
+#        data = [self.rawflatimg.image, self.mspixelflat, self.msillumflat, self.flat_model]
+#        extnames = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
+#
+#        # Save to a multi-extension FITS
+#        save.write_fits(hdr, data, _outfile, extnames=extnames)
+#        msgs.info('Master frame written to {0}'.format(_outfile))
 
-        Extensions are:
-            RAWFLAT
-            PIXELFLAT
-            ILLUMFLAT
-            MODEL
-
-        Args:
-            outfile (:obj:`str`, optional):
-                Name for the output file.  Defaults to
-                :attr:`file_path`.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file.
-        """
-        _outfile = self.master_file_path if outfile is None else outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
-
-        # Setup the items
-        hdr = self.build_master_header(steps=self.steps, raw_files=self.file_list)
-        data = [self.rawflatimg.image, self.mspixelflat, self.msillumflat, self.flat_model]
-        extnames = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
-
-        # Save to a multi-extension FITS
-        save.write_fits(hdr, data, _outfile, extnames=extnames)
-        msgs.info('Master frame written to {0}'.format(_outfile))
-
-    def load(self, ifile=None):
-        """
-        Load the flat-field data from a save master frame.
-
-        Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`file_path`.
-
-        Returns:
-            tuple: Returns three `numpy.ndarray`_ objects with the raw
-            flat-field image, the normalized pixel flat, and the
-            illumination flat.
-        """
-        # Check on whether to reuse and whether the file exists
-        master_file = self.chk_load_master(ifile)
-        if master_file is None:
-            return None, None, None
-        # Load
-        ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
-        self.rawflatimg, self.mspixelflat, self.msillumflat, self.flat_model, head0 \
-                = load.load_multiext_fits(master_file, ext)
-        # Return
-        return self.rawflatimg, self.mspixelflat, self.msillumflat
+#    def load(self, ifile=None):
+#        """
+#        Load the flat-field data from a save master frame.
+#
+#        Args:
+#            ifile (:obj:`str`, optional):
+#                Name of the master frame file.  Defaults to
+#                :attr:`file_path`.
+#
+#        Returns:
+#            tuple: Returns three `numpy.ndarray`_ objects with the raw
+#            flat-field image, the normalized pixel flat, and the
+#            illumination flat.
+#        """
+#        # Check on whether to reuse and whether the file exists
+#        master_file = self.chk_load_master(ifile)
+#        if master_file is None:
+#            return None, None, None
+#        # Load
+#        ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
+#        self.rawflatimg, self.mspixelflat, self.msillumflat, self.flat_model, head0 \
+#                = load.load_multiext_fits(master_file, ext)
+#        # Return
+#        return self.rawflatimg, self.mspixelflat, self.msillumflat
 
     def fit(self, debug=False):
         """
@@ -535,8 +562,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # Collapse the slit spatially and fit the spectral function
 
             # Create the tilts image for this slit
-            tilts = tracewave.fit2tilts(rawflat.shape, self.tilts_dict['coeffs'][:,:,slit],
-                                        self.tilts_dict['func2d'])
+            tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit],
+                                        self.wavetilts['func2d'])
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
