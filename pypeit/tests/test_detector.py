@@ -13,6 +13,7 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+# Example (shane_kast_blue)
 def_det = dict(
     dataext=0,
     specaxis=1,
@@ -36,25 +37,16 @@ def_det = dict(
 
 
 def test_init():
-    detector = detector_container.Detector(**def_det)
+    detector = detector_container.DetectorContainer(**def_det)
 
 def test_bundle():
-    detector = detector_container.Detector(**def_det)
+    detector = detector_container.DetectorContainer(**def_det)
     data = detector._bundle()
     assert len(data) == 1
 
-def test_to_hdu():
-    detector = detector_container.Detector(**def_det)
-    hdul = detector.to_hdu()
-    # Parse me
-    dd, tst1, tst2 = detector._parse(hdul[0])
+def test_io():
+    detector = detector_container.DetectorContainer(**def_det)
+    detector.to_file(data_path('tmp_detector.fits'), overwrite=True)
 
-def test_write():
-    detector = detector_container.Detector(**def_det)
-    detector.to_file(data_path('tmp.fits'), overwrite=True)
-
-
-def test_read():
-    detector = detector_container.Detector(**def_det)
-    new_detector = detector.from_file(data_path('tmp.fits'))
+    _new_detector = detector.from_file(data_path('tmp_detector.fits'))
 
