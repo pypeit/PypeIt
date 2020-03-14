@@ -590,6 +590,8 @@ class Calibrations(object):
             assert self.slits is self.flatField.slits
             assert self.tilts_dict is self.flatField.tilts_dict
 
+            # JXP paused around here
+            embed(header='593 of calibrations')
             # Save to Masters
             if self.save_masters:
                 self.flatField.save()
