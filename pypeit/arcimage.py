@@ -22,7 +22,7 @@ class ArcImage(calibrationimage.CalibrationImage):
     version = pypeitimage.PypeItImage.version
 
     # I/O
-    output_to_disk = ('ARC_IMAGE', 'ARC_FULLMASK', 'ARC_DETECTOR_CONTAINER')
+    output_to_disk = ('ARC_IMAGE', 'ARC_FULLMASK', 'ARC_DETECTOR')# 'ARC_DETECTOR_CONTAINER')
     hdu_prefix = 'ARC_'
 
     # Master fun

@@ -17,6 +17,7 @@ from astropy.table import Table
 from astropy.io import fits
 
 from pypeit.datamodel import DataContainer
+from pypeit.images import pypeitimage
 
 #-----------------------------------------------------------------------
 # Example derived classes
@@ -224,6 +225,14 @@ class ComplexInitContainer(DataContainer):
             self.out = self.inp1 + self.inp2 if self.func == 'add' else self.inp1 - self.inp2
 
 #-----------------------------------------------------------------------
+
+def test_fulldatamodel():
+    # Include
+    full_dmodel = pypeitimage.PypeItImage.full_datamodel()
+    assert 'mask' in full_dmodel
+    # Do not include
+    full_dmodel = pypeitimage.PypeItImage.full_datamodel(include_parent=False)
+    assert 'mask' not in full_dmodel
 
 def test_basic():
 

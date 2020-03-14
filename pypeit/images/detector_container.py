@@ -89,6 +89,6 @@ class DetectorContainer(datamodel.DataContainer):
             list:
 
         """
-        return super(DetectorContainer, self)._bundle(ext='DETECTOR_CONTAINER')
+        return super(DetectorContainer, self)._bundle(ext='DETECTOR')
 
 

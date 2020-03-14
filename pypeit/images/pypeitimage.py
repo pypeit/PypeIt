@@ -71,7 +71,7 @@ class PypeItImage(datamodel.DataContainer):
         """
         Instantiate from a file on disk (FITS file)
 
-        Overloading DataContainer method to deal with mask
+        Overloading DataContainer method to deal with mask and detector
 
         Args:
             file (str):
@@ -85,14 +85,14 @@ class PypeItImage(datamodel.DataContainer):
         # Open
         hdul = fits.open(file)
 
+        # This grabs the detector, but probably not the mask
         slf = super(PypeItImage, cls).from_hdu(hdul, hdu_prefix=hdu_prefix)
+        # Mask -- A bit kludgy, but we try twice..
+        if slf.mask is None:
+            slf.mask = maskimage.ImageMask.from_hdu(hdul, hdu_prefix=hdu_prefix)
 
         # Header
         slf.HEAD0 = hdul[0].header
-        # Mask
-        slf.mask = maskimage.ImageMask.from_hdu(hdul, hdu_prefix=hdu_prefix)
-        # Detector
-        slf.detector = detector_container.DetectorContainer.from_hdu(hdul, hdu_prefix=hdu_prefix)
 
         # Return
         return slf

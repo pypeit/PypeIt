@@ -623,7 +623,14 @@ class DataContainer:
 
             ## Assign the values provided by the input dictionary
             for key in d:
-                setattr(self, key, d[key])
+                # Nested DataContainer?
+                if obj_is_data_container(self.datamodel[key]['otype']):
+                    if isinstance(d[key], dict):
+                        setattr(self, key, self.datamodel[key]['otype'](**d[key]))
+                    else:
+                        setattr(self, key, d[key])
+                else:
+                    setattr(self, key, d[key])
 
             # Validate the object
             # TODO: _validate isn't the greatest name for this
@@ -641,10 +648,13 @@ class DataContainer:
             raise ValueError('Must define a version for the class.')
 
     @classmethod
-    def full_datamodel(cls):
+    def full_datamodel(cls, include_parent=True):
         """
         Expand out the datamodel into a single dict
         This needs to be a class method to access the datamodel without instantiation
+
+        Args:
+            include_parent (bool, optional):
 
         Returns:
             dict
@@ -655,6 +665,9 @@ class DataContainer:
         for key in cls.datamodel.keys():
             if inspect.isclass(cls.datamodel[key]['otype']) and (
                     DataContainer in cls.datamodel[key]['otype'].__bases__):
+                if include_parent:
+                    full_datamodel[key] = cls.datamodel[key]
+                # Now run through the others
                 sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
                 for key in sub_datamodel.keys():
                     # Check  this is not a duplicate
@@ -893,13 +906,21 @@ class DataContainer:
             for e in keys[indx]:
                 hduindx = prefix+e.upper()
                 # Check version (and type)?
-                dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
-                dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
+                #  Are we a DataContainer?
+                #if inspect.isclass(cls.datamodel[e]['otype']) and DataContainer in cls.datamodel[e]['otype'].__bases__:
+                if obj_is_data_container(cls.datamodel[e]['otype']):
+                    # Parse it!
+                    d[e], p1, p2 = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
+                    dm_version_passed &= p1
+                    dm_type_passed &= p2
+                else:
+                    dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
+                    dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
+                    # Grab it
+                    d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
+                        else Table.read(hdu[hduindx])
                 if not dm_type_passed:
                     import pdb; pdb.set_trace()
-                # Grab it
-                d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
-                        else Table.read(hdu[hduindx])
 
 
         for e in _ext:
@@ -1110,7 +1131,10 @@ class DataContainer:
                 raise IOError("Bad datamodel version in your hdu's")
             if not dm_type_passed:
                 raise IOError("Bad datamodel type in your hdu's")
-        DataContainer.__init__(self, d)
+        try:
+            DataContainer.__init__(self, d)
+        except:
+            embed(header='1127 of datamodel')
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
@@ -1192,3 +1216,7 @@ class DataContainer:
         with fits.open(ifile) as hdu:
             return cls.from_hdu(hdu)
 
+
+def obj_is_data_container(obj):
+    answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
+    return answer

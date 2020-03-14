@@ -51,5 +51,5 @@ Internally, the image is held in
 :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-TO APPEAR HERE
+.. include:: include/datamodel_arcimage.rst
 

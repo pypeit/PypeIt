@@ -27,18 +27,14 @@ def build_tbl(imgtyp):
 
     data_table = numpy.empty((len(keys)+1, 4), dtype=object)
     data_table[0,:] = ['HDU Name', 'Obj Type', 'Array Type', 'Description']
-    keep_rows = [True]*len(data_table)
+    alternate_keys = []
     for i,k in enumerate(keys):
         # Key
         # Rename?
         _k = k.upper()
         if imgtyp.hdu_prefix is not None:
             _k = imgtyp.hdu_prefix+_k
-        # Use?
-        if imgtyp.output_to_disk is not None:
-            if _k not in imgtyp.output_to_disk:
-                keep_rows[i+1] = False
-                continue
+        alternate_keys.append(_k)
         data_table[i+1,0] = ParSet._data_string(_k, use_repr=False, verbatum=True)
         # Object Type
         if isinstance(data_model[k]['otype'], (list,tuple)):
@@ -53,8 +49,16 @@ def build_tbl(imgtyp):
         # Description
         data_table[i+1,3] = ParSet._data_string(data_model[k]['desc'])
 
+    # Restrict by output_to_disk?
+    if imgtyp.output_to_disk is not None:
+        keep_rows = [0]
+        for _k in imgtyp.output_to_disk:
+            keep_rows.append(alternate_keys.index(_k)+1)
+    else:
+        keep_rows = numpy.arange(len(data_table)).astype(int)
+
     # Parse
-    data_table = data_table[numpy.array(keep_rows)]
+    data_table = data_table[numpy.asarray(keep_rows)]
 
     tbl_lines = [ParSet._data_table_string(data_table, delimeter='rst')]
     return tbl_lines
@@ -65,31 +69,25 @@ if __name__ == '__main__':
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_calib_images_rst.txt')
-    with open(input_base, 'r') as f:
-        lines = [ l.replace('\n','') for l in f.readlines() ]
-    lines += ['']
+    output_path = os.path.join(pypeit_root, 'doc', 'include')
 
-    for imgtyp,insert_line in zip([ArcImage],
-                                  ['Current ArcImage Data Model']):
-        # ArcImage
-
+    for imgtyp,ofile in zip([ArcImage],
+                            [os.path.join(output_path, 'datamodel_arcimage.rst')]):
+        # Build the Table
         tbl_lines = build_tbl(imgtyp)
         tbl_lines = [''] + ['Version {:s}'.format(imgtyp.version)] + [''] + tbl_lines
 
         # Insert lines
-        pos = lines.index(insert_line)
-        if pos < 0:
-            raise ValueError("Missing insert line!")
-        lines[pos+2:pos+2] = tbl_lines
+        #pos = lines.index(insert_line)
+        #if pos < 0:
+        #    raise ValueError("Missing insert line!")
 
+        # Finish
+        #output_rst = os.path.join(pypeit_root, 'doc', 'calib_images.rst')
+        with open(ofile, 'w') as f:
+            f.write('\n'.join(tbl_lines))
 
-    # Finish
-    output_rst = os.path.join(pypeit_root, 'doc', 'calib_images.rst')
-    with open(output_rst, 'w') as f:
-        f.write('\n'.join(lines))
-
-    print('Wrote: {}'.format(output_rst))
+        print('Wrote: {}'.format(ofile))
     print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 
 
