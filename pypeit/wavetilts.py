@@ -27,16 +27,22 @@ from IPython import embed
 
 
 class WaveTilts(datamodel.DataContainer):
-    # Peg the version of this class to that of PypeItImage
+    """
+    Simple DataContainer for the output from BuildWaveTilts
+
+    All of the items in the datamodel are required for instantiation,
+      although they can be None (but shouldn't be)
+
+    """
     version = '1.0.0'
 
     # I/O
-    output_to_disk = None #('WVTILTS_IMAGE', 'WVTILTS_FULLMASK', 'WVTILTS_DETECTOR_CONTAINER')
-    hdu_prefix = None
+    output_to_disk = None  # This writes all items that are not None
+    hdu_prefix = None      # None required for this DataContainer
 
-    # Master fun
+    # MasterFrame fun
     master_type = 'Tilts'
-    frametype = 'tilts'
+    #frametype = 'tilts'
     file_format = 'fits'
 
     datamodel = {
@@ -59,18 +65,6 @@ class WaveTilts(datamodel.DataContainer):
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
-
-    #def to_master_file(self, master_key, master_dir, spectrograph, **kwargs):
-    #    # Output file
-    #    ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
-    #    # Header
-    #    hdr = masterframe.build_master_header(self, master_key, master_dir, spectrograph)
-    #    # Write
-    #    super(WaveTilts, self).to_file(ofile, primary_hdr=hdr,
-    #                                          hdu_prefix=self.hdu_prefix,
-    #                                          limit_hdus=self.output_to_disk,
-    #                                          overwrite=True,
-    #                                          **kwargs)
 
 
 class BuildWaveTilts(object):
@@ -644,91 +638,91 @@ class BuildWaveTilts(object):
                     plt.plot(spat[l:r+1,t], spec_fit[l:r+1,t], color='k')
             plt.show()
 
-        # Build Data model
+        # Build and return DataContainer
         tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen':self.slitcen,
                       'func2d':self.par['func2d'], 'nslit':self.nslits,
                       'spat_order':self.spat_order, 'spec_order':self.spec_order}
         return WaveTilts(**tilts_dict), maskslits
 
-    def save(self, outfile, master_dir, overwrite=True):
-        """
-        Save the wavelength tilts data to a master frame
+#    def save(self, outfile, master_dir, overwrite=True):
+#        """
+#        Save the wavelength tilts data to a master frame
+#
+#        Args:
+#            outfile (:obj:`str`):
+#                Name for the output file.  Defaults to
+#                :attr:`master_file_path`.
+#            overwrite (:obj:`bool`, optional):
+#                Overwrite any existing file.
+#        """
+#        #_outfile = self.master_file_path if outfile is None else outfile
+#        _outfile = outfile #is None else outfile
+#        # Check if it exists
+#        if os.path.exists(_outfile) and not overwrite:
+#            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+#                      + 'Set overwrite=True to overwrite it.')
+#            return
+#
+#        # Log
+#        msgs.info('Saving master frame to {0}'.format(_outfile))
+#
+#        hdr = masterframe.build_master_header(self, self.master_key,
+#                                              master_dir, self.spectrograph.spectrograph,
+#                                              steps=self.steps)
+#
+#        # Build the header
+#        #hdr = self.build_master_header(steps=self.steps)
+#        #   - Set the master frame type
+#        hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
+#        #   - Tilts metadata
+#        hdr['FUNC2D'] = self.tilts_dict['func2d']
+#        hdr['NSLIT'] = self.tilts_dict['nslit']
+#
+#        # Write the fits file
+#        data = [self.tilts_dict['tilts'], self.tilts_dict['coeffs'], self.tilts_dict['slitcen'],
+#                self.tilts_dict['spat_order'], self.tilts_dict['spec_order']]
+#        extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
+#        embed(header='643 of wavetilts')
+#        save.write_fits(hdr, data, _outfile, extnames=extnames)
 
-        Args:
-            outfile (:obj:`str`):
-                Name for the output file.  Defaults to
-                :attr:`master_file_path`.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file.
-        """
-        #_outfile = self.master_file_path if outfile is None else outfile
-        _outfile = outfile #is None else outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
-
-        # Log
-        msgs.info('Saving master frame to {0}'.format(_outfile))
-
-        hdr = masterframe.build_master_header(self, self.master_key,
-                                              master_dir, self.spectrograph.spectrograph,
-                                              steps=self.steps)
-
-        # Build the header
-        #hdr = self.build_master_header(steps=self.steps)
-        #   - Set the master frame type
-        hdr['FRAMETYP'] = (self.master_type, 'PypeIt: Master calibration frame type')
-        #   - Tilts metadata
-        hdr['FUNC2D'] = self.tilts_dict['func2d']
-        hdr['NSLIT'] = self.tilts_dict['nslit']
-
-        # Write the fits file
-        data = [self.tilts_dict['tilts'], self.tilts_dict['coeffs'], self.tilts_dict['slitcen'],
-                self.tilts_dict['spat_order'], self.tilts_dict['spec_order']]
-        extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
-        embed(header='643 of wavetilts')
-        save.write_fits(hdr, data, _outfile, extnames=extnames)
-
-    def load(self, ifile):
-        """
-        Load the tilts data.
-
-        This is largely a wrapper for :func:`pypeit.wavetilts.WaveTilts.load_from_file`.
-
-        Args:
-            ifile (:obj:`str`):
-                Name of the master frame file.  Defaults to
-                :attr:`master_file_path`.
-            return_header (:obj:`bool`, optional):
-                Return the header.
-
-        Returns:
-            dict: Returns the tilts dictionary.  If nothing is
-            loaded, either because :attr:`reuse_masters` is `False` or
-            the file does not exist, everything is returned as None (one
-            per expected return object).
-        """
-        # Check on whether to reuse and whether the file exists
-        #master_file = self.chk_load_master(ifile)
-        #if master_file is None:
-        #    return
-        msgs.info('Loading Master frame: {0}'.format(ifile))
-        # Load
-        extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
-        *data, head0 = load.load_multiext_fits(ifile, extnames)
-
-        # Fill the dict
-        self.tilts_dict = {}
-        keys = ['func2d', 'nslit']
-        for k in keys:
-            self.tilts_dict[k] = head0[k.upper()]
-        # Data
-        for ii,ext in enumerate(extnames):
-            self.tilts_dict[ext.lower()] = data[ii]
-        # Return
-        return self.tilts_dict
+#    def load(self, ifile):
+#        """
+#        Load the tilts data.
+#
+#        This is largely a wrapper for :func:`pypeit.wavetilts.WaveTilts.load_from_file`.
+#
+#        Args:
+#            ifile (:obj:`str`):
+#                Name of the master frame file.  Defaults to
+#                :attr:`master_file_path`.
+#            return_header (:obj:`bool`, optional):
+#                Return the header.
+#
+#        Returns:
+#            dict: Returns the tilts dictionary.  If nothing is
+#            loaded, either because :attr:`reuse_masters` is `False` or
+#            the file does not exist, everything is returned as None (one
+#            per expected return object).
+#        """
+#        # Check on whether to reuse and whether the file exists
+#        #master_file = self.chk_load_master(ifile)
+#        #if master_file is None:
+#        #    return
+#        msgs.info('Loading Master frame: {0}'.format(ifile))
+#        # Load
+#        extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
+#        *data, head0 = load.load_multiext_fits(ifile, extnames)
+#
+#        # Fill the dict
+#        self.tilts_dict = {}
+#        keys = ['func2d', 'nslit']
+#        for k in keys:
+#            self.tilts_dict[k] = head0[k.upper()]
+#        # Data
+#        for ii,ext in enumerate(extnames):
+#            self.tilts_dict[ext.lower()] = data[ii]
+#        # Return
+#        return self.tilts_dict
 
     def _parse_param(self, par, key, slit):
         """

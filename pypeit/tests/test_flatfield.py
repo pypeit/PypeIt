@@ -14,6 +14,11 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.images import pypeitimage
 
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
+
+
 # TODO: Bring this test back in some way?
 #def test_step_by_step():
 #    if skip_test:
@@ -40,10 +45,25 @@ from pypeit.images import pypeitimage
 #    assert np.isclose(np.median(flatField.mspixelflatnrm), 1.0267346)
 
 def test_flatimages():
-    procimg = np.ones((1000,100)) * 10.
-    flatImages = flatfield.FlatImages(procimg, np.ones_like(procimg),
-                                      np.ones_like(procimg), None)
+    tmp = np.ones((1000, 100)) * 10.
+    instant_dict = dict(procflat=tmp,
+                        pixelflat=np.ones_like(tmp),
+                        illumflat=np.ones_like(tmp),
+                        flat_model=None)
+
+    flatImages = flatfield.FlatImages(**instant_dict)
     assert flatImages.flat_model is None
+
+    # I/O
+    outfile = data_path('tst_flatimages.fits')
+    flatImages.to_file(outfile, overwrite=True)
+    _flatImages = flatfield.FlatImages.from_file(outfile)
+    # Test
+    for key in instant_dict.keys():
+        if isinstance(instant_dict[key], np.ndarray):
+            assert np.array_equal(flatImages[key],_flatImages[key])
+        else:
+            assert flatImages[key] == _flatImages[key]
 
 @cooked_required
 def test_run():

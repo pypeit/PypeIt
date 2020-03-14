@@ -33,10 +33,17 @@ from pypeit.core import pydl
 
 
 class FlatImages(datamodel.DataContainer):
+    """
+    Simple DataContainer for the output from BuildWaveTilts
+
+    All of the items in the datamodel are required for instantiation,
+      although they can be None (but shouldn't be)
+
+    """
     version = '1.0.0'
 
     # I/O
-    output_to_disk = None #('WVTILTS_IMAGE', 'WVTILTS_FULLMASK', 'WVTILTS_DETECTOR_CONTAINER')
+    output_to_disk = None  # This writes all items that are not None
     hdu_prefix = None
 
     # Master fun
@@ -56,6 +63,34 @@ class FlatImages(datamodel.DataContainer):
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
+
+    def _bundle(self):
+        """
+        Over-write default _bundle() method to write one
+        HDU per image.  Any extras are in the HDU header of
+        the primary image.
+
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension. See the description
+            above.
+        """
+        d = []
+
+        # Rest of the datamodel
+        for key in self.keys():
+            # Skip None
+            if self[key] is None:
+                continue
+            # Array?
+            if self.datamodel[key]['otype'] == np.ndarray:
+                tmp = {}
+                tmp[key] = self[key]
+                d.append(tmp)
+            else: # Add to header of the primary image
+                d[0][key] = self[key]
+        # Return
+        return d
 
 
 class BuildFlatImage(calibrationimage.BuildCalibrationImage):

@@ -26,15 +26,28 @@ def master_dir():
     return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
 
 # Test WaveTilts
-def test_instantiate_wavetilts():
+def test_wavetilts():
     #
-    wvtilts = wavetilts.WaveTilts(tilts=np.ones((2048,350)),
-                                  coeffs=np.ones((6,4,1)),
-                                  slitcen=np.ones((2048,1)),
-                                  nslits=1,
-                                  spat_order=np.array([3]),
-                                  spec_order=np.array([5]),
-                                  func2d='legendre2d')
+    instant_dict = dict(tilts=np.ones((2048,350)),
+                        coeffs=np.ones((6,4,1)),
+                        slitcen=np.ones((2048,1)),
+                        nslit=1,
+                        spat_order=np.array([3]),
+                        spec_order=np.array([5]),
+                        func2d='legendre2d')
+    wvtilts = wavetilts.WaveTilts(**instant_dict)
+    # I/O
+    outfile = data_path('tst_wavetilts.fits')
+    wvtilts.to_file(outfile, overwrite=True)
+    _wvtilts = wavetilts.WaveTilts.from_file(outfile)
+
+    # Test
+    for key in instant_dict.keys():
+        if isinstance(instant_dict[key], np.ndarray):
+            assert np.array_equal(wvtilts[key],_wvtilts[key])
+        else:
+            assert wvtilts[key] == _wvtilts[key]
+
 
 @cooked_required
 def test_instantiate_from_master(master_dir):
