@@ -640,6 +640,7 @@ class WaveTilts(masterframe.MasterFrame):
         data = [self.tilts_dict['tilts'], self.tilts_dict['coeffs'], self.tilts_dict['slitcen'],
                 self.tilts_dict['spat_order'], self.tilts_dict['spec_order']]
         extnames = ['TILTS', 'COEFFS', 'SLITCEN', 'SPAT_ORDER', 'SPEC_ORDER']
+        embed(header='643 of wavetilts')
         save.write_fits(hdr, data, _outfile, extnames=extnames)
 
     def load(self, ifile):
