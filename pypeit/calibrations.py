@@ -863,8 +863,7 @@ class Calibrations(object):
 
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.wavetilts, self.wt_maskslits \
-                    = buildwaveTilts.run(maskslits=self.slits.mask, doqa=self.write_qa,
-                                         show=self.show)
+                    = buildwaveTilts.run(maskslits=self.slits.mask, doqa=self.write_qa, show=self.show)
             # Save?
             if self.save_masters:
                 self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
