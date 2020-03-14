@@ -92,8 +92,7 @@ class PypeIt(object):
         if scistd_file is not None:
             msgs.info('Setting configuration-specific parameters using {0}'.format(
                       os.path.split(scistd_file)[1]))
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file,
-                                                                       arcfile).to_config()
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
