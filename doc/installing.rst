@@ -67,8 +67,8 @@ To remind you, install via GitHub with a sequence like::
 
 This will push the code into your Python distribution.
 
-Installing PypeIt
-=================
+PypeIt
+======
 
 Read all of the text in this sub-section before choosing how you
 wish to install `PypeIt`.

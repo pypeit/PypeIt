@@ -8,6 +8,7 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Script to build HTML files for PYPIT QA. [v1.0]')
     parser.add_argument("pypeit_file", type=str, help="PYPIT file")
     parser.add_argument("type", type=str, help="QA Type (MF, exp, all)")
+    parser.add_argument("--qapath", type=str, default='QA/', help="Path the QA folder including QA/)")
 
     if options is None:
         args = parser.parse_args()
@@ -35,7 +36,7 @@ def main(args, unit_test=False, path=''):
 
     # Master Frame
     if flg_MF:
-        qa.gen_mf_html(args.pypeit_file)
+        qa.gen_mf_html(args.pypeit_file, args.qapath)
 
     # Exposures
     if flg_exp:

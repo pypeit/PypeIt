@@ -15,22 +15,14 @@ Common Items
 Longslit
 ========
 
-If reducing data with a longslit, we recommend
-that you specify that only a single slit is
-desired, i.e.::
-
-    trace slits number 1
-
-See :ref:`trace-slit-number` for further details.
-
 .. _LRISb:
 
 Taking Calibrations for LRISb
 =============================
 
 
-Default Settings
-++++++++++++++++
+LRISb Default Settings
+++++++++++++++++++++++
 
 Here are the deviations from the default settings
 for LRISb::
@@ -71,8 +63,8 @@ keck_lris_red
 Taking Calibrations for LRISr
 =============================
 
-Default Settings
-++++++++++++++++
+LRISr Default Settings
+++++++++++++++++++++++
 
 Here are the deviations from the default settings
 for LRISr::

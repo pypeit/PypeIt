@@ -9,13 +9,6 @@ This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
 And you might want to begin with See :doc:`installing`.
 
-.. comment::
-  We now also provide a set of Slides that provide a more
-  visual step-by-step.  Find them here at
-  the `PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
-  These should be considered to contain
-  the most up-to-date information.
-
 The following outlines the standard steps for running
 PypeIt on a batch of data.  There are alternate ways to
 run these steps, but non-experts should adhere to the
@@ -47,9 +40,9 @@ A word on Calibration data
 PypeIt, as with any DRP, will work most smoothly
 if you have taken data with a good set of calibrations, e.g.
 
+  - Bias frames (optional)
   - Flats without saturation
   - Arcs with most/all of the lines (without substantial saturation)
-  - Bias frames (when you need them)
   - Slitmasks without overlapping slits
   - Sensible detector binning and windowing
 
@@ -68,12 +61,12 @@ While PypeIt can handle one or more nights of data with a mix of gratings, tilts
 This includes mask by mask for multi-slit observations.
 
 Place the science + calibrations in one folder.
-Copy bias (and dark) frames in each folder as needed.
+Copy bias (and dark) frames into each folder as needed.
 
 Or, put them all in one folder and proceed carefully.
 We will refer to that folder as RAWDIR
 
-The raw images can be gzip compressed although the Python FITS reader
+The raw images can be gzip-compressed although the Python FITS reader
 works much more slowly on gzipped files.
 
 1. Setup
@@ -116,13 +109,10 @@ more detail.
 As the code runs, when a new calibration is generated the
 default is to write it to disk as a :doc:`masters` file.
 And for some of these, additional files are written to the
-:ref:`cookbook-qa` folder for inspection.
+:doc:`qa` folder for inspection.
 
 We encourage you to inspect these calibration outputs
 as they come.
-
-MasterFrames
-------------
 
 The term :doc:`masters` refers to the output files for
 calibration data.  These appear in the Masters/ folder
@@ -133,39 +123,26 @@ Here is the order they tend to be created
 with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
-
   - View the :doc:`master_bias` image (if you produced one)
   - View the :doc:`master_arc` image
-  - TiltImage
+  - View the :doc:`master_tilt` image
   - Check slit edges with the :doc:`master_edges` file
-  - Check the 1D wavelength solution using the :ref:`cookbook-qa` below.
-  - Check the 2D wavelength solution using the :ref:`cookbook-qa` below.
+  - Check the 1D wavelength solution in the :doc:`master_wvcalib` output
+  - Check the 2D wavelength solution in the :doc:`master_tilts` output
+  - Check the :doc:`master_flat` images
 
-Note that only a subset of these may be made.
+Note that only a subset of these files may be made.
 It depends on your spectrograph and the calibration files input.
-
-.. _cookbook-qa:
-
-QA
---
-
-When an exposure is fully reduced, a QA file (PNG) is generated in the QA folder.
-
-Here are the key ones to inspect:
-
-  - Wavelength solution QA
-  - Wavelength tilts QA
-
 
 5. Examine Spectra
 ==================
 
 Eventually (be patient), the code will hopefully start
 generating 2D and 1D spectra outputs.  One per standard
-and science frame.
+and science frame, located in the *Science/* folder.
 
-  - Examine the extracted 1D spectra with :ref:`pypeit-1dspec`
-  - Examine the extracted 2D spectra with :ref:`pypeit-2dspec`
+  - Examine the 2D spectral images :doc:`out_spec2D`
+  - Examine the extracted 1D spectra :doc:`out_spec1D`
 
 6. BLEEDING EDGE
 ================

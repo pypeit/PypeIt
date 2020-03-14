@@ -13,7 +13,7 @@ the `By-Hand Approach`_ including the
 `pypeit_identify`_ script,
 `Common Failure Modes`_, and more.
 
-See :doc:`masters_wvcalib` for a discussion of the
+See :doc:`master_wvcalib` for a discussion of the
 main outputs and good/bad examples.
 
 Automated Algorithms
@@ -262,8 +262,8 @@ Developers
 
 .. _full-template:
 
-Full Template
--------------
+Full Template Dev
+-----------------
 
 The preferred method for multi-slit calibration is now
 called `full_template` which

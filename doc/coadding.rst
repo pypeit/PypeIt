@@ -113,8 +113,8 @@ and/or specify whether the spectrum is fluxed::
 Note that these parameters must be outside of the 'a', 'b', 'c', etc. dicts
 or else they will have no effect.
 
-Flux Scaling
-++++++++++++
+Flux ScalingI
++++++++++++++
 
 Each entry can include a *scale* dict that will be used to
 scale the flux of the coadded spectrum using an input filter

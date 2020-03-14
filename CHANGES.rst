@@ -24,6 +24,7 @@
 - Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
   sobel image to the ginga display.
 - Added `bspline_profile_qa` for generic QA of a bspline fit.
+- docs docs and more docs
 
 0.13.1 (07 Mar 2020)
 --------------------

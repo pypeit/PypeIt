@@ -107,8 +107,6 @@ Slit Tracing Customizing
 The following are settings that the user may consider
 varying to improve the slit tracing.
 
-.. _trace-slit-number:
-
 
 Detection Threshold
 -------------------
@@ -183,7 +181,7 @@ Here is the flow of the algorithms.
 
 #. A Sobolev S/N image is generated from the trace flat image
 #. edge detection: An initial set of edges are derived from the Sobolev
-   according to the :ref:`trace-slit-threshold`.
+   according to the `Detection Threshold`_.
 #. match edges:  An algorithm is performed to match edges into slits
    for the first time.
 #. trace (crudely) the slits: Each slit edge is traced with the trace_crude
@@ -202,131 +200,3 @@ Open Issues
     add/subtract individual slits on occasion.
 
 
-.. _trace-slit-longslit:
-
-Reduction Mode
-==============
-
-Longslit
---------
-
-If you have only one slit per detector, you may wish
-to specify the :ref:`trace-slit-number` as 1.
-
-Multislit
----------
-
-Deriving all of the slits in a mask exposure is challenged
-by overlapping slits, slits that run to the detector edge,
-bad columns, etc.  Our testing with DEIMOS and LRIS masks
-is thus far recovering ~95% of the slits.
-
-It is highly recommended that you inspect the warning
-messages during slit tracing and then pause the code
-to inspect the MasterTrace output using the :ref:`trace-slit-script`
-script.
-
-We now summarize the PypeIt parameters that are occasionally
-varied to improve slit tracing.
-
-One parameter to consider first
-is the :ref:`trace-slit-threshold` which sets the minimum
-S/N ratio in the Sobolev filter image for an edge to be
-detected.  You may inspect these edges with the
-:ref:`trace-slit-script` and --show=edgearr.
-The left edges in the Sobolev are the white regions in this image and the
-black regions (negative values)
-are the right edges.
-The green/red traces show the left/right edges detected
-from this image;  these are *not* the final traces.
-Inspect the positive/negative values
-of the edges in the Sobolev image
-and lower/raise :ref:`trace-slit-threshold` accordingly.
-
-If your spectra span only a modest fraction (~50%) of the
-detector in the spectral direction, you may need to:
-(1) Reduce the value of :ref:`trace-slit-mask_frac_thresh`
-and maybe also:
-(2) Modify the range for smashing the Sobolev image
-with :ref:`trace-slit-smash_range`.
-
-
-
-Echelle
--------
-
-The primary difference currently between multi-slit and
-echelle is that the latter analyzes the left and right
-edges separately during the PCA algorithm.
-
-
-
-
-Tips on Trace Flat Frames
-=========================
-
-OUT OF DATE
-
-The slit edges are traced using a "trace" frame.
-If neighboring slits are very close together, you
-can use a "pinhole" frame to trace the slit centroid.
-
-In the current version of PypeIt, pinhole frames are
-only used for echelle data reduction. Pinhole frames
-are usually an exposure of a quartz lamp through a
-very short (pinhole) slit. Thus, neighboring slit
-edges of a pinhole frame should be well separated.
-
-Trace frames, on the other hand, usually have the
-same slit length as the science frame. In cases
-where neighboring slits are very close together,
-it is necessary to first define the slit centroid
-using a pinhole frame, and the slit edges are
-defined using a trace frame by "expanding" the
-slits, by giving the following keyword argument::
-
-    trace slits expand True
-
-This has been developed for the APF primarily.
-
-
-For Developers
-==============
-
-One of the ways the edge-finding algorithm is fooled is
-via chip defects, e.g. bad columns.  It is therefore
-valuable to mask any such known features with the
-bad pixel mask when one introduces a new instrument
-(or detector).
-
-
-Number of Slits
----------------
-
-THIS WAS DEPRECATED
-
-Ironically, one of the more challenging slit
-configurations to automatically identify is
-a single slit.  In part this is often because
-at least one edge of the slit butts against the
-detector giving no image gradient.  And also
-because only a small portion of the detector
-may be illuminated by this 'long' slit.
-
-Therefore, when reducing long slit data, it may be a good
-idea to explicitly tell PypeIt that there is only
-1 slit to be identified. You can set this using
-the keyword::
-
-    [calibrations]
-      [[slitedges]]
-        number=1
-
-You can also use this variable to specify the
-number of slits that should be detected.
-Note, that this feature works best when you have
-well-defined and uniformly illuminated slits
-(usually the case with cross-dispersed data,
-for example).
-
-.. _trace-slit-threshold:
