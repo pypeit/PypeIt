@@ -120,7 +120,8 @@ def main(args):
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir=mdir_base
 
-    slits = slittrace.SlitTraceSet.from_master(head0['TRACMKEY'], mdir)
+    slits_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
+    slits = slittrace.SlitTraceSet.from_master(slits_key, mdir)
 
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
