@@ -192,7 +192,8 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         #        oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
         #        suffix          = '_blue'
         #    )]
-        detector = detector_container.DetectorContainer(
+        detector_dict = dict(
+            binning=self.get_meta_value(self.get_headarr(hdu), 'binning'),
             det=1,
             dataext=0,
             specaxis=1,
@@ -213,11 +214,10 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
             oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
         )
         # suffix='_blue'
-
-        # Set the binning
-        detector.binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
-
+        detector = detector_container.DetectorContainer(**detector_dict)
         self.numhead = 1
+
+        # Return
         return detector
 
     def default_pypeit_par(self):

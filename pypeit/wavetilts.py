@@ -15,6 +15,7 @@ from astropy import stats, visualization
 
 from pypeit import msgs
 from pypeit import masterframe
+from pypeit import datamodel
 from pypeit import ginga
 from pypeit import utils
 from pypeit.core import arc
@@ -25,7 +26,54 @@ from pypeit.core import load
 from IPython import embed
 
 
-class WaveTilts(masterframe.MasterFrame):
+class WaveTilts(datamodel.DataContainer):
+    # Peg the version of this class to that of PypeItImage
+    version = '1.0.0'
+
+    # I/O
+    output_to_disk = None #('WVTILTS_IMAGE', 'WVTILTS_FULLMASK', 'WVTILTS_DETECTOR_CONTAINER')
+    hdu_prefix = None
+
+    # Master fun
+    master_type = 'Tilts'
+    frametype = 'tilts'
+    file_format = 'fits'
+
+    datamodel = {
+        'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
+        'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit.' \
+                       'One set per slit/order (3D array).'),
+        'slitcen': dict(otype=np.ndarray, atype=np.floating,
+                        desc='Location of the slit center.  2D array (nspec, nslit)'),
+        'nslit': dict(otype=int, desc='Number of slits'),
+        'spat_order': dict(otype=np.ndarray, atype=np.integer,
+                           desc='Order for spatial fit'),
+        'spec_order': dict(otype=np.ndarray, atype=np.integer,
+                           desc='Order for spectral fit'),
+        'func2d': dict(otype=str,desc='Function used for the 2D fit'),
+    }
+    def __init__(self, tilts, coeffs, slitcen, nslit, spat_order, spec_order, func2d):
+
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+    def to_master_file(self, master_key, master_dir, spectrograph, **kwargs):
+        # Output file
+        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        # Header
+        hdr = masterframe.build_master_header(self, master_key, master_dir, spectrograph)
+        # Write
+        super(WaveTilts, self).to_file(ofile, primary_hdr=hdr,
+                                              hdu_prefix=self.hdu_prefix,
+                                              limit_hdus=self.output_to_disk,
+                                              overwrite=True,
+                                              **kwargs)
+
+
+class BuildWaveTilts(object):
     """
     Class to guide slit/order tracing
 
@@ -69,7 +117,6 @@ class WaveTilts(masterframe.MasterFrame):
     """
     # Frametype is a class attribute
     master_type = 'Tilts'
-    file_format = 'fits'
     version = '1.0.0'
 
     @classmethod
@@ -597,10 +644,11 @@ class WaveTilts(masterframe.MasterFrame):
                     plt.plot(spat[l:r+1,t], spec_fit[l:r+1,t], color='k')
             plt.show()
 
-        self.tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen':self.slitcen,
-                           'func2d':self.par['func2d'], 'nslit':self.nslits,
-                           'spat_order':self.spat_order, 'spec_order':self.spec_order}
-        return self.tilts_dict, maskslits
+        # Build Data model
+        tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen':self.slitcen,
+                      'func2d':self.par['func2d'], 'nslit':self.nslits,
+                      'spat_order':self.spat_order, 'spec_order':self.spec_order}
+        return WaveTilts(**tilts_dict), maskslits
 
     def save(self, outfile, master_dir, overwrite=True):
         """

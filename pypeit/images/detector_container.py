@@ -70,8 +70,8 @@ class DetectorContainer(datamodel.DataContainer):
     datamodel = datamodel_v100.copy()
 
     def __init__(self, dataext, specaxis, specflip, spatflip, platescale, saturation,
-                 mincounts, nonlinear, numamplifiers, gain, ronoise, det, # Up to here are required
-                 binning=None,  # Binning is usually set dynamically
+                 mincounts, nonlinear, numamplifiers, gain, ronoise, det,
+                 binning,  # Up to here are required
                  xgap=None, ygap=None, ysize=None, darkcurr=None,
                  datasec=None, oscansec=None):
 

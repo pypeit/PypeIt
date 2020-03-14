@@ -164,7 +164,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # NOTE: Don't need to overload the DataContainer.from_file method
     # because it simply calls this from_hdu method.
     @classmethod
-    def from_hdu(cls, hdu):
+    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
         """
         Instantiate the object from an HDU extension.
 

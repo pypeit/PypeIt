@@ -1,5 +1,5 @@
 """
-Module to run tests on WaveTilts class
+Module to run tests on WaveTilts and BuildWaveTilts classes
 Requires files in Development suite and an Environmental variable
 """
 import os
@@ -25,6 +25,17 @@ def data_path(filename):
 def master_dir():
     return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
 
+# Test WaveTilts
+def test_instantiate_wavetilts():
+    #
+    wvtilts = wavetilts.WaveTilts(tilts=np.ones((2048,350)),
+                                  coeffs=np.ones((6,4,1)),
+                                  slitcen=np.ones((2048,1)),
+                                  nslits=1,
+                                  spat_order=np.array([3]),
+                                  spec_order=np.array([5]),
+                                  func2d='legendre2d')
+
 @cooked_required
 def test_instantiate_from_master(master_dir):
     master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
@@ -32,6 +43,7 @@ def test_instantiate_from_master(master_dir):
     waveTilts = wavetilts.WaveTilts.from_master_file(master_file)
     assert isinstance(waveTilts.tilts_dict, dict)
 
+# Test BuildWaveTilts
 @cooked_required
 def test_step_by_step(master_dir):
     # Masters
