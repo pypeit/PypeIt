@@ -567,8 +567,8 @@ class Calibrations(object):
             # Objects should point to the same data
             # TODO: Remove these lines once we're sure the coding is
             # correct so that they're not tripped.
-            assert self.slits is self.flatField.slits
-            assert self.tilts_dict is self.flatField.tilts_dict
+            # assert self.slits is self.flatField.slits
+            # assert self.tilts_dict is self.flatField.tilts_dict
 
             # Save to Masters
             if self.save_masters:
@@ -584,7 +584,7 @@ class Calibrations(object):
                     # Objects should point to the same data
                     # TODO: Remove this line once we're sure the coding
                     # is correct so that they're not tripped.
-                    assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
+                    # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
                     # Update the WaveTilts master
                     self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
                     self.waveTilts.save()
@@ -723,7 +723,7 @@ class Calibrations(object):
         # TODO we are regenerating this mask a lot in this module. Could reduce that
 
         self.waveImage = waveimage.WaveImage(self.slits, self.tilts_dict['tilts'], self.wv_calib,
-                                             self.spectrograph, self.det, self.slits.mask,
+                                             self.spectrograph, self.det, 
                                              master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)

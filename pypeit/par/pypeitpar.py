@@ -539,9 +539,9 @@ class FlatFieldPar(ParSet):
         dtypes['illum_iter'] = int
         descr['illum_iter'] = 'The number of rejection iterations to perform when constructing ' \
                               'the slit-illumination profile.  No rejection iterations are ' \
-                              'performed if 0.'
+                              'performed if 0.  WARNING: Functionality still being tested.'
 
-        defaults['illum_rej'] = 3.
+        defaults['illum_rej'] = 5.
         dtypes['illum_rej'] = [int, float]
         descr['illum_rej'] = 'The sigma threshold used in the rejection iterations used to ' \
                              'refine the slit-illumination profile.  Rejection iterations are ' \

@@ -34,8 +34,6 @@ class WaveImage(masterframe.MasterFrame):
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
         det (int or None):
-        maskslits (np.ndarray or None):
-            True = skip this slit
         master_key (:obj:`str`, optional):
             The string identifier for the instrument configuration.  See
             :class:`pypeit.masterframe.MasterFrame`.
@@ -69,15 +67,15 @@ class WaveImage(masterframe.MasterFrame):
         master_dir = head0['MSTRDIR']
         master_key = head0['MSTRKEY']
         # Instantiate
-        slf = cls(None, None, None, spectrograph, None, None, master_dir=master_dir,
+        slf = cls(None, None, None, spectrograph, None, master_dir=master_dir,
                   master_key=master_key, reuse_masters=True)
         slf.image = slf.load(ifile=master_file)
         # Return
         return slf
 
     # TODO: Is maskslits ever anything besides slits.mask? (e.g., see calibrations.py call)
-    def __init__(self, slits, tilts, wv_calib, spectrograph, det, maskslits, master_key=None,
-                 master_dir=None, reuse_masters=False):
+    def __init__(self, slits, tilts, wv_calib, spectrograph, det, master_key=None, master_dir=None,
+                 reuse_masters=False):
 
         # MasterFrame
         masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
@@ -100,8 +98,6 @@ class WaveImage(masterframe.MasterFrame):
             # they exist, original otherwise.
             self.slit_spat_pos = self.slits.spatial_coordinates()
 
-        self.maskslits = maskslits
-
         # For echelle order, primarily
         # TODO: only echelle is ever used.  Do we need to keep the whole
         # thing?
@@ -120,7 +116,7 @@ class WaveImage(masterframe.MasterFrame):
 
         """
         # Loop on slits
-        ok_slits = np.where(np.invert(self.maskslits))[0]
+        ok_slits = np.where(np.invert(self.slits.mask))[0]
         self.image = np.zeros_like(self.tilts)
         nspec = self.slitmask.shape[0]
 

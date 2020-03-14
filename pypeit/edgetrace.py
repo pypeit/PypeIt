@@ -1083,7 +1083,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   - PCA type, used for rebuilding the PCA when loading
         prihdr['PCATYPE'] = ('None' if self.pca is None else self.pca_type,
                              'PypeIt: Edge trace PCA type')
-        #   - The dispersion name is needed to setup some spectrographs
+        #   - The dispersion name is needed in the setup of some
+        #     spectrographs
         if self.spectrograph.dispname is not None:
             prihdr['DISPNAME'] = (self.spectrograph.dispname, 'Spectrograph disperser')
         #   - Indicate the type if fit (TODO: Keep the fit parameters?)
@@ -1316,7 +1317,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.pca = [ TracePCA.from_hdu(hdu[ext]) for ext in ['LPCA', 'RPCA']] \
                             if self.par['left_right_pca'] else TracePCA.from_hdu(hdu['PCA'])
 
-        # Read the disperser if possible
+        # Read the disperser if possible. This is needed for the
+        # spec_min_max property of some spectrographs.
         if self.spectrograph.dispname is None:
             try:
                 self.spectrograph.dispname = hdu[0].header['DISPNAME']

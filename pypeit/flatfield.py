@@ -163,7 +163,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
 
     def build_pixflat(self, trim=True, force=False):
         """
-        Process the flat flat images.
+        Process the flat field images.
 
         Processing steps are the result of
         :func:`pypeit.core.procimg.init_process_steps`, ``trim``

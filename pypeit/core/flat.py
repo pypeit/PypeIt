@@ -253,7 +253,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
         interp = interpolate.interp1d(spat_coo_data[spat_gpm_data_raw], spat_flat_data,
                                       bounds_error=False, fill_value=0.0, assume_sorted=True)
         resid = spat_flat_data_raw - interp(spat_coo_data)
-        sigma = np.std(np.absolute(resid))
+        sigma = np.std(resid)
         spat_gpm_data_raw = np.absolute(resid) < illum_rej*sigma
 
     # TODO: Provide a report?
