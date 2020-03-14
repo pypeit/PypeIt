@@ -58,13 +58,31 @@ class FlatImages(datamodel.DataContainer):
         datamodel.DataContainer.__init__(self, d=d)
 
 
-class FlatField(calibrationimage.CalibrationImage):
+class BuildFlatImage(calibrationimage.BuildCalibrationImage):
+    """
+    Generate an ArcImage by processing and combining one or more arc frames.
+
+    See :class:`pypeit.images.BuildCalibrationImage` for the __init__
+    """
+    # Define the processing steps *after* bias/overscan subtraction
+    postbias_process_steps = ['trim']
+    postbias_process_steps += ['orient']
+    postbias_process_steps += ['apply_gain']
+    # Turning this on leads to substantial edge-tracing problems when last tested
+    #     JXP November 22, 2019
+    # if self.par['cr_reject']:
+    #    self.process_steps += ['crmask']
+
+
+class FlatField(object):
     """
     Builds pixel-level flat-field and the illumination flat-field.
 
     For the primary methods, see :func:`run`.
 
     Args:
+        rawflatimg (`np.ndarray`):
+            Processed, combined set of pixelflat images
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the instrument used to
             take the observations.  See usage by
@@ -142,34 +160,30 @@ class FlatField(calibrationimage.CalibrationImage):
         # Return
         return slf
 
-    def __init__(self, spectrograph, par, files=None,
-                 det=1, flatpar=None, msbias=None, msbpm=None,
-                 slits=None, wavetilts=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar,
+                 det=1, slits=None, wavetilts=None):
 
-        # Image processing parameters
-        if not isinstance(par, pypeitpar.FrameGroupPar):
-            msgs.error('Must provide a FrameGroupPar instance as the parameters for FlatField.')
-        self.par = par
+        # Defatuls
+        self.spectrograph = spectrograph
+        self.det = det
+        # FieldFlattening parameters
+        self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
 
         # Instantiate the base classes
         #   - Basic processing of the raw images
-        calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
-                                                   files=files)
+        #calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
+        #                                           files=files)
         #   - Construction and interface as a master frame
         #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
         #                                 master_key=master_key, reuse_masters=reuse_masters)
 
-        # FieldFlattening parameters
-        self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
 
         # Input data
-        self.msbias = msbias
-        self.msbpm = msbpm
         self.slits = slits
         self.wavetilts = wavetilts
 
         # Attributes unique to this Object
-        self.rawflatimg = None      # Un-normalized pixel flat as a PypeItImage
+        self.rawflatimg = rawflatimg      # Un-normalized pixel flat as a PypeItImage
         self.mspixelflat = None     # Normalized pixel flat
         self.msillumflat = None     # Slit illumination flat
         self.flat_model = None      # Model flat
@@ -192,40 +206,40 @@ class FlatField(calibrationimage.CalibrationImage):
         """
         return 0 if self.slits is None else self.slits.nslits
 
-    def build_pixflat(self, trim=True, force=False):
-        """
-        Process the flat flat images.
-
-        Processing steps are the result of
-        :func:`pypeit.core.procimg.init_process_steps`, ``trim``
-        (based on the input argument), ``apply_gain``, and ``orient``.
-        Currently, cosmic-ray rejection (``cr_reject``) is not done.
-
-        Args:
-            trim (:obj:`bool`, optional):
-                Trim the image down to just the data section.
-            force (:obj:`bool`, optional):
-                Force the flat to be reconstructed if it already exists
-
-        Returns:
-            pypeitimage.PypeItImage:  The image with the unnormalized pixel-flat data.
-        """
-        if self.rawflatimg is None or force:
-            # Process steps
-            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
-            if trim:
-                self.process_steps += ['trim']
-            self.process_steps += ['apply_gain']
-            self.process_steps += ['orient']
-            # Turning this on leads to substantial edge-tracing problems when last tested
-            #     JXP November 22, 2019
-            #if self.par['cr_reject']:
-            #    self.process_steps += ['crmask']
-            self.steps.append(inspect.stack()[0][3])
-            # Do it
-            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
-                                                                 ignore_saturation=True)
-        return self.rawflatimg
+#    def build_pixflat(self, trim=True, force=False):
+#        """
+#        Process the flat flat images.
+#
+#        Processing steps are the result of
+#        :func:`pypeit.core.procimg.init_process_steps`, ``trim``
+#        (based on the input argument), ``apply_gain``, and ``orient``.
+#        Currently, cosmic-ray rejection (``cr_reject``) is not done.
+#
+#        Args:
+#            trim (:obj:`bool`, optional):
+#                Trim the image down to just the data section.
+#            force (:obj:`bool`, optional):
+#                Force the flat to be reconstructed if it already exists
+#
+#        Returns:
+#            pypeitimage.PypeItImage:  The image with the unnormalized pixel-flat data.
+#        """
+#        if self.rawflatimg is None or force:
+#            # Process steps
+#            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
+#            if trim:
+#                self.process_steps += ['trim']
+#            self.process_steps += ['apply_gain']
+#            self.process_steps += ['orient']
+#            # Turning this on leads to substantial edge-tracing problems when last tested
+#            #     JXP November 22, 2019
+#            #if self.par['cr_reject']:
+#            #    self.process_steps += ['crmask']
+#            self.steps.append(inspect.stack()[0][3])
+#            # Do it
+#            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
+#                                                                 ignore_saturation=True)
+#        return self.rawflatimg
 
     # TODO: Need to add functionality to use a different frame for the
     # ilumination flat, e.g. a sky flat
@@ -256,7 +270,7 @@ class FlatField(calibrationimage.CalibrationImage):
             pixel flat data and the slit illumination correction data.
         """
         # Build the pixel flat (as needed)
-        self.build_pixflat()
+        #self.build_pixflat()
 
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated

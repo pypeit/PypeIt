@@ -326,7 +326,6 @@ class Calibrations(object):
         # Return
         return self.msarc
 
-
     def get_tiltimg(self):
         """
         Load or generate the Tilt image
@@ -345,34 +344,30 @@ class Calibrations(object):
 
         # Prep
         tilt_files = self._prep_calibrations('tilt')
+        masterframe_name = masterframe.construct_file_name(
+            tiltimage.TiltImage, self.master_key_dict['tilt'], master_dir=self.master_dir)
 
+        # Previously calculated?  If so, reuse
         if self._cached('tiltimg', self.master_key_dict['tilt']):
-            # Previously calculated
             self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tiltimg']
             return self.mstilt
 
         # Reuse master frame?
-        masterframe_name = masterframe.construct_file_name(tiltimage.TiltImage,
-                                                           self.master_key_dict['tilt'],
-                                                           master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.mstilt = tiltimage.TiltImage.from_master_file(masterframe_name)
-            return self.mstilt
-
-        # Build
-        msgs.info("Preparing a master {0:s} frame".format(tiltimage.TiltImage.frametype))
-        self.buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, self.det,
+        else: # Build
+            msgs.info("Preparing a master {0:s} frame".format(tiltimage.TiltImage.frametype))
+            buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, self.det,
                                                        self.par['tiltframe']['process'],
                                                        tilt_files, bias=self.msbias)
-        self.mstilt = tiltimage.TiltImage.from_pypeitimage(
-            self.buildtiltImage.build_image(bias=self.msbias, bpm=self.msbpm))
+            self.mstilt = buildtiltImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
-        # Save to Masters
-        if self.save_masters:
-            self.mstilt.to_master_file(self.master_dir, self.master_key_dict['tilt'],  # Naming
+            # Save to Masters
+            if self.save_masters:
+                self.mstilt.to_master_file(self.master_dir, self.master_key_dict['tilt'],  # Naming
                                       self.spectrograph.spectrograph,  # Header
                                       steps=self.buildtiltImage.process_steps,
-                                       raw_files=tilt_files)
+                                      raw_files=tilt_files)
 
         # Cache
         self._update_cache('tilt', 'tiltimg', self.mstilt)
@@ -555,10 +550,15 @@ class Calibrations(object):
             self.flatimages = flatfield.FlatImages.from_file(masterframe_name)
         else:
             # Build it up!
-            self.flatField = flatfield.FlatField(self.spectrograph, self.par['pixelflatframe'],
-                                                 files=pixflat_image_files, det=self.det,
-                                                 flatpar=self.par['flatfield'], msbias=self.msbias,
-                                                 slits=self.slits, wavetilts=self.wavetilts)
+            buildflatImage = flatfield.BuildFlatImage(self.spectrograph, self.det,
+                                                      self.par['pixelflatframe']['process'],
+                                                      pixflat_image_files, bias=self.msbias)
+            pixflatimage = buildflatImage.build_image(bias=self.msbias, bpm=self.msbpm)
+
+            # Normalize and illumination
+            self.flatField = flatfield.FlatField(
+                pixflatimage, self.spectrograph, self.par['flatfield'],
+                det=self.det, slits=self.slits, wavetilts=self.wavetilts)
             # Run
             self.flatimages = self.flatField.run(show=self.show)
 
