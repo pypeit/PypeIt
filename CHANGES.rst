@@ -31,6 +31,7 @@
   sobel image to the ginga display.
 - Added `bspline_profile_qa` for generic QA of a bspline fit.
 - docs docs and more docs
+- A QA fix too
 
 
 
