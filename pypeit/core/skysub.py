@@ -542,6 +542,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
             Boxcar radius in *pixels* used for boxcar extraction.
         sigrej:
             Outlier rejection threshold for sky and object fitting
+            Set by par['scienceimage']['skysub']['sky_sigrej']
         bkpts_optimal = bool, default = True
             Parameter governing whether spectral direction breakpoints
             for b-spline sky/object modeling are determined optimally.

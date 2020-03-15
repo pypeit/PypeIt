@@ -142,12 +142,15 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
 
 def pypeit_arcspec(in_file, slit):
     """
-    Documentation needed.
+    Load up the arc spectrum from an input JSON file
+
     Args:
-        in_file:
-        slit:
+        in_file (str):
+        slit (int):
+            slit index
 
     Returns:
+        np.ndarray, np.ndarray:  wave, flux
 
     """
     wv_dict = ltu.loadjson(in_file)
@@ -418,6 +421,7 @@ def main(flg):
         build_template([wfile1,wfile2,wfile3], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut, chk=True)
 
+    # ###############################################3
     # Keck/LRISr
     if flg & (2**10): # R400
         binspec = 2
@@ -450,7 +454,20 @@ def main(flg):
         wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_5000', 'MasterWaveCalib_B_1_01.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
-    if flg & (2**13):  # Magellan/MagE
+    if flg & (2**27):  # R600/7500
+        # slits = [1-10]  # 5000 -- 7840
+        # slits = [1-4]  # 7840 -- 9230
+        binspec = 2
+        outroot='keck_lris_red_600_7500.fits'
+        slits = [10, 4]
+        lcut = [7840.]
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_7500', 'MasterWaveCalib_I_1_01.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
+                       chk=True, normalize=True, subtract_conti=True)
+
+    # ##################################
+    # Magellan/MagE
+    if flg & (2**13):
         # Load
         mase_path = os.path.join(os.getenv('XIDL_DIR'), 'Magellan', 'MAGE', 'mase', 'Calib')
         sav_file = os.path.join(mase_path, 'MagE_wvguess_jfh.idl')
@@ -770,12 +787,16 @@ if __name__ == '__main__':
 
     # WHT/ISIS
     #flg += 2**23  # Convert JSON to FITS
+
     # Magellan/FIRE
     #flg += 2**24  # FIRE Echelle
     #flg += 2**25  # FIRElongslit
+
     # Gemini Flamingos2
     #flg += 2**26  # Longslit
-    flg += 2**19
+
+    # Keck/LRIS r
+    flg += 2**27  # R600/7500
 
     main(flg)
 

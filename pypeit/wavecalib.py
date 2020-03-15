@@ -55,6 +55,7 @@ class WaveCalib(object):
             :attr:`spectrograph`.
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
             The parameters used for the wavelength solution
+            Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
         det (int, optional): Detector number
         msbpm (ndarray, optional): Bad pixel mask image

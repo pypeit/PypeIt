@@ -80,7 +80,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         msgs.warn('No objects to save. Only writing spec2d files!')
     else:
         # Build the spec1d output header.
-        header = all_specobjs.build_header(head1d, spectrograph)
+        header = all_specobjs.build_header(head1d, head2d, spectrograph)
         all_specobjs.write_to_fits(header, outfile1d, update_det=update_det)
         # Txt file
         # TODO JFH: Make this a method in the specobjs class.
@@ -336,6 +336,7 @@ def init_hdus(update_det, outfile):
     if not isinstance(update_det, list):
         update_det = [update_det]
     popme = []
+
     # Find em
     for ss,hdu_name in enumerate(hdu_names):
         for det in update_det:

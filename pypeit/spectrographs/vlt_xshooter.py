@@ -57,8 +57,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        meta['ra'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])  # Need to convert to : separated
-        meta['dec'] = dict(card=None, compound=True, required_ftypes=['science', 'standard'])
+        meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])  # Need to convert to : separated
+        meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
         meta['target'] = dict(ext=0, card='OBJECT')
         meta['binning'] = dict(card=None, compound=True)
 
@@ -85,15 +85,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
                 binspec = 1
             binning = parse.binning2string(binspec, binspatial)
             return binning
-        elif meta_key in ['ra', 'dec']:
-            try:  # Calibs do not have RA values
-                coord = SkyCoord(ra=headarr[0]['RA'], dec=headarr[0]['DEC'], unit='deg')
-            except:
-                return None
-            if meta_key == 'ra':
-                return coord.ra.to_string(unit=units.hour,sep=':',pad=True,precision=2)
-            else:
-                return coord.dec.to_string(sep=':',pad=True,alwayssign=True,precision=1)
         else:
             msgs.error("Not ready for this compound meta")
 
