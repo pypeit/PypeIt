@@ -92,7 +92,7 @@ class FlatImages(datamodel.DataContainer):
 
 class BuildFlatImage(calibrationimage.BuildCalibrationImage):
     """
-    Generate an ArcImage by processing and combining one or more arc frames.
+    Generate an unnormalzed pixelflat image by processing and combining one or more arc frames.
 
     See :class:`pypeit.images.BuildCalibrationImage` for the __init__
     """
@@ -100,11 +100,9 @@ class BuildFlatImage(calibrationimage.BuildCalibrationImage):
     postbias_process_steps = ['trim']
     postbias_process_steps += ['orient']
     postbias_process_steps += ['apply_gain']
-    # Turning this on leads to substantial edge-tracing problems when last tested
-    #     JXP November 22, 2019
-    # if self.par['cr_reject']:
     #    self.process_steps += ['crmask']
 
+    # Image type will be a PypeItImage
 
 class FlatField(object):
     """

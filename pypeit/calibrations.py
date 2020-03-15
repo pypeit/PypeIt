@@ -650,12 +650,10 @@ class Calibrations(object):
             self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
                                                 files=trace_image_files)
             # Build the trace image
-            buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, files=trace_image_files,
-                                                    det=self.det,
-                                                    par=self.par['traceframe'],
-                                                    bias=self.msbias)
-            self.traceImage = traceimage.TraceImage.from_pypeitimage(
-                buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm))
+            buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, self.det,
+                                                         self.par['traceframe']['process'],
+                                                         trace_image_files, bias=self.msbias)
+            self.traceImage = buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
             try:
                 self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,

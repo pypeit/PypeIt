@@ -236,8 +236,8 @@ class ProcessRawImage(object):
             steps_copy.remove('extras')
 
         # Generate a PypeItImage
-        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning, ivar=self.ivar,
-                                              rn2img=self.rn2img, bpm=bpm, detector=self.detector)
+        pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img, bpm=bpm,
+                                              detector=self.detector)
         # Mask(s)
         if 'crmask' in process_steps:
             if 'extras' in process_steps:

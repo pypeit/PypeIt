@@ -857,9 +857,8 @@ class EdgeTraceSet(object):
         # Parse the input based on its type
         if isinstance(img, TraceImage):
             _img = img.image
-            #_img = img.pypeitImage.image
-            self.binning = img.binning
-            # TODO: does TraceImage have a mask?
+            self.binning = img.detector.binning
+            # TODO: does TraceImage have a mask?  Yes, it does
         else:
             _img = img
             self.binning = binning

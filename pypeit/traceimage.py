@@ -46,20 +46,13 @@ class BuildTraceImage(calibrationimage.BuildCalibrationImage):
     # Frametype is a class attribute
     frametype = 'trace_image'
 
-    def __init__(self, spectrograph, files=None, det=1, par=None, bias=None):
+    postbias_process_steps = ['trim']
+    postbias_process_steps += ['apply_gain']
+    postbias_process_steps += ['orient']
+    # TODO: CR masking for the trace images causes major issues with
+    # the edge tracing because it identifies the edges of the slits
+    # as cosmic rays.  CR parameters need to be optimized for this
+    # to work.
+    #   self.process_steps += ['crmask']
 
-        self.par = pypeitpar.FrameGroupPar('trace') if par is None else par
-        # Start us up
-        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det,
-                                                        self.par['process'], files=files)
-        # Processing steps
-        self.process_steps = procimg.init_process_steps(bias, self.par['process'])
-        self.process_steps += ['trim']
-        self.process_steps += ['apply_gain']
-        self.process_steps += ['orient']
-        # TODO: CR masking for the trace images causes major issues with
-        # the edge tracing because it identifies the edges of the slits
-        # as cosmic rays.  CR parameters need to be optimized for this
-        # to work.
-#        self.process_steps += ['crmask']
-
+    image_type = TraceImage
