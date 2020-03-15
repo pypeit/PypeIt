@@ -129,8 +129,7 @@ class BiasFrame(calibrationimage.BuildCalibrationImage):
         if self.par['useframe'] in ['bias', 'dark']:
             # Check on whether to reuse and whether the file exists
             if os.path.isfile(ifile) and reuse_masters:
-                self.pypeitImage = BiasImage.from_file(ifile, hdu_prefix='BIAS_')
-                return self.pypeitImage
+                return BiasImage.from_file(ifile, hdu_prefix='BIAS_')
             else:
                 return None
 

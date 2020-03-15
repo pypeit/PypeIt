@@ -27,25 +27,21 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.numhead = 3
 
     def get_detector_par(self, hdu, det):
+        # Detector 1
         detector_dict = dict(
-                # Detector 1
-                #pypeitpar.DetectorPar(
             binning='1,1',
             det=1,
             specaxis        = 1,
             specflip        = True,
-            xgap            = 0.,
-            ygap            = 0.,
-            ysize           = 1.,
             platescale      = 0.15,
             darkcurr        = 0.01,
             saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
             nonlinear       = 0.76,
             numamplifiers   = 1,
-            gain            = np.asarray([3.8]),
-            ronoise         = np.asarray([5.0]),
-            datasec         = np.asarray(['[:,:]']),
-            oscansec        = np.asarray(['[980:1024,:]'])  # Is this a hack??
+            gain            = np.atleast_1d(3.8),
+            ronoise         = np.atleast_1d(5.0),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[980:1024,:]')  # Is this a hack??
             )
         detector = detector_container.DetectorContainer(**detector_dict)
         return detector
@@ -147,9 +143,23 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.meta = meta
 
     def configuration_keys(self):
+        """
+        Add additional keys to determine the instrument configuration
+
+        Returns:
+            list:
+
+        """
         return ['dispname']
 
     def pypeit_file_keys(self):
+        """
+        Add additional columns to the file block of the PypeIt file
+
+        Returns:
+            list:
+
+        """
         pypeit_keys = super(KeckNIRESSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys

@@ -292,7 +292,7 @@ class Spectrograph(object):
         """
         # Load the raw frame
         if filename is not None:
-            detector_par, _, _, _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
+            detector_par, _,  _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
             # Trim + reorient
             trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
             orient = self.orient_image(detector_par, trim)#, det)
@@ -460,7 +460,6 @@ class Spectrograph(object):
                 raw_img (np.ndarray) -- Raw image for this detector
                 hdu (astropy.io.fits.HDUList)
                 exptime (float)
-                binning (str)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
 
@@ -526,7 +525,7 @@ class Spectrograph(object):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return detector, raw_img, hdu, exptime, binning, rawdatasec_img, oscansec_img
+        return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False,
                        usr_row=None, no_fussing=False):

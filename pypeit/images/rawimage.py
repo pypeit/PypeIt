@@ -41,7 +41,7 @@ class RawImage(object):
         self.det = det
 
         # Load the raw image and the other items of interest
-        self.detector, self.raw_image, self.hdu, self.exptime, self.binning, self.rawdatasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
+        self.detector, self.raw_image, self.hdu, self.exptime, self.rawdatasec_img, self.oscansec_img = self.spectrograph.get_rawimage(
             self.filename, self.det)
 
     def __repr__(self):

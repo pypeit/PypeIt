@@ -59,7 +59,8 @@ class ProcessRawImage(object):
         self.detector = rawImage.detector
 
         # Binning of the processed image
-        self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
+        self.binning = self.detector['binning']
+        #self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
 
         # Attributes
         self.ivar = None

@@ -31,7 +31,6 @@ class PypeItImage(datamodel.DataContainer):
         image (np.ndarray):
         ivar (np.ndarray, optional):
         rn2img (np.ndarray, optional):
-        binning (tuple, optional):
         bpm (np.ndarray, optional):
             Passed to self.mask
         crmask (np.ndarray, optional):
@@ -57,8 +56,6 @@ class PypeItImage(datamodel.DataContainer):
         'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
         'rn2img': dict(otype=np.ndarray, atype=np.floating, desc='Read noise squared image'),
-        'BIN_SPEC': dict(otype=(int, np.integer), desc='Binning in spectral dimension'),
-        'BIN_SPAT': dict(otype=(int, np.integer), desc='Binning in spatial dimension'),
         'HEAD0': dict(otype=fits.header.Header, desc='Image header of primary HDU'),
         'mask': dict(otype=maskimage.ImageMask, desc='Mask DataContainer'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
@@ -87,7 +84,8 @@ class PypeItImage(datamodel.DataContainer):
 
         # This grabs the detector, but probably not the mask
         slf = super(PypeItImage, cls).from_hdu(hdul, hdu_prefix=hdu_prefix)
-        # Mask -- A bit kludgy, but we try twice..
+        # Mask -- A bit kludgy, but we try twice as the mask is usually only
+        #  written as the fullmask array, not the full Container
         if slf.mask is None:
             slf.mask = maskimage.ImageMask.from_hdu(hdul, hdu_prefix=hdu_prefix)
 
@@ -100,8 +98,7 @@ class PypeItImage(datamodel.DataContainer):
     @classmethod
     def from_pypeitimage(cls, pypeitImage):
         # For datamodel checking
-        slf = cls(pypeitImage.image, ivar=pypeitImage.ivar, rn2img=pypeitImage.rn2img,
-                  binning=pypeitImage.binning)
+        slf = cls(pypeitImage.image, ivar=pypeitImage.ivar, rn2img=pypeitImage.rn2img)
         # Mask
         slf.mask = pypeitImage.mask # This does not explicitly check the datamodel, but it was already checked
         # Detector
@@ -110,8 +107,7 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image, ivar=None, rn2img=None, bpm=None,
-                 binning=None, crmask=None, fullmask=None, prefix=None,
-                 detector=None):
+                 crmask=None, fullmask=None, prefix=None, detector=None):
 
         self.prefix = prefix
 
@@ -121,13 +117,8 @@ class PypeItImage(datamodel.DataContainer):
                                           'detector': detector}
                                           )
 
-        # Internals need to come after
-        self.binning = binning
-
     def _init_internals(self):
-
-        #self.mask = None
-        self.binning = None
+        pass
 
 
     def _bundle(self):
