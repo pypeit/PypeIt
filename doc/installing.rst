@@ -118,8 +118,8 @@ then type run_pypeit.::
 	run_pypeit -h
 
 
-2. Run the PypeIt unit tests -- Not Recommended
------------------------------------------------
+2. Run the PypeIt unit tests
+----------------------------
 
 If you cloned the Repo (i.e., you did *not* use `pip`)
 then you can run the standard tests by doing::
