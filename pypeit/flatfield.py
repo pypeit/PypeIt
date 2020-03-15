@@ -108,7 +108,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         # Instantiate, load, return
         self = cls(spectrograph, par['calibrations']['pixelflatframe'],
                    master_dir=head0['MSTRDIR'], master_key=head0['MSTRKEY'], reuse_masters=True)
-        self.load()
+        self.load(ifile=master_file)
         return self
 
     def __init__(self, spectrograph, par, files=None, det=1, master_key=None,
