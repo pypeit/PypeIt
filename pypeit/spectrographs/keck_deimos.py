@@ -29,6 +29,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/DEIMOS specific code
     """
+    ndet = 8
+
     def __init__(self):
         # Get it started
         super(KeckDEIMOSSpectrograph, self).__init__()

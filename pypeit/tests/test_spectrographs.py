@@ -16,11 +16,47 @@ from pypeit.tests.tstutils import dev_suite_required
 # TODO: Add a test for Gemini GNIRS
 
 @dev_suite_required
+def test_lbt_luci_ii():
+    s = spectrographs.lbt_luci.LBTLUCI2Spectrograph()
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'lbt_luci',
+                                'LUCI-II', 'luci2.20181122.0110.fits')
+    assert os.path.isfile(example_file), 'Could not find example file for LBT Luci-II read.'
+    det = 1
+    _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    bpm = s.bpm(example_file, det)
+    assert data.shape == (2048,2048)
+    assert bpm.shape == (2040, 2040)
+
+@dev_suite_required
+def test_lbt_luci_i():
+    s = spectrographs.lbt_luci.LBTLUCI1Spectrograph()
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'lbt_luci',
+                                'LUCI-I', 'luci1.20181124.0034.fits')
+    assert os.path.isfile(example_file), 'Could not find example file for LBT Luci-I read.'
+    det = 1
+    _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    bpm = s.bpm(example_file, det)
+    assert data.shape == (2048,2048)
+    assert bpm.shape == (2040, 2040)
+
+@dev_suite_required
+def test_gemini_gmos_gmossham():
+    s = spectrographs.gemini_gmos.GeminiGMOSSHamSpectrograph()
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gmos',
+                                'GS_HAM_R400_700', 'S20181005S0085.fits.gz')
+    assert os.path.isfile(example_file), 'Could not find example file for Gemini GMOS-S Ham read.'
+    det = 1
+    _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    bpm = s.bpm(example_file, det)
+    assert data.shape == (512, 1152)
+    assert bpm.shape == (1024, 512)
+
+@dev_suite_required
 def test_magellanfire_echelle():
     s = spectrographs.magellan_fire.MagellanFIREEchelleSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'magellan_fire',
                                 'FIRE_Echelle', 'fire_0048.fits')
-    assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter NIR read.'
+    assert os.path.isfile(example_file), 'Could not find example file for MagellanFire Echelle read.'
     det = 1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
@@ -32,7 +68,7 @@ def test_magellanfire_long():
     s = spectrographs.magellan_fire.MagellanFIRELONGSpectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'magellan_fire',
                                 'FIRE_Long', 'fire_0015.fits')
-    assert os.path.isfile(example_file), 'Could not find example file for VLT Xshooter NIR read.'
+    assert os.path.isfile(example_file), 'Could not find example file for Magellan Fire Long read.'
     det = 1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)

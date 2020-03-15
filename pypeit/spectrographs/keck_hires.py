@@ -30,6 +30,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle KECK/HIRES specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KECKHIRESSpectrograph, self).__init__()

@@ -26,6 +26,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'magellan_mage'
         self.camera = 'MagE'
         self.telescope = telescopes.MagellanTelescopePar()
+    ndet = 1
 
     def get_detector_par(self, hdu, det):
         """

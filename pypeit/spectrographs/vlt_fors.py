@@ -21,6 +21,8 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
     Child of Spectrograph to handle VLT/FORS specific code
     Parent for FORS1 and FORS2
     """
+    ndet = 1  # Because each detector is written to a separate FITS file
+
     def __init__(self):
         # Get it started
         super(VLTFORSSpectrograph, self).__init__()

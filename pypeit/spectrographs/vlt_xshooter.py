@@ -24,6 +24,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(VLTXShooterSpectrograph, self).__init__()

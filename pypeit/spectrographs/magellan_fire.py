@@ -31,6 +31,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         the read noise is ~20 electron.
 
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(MagellanFIRESpectrograph, self).__init__()

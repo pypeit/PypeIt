@@ -81,6 +81,8 @@ class Spectrograph(object):
     """
     __metaclass__ = ABCMeta
 
+    ndet = None
+
     def __init__(self):
         self.spectrograph = 'base'
         self.camera = 'base'
@@ -111,6 +113,9 @@ class Spectrograph(object):
         self.meta_data_model = meta.get_meta_data_model()
         self.init_meta()
         self.validate_metadata()
+
+        # Validate detector
+        assert self.ndet > 0
 
     @staticmethod
     def default_pypeit_par():

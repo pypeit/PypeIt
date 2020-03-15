@@ -18,6 +18,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRES specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KeckNIRESSpectrograph, self).__init__()

@@ -20,6 +20,8 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle WHT/ISIS specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(WHTISISSpectrograph, self).__init__()

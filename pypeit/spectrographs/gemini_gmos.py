@@ -23,6 +23,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Gemini/GMOS specific code
     """
+    ndet = 3
 
     def __init__(self):
 

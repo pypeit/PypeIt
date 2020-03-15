@@ -16,6 +16,8 @@ class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
 
 
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(GeminiFLAMINGOSSpectrograph, self).__init__()

@@ -17,6 +17,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(LBTMODSSpectrograph, self).__init__()

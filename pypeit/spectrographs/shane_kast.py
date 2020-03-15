@@ -21,8 +21,11 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
+
         super(ShaneKastSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast'
         self.telescope = telescopes.ShaneTelescopePar()
@@ -169,7 +172,6 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
-        self.ndet = 1
 
     def get_detector_par(self, hdu, det):
         """

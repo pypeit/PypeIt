@@ -18,6 +18,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle MMT/BINOSPEC specific code
     """
+    ndet = 2
+
     def __init__(self):
         # Get it started
         super(MMTBINOSPECSpectrograph, self).__init__()

@@ -21,6 +21,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
+    ndet = 2
+
     def __init__(self):
         # Get it started
         super(KeckLRISSpectrograph, self).__init__()
