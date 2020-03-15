@@ -385,6 +385,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
     """
     master_type = 'Edges'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
+
+    # TODO: Discuss having this operate on a set of files
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
                  img=None, bpm=None, det=1, binning=None, auto=False, debug=False,
                  show_stages=False, save=False, load=False):
