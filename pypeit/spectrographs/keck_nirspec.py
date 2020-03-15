@@ -70,7 +70,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'

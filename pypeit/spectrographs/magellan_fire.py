@@ -15,6 +15,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 
 
@@ -93,28 +94,42 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         self.spectrograph = 'magellan_fire'
         self.camera = 'FIRE'
         self.numhead = 1
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.18,
-                            darkcurr        = 0.01,
-                            #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
-                            saturation      = 100000., # This is an arbitrary value.
-                            nonlinear       = 1.0, # high gain mode, low gain is 0.875
-                            numamplifiers   = 1,
-                            gain            = 1.2, # high gain mode, low gain is 3.8 e-/DN
-                            ronoise         = 5.0, # for high gain mode and SUTR read modes with exptime ~ 900s
-                            datasec         = '[5:2044,5:2044]',
-                            oscansec        = '[5:2044,:5]'
-                            #datasec         = '[:,:]',
-                            #oscansec        = '[:,:]'
-                            )]
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = True,
+            spatflip        = False,
+            platescale      = 0.18,
+            darkcurr        = 0.01,
+            #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
+            saturation      = 100000., # This is an arbitrary value.
+            nonlinear       = 1.0, # high gain mode, low gain is 0.875
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(1.2), # high gain mode, low gain is 3.8 e-/DN
+            ronoise         = np.atleast_1d(5.0), # for high gain mode and SUTR read modes with exptime ~ 900s
+            datasec         = np.atleast_1d('[5:2044,5:2044]'),
+            oscansec        = np.atleast_1d('[5:2044,:5]')
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
     @property
     def pypeline(self):
