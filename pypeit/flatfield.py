@@ -289,8 +289,7 @@ class FlatField(object):
                 Show the results in the ginga viewer.
 
         Returns:
-            `numpy.ndarray`_: Two arrays are returned, the normalized
-            pixel flat data and the slit illumination correction data.
+            `FlatImages`_:
         """
         # Build the pixel flat (as needed)
         #self.build_pixflat()
@@ -306,7 +305,7 @@ class FlatField(object):
             self.show(slits=True, wcs_match = True)
 
         # Return
-        return FlatImages(self.rawflatimg, self.mspixelflat,
+        return FlatImages(self.rawflatimg.image, self.mspixelflat,
                           self.msillumflat, self.flat_model)
 
     def show(self, show_slits=True, wcs_match=True):
@@ -673,7 +672,6 @@ class FlatField(object):
                 continue
 
             # Debugging/checking spectral fit
-            debug=True
             if debug:
                 utils.bspline_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
                                  spec_flat_fit, xlabel='Spectral Pixel', ylabel='log(flat counts)',
@@ -951,7 +949,7 @@ class FlatField(object):
 
         # Update the tilts dictionary if the slit edges were tweaked
         if tweak_slits:
-            self.tilts_dict['tilts'] = tweaked_tilts
+            self.wavetilts['tilts'] = tweaked_tilts
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0

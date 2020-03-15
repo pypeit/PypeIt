@@ -422,7 +422,7 @@ class PypeIt(object):
             sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
                 sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
                 sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-                sci_dict[self.det]['specobjs'], \
+                sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
                         = self.extract_one(frames, self.det, bg_frames,
                                            std_outfile=std_outfile)
             # JFH TODO write out the background frame?
@@ -541,7 +541,7 @@ class PypeIt(object):
 
         # Force the illumination flat to be None if the user doesn't
         # want to apply the correction.
-        illum_flat = self.caliBrate.msillumflat \
+        illum_flat = self.caliBrate.flatimages.illumflat \
                         if self.par['calibrations']['flatfield']['illumflatten'] else None
 
         # TODO: report if illum_flat is None? Done elsewhere, but maybe
@@ -552,7 +552,7 @@ class PypeIt(object):
         self.sciImg = scienceimage.build_from_file_list(
             self.spectrograph, det, self.par['scienceframe']['process'],
             self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
-            self.caliBrate.mspixelflat, illum_flat=illum_flat)
+            self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat)
 
         # Background Image?
         if len(bg_frames) > 0:
@@ -560,10 +560,10 @@ class PypeIt(object):
             self.sciImg = self.sciImg - scienceimage.build_from_file_list(
                 self.spectrograph, det, self.par['scienceframe']['process'],
                 self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
-                self.caliBrate.mspixelflat, illum_flat=illum_flat)
+                self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat)
 
         # Update mask for slitmask; uses pad in EdgeTraceSetPar
-        self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img())
+        self.sciImg.mask.update_mask_slitmask(self.caliBrate.slits.slit_img())
 
         # For QA on crash
         msgs.sciexp = self.sciImg
@@ -595,7 +595,8 @@ class PypeIt(object):
             obstime=self.obstime)
 
         # Return
-        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, \
+               self.sobjs, self.sciImg.detector
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename):

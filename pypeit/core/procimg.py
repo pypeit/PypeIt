@@ -12,7 +12,7 @@ from pypeit import utils
 from pypeit.core import parse
 
 
-def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
+def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
@@ -21,7 +21,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     This routine is mostly courtesy of Malte Tewes
 
     Args:
-        det:
         sciframe:
         saturation:
         nonlinear:
@@ -37,9 +36,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         ndarray: mask of cosmic rays (0=no CR, 1=CR)
 
     """
-
-    dnum = parse.get_dnum(det)
-
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 #    msgs.work("Include these parameters in the settings files to be adjusted by the user")
     # Set the settings

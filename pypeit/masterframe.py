@@ -15,11 +15,26 @@ from pypeit.io import initialize_header
 import astropy
 
 def construct_file_name(master_obj, master_key, master_dir=None):
+    """
+    Generate a MasterFrame filename
+
+    Args:
+        master_obj (object):
+            MasterFrame object to be named.  This provides the master_type and file_format
+        master_key (str):
+            Designation
+        master_dir (str, optional):
+            Path to the master frame folder
+
+    Returns:
+        str:
+
+    """
     basefile = 'Master{0}_{1}.{2}'.format(master_obj.master_type, master_key,
                                           master_obj.file_format)
-    if master_dir is not None:
-        basefile =  os.path.join(master_dir, basefile)
-    return basefile
+    filename = os.path.join(master_dir, basefile) if master_dir is not None else basefile
+    # Return
+    return filename
 
 
 def build_master_header(master_obj, master_key, master_dir, spectrograph,
@@ -31,6 +46,14 @@ def build_master_header(master_obj, master_key, master_dir, spectrograph,
     frame headers with basic information.
 
     Args:
+        master_obj (object):
+            MasterFrame object to be named.  This provides the master_type and file_format
+        master_key (str):
+            Designation
+        master_dir (str):
+            Path to the master frame folder
+        spectrograph (str):
+            Name of the spectrograph
         hdr (`astropy.io.fits.Header`, optional):
             Header object to update with basic summary
             information. The object is modified in-place and also

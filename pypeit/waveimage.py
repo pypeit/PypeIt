@@ -31,10 +31,10 @@ class WaveImage(datamodel.DataContainer):
     file_format = 'fits'
 
     datamodel = {
-        'waveimg':  dict(otype=np.ndarray, atype=np.floating, desc='2D Wavelength image'),
+        'image':  dict(otype=np.ndarray, atype=np.floating, desc='2D Wavelength image'),
     }
 
-    def __init__(self, waveimg):
+    def __init__(self, image):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -67,29 +67,29 @@ class BuildWaveImage(object):
     """
     master_type = 'Wave'
 
-    @classmethod
-    def from_master_file(cls, master_file):
-        """
-
-        Args:
-            master_file (str):
-
-        Returns:
-            waveimage.WaveImage:
-
-        """
-        # Spectrograph
-        spectrograph, extras = masterframe.items_from_master_file(master_file)
-        head0 = extras[0]
-        # Master info
-        master_dir = head0['MSTRDIR']
-        master_key = head0['MSTRKEY']
-        # Instantiate
-        slf = cls(None, None, None, spectrograph, None, master_dir=master_dir,
-                  master_key=master_key, reuse_masters=True)
-        slf.image = slf.load(ifile=master_file)
-        # Return
-        return slf
+#    @classmethod
+#    def from_master_file(cls, master_file):
+#        """
+#
+#        Args:
+#            master_file (str):
+#
+#        Returns:
+#            waveimage.WaveImage:
+#
+#        """
+#        # Spectrograph
+#        spectrograph, extras = masterframe.items_from_master_file(master_file)
+#        head0 = extras[0]
+#        # Master info
+#        master_dir = head0['MSTRDIR']
+#        master_key = head0['MSTRKEY']
+#        # Instantiate
+#        slf = cls(None, None, None, spectrograph, None, master_dir=master_dir,
+#                  master_key=master_key, reuse_masters=True)
+#        slf.image = slf.load(ifile=master_file)
+#        # Return
+#        return slf
 
     # TODO: Is maskslits ever anything besides slits.mask? (e.g., see calibrations.py call)
     def __init__(self, slits, tilts, wv_calib, spectrograph, det):

@@ -84,17 +84,15 @@ class ImageMask(datamodel.DataContainer):
             d.append(dict(fullmask=self.fullmask))
         return d
 
-    def build_crmask(self, spectrograph, det, par, image, rawvarframe, subtract_img=None):
+    def build_crmask(self, detector, par, image, rawvarframe, subtract_img=None):
         """
         Generate the CR mask frame
 
         Mainly a wrapper to procimg.lacosmic
 
         Args:
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                Spectrograph used to take the data.
-            det (:obj:`int`, optional):
-                The 1-indexed detector number to process.
+            detector (:class:`pypeit.images.detector_container.DetectorContainer`):
+                Detector object
             par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
                 Parameters that dictate the processing of the images.  See
                 :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
@@ -112,9 +110,10 @@ class ImageMask(datamodel.DataContainer):
         """
         use_img = image if subtract_img is None else image - subtract_img
         # Run LA Cosmic to get the cosmic ray mask
-        self.crmask = procimg.lacosmic(det, use_img,
-                                  spectrograph.detector[det-1]['saturation'],
-                                  spectrograph.detector[det-1]['nonlinear'],
+        # TODO -- In processrawimage we pass in nonlinear * saturation not saturation
+        self.crmask = procimg.lacosmic(use_img,
+                                  detector['saturation'],
+                                  detector['nonlinear'],
                                   varframe=rawvarframe,
                                   maxiter=par['lamaxiter'],
                                   grow=par['grow'],

@@ -41,7 +41,7 @@ class ScienceImage(pypeitimage.PypeItImage):
             Bad pixel mask.  Held in ImageMask
         rn2img (np.ndarray, optional):
         crmask (np.ndarray, optional):
-        mask (np.ndarray, optional):
+        fullmask (np.ndarray, optional):
         files (list, optional):
             List of filenames that went into the loaded image
 
@@ -49,7 +49,7 @@ class ScienceImage(pypeitimage.PypeItImage):
     frametype = 'science'
 
     def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
-                 crmask=None, mask=None, files=[]):
+                 crmask=None, fullmask=None, files=[], detector=None, hdu=None):
 
         # Internals (not in datamodel)
         # Required
@@ -62,9 +62,14 @@ class ScienceImage(pypeitimage.PypeItImage):
         # Not required
         self.files = files
 
+        # TODO -- This is a kludge for COADD2D.  Detector needs to be written to spec2d frame
+        if detector is None:
+            detector = self.spectrograph.get_detector_par(hdu, det)
+
         # Init me
         pypeitimage.PypeItImage.__init__(self, image, ivar=ivar, rn2img=rn2img,
-                                         bpm=bpm, crmask=crmask, mask=mask)
+                                         bpm=bpm, crmask=crmask, fullmask=fullmask,
+                                         detector=detector)
 
 
     def build_crmask(self, subtract_img=None):
@@ -118,12 +123,12 @@ class ScienceImage(pypeitimage.PypeItImage):
                 CR masking
         """
         # Generate the CR mask (and save in self.crmask)
-        super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
-                                               self.par, self.image,
-                                               utils.inverse(self.ivar),
-                                               subtract_img=subtract_img).copy()
-        # Now update the mask
-        super(ScienceImage, self).update_mask_cr(self.crmask)
+        #super(ScienceImage, self).mask.build_crmask(self.spectrograph, self.det,
+        self.mask.build_crmask(self.detector, self.par, self.image,
+                               utils.inverse(self.ivar), subtract_img=subtract_img)
+        # Now update the fullmask
+        self.mask.update_mask_cr(self.mask.crmask)
+        #super(ScienceImage, self).mask.update_mask_cr(self.mask.crmask)
 
     def __sub__(self, other):
         """
@@ -174,18 +179,6 @@ class ScienceImage(pypeitimage.PypeItImage):
 
         return new_sciImg
 
-    def __repr__(self):
-        repr = '<{:s}: files={}'.format(self.__class__.__name__, self.files)
-        # Image
-        rdict = {}
-        for attr in ['image', 'ivar', 'rn2img', 'crmask', 'mask']:
-            if getattr(self, attr) is not None:
-                rdict[attr] = True
-            else:
-                rdict[attr] = False
-        repr += ' images={}'.format(rdict)
-        repr = repr + '>'
-        return repr
 
 # TODO: Make this a ScienceImage class method?
 def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_flat=None,
@@ -241,9 +234,9 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
 
     # Instantiate
     slf = ScienceImage(spectrograph, det, par, pypeitImage.image, pypeitImage.ivar,
-                                pypeitImage.mask.bpm, rn2img=pypeitImage.rn2img,
-                                crmask=pypeitImage.mask.crmask, mask=pypeitImage.mask.fullmask,
-                                files=file_list)
+                       pypeitImage.mask.bpm, rn2img=pypeitImage.rn2img,
+                       crmask=pypeitImage.mask.crmask, fullmask=pypeitImage.mask.fullmask, files=file_list,
+                       detector=pypeitImage.detector)
     # Return
     return slf
 

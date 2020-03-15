@@ -89,7 +89,7 @@ class BiasFrame(calibrationimage.BuildCalibrationImage):
                 If True, trim the image
 
         Returns:
-            `numpy.ndarray`_: Combined, processed image.
+            `numpy.ndarray`_ or None: Combined, processed image.
         """
         # Nothing?
         if self.par['useframe'].lower() == 'none':

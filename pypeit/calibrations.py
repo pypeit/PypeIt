@@ -418,7 +418,7 @@ class Calibrations(object):
         if self.msbias is None:
             # Build it and save it
             self.msbias = self.biasFrame.build_image()
-            if self.save_masters:
+            if self.save_masters and self.msbias is not None:
                 self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
                                           self.spectrograph.spectrograph,  # Header
                                           steps=self.biasFrame.process_steps,
@@ -636,50 +636,49 @@ class Calibrations(object):
                                                            master_dir=self.master_dir)
         if os.path.isfile(slit_masterframe_name) and self.reuse_masters:
             self.slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
-            return self.slits
-
-        # Slits don't exist or we're not resusing them
-        edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
-                                                           self.master_key_dict['trace'],
-                                                           master_dir=self.master_dir)
-        # Reuse master frame?
-        if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
-            self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
         else:
-            # Build me
-            self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
-                                                files=trace_image_files)
-            # Build the trace image
-            buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, self.det,
-                                                         self.par['traceframe']['process'],
-                                                         trace_image_files, bias=self.msbias)
-            self.traceImage = buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            # Slits don't exist or we're not resusing them
+            edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
+                                                               self.master_key_dict['trace'],
+                                                               master_dir=self.master_dir)
+            # Reuse master frame?
+            if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
+                self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
+            else:
+                # Build me
+                self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
+                                                    files=trace_image_files)
+                # Build the trace image
+                buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, self.det,
+                                                             self.par['traceframe']['process'],
+                                                             trace_image_files, bias=self.msbias)
+                self.traceImage = buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm)
 
-            try:
-                self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                      save=False) # self.save_masters) #, debug=True, show_stages=True)
-            except:
-                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                master_key=self.master_key_dict['trace'])
-                msgs.error('Crashed out of finding the slits. Have saved the work done to '
-                           'disk but it needs fixing.')
-                return None
-            else:  # This is not elegant..
-                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                master_key=self.master_key_dict['trace'])
+                try:
+                    self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
+                                          save=False) # self.save_masters) #, debug=True, show_stages=True)
+                except:
+                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                                    master_key=self.master_key_dict['trace'])
+                    msgs.error('Crashed out of finding the slits. Have saved the work done to '
+                               'disk but it needs fixing.')
+                    return None
+                else:  # This is not elegant..
+                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                                    master_key=self.master_key_dict['trace'])
 
-            # Show the result if requested
-            if self.show:
-                self.edges.show(thin=10, in_ginga=True)
+                # Show the result if requested
+                if self.show:
+                    self.edges.show(thin=10, in_ginga=True)
 
-        # Get the slits from the result of the edge tracing, delete
-        # the edges object, and save the slits, if requested
-        self.slits = self.edges.get_slits()
-        self.edges = None
-        if self.save_masters:
-            self.slits.to_master_file(self.master_dir, self.master_key_dict['trace'],  # Naming
-                                      self.spectrograph.spectrograph,  # Header
-                                      raw_files=trace_image_files)
+            # Get the slits from the result of the edge tracing, delete
+            # the edges object, and save the slits, if requested
+            self.slits = self.edges.get_slits()
+            self.edges = None
+            if self.save_masters:
+                self.slits.to_master_file(self.master_dir, self.master_key_dict['trace'],  # Naming
+                                          self.spectrograph.spectrograph,  # Header
+                                          raw_files=trace_image_files)
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)
@@ -729,7 +728,7 @@ class Calibrations(object):
             self.mswave = buildwaveImage.build_wave()
             # Save to hard-drive
             if self.save_masters:
-                self.mswave.to_master_file(self.master_dir, self.master_key_dict['tilts'],  # Naming
+                self.mswave.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
                                           self.spectrograph.spectrograph,  # Header
                                           steps=buildwaveImage.steps)
 
@@ -786,8 +785,6 @@ class Calibrations(object):
                                              det=self.det,
                                              master_key=self.master_key_dict['arc'],  # For QA naming
                                              qa_path=self.qa_path, msbpm=self.msbpm)
-                                             #master_dir=self.master_dir,
-                                             #reuse_masters=self.reuse_masters,
         # Load from disk (MasterFrame)?
         masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, self.master_key_dict['arc'],
                                                            master_dir=self.master_dir)

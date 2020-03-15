@@ -81,13 +81,13 @@ class Reduce(object):
         # Parse
         self.caliBrate = caliBrate
         self.slits = self.caliBrate.slits
-        self.tilts = self.caliBrate.tilts_dict['tilts']
+        self.tilts = self.caliBrate.wavetilts['tilts']
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # TODO: We keep creating this image...
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.slitmask = self.slits.slit_img()
-        self.sciImg.update_mask_slitmask(self.slitmask)
+        self.sciImg.mask.update_mask_slitmask(self.slitmask)
         self.maskslits = self._get_goodslits(maskslits)
         # Load up other input items
         self.ir_redux = ir_redux
@@ -201,7 +201,7 @@ class Reduce(object):
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                self.local_skysub_extract(self.caliBrate.mswave, global_sky, self.sobjs_obj,
+                self.local_skysub_extract(self.caliBrate.mswave.image, global_sky, self.sobjs_obj,
                                           model_noise=(not self.ir_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
@@ -442,7 +442,7 @@ class Reduce(object):
                 self.maskslits[slit] = True
 
         if update_crmask:
-            self.sciImg.mask.update_mask_cr(subtract_img=self.global_sky)
+            self.sciImg.update_mask_cr(subtract_img=self.global_sky)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -676,14 +676,15 @@ class MultiSlitReduce(Reduce):
         The input argument is ignored
 
         Args:
-            dummy (:class:`pypeit.specobj.SpecObj`):
+            dummy:
                 ignored
 
         Returns:
             float:
 
         """
-        plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+        #plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+        plate_scale = self.sciImg.detector.platescale
         return plate_scale
 
     def find_objects_pypeline(self, image, std_trace=None,
@@ -834,11 +835,12 @@ class MultiSlitReduce(Reduce):
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
-                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.sciImg.rn2img,
+                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
+                    self.global_sky, self.sciImg.rn2img,
                     thismask, left[:,slit], right[:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix,
                     model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
-                    box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(0), #self.spectrograph.detector[self.det-1]['platescale'],
+                    box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
                     sigrej=self.par['reduce']['skysub']['sky_sigrej'],
                     model_noise=model_noise, std=self.std_redux,
                     bsp=self.par['reduce']['skysub']['bspline_spacing'],

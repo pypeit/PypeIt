@@ -28,7 +28,7 @@ class PypeItImage(datamodel.DataContainer):
     a maskimage.ImageMask DataContainer
 
     Args:
-        image (np.ndarray):
+        image (np.ndarray or None):
         ivar (np.ndarray, optional):
         rn2img (np.ndarray, optional):
         bpm (np.ndarray, optional):
@@ -46,7 +46,7 @@ class PypeItImage(datamodel.DataContainer):
             Mainly used to enable output of multiple PypeItImage objects
             in more complex DataContainers
         head0 (astropy.io.fits.Header):
-        detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
+        detector (:class:`pypeit.images.detector_container.DetectorContainer`):
 
     """
     # Set the version of this class
@@ -199,7 +199,7 @@ class PypeItImage(datamodel.DataContainer):
         repr = '<{:s}: '.format(self.__class__.__name__)
         # Image
         rdict = {}
-        for attr in ['image', 'ivar', 'rn2img']:
+        for attr in self.datamodel.keys():
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 rdict[attr] = True
             else:

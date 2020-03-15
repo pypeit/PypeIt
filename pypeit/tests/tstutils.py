@@ -18,6 +18,7 @@ from pypeit import wavetilts
 from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
+from pypeit import masterframe
 
 # Create a decorator for tests that require the PypeIt dev suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
@@ -138,7 +139,7 @@ def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, 
     spectrograph = load_spectrograph('shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
 
-    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
+    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue')
 
     reuse_masters = True
 
@@ -153,28 +154,31 @@ def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, 
         ret.append(msarc)
 
     if edges:
-        trace_file = '{0}.gz'.format(os.path.join(master_dir,
-                                        MasterFrame.construct_file_name('Edges', master_key)))
+        #trace_file = '{0}.gz'.format(os.path.join(master_dir,
+        #                                MasterFrame.construct_file_name('Edges', master_key)))
+        trace_file = masterframe.construct_file_name(edgetrace.EdgeTraceSet, master_key, master_dir=master_dir)
         ret.append(edgetrace.EdgeTraceSet.from_file(trace_file))
 
     if tilts:
-        tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))
-        tilts_dict = wavetilts.WaveTilts.from_master_file(tilts_file).tilts_dict
-        ret.append(tilts_dict)
+        tilts_file = masterframe.construct_file_name(wavetilts.WaveTilts, master_key, master_dir=master_dir)
+        waveTilts = wavetilts.WaveTilts.from_file(tilts_file)
+        ret.append(waveTilts)
 
     if wvcalib:
-        calib_file = os.path.join(master_dir,
-                                  MasterFrame.construct_file_name('WaveCalib', master_key,
-                                                                  file_format='json'))
-        wv_calib = waveio.load_wavelength_calibration(calib_file) 
+        #calib_file = os.path.join(master_dir,
+        #                          MasterFrame.construct_file_name('WaveCalib', master_key,
+        #                                                          file_format='json'))
+        calib_file = masterframe.construct_file_name(wavecalib.WaveCalib, master_key, master_dir=master_dir)
+        wv_calib = waveio.load_wavelength_calibration(calib_file)
         ret.append(wv_calib)
 
     # Pixelflat
     if pixflat:
-        calib_file = os.path.join(master_dir,
-                                  MasterFrame.construct_file_name('Flat', master_key))
-        flatField = flatfield.FlatField.from_master_file(calib_file)
-        ret.append(flatField.mspixelflat)
+        #calib_file = os.path.join(master_dir,
+        #                          MasterFrame.construct_file_name('Flat', master_key))
+        flat_file = masterframe.construct_file_name(flatfield.FlatImages, master_key, master_dir=master_dir)
+        flatImages = flatfield.FlatImages.from_file(flat_file)
+        ret.append(flatImages.pixelflat)
 
     # Return
     return ret

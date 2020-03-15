@@ -37,15 +37,15 @@ def kast_blue_bias_files():
 def test_combine(deimos_flat_files):
     spectograph = load_spectrograph('keck_deimos')
     # DEIMOS
-    deimos_flats = calibrationimage.CalibrationImage(spectograph, 3, par, files=deimos_flat_files)
+    deimos_flats = calibrationimage.BuildCalibrationImage(spectograph, 3, par, deimos_flat_files)
     # Process steps
     psteps = procimg.init_process_steps(None, deimos_flats.proc_par)
     assert 'subtract_overscan' in psteps
     psteps += ['trim', 'orient', 'apply_gain']
     deimos_flats.process_steps = psteps
     # Bias subtract (and trim)
-    deimos_flats.build_image()
+    pypeitImage = deimos_flats.build_image()
     # Test
-    assert deimos_flats.pypeitImage.image.shape == (4096,2048)
+    assert pypeitImage.image.shape == (4096,2048)
 
 

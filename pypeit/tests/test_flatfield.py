@@ -8,6 +8,8 @@ import pytest
 import glob
 import numpy as np
 
+from astropy.io import fits
+
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
 from pypeit.par import pypeitpar
@@ -69,15 +71,17 @@ def test_flatimages():
 def test_run():
     # Masters
     spectrograph = load_spectrograph('shane_kast_blue')
-    edges, tilts_dict = load_kast_blue_masters(edges=True, tilts=True)
+    edges, waveTilts = load_kast_blue_masters(edges=True, tilts=True)
     # Instantiate
-    frametype = 'pixelflat'
-    par = pypeitpar.FrameGroupPar(frametype)
-    flatField = flatfield.FlatField(spectrograph, par, det=1, tilts_dict=tilts_dict,
-                                    slits=edges.get_slits())
+    par = spectrograph.default_pypeit_par()
+    rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
+    # TODO -- We would want to save the detector if we ever planned to re-run from EdgeTrace
+    hdul = fits.HDUList([])
+    rawflatimg.detector = spectrograph.get_detector_par(hdul, 1)
+    flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
+                                    det=1, wavetilts=waveTilts, slits=edges.get_slits())
 
     # Use the trace image
-    flatField.rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
-    mspixelflatnrm, msillumflat = flatField.run()
-    assert np.isclose(np.median(mspixelflatnrm), 1.0)
+    flatImages = flatField.run()
+    assert np.isclose(np.median(flatImages.pixelflat), 1.0)
 

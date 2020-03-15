@@ -1216,6 +1216,19 @@ class DataContainer:
         with fits.open(ifile) as hdu:
             return cls.from_hdu(hdu)
 
+    def __repr__(self):
+        repr = '<{:s}: '.format(self.__class__.__name__)
+        # Image
+        rdict = {}
+        for attr in self.datamodel.keys():
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                rdict[attr] = True
+            else:
+                rdict[attr] = False
+        repr += ' images={}'.format(rdict)
+        repr = repr + '>'
+        return repr
+
 
 def obj_is_data_container(obj):
     answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
