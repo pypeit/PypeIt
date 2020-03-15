@@ -31,12 +31,15 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         detector_dict = dict(
             binning='1,1',
             det=1,
+            dataext         = 0,
             specaxis        = 1,
             specflip        = True,
+            spatflip=False,
             platescale      = 0.15,
             darkcurr        = 0.01,
             saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
             nonlinear       = 0.76,
+            mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(5.0),

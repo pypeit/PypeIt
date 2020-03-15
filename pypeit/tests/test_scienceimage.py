@@ -10,6 +10,7 @@ import numpy as np
 
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.tests.tstutils import load_kast_blue_masters
+from pypeit.tests.tstutils import get_kastb_detector
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.images import scienceimage
 from pypeit.images import rawimage
@@ -25,6 +26,7 @@ kast_blue = load_spectrograph('shane_kast_blue')
 kast_par = kast_blue.default_pypeit_par()
 keck_nires = load_spectrograph('keck_nires')
 nires_par = keck_nires.default_pypeit_par()
+
 
 @pytest.fixture
 @dev_suite_required
@@ -50,12 +52,12 @@ def test_standard_instantiate():
     Simple instantiate
     """
     # Empty
-    bpm = np.zeros((100,100))
+    bpm = np.zeros((100,100)).astype(int)
     det = 1
     sciImg = scienceimage.ScienceImage(kast_blue, det, kast_par['scienceframe']['process'],
-                                       np.zeros_like(bpm),
-                                       np.zeros_like(bpm),
-                                       bpm)
+                                       np.zeros_like(bpm).astype(float),
+                                       np.zeros_like(bpm).astype(float),
+                                       bpm, detector=get_kastb_detector())
 
 
 @cooked_required
@@ -83,7 +85,8 @@ def test_instantiate_from_one(shane_kast_blue_sci_files):
     pypeItImage = processRawImage.process(process_steps, pixel_flat=pixelflat)
     # Do it
     sciImg = scienceimage.ScienceImage(kast_blue, det, kast_par['scienceframe']['process'],
-                                       pypeItImage.image, pypeItImage.ivar, bpm)
+                                       pypeItImage.image, pypeItImage.ivar, bpm,
+                                       detector=pypeItImage.detector)
 
 
 @cooked_required

@@ -196,7 +196,6 @@ def test_waveimg(multi_caliBrate):
     mswave = multi_caliBrate.get_wave()
     assert mswave.image.shape == (2048,350)
 
-'''
 @dev_suite_required
 def test_reuse(multi_caliBrate_reuse):
     """
@@ -278,6 +277,4 @@ def test_reuse(multi_caliBrate_reuse):
 
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)
-'''
-
 

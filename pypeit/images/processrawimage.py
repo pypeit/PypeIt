@@ -245,7 +245,8 @@ class ProcessRawImage(object):
             else:
                 var = np.ones_like(pypeitImage.image)
             #
-            pypeitImage.mask.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image, var)
+            #pypeitImage.mask.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image, var)
+            pypeitImage.mask.build_crmask(self.detector, self.par, pypeitImage.image, var)
             steps_copy.remove('crmask')
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
                                                               apply_gain='apply_gain' in process_steps)

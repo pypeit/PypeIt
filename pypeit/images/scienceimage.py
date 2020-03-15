@@ -85,8 +85,8 @@ class ScienceImage(pypeitimage.PypeItImage):
             np.ndarray: Boolean array of self.crmask
 
         """
-        return super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
-                                                      self.par, self.image,
+        #return super(ScienceImage, self).build_crmask(self.spectrograph, self.det,
+        return self.mask.build_crmask(self.detector, self.par, self.image,
                                                       utils.inverse(self.ivar),
                                                       subtract_img=subtract_img).copy()
 
@@ -104,11 +104,10 @@ class ScienceImage(pypeitimage.PypeItImage):
             np.ndarray:  The full mask, held in self.mask
 
         """
-        super(ScienceImage, self).build_mask(self.image, self.ivar,
-                                             saturation=saturation,
-                                             mincounts=mincounts,
-                                             slitmask=slitmask)
-        return self.mask.copy()
+        #super(ScienceImage, self).build_mask(self.image, self.ivar,
+        self.mask.build_mask(self.image, self.ivar, saturation=saturation,
+                             mincounts=mincounts, slitmask=slitmask)
+        return self.mask.fullmask.copy()
 
     def update_mask_cr(self, subtract_img=None):
         """
@@ -168,11 +167,11 @@ class ScienceImage(pypeitimage.PypeItImage):
 
         # Instantiate
         new_sciImg = ScienceImage(self.spectrograph, self.det, self.par,
-            newimg, new_ivar, self.bpm, rn2img=new_rn2, files=new_files)
+            newimg, new_ivar, self.mask.bpm, rn2img=new_rn2, files=new_files)
         #TODO: KW properly handle adding the bits
         crmask_diff = new_sciImg.build_crmask()
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
-        new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
+        new_sciImg.mask.crmask = crmask_diff | np.invert(outmask_comb)
         # Note that the following uses the saturation and mincounts held in
         # self.spectrograph.detector[self.det-1]
         new_sciImg.build_mask()

@@ -132,7 +132,7 @@ class PypeItSetup(object):
             msgs.error('Must provide spectrograph name directly or using configuration lines.')
        
         # Instantiate the spectrograph
-        self.spectrograph = load_spectrograph(_spectrograph_name, ifile=file_list[0])
+        self.spectrograph = load_spectrograph(_spectrograph_name)#, ifile=file_list[0])
 
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.

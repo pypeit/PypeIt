@@ -17,8 +17,6 @@ def test_full():
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     # Mask
     pypeitImage.mask.fullmask = np.zeros((1000, 1000), dtype=np.int64)
-    # Other
-    pypeitImage.BIN_SPEC = 2
     # Full datamodel
     full_datamodel = pypeitImage.full_datamodel()
     assert 'fullmask' in full_datamodel.keys()

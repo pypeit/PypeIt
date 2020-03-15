@@ -9,6 +9,7 @@ from IPython import embed
 
 import numpy as np
 from astropy import time
+from astropy.io import fits
 
 from pypeit import arcimage
 from pypeit import edgetrace
@@ -19,6 +20,7 @@ from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
+from pypeit.images import detector_container
 
 # Create a decorator for tests that require the PypeIt dev suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
@@ -31,6 +33,18 @@ cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
+def get_kastb_detector():
+    """
+    Pass back a shane_kast_blue detector when any old one will do
+
+    Returns:
+        :class:`pypeit.images.detector_container.DetectorContainer`:
+
+    """
+    spectrograph = load_spectrograph('shane_kast_blue')
+    hdul = fits.HDUList([])
+    return spectrograph.get_detector_par(hdul, 1)
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
     """
