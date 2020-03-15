@@ -329,6 +329,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         master_file = self.chk_load_master(ifile)
         if master_file is None:
             return None, None, None
+        msgs.info('Loading Master frame: {0}'.format(master_file))
         # Load
         ext = ['RAWFLAT', 'PIXELFLAT', 'ILLUMFLAT', 'MODEL']
         rawflatimg, self.mspixelflat, self.msillumflat, self.flat_model, head0 \

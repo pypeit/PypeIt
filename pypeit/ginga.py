@@ -350,7 +350,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     for i in range(nright):
         points = list(zip(y[::pstep].tolist(), _right[::pstep,i].tolist())) if rotate \
                     else list(zip(_right[::pstep,i].tolist(), y[::pstep].tolist()))
-        canvas.add(str('path'), points, color=str('orange'))
+        canvas.add(str('path'), points, color=str('green'))
         if not synced:
             # Add text
             xt, yt = float(_right_id_loc[top,i]), float(y[top])
@@ -358,9 +358,9 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('orange'),
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('green'),
                        fontsize=20.)
-            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('orange'),
+            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
                        fontsize=20.)
 
     # ... and then add slit labels, if synced.

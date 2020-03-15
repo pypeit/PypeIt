@@ -2,6 +2,8 @@
 This script displays the flat images in an RC Ginga window.
 """
 import argparse
+from pypeit import flatfield
+
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Display MasterFlat images in a previously '
@@ -13,7 +15,6 @@ def parser(options=None):
 
 
 def main(pargs):
-    from pypeit import flatfield
     flatField = flatfield.FlatField.from_master_file(pargs.master_file)
     # TODO: Add show_slits and wcs_match as command-line arguments?
     flatField.show()
