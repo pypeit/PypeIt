@@ -297,25 +297,43 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         self.spectrograph = 'magellan_fire_long'
         self.camera = 'FIRE'
         self.numhead = 1
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.15,
-                            darkcurr        = 0.01,
-                            saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
-                            nonlinear       = 0.875,
-                            numamplifiers   = 1,
-                            gain            = 3.8,
-                            ronoise         = 6.0, # SUTR readout mode with exposure~600s
-                            datasec         = '[5:2044, 900:1250]',
-                            oscansec        = '[:5, 900:1250]'
-                            )]
+
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.15,
+            darkcurr        = 0.01,
+            saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
+            nonlinear       = 0.875,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(3.8),
+            ronoise         = np.atleast_1d(6.0), # SUTR readout mode with exposure~600s
+            datasec         = np.atleast_1d('[5:2044, 900:1250]'),
+            oscansec        = np.atleast_1d('[:5, 900:1250]')
+        )
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
@@ -336,7 +354,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
         par['calibrations']['wavelengths']['match_toler']=5.0
