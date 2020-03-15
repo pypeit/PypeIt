@@ -43,12 +43,16 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_detector_par(self, hdu, det):
         """
+        Return a DectectorContainer for the current image
 
         Args:
-            hdu:
-            det:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
 
         Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
 
         """
         # Binning

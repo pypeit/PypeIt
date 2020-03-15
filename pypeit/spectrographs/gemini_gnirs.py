@@ -5,7 +5,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit.core.wavecal import wvutils
+from pypeit.images import detector_container
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pkg_resources import resource_filename
@@ -26,29 +26,43 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         self.camera = 'GNIRS'
         self.dispname = None # TODO We need a model for setting setup specific parameters in spectrograph
         self.numhead = 2
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip=True,
-                            spatflip=True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.15,
-                            darkcurr        = 0.15,
-                            saturation      = 150000.,
-                            nonlinear       = 0.71,
-                            numamplifiers   = 1,
-                            gain            = 13.5,
-                            ronoise         = 7.0,
-                            datasec         = '[:,:]',#'[1:1024,1:1022]',
-                            oscansec        = '[:,:]',#'[1:1024,1:1022]'
-                            )]
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 0,
+            specflip=True,
+            spatflip=True,
+            platescale      = 0.15,
+            darkcurr        = 0.15,
+            saturation      = 150000.,
+            nonlinear       = 0.71,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(13.5),
+            ronoise         = np.atleast_1d(7.0),
+            datasec         = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]',
+            oscansec        = np.atleast_1d('[:,:]'),#'[1:1024,1:1022]'
+        )
+
+        return detector_container.DetectorContainer(**detector_dict)
+
     @property
     def pypeline(self):
         return 'Echelle'
@@ -147,8 +161,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['rms_threshold'] = 1.0  # Might be grating dependent..
             par['calibrations']['wavelengths']['sigdetect'] = 5.0
             par['calibrations']['wavelengths']['lamps'] = ['OH_GNIRS']
-            par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0][
-                'saturation']
+            #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
             par['calibrations']['wavelengths']['n_first'] = 2
             par['calibrations']['wavelengths']['n_final'] = [1, 3, 3, 3, 3, 3]
 
