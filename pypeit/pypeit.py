@@ -80,7 +80,7 @@ class PypeIt(object):
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
-        self.spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[0])
+        self.spectrograph = load_spectrograph(spectrograph_name)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
 
         # --------------------------------------------------------------

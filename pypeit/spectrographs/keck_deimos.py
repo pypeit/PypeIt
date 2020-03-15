@@ -140,9 +140,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return detector_container.DetectorContainer(**detectors[det-1])
 
 
-    # TODO: I think all of the default_pypeit_par methods should be
-    # static.  nonlinear_counts shouldn't need to be a parameter because
-    # it's held by the spectrograph class, right?
     def default_pypeit_par(self):
         """
         Set default parameters for Keck DEIMOS reductions.
@@ -159,8 +156,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] \
-                = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] \
+        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 

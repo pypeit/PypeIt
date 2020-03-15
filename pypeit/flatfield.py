@@ -298,6 +298,7 @@ class FlatField(object):
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated
         # internally.
+        # TODO -- Move the infinitely long fit() code back here?
         self.fit(debug=debug)
 
         if show:
@@ -523,7 +524,9 @@ class FlatField(object):
         nspec, nspat = self.rawflatimg.image.shape
         # TODO: The above should be the same as self.slits.nspec, self.slits.nspat
         rawflat = self.rawflatimg.image
-        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.mask.bpm is None else np.invert(self.rawflatimg.mask.bpm)
+        # Good pixel mask
+        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.mask.bpm is None else (
+                1-self.rawflatimg.mask.bpm).astype(bool)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))
