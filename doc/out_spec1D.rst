@@ -1,10 +1,10 @@
-.. highlight:: rest
-
-*************
+=============
 Spec1D Output 
-*************
+=============
 
-.. index:: spec1d
+Overview
+========
+
 
 A primary data product for PypeIt are 1D, calibrated spectra
 for extracted sources.  The most fundamental spectrum may be
@@ -16,120 +16,100 @@ products.
 
 .. _spec1d-output-arrays:
 
-Arrays
-------
+See :doc:`specobj` for a full description of the data model.
 
-To allow the inclusion of multiple combinations of arrays,
-the standard format in PypeIt for spec1D output per object
-is a binary FITS table.  The types of spectral arrays
-that may be outputted are:
+Naming
+======
 
-=========== ======================= ====================== =====================
-Type        Default Unit            Description            Comments
-=========== ======================= ====================== =====================
-WAVE        Angstrom                Calibrated wavelenth   Vacuum, heliocentric corrected
-                                    of each pixel 
-COUNTS/FLUX :math:`\rm e^- \,       Integrated across the  Not normalized by 
-            or \, f_\lambda`        spatial profile        exposure time
-VAR/FVAR    :math:`(\rm e^-)^2      Variance in the counts 0 or negative values indicate masked pixels
-            \, or \, (f_\lambda)^2` 
-MASK        --                      Bit-wise mask values   See :doc:`ref </mask>` for a description
-SKY         :math:`\rm e^-/pixel \, Sky model spectrum
-            or \, \mu`
-TRACE       pixel                   Best centroid of the  
-                                    object along the 
-                                    detector
-=========== ======================= ====================== =====================
+The 1D spectra files have names like::
 
-.. _spec1d-output-extractions:
+    spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
-Extractions
------------
+The model is::
 
-Because there are several modes of extraction in PypeIt, there may
-be multiple outputs of the spectral arrays.  These are then prefixed
-by the extraction mode.
+    Prefix_frame-objname_spectrograph_timestamp.fits
 
-+-----------------+------------------------------------------------------------+
-| Extraction Mode | Description                                                |
-+=================+============================================================+
-| BOXCAR          | Top-hat extraction around the trace.  The precise window   |
-|                 | used is defined by the BOXCAR_APERTURE, in pixels.         |
-+-----------------+------------------------------------------------------------+
-| OPTIMAL         | Standard Horne algorithm for extraction using the fitted   |
-|                 | spatial profile.  An estimate of this profile is given by  |
-|                 | OBJ_FWHM                                                   |
-+-----------------+------------------------------------------------------------+
 
-Therefore, the integrated counts for a boxcar extraction are given by the 
-BOXCAR_COUNTS array with variance BOXCAR_VAR.  
 
-.. _spec1d-output-parameters:
 
-Additional Parameters
----------------------
+.. _pypeit-1dspec:
 
-In addition to the spectral
-arrays, a number of measurements are included in the binary FITS tables.
-This includes identifiers for the object, which may locate the 
-object on the detector.  A complete listing is now given:
+pypeit_show_1dspec
+==================
 
-========== ====== =============================================================
-Keyword    Type   Description
-========== ====== =============================================================
-DET_ID     int    Detector Identifier
-SLIT_ID    int    Slit Identifier; given in fractional units of the detector
-OBJ_ID     int    Object Identifier; given in fractional units of the slit
-RAW_FILE   str    Name of the raw data file
-========== ====== =============================================================
+The spectra may be viewed with the `pypeit_show_1dspec`_ script
+which loads the data and launches a GUI from the *linetools* package.
 
-.. _spec1d-output-format:
+Here is the usage (use *pypeit_show_1dspec -h* to see the most current)::
 
-Format
-------
+    usage: pypeit_show_1dspec [-h] [--list] [--exten EXTEN] [--obj OBJ]
+                          [--extract EXTRACT] [--flux]
+                          file
 
-HDF5
-++++
+    Parse
 
-PypeIt will generate a single HDF5 file for each science exposure. The
-HDF5 file contains the groups: header, meta, boxcar and optimal. Each
-group has its respective datasets:
+    positional arguments:
+      file               Spectral file
 
-========  ================================================================
-Group     Description
-========  ================================================================
-Meta      Meta is an astropy Table of N rows, corresponding to the N
-          objects/spectra extracted from the exposure. The table contains
-          the RA, DEC, object ID, slit ID, detector number, science index,
-          FWHM (spatial resolution in arcseconds), resolution (spatial
-          resolution in lambda/Dlambda), and xslit.
-Header    Header contains the original header information as saved on
-          the telescope.
-Boxcar    Boxcar contains N datasets, corresponding to the N objects/
-          spectra extracted via boxcar extraction.
-Optimal   Optimal contains N datasets, correspodning to the N objects/
-          spectra extracted via optimal extraction. If one of the N
-          objects were not extracted optimally, its dataset will still
-          exist, but be empty.
-========  ================================================================
+    optional arguments:
+      -h, --help         show this help message and exit
+      --list             List the extensions only?
+      --exten EXTEN      FITS extension
+      --obj OBJ          Object name in lieu of extension, e.g.
+                         SPAT0424-SILT0000-DET01
+      --extract EXTRACT  Extraction method. Default is OPT. ['BOX', 'OPT']
+      --flux             Show fluxed spectrum?
 
-FITS
-++++
+Here is a typical call::
 
-If one uses the default :ref:`outputs-compactness-compact` mode for 
-outputs, a single multi-extension FITS file will be generated that
-contains the binary FITS tables for each extracted source.  To ease
-access to the individual tables, the FITS header contains the following
-cards:
+    pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits --exten 1
 
-===========  ===== ========  ============================================
-Header Card  Type  Example   Description
-===========  ===== ========  ============================================
-NOBJ         int   2         Number of extracted sources
-ID_####      int   02334223  ID for the source (DET_ID, SLID_ID, OBJ_ID)
-S2N_####     float 3.23      Median S/N of of the spectrum
-===========  ===== ========  ============================================
+This should launch an `XSpecGUI <https://linetools.readthedocs.io/en/latest/xspecgui.html>`_
+on your screen from the *linetools* package.
 
-In addition, a reproduction of nearly the entire Header from the raw
-FITS file is provided, modulo the header cards that describe the data
-type and size (e.g. NAXIS).
+Options
+-------
+
+Here are the typical options you will use:
+
+--list
+++++++
+
+This prints a list to the screen of all the objects extracted.  An example::
+
+    EXT0000001 = SPAT0351-SLIT0000-DET01
+    EXT0000002 = SPAT0392-SLIT0001-DET01
+    EXT0000003 = SPAT0463-SLIT0003-DET01
+    EXT0000004 = SPAT0556-SLIT0004-DET01
+    EXT0000005 = SPAT0621-SLIT0005-DET01
+    EXT0000006 = SPAT0731-SLIT0006-DET01
+    EXT0000007 = SPAT0824-SLIT0007-DET01
+    EXT0000008 = SPAT0865-SLIT0007-DET01
+    EXT0000009 = SPAT0910-SLIT0008-DET01
+    EXT0000010 = SPAT0962-SLIT0009-DET01
+    EXT0000011 = SPAT0073-SLIT0000-DET02
+    EXT0000012 = SPAT0093-SLIT0000-DET02
+    EXT0000013 = SPAT0130-SLIT0001-DET02
+
+This indicates the extension of the object with this :ref:`specobj:Naming`.
+
+--exten
++++++++
+
+This is a short-cut of sorts to pull the object you want without
+typing in its name.
+
+--obj
++++++
+
+Plot this object.
+
+--extract
++++++++++
+
+Choice of :ref:`specobj:Extraction` method
+
+--flux
+++++++
+
+Show the fluxed spectrum (only if it has been fluxed!)

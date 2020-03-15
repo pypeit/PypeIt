@@ -12,9 +12,12 @@
 - Fixes a few sensfunc bugs
 - Added template for LRIS 600/7500
 - Deal with non-extracted Standard
+- docs docs and more docs
+- A QA fix too
 
 
 
+- docs docs and more docs
 
 0.13.1 (07 Mar 2020)
 --------------------
