@@ -658,7 +658,6 @@ class FlatField(object):
             # the edges of the chip in spec direction
             # TODO: Can we add defaults to bspline_profile so that we
             # don't have to instantiate invvar and profile_basis
-            embed(header='578 of flatfield')
             spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
                     = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
                                             np.ones_like(spec_coo_data), inmask=spec_gpm_data,

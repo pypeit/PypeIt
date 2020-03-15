@@ -23,7 +23,6 @@ class BiasImage(calibrationimage.CalibrationImage):
     output_to_disk = ('BIAS_IMAGE',)
     hdu_prefix = 'BIAS_'
     master_type = 'Bias'
-    frametype = 'bias'
 
 
 class BiasFrame(calibrationimage.BuildCalibrationImage):
@@ -103,7 +102,6 @@ class BiasFrame(calibrationimage.BuildCalibrationImage):
         biasImage = super(BiasFrame, self).build_image(ignore_saturation=True)
         # Return
         return biasImage
-
 
     def load(self, ifile, reuse_masters=False):
         """
