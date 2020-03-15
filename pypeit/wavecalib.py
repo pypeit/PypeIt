@@ -224,7 +224,7 @@ class WaveCalib(object):
                     self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
+            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask, nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
             final_fit = {}

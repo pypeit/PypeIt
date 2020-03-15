@@ -7,6 +7,7 @@ from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
+from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
 
 
@@ -70,26 +71,41 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         super(GeminiFLAMINGOS2Spectrograph, self).__init__()
         self.spectrograph = 'gemini_flamingos2'
         self.camera = 'FLAMINGOS'
-        self.numhead = 2
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1787,
-                            darkcurr        = 0.5,
-                            saturation      = 700000., #155400.,
-                            nonlinear       = 1.0,
-                            numamplifiers   = 1,
-                            gain            = 4.44,
-                            ronoise         = 5.0, #8 CDS read
-                            datasec         = '[:,:]',
-                            oscansec        = '[:,:]'
-                            )]
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning='1,1',
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 0,
+            specflip        = True,
+            spatflip        = False,
+            platescale      = 0.1787,
+            darkcurr        = 0.5,
+            saturation      = 700000., #155400.,
+            nonlinear       = 1.0,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(4.44),
+            ronoise         = np.atleast_1d(5.0), #8 CDS read
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]'),
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """

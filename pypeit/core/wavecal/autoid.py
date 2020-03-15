@@ -1337,7 +1337,7 @@ class HolyGrail:
     """
 
     def __init__(self, spec, par = None, ok_mask=None, islinelist=False, outroot=None, debug = False, verbose=False,
-                 binw=None, bind=None, nstore=1, use_unknowns=True):
+                 binw=None, bind=None, nstore=1, use_unknowns=True, nonlinear_counts=None):
 
         # Set some default parameters
         self._spec = spec
@@ -1356,7 +1356,7 @@ class HolyGrail:
         self._bad_slits = []  # List of bad slits
 
         # Set the input parameters
-        self._nonlinear_counts = self._par['nonlinear_counts']
+        self._nonlinear_counts = nonlinear_counts
         #self._sigdetect = self._par['sigdetect']
         #self._lowest_nsig = self._par['lowest_nsig']
         # JFH I'm not convinced that the codea actually does anything except use the lowest nsig, but am not sure

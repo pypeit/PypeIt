@@ -13,7 +13,30 @@ from pypeit.core import procimg
 
 from pypeit.tests.tstutils import dev_suite_required
 
-# TODO: Add a test for Gemini GNIRS
+
+@dev_suite_required
+def test_gemini_flamingos():
+    s = spectrographs.gemini_flamingos.GeminiFLAMINGOS2Spectrograph()
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_flamingos2',
+                                'HK_HK', 'S20161108S0072.fits.gz')
+    assert os.path.isfile(example_file), 'Could not find example file for Gemini Flamingos2 read.'
+    det = 1
+    _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    bpm = s.bpm(example_file, det)
+    assert data.shape == (1022, 1024)
+    assert bpm.shape == (1022, 1024)
+
+@dev_suite_required
+def test_gemini_gnirs():
+    s = spectrographs.gemini_gnirs.GeminiGNIRSSpectrograph()
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_gnirs',
+                                '32_SB_SXD', 'cN20170331S0246.fits')
+    assert os.path.isfile(example_file), 'Could not find example file for Gemini GNIRS read.'
+    det = 1
+    _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    bpm = s.bpm(example_file, det)
+    assert data.shape == (1022, 1024)
+    assert bpm.shape == (1022, 1024)
 
 @dev_suite_required
 def test_lbt_luci_ii():
