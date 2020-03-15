@@ -5,10 +5,10 @@ import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit import utils
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit.core import pixels
+from pypeit.images import detector_container
+
 from pkg_resources import resource_filename
 
 
@@ -25,27 +25,30 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'NIRES'
         self.numhead = 3
-        self.detector = [
+
+    def get_detector_par(self, hdu, det):
+        detector_dict = dict(
                 # Detector 1
-                pypeitpar.DetectorPar(
-                            specaxis        = 1,
-                            specflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.15,
-                            darkcurr        = 0.01,
-                            saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 3.8,
-                            ronoise         = 5.0,
-                            datasec         = '[:,:]',
-                            oscansec        = '[980:1024,:]'  # Is this a hack??
-                            )]
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+                #pypeitpar.DetectorPar(
+            binning='1,1',
+            det=1,
+            specaxis        = 1,
+            specflip        = True,
+            xgap            = 0.,
+            ygap            = 0.,
+            ysize           = 1.,
+            platescale      = 0.15,
+            darkcurr        = 0.01,
+            saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
+            nonlinear       = 0.76,
+            numamplifiers   = 1,
+            gain            = np.asarray([3.8]),
+            ronoise         = np.asarray([5.0]),
+            datasec         = np.asarray(['[:,:]']),
+            oscansec        = np.asarray(['[980:1024,:]'])  # Is this a hack??
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
 
     @property
     def pypeline(self):
@@ -64,7 +67,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
