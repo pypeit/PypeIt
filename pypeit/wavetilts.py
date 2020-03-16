@@ -506,7 +506,9 @@ class BuildWaveTilts(object):
             show (bool):
 
         Returns:
-            dict, ndarray:  Tilts dict and maskslits array
+            tuple:
+                :class:`WaveTilts`_
+                `np.ndarray`_
 
         """
 

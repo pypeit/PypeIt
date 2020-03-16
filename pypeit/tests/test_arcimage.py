@@ -37,3 +37,4 @@ def test_master_io():
     arcImage.to_master_file(data_path(''), 'A_01_22', 'shane_kast_blue')
     # Read
     _arcImage = arcimage.ArcImage.from_master_file(data_path('MasterArc_A_01_22.fits'))
+    assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)

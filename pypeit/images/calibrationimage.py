@@ -24,6 +24,7 @@ class CalibrationImage(pypeitimage.PypeItImage):
     hdu_prefix = None
     file_format = 'fits'
 
+    # TODO -- Move hdu_prefix to DataContainer and eliminate this method
     @classmethod
     def from_master_file(cls, filename, **kwargs):
         return super(CalibrationImage, cls).from_file(filename, hdu_prefix=cls.hdu_prefix, **kwargs)

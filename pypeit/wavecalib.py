@@ -160,7 +160,6 @@ class WaveCalib(object):
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
-            self.nonlinear_counts = None
 
     def build_wv_calib(self, arccen, method, skip_QA=False):
         """

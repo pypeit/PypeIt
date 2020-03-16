@@ -12,6 +12,7 @@ from astropy import time
 from astropy.io import fits
 
 from pypeit import arcimage
+from pypeit import tiltimage
 from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import flatfield
@@ -130,7 +131,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.
-def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
+def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
     """
     Load up the set of shane_kast_blue master frames
 
@@ -162,10 +163,16 @@ def load_kast_blue_masters(aimg=False, edges=False, tilts=False, wvcalib=False, 
 
     master_key = 'A_1_01'
     if aimg:
-        AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir,
-                                 reuse_masters=reuse_masters)
-        msarc = AImg.load()
-        ret.append(msarc)
+        arc_file = masterframe.construct_file_name(arcimage.ArcImage, master_key, master_dir=master_dir)
+        AImg = arcimage.ArcImage.from_master_file(arc_file)
+
+    if mstilt:
+        # We use an arc
+        arc_file = masterframe.construct_file_name(arcimage.ArcImage, master_key, master_dir=master_dir)
+        AImg = arcimage.ArcImage.from_master_file(arc_file)
+        # Convert
+        mstilt = tiltimage.TiltImage.from_pypeitimage(AImg)
+        ret.append(mstilt)
 
     if edges:
         #trace_file = '{0}.gz'.format(os.path.join(master_dir,
