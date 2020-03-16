@@ -13,6 +13,8 @@ from astropy.table import Table
 from astropy.io import fits
 
 from pypeit import spec2dobj
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.tests import tstutils
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -32,14 +34,43 @@ def init_dict():
         )
     return sdict
 
+####################################################3
+# Testing of Spec2DObj
+
 def test_init(init_dict):
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     # Check
     assert spec2DObj.hdu_prefix == 'DET01-'
 
+####################################################3
 # Testing of AllSpec2DObj
-def test_all2dobj_hdr(init_dict):
-    spec2DObj = spec2dobj.Spec2DObj(**init_dict)
-    #
 
+def test_all2dobj_hdr(init_dict):
+    # Build one
+    spec2DObj = spec2dobj.Spec2DObj(**init_dict)
+    allspec2D = spec2dobj.AllSpec2DObj()
+    allspec2D['meta']['ir_redux'] = False
+    allspec2D[1] = spec2DObj
+    #
+    kast_file = data_path('b1.fits.gz')
+    header = fits.getheader(kast_file)
+    spectrograph = load_spectrograph('shane_kast_blue')
+    # Do it
+    hdr = allspec2D.build_primary_hdr(header, spectrograph, master_dir=data_path(''))
+    # Test it
+    assert hdr['SKYSUB'] == 'MODEL'
+
+
+def test_all2dobj_write(init_dict):
+    # Build one
+    spec2DObj = spec2dobj.Spec2DObj(**init_dict)
+    allspec2D = spec2dobj.AllSpec2DObj()
+    allspec2D['meta']['ir_redux'] = False
+    allspec2D[1] = spec2DObj
+    allspec2D[1].detector = tstutils.get_kastb_detector()
+    # Write
+    ofile = data_path('tst_spec2d.fits')
+    allspec2D.write_to_fits(ofile)
+    # Read
+    _allspec2D = spec2dobj.AllSpec2DObj.from_fits(ofile)
 

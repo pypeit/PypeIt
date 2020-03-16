@@ -21,7 +21,6 @@ from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
-from pypeit.images import detector_container
 
 # Create a decorator for tests that require the PypeIt dev suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,

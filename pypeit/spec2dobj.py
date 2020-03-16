@@ -66,8 +66,36 @@ class Spec2DObj(datamodel.DataContainer):
     def _vaildate(self):
         assert self.det is not None, 'Must set det at instantiation!'
 
-    def _init_internals(self):
-        pass
+    def _bundle(self):
+        """
+        Over-write default _bundle() method to write one
+        HDU per image.  Any extras are in the HDU header of
+        the primary image.
+
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension. See the description
+            above.
+        """
+        d = []
+        # Rest of the datamodel
+        for key in self.keys():
+            # Skip Nones
+            if self[key] is None:
+                continue
+            # Array?
+            if self.datamodel[key]['otype'] == np.ndarray:
+                tmp = {}
+                tmp[key] = self[key]
+                d.append(tmp)
+            # Deal with the detector
+            elif key == 'detector':
+                d.append(dict(detector=self.detector))
+            else: # Add to header of the primary image
+                d[0][key] = self[key]
+        # Return
+        return d
+
 
     @property
     def hdu_prefix(self):
@@ -78,10 +106,29 @@ class AllSpec2DObj(object):
     Simple object to hold Spec2DObj objects
     and perform I/O
 
+    Anything that goes into self['meta'] must be parseable into a FITS Header
+
     Restrict keys to be type int or 'meta'
     and items to be `Spec2DObj`_
 
     """
+    hdr_prefix = 'ALLSPEC2D_'
+    @classmethod
+    def from_fits(cls, filename):
+        # Instantiate
+        slf = cls()
+        # Open
+        hdul = fits.open(filename)
+        # Meta
+        hkeys = list(hdul[0].header.keys())
+        for key in hkeys:
+            if slf.hdr_prefix in key:
+                slf['meta'][key.split(slf.hdr_prefix)[-1]] = hdul[0].header[key]
+        # Detectors included
+        detectors = hdul[0].header[slf.hdr_prefix+'DETS']
+        for det in [int(item) for item in detectors.split(',')]:
+
+
 
     def __init__(self):
         super(AllSpec2DObj, self).__init__()
@@ -145,7 +192,7 @@ class AllSpec2DObj(object):
         #
         return hdr
 
-    def write_to_fits(self, outfile, pri_hdr=None, update_det=None):
+    def write_to_fits(self, outfile, pri_hdr=None, update_det=None, overwrite=True):
 
         # Start the HDU list (or read from disk) and Primary header
         if os.path.isfile(outfile) and update_det is not None:
@@ -159,5 +206,32 @@ class AllSpec2DObj(object):
             # Update with original header, skipping a few keywords
             hdus = [prihdu]
 
+        # Add meta to Primary Header
+        for key in self['meta']:
+            prihdu.header[self.hdr_prefix+key.upper()] = self['meta'][key]
+
+        # Loop on em (in order of detector)
+        keys = list(self.keys())
+        keys.remove('meta')
+        keys.sort()
+        extnum = 1
+        for key in keys:
+            #
+            hdul = self[key].to_hdu(hdu_prefix=self[key].hdu_prefix)
+            for hdu in hdul:
+                keywd = 'EXT{:04d}'.format(extnum)
+                prihdu.header[keywd] = hdu.name
+                extnum += 1
+            # Add em in
+            hdus += hdul
+
+        # Detectors included
+        detectors = str(keys)[1:-1]
+        prihdu.header[self.hdr_prefix+'DETS'] = detectors
+
+        # Finish
+        hdulist = fits.HDUList(hdus)
+        hdulist.writeto(outfile, overwrite=overwrite)
+        msgs.info("Wrote: {:s}".format(outfile))
 
 

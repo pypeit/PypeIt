@@ -307,11 +307,12 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames,
+                    sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
                                                     std_outfile=std_outfile)
                     science_basename[j] = self.basename
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    self.save_exposure(frames[0], sci_dict, self.basename)
+                    self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename)
+                    #self.save_exposure(frames[0], sci_dict, self.basename)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -662,7 +663,6 @@ class PypeIt(object):
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir
                                                ) if update_det is not None else None
-        #
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 
