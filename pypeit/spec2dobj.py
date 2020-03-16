@@ -4,8 +4,9 @@ Module for the Spec2DObj class
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
-import copy
+import os
 import inspect
+import datetime
 from IPython import embed
 
 import numpy as np
@@ -13,14 +14,10 @@ import numpy as np
 from scipy import interpolate
 
 from astropy import units
-from astropy.table import Table
-
-from linetools.spectra import xspectrum1d
+from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.core import parse
-from pypeit.core import flux_calib
-from pypeit import utils
+from pypeit import io
 from pypeit import datamodel
 from pypeit.images import detector_container
 
@@ -66,9 +63,15 @@ class Spec2DObj(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
+    def _vaildate(self):
+        assert self.det is not None, 'Must set det at instantiation!'
+
     def _init_internals(self):
         pass
 
+    @property
+    def hdu_prefix(self):
+        return 'DET{:02d}-'.format(self.det)
 
 class AllSpec2DObj(object):
     """
@@ -99,4 +102,62 @@ class AllSpec2DObj(object):
     def __getitem__(self, item):
         """Get an item directly from the internal dict."""
         return self.__dict__[item]
+
+    def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None):
+        hdr = io.initialize_header(primary=True)
+
+        hdukeys = ['BUNIT', 'COMMENT', '', 'BITPIX', 'NAXIS', 'NAXIS1', 'NAXIS2',
+                   'HISTORY', 'EXTEND', 'DATASEC']
+        for key in raw_header.keys():
+            # Use new ones
+            if key in hdukeys:
+                continue
+            # Update unused ones
+            hdr[key] = raw_header[key]
+        # History
+        if 'HISTORY' in raw_header.keys():
+            # Strip \n
+            tmp = str(raw_header['HISTORY']).replace('\n', ' ')
+            hdr.add_history(str(tmp))
+
+        # PYPEIT
+        # TODO Should the spectrograph be written to the header?
+        hdr['PIPELINE'] = str('PYPEIT')
+        hdr['PYPELINE'] = spectrograph.pypeline
+        hdr['SPECTROG'] = spectrograph.spectrograph
+        hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+        # MasterFrame info
+        # TODO -- Should this be in the header of the individual HDUs ?
+        if master_key_dict is not None:
+            hdr['FRAMMKEY'] = master_key_dict['frame'][:-3]
+            hdr['BPMMKEY'] = master_key_dict['bpm'][:-3]
+            hdr['BIASMKEY'] = master_key_dict['bias'][:-3]
+            hdr['ARCMKEY'] = master_key_dict['arc'][:-3]
+            hdr['TRACMKEY'] = master_key_dict['trace'][:-3]
+            hdr['FLATMKEY'] = master_key_dict['flat'][:-3]
+        if master_dir is not None:
+            hdr['PYPMFDIR'] = str(master_dir)
+        # Sky sub mode
+        if self['meta']['ir_redux']:
+            hdr['SKYSUB'] = 'DIFF'
+        else:
+            hdr['SKYSUB'] = 'MODEL'
+        #
+        return hdr
+
+    def write_to_fits(self, outfile, pri_hdr=None, update_det=None):
+
+        # Start the HDU list (or read from disk) and Primary header
+        if os.path.isfile(outfile) and update_det is not None:
+            hdus, prihdu = io.init_hdus(update_det, outfile)
+        else:
+            # Primary HDU for output
+            prihdu = fits.PrimaryHDU()
+            # Header
+            if pri_hdr is not None:
+                prihdu.header = pri_hdr
+            # Update with original header, skipping a few keywords
+            hdus = [prihdu]
+
+
 

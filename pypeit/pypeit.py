@@ -625,6 +625,7 @@ class PypeIt(object):
             frame (:obj:`int`):
                 0-indexed row in the metadata table with the frame
                 that has been reduced.
+            all_spec2d(:class:`pypeit.spec2dobj.AllSpec2DObj`):
             sci_dict (:obj:`dict`):
                 Dictionary containing the primary outputs of
                 extraction
@@ -654,6 +655,12 @@ class PypeIt(object):
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
+
+        # 2D
+        update_det = self.par['rdx']['detnum']
+        pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph) if update_det is not None else None
+        outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 
         # Determine the paths/filenames
         #save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
