@@ -276,7 +276,7 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    std_dict = self.reduce_exposure(frames, bg_frames=bg_frames)
+                    std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_dict, self.basename)
                 else:
@@ -378,10 +378,11 @@ class PypeIt(object):
         # TODO: Why specific to IR?
         self.ir_redux = True if has_bg else False
 
-        # TODO: JFH Why does this need to be ordered?
-        sci_dict = OrderedDict()  # This needs to be ordered
-        sci_dict['meta'] = {}
-        sci_dict['meta']['ir_redux'] = self.ir_redux
+        # Container for all the Spec2DObj
+        all_spec2d = spec2dobj.AllSpec2DObj()
+        all_spec2d['meta']['ir_redux'] = self.ir_redux
+        # Container for all the SpecObjs
+        all_specobjs = specobjs.AllSpecObjs()
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
@@ -409,7 +410,6 @@ class PypeIt(object):
         # TODO: Attempt to put in a multiprocessing call here?
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
-            sci_dict[self.det] = {}
             # Calibrate
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
@@ -418,16 +418,18 @@ class PypeIt(object):
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
-                sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
-                sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-                sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
-                        = self.extract_one(frames, self.det, bg_frames,
-                                           std_outfile=std_outfile)
+            #sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
+            #    sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
+            #    sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
+            #    sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
+            #            = self.extract_one(frames, self.det, bg_frames,
+            #                               std_outfile=std_outfile)
+            all_spec2d[self.det], all_specobjs[self.det] = self.extract_one(
+                frames, self.det, bg_frames, std_outfile=std_outfile)
             # JFH TODO write out the background frame?
 
         # Return
-        return sci_dict
+        return all_spec2d, all_specobjs
 
     def get_sci_metadata(self, frame, det):
         """
@@ -594,10 +596,13 @@ class PypeIt(object):
             obstime=self.obstime)
 
         # Construct the Spec2DObj
+        spec2DObj = spec2dobj.Spec2DObj(self.det, self.sciImg.image, self.sciImg.ivar, self.skymodel,
+                                        self.objmodel, self.ivarmodel, self.outmask, self.sciImg.detector)
 
         # Return
-        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, \
-               self.sobjs, self.sciImg.detector
+        return spec2DObj, self.sobjs
+        #return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, \
+        #       self.sobjs, self.sciImg.detector
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename):

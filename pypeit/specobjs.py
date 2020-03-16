@@ -613,3 +613,23 @@ def lst_to_array(lst, mask=None):
         return Quantity(lst)[mask]
     else:
         return np.array(lst)[mask]
+
+
+class AllSpecObjs(dict):
+    """
+    Very simple object to hold SpecObjs objects
+
+    Restrict keys to be type int
+    and items to be `SpecObjs`_
+    """
+
+    def __init__(self):
+        pass
+
+    def __setitem__(self, item, value):
+        # Check item
+        if not isinstance(item, int):
+            raise KeyError('Key must be an integer, i.e. detector number')
+        # Check value
+        assert isinstance(value, SpecObjs), 'Item must be a SpecObjs'
+        self.__dict__[item] = value

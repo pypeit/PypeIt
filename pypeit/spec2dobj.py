@@ -52,7 +52,7 @@ class Spec2DObj(datamodel.DataContainer):
         'det': dict(otype=int, desc='Detector index'),
     }
 
-    def __init__(self, det, sciimg, sciivar, skymodel, objmodel, ivarmodel, outmask, detector):
+    def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel, mask, detector):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -65,19 +65,22 @@ class Spec2DObj(datamodel.DataContainer):
 
 class AllSpec2DObj(dict):
     """
-    Very simple object to hold Spec2DObj objects
+    Simple object to hold Spec2DObj objects
+    and I/O
 
-    Restrict keys to be int
+    Restrict keys to be type int or 'meta'
     and items to be `Spec2DObj`_
 
     """
 
     def __init__(self):
-        pass
+        self['meta'] = {}
 
     def __setitem__(self, item, value):
         # Check item
-        assert isinstance(item, int), 'Key must be an integer, i.e. detector number'
+        if not isinstance(item, int) and item != 'meta':
+            raise KeyError('Key must be an integer, i.e. detector number or "meta"')
         # Check value
-        assert isinstance(value, Spec2DObj), 'Item must be a Spec2DObj'
+        if isinstance(item, int):
+            assert isinstance(value, Spec2DObj), 'Item must be a Spec2DObj'
         self.__dict__[item] = value
