@@ -152,6 +152,8 @@ class SlitTraceSet(datamodel.DataContainer, masterframe.MasterFrame):
                                         master_key=master_key, file_format=cls.master_format,
                                         reuse_masters=reuse).chk_load_master(None)
         if ifile is None:
+            # TODO: I'd rather this fault, but is that going to cause
+            # issues anywhere?
             return None
         msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
         return cls.from_file(ifile)

@@ -252,29 +252,32 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         """
         ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
+        # Get the slits
+        slits = None
+        if show_slits:
+            slits = self.slits
+            if slits is None:
+                # Try to load the slits
+                # TODO: I'd rather this fault if the file doesn't
+                # exist, but instead it returns None.
+                slits = slittrace.SlitTraceSet.from_master(self.master_key, self.master_dir)
+            if slits is None:
+                msgs.warn('Could not load slits to show with flat-field images.')
+
         # TODO: Add an option that shows the relevant stuff in a
         # matplotlib window.
         viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
                                       wcs_match=wcs_match, clear=True)
+        if slits is not None:
+            ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
         viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1),
                                       wcs_match=wcs_match)
+        if slits is not None:
+            ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
         viewer, ch = ginga.show_image(self.rawflatimg.image, chname='flat', wcs_match=wcs_match)
+        if slits is not None:
+            ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
         viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
-
-        if not show_slits:
-            return
-
-        # Get the slits
-        if self.slits is None:
-            # Try to load the slits
-            try:
-                slits = slittrace.SlitTraceSet.from_master(self.master_key, self.master_dir)
-            except:
-                msgs.warn('Could not load slits to show with flat-field images.')
-                slits = None
-        else:
-            slits = self.slits
-        # Show them if they exist
         if slits is not None:
             ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
 
