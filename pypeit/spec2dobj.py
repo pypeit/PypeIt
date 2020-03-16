@@ -35,6 +35,7 @@ class Spec2DObj(datamodel.DataContainer):
 
     Attributes:
         See datamodel
+        head0 (`astropy.fits.Header`):
 
     """
     version = '1.0.0'
@@ -61,6 +62,7 @@ class Spec2DObj(datamodel.DataContainer):
     def from_file(cls, file, det):
         hdul = fits.open(file)
         slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=hdu_prefix(det))
+        slf.head0 = hdul[0].header
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel, mask, detector):
@@ -69,6 +71,9 @@ class Spec2DObj(datamodel.DataContainer):
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
+
+    def _init_internals(self):
+        self.head0 = None
 
     def _vaildate(self):
         assert self.det is not None, 'Must set det at instantiation!'
@@ -144,13 +149,15 @@ class AllSpec2DObj(object):
         for det in [int(item) for item in detectors.split(',')]:
             obj = Spec2DObj.from_hdu(hdul, hdu_prefix=hdu_prefix(det))
             slf[det] = obj
-        #
+        # Header
+        slf.head0 = hdul[0].header
         return slf
 
 
     def __init__(self):
         super(AllSpec2DObj, self).__init__()
         self['meta'] = {}
+        self.head0 = None
 
     def keys(self):
         return self.__dict__.keys()
