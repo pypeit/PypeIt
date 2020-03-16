@@ -63,8 +63,7 @@ class SpecObj(datamodel.DataContainer):
         'FRAC_USE' : frac_use  # Fraction of pixels in the object profile subimage used for this extraction
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
-    flavor = 'SpecObj'
-    version = '1.1.0'  # Now in DataContainer
+    version = '1.1.0'
 
     datamodel = {
         'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
@@ -136,27 +135,6 @@ class SpecObj(datamodel.DataContainer):
                               'omitted giving a unique name per object.')
     }
 
-    #@classmethod
-    #def from_table(cls, table, copy_dict=None):
-    #    if table.meta['PYPELINE'] == 'MultiSlit':
-    #        # Instantiate
-    #        slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-    #                  slitid=table.meta['SLITID'], copy_dict=copy_dict)
-    #    else:
-    #        slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-    #                  copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'], orderindx=table.meta['ECH_ORDERINDX'])
-    #    # Pop a few that land in standard FITS header
-    #    # Loop me -- Do this to deal with checking the data model
-    #    for key in table.keys():
-    #        setattr(slf, key, table[key].data)
-    #    for key in table.meta.keys():
-    #        # Skip ones that can appear in FITS header
-    #        if key in ['EXTNAME']:
-    #            continue
-    #        #
-    #        setattr(slf, key, table.meta[key])
-    #    return slf
-
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, **kwargs):
 
@@ -167,24 +145,6 @@ class SpecObj(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
-        # For copying the object
-        #if copy_dict is not None:
-        #    if '_SpecObj_initialised' in copy_dict:
-        #        copy_dict.pop('_SpecObj_initialised')
-        #    self.__dict__ = copy_dict
-        #else:
-
-        # set any attributes here - before initialisation
-        # these remain as normal attributes
-        # We may wish to eliminate *all* of these
-
-        # Initialize a few, if we aren't copying
-        #if specobj_dict is not None:
-        #    #self.PYPELINE = specobj_dict['pypeline']
-        #    self.OBJTYPE = specobj_dict['objtype']
-        #    self.SLITID = specobj_dict['slitid']
-        #    self.ECH_ORDER = specobj_dict['order']
-        #    self.ECH_ORDERINDX = specobj_dict['orderindx']
         self.FLEX_SHIFT = 0.
 
         # Name
@@ -207,8 +167,6 @@ class SpecObj(datamodel.DataContainer):
         self.trace_spec = None  # Only for debuggin, internal plotting
 
         # Echelle
-        #self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
-        #self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
 
@@ -246,60 +204,6 @@ class SpecObj(datamodel.DataContainer):
         else:
             msgs.error("Uh oh")
 
-    '''
-    def __getattr__(self, item):
-        """Maps values to attributes.
-        Only called if there *isn't* an attribute with this name
-        """
-        try:
-            return self.__getitem__(item)
-        except KeyError:
-            raise AttributeError(item)
-
-    def __setattr__(self, item, value):
-
-        if not '_SpecObj__initialised' in self.__dict__:  # this test allows attributes to be set in the __init__ method
-            return dict.__setattr__(self, item, value)
-        elif item in self.__dict__:       # any normal attributes are handled normally
-            dict.__setattr__(self, item, value)
-        else:
-            self.__setitem__(item, value)
-
-    def __setitem__(self, item, value):
-        if item not in self.data_model.keys():
-            raise IOError("Cannot set {} attribute.  It is not in the data model".format(item))
-        if not isinstance(value, self.data_model[item]['otype']):
-            print("Wrong data type for attribute: {}".format(item))
-            print("Allowed type(s) are: {}".format(self.data_model[item]['otype']))
-            raise IOError("Try again")
-        if isinstance(value, np.ndarray):
-            self._data[item] = value
-        else:
-            self._data.meta[item] = value
-
-    def __getitem__(self, item):
-        if item in self._data.keys():
-            return self._data[item].data
-        elif item in self._data.meta.keys():
-            return self._data.meta[item]
-        else:
-            raise KeyError
-
-    # TODO: JFH Can we change this functio name to data_model, and have a separate function called
-    # keys which returns sobjs._dict__.keys() which is the list of attributes of the actual object
-    # excluding the data model. Or even better, use keys for both, but append the two lists with one set uppercase and
-    # the other set lowercase
-    def keys(self):
-        """
-        Simple method to return the keys of _data
-
-        Returns:
-            list
-        """
-        return self._data.keys()
-    '''
-
-    # TODO JFH Please describe the naming model somewhere in this module.
     def set_name(self):
         """
         Generate a unique index for this spectrum based on the
@@ -353,7 +257,6 @@ class SpecObj(datamodel.DataContainer):
             self.NAME = name
         else:
             msgs.error("Bad PYPELINE")
-
 
     def copy(self):
         """
