@@ -510,6 +510,12 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.msillumflat = np.ones_like(rawflat)
         self.flat_model = np.zeros_like(rawflat)
 
+        # Allocate work arrays only once
+        spec_model = np.ones_like(rawflat)
+        norm_spec = np.ones_like(rawflat)
+        norm_spec_spat = np.ones_like(rawflat)
+        twod_model = np.ones_like(rawflat)
+
         # Model each slit independently
         for slit in range(self.slits.nslits):
             # Is this a good slit??
@@ -606,9 +612,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
-
             if exit_status > 1:
-                # TODO: Should this fault?
                 msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
                           'slit {0} and continuing!'.format(slit))
                 continue
@@ -624,7 +628,8 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 gpm[spec_gpm] = (spec_gpm_fit & spec_gpm_data)[np.argsort(spec_srt)]
 
             # Construct the model of the flat-field spectral shape
-            spec_model = np.ones_like(rawflat)
+            # including padding on either side of the slit.
+            spec_model[...] = 1.
             spec_model[onslit_padded] = np.exp(spec_bspl.value(spec_coo[onslit_padded])[0])
             # ----------------------------------------------------------
 
@@ -633,7 +638,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
             # spectral response, and then collapse the slit spectrally.
 
             # Normalize out the spectral shape of the flat
-            norm_spec = np.ones_like(rawflat)
+            norm_spec[...] = 1.
             norm_spec[onslit_padded] = rawflat[onslit_padded] \
                                             / np.fmax(spec_model[onslit_padded],1.0)
 
@@ -696,15 +701,13 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                                             np.ones_like(spat_flat_data),
                                             np.ones_like(spat_flat_data), nord=4, upper=5.0,
                                             lower=5.0, fullbkpt=spat_bspl.breakpoints)
-
             if exit_status > 1:
-                # TODO: Should this fault?
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
                           'included in flat-field model for slit {0}!'.format(slit))
-                # TODO: Should this continue instead of just leaving the msillumflat with ones?
-            else:
-                # Compute the model illumination profile
-                self.msillumflat[onslit_padded] = spat_bspl.value(spat_coo[onslit_padded])[0]
+
+            # NOTE: The bspline fit is used to construct the
+            # illumination flat within the *tweaked* slit edges, after
+            # the edges are tweaked.
             # ----------------------------------------------------------
 
             # ----------------------------------------------------------
@@ -768,17 +771,19 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 plt.show()
 
             # ----------------------------------------------------------
+            # Construct the illumination profile with the tweaked edges
+            # of the slit
+            if exit_status <= 1:
+                self.msillumflat[onslit] = spat_bspl.value(spat_coo[onslit])[0]
 
             # ----------------------------------------------------------
             # Fit the 2D residuals of the 1D spectral and spatial fits.
-
             msgs.info('Performing 2D illumination + scattered light flat field fit')
 
             # Construct the spectrally and spatially normalized flat
-            norm_spec_spat = np.ones_like(rawflat)
-            norm_spec_spat[onslit_padded] = rawflat[onslit_padded] \
-                                                / np.fmax(spec_model[onslit_padded], 1.0) \
-                                                / np.fmax(self.msillumflat[onslit_padded], 0.01)
+            norm_spec_spat[...] = 1.
+            norm_spec_spat[onslit] = rawflat[onslit] / np.fmax(spec_model[onslit], 1.0) \
+                                                    / np.fmax(self.msillumflat[onslit], 0.01)
 
             # Sort the pixels by their spectral coordinate. The mask
             # uses the nominal padding defined by the slits object.
@@ -871,7 +876,7 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
                 plt.show()
 
             # Save the 2D residual model
-            twod_model = np.ones_like(rawflat)
+            twod_model[...] = 1.
             if exit_status > 1:
                 msgs.warn('Two-dimensional fit to flat-field data failed!  No higher order '
                           'flat-field corrections included in model of slit {0}!'.format(slit))
@@ -897,8 +902,9 @@ class FlatField(calibrationimage.CalibrationImage, masterframe.MasterFrame):
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
         # Do not apply pixelflat field corrections that are greater than
         # 100% to avoid creating edge effects, etc.
-        # TODO: Should we do the same for the illumflat?
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
+
+        # TODO: Should we do both of the above for illumflat?
 
 
 
