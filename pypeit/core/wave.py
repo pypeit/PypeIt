@@ -310,7 +310,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
         for ss, specobj in enumerate(this_specobjs):
             if specobj is None:
                 continue
-            if len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
+            if specobj.BOX_WAVE is None and specobj.OPT_WAVE is None:  # Nothing extracted
                 continue
             msgs.info("Working on flexure for object # {:d}".format(specobj.OBJID) + "in slit # {:d}".format(specobj.SLITID))
             # Using boxcar
@@ -659,7 +659,7 @@ def flexure_qa(specobjs, maskslits, basename, det, flex_list,
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
         for iobj, specobj in enumerate(this_specobjs):
-            if specobj is None or len(specobj._data.keys()) == 1:
+            if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
                 continue
             # Correlation QA
             ax = plt.subplot(gs[iobj//ncol, iobj % ncol])

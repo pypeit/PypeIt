@@ -1,4 +1,8 @@
-""" Module for the SpecObjs and SpecObj classes
+"""
+Module for the SpecObj classes
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import copy
 import inspect
@@ -9,7 +13,6 @@ import numpy as np
 from scipy import interpolate
 
 from astropy import units
-from astropy.table import Table
 
 from linetools.spectra import xspectrum1d
 
@@ -48,20 +51,7 @@ class SpecObj(datamodel.DataContainer):
            Physical order number
 
     Attributes:
-        slitcen (float): Center of slit in fraction of total (trimmed) detector size at ypos
-        objid (int): Identifier for the object (max=999)
-        flex_shift (float): Flexure correction in pixels
-
-    Extraction dict's
-        'WAVE' : wave_opt  # Optimally extracted wavelengths
-        'COUNTS' : flux_opt  # Optimally extracted flux
-        'COUNTS_IVAR' : mivar_opt  # Inverse variance of optimally extracted flux using modelivar image
-        'COUNTS_NIVAR' : nivar_opt  # Optimally extracted noise variance (sky + read noise) only
-        'MASK' : mask_opt  # Mask for optimally extracted flux
-        'COUNTS_SKY' : sky_opt  # Optimally extracted sky
-        'COUNTS_RN' : rn_opt  # Square root of optimally extracted read noise squared
-        'FRAC_USE' : frac_use  # Fraction of pixels in the object profile subimage used for this extraction
-        'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
+        See datamodel and _init_internals()
     """
     version = '1.1.0'
 
@@ -136,12 +126,10 @@ class SpecObj(datamodel.DataContainer):
     }
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
-                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, **kwargs):
+                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
-        # For copying
-        _d.update(kwargs)
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
@@ -278,7 +266,7 @@ class SpecObj(datamodel.DataContainer):
             fdict (dict): Holds the various flexure items
 
         Returns:
-            np.ndarray:  New sky spectrum (mainly for QA)
+            xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
 
         """
         # Simple interpolation to apply
@@ -286,11 +274,11 @@ class SpecObj(datamodel.DataContainer):
         x = np.linspace(0., 1., npix)
         # Apply
         for attr in ['BOX', 'OPT']:
-            if attr+'_WAVE' in self._data.keys():
+            if self[attr+'_WAVE'] is not None: #in self._data.keys():
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
                           msgs.newline() + "{0:s}".format(str(self.NAME)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) * units.AA
+                self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) #* units.AA
         # Shift sky spec too
         cut_sky = fdict['sky_spec']
         x = np.linspace(0., 1., cut_sky.npix)
@@ -326,7 +314,7 @@ class SpecObj(datamodel.DataContainer):
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:
-            if attr+'_WAVE' not in self._data.keys():
+            if self[attr+'_WAVE'] is not None: # not in self._data.keys():
                 continue
             msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
 

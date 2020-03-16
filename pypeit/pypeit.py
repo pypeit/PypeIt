@@ -14,11 +14,10 @@ from pypeit import calibrations
 from pypeit.images import scienceimage
 from pypeit import ginga
 from pypeit import reduce
+from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import wave
 from pypeit.core import save
 from pypeit import specobjs
-from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 
 from configobj import ConfigObj
@@ -593,6 +592,8 @@ class PypeIt(object):
             std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
+
+        # Construct the Spec2DObj
 
         # Return
         return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, \
