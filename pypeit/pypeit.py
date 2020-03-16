@@ -662,7 +662,7 @@ class PypeIt(object):
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir
-                                               ) if update_det is not None else None
+                                               ) if update_det is None else None
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 

@@ -61,11 +61,12 @@ def show_trace(specobjs, det, viewer, ch):
 def main(args):
 
     # List only?
-    hdu = fits.open(args.file)
-    head0 = hdu[0].header
     if args.list:
+        hdu = fits.open(args.file)
         hdu.info()
         return
+
+    # Load it up
 
     # Setup for PYPIT imports
     msgs.reset(verbosity=2)
