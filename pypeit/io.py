@@ -365,7 +365,7 @@ def header_version_check(hdr, warning_only=True):
     return all_identical
 
 
-def dict_to_hdu(d, name=None, hdr=None):
+def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write a dictionary to a fits HDU.
 
@@ -473,10 +473,14 @@ def dict_to_hdu(d, name=None, hdr=None):
 
     # If there aren't any arrays or tables, return an empty ImageHDU with just the header data.
     if len(array_keys) < 1 and len(table_keys) < 1:
-        return fits.ImageHDU(header=_hdr, name=name)
+        if force_to_bintbl:
+            return fits.BinTableHDU(header=_hdr, name=name)
+        else:
+            return fits.ImageHDU(header=_hdr, name=name)
+
 
     # If there's only a single array, return it in an ImageHDU
-    if len(array_keys) == 1:
+    if len(array_keys) == 1 and not force_to_bintbl:
         return fits.ImageHDU(data=d[array_keys[0]], header=_hdr,
                              name=array_keys[0] if name is None else name)
 
@@ -484,6 +488,7 @@ def dict_to_hdu(d, name=None, hdr=None):
     if len(table_keys) == 1:
         # TODO: If we pass hdr directly, does this call include any
         # table meta?
+        import pdb; pdb.set_trace()
         return fits.BinTableHDU(data=d[table_keys[0]], header=_hdr,
                                 name=table_keys[0] if name is None else name)
 
@@ -503,7 +508,7 @@ def dict_to_hdu(d, name=None, hdr=None):
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
-def write_to_hdu(d, name=None, hdr=None):
+def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
     """
     Write the input to an astropy.io.fits HDU extension.
 
@@ -524,6 +529,8 @@ def write_to_hdu(d, name=None, hdr=None):
             Name for the HDU extension.
         hdr (`astropy.io.fits.Header`_, optional):
             Header to include in the HDU.
+        force_dict_bintbl (bool, optional):
+            Force dict into a BinTableHDU
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -536,7 +543,7 @@ def write_to_hdu(d, name=None, hdr=None):
 
     """
     if isinstance(d, dict):
-        return dict_to_hdu(d, name=name, hdr=hdr)
+        return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_dict_bintbl)
     if isinstance(d, Table):
         return fits.BinTableHDU(data=d, name=name, header=hdr)
     if isinstance(d, (numpy.ndarray, list)):

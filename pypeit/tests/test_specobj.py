@@ -40,6 +40,7 @@ def test_assignment():
     sobj.set_name()
     assert sobj.NAME == 'SPAT0523-SLIT0000-DET01'
 
+
 def test_hdu():
     sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     #
@@ -47,20 +48,29 @@ def test_hdu():
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
     sobj['TRACE_SPAT'] = np.arange(100) * 2.
     # Test
-    hdul = sobj.to_hdu()
+    hdul = sobj.to_hdu()#force_dict_bintbl=True)
     assert len(hdul) == 1  # Should be one BinTableHDU
     assert isinstance(hdul[0], fits.hdu.table.BinTableHDU)
     assert len(hdul[0].data) == 100
     assert 'TRACE_SPAT' in hdul[0].data.dtype.names
     assert 'SLITID' in hdul[0].header.keys()
 
-
 def test_io():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    # Can we handle 1 array?
+    sobj['BOX_WAVE'] = np.arange(100).astype(float)
+    ofile = data_path('tmp.fits')
+    sobj.to_file(ofile, overwrite=True)
+    _sobj = specobj.SpecObj.from_file(ofile)
+    assert np.array_equal(sobj.BOX_WAVE, _sobj.BOX_WAVE)
+
+def test_iotwo():
     sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
     sobj['TRACE_SPAT'] = np.arange(100) * 2.
+    sobj['BOX_MASK'] = np.arange(100).astype(bool)
 
     # Write table
     ofile = data_path('tmp.fits')

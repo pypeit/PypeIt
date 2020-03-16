@@ -17,9 +17,6 @@ from IPython import embed
 import linetools.utils
 
 from pypeit import msgs
-from pypeit import specobjs
-from pypeit import specobj
-from pypeit import utils
 from pypeit.core import parse
 from pypeit import io
 
@@ -55,6 +52,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
     Returns:
 
     """
+    from pypeit import specobjs # Hiding this to avoid circular import.  Will remove
     # Check for the directory
     if not os.path.isdir(scipath):
         os.makedirs(scipath)

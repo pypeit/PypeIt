@@ -81,7 +81,7 @@ class SpecObj(datamodel.DataContainer):
                                desc='Optimally extracted noise from IVAR (counts)'),
         'OPT_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                  desc='Optimally extracted noise variance, sky+read noise only (counts^2)'),
-        'OPT_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimally extracted flux'),
+        'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_, desc='Mask for optimally extracted flux'),
         'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Optimally extracted sky (counts)'),
         'OPT_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Optimally extracted RN squared (counts)'),
         'OPT_FRAC_USE': dict(otype=np.ndarray, atype=float,
@@ -99,7 +99,7 @@ class SpecObj(datamodel.DataContainer):
                                desc='Boxcar extracted noise from IVAR (counts)'),
         'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                  desc='Boxcar extracted noise variance, sky+read noise only (counts^2)'),
-        'BOX_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimally extracted flux'),
+        'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_, desc='Mask for optimally extracted flux'),
         'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted sky (counts)'),
         'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted RN squared (counts)'),
         'BOX_FRAC_USE': dict(otype=np.ndarray, atype=float,
@@ -212,6 +212,20 @@ class SpecObj(datamodel.DataContainer):
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
 
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
+               limit_hdus=None, force_dict_bintbl=False):
+        """
+        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
+        a BinTableHDU
+
+        See that func for Args and Returns
+        """
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # Force
+        _d['force_dict_bintbl'] = True
+        # Do it
+        return super(SpecObj, self).to_hdu(**_d)
 
     @property
     def slit_order(self):
@@ -478,7 +492,7 @@ class SpecObj(datamodel.DataContainer):
         """
         # Apply
         for attr in ['BOX', 'OPT']:
-            if attr+'_WAVE' in self._data.keys():
+            if self[attr+'_WAVE'] is not None:
                 msgs.info('Applying {0} correction to '.format(refframe)
                           + '{0} extraction for object:'.format(attr)
                           + msgs.newline() + "{0}".format(str(self.NAME)))
@@ -500,7 +514,7 @@ class SpecObj(datamodel.DataContainer):
         """
         swave = extraction+'_WAVE'
         smask = extraction+'_MASK'
-        if swave not in self._data.keys():
+        if self[swave] is not None:  #not in self._data.keys():
             msgs.error("This object has not been extracted with extract={}.".format(extraction))
         # Fluxed?
         if fluxed:

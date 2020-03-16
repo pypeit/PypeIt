@@ -81,6 +81,9 @@ def test_io(sobj1, sobj2, sobj3):
     sobjs[0]['BOX_WAVE'] = np.arange(1000).astype(float)
     sobjs[1]['BOX_WAVE'] = np.arange(1000).astype(float)
     sobjs[2]['BOX_WAVE'] = np.arange(1000).astype(float)
+    #sobjs[0]['BOX_COUNTS'] = np.ones_like(sobjs[0].BOX_WAVE)  # This tests single array
+    sobjs[1]['BOX_COUNTS'] = np.ones_like(sobjs[0].BOX_WAVE)
+    sobjs[2]['BOX_COUNTS'] = np.ones_like(sobjs[0].BOX_WAVE)
     # Write
     header = fits.PrimaryHDU().header
     ofile = data_path('tst_specobjs.fits')
@@ -90,4 +93,9 @@ def test_io(sobj1, sobj2, sobj3):
     # Read
     hdul = fits.open(ofile)
     assert len(hdul) == 4
+    #
+    _sobjs = specobjs.SpecObjs.from_fitsfile(ofile)
+    assert _sobjs.nobj == 3
+    assert np.array_equal(sobjs[0].BOX_WAVE, _sobjs[0].BOX_WAVE)
+    assert np.array_equal(sobjs[1].BOX_WAVE, _sobjs[1].BOX_WAVE)
 

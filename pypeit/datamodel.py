@@ -1021,7 +1021,7 @@ class DataContainer:
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
-               limit_hdus=None):
+               limit_hdus=None, force_dict_bintbl=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1061,6 +1061,8 @@ class DataContainer:
                 DataContainers of the same name
             limit_hdus (list, optional):
                 Limit the HDUs that can be written to the items in this list
+            force_dict_bintbl (bool, optional):
+                Force any dict into a BinTableHDU (e.g. for SpecObj)
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -1086,9 +1088,10 @@ class DataContainer:
                 if isinstance(d[ext], DataContainer):
                     hdu += d[ext].to_hdu()
                 else:
-                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
+                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
+                                            force_dict_bintbl=force_dict_bintbl)]
             else:
-                hdu += [io.write_to_hdu(d, hdr=_hdr)]
+                hdu += [io.write_to_hdu(d, hdr=_hdr, force_dict_bintbl=force_dict_bintbl)]
         # Prefixes
         if hdu_prefix is not None:
             for ihdu in hdu:

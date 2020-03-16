@@ -38,7 +38,7 @@ class SpecObjs(object):
     Attributes:
         summary (astropy.table.Table):
     """
-    version = specobj.SpecObj.version
+    version = '1.0.0'
 
     @classmethod
     def from_fitsfile(cls, fits_file):
@@ -56,15 +56,14 @@ class SpecObjs(object):
         """
         # HDUList
         hdul = fits.open(fits_file)
-        nhdu = len(hdul)
         # Init
         slf = cls()
         # Add on the header
         slf.header = hdul[0].header
         # Loop on em
-        for kk in range(1,nhdu):
-            tbl = fits.connect.read_table_fits(hdul, hdu=kk)
-            sobj = specobj.SpecObj.from_table(tbl)
+        for hdu in hdul[1:]:
+            #tbl = fits.connect.read_table_fits(hdul, hdu=kk)
+            sobj = specobj.SpecObj.from_hdu(hdu)
             slf.add_sobj(sobj)
 
         # Return
@@ -571,7 +570,10 @@ class SpecObjs(object):
 
             # Table
             shdu = sobj.to_hdu()
+            # Check -- If sobj had only 1 array, the BinTableHDU test will fail
             assert len(shdu) == 1, 'Bad data model!!'
+            assert isinstance(shdu[0], fits.hdu.table.BinTableHDU), 'Bad data model2'
+            # Name
             shdu[0].name = sobj.NAME
             # Append
             hdus += shdu
