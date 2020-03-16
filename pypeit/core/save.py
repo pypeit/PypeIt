@@ -21,6 +21,7 @@ from pypeit import specobjs
 from pypeit import specobj
 from pypeit import utils
 from pypeit.core import parse
+from pypeit import io
 
 
 def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d, scipath, basename,
@@ -206,7 +207,7 @@ def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir,
 
     """
     if os.path.isfile(outfile) and update_det is not None:
-        hdus, prihdu = init_hdus(update_det, outfile)
+        hdus, prihdu = io.init_hdus(update_det, outfile)
     else:
         # Primary HDU for output
         prihdu = fits.PrimaryHDU()
@@ -318,47 +319,6 @@ def save_2d_images(sci_output, raw_header, spectrograph, master_key_dict, mfdir,
     hdulist.writeto(outfile, overwrite=clobber)
     msgs.info("Wrote: {:s}".format(outfile))
 
-
-def init_hdus(update_det, outfile):
-    """
-    Load up existing header and HDUList
-
-    ..todo:: Confirm this works when you are modifying an inner HDU
-
-    Args:
-        update_det (int or list):
-        outfile (str):
-
-    Returns:
-        fits.HDUList, fits.PrimaryHDU
-
-    """
-    #
-    hdus = fits.open(outfile)
-    msgs.info("Using existing output file, including the Header")
-    msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
-    prihdu = hdus[0]
-    # Names
-    hdu_names = [hdu.name for hdu in hdus]
-    # Remove the detector(s) being updated
-    if not isinstance(update_det, list):
-        update_det = [update_det]
-    popme = []
-
-    # Find em
-    for ss,hdu_name in enumerate(hdu_names):
-        for det in update_det:
-            sdet = parse.get_dnum(det, prefix=False)
-            idx = '{:s}{:s}'.format(specobj.naming_model['det'], sdet)
-            if idx in hdu_name:
-                popme.append(ss)
-    # Remove em (and the bit in the Header too)
-    for popthis in reversed(popme):
-        hdus.pop(popthis)
-        keywd = 'EXT{:04d}'.format(popthis)
-        prihdu.header.remove(keywd)
-    # Return
-    return hdus, prihdu
 
 
 def save_sens_dict(sens_dict, outfile, overwrite=True):

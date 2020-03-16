@@ -13,12 +13,12 @@ from astropy.units import Quantity
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.core import save
 from pypeit import specobj
-from pypeit.io import initialize_header
+from pypeit.io import initialize_header, init_hdus
 from pypeit.spectrographs.util import load_spectrograph
 
 from IPython import embed
+
 
 class SpecObjs(object):
     """
@@ -65,29 +65,12 @@ class SpecObjs(object):
             sobj = specobj.SpecObj.from_table(tbl)
             slf.add_sobj(sobj)
 
-        # JFH I'm commenting this out below. I prefer to just directly write out attributes and reinstantiate them
-        # from files. Doing things like this just leads to errors
-        # since it is not in touch with the code that actually determined what these attributes should be.
-
-        # PYPELINE specific
-        #if slf[0].PYPELINE == 'Echelle':
-        #    # Set ech_objid
-        #    uni_frac = np.unique(slf.ECH_FRACPOS)
-        #    for ii, ufrac in enumerate(uni_frac):
-        #        idx = np.isclose(slf.ECH_FRACPOS, ufrac)
-        #        slf[idx].ECH_OBJID = ii
-        #    # Set ech_orderindx
-        #    uni_order = np.unique(slf.ECH_ORDER)
-        #    for ii, uorder in enumerate(uni_order):
-        #        idx = slf.ECH_ORDER == uorder
-        #        slf[idx].ech_orderindx = ii
-
         # Return
         return slf
 
     def __init__(self, specobjs=None, header=None):
 
-        # Only one attribute is allowed for this Object -- specobjs
+        # Only two attributes are allowed for this Object -- specobjs, header
         if specobjs is None:
             self.specobjs = np.array([])
         else:
@@ -138,6 +121,7 @@ class SpecObjs(object):
         """
         return len(self.specobjs)
 
+    # TODO -- This should return a simple DataContainer not a long stream of variables
     def unpack_object(self, ret_flam=False):
         """
         Utility function to unpack the sobjs for one object and
@@ -223,10 +207,6 @@ class SpecObjs(object):
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
             return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
-
-
-
-
 
 
     def get_std(self, multi_spec_det=None):
@@ -343,6 +323,11 @@ class SpecObjs(object):
     def slitorder_indices(self, slitorder):
         """
         Return the set of indices matching the input slit/order
+
+        Args:
+            slitorder (int):
+        Returns:
+            int:
         """
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_ORDERINDX == slitorder
@@ -357,15 +342,12 @@ class SpecObjs(object):
         """
         Return the set of indices matching the input slit/order
 
-        Parameters
-        ----------
-        name: str
-           The name of the object
+        Args:
+            name (str): The name of the object
 
-        Returns
-        -------
-        indx: array-like, shape (nobj,)
-           Array of indices with the corresponding name.
+        Returns:
+            `np.ndarray`_: indx array-like, shape (nobj,)
+                 Array of indices with the corresponding name.
 
         """
         if self[0].PYPELINE == 'Echelle':
@@ -391,19 +373,18 @@ class SpecObjs(object):
         return indx
 
     def set_names(self):
+        """
+        Simple method to (re)set the names of all the SpecObj
+        """
         for sobj in self.specobjs:
             sobj.set_name()
 
     def add_sobj(self, sobj):
         """
         Add one or more SpecObj
-        The summary table is rebuilt
 
         Args:
-            sobj (SpecObj or list or ndarray):  On or more SpecObj objects
-
-        Returns:
-
+            sobj (SpecObj or list or ndarray):  One or more SpecObj objects
 
         """
         if isinstance(sobj, specobj.SpecObj):
@@ -416,13 +397,10 @@ class SpecObjs(object):
 
     def remove_sobj(self, index):
         """
-        Remove an object
+        Remove one or more SpecObj by index
 
         Args:
-            index: int
-
-        Returns:
-
+            index (int or `np.ndarray`_):
         """
         msk = np.ones(self.specobjs.size, dtype=bool)
         msk[index] = False
@@ -434,31 +412,13 @@ class SpecObjs(object):
         Generate a copy of self
 
         Returns:
-            SpecObjs
+            `SpecObjs`_:
 
         """
         sobj_copy = SpecObjs(header=self.header)
         for sobj in self.specobjs:
-            #sobj_copy.add_sobj(sobj.copy())
-            sobj_copy.add_sobj(specobj.SpecObj.copy(sobj))
+            sobj_copy.add_sobj(sobj.copy())
         return sobj_copy
-
-    def grab_spec_arrays(self, obj_id, DET=None, ECH_ORDER=None, **kwargs):
-        # In development
-        pass
-
-
-#    JFH This function is deprecated
-#    def set_idx(self):
-#        """
-#        Set the idx in all the SpecObj
-#        Update the summary Table
-#
-#        Returns:
-#
-#        """
-#        for sobj in self.specobjs:
-#            sobj.set_idx()
 
     def __getitem__(self, item):
         """
@@ -586,7 +546,7 @@ class SpecObjs(object):
         #   and load up all the other hdus so that we only over-write the ones
         #   we are updating
         if os.path.isfile(outfile) and (update_det is not None):
-            hdus, prihdu = save.init_hdus(update_det, outfile)
+            hdus, prihdu = init_hdus(update_det, outfile)
         else:
             # Build up the Header
             prihdu = fits.PrimaryHDU()
@@ -604,10 +564,11 @@ class SpecObjs(object):
             prihdu.header[keywd] = sobj.NAME
 
             # Table
-            shdu = fits.table_to_hdu(sobj._data)
-            shdu.name = sobj.NAME
+            shdu = sobj.to_hdu()
+            assert len(shdu) == 1, 'Bad data model!!'
+            shdu[0].name = sobj.NAME
             # Append
-            hdus += [shdu]
+            hdus += shdu
 
         # A few more for the header
         prihdu.header['NSPEC'] = len(hdus) - 1

@@ -17,9 +17,9 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-sobj1 = specobj.SpecObj('MultiSlit', 1, slitid=0)
-sobj2 = specobj.SpecObj('MultiSlit', 1, slitid=1)
-sobj3 = specobj.SpecObj('MultiSlit', 1, slitid=2)
+sobj1 = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+sobj2 = specobj.SpecObj('MultiSlit', 1, SLITID=1)
+sobj3 = specobj.SpecObj('MultiSlit', 1, SLITID=2)
 
 
 def test_init():

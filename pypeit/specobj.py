@@ -157,37 +157,6 @@ class SpecObj(datamodel.DataContainer):
     #        setattr(slf, key, table.meta[key])
     #    return slf
 
-
-    @classmethod
-    def copy(cls, obj):
-        """
-
-        Args:
-            sobj (SpecObj):
-
-        Returns:
-
-        """
-        d = {}
-        # Data model
-        for key in obj.datamodel.keys():
-            if obj[key] is not None:
-                # Use deepcopy if we add exotic items to the datamodel (e.g. a DataContainer)
-                if (isinstance(obj[key], dict) or
-                    inspect.isclass(obj[key])) and not isinstance(obj[key], np.ndarray):
-                    print("Bad type: {:s}".format(key))
-                    raise IOError("Not read for an exotic otype")
-                d[key] = obj[key]
-        # Instantiate
-        slf = cls(**d)
-        # Internals
-        for key in obj.__dict__.keys():
-            if key in obj.datamodel.keys():
-                continue
-            else:
-                setattr(slf, key, getattr(obj, key))
-        return slf
-
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
                  SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, **kwargs):
 
@@ -322,10 +291,19 @@ class SpecObj(datamodel.DataContainer):
         Generate a unique index for this spectrum based on the
         slit/order, its position and for multi-slit the detector.
 
-        Sets name
+        Multi-slit
+
+            Each object is named by its:
+             - spatial position (pixel number) on the reduced image [SPAT]
+             - the slit number, zero-indexed [SLIT]
+             - the detector number [DET]
+
+            For example::
+
+                SPAT0176-SLIT0000-DET01
 
         Returns:
-            str
+            str:
 
         """
         if 'Echelle' in self.PYPELINE:
@@ -363,22 +341,16 @@ class SpecObj(datamodel.DataContainer):
             msgs.error("Bad PYPELINE")
 
 
-    #def copy(self):
-    #    """
-    #    Generate a copy of this object
-#
-#        Returns:
-#            SpecObj
-#
-#        """
-#        #sobj_copy = SpecObj(self.PYPELINE, self.det,
-#        #                    copy_dict=self.__dict__.copy())
-#        # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
-#        # copy changes the original object which wreaks havoc. That is why it was deepcopy before (I think).
-#        sobj_copy = SpecObj(self.PYPELINE, self.DET,
-#                            copy_dict=copy.deepcopy(self.__dict__))
-#        # Return
-#        return sobj_copy
+    def copy(self):
+        """
+        Generate a copy of this object
+
+        Returns:
+            `SpecObj`_:
+
+        """
+        # Return
+        return copy.deepcopy(self)
 
     def flexure_interp(self, sky_wave, fdict):
         """
