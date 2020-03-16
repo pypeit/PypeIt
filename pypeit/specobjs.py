@@ -570,7 +570,7 @@ class SpecObjs(object):
 
         Args:
             outfile (str):
-            header:
+            header (`astropy.io.fits.Header`_):
             overwrite (bool, optional):
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update

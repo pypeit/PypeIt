@@ -1,6 +1,7 @@
 """ Module for the SpecObjs and SpecObj classes
 """
 import copy
+import inspect
 from IPython import embed
 
 import numpy as np
@@ -16,13 +17,14 @@ from pypeit import msgs
 from pypeit.core import parse
 from pypeit.core import flux_calib
 from pypeit import utils
+from pypeit import datamodel
 
 naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[skey.lower()] = skey
 
 
-class SpecObj(object):
+class SpecObj(datamodel.DataContainer):
     """Class to handle object spectra from a single exposure
     One generates one of these Objects for each spectrum in the exposure. They are instantiated by the object
     finding routine, and then all spectral extraction information for the object are assigned as attributes
@@ -30,7 +32,7 @@ class SpecObj(object):
     Args:
         pypeline (str): Name of the PypeIt pypeline method
             Allowed options are:  MultiSlit, Echelle
-        det (int): Detector number
+        DET (int): Detector number
         copy_dict (dict, optional): Used to set the entire internal dict of the object.
             Only used in the copy() method so far.
         objtype (str, optional)
@@ -62,9 +64,9 @@ class SpecObj(object):
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     flavor = 'SpecObj'
-    version = '1.0'
+    version = '1.1'  # Now in DataContainer
 
-    data_model = {
+    datamodel = {
         'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
         'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
         'FWHMFIT': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),
@@ -155,82 +157,65 @@ class SpecObj(object):
             setattr(slf, key, table.meta[key])
         return slf
 
-    # TODO: JFH I really don't like this copy_dict implementation and I don't know why you added it. This should simply be
-    # done via the copy method as it was before.
-    def __init__(self, pypeline, det, objtype='unknown',
-                 copy_dict=None,
-                 slitid=None,
-                 ech_order=None,
-                 orderindx=None,
+    def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
+                 SLITID=None,
+                 ECH_ORDER=None,
+                 ECH_ORDERINDX=None,
                  specobj_dict=None):
 
-        self._data = Table()
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Remove extras
+        for key in ['specobj_dict']:
+            d.pop(key)
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
 
         # For copying the object
-        if copy_dict is not None:
-            if '_SpecObj_initialised' in copy_dict:
-                copy_dict.pop('_SpecObj_initialised')
-            self.__dict__ = copy_dict
-        else:
-            # set any attributes here - before initialisation
-            # these remain as normal attributes
-            # We may wish to eliminate *all* of these
+        #if copy_dict is not None:
+        #    if '_SpecObj_initialised' in copy_dict:
+        #        copy_dict.pop('_SpecObj_initialised')
+        #    self.__dict__ = copy_dict
+        #else:
 
-            # Object finding
-            self.smash_peakflux = None
-            self.smash_nsig = None
-            self.maskwidth = None
-            self.hand_extract_flag = False
-
-            # Object profile
-            self.prof_nsigma = None
-            self.sign = 1.0
-            self.min_spat = None
-            self.max_spat = None
-
-            # Trace
-            self.trace_spec = None  # Only for debuggin, internal plotting
-
-            # Echelle
-            #self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
-            #self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
-            self.ech_frac_was_fit = None #
-            self.ech_snr = None #
-
-        # after initialisation, setting attributes is the same as setting an item
-        self.__initialised = True
-
-        # TODO: JFH This is not very elegant and error prone. Perhaps we should loop over the copy dict keys
-        # and populate whatever keys are actually there. For instance, if the user does not pass in a copy dict,
-        # and forgets to pass in ech_order, the code is going to crash becuase ech_order cannot be None.
+        # set any attributes here - before initialisation
+        # these remain as normal attributes
+        # We may wish to eliminate *all* of these
 
         # Initialize a few, if we aren't copying
-        if copy_dict is None:
-            self.DET = det
-            if specobj_dict is not None:
-                self.PYPELINE = specobj_dict['pypeline']
-                self.OBJTYPE = specobj_dict['objtype']
-                if self.PYPELINE == 'MultiSlit':
-                    self.SLITID = specobj_dict['slitid']
-                elif self.PYPELINE == 'Echelle':
-                    self.ECH_ORDER = specobj_dict['order']
-                    self.ECH_ORDERINDX = specobj_dict['orderindx']
-            else:
-                self.PYPELINE = pypeline
-                self.OBJTYPE = objtype
-                # pypeline specific
-                if self.PYPELINE == 'MultiSlit':
-                    self.SLITID = slitid
-                elif self.PYPELINE == 'Echelle':
-                    self.ECH_ORDER = ech_order
-                    self.ECH_ORDERINDX = orderindx
-                else:
-                    msgs.error("Uh oh")
-
-            self.FLEX_SHIFT = 0.
+        if specobj_dict is not None:
+            #self.PYPELINE = specobj_dict['pypeline']
+            self.OBJTYPE = specobj_dict['objtype']
+            self.SLITID = specobj_dict['slitid']
+            self.ECH_ORDER = specobj_dict['order']
+            self.ECH_ORDERINDX = specobj_dict['orderindx']
+        self.FLEX_SHIFT = 0.
 
         # Name
         self.set_name()
+
+    def _init_internals(self):
+        # Object finding
+        self.smash_peakflux = None
+        self.smash_nsig = None
+        self.maskwidth = None
+        self.hand_extract_flag = False
+
+        # Object profile
+        self.prof_nsigma = None
+        self.sign = 1.0
+        self.min_spat = None
+        self.max_spat = None
+
+        # Trace
+        self.trace_spec = None  # Only for debuggin, internal plotting
+
+        # Echelle
+        #self.ech_orderindx = None #': dict(otype=(int,np.int64), desc='Order index.  Mainly for internal PypeIt usage'),
+        #self.ech_objid = None # 'ECH_OBJID': dict(otype=(int,np.int64), desc='Echelle Object ID'),
+        self.ech_frac_was_fit = None #
+        self.ech_snr = None #
+
 
     @property
     def slit_order(self):
@@ -251,6 +236,7 @@ class SpecObj(object):
         else:
             msgs.error("Uh oh")
 
+    '''
     def __getattr__(self, item):
         """Maps values to attributes.
         Only called if there *isn't* an attribute with this name
@@ -301,6 +287,7 @@ class SpecObj(object):
             list
         """
         return self._data.keys()
+    '''
 
     # TODO JFH Please describe the naming model somewhere in this module.
     def set_name(self):
@@ -318,7 +305,7 @@ class SpecObj(object):
             # ObjID
             name = naming_model['obj']
             ech_name = naming_model['obj']
-            if 'ECH_FRACPOS' not in self._data.meta.keys():
+            if self['ECH_FRACPOS'] is None: # not in self._data.meta.keys():
                 name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
@@ -335,7 +322,7 @@ class SpecObj(object):
         elif 'MultiSlit' in self.PYPELINE:
             # Spat
             name = naming_model['spat']
-            if 'SPAT_PIXPOS' not in self._data.meta.keys():
+            if self['SPAT_PIXPOS'] is None: # not in self._data.meta.keys():
                 name += '----'
             else:
                 name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
@@ -357,7 +344,7 @@ class SpecObj(object):
             SpecObj
 
         """
-        #sobj_copy = SpecObj(self.PYPELINE, self.DET,
+        #sobj_copy = SpecObj(self.PYPELINE, self.det,
         #                    copy_dict=self.__dict__.copy())
         # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
         # copy changes the original object which wreaks havoc. That is why it was deepcopy before (I think).

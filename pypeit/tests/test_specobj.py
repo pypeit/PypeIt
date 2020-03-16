@@ -19,27 +19,24 @@ def data_path(filename):
 
 
 def test_init():
-    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     # Test
     assert sobj.PYPELINE == 'MultiSlit'
     assert sobj['PYPELINE'] == 'MultiSlit'
     assert sobj.NAME == 'SPAT-----SLIT0000-DET01'
-    assert len(sobj._data.keys()) == 0
-
 
 def test_assignment():
-    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     #
     sobj.PYPELINE = 'Blah'
-    #
-    with pytest.raises(OSError):
+    # Quick test on datamodel
+    with pytest.raises(TypeError):
         sobj.PYPELINE = 2
     #
     sobj.SPAT_PIXPOS = 523.0
     sobj.PYPELINE = 'MultiSlit'
     sobj.set_name()
     assert sobj.NAME == 'SPAT0523-SLIT0000-DET01'
-
 
 def test_data():
     sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
@@ -65,3 +62,13 @@ def test_io():
     sobj2 = specobj.SpecObj.from_table(tbl)
     #
     assert isinstance(sobj2, specobj.SpecObj)
+
+def test_copy():
+    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+    #
+    sobj['BOX_WAVE'] = np.arange(100).astype(float)
+    # Copy
+    sobj2 = sobj.copy()
+    # Check
+    assert np.array_equal(sobj.BOX_WAVE, sobj2.BOX_WAVE)
+

@@ -6,14 +6,16 @@ import os
 import numpy as np
 import pytest
 
+from astropy.io import fits
+
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import specobj
 msgs.reset(verbosity=2)
 
-#def data_path(filename):
-#    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-#    return os.path.join(data_dir, filename)
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
 
 sobj1 = specobj.SpecObj('MultiSlit', 1, slitid=0)
 sobj2 = specobj.SpecObj('MultiSlit', 1, slitid=1)
@@ -65,4 +67,19 @@ def test_set():
     sobjs[det2].PYPELINE = 'BLAH'
     assert sobjs.PYPELINE[1] == 'BLAH'
     assert sobjs.PYPELINE[0] == 'MultiSlit'
+
+def test_io():
+    sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
+    sobjs[0]['BOX_WAVE'] = np.arange(1000).astype(float)
+    sobjs[1]['BOX_WAVE'] = np.arange(1000).astype(float)
+    sobjs[2]['BOX_WAVE'] = np.arange(1000).astype(float)
+    # Write
+    header = fits.PrimaryHDU().header
+    ofile = data_path('tst_specobjs.fits')
+    if os.path.isfile(ofile):
+        os.remove(ofile)
+    sobjs.write_to_fits(header, ofile, overwrite=False)
+    # Read
+    hdul = fits.open(ofile)
+    assert len(hdul) == 4
 
