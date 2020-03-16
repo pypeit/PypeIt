@@ -40,7 +40,7 @@ class BasicContainer(DataContainer):
 
 class MixedCaseContainer(DataContainer):
     version = '1.0.0'
-    datamodel = {'lowercase': dict(otype=np.ndarray, atype=float, descr='Test'),
+    datamodel = {'lowercase': dict(otype=np.ndarray, atype=np.integer, descr='Test'),
                  'UPPERCASE': dict(otype=int, decr='test'),
                  'CamelCase': dict(otype=float, decr='test')}
 
@@ -109,7 +109,7 @@ class GoodMixedTypeContainer(DataContainer):
     version = '1.0.0'
     datamodel = {'tab1': dict(otype=Table, descr='Test'),
                  'tab1len': dict(otype=int, descr='test'),
-                 'arr1': dict(otype=np.ndarray, descr='test'),
+                 'arr1': dict(otype=np.ndarray, atype=np.integer, descr='test'),
                  'arr1shape': dict(otype=tuple, descr='test')}
 
     def __init__(self, tab1, arr1):
@@ -155,10 +155,10 @@ class BadInitContainer(DataContainer):
 
 class DubiousInitContainer(DataContainer):
     version = '1.0.0'
-    datamodel = {'inp1': dict(otype=np.ndarray, descr='Test'),
-                 'inp2': dict(otype=np.ndarray, descr='test'),
-                 'out': dict(otype=np.ndarray, descr='test'),
-                 'alt': dict(otype=np.ndarray, descr='test')}
+    datamodel = {'inp1': dict(otype=np.ndarray, atype=np.integer, descr='Test'),
+                 'inp2': dict(otype=np.ndarray, atype=np.integer, descr='test'),
+                 'out': dict(otype=np.ndarray, atype=np.integer, descr='test'),
+                 'alt': dict(otype=np.ndarray, atype=np.integer, descr='test')}
 
     def __init__(self, inp1, inp2, func='add'):
         # If any of the arguments of the init method aren't actually
@@ -233,6 +233,14 @@ def test_fulldatamodel():
     # Do not include
     full_dmodel = pypeitimage.PypeItImage.full_datamodel(include_parent=False)
     assert 'mask' not in full_dmodel
+
+def test_single_element_array():
+    data = BasicContainer(np.arange(1).astype(float), 'length=10', np.arange(10).astype(float))
+    hdu = data.to_hdu()
+    assert isinstance(hdu[0].data, np.ndarray)
+    #
+    _data = BasicContainer.from_hdu(hdu[0])
+    assert isinstance(_data.vec1, np.ndarray)
 
 def test_basic():
 
@@ -313,7 +321,6 @@ def test_basic():
     # Clean up
     os.remove(ofile)
 
-'''
 
 def test_case():
     # Remove file if it exists
@@ -348,7 +355,7 @@ def test_case():
 
 def test_image():
 
-    img = ImageContainer(np.arange(100).reshape(10,10), np.arange(25).reshape(5,5), img1_key='test')
+    img = ImageContainer(np.arange(100).astype(float).reshape(10,10), np.arange(25).reshape(5,5), img1_key='test')
     hdu = img.to_hdu(add_primary=True)
     _img = ImageContainer.from_hdu(hdu)
 
@@ -356,7 +363,7 @@ def test_image():
     assert len(hdu) == 3, 'Should be 3 extensions.'
 
     # No keyword defined
-    img = ImageContainer(np.arange(100).reshape(10,10), np.arange(25).reshape(5,5))
+    img = ImageContainer(np.arange(100).astype(float).reshape(10,10), np.arange(25).reshape(5,5))
     assert img.img1_key is None, 'Bad instantiation'
     hdu = img.to_hdu(add_primary=True)
     _img = ImageContainer.from_hdu(hdu)
@@ -523,4 +530,3 @@ def test_init():
     _data = ComplexInitContainer.from_hdu(data.to_hdu(add_primary=True))
     assert data.func == _data.func, 'Bad read'
 
-'''
