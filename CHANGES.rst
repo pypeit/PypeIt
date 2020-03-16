@@ -12,6 +12,8 @@
 - Fixes a few sensfunc bugs
 - Added template for LRIS 600/7500
 - Deal with non-extracted Standard
+- docs docs and more docs
+- A QA fix too
 - Replaces usage of the `tslits_dict` dictionary with
   `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
   object is now the main master file used for passing around the slit
@@ -29,10 +31,7 @@
       `pypeit.flatfield.FlatField.fit`.
 - Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
   sobel image to the ginga display.
-- Added `bspline_profile_qa` for generic QA of a bspline fit.
-
-
-
+- Added `bspline_qa` for generic QA of a bspline fit.
 
 0.13.1 (07 Mar 2020)
 --------------------

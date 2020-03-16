@@ -414,8 +414,12 @@ Key                   Type        Options  Default     Description
 ====================  ==========  =======  ==========  ======================================================================================================================================================================================================================================================================================================================================================================================================
 ``coaddfile``         str         ..       ..          Output filename                                                                                                                                                                                                                                                                                                                                                                                       
 ``ex_value``          str         ..       ``OPT``     The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'                                                                                                                                                                                                                                                                                                                        
+``filter``            str         ..       ``none``    Filter for scaling.  See flux_calib.load_fitler_file() for naming.  Ignore if none                                                                                                                                                                                                                                                                                                                    
+``filter_mag``        float       ..       ..          Magnitude of the source in the given filter                                                                                                                                                                                                                                                                                                                                                           
+``filter_mask``       str, list   ..       ..          List of wavelength regions to mask when doing the scaling (ie. occasional junk pixels).Colon and comma separateed, e.g.   5552:5559,6010:6030                                                                                                                                                                                                                                                         
 ``flux_value``        bool        ..       True        If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the spec1d files. If False, it will coadd the counts.                                                                                                                                                                                                                                                                    
 ``lower``             int, float  ..       3.0         Lower rejection threshold used for rejecting pixels when combining spectra in units of sigma.                                                                                                                                                                                                                                                                                                         
+``mag_type``          str         ..       ``AB``      Magnitude type.  AB is the only option currently allowed                                                                                                                                                                                                                                                                                                                                              
 ``maxiter_reject``    int         ..       5           maximum number of iterations for stacking and rejection. The code stops iterating either when the output mask does not change betweeen successive iterations or when maxiter_reject is reached.                                                                                                                                                                                                       
 ``maxiter_scale``     int         ..       5           Maximum number of iterations performed for rescaling spectra.                                                                                                                                                                                                                                                                                                                                         
 ``maxrej``            int         ..       ..          Coadding performs iterative rejection by comparing each exposure to a preliminary stack of all the exposures. If this parameter is set then it will not reject more than maxrej pixels per iteration of this rejection. The default is None, which means no maximum on rejected pixels.                                                                                                               
@@ -615,7 +619,7 @@ Key               Type        Options                                           
 ``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                                                  
 ``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                                         
 ``objlim``        int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                                                             
-``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan.  Options are: polynomial, savgol, median, none                                                                                                                                                                                          
+``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan. Options are: polynomial, savgol, median, none                                                                                                                                                                                           
 ``overscan_par``  int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                              
 ``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                                                  
 ``rmcompact``     bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                                                          
@@ -715,8 +719,8 @@ these in the PypeIt file, you would be reproducing the effect of the
 `default_pypeit_par` method specific to each derived
 :class:`pypeit.spectrographs.spectrograph.Spectrograph` class.
 
-KECK DEIMOS
------------
+KECK DEIMOS (``keck_deimos``)
+-----------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -768,8 +772,8 @@ Alterations to the default parameters are::
   [flexure]
       method = boxcar
 
-KECK LRISb
-----------
+KECK LRISb (``keck_lris_blue``)
+-------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -820,8 +824,8 @@ Alterations to the default parameters are::
   [flexure]
       method = boxcar
 
-KECK LRISr
-----------
+KECK LRISr (``keck_lris_red``)
+------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -879,8 +883,8 @@ Alterations to the default parameters are::
   [flexure]
       method = boxcar
 
-KECK LRISr
-----------
+KECK LRISr (``keck_lris_red_longonly``)
+---------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -938,8 +942,8 @@ Alterations to the default parameters are::
   [flexure]
       method = boxcar
 
-KECK NIRES
-----------
+KECK NIRES (``keck_nires``)
+---------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1004,8 +1008,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
-KECK NIRSPEC
-------------
+KECK NIRSPEC (``keck_nirspec_low``)
+-----------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1078,8 +1082,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
-KECK MOSFIRE
-------------
+KECK MOSFIRE (``keck_mosfire``)
+-------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1147,8 +1151,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
-KECK HIRES_R
-------------
+KECK HIRES_R (``keck_hires_red``)
+---------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1189,8 +1193,8 @@ Alterations to the default parameters are::
           satpix = nothing
           sigclip = 20.0
 
-SHANE KASTb
------------
+SHANE KASTb (``shane_kast_blue``)
+---------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1242,8 +1246,8 @@ Alterations to the default parameters are::
       method = boxcar
       spectrum = /Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/sky_kastb_600.fits
 
-SHANE KASTr
------------
+SHANE KASTr (``shane_kast_red``)
+--------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1286,8 +1290,8 @@ Alterations to the default parameters are::
   [flexure]
       method = boxcar
 
-SHANE KASTr
------------
+SHANE KASTr (``shane_kast_red_ret``)
+------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1330,8 +1334,8 @@ Alterations to the default parameters are::
   [flexure]
       method = boxcar
 
-TNG DOLORES
------------
+TNG DOLORES (``tng_dolores``)
+-----------------------------
 Alterations to the default parameters are::
 
   [calibrations]
@@ -1361,8 +1365,8 @@ Alterations to the default parameters are::
   [scienceframe]
       exprng = 1, None
 
-WHT ISISb
----------
+WHT ISISb (``wht_isis_blue``)
+-----------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1425,8 +1429,8 @@ Alterations to the default parameters are::
       [[process]]
           overscan = none
 
-WHT ISISr
----------
+WHT ISISr (``wht_isis_red``)
+----------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1487,8 +1491,8 @@ Alterations to the default parameters are::
       [[process]]
           overscan = none
 
-VLT XShooter_UVB
-----------------
+VLT XShooter_UVB (``vlt_xshooter_uvb``)
+---------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1535,8 +1539,8 @@ Alterations to the default parameters are::
   [scienceframe]
       useframe = overscan
 
-VLT XShooter_VIS
-----------------
+VLT XShooter_VIS (``vlt_xshooter_vis``)
+---------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1607,8 +1611,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
-VLT XShooter_NIR
-----------------
+VLT XShooter_NIR (``vlt_xshooter_nir``)
+---------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1690,8 +1694,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
 
-VLT FORS2
----------
+VLT FORS2 (``vlt_fors2``)
+-------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1746,8 +1750,8 @@ Alterations to the default parameters are::
   [flexure]
       method = boxcar
 
-GEMINI-N GNIRS
---------------
+GEMINI-N GNIRS (``gemini_gnirs``)
+---------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1812,8 +1816,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
-GEMINI-S FLAMINGOS
-------------------
+GEMINI-S FLAMINGOS (``gemini_flamingos1``)
+------------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1876,8 +1880,8 @@ Alterations to the default parameters are::
           sig_thresh = 5
           find_trim_edge = 50, 50
 
-GEMINI-S FLAMINGOS
-------------------
+GEMINI-S FLAMINGOS (``gemini_flamingos2``)
+------------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -1945,8 +1949,8 @@ Alterations to the default parameters are::
       [[skysub]]
           sky_sigrej = 5.0
 
-GEMINI-S GMOS-S
----------------
+GEMINI-S GMOS-S (``gemini_gmos_south_ham``)
+-------------------------------------------
 Alterations to the default parameters are::
 
   [calibrations]
@@ -1986,8 +1990,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
-GEMINI-N GMOS-N
----------------
+GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
+-------------------------------------------
 Alterations to the default parameters are::
 
   [calibrations]
@@ -2025,8 +2029,8 @@ Alterations to the default parameters are::
   [sensfunc]
       multi_spec_det = 1, 2, 3
 
-GEMINI-N GMOS-N
----------------
+GEMINI-N GMOS-N (``gemini_gmos_north_ham``)
+-------------------------------------------
 Alterations to the default parameters are::
 
   [calibrations]
@@ -2064,8 +2068,8 @@ Alterations to the default parameters are::
   [sensfunc]
       multi_spec_det = 1, 2, 3
 
-MAGELLAN FIRE
--------------
+MAGELLAN FIRE (``magellan_fire``)
+---------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2140,8 +2144,8 @@ Alterations to the default parameters are::
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
-MAGELLAN FIRE
--------------
+MAGELLAN FIRE (``magellan_fire_long``)
+--------------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2204,8 +2208,8 @@ Alterations to the default parameters are::
           sig_thresh = 5
           find_trim_edge = 50, 50
 
-MAGELLAN MagE
--------------
+MAGELLAN MagE (``magellan_mage``)
+---------------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2259,8 +2263,8 @@ Alterations to the default parameters are::
       [[findobj]]
           find_trim_edge = 4, 4
 
-LBT MODS1R
-----------
+LBT MODS1R (``lbt_mods1r``)
+---------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2310,8 +2314,8 @@ Alterations to the default parameters are::
   [scienceframe]
       exprng = 200, None
 
-LBT MODS1B
-----------
+LBT MODS1B (``lbt_mods1b``)
+---------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2358,8 +2362,8 @@ Alterations to the default parameters are::
   [scienceframe]
       exprng = 200, None
 
-LBT MODS2R
-----------
+LBT MODS2R (``lbt_mods2r``)
+---------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2408,8 +2412,8 @@ Alterations to the default parameters are::
   [scienceframe]
       exprng = 200, None
 
-LBT MODS2B
-----------
+LBT MODS2B (``lbt_mods2b``)
+---------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2456,8 +2460,8 @@ Alterations to the default parameters are::
   [scienceframe]
       exprng = 200, None
 
-LBT LUCI1
----------
+LBT LUCI1 (``lbt_luci1``)
+-------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2500,8 +2504,8 @@ Alterations to the default parameters are::
       [[extraction]]
           std_prof_nsigma = 100.0
 
-LBT LUCI2
----------
+LBT LUCI2 (``lbt_luci2``)
+-------------------------
 Alterations to the default parameters are::
 
   [rdx]
@@ -2547,8 +2551,8 @@ Alterations to the default parameters are::
           std_prof_nsigma = 100.0
           model_full_slit = True
 
-MMT BINOSPEC
-------------
+MMT BINOSPEC (``mmt_binospec``)
+-------------------------------
 Alterations to the default parameters are::
 
   [rdx]

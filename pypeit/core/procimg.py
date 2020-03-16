@@ -354,7 +354,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     # Amplifiers
     amps = np.unique(datasec_img[datasec_img > 0]).tolist()
 
-    # Perform the bias subtraction for each amplifier
+    # Perform the overscan subtraction for each amplifier
     for amp in amps:
         # Pull out the overscan data
         overscan, _ = rect_slice_with_mask(rawframe, oscansec_img, amp)
