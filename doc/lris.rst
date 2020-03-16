@@ -1,27 +1,19 @@
-.. highlight:: rest
-
-*********
+=========
 Keck LRIS
-*********
+=========
 
 
 Overview
 ========
 
 This file summarizes several instrument specific
-settings that are related to the Keck/LRIS spectrogrape.
+settings that are related to the Keck/LRIS spectrograph.
 
+Common Items
+============
 
 Longslit
 ========
-
-If reducing data with a longslit, we recommend
-that you specify that only a single slit is
-desired, i.e.::
-
-    trace slits number 1
-
-See :ref:`trace-slit-number` for further details.
 
 .. _LRISb:
 
@@ -29,8 +21,8 @@ Taking Calibrations for LRISb
 =============================
 
 
-Default Settings
-++++++++++++++++
+LRISb Default Settings
+++++++++++++++++++++++
 
 Here are the deviations from the default settings
 for LRISb::
@@ -63,11 +55,16 @@ and set the following in the `reduce-block` (out of date!) of the PypeIt file::
     reduce flatfield useframe MF_lris_blue/PypeIt_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
 
 
+.. _keck-lris-red:
+
+keck_lris_red
+=============
+
 Taking Calibrations for LRISr
 =============================
 
-Default Settings
-++++++++++++++++
+LRISr Default Settings
+++++++++++++++++++++++
 
 Here are the deviations from the default settings
 for LRISr::

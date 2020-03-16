@@ -11,6 +11,46 @@ common metadata used for all specrographs.
 from collections import OrderedDict
 import numpy as np
 
+from astropy import units, coordinates
+
+from IPython import embed
+
+
+def convert_radec(ra, dec):
+    """
+    Handle multiple ra,dec inputs and return decimal degrees
+
+    If ra, dec are str but do *not* have J or ':' in the RA term,
+    then they will be converted to floats
+
+    Args:
+        ra (str or float or np.ndarray):
+            RA as decimal deg (float) or  hh:mm:ss.s (str)
+        dec (str or float or np.ndarray):
+            DEC as decimal deg (float) or  +dd:mm:ss.s (str)
+
+    Returns:
+        tuple:
+           float,float of ra,dec in decimal deg if input is str or float
+           np.ndarray, np.ndarray of ra,dec in decimal deg if input is np.ndarray
+
+    """
+    if isinstance(ra, str):
+        if (('J' in ra) or (':' in ra)) or (' ' in ra.strip()):
+            coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+            return coord.ra.value, coord.dec.value
+        else:
+            return float(ra), float(dec)
+    elif isinstance(ra, np.ndarray):
+        if isinstance(ra[0], str):
+            if (('J' in ra[0]) or (':' in ra[0])) or (' ' in ra[0].strip()):
+                coords = coordinates.SkyCoord(ra,dec, unit=(units.hourangle, units.deg))
+                return coords.ra.value, coords.dec.value
+            else:
+                return ra.astype(float), dec.astype(float)
+    else:
+        return ra, dec
+
 
 def define_core_meta():
     """
@@ -39,8 +79,8 @@ def define_core_meta():
     core_meta = OrderedDict()
 
     # Target
-    core_meta['ra'] = dict(dtype=str, comment='Colon separated (J2000) RA')
-    core_meta['dec'] = dict(dtype=str, comment='Colon separated (J2000) DEC')
+    core_meta['ra'] = dict(dtype=float, comment='(J2000) RA in decimal degrees')
+    core_meta['dec'] = dict(dtype=float, comment='(J2000) DEC in decimal degrees')
     core_meta['target'] = dict(dtype=str, comment='Name of the target')
 
     # Instrument related

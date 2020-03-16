@@ -128,7 +128,6 @@ class PypeIt(object):
         self.reuse_masters = reuse_masters
         self.show = show
 
-
         # Set paths
         if self.par['calibrations']['caldir'] == 'default':
             self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')
@@ -481,7 +480,7 @@ class PypeIt(object):
             std_outfile (str): Filename for the standard star spec1d file
 
         Returns:
-            ndarray: Trace of the standard star on input detector
+            ndarray or None: Trace of the standard star on input detector
 
         """
         if std_redux is False and std_outfile is not None:
@@ -493,6 +492,9 @@ class PypeIt(object):
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
+                # No standard extracted on this detector??
+                if sobjs_std is None:
+                    return None
                 std_trace = sobjs_std.TRACE_SPAT
                 # flatten the array if this multislit
                 if 'MultiSlit' in self.spectrograph.pypeline:

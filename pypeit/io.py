@@ -233,7 +233,7 @@ def parse_hdr_key_group(hdr, prefix='F'):
         return []
 
 
-def initialize_header(hdr=None):
+def initialize_header(hdr=None, primary=False):
     """
     Initialize a FITS header.
 
@@ -243,6 +243,8 @@ def initialize_header(hdr=None):
             information. The object is modified in-place and also
             returned. If None, an empty header is instantiated,
             edited, and returned.
+        primary (bool, optional):
+            If true and hdr is None, generate a Primary header
 
     Returns:
         `astropy.io.fits.Header`: The initialized (or edited)
@@ -252,7 +254,10 @@ def initialize_header(hdr=None):
     # the versions of all packages included in the requirements.txt
     # file?
     if hdr is None:
-        hdr = fits.Header()
+        if primary:
+            hdr = fits.PrimaryHDU().header
+        else:
+            hdr = fits.Header()
     hdr['VERSPYT'] = ('.'.join([ str(v) for v in sys.version_info[:3]]), 'Python version')
     hdr['VERSNPY'] = (numpy.__version__, 'Numpy version')
     hdr['VERSSCI'] = (scipy.__version__, 'Scipy version')
