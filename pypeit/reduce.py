@@ -190,7 +190,7 @@ class Reduce(object):
                 inmask = (self.sciImg.mask.fullmask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                               inmask, self.caliBrate.mswave,
+                                               inmask, self.caliBrate.mswave.image,
                                                global_sky, self.sciImg.rn2img,
                                                self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)

@@ -339,41 +339,8 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
             ronoise         = np.atleast_1d([3.8, 3.8]),
             )
 
-        return detector_container.DetectorContainer(**detector_dict)
-
-    def default_pypeit_par(self):
-        """
-        Set default parameters for Shane Kast Red reductions.
-        """
-        par = ShaneKastSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'shane_kast_red'
-
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-
-        return par
-
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to specific instrument configurations.
-
-        Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
-
-        Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
-            adjusted for configuration specific parameter values.
-        """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
-
-        # Parse from the header
-        header = fits.open(scifile)[0].header
+        # Parse datasec, oscancsec from the header
+        header = hdu[0].header
         naxis1 = header['NAXIS1']
         crval1u = header['CRVAL1U']
         nover = header['COVER']
@@ -394,11 +361,24 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
 
         # Fill it up
-        self.detector[0]['datasec'] = datasec
-        self.detector[0]['oscansec'] = oscansec
+        detector_dict['datasec'] = np.atleast_1d(datasec)
+        detector_dict['oscansec'] = np.atleast_1d(oscansec)
+
+        return detector_container.DetectorContainer(**detector_dict)
+
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for Shane Kast Red reductions.
+        """
+        par = ShaneKastSpectrograph.default_pypeit_par()
+        par['rdx']['spectrograph'] = 'shane_kast_red'
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         return par
-
 
     def init_meta(self):
         """
