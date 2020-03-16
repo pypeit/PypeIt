@@ -102,6 +102,9 @@ class SpecObj(datamodel.DataContainer):
         'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
         #
         'DET': dict(otype=(int, np.integer), desc='Detector number'),
+        'BINNING': dict(otype=str, desc='Detector binning in PypeIt orientation "spec_bin,spat_bin", e.g. "1,1"'),
+        'PLATESCALE': dict(otype=float, desc='Platescale in arcsec'),
+        #
         'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
         'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
         'SPAT_PIXPOS': dict(otype=(float, np.floating), desc='Spatial location of the trace on detector (pixel)'),
@@ -405,7 +408,7 @@ class SpecObj(datamodel.DataContainer):
         """
         swave = extraction+'_WAVE'
         smask = extraction+'_MASK'
-        if self[swave] is not None:  #not in self._data.keys():
+        if self[swave] is None:  #not in self._data.keys():
             msgs.error("This object has not been extracted with extract={}.".format(extraction))
         # Fluxed?
         if fluxed:

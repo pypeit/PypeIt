@@ -278,8 +278,8 @@ class PypeIt(object):
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
-                    embed(header='281 of pypeit')
-                    self.save_exposure(frames[0], std_dict, self.basename)
+                    self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
+                    #self.save_exposure(frames[0], std_dict, self.basename)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -382,6 +382,7 @@ class PypeIt(object):
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = self.ir_redux
+
 
         all_specobjs = specobjs.SpecObjs()
 
@@ -601,9 +602,14 @@ class PypeIt(object):
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
+        # Tack on binning and platescale; only for specobjs.write_info()
+        self.sobjs.BINNING = self.sciImg.detector.binning
+        self.sobjs.PLATESCALE = self.sciImg.detector.platescale  # This should be order dependent
+
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(self.det, self.sciImg.image, self.sciImg.ivar, self.skymodel,
                                         self.objmodel, self.ivarmodel, self.outmask, self.sciImg.detector)
+
 
         # Return
         return spec2DObj, self.sobjs
@@ -647,7 +653,7 @@ class PypeIt(object):
             all_specobjs.write_to_fits(header, outfile1d, update_det=self.par['rdx']['detnum'])
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
-            all_specobjs.write_info(outfiletxt)
+            all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # Determine the paths/filenames
         #save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,

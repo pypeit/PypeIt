@@ -232,9 +232,9 @@ class SpecObjs(object):
         pypeline = (self.PYPELINE)[0]
         if 'MultiSlit' in pypeline:
             # Have to do a loop to extract the counts for all objects
-            if hasattr(self, 'OPT_COUNTS'):
+            if self.OPT_COUNTS[0] is not None:
                 SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
-            elif hasattr(self, 'BOX_COUNTS'):
+            elif self.BOX_COUNTS[0] is not None:
                 SNR = np.median(self.BOX_COUNTS*np.sqrt(self.BOX_COUNTS_IVAR), axis=1)
             else:
                 return None
@@ -264,9 +264,9 @@ class SpecObjs(object):
                     ind = (self.ECH_FRACPOS == uni_objid[iobj]) & (self.ECH_ORDER == uni_order[iord])
                     spec = self[ind]
                     # Grab SNR
-                    if hasattr(spec[0], 'OPT_COUNTS'):
+                    if self.OPT_COUNTS[0] is not None:
                         SNR[iord, iobj] = np.median(spec[0].OPT_COUNTS*np.sqrt(spec[0].OPT_COUNTS_IVAR))
-                    elif hasattr(spec[0], 'BOX_COUNTS'):
+                    elif self.BOX_COUNTS[0] is not None:
                         SNR[iord, iobj] = np.median(spec[0].BOX_COUNTS * np.sqrt(spec[0].BOX_COUNTS_IVAR))
                     else:
                         return None
@@ -597,13 +597,15 @@ class SpecObjs(object):
     def write_info(self, outfile, pypeline):
         slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
         # binspectral, binspatial = parse.parse_binning(binning)
-        for specobj in all_specobjs.specobjs:
+        for specobj in self.specobjs:
             det = specobj.DET
             if specobj is None:
                 continue
             # Detector items
-            binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
-            platescale = sci_dict[det]['detector'].platescale
+            #binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
+            binspectral, binspatial = parse.parse_binning(specobj.BINNING)
+            #platescale = sci_dict[det]['detector'].platescale
+            platescale = specobj.PLATESCALE
             # Append
             spat_pixpos.append(specobj.SPAT_PIXPOS)
             if pypeline == 'MultiSlit':
@@ -618,7 +620,8 @@ class SpecObjs(object):
             if 'BOX_RADIUS' in specobj.keys():
                 slit_pix = 2.0 * specobj.BOX_RADIUS
                 # Convert to arcsec
-                binspectral, binspatial = parse.parse_binning(binning)
+                binspectral, binspatial = parse.parse_binning(specobj.BINNING)
+                #binspectral, binspatial = parse.parse_binning(binning)
                 # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
                 # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
                 # different attribute. platescale should be a spectrograph attribute determined on the fly.
@@ -629,7 +632,7 @@ class SpecObjs(object):
 
             # Optimal profile (FWHM)
             # S2N -- default to boxcar
-            if hasattr(specobj, 'FWHMFIT'):
+            if specobj.FWHMFIT is not None:
                 # opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
                 opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
                 # S2N -- optimal

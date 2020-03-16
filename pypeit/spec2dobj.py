@@ -49,12 +49,12 @@ class Spec2DObj(datamodel.DataContainer):
     #                 write these for each file as well. Alternatively we could just write the offsets to the header.
 
     datamodel = {
-        'sciiimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
+        'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
         'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image'),
         'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image'),
         'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
-        'mask': dict(otype=np.ndarray, atype=np.int32, desc='2D mask image'),
+        'mask': dict(otype=np.ndarray, atype=np.integer, desc='2D mask image'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
     }
