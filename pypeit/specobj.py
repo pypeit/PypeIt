@@ -64,7 +64,7 @@ class SpecObj(datamodel.DataContainer):
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
     flavor = 'SpecObj'
-    version = '1.1'  # Now in DataContainer
+    version = '1.1.0'  # Now in DataContainer
 
     datamodel = {
         'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),

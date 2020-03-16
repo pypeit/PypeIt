@@ -38,6 +38,8 @@ class SpecObjs(object):
     Attributes:
         summary (astropy.table.Table):
     """
+    version = specobj.SpecObj.version
+
     @classmethod
     def from_fitsfile(cls, fits_file):
         """
@@ -553,6 +555,10 @@ class SpecObjs(object):
             hdus = [prihdu]
             prihdu.header = header
 
+        # Add class info
+        prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
+        prihdu.header['DMODVER'] = (self.version, 'Datamodel version')
+
         ext = len(hdus)-1
         # Loop on the SpecObj objects
         for sobj in self.specobjs:
@@ -573,8 +579,9 @@ class SpecObjs(object):
         # A few more for the header
         prihdu.header['NSPEC'] = len(hdus) - 1
         #prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
+
         # Code versions
-        #_ = initialize_header(prihdu.header)
+        _ = initialize_header(prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)

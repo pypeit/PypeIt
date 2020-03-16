@@ -17,12 +17,18 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-sobj1 = specobj.SpecObj('MultiSlit', 1, SLITID=0)
-sobj2 = specobj.SpecObj('MultiSlit', 1, SLITID=1)
-sobj3 = specobj.SpecObj('MultiSlit', 1, SLITID=2)
+@pytest.fixture
+def sobj1():
+    return specobj.SpecObj('MultiSlit', 1, SLITID=0)
+@pytest.fixture
+def sobj2():
+    return specobj.SpecObj('MultiSlit', 1, SLITID=1)
+@pytest.fixture
+def sobj3():
+    return specobj.SpecObj('MultiSlit', 1, SLITID=2)
 
 
-def test_init():
+def test_init(sobj1, sobj2):
     """ Run the parameter setup script
     """
     # Null
@@ -33,13 +39,13 @@ def test_init():
     assert sobjs2.nobj == 2
 
 
-def test_access():
+def test_access(sobj1, sobj2):
     sobjs = specobjs.SpecObjs([sobj1,sobj2])
     #
     assert sobjs[0]['PYPELINE'] == 'MultiSlit'
     assert len(sobjs['PYPELINE']) == 2
 
-def test_add_rm():
+def test_add_rm(sobj1, sobj2, sobj3):
     sobjs = specobjs.SpecObjs([sobj1,sobj2])
     sobjs.add_sobj(sobj3)
     assert sobjs.nobj == 3
@@ -52,7 +58,8 @@ def test_add_rm():
     sobjs2 = specobjs.SpecObjs()
     sobjs2.add_sobj(sobjs1)
 
-def test_set():
+
+def test_set(sobj1, sobj2, sobj3):
     sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
     # All
     sobjs.DET = 3
@@ -68,7 +75,8 @@ def test_set():
     assert sobjs.PYPELINE[1] == 'BLAH'
     assert sobjs.PYPELINE[0] == 'MultiSlit'
 
-def test_io():
+
+def test_io(sobj1, sobj2, sobj3):
     sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
     sobjs[0]['BOX_WAVE'] = np.arange(1000).astype(float)
     sobjs[1]['BOX_WAVE'] = np.arange(1000).astype(float)
