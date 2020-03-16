@@ -37,10 +37,25 @@ def init_dict():
 ####################################################3
 # Testing of Spec2DObj
 
+
 def test_init(init_dict):
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     # Check
     assert spec2DObj.hdu_prefix == 'DET01-'
+
+
+def test_spec2dobj_io(init_dict):
+    spec2DObj = spec2dobj.Spec2DObj(**init_dict)
+    spec2DObj.detector = tstutils.get_kastb_detector()
+    # Write
+    ofile = data_path('tst_spec2d.fits')
+    if os.path.isfile(ofile):
+        os.remove(ofile)
+    spec2DObj.to_file(ofile)
+    # Read
+    _spec2DObj = spec2dobj.Spec2DObj.from_file(ofile, init_dict['det'])
+    os.remove(ofile)
+
 
 ####################################################3
 # Testing of AllSpec2DObj
@@ -69,7 +84,7 @@ def test_all2dobj_write(init_dict):
     allspec2D[1] = spec2DObj
     allspec2D[1].detector = tstutils.get_kastb_detector()
     # Write
-    ofile = data_path('tst_spec2d.fits')
+    ofile = data_path('tst_allspec2d.fits')
     allspec2D.write_to_fits(ofile)
     # Read
     _allspec2D = spec2dobj.AllSpec2DObj.from_fits(ofile)

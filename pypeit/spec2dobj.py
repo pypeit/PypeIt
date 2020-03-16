@@ -21,9 +21,10 @@ from pypeit import io
 from pypeit import datamodel
 from pypeit.images import detector_container
 
-naming_model = {}
-for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
-    naming_model[skey.lower()] = skey
+
+def hdu_prefix(det):
+    return 'DET{:02d}-'.format(det)
+
 
 class Spec2DObj(datamodel.DataContainer):
     """Class to handle 2D spectral image outputs of PypeIt
@@ -55,6 +56,12 @@ class Spec2DObj(datamodel.DataContainer):
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
     }
+
+    @classmethod
+    def from_file(cls, file, det):
+        hdul = fits.open(file)
+        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=hdu_prefix(det))
+        return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel, mask, detector):
 
@@ -96,10 +103,18 @@ class Spec2DObj(datamodel.DataContainer):
         # Return
         return d
 
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
+               limit_hdus=None, force_dict_bintbl=False):
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        _d['hdu_prefix'] = self.hdu_prefix
+        #
+        return super(Spec2DObj, self).to_hdu(**_d)
+
 
     @property
     def hdu_prefix(self):
-        return 'DET{:02d}-'.format(self.det)
+        return hdu_prefix(self.det)  #'DET{:02d}-'.format(self.det)
 
 class AllSpec2DObj(object):
     """
@@ -127,7 +142,10 @@ class AllSpec2DObj(object):
         # Detectors included
         detectors = hdul[0].header[slf.hdr_prefix+'DETS']
         for det in [int(item) for item in detectors.split(',')]:
-
+            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=hdu_prefix(det))
+            slf[det] = obj
+        #
+        return slf
 
 
     def __init__(self):
@@ -217,7 +235,8 @@ class AllSpec2DObj(object):
         extnum = 1
         for key in keys:
             #
-            hdul = self[key].to_hdu(hdu_prefix=self[key].hdu_prefix)
+            hdul = self[key].to_hdu()
+            # TODO -- Make adding EXT000X a default of DataContainer
             for hdu in hdul:
                 keywd = 'EXT{:04d}'.format(extnum)
                 prihdu.header[keywd] = hdu.name
