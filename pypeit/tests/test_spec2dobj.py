@@ -37,6 +37,9 @@ def test_init(init_dict):
     # Check
     assert spec2DObj.hdu_prefix == 'DET01-'
 
-def test_hdr(init_dict):
+# Testing of AllSpec2DObj
+def test_all2dobj_hdr(init_dict):
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
+    #
+
 

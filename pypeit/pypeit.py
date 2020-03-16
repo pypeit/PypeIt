@@ -643,8 +643,8 @@ class PypeIt(object):
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
-        refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
-            self.caliBrate.par['wavelengths']['frame']
+        #refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
+        #    self.caliBrate.par['wavelengths']['frame']
 
         # 1D spectra
         if all_specobjs.nobj > 0:
@@ -658,7 +658,11 @@ class PypeIt(object):
 
         # 2D
         update_det = self.par['rdx']['detnum']
-        pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph) if update_det is not None else None
+        pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
+                                               master_key_dict=self.caliBrate.master_key_dict,
+                                               master_dir=self.caliBrate.master_dir
+                                               ) if update_det is not None else None
+        #
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 
