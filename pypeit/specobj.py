@@ -136,40 +136,67 @@ class SpecObj(datamodel.DataContainer):
                               'omitted giving a unique name per object.')
     }
 
+    #@classmethod
+    #def from_table(cls, table, copy_dict=None):
+    #    if table.meta['PYPELINE'] == 'MultiSlit':
+    #        # Instantiate
+    #        slf = cls(table.meta['PYPELINE'], table.meta['DET'],
+    #                  slitid=table.meta['SLITID'], copy_dict=copy_dict)
+    #    else:
+    #        slf = cls(table.meta['PYPELINE'], table.meta['DET'],
+    #                  copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'], orderindx=table.meta['ECH_ORDERINDX'])
+    #    # Pop a few that land in standard FITS header
+    #    # Loop me -- Do this to deal with checking the data model
+    #    for key in table.keys():
+    #        setattr(slf, key, table[key].data)
+    #    for key in table.meta.keys():
+    #        # Skip ones that can appear in FITS header
+    #        if key in ['EXTNAME']:
+    #            continue
+    #        #
+    #        setattr(slf, key, table.meta[key])
+    #    return slf
+
+
     @classmethod
-    def from_table(cls, table, copy_dict=None):
-        if table.meta['PYPELINE'] == 'MultiSlit':
-            # Instantiate
-            slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      slitid=table.meta['SLITID'], copy_dict=copy_dict)
-        else:
-            slf = cls(table.meta['PYPELINE'], table.meta['DET'],
-                      copy_dict=copy_dict, ech_order=table.meta['ECH_ORDER'], orderindx=table.meta['ECH_ORDERINDX'])
-        # Pop a few that land in standard FITS header
-        # Loop me -- Do this to deal with checking the data model
-        for key in table.keys():
-            setattr(slf, key, table[key].data)
-        for key in table.meta.keys():
-            # Skip ones that can appear in FITS header
-            if key in ['EXTNAME']:
+    def copy(cls, obj):
+        """
+
+        Args:
+            sobj (SpecObj):
+
+        Returns:
+
+        """
+        d = {}
+        # Data model
+        for key in obj.datamodel.keys():
+            if obj[key] is not None:
+                # Use deepcopy if we add exotic items to the datamodel (e.g. a DataContainer)
+                if (isinstance(obj[key], dict) or
+                    inspect.isclass(obj[key])) and not isinstance(obj[key], np.ndarray):
+                    print("Bad type: {:s}".format(key))
+                    raise IOError("Not read for an exotic otype")
+                d[key] = obj[key]
+        # Instantiate
+        slf = cls(**d)
+        # Internals
+        for key in obj.__dict__.keys():
+            if key in obj.datamodel.keys():
                 continue
-            #
-            setattr(slf, key, table.meta[key])
+            else:
+                setattr(slf, key, getattr(obj, key))
         return slf
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',
-                 SLITID=None,
-                 ECH_ORDER=None,
-                 ECH_ORDERINDX=None,
-                 specobj_dict=None):
+                 SLITID=None, ECH_ORDER=None, ECH_ORDERINDX=None, **kwargs):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        d = dict([(k,values[k]) for k in args[1:]])
-        # Remove extras
-        for key in ['specobj_dict']:
-            d.pop(key)
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # For copying
+        _d.update(kwargs)
         # Setup the DataContainer
-        datamodel.DataContainer.__init__(self, d=d)
+        datamodel.DataContainer.__init__(self, d=_d)
 
         # For copying the object
         #if copy_dict is not None:
@@ -183,12 +210,12 @@ class SpecObj(datamodel.DataContainer):
         # We may wish to eliminate *all* of these
 
         # Initialize a few, if we aren't copying
-        if specobj_dict is not None:
-            #self.PYPELINE = specobj_dict['pypeline']
-            self.OBJTYPE = specobj_dict['objtype']
-            self.SLITID = specobj_dict['slitid']
-            self.ECH_ORDER = specobj_dict['order']
-            self.ECH_ORDERINDX = specobj_dict['orderindx']
+        #if specobj_dict is not None:
+        #    #self.PYPELINE = specobj_dict['pypeline']
+        #    self.OBJTYPE = specobj_dict['objtype']
+        #    self.SLITID = specobj_dict['slitid']
+        #    self.ECH_ORDER = specobj_dict['order']
+        #    self.ECH_ORDERINDX = specobj_dict['orderindx']
         self.FLEX_SHIFT = 0.
 
         # Name
@@ -336,22 +363,22 @@ class SpecObj(datamodel.DataContainer):
             msgs.error("Bad PYPELINE")
 
 
-    def copy(self):
-        """
-        Generate a copy of this object
-
-        Returns:
-            SpecObj
-
-        """
-        #sobj_copy = SpecObj(self.PYPELINE, self.det,
-        #                    copy_dict=self.__dict__.copy())
-        # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
-        # copy changes the original object which wreaks havoc. That is why it was deepcopy before (I think).
-        sobj_copy = SpecObj(self.PYPELINE, self.DET,
-                            copy_dict=copy.deepcopy(self.__dict__))
-        # Return
-        return sobj_copy
+    #def copy(self):
+    #    """
+    #    Generate a copy of this object
+#
+#        Returns:
+#            SpecObj
+#
+#        """
+#        #sobj_copy = SpecObj(self.PYPELINE, self.det,
+#        #                    copy_dict=self.__dict__.copy())
+#        # JFH Without doing a deepcopy here, this does not make a true copy. It is somehow using pointers, and so changing the
+#        # copy changes the original object which wreaks havoc. That is why it was deepcopy before (I think).
+#        sobj_copy = SpecObj(self.PYPELINE, self.DET,
+#                            copy_dict=copy.deepcopy(self.__dict__))
+#        # Return
+#        return sobj_copy
 
     def flexure_interp(self, sky_wave, fdict):
         """
@@ -529,26 +556,3 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return xspec
 
-    # TODO JFH: This method does not work
-    def show(self, extraction='optimal'):
-        """
-        Show the spectrum by converting it to a XSpectrum1D object
-
-        Args:
-            extraction (str): Extraction option 'optimal' or 'boxcar'
-
-        Returns:
-
-        """
-        extract = getattr(self, extraction)
-        # Generate an XSpec
-        xspec = self.to_xspec1d(extraction=extraction)
-        if xspec is None:
-            return
-        xspec.plot(xspec=True)
-
-
-    def __repr__(self):
-        txt = '<{:s}: {:s}'.format(self.__class__.__name__, self.NAME)
-        txt += '>'
-        return txt

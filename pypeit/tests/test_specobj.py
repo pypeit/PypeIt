@@ -6,9 +6,11 @@ import sys
 import os
 import pytest
 
+
 #import pypeit
 
 from astropy.table import Table
+from astropy.io import fits
 
 from pypeit import specobj
 from pypeit import msgs
@@ -38,37 +40,45 @@ def test_assignment():
     sobj.set_name()
     assert sobj.NAME == 'SPAT0523-SLIT0000-DET01'
 
-def test_data():
-    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+def test_hdu():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
     sobj['TRACE_SPAT'] = np.arange(100) * 2.
     # Test
-    assert isinstance(sobj._data, Table)
-    assert 'TRACE_SPAT' in sobj._data.keys()
-    assert 'SLITID' in sobj._data.meta.keys()
+    hdul = sobj.to_hdu()
+    assert len(hdul) == 1  # Should be one BinTableHDU
+    assert isinstance(hdul[0], fits.hdu.table.BinTableHDU)
+    assert len(hdul[0].data) == 100
+    assert 'TRACE_SPAT' in hdul[0].data.dtype.names
+    assert 'SLITID' in hdul[0].header.keys()
+
 
 def test_io():
-    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
     sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
     sobj['TRACE_SPAT'] = np.arange(100) * 2.
 
     # Write table
-    sobj._data.write(data_path('tmp.fits'), overwrite=True)
-    tbl = Table.read(data_path('tmp.fits'))
-    sobj2 = specobj.SpecObj.from_table(tbl)
+    ofile = data_path('tmp.fits')
+    sobj.to_file(ofile, overwrite=True)
+    sobj2 = specobj.SpecObj.from_file(ofile)
     #
     assert isinstance(sobj2, specobj.SpecObj)
+    assert np.array_equal(sobj.BOX_WAVE, sobj2.BOX_WAVE)
+    assert sobj2.PYPELINE == 'MultiSlit'
 
 def test_copy():
-    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     #
     sobj['BOX_WAVE'] = np.arange(100).astype(float)
+    sobj.smash_nsig = 1.
     # Copy
-    sobj2 = sobj.copy()
+    sobj2 = specobj.SpecObj.copy(sobj)
+    assert np.isclose(sobj2.smash_nsig, 1.)
     # Check
     assert np.array_equal(sobj.BOX_WAVE, sobj2.BOX_WAVE)
 

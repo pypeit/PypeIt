@@ -439,7 +439,8 @@ class SpecObjs(object):
         """
         sobj_copy = SpecObjs(header=self.header)
         for sobj in self.specobjs:
-            sobj_copy.add_sobj(sobj.copy())
+            #sobj_copy.add_sobj(sobj.copy())
+            sobj_copy.add_sobj(specobj.SpecObj.copy(sobj))
         return sobj_copy
 
     def grab_spec_arrays(self, obj_id, DET=None, ECH_ORDER=None, **kwargs):

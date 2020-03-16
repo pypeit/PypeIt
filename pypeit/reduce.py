@@ -737,8 +737,10 @@ class MultiSlitReduce(Reduce):
             thismask = (self.slitmask == slit)
             inmask = (self.sciImg.mask.fullmask == 0) & thismask
             # Find objects
-            specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
-                            'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
+            #specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
+            #                'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
+            specobj_dict = {'SLITID': slit, #'orderindx': 999,
+                            'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information

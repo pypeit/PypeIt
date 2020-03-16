@@ -1186,7 +1186,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         show_cont = True
 
     if specobj_dict is None:
-        specobj_dict = dict(setup=None, slitid=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
+        #specobj_dict = dict(setup=None, slitid=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
+        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit', ORDERINDX=999)
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1250,7 +1251,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     cont, cont_mask0 = arc.iter_continuum(
         fluxconv0, inmask=smash_mask, fwhm=fwhm,cont_frac_fwhm=2.0, sigthresh=2.0, sigrej=2.0, cont_samp=cont_samp,
         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=ir_redux, debug=show_cont,
-        qa_title='Smash Image Background, 1st iteration: Slit# {:d}'.format(specobj_dict['slitid']))
+        qa_title='Smash Image Background, 1st iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
 
     # Second iteration
     flux_mean_med = np.median(flux_mean[cont_mask0])
@@ -1260,7 +1261,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     cont, cont_mask = arc.iter_continuum(
         fluxconv, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=2.0, sigrej=2.0, cont_samp=cont_samp,
         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=ir_redux, debug=show_cont,
-        qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['slitid']))
+        qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
     # JFH TODO Do we need a running median as was done in the OLD code? Maybe needed for long slits. We could use
     #  use the cont_mask to isolate continuum pixels, and then interpolate the unmasked pixels.
@@ -1372,7 +1373,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nobj_reg = len(xcen)
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
-            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
+            thisobj = specobj.SpecObj(**specobj_dict)# 'UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
             #
             thisobj.SPAT_FRACPOS = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
