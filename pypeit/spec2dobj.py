@@ -41,6 +41,13 @@ class Spec2DObj(datamodel.DataContainer):
     """
     version = '1.0.0'
 
+    # TODO 2d data model should be expanded to include:
+    # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
+    #                every exposure (i.e. it depneds on obstime, RA, DEC and the flexure incurred) it should be written out for
+    #                each science frame.
+    # tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
+    #                 write these for each file as well. Alternatively we could just write the offsets to the header.
+
     datamodel = {
         'sciiimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
         'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image'),
@@ -63,10 +70,10 @@ class Spec2DObj(datamodel.DataContainer):
         pass
 
 
-class AllSpec2DObj(dict):
+class AllSpec2DObj(object):
     """
     Simple object to hold Spec2DObj objects
-    and I/O
+    and perform I/O
 
     Restrict keys to be type int or 'meta'
     and items to be `Spec2DObj`_
@@ -74,7 +81,11 @@ class AllSpec2DObj(dict):
     """
 
     def __init__(self):
+        super(AllSpec2DObj, self).__init__()
         self['meta'] = {}
+
+    def keys(self):
+        return self.__dict__.keys()
 
     def __setitem__(self, item, value):
         # Check item
@@ -84,3 +95,8 @@ class AllSpec2DObj(dict):
         if isinstance(item, int):
             assert isinstance(value, Spec2DObj), 'Item must be a Spec2DObj'
         self.__dict__[item] = value
+
+    def __getitem__(self, item):
+        """Get an item directly from the internal dict."""
+        return self.__dict__[item]
+

@@ -9,13 +9,16 @@ import re
 
 import numpy as np
 
-from astropy.units import Quantity
+from astropy import units
 from astropy.io import fits
+from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import specobj
 from pypeit.io import initialize_header, init_hdus
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.core import parse
 
 from IPython import embed
 
@@ -591,6 +594,81 @@ class SpecObjs(object):
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
 
+    def write_info(self, outfile, pypeline):
+        slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
+        # binspectral, binspatial = parse.parse_binning(binning)
+        for specobj in all_specobjs.specobjs:
+            det = specobj.DET
+            if specobj is None:
+                continue
+            # Detector items
+            binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
+            platescale = sci_dict[det]['detector'].platescale
+            # Append
+            spat_pixpos.append(specobj.SPAT_PIXPOS)
+            if pypeline == 'MultiSlit':
+                spat_fracpos.append(specobj.SPAT_FRACPOS)
+                slits.append(specobj.SLITID)
+                names.append(specobj.NAME)
+            elif pypeline == 'Echelle':
+                spat_fracpos.append(specobj.ECH_FRACPOS)
+                slits.append(specobj.ECH_ORDER)
+                names.append(specobj.ECH_NAME)
+            # Boxcar width
+            if 'BOX_RADIUS' in specobj.keys():
+                slit_pix = 2.0 * specobj.BOX_RADIUS
+                # Convert to arcsec
+                binspectral, binspatial = parse.parse_binning(binning)
+                # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
+                # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
+                # different attribute. platescale should be a spectrograph attribute determined on the fly.
+                # boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+                boxsize.append(slit_pix * binspatial * platescale)
+            else:
+                boxsize.append(0.)
+
+            # Optimal profile (FWHM)
+            # S2N -- default to boxcar
+            if hasattr(specobj, 'FWHMFIT'):
+                # opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+                opt_fwhm.append(np.median(specobj.FWHMFIT) * binspatial * platescale)
+                # S2N -- optimal
+                ivar = specobj.OPT_COUNTS_IVAR
+                is2n = np.median(specobj.OPT_COUNTS * np.sqrt(ivar))
+                s2n.append(is2n)
+            else:  # Optimal is not required to occur
+                opt_fwhm.append(0.)
+                # S2N -- use boxcar
+                ivar = specobj.BOX_COUNTS_IVAR
+                is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
+                s2n.append(is2n)
+
+        # Generate the table, if we have at least one source
+        if len(names) > 0:
+            obj_tbl = Table()
+            if pypeline == 'MultiSlit':
+                obj_tbl['slit'] = slits
+                obj_tbl['slit'].format = 'd'
+            elif pypeline == 'Echelle':
+                obj_tbl['order'] = slits
+                obj_tbl['order'].format = 'd'
+            obj_tbl['name'] = names
+            obj_tbl['spat_pixpos'] = spat_pixpos
+            obj_tbl['spat_pixpos'].format = '.1f'
+            obj_tbl['spat_fracpos'] = spat_fracpos
+            obj_tbl['spat_fracpos'].format = '.3f'
+            obj_tbl['box_width'] = boxsize
+            obj_tbl['box_width'].format = '.2f'
+            obj_tbl['box_width'].unit = units.arcsec
+            obj_tbl['opt_fwhm'] = opt_fwhm
+            obj_tbl['opt_fwhm'].format = '.3f'
+            obj_tbl['opt_fwhm'].unit = units.arcsec
+            obj_tbl['s2n'] = s2n
+            obj_tbl['s2n'].format = '.2f'
+            # Write
+            obj_tbl.write(outfile,format='ascii.fixed_width', overwrite=True)
+
+
 
 def lst_to_array(lst, mask=None):
     """
@@ -609,27 +687,8 @@ def lst_to_array(lst, mask=None):
     """
     if mask is None:
         mask = np.array([True]*len(lst))
-    if isinstance(lst[0], Quantity):
-        return Quantity(lst)[mask]
+    if isinstance(lst[0], units.Quantity):
+        return units.Quantity(lst)[mask]
     else:
         return np.array(lst)[mask]
 
-
-class AllSpecObjs(dict):
-    """
-    Very simple object to hold SpecObjs objects
-
-    Restrict keys to be type int
-    and items to be `SpecObjs`_
-    """
-
-    def __init__(self):
-        pass
-
-    def __setitem__(self, item, value):
-        # Check item
-        if not isinstance(item, int):
-            raise KeyError('Key must be an integer, i.e. detector number')
-        # Check value
-        assert isinstance(value, SpecObjs), 'Item must be a SpecObjs'
-        self.__dict__[item] = value

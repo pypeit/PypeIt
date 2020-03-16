@@ -278,6 +278,7 @@ class PypeIt(object):
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
+                    embed(header='281 of pypeit')
                     self.save_exposure(frames[0], std_dict, self.basename)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
@@ -381,8 +382,8 @@ class PypeIt(object):
         # Container for all the Spec2DObj
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = self.ir_redux
-        # Container for all the SpecObjs
-        all_specobjs = specobjs.AllSpecObjs()
+
+        all_specobjs = specobjs.SpecObjs()
 
         # Print status message
         msgs_string = 'Reducing target {:s}'.format(self.fitstbl['target'][frames[0]]) + msgs.newline()
@@ -424,9 +425,14 @@ class PypeIt(object):
             #    sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
             #            = self.extract_one(frames, self.det, bg_frames,
             #                               std_outfile=std_outfile)
-            all_spec2d[self.det], all_specobjs[self.det] = self.extract_one(
+            all_spec2d[self.det], tmp_sobjs = self.extract_one(
                 frames, self.det, bg_frames, std_outfile=std_outfile)
+            # Hold em
+            if tmp_sobjs.nobj > 0:
+                all_specobjs.add_sobj(tmp_sobjs)
             # JFH TODO write out the background frame?
+
+            # TODO -- Save here?  Seems like we should.  Would probably need to use update_det=True
 
         # Return
         return all_spec2d, all_specobjs
@@ -605,7 +611,7 @@ class PypeIt(object):
         #       self.sobjs, self.sciImg.detector
 
     # TODO: Why not use self.frame?
-    def save_exposure(self, frame, sci_dict, basename):
+    def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
         """
         Save the outputs from extraction for a given exposure
 
@@ -633,10 +639,20 @@ class PypeIt(object):
         refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
             self.caliBrate.par['wavelengths']['frame']
 
+        # 1D spectra
+        if all_specobjs.nobj > 0:
+            # Spectra
+            outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
+            header = all_specobjs.build_header(head1d, head2d, self.spectrograph)
+            all_specobjs.write_to_fits(header, outfile1d, update_det=self.par['rdx']['detnum'])
+            # Info
+            outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
+            all_specobjs.write_info(outfiletxt)
+
         # Determine the paths/filenames
-        save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
-                      self.spectrograph, head1d, head2d, self.science_path, basename,
-                      update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
+        #save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
+        #              self.spectrograph, head1d, head2d, self.science_path, basename,
+        #              update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
     def msgs_reset(self):
         """
