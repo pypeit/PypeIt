@@ -1499,10 +1499,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                  _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
 
             # Show the Sobel sigma image (do *not* clear)
-            #sobel_viewer, sobel_ch = ginga.show_image(self.sobel_sig, chname='Sobel Filtered')
-            #if not self.is_empty:
-            #    ginga.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
-            #                     _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+            sobel_viewer, sobel_ch = ginga.show_image(self.sobel_sig, chname='Sobel Filtered')
+            if not self.is_empty:
+                ginga.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
+                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
             return
 
         # Show the traced image
