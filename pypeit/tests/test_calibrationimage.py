@@ -8,13 +8,12 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit.images import calibrationimage
+from pypeit.images import buildimage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import procimg
 
-par = pypeitpar.ProcessImagesPar()
 kast_blue = load_spectrograph('shane_kast_blue')
 
 @pytest.fixture
@@ -36,16 +35,13 @@ def kast_blue_bias_files():
 @dev_suite_required
 def test_combine(deimos_flat_files):
     spectograph = load_spectrograph('keck_deimos')
+    par = spectograph.default_pypeit_par()
     # DEIMOS
-    deimos_flats = calibrationimage.BuildCalibrationImage(spectograph, 3, par, deimos_flat_files)
+    deimos_flat = buildimage.buildimage_fromlist(spectograph, 3,
+                                                  par['calibrations']['pixelflatframe'],
+                                                  deimos_flat_files)
     # Process steps
-    psteps = procimg.init_process_steps(None, deimos_flats.proc_par)
-    assert 'subtract_overscan' in psteps
-    psteps += ['trim', 'orient', 'apply_gain']
-    deimos_flats.process_steps = psteps
-    # Bias subtract (and trim)
-    pypeitImage = deimos_flats.build_image()
     # Test
-    assert pypeitImage.image.shape == (4096,2048)
+    assert deimos_flat.image.shape == (4096,2048)
 
 

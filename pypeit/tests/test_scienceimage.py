@@ -12,7 +12,7 @@ from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.tests.tstutils import load_kast_blue_masters
 from pypeit.tests.tstutils import get_kastb_detector
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.images import scienceimage
+from pypeit.images import buildimage
 from pypeit.images import rawimage
 from pypeit.images import processrawimage
 from pypeit.core import procimg
@@ -45,19 +45,6 @@ def nires_sci_files():
 def nires_bg_files():
     return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_nires', 'NIRES', ifile)
             for ifile in ['s180604_0090.fits.gz', 's180604_0091.fits.gz']]
-
-
-def test_standard_instantiate():
-    """
-    Simple instantiate
-    """
-    # Empty
-    bpm = np.zeros((100,100)).astype(int)
-    det = 1
-    sciImg = scienceimage.ScienceImage(kast_blue, det, kast_par['scienceframe']['process'],
-                                       np.zeros_like(bpm).astype(float),
-                                       np.zeros_like(bpm).astype(float),
-                                       bpm, detector=get_kastb_detector())
 
 
 @cooked_required
