@@ -703,7 +703,7 @@ def set_process_steps(bias, frame_par):
         list: List of the processing steps to begin with.  Can be empty
 
     """
-    process_steps = frame_par['processing_steps']
+    process_steps = frame_par['processing_steps'].copy()
     # Deal with bias now
     proc_par = frame_par['process']
     # Bias image
@@ -722,37 +722,37 @@ def set_process_steps(bias, frame_par):
     # Return
     return process_steps
 
-def init_process_steps(bias, proc_par):
-    """
-    Initialize the processing steps
-    This first set is related to bias and overscan subtraction
-
-    Could include dark subtraction someday
-
-    Args:
-        bias (None or np.ndarray):
-        proc_par (ProcessImagesPar):
-
-    Returns:
-        list: List of the processing steps to begin with.  Can be empty
-
-    """
-    process_steps = []
-    # Bias image
-    if proc_par['bias'].lower() == 'as_available':
-        if bias is not None:
-            process_steps.append('subtract_bias')
-    elif proc_par['bias'].lower() == 'force':
-        if bias is None:
-            msgs.error("Must provide bias frames!")
-        process_steps.append('subtract_bias')
-    elif proc_par['bias'].lower() == 'skip':
-        pass
-    # Overscan
-    if proc_par['overscan'].lower() != 'none':
-        process_steps.append('subtract_overscan')
-    # Return
-    return process_steps
+#def init_process_steps(bias, proc_par):
+#    """
+#    Initialize the processing steps
+#    This first set is related to bias and overscan subtraction
+#
+#    Could include dark subtraction someday
+##
+#    Args:
+#        bias (None or np.ndarray):
+#        proc_par (ProcessImagesPar):
+#
+#    Returns:
+#        list: List of the processing steps to begin with.  Can be empty
+#
+#    """
+#    process_steps = []
+#    # Bias image
+#    if proc_par['bias'].lower() == 'as_available':
+#        if bias is not None:
+#            process_steps.append('subtract_bias')
+#    elif proc_par['bias'].lower() == 'force':
+#        if bias is None:
+#            msgs.error("Must provide bias frames!")
+#        process_steps.append('subtract_bias')
+#    elif proc_par['bias'].lower() == 'skip':
+#        pass
+#    # Overscan
+#    if proc_par['overscan'].lower() != 'none':
+#        process_steps.append('subtract_overscan')
+#    # Return
+#    return process_steps
 
 
 def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,

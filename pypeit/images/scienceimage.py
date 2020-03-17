@@ -19,8 +19,11 @@ from pypeit.images import combineimage
 
 from IPython import embed
 
+#class ScienceImage(pypeitimage.PypeItImage):
+#    frametype = 'science'
 
-class ScienceImage(pypeitimage.PypeItImage):
+class OldScienceImage(pypeitimage.PypeItImage):
+
     """
     Class to generate and hold a science image
 
@@ -180,7 +183,7 @@ class ScienceImage(pypeitimage.PypeItImage):
 
 
 # TODO: Make this a ScienceImage class method?
-def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_flat=None,
+def build_from_file_list(spectrograph, det, frame_par, bpm, file_list, bias, pixel_flat=None,
                          illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5):
     """
     Build a ScienceImage from a file list
@@ -193,7 +196,7 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
             Spectrograph used to take the data.
         det (:obj:`int`):
             The 1-indexed detector number to process.
-        par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+        frame_par (:class:`pypeit.par.pypeitpar.FramePar`):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
@@ -225,18 +228,20 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
     #process_steps += ['extras']
     #if par['cr_reject']:
     #    process_steps += ['crmask']
+    # Process steps
+    process_steps = procimg.set_process_steps(bias, frame_par)
 
-    combineImage = combineimage.CombineImage(spectrograph, det, par, file_list)
+    combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
     pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
                                  illum_flat=illum_flat, sigma_clip=sigma_clip,
                                  sigrej=sigrej, maxiters=maxiters)
 
     # Instantiate
-    slf = ScienceImage(spectrograph, det, par, pypeitImage.image, pypeitImage.ivar,
-                       pypeitImage.mask.bpm, rn2img=pypeitImage.rn2img,
-                       crmask=pypeitImage.mask.crmask, fullmask=pypeitImage.mask.fullmask, files=file_list,
-                       detector=pypeitImage.detector)
+    #slf = ScienceImage(spectrograph, det, par, pypeitImage.image, pypeitImage.ivar,
+    #                   pypeitImage.mask.bpm, rn2img=pypeitImage.rn2img,
+    #                   crmask=pypeitImage.mask.crmask, fullmask=pypeitImage.mask.fullmask, files=file_list,
+    #                   detector=pypeitImage.detector)
     # Return
-    return slf
+    return pypeitImage
 
 

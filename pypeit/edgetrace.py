@@ -128,7 +128,7 @@ from pypeit import slittrace
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
-from pypeit.images.buildcalibration import TraceImage
+from pypeit.images.buildimage import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask

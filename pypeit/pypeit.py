@@ -11,14 +11,12 @@ from collections import OrderedDict
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
-from pypeit.images import scienceimage
+from pypeit.images import buildimage
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa
-from pypeit.core import wave
 from pypeit.core import save
 from pypeit import specobjs
-from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 
 from configobj import ConfigObj
@@ -536,6 +534,10 @@ class PypeIt(object):
                 = self.get_sci_metadata(frames[0], det)
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
+        if self.std_redux:
+            frame_par = self.par['calibrations']['standardframe']
+        else:
+            frame_par = self.par['scienceframe']
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
 
@@ -549,21 +551,23 @@ class PypeIt(object):
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciImg = scienceimage.build_from_file_list(
-            self.spectrograph, det, self.par['scienceframe']['process'],
-            self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
-            self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat)
+        self.sciImg = buildimage.buildimage_fromlist(
+            self.spectrograph, det, frame_par,
+            sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
+            pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
+            ignore_saturation=False)
 
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg - scienceimage.build_from_file_list(
-                self.spectrograph, det, self.par['scienceframe']['process'],
-                self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
-                self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat)
+            self.sciImg = self.sciImg - buildimage.buildimage_fromlist(
+                self.spectrograph, det, frame_par,bg_file_list,
+                bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
+                pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
+                ignore_saturation=False)
 
         # Update mask for slitmask; uses pad in EdgeTraceSetPar
-        self.sciImg.mask.update_mask_slitmask(self.caliBrate.slits.slit_img())
+        self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img())
 
         # For QA on crash
         msgs.sciexp = self.sciImg

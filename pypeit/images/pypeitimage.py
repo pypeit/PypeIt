@@ -13,7 +13,9 @@ from pypeit import msgs
 from pypeit import ginga
 
 from pypeit.images import detector_container, maskimage
+from pypeit.core import procimg
 from pypeit import datamodel
+from pypeit import utils
 
 from IPython import embed
 
@@ -164,9 +166,41 @@ class PypeItImage(datamodel.DataContainer):
     def shape(self):
         return () if self.image is None else self.image.shape
 
+    def build_crmask(self, par, subtract_img=None):
+        """
+        Generate the CR mask frame
 
-    def build_mask(self, image, ivar, saturation=1e10,
-                   mincounts=-1e10, slitmask=None):
+        Mainly a wrapper to procimg.lacosmic
+
+        Args:
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+                defaults.
+            subtract_img (np.ndarray, optional):
+                If provided, subtract this from the image prior to CR detection
+
+        Returns:
+            np.ndarray: Copy of self.crmask (boolean)
+
+        """
+        var = utils.inverse(self.ivar)
+        use_img = self.image if subtract_img is None else self.image - subtract_img
+        # Run LA Cosmic to get the cosmic ray mask
+        self.crmask = procimg.lacosmic(use_img,
+                                       self.detector['saturation'],
+                                       self.detector['nonlinear'],
+                                       varframe=var,
+                                       maxiter=par['lamaxiter'],
+                                       grow=par['grow'],
+                                       remove_compact_obj=par['rmcompact'],
+                                       sigclip=par['sigclip'],
+                                       sigfrac=par['sigfrac'],
+                                       objlim=par['objlim'])
+        # Return
+        return self.crmask.copy()
+
+    def build_mask(self, saturation=None, mincounts=None, slitmask=None):
         """
         Return the bit value mask used during extraction.
 
@@ -182,21 +216,21 @@ class PypeItImage(datamodel.DataContainer):
             indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
 
         Args:
-            image (np.ndarray):
-                Image
-            ivar (np.ndarray or None):
-                Inverse variance of the input image
             saturation (float, optional):
                 Saturation limit in counts or ADU (needs to match the input image)
+                Defaults to self.detector['saturation']
             slitmask (np.ndarray, optional):
                 Slit mask image;  Pixels not in a slit are masked
             mincounts (float, optional):
+                Defaults to self.detector['mincounts']
 
         Returns:
             numpy.ndarray: Copy of the bit value mask for the science image.
         """
+        _mincounts = self.detector['mincounts'] if mincounts is None else mincounts
+        _saturation = self.detector['saturation'] if saturation is None else saturation
         # Instatiate the mask
-        mask = np.zeros_like(image, dtype=self.bitmask.minimum_dtype(asuint=True))
+        mask = np.zeros_like(self.image, dtype=self.bitmask.minimum_dtype(asuint=True))
 
         # Bad pixel mask
         if self.bpm is not None:
@@ -209,24 +243,24 @@ class PypeItImage(datamodel.DataContainer):
             mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
 
         # Saturated pixels
-        indx = image >= saturation
+        indx = self.image >= _saturation
         mask[indx] = self.bitmask.turn_on(mask[indx], 'SATURATION')
 
         # Minimum counts
-        indx = image <= mincounts
+        indx = self.image <= _mincounts
         mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
 
         # Undefined counts
-        indx = np.invert(np.isfinite(image))
+        indx = np.invert(np.isfinite(self.image))
         mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
 
-        if ivar is not None:
+        if self.ivar is not None:
             # Bad inverse variance values
-            indx = np.invert(ivar > 0.0)
+            indx = np.invert(self.ivar > 0.0)
             mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
 
             # Undefined inverse variances
-            indx = np.invert(np.isfinite(ivar))
+            indx = np.invert(np.isfinite(self.ivar))
             mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
 
         if slitmask is not None:
@@ -236,6 +270,34 @@ class PypeItImage(datamodel.DataContainer):
         self.fullmask = mask
         return self.fullmask.copy()
 
+    def update_mask_slitmask(self, slitmask):
+        """
+        Update a mask using the slitmask
+
+        Args:
+            slitmask (np.ndarray):
+                Slitmask with -1 values pixels *not* in a slit
+
+        """
+        # Pixels excluded from any slit.
+        indx = slitmask == -1
+        # Finish
+        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'OFFSLITS')
+
+    def update_mask_cr(self, crmask_new):
+        """
+        Update the mask bits for cosmic rays
+
+        The original are turned off and the new
+        ones are turned on.
+
+        Args:
+            crmask_new (np.ndarray):
+                New CR mask
+        """
+        self.fullmask = self.bitmask.turn_off(self.fullmask, 'CR')
+        indx = crmask_new.astype(bool)
+        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'CR')
 
     def show(self):
         """
@@ -306,145 +368,6 @@ class ImageMask(datamodel.DataContainer):
             d.append(dict(fullmask=self.fullmask))
         return d
 
-    def build_crmask(self, detector, par, image, rawvarframe, subtract_img=None):
-        """
-        Generate the CR mask frame
-
-        Mainly a wrapper to procimg.lacosmic
-
-        Args:
-            detector (:class:`pypeit.images.detector_container.DetectorContainer`):
-                Detector object
-            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-                Parameters that dictate the processing of the images.  See
-                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-                defaults.
-            image (np.ndarray):
-                Image to identify CR's in
-            rawvarframe (np.ndarray):
-                Variance image
-            subtract_img (np.ndarray, optional):
-                If provided, subtract this from the image prior to CR detection
-
-        Returns:
-            np.ndarray: Copy of self.crmask (boolean)
-
-        """
-        use_img = image if subtract_img is None else image - subtract_img
-        # Run LA Cosmic to get the cosmic ray mask
-        # TODO -- In processrawimage we pass in nonlinear * saturation not saturation
-        self.crmask = procimg.lacosmic(use_img,
-                                       detector['saturation'],
-                                       detector['nonlinear'],
-                                       varframe=rawvarframe,
-                                       maxiter=par['lamaxiter'],
-                                       grow=par['grow'],
-                                       remove_compact_obj=par['rmcompact'],
-                                       sigclip=par['sigclip'],
-                                       sigfrac=par['sigfrac'],
-                                       objlim=par['objlim'])
-        # Return
-        return self.crmask.copy()
-
-    def build_mask(self, image, ivar, saturation=1e10,
-                   mincounts=-1e10, slitmask=None):
-        """
-        Return the bit value mask used during extraction.
-
-        The mask keys are defined by :class:`ScienceImageBitMask`.  Any
-        pixel with mask == 0 is valid, otherwise the pixel has been
-        masked.  To determine why a given pixel has been masked::
-
-            bitmask = ScienceImageBitMask()
-            reasons = bm.flagged_bits(mask[i,j])
-
-        To get all the pixel masked for a specific set of reasons::
-
-            indx = bm.flagged(mask, flag=['CR', 'SATURATION'])
-
-        Args:
-            image (np.ndarray):
-                Image
-            ivar (np.ndarray or None):
-                Inverse variance of the input image
-            saturation (float, optional):
-                Saturation limit in counts or ADU (needs to match the input image)
-            slitmask (np.ndarray, optional):
-                Slit mask image;  Pixels not in a slit are masked
-            mincounts (float, optional):
-
-        Returns:
-            numpy.ndarray: Copy of the bit value mask for the science image.
-        """
-        # Instatiate the mask
-        mask = np.zeros_like(image, dtype=self.bitmask.minimum_dtype(asuint=True))
-
-        # Bad pixel mask
-        if self.bpm is not None:
-            indx = self.bpm.astype(bool)
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
-
-        # Cosmic rays
-        if self.crmask is not None:
-            indx = self.crmask.astype(bool)
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
-
-        # Saturated pixels
-        indx = image >= saturation
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'SATURATION')
-
-        # Minimum counts
-        indx = image <= mincounts
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
-
-        # Undefined counts
-        indx = np.invert(np.isfinite(image))
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
-
-        if ivar is not None:
-            # Bad inverse variance values
-            indx = np.invert(ivar > 0.0)
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
-
-            # Undefined inverse variances
-            indx = np.invert(np.isfinite(ivar))
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
-
-        if slitmask is not None:
-            indx = slitmask == -1
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
-
-        self.fullmask = mask
-        return self.fullmask.copy()
-
-    def update_mask_slitmask(self, slitmask):
-        """
-        Update a mask using the slitmask
-
-        Args:
-            slitmask (np.ndarray):
-                Slitmask with -1 values pixels *not* in a slit
-
-        """
-        # Pixels excluded from any slit.
-        indx = slitmask == -1
-        # Finish
-        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'OFFSLITS')
-
-    def update_mask_cr(self, crmask_new):
-        """
-        Update the mask bits for cosmic rays
-
-        The original are turned off and the new
-        ones are turned on.
-
-        Args:
-            crmask_new (np.ndarray):
-                New CR mask
-        """
-        self.fullmask = self.bitmask.turn_off(self.fullmask, 'CR')
-        indx = crmask_new.astype(bool)
-        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'CR')
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)
