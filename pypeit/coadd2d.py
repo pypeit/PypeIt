@@ -25,7 +25,6 @@ from pypeit import reduce
 from pypeit.core import extract
 from pypeit.core import coadd, pixels
 from pypeit.core import parse
-from pypeit.images import scienceimage
 from pypeit.spectrographs import util
 from pypeit import calibrations
 

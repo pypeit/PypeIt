@@ -190,7 +190,7 @@ class FrameGroupPar(ParSet):
         """
         Return the list of valid processing steps
         """
-        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask']
+        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask', '']
 
     def validate(self):
         if self.data['useframe'] is None:

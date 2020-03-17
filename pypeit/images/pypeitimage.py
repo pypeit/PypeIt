@@ -48,6 +48,7 @@ class PypeItImage(datamodel.DataContainer):
             in more complex DataContainers
         head0 (astropy.io.fits.Header):
         detector (:class:`pypeit.images.detector_container.DetectorContainer`):
+        files (list):
 
     """
     # Set the version of this class
@@ -126,6 +127,7 @@ class PypeItImage(datamodel.DataContainer):
     def _init_internals(self):
         self.head0 = None
         self.process_steps = None
+        self.files = None
 
 
     def _bundle(self):
@@ -298,6 +300,56 @@ class PypeItImage(datamodel.DataContainer):
         self.fullmask = self.bitmask.turn_off(self.fullmask, 'CR')
         indx = crmask_new.astype(bool)
         self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'CR')
+
+    def sub(self, other, par):
+        """
+        Subtract a ScienceImage object from another
+        Extras (e.g. ivar, masks) are included if they are present
+        Args:
+            other (ScienceImage):
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the defaults
+        Returns:
+            PypeItImage:
+        """
+        if not isinstance(other, PypeItImage):
+            msgs.error("Misuse of the subtract method")
+        # Images
+        newimg = self.image - other.image
+
+        # Mask time
+        outmask_comb = (self.fullmask == 0) & (other.fullmask == 0)
+
+        # Variance
+        if self.ivar is not None:
+            new_ivar = utils.inverse(utils.inverse(self.ivar) + utils.inverse(other.ivar))
+            new_ivar[np.invert(outmask_comb)] = 0
+        else:
+            new_ivar = None
+
+        # RN2
+        if self.rn2img is not None:
+            new_rn2 = self.rn2img + other.rn2img
+        else:
+            new_rn2 = None
+
+        # Files
+        new_files = self.files + other.files
+
+        # Instantiate
+        new_sciImg = PypeItImage(image=newimg, ivar=new_ivar, bpm=self.bpm, rn2img=new_rn2,
+                                 detector=self.detector)
+        new_sciImg.files = new_files
+        #TODO: KW properly handle adding the bits
+        crmask_diff = new_sciImg.build_crmask(par)
+        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
+        new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
+        # Note that the following uses the saturation and mincounts held in
+        # self.detector
+        new_sciImg.build_mask()
+
+        return new_sciImg
 
     def show(self):
         """

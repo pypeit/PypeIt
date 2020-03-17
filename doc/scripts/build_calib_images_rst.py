@@ -10,7 +10,7 @@ import numpy
 
 from pkg_resources import resource_filename
 from pypeit.par.parset import ParSet
-from pypeit.arcimage import ArcImage
+from pypeit.images import buildimage
 from pypeit.flatfield import FlatImages
 
 from IPython import embed
@@ -72,7 +72,7 @@ if __name__ == '__main__':
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
     output_path = os.path.join(pypeit_root, 'doc', 'include')
 
-    for imgtyp,ofile in zip([ArcImage, FlatImages],
+    for imgtyp,ofile in zip([buildimage.ArcImage, FlatImages],
                             [os.path.join(output_path, 'datamodel_arcimage.rst'),
                              os.path.join(output_path, 'datamodel_flatimages.rst'),
                               ]):

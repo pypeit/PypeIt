@@ -150,6 +150,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
 
     # Internals
     finalImage.process_steps = process_steps
+    finalImage.files = file_list
 
     # Return
     return finalImage
