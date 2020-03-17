@@ -36,6 +36,7 @@ class Spec2DObj(datamodel.DataContainer):
     Attributes:
         See datamodel
         head0 (`astropy.fits.Header`):
+        sciimg (`np.ndarray`_):
 
     """
     version = '1.0.0'
@@ -71,6 +72,7 @@ class Spec2DObj(datamodel.DataContainer):
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
+
 
     def _init_internals(self):
         self.head0 = None
