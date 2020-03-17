@@ -196,7 +196,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Returns:
             tuple:
                 raw_img (np.ndarray) -- Raw image for this detector
-                headarr (list of headers)
+                hdu (astropy.io.fits.HDUList)
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
@@ -281,7 +281,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return array.T, [head0, head1], exptime, rawdatasec_img.T, oscansec_img.T
+        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):

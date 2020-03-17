@@ -221,7 +221,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         -------
         array : ndarray
           Combined image
-        headarr (list of headers)
+        hdu (astropy.io.fits.HDUList)
         sections : list
           List of datasec, oscansec, ampsec sections
           datasec, oscansec needs to be for an *unbinned* image as per standard convention
@@ -340,7 +340,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        return array.T, [head0], exptime, rawdatasec_img.T, oscansec_img.T
+        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):

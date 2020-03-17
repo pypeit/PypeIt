@@ -54,7 +54,7 @@ class ProcessRawImage(object):
         self.datasec_img = rawImage.rawdatasec_img.copy()
         self.oscansec_img = rawImage.oscansec_img
         self.image = rawImage.raw_image.copy()
-        self.headarr = deepcopy(rawImage.headarr)
+        self.headarr = deepcopy(self.spectrograph.get_headarr(rawImage.hdu))
         self.orig_shape = rawImage.raw_image.shape
         self.exptime = rawImage.exptime
 

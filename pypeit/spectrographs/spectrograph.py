@@ -456,7 +456,8 @@ class Spectrograph(object):
         Returns:
             tuple:
                 raw_img (np.ndarray) -- Raw image for this detector
-                headarr (list of headers)
+                hdu (fits.HDUList)
+                    HDUList of the file
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
@@ -518,7 +519,7 @@ class Spectrograph(object):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return raw_img, headarr, exptime, rawdatasec_img, oscansec_img
+        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def get_lamps_status(self, headarr):
         """
@@ -662,27 +663,6 @@ class Spectrograph(object):
     def set_wcs(self, hdr):
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
         return hdr
-
-    def set_detector_par(self, par, det, value, force_update=False):
-        """
-        Update or set a parameter in the detector array
-
-        Args:
-            par : str
-              Parameter that needs to be updated
-            det : int
-              Detector number
-            value : any type
-              Updated value to assign parameter 'par'
-            force_update : bool
-              Overwrite a parameter, even if it's been set
-
-        """
-        # Update the value
-        if self.detector[det-1][par] is None or force_update:
-            msgs.info("Updating detector {0:d} parameter: {1:s}".format(det, par))
-            self.detector[det-1][par] = deepcopy(value)
-        return
 
     def validate_metadata(self):
         """
