@@ -86,7 +86,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'identify'  # 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = ''
             par['calibrations']['wavelengths']['lamps'] = ['ThAr']  # TODO :: This default may need to be changed to FeAr
-        if self.get_meta_value(headarr, 'dispname') == 'BM':
+        elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM_4375.fits'
             par['calibrations']['wavelengths']['lamps'] = ['ThAr']  # TODO :: This default may need to be changed to FeAr
@@ -185,6 +185,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Sky subtraction parameters
         par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['load_mask'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.5
 
         return par

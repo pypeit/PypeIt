@@ -393,7 +393,7 @@ class Reduce(object):
         Wrapper to skysub.global_skysub
 
         Args:
-            skymask (np.ndarray):
+            skymask (np.ndarray, None):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
             show_fit (bool, optional):
@@ -428,15 +428,17 @@ class Reduce(object):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        original = True if ((trim_edg[0] == 0) and (trim_edg[1] == 0)) else False
+        left, right = self.slits.select_edges(original=original)
 
         if joint_fit:
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
             inmask = (self.sciImg.mask == 0) & thismask & skymask_now
+            wavenorm = self.caliBrate.waveImage.image / np.max(self.caliBrate.waveImage.image)
             # Find sky
             self.global_sky[thismask] \
-                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.caliBrate.waveImage.image,
+                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, wavenorm,
                                        thismask, left, right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
@@ -1162,7 +1164,7 @@ class IFUReduce(Reduce):
         skymask_init = self.load_skyregions()
 
         # Global sky subtract
-        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False, joint_fit=False).copy()
+        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False, joint_fit=True).copy()
 
         from pypeit.io import write_to_fits
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
