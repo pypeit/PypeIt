@@ -336,6 +336,10 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
     # Median slit width
     slitwidth = np.median(right - left)
 
+    # Setup the masked array for finding the continuous left and right
+    # regions
+    masked_flat = np.ma.MaskedArray(norm_flat)
+
     # ------------------------------------------------------------------
     # Adjust the left edge
 
@@ -350,18 +354,20 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
 
     # Find the data that are less than the provided threshold and
     # within the limits set by the offset
-    indx = (spat_coo < maxfrac) & (norm_flat < left_thresh)
+    masked_flat[(spat_coo >= maxfrac) | (norm_flat >= left_thresh)] = np.ma.masked
 
     # To tweak, there must be at least one pixel that meet the above
     # criteria
     left_shift = 0.
     new_left = np.copy(left)
-    if np.any(indx):
-        # Find the last index
-        i = np.where(indx)[0][-1]
+    if not np.all(masked_flat.mask):
+        # Find the last index of the first contiguous region
+        contiguous_region = np.ma.flatnotmasked_contiguous(masked_flat)[0]
+        if contiguous_region.stop is None:
+            msgs.error('Tweak left edge has failed!  Bad continuous region.')
+        i = contiguous_region.stop-1
         if i >= 0 and norm_flat[i-1] > norm_flat[i]:
-            # TODO: Not sure what to do here.  Check if this ever happens...
-            msgs.error('Flat is noisy!  Faulting...')
+            msgs.error('Tweak left edge has failed!  Unexpected illumination profile structure.')
         if norm_flat[i+1] < left_thresh:
             msgs.warn('Left slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
                         100*maxfrac))
@@ -387,18 +393,21 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
 
     # Find the data that are less than the provided threshold and
     # within the limits set by the offset
-    indx = (spat_coo > (1-maxfrac)) & (norm_flat < right_thresh)
+    masked_flat.mask = np.ma.nomask
+    masked_flat[(spat_coo <= 1 - maxfrac) | (norm_flat >= right_thresh)] = np.ma.masked
 
     # To tweak, there must be at least one pixel that meets the above
     # criteria
     right_shift = 0.
     new_right = np.copy(right)
-    if np.any(indx):
-        # Find the first index
-        i = np.where(indx)[0][0]
+    if not np.all(masked_flat.mask):
+        # Find the first index of the last contiguous region
+        contiguous_region = np.ma.flatnotmasked_contiguous(masked_flat)[-1]
+        if contiguous_region.start is None:
+            msgs.error('Tweak right edge has failed!  Bad continuous region.')
+        i = contiguous_region.start
         if i < norm_flat.size-1 and norm_flat[i+1] > norm_flat[i]:
-            # TODO: Not sure what to do here.  Check if this ever happens...
-            msgs.error('Flat is noisy!  Faulting...')
+            msgs.error('Tweak left edge has failed!  Unexpected illumination profile structure.')
         if norm_flat[i-1] < right_thresh:
             msgs.warn('Right slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
                         100*maxfrac))
