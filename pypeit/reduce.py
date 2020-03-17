@@ -87,7 +87,7 @@ class Reduce(object):
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.slitmask = self.slits.slit_img()
-        self.sciImg.mask.update_mask_slitmask(self.slitmask)
+        self.sciImg.update_mask_slitmask(self.slitmask)
         self.maskslits = self._get_goodslits(maskslits)
         # Load up other input items
         self.ir_redux = ir_redux
@@ -428,7 +428,7 @@ class Reduce(object):
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
             thismask = (self.slitmask == slit)
-            inmask = (self.sciImg.mask.fullmask == 0) & thismask & skymask_now
+            inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # Find sky
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
@@ -442,7 +442,9 @@ class Reduce(object):
                 self.maskslits[slit] = True
 
         if update_crmask:
-            self.sciImg.update_mask_cr(subtract_img=self.global_sky)
+            self.sciImg.build_crmask(self.par['scienceframe']['process'],
+                                   subtract_img=self.global_sky)
+            self.sciImg.update_mask_cr(self.sciImg.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -597,7 +599,7 @@ class Reduce(object):
             # local sky subtraction
             if self.sciImg.image is not None and self.skymodel is not None and self.sciImg.mask.fullmask is not None:
                 # sky subtracted image
-                image = (self.sciImg.image - self.skymodel)*(self.sciImg.mask.fullmask == 0)
+                image = (self.sciImg.image - self.skymodel)*(self.sciImg.fullmask == 0)
                 mean, med, sigma = stats.sigma_clipped_stats(image[self.sciImg.mask.fullmask == 0], sigma_lower=5.0,
                                                        sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
@@ -735,7 +737,7 @@ class MultiSlitReduce(Reduce):
             qa_title ="Finding objects on slit # {:d}".format(slit)
             msgs.info(qa_title)
             thismask = (self.slitmask == slit)
-            inmask = (self.sciImg.mask.fullmask == 0) & thismask
+            inmask = (self.sciImg.fullmask == 0) & thismask
             # Find objects
             #specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
             #                'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
@@ -813,9 +815,9 @@ class MultiSlitReduce(Reduce):
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
-        self.outmask = np.copy(self.sciImg.mask.fullmask)
+        self.outmask = np.copy(self.sciImg.fullmask)
         # Initialize to input mask in case no objects were found
-        self.extractmask = (self.sciImg.mask.fullmask == 0)
+        self.extractmask = (self.sciImg.fullmask == 0)
         # Initialize to zero in case no objects were found
         self.objmodel = np.zeros_like(self.sciImg.image)
         # Set initially to global sky in case no objects were found
@@ -833,7 +835,7 @@ class MultiSlitReduce(Reduce):
             if np.any(thisobj):
                 thismask = (self.slitmask == slit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
-                inmask = (self.sciImg.mask.fullmask == 0) & thismask
+                inmask = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
@@ -851,8 +853,8 @@ class MultiSlitReduce(Reduce):
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
-        iextract = (self.sciImg.mask.fullmask == 0) & (self.extractmask == False)
-        self.outmask[iextract] = self.sciImg.mask.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
+        iextract = (self.sciImg.fullmask == 0) & (self.extractmask == False)
+        self.outmask[iextract] = self.sciImg.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
 
         # Step
         self.steps.append(inspect.stack()[0][3])

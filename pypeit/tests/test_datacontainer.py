@@ -229,10 +229,10 @@ class ComplexInitContainer(DataContainer):
 def test_fulldatamodel():
     # Include
     full_dmodel = pypeitimage.PypeItImage.full_datamodel()
-    assert 'mask' in full_dmodel
+    assert 'detector' in full_dmodel
     # Do not include
     full_dmodel = pypeitimage.PypeItImage.full_datamodel(include_parent=False)
-    assert 'mask' not in full_dmodel
+    assert 'detector' not in full_dmodel
 
 def test_single_element_array():
     data = BasicContainer(np.arange(1).astype(float), 'length=10', np.arange(10).astype(float))

@@ -127,7 +127,7 @@ class ProcessRawImage(object):
             np.ndarray: Copy of self.ivar
 
         """
-        msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
+        #msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
         # Convenience
         #detector = self.spectrograph.detector[self.det-1]
         # Generate
@@ -155,7 +155,7 @@ class ProcessRawImage(object):
             np.ndarray: Copy of the read noise squared image
 
         """
-        msgs.info("Generating read noise image from detector properties and amplifier layout)")
+        #msgs.info("Generating read noise image from detector properties and amplifier layout)")
         # Convenience
         #detector = self.spectrograph.detector[self.det-1]
         # Build it
@@ -230,34 +230,23 @@ class ProcessRawImage(object):
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
 
         # Extras
-        if 'extras' in process_steps:
-            self.build_rn2img()
-            self.build_ivar()
-            steps_copy.remove('extras')
+        self.build_rn2img()
+        self.build_ivar()
 
         # Generate a PypeItImage
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img, bpm=bpm,
                                               detector=self.detector)
         # Mask(s)
         if 'crmask' in process_steps:
-            if 'extras' in process_steps:
-                var = utils.inverse(pypeitImage.ivar)
-            else:
-                var = np.ones_like(pypeitImage.image)
-            #
-            #pypeitImage.mask.build_crmask(self.spectrograph, self.det, self.par, pypeitImage.image, var)
-            pypeitImage.mask.build_crmask(self.detector, self.par, pypeitImage.image, var)
+            pypeitImage.build_crmask(self.par)
             steps_copy.remove('crmask')
+        #
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
                                                               apply_gain='apply_gain' in process_steps)
-        pypeitImage.mask.build_mask(pypeitImage.image, pypeitImage.ivar,
-                               saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
-                               mincounts=self.detector['mincounts'])
+        pypeitImage.build_mask(saturation=nonlinear_counts)
         # Error checking
-        # TODO: We shouldn't be using assert in production-level code.
-        # If we're satisfied that this is debugged now, we should
-        # remove this or replace this with a raise or msgs.error call.
-        assert len(steps_copy) == 0
+        if len(steps_copy) != 0:
+            msgs.error("Processing steps did not complete...")
 
         # Return
         return pypeitImage

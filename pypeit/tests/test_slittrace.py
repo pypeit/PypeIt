@@ -7,6 +7,10 @@ import pytest
 import numpy as np
 
 from pypeit.slittrace import SlitTraceSet
+from pypeit import masterframe
+
+master_key = 'dummy'
+master_dir = os.getcwd()
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -15,35 +19,30 @@ def data_path(filename):
 def test_init():
 
     slits = SlitTraceSet(left=np.full((1000,3), 2, dtype=float),
-                         right=np.full((1000,3), 8, dtype=float), nspat=10, spectrograph='dummy',
-                         master_key='dummy', master_dir=os.getcwd())
+                         right=np.full((1000,3), 8, dtype=float), nspat=10, spectrograph='dummy')
 
     assert np.all(slits.center == 5), 'Bad center'
-    assert slits.file_name == 'MasterSlits_dummy.fits.gz', 'Bad master name'
 
 
 def test_io():
 
+
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
-                         nspat=10, spectrograph='dummy', master_key='dummy',
-                         master_dir=os.getcwd())
+                         nspat=10, spectrograph='dummy')
+    master_file = masterframe.construct_file_name(slits, master_key, master_dir=master_dir)
 
     # Remove any existing file from previous runs that were interrupted
-    if slits.exists:
-        os.remove(slits.master_file_path)
+    if os.path.isfile(master_file):
+        os.remove(master_file)
 
     # Try to save it
-    slits.to_master()
-    assert slits.exists, 'File not written'
-
-    # Instantiation default is to not reuse existing master frames
-    assert slits.chk_load_master(None) is None, 'Should not try to load the master'
+    slits.to_master_file(master_dir, master_key,  'dummy_spectrograph_name')
+    assert os.path.isfile(master_file), 'File not written'
 
     # Instantiate an empty SlitTraceSet with the same master file, and
     # indicate it should be reused
-    assert SlitTraceSet.from_master('dummy', os.getcwd(), reuse=False) is None, \
-            'Should not load master'
-    _slits = SlitTraceSet.from_master('dummy', os.getcwd())
+    #_slits = SlitTraceSet.from_master('dummy', os.getcwd())
+    _slits = SlitTraceSet.from_file(master_file)
     assert np.array_equal(_slits.left, np.full((1000,3), 2, dtype=float)), 'Bad left read'
     # And that it's the same as the existing one
     assert np.array_equal(_slits.left, slits.left), 'Bad left read'
@@ -65,44 +64,44 @@ def test_io():
     assert np.array_equal(slits.right, _slits.right), 'Bad read from_file'
 
     # Clean up
-    os.remove(slits.master_file_path)
+    os.remove(master_file)
     os.remove(other_ofile)
 
 
 def test_io_single():
     slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
-                         nspat=10, spectrograph='dummy', master_key='dummy',
-                         master_dir=os.getcwd())
+                         nspat=10, spectrograph='dummy')
 
     # Remove any existing file from previous runs that were interrupted
+    tst_file = data_path('tst_slittrace.fits')
+    if os.path.isfile(tst_file):
+        os.remove(tst_file)
 
     # Try to save it
-    slits.to_file(data_path('tst_slittrace.fits'))
+    slits.to_file(tst_file)
 
-    _slits = SlitTraceSet.from_file(data_path('tst_slittrace.fits'))
+    _slits = SlitTraceSet.from_file(tst_file)
 
-    assert np.array_equal(_slits.left, np.full((1000, 3), 2, dtype=float)), 'Bad left read'
+    assert np.array_equal(_slits.left, np.full((1000, 1), 2, dtype=float)), 'Bad left read'
     # And that it's the same as the existing one
     assert np.array_equal(_slits.left, slits.left), 'Bad left read'
 
     # Try to read/write to a custom file name
     # Remove existing file from previous runs that were interrupted
-    other_ofile = 'test.fits.gz'
-    if os.path.isfile(other_ofile):
-        os.remove(other_ofile)
+    if os.path.isfile(tst_file):
+        os.remove(tst_file)
 
     # Test write
-    slits.to_file(other_ofile)
+    slits.to_file(tst_file)
 
     # Test overwrite
-    slits.to_file(other_ofile, overwrite=True)
+    slits.to_file(tst_file, overwrite=True)
 
     # Test from_file
-    _slits = SlitTraceSet.from_file(other_ofile)
+    _slits = SlitTraceSet.from_file(tst_file)
     assert np.array_equal(slits.right, _slits.right), 'Bad read from_file'
 
     # Clean up
-    os.remove(slits.master_file_path)
-    os.remove(other_ofile)
+    os.remove(tst_file)
 
 
