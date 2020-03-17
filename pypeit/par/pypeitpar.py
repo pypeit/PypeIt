@@ -136,7 +136,7 @@ class FrameGroupPar(ParSet):
                           'the list.  Use None to indicate no limit; i.e., to select exposures ' \
                           'with any time greater than 30 sec, use exprng = [30, None].'
 
-        defaults['processing_steps'] = ['']
+        defaults['processing_steps'] = []
         dtypes['processing_steps'] = list
         options['processing_steps'] = FrameGroupPar.valid_processing_steps()
         descr['processing_steps'] = 'Steps to be applied during processing.  Modify these at your own risk!! ' \
@@ -190,7 +190,7 @@ class FrameGroupPar(ParSet):
         """
         Return the list of valid processing steps
         """
-        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask', '']
+        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask']
 
     def validate(self):
         if self.data['useframe'] is None:

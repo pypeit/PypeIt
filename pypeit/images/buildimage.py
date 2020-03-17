@@ -60,7 +60,7 @@ class TiltImage(pypeitimage.PypeItImage):
     hdu_prefix = 'TILT_'
 
     # Master fun
-    master_type = 'Tilt'
+    master_type = 'Tiltimg'
     frametype = 'tilt'
     file_format = 'fits'
 

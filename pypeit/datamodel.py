@@ -927,8 +927,6 @@ class DataContainer:
                     # Grab it
                     d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
                         else Table.read(hdu[hduindx])
-                if not dm_type_passed:
-                    import pdb; pdb.set_trace()
 
 
         for e in _ext:

@@ -163,12 +163,12 @@ def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, w
     master_key = 'A_1_01'
     if aimg:
         arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
-        AImg = buildimage.ArcImage.from_master_file(arc_file)
+        AImg = buildimage.ArcImage.from_file(arc_file)
 
     if mstilt:
         # We use an arc
         arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
-        AImg = buildimage.ArcImage.from_master_file(arc_file)
+        AImg = buildimage.ArcImage.from_file(arc_file)
         # Convert
         mstilt = buildimage.TiltImage.from_pypeitimage(AImg)
         ret.append(mstilt)

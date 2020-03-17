@@ -228,7 +228,7 @@ class FlatField(object):
                 Show the results in the ginga viewer.
 
         Returns:
-            `FlatImages`_:
+            :class:`FlatImages`:
         """
         # Build the pixel flat (as needed)
         #self.build_pixflat()

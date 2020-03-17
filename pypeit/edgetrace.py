@@ -389,7 +389,7 @@ class EdgeTraceSet(object):
     file_format = 'fits.gz'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
 
-    def __init__(self, trace_img, spectrograph, par, bpm=None, det=1,
+    def __init__(self, trace_img, spectrograph, par, bpm=None, det=None, qa_path=None,
                  auto=False, debug=False, show_stages=False, save=False, load=False,
                  files=None):
 
@@ -412,7 +412,7 @@ class EdgeTraceSet(object):
         # TODO: Need a separate mask for the sobel image?
         self.nspec = None               # The shape of the trace image is (nspec,nspat)
         self.nspat = None
-        self.binning = self.trace_img.detector.binning   # Detector ordered spectral then spatial
+        self.binning = None
 
         self.traceid = None             # The ID numbers for each trace
         self.spat_img = None            # (Integer) Pixel nearest the slit edge for each trace
@@ -443,9 +443,9 @@ class EdgeTraceSet(object):
             self.load()
         #elif self.img is not None:
         #    # Provided a trace image so instantiate the object.
-        #    if auto:
-        #        self.auto_trace(img, bpm=bpm, det=det, binning=binning, save=save, debug=debug,
-        #                        show_stages=show_stages)
+        if auto:
+            self.auto_trace(bpm=bpm, det=det, binning=self.trace_img.detector.binning,
+                            save=save, debug=debug, show_stages=show_stages)
         #    else:
         #        # JFH Is this option every used?
         #        self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=save)
@@ -846,6 +846,8 @@ class EdgeTraceSet(object):
         #    _img = img
         if binning is not None:
             self.binning = binning
+        else:
+            self.binning = self.trace_img.detector.binning
 
         # TODO: keep the TraceImage object instead of deconstructing
         # it?  For direct input, use a base PypeItImage object
@@ -1213,7 +1215,11 @@ class EdgeTraceSet(object):
             msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
-            this = cls(load_spectrograph(hdu[0].header['PYP_SPEC']),
+            # THIS IS A HACK
+            img = hdu['TRACEIMG'].data.astype(float)
+            traceImage = TraceImage(img)
+            #
+            this = cls(traceImage, load_spectrograph(hdu[0].header['PYP_SPEC']),
                        EdgeTracePar.from_header(hdu[0].header))
 
             # Re-initialize and validate

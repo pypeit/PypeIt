@@ -86,6 +86,8 @@ class PypeItImage(datamodel.DataContainer):
         #slf = super(PypeItImage, cls).from_hdu(hdul, hdu_prefix=hdu_prefix)
         slf = super(PypeItImage, cls).from_file(ifile)
 
+        # TODO -- Check if master and launch the right one if so
+
         # Header
         slf.head0 = fits.getheader(ifile)
 
@@ -368,66 +370,6 @@ class PypeItImage(datamodel.DataContainer):
         # Image
         rdict = {}
         for attr in self.datamodel.keys():
-            if hasattr(self, attr) and getattr(self, attr) is not None:
-                rdict[attr] = True
-            else:
-                rdict[attr] = False
-        repr += ' images={}'.format(rdict)
-        repr = repr + '>'
-        return repr
-
-
-class ImageMask(datamodel.DataContainer):
-    """
-    Class to handle masks associated with an Image
-
-    Args:
-        bpm (np.ndarray):
-            Bad pixel mask (int)
-        crmask (np.ndarray, optional):
-            Cosmic Ray mask (boolean)
-
-    Attributes:
-        fullmask (np.ndarray):
-            The bitmask values for the full mask
-        pars (dict):
-            Used to hold parameters used when creating masks
-    """
-
-    bitmask = maskimage.ImageBitMask()
-    version = '1.0.0'
-    datamodel = {
-        'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
-        'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
-        'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
-    }
-
-    def __init__(self, bpm, crmask=None, fullmask=None):
-
-        # Setup the DataContainer
-        super(ImageMask, self).__init__({'bpm': bpm, 'crmask': crmask, 'fullmask': fullmask})
-
-    def _bundle(self):
-        """
-        Over-write default _bundle() method to restrict to fullmask only
-
-        Note:  crmask will not write to FITS as it is bool
-
-        Returns:
-            :obj:`list`: A list of dictionaries, each list element is
-            written to its own fits extension.
-        """
-        d = []
-        if self.fullmask is not None:
-            d.append(dict(fullmask=self.fullmask))
-        return d
-
-
-    def __repr__(self):
-        repr = '<{:s}: '.format(self.__class__.__name__)
-        # Image
-        rdict = {}
-        for attr in ['bpm', 'crmask', 'fullmask']:
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 rdict[attr] = True
             else:

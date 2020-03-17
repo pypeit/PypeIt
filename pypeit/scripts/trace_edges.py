@@ -53,9 +53,10 @@ def main(args):
     import os
     import numpy as np
     from pypeit.spectrographs.util import load_spectrograph
-    from pypeit import traceimage, edgetrace, biasframe
+    from pypeit import edgetrace
     from pypeit.pypeit import PypeIt
-    from pypeit.core import parse
+    from pypeit.images import buildimage
+    from pypeit import masterframe
 
     from IPython import embed
 
@@ -129,25 +130,30 @@ def main(args):
             proc_par['process']['bias'] = 'skip'
             msbias = None
         else:
-            biasFrame = biasframe.BiasFrame(spec, files=bias_files, det=det, par=bias_par,
-                                            master_key=master_key, master_dir=master_dir)
-            msbias = biasFrame.build_image()
+            #biasFrame = biasframe.BiasFrame(spec, files=bias_files, det=det, par=bias_par,
+            #                                master_key=master_key, master_dir=master_dir)
+            #msbias = biasFrame.build_image()
+            msbias = buildimage.buildimage_fromlist(spec, det, bias_par, bias_files)
 
         msbpm = spec.bpm(files[0], det)
 
         # Build the trace image
-        traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
-        traceImage.build_image(bias=msbias, bpm=msbpm)
+        #traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
+        #traceImage.build_image(bias=msbias, bpm=msbpm)
+        traceImage = buildimage.buildimage_fromlist(spec, det, bias_par, bias_files, bias=msbias,
+                                                    bpm=msbpm)
 
         # Trace the slit edges
         t = time.perf_counter()
-        edges = edgetrace.EdgeTraceSet(spec, trace_par, master_key=master_key,
-                                       master_dir=master_dir, img=traceImage, det=det, bpm=msbpm,
+        edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, det=det, bpm=msbpm,
                                        auto=True, debug=args.debug, show_stages=args.show,
                                        qa_path=qa_path)
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
         # Write the MasterEdges file
-        edges.save()
+        edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
+                                                                master_key,
+                                                                master_dir=master_dir)
+        edges.save(edge_masterframe_name, master_dir=master_dir, master_key=master_key)
         # Write the MasterSlits file
         edges.get_slits().to_master()
 

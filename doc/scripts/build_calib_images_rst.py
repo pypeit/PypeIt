@@ -72,8 +72,11 @@ if __name__ == '__main__':
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
     output_path = os.path.join(pypeit_root, 'doc', 'include')
 
-    for imgtyp,ofile in zip([buildimage.ArcImage, FlatImages],
+    for imgtyp,ofile in zip([buildimage.ArcImage,
+                             buildimage.BiasImage,
+                             FlatImages],
                             [os.path.join(output_path, 'datamodel_arcimage.rst'),
+                             os.path.join(output_path, 'datamodel_biasimage.rst'),
                              os.path.join(output_path, 'datamodel_flatimages.rst'),
                               ]):
         # Build the Table

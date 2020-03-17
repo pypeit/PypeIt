@@ -48,8 +48,9 @@ Current ArcImage Data Model
 ===========================
 
 Internally, the image is held in
-:class:`pypeit.arcimage.ArcImage`
-which is a :class:`pypeit.datamodel.DataContainer`.
+:class:`pypeit.images.buildimage.ArcImage`
+which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
+:class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
 .. include:: include/datamodel_arcimage.rst
