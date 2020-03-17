@@ -106,28 +106,16 @@ class FlatField(object):
             The parameters used to type and process the flat frames.
         files (:obj:`list`, optional):
             The list of files to process.  Can be an empty list.
-        det (:obj:`int`, optional):
+        det (:obj:`int`):
             The 1-indexed detector number to process.
-        master_key (:obj:`str`, optional):
-            The string identifier for the instrument configuration.  See
-            :class:`pypeit.masterframe.MasterFrame`.
-        master_dir (:obj:`str`, optional):
-            Path to master frames
-        msbias (`numpy.ndarray`_, :obj:`str`, optional):
-            Either an image with the bias to be subtracted, or a string
-            providing the method to use for bias correction.
-        msbpm (`numpy.ndarray`_, optional):
-            Bad pixel mask image
+        slits (:class:`pypeit.edgetrace.SlitTraceSet`):
+            The current slit traces.
         flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`, optional):
             User-level parameters for constructing the flat-field
             corrections.  If None, the default parameters are used.
-        slits (:class:`pypeit.edgetrace.SlitTraceSet`):
-            The current slit traces.
         wavetilts (:obj:`dict`, optional):
             The current wavelength tilt traces; see
             :class:`pypeit.wavetilts.WaveTilts`.
-        reuse_masters (:obj:`bool`, optional):
-            Reuse already created master files from disk.
 
     Attributes:
         rawflatimg (PypeItImage):
@@ -135,56 +123,22 @@ class FlatField(object):
             Normalized flat
         msillumflat (ndarray):
             Illumination flat
+        flat_model (ndarray):
+            Model of the flat
     """
 
     # Frame type is a class attribute
     frametype = 'pixelflat'
     master_type = 'Flat'
 
-#    # TODO: Why is par passed in here?
-#    @classmethod
-#    def from_master_file(cls, master_file, par=None):
-#        """
-#        Instantiate the class from a master file
-#
-#        Args:
-#            master_file (str):
-#            par (:class:`pypeit.par.pypeitpar.PypeItPar`, optional):
-#                Full par set
-#
-#        Returns:
-#            :class:`pypeit.flatfield.FlatField`:
-#                With the flat images loaded up
-#
-#        """
-#        # Spectrograph
-#        spectrograph, extras = masterframe.items_from_master_file(master_file)
-#        head0 = extras[0]
-#        # Par
-#        if par is None:
-#            par = spectrograph.default_pypeit_par()
-#        # Instantiate, load, return
-#        self = cls(spectrograph, par['calibrations']['pixelflatframe'],
-#                   master_dir=head0['MSTRDIR'], master_key=head0['MSTRKEY'], reuse_masters=True)
-#        self.load()
-#        return self
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, det=1, slits=None, wavetilts=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar, det, slits, wavetilts=None):
 
         # Defatuls
         self.spectrograph = spectrograph
         self.det = det
         # FieldFlattening parameters
         self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
-
-        # Instantiate the base classes
-        #   - Basic processing of the raw images
-        #calibrationimage.CalibrationImage.__init__(self, spectrograph, det, self.par['process'],
-        #                                           files=files)
-        #   - Construction and interface as a master frame
-        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-        #                                 master_key=master_key, reuse_masters=reuse_masters)
-
 
         # Input data
         self.slits = slits
@@ -287,49 +241,23 @@ class FlatField(object):
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
-            self.show(slits=True, wcs_match = True)
+            self.show(wcs_match=True)
 
         # Return
         return FlatImages(self.rawflatimg.image, self.mspixelflat,
                           self.msillumflat, self.flat_model)
 
-    def show(self, show_slits=True, wcs_match=True):
+    def show(self, wcs_match=True):
         """
         Show all of the flat field products in ginga.
 
         Args:
-            show_slits (:obj:`bool`, optional):
-                Overlay the slit edges on the flat-field images
             wcs_match (:obj:`bool`, optional):
                 Match the WCS of the flat-field images
         """
-        ginga.connect_to_ginga(raise_err=True, allow_new=True)
-
-        # TODO: Add an option that shows the relevant stuff in a
-        # matplotlib window.
-        viewer, ch = ginga.show_image(self.mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
-                                      wcs_match=wcs_match, clear=True)
-        viewer, ch = ginga.show_image(self.msillumflat, chname='illumflat', cuts=(0.9, 1.1),
-                                      wcs_match=wcs_match)
-        viewer, ch = ginga.show_image(self.rawflatimg.image, chname='flat', wcs_match=wcs_match)
-        viewer, ch = ginga.show_image(self.flat_model, chname='flat_model', wcs_match=wcs_match)
-
-        if not show_slits:
-            return
-
         # Get the slits
-        if self.slits is None:
-            # Try to load the slits
-            try:
-                slits = slittrace.SlitTraceSet.from_master(self.master_key, self.master_dir)
-            except:
-                msgs.warn('Could not load slits to show with flat-field images.')
-                slits = None
-        else:
-            slits = self.slits
-        # Show them if they exist
-        if slits is not None:
-            ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        show_flats(self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model,
+                   wcs_match=wcs_match, slits=self.slits)
 
 #    def save(self, outfile=None, overwrite=True):
 #        """
@@ -944,4 +872,20 @@ class FlatField(object):
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
 
 
+def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, slits=None):
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
+    # TODO: Add an option that shows the relevant stuff in a
+    # matplotlib window.
+    viewer, ch = ginga.show_image(mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
+                                  wcs_match=wcs_match, clear=True)
+    viewer, ch = ginga.show_image(msillumflat, chname='illumflat', cuts=(0.9, 1.1),
+                                  wcs_match=wcs_match)
+    viewer, ch = ginga.show_image(procflat, chname='flat', wcs_match=wcs_match)
+    viewer, ch = ginga.show_image(flat_model, chname='flat_model', wcs_match=wcs_match)
+
+    if slits is None:
+        return
+
+    # Show them if they exist
+    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)

@@ -12,7 +12,8 @@ import numpy as np
 from pypeit import msgs
 from pypeit.io import initialize_header
 
-import astropy
+from astropy.io import fits
+
 
 def construct_file_name(master_obj, master_key, master_dir=None):
     """
@@ -35,6 +36,28 @@ def construct_file_name(master_obj, master_key, master_dir=None):
     filename = os.path.join(master_dir, basefile) if master_dir is not None else basefile
     # Return
     return filename
+
+
+def grab_key_mdir(inp):
+    """
+    Grab master_key and master_dir from a file or header
+
+    Args:
+        inp (:obj:`str1 or astropy.io.fits.Header):
+
+    Returns:
+        tuple:  str, str of master_key and master_dir
+
+    """
+    if isinstance(inp, str):
+        head0 = fits.getheader(inp)
+    elif isinstance(inp, fits.Header):
+        head0 = inp
+    # Grab it
+    master_key = head0['MSTRKEY']
+    master_dir = head0['MSTRDIR']
+    # Return
+    return master_key, master_dir
 
 
 def build_master_header(master_obj, master_key, master_dir, spectrograph,

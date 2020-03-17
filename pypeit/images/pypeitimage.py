@@ -63,9 +63,10 @@ class PypeItImage(datamodel.DataContainer):
         'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
     }
-    bitmask = maskimage.ImageBitMask()
-
     datamodel = datamodel_v100.copy()
+
+    # For masking
+    bitmask = maskimage.ImageBitMask()
 
     @classmethod
     def from_file(cls, ifile, hdu_prefix=None):
@@ -303,10 +304,11 @@ class PypeItImage(datamodel.DataContainer):
 
     def sub(self, other, par):
         """
-        Subtract a ScienceImage object from another
+        Subtract one PypeItImage from another
         Extras (e.g. ivar, masks) are included if they are present
+
         Args:
-            other (ScienceImage):
+            other (`PypeItImage`_):
             par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
                 Parameters that dictate the processing of the images.  See
                 :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the defaults
