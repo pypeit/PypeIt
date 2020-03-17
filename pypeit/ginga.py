@@ -330,11 +330,12 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
     top = int(2*nspec/3.)
     bot = int(nspec/5.)
 
-    # Plot lefts, ...   Points need to be int or float.  the .tolist() on each array insures this
+    # Plot lefts. Points need to be int or float. Use of .tolist() on
+    # each array insures this
     for i in range(nleft):
         points = list(zip(y[::pstep].tolist(), _left[::pstep,i].tolist())) if rotate \
                     else list(zip(_left[::pstep,i].tolist(), y[::pstep].tolist()))
-        canvas.add(str('path'), points, color=str('red'))
+        canvas.add(str('path'), points, color=str('green'))
         if not synced:
             # Add text
             xt, yt = float(_left_id_loc[top,i]), float(y[top])
@@ -342,15 +343,16 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('red'),
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('green'),
                        fontsize=20.)
-            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('red'), fontsize=20.)
+            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
 
-    # ... then rights, ...
+    # Plot rights. Points need to be int or float. Use of .tolist() on
+    # each array insures this
     for i in range(nright):
         points = list(zip(y[::pstep].tolist(), _right[::pstep,i].tolist())) if rotate \
                     else list(zip(_right[::pstep,i].tolist(), y[::pstep].tolist()))
-        canvas.add(str('path'), points, color=str('green'))
+        canvas.add(str('path'), points, color=str('red'))
         if not synced:
             # Add text
             xt, yt = float(_right_id_loc[top,i]), float(y[top])
@@ -358,12 +360,12 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('green'),
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_right_ids[i])), color=str('red'),
                        fontsize=20.)
-            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
+            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('red'),
                        fontsize=20.)
 
-    # ... and then add slit labels, if synced.
+    # Plot slit labels, if synced
     if not synced:
         return
     for i in range(nslits):
