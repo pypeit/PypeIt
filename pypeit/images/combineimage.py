@@ -190,4 +190,3 @@ class CombineImage(object):
         """
         return len(self.files) if isinstance(self.files, (np.ndarray, list)) else 0
 
-
