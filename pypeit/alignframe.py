@@ -157,7 +157,8 @@ class Alignment(masterframe.MasterFrame):
     Args:
         msalign (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
             Align image, created by the AlignFrame class
-        tslits_dict (dict or None):  TraceSlits dict
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
+            Slit edges
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set

@@ -386,7 +386,7 @@ class Reduce(object):
         return None, None, None
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
-                      show_fit=False, show=False, show_objs=False):
+                      show_fit=False, show=False, show_objs=False, joint_fit=False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -394,10 +394,13 @@ class Reduce(object):
 
         Args:
             skymask (np.ndarray):
+                A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
             show_fit (bool, optional):
             show (bool, optional):
             show_objs (bool, optional):
+            joint_fit (bool):
+                Jointly fit the sky in all slits simultaneously?
 
         Returns:
             numpy.ndarray: image of the the global sky model
@@ -427,22 +430,38 @@ class Reduce(object):
         # select the latter, use the method with `original=True`.
         left, right = self.slits.select_edges()
 
-        # Loop on slits
-        for slit in gdslits:
-            msgs.info("Global sky subtraction for slit: {:d}".format(slit))
-            thismask = (self.slitmask == slit)
+        if joint_fit:
+            msgs.info("Performing joint global sky subtraction")
+            thismask = (self.slitmask != 0)
             inmask = (self.sciImg.mask == 0) & thismask & skymask_now
             # Find sky
             self.global_sky[thismask] \
-                    = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                           thismask, left[:,slit], right[:,slit], inmask=inmask,
-                                           sigrej=sigrej, trim_edg=trim_edg,
-                                           bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                           no_poly=self.par['reduce']['skysub']['no_poly'],
-                                           pos_mask=(not self.ir_redux), show_fit=show_fit)
+                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.caliBrate.waveImage.image,
+                                       thismask, left, right, inmask=inmask,
+                                       sigrej=sigrej, trim_edg=trim_edg,
+                                       bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                       no_poly=self.par['reduce']['skysub']['no_poly'],
+                                       pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
-                self.maskslits[slit] = True
+                msgs.error("Cannot perform joint global sky fit")
+        else:
+            # Loop on slits
+            for slit in gdslits:
+                msgs.info("Global sky subtraction for slit: {:d}".format(slit))
+                thismask = (self.slitmask == slit)
+                inmask = (self.sciImg.mask == 0) & thismask & skymask_now
+                # Find sky
+                self.global_sky[thismask] \
+                        = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
+                                               thismask, left[:,slit], right[:,slit], inmask=inmask,
+                                               sigrej=sigrej, trim_edg=trim_edg,
+                                               bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                               no_poly=self.par['reduce']['skysub']['no_poly'],
+                                               pos_mask=(not self.ir_redux), show_fit=show_fit)
+                # Mask if something went wrong
+                if np.sum(self.global_sky[thismask]) == 0.:
+                    self.maskslits[slit] = True
 
         if update_crmask:
             self.sciImg.update_mask_cr(subtract_img=self.global_sky)
@@ -1143,7 +1162,7 @@ class IFUReduce(Reduce):
         skymask_init = self.load_skyregions()
 
         # Global sky subtract
-        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
+        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False, joint_fit=False).copy()
 
         from pypeit.io import write_to_fits
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)

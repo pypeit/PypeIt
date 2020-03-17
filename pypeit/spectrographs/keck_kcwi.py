@@ -185,7 +185,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Sky subtraction parameters
         par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 3.0
+        par['reduce']['skysub']['bspline_spacing'] = 0.5
 
         return par
 

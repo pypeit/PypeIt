@@ -47,7 +47,7 @@ def skysub_npoly(thismask):
     return npoly
 
 
-def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = None, bsp=0.6, sigrej=3.0, maxiter=35,
+def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=None, bsp=0.6, sigrej=3.0, maxiter=35,
                   trim_edg=(3,3), pos_mask=True, show_fit=False, no_poly=False, npoly=None):
     """
     Perform global sky subtraction on an input slit
@@ -103,15 +103,13 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
 
     """
 
-    # Synthesize ximg, and edgmask  from slit boundaries. Doing this outside this
+    # Synthesize ximg, and edgmask from slit boundaries. Doing this outside this
     # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
+    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
     # TESTING!!!!
     #no_poly=True
     #show_fit=True
-
-    ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
-
 
     # Init
     (nspec, nspat) = image.shape
