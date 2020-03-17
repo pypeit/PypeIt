@@ -157,61 +157,61 @@ class SlitTraceSet(datamodel.DataContainer):
 
     # NOTE: Don't need to overload the DataContainer.from_file method
     # because it simply calls this from_hdu method.
-    @classmethod
-    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
-        """
-        Instantiate the object from an HDU extension.
+#    @classmethod
+#    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+#        """
+#        Instantiate the object from an HDU extension.
+#
+#        This is primarily a wrapper for :func:`_parse`.
+#
+#        Args:
+#            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+#                The HDU(s) with the data to use for instantiation.
+#        """
+#        # NOTE: We can't use `cls(cls._parse(hdu))` here because this
+#        # will call the `__init__` method of the derived class and we
+#        # need to use the `__init__` of the base class instead. So
+#        # below, I get an empty instance of the derived class using
+#        # `__new__`, instantiate the MasterFrame components, call the
+#        # parent `__init__`, and then return the result. The `__init__`
+#        # methods for both base classes are called explicitly to avoid
+#        # resolution-order issues with `super`.
+#        self = super().__new__(cls)
+#        # Instantiate the MasterFrame.
+#        hdr = hdu[0].header if isinstance(hdu, fits.HDUList) else hdu.header
+#        if hdr['MSTRTYP'] != self.master_type:
+#            msgs.warn('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
+#                        hdr['MSTRTYP'], self.master_type))
+#        # Instantiate the DataContainer
+#        datamodel.DataContainer.__init__(self, cls._parse(hdu)[0])
+#        return self
 
-        This is primarily a wrapper for :func:`_parse`.
-
-        Args:
-            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
-                The HDU(s) with the data to use for instantiation.
-        """
-        # NOTE: We can't use `cls(cls._parse(hdu))` here because this
-        # will call the `__init__` method of the derived class and we
-        # need to use the `__init__` of the base class instead. So
-        # below, I get an empty instance of the derived class using
-        # `__new__`, instantiate the MasterFrame components, call the
-        # parent `__init__`, and then return the result. The `__init__`
-        # methods for both base classes are called explicitly to avoid
-        # resolution-order issues with `super`.
-        self = super().__new__(cls)
-        # Instantiate the MasterFrame.
-        hdr = hdu[0].header if isinstance(hdu, fits.HDUList) else hdu.header
-        if hdr['MSTRTYP'] != self.master_type:
-            msgs.warn('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
-                        hdr['MSTRTYP'], self.master_type))
-        # Instantiate the DataContainer
-        datamodel.DataContainer.__init__(self, cls._parse(hdu)[0])
-        return self
-
-    # TODO: I think the default overwriting should be False everywhere.
-    # Until that happens, it's changed to True here to match other
-    # MasterFrames.
-    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
-                       raw_files=None, **kwargs):
-        """
-        Write the object to the master-frame file.
-
-        This is a simple wrapper for
-        :func:`pypeit.datamodel.DataContainer.to_file` that writes
-        the file to :attr:`master_file_path`.
-
-        Args:
-            overwrite (:obj:`bool`, optional):
-                Flag to overwrite any existing file.
-        """
-        # Output file
-        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
-        # Header
-        hdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              spectrograph, steps=steps,
-                                              raw_files=raw_files)
-        self.to_file(ofile, primary_hdr=hdr, hdu_prefix=self.hdu_prefix,
-                                              limit_hdus=self.output_to_disk,
-                                              overwrite=True,
-                                              **kwargs)
+#    # TODO: I think the default overwriting should be False everywhere.
+#    # Until that happens, it's changed to True here to match other
+#    # MasterFrames.
+#    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
+#                       raw_files=None, **kwargs):
+#        """
+#        Write the object to the master-frame file.
+#
+#        This is a simple wrapper for
+#        :func:`pypeit.datamodel.DataContainer.to_file` that writes
+#        the file to :attr:`master_file_path`.
+#
+#        Args:
+#            overwrite (:obj:`bool`, optional):
+#                Flag to overwrite any existing file.
+#        """
+#        # Output file
+#        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+#        # Header
+#        hdr = masterframe.build_master_header(self, master_key, master_dir,
+#                                              spectrograph, steps=steps,
+#                                              raw_files=raw_files)
+#        self.to_file(ofile, primary_hdr=hdr, hdu_prefix=self.hdu_prefix,
+#                                              limit_hdus=self.output_to_disk,
+#                                              overwrite=True,
+#                                              **kwargs)
         #self.to_file(self.master_file_path, overwrite=overwrite, checksum=True)
 
     # NOTE: No need to overwrite DataContainer.to_file, because it will call this function.
@@ -317,7 +317,7 @@ class SlitTraceSet(datamodel.DataContainer):
         return super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
 
     @classmethod
-    def _parse(cls, hdu):
+    def _parse(cls, hdu, hdu_prefix=None):
         """
         Parse the data that was previously written to a fits file.
 

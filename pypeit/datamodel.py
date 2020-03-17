@@ -1221,6 +1221,15 @@ class DataContainer:
         """
         if not os.path.isfile(ifile):
             raise FileNotFoundError('{0} does not exist!'.format(ifile))
+        # Master frame check?
+        if hasattr(cls, 'master_type'):
+            hdr = fits.getheader(ifile)
+            if 'MSTRTYP' in hdr.keys():
+                if hdr['MSTRTYP'] != cls.master_type:
+                    msgs.error('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
+                        hdr['MSTRTYP'], cls.master_type))
+            else:
+                msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
         if verbose:
             msgs.info("Loading {} from {}".format(cls.__name__, ifile))
         with fits.open(ifile) as hdu:
@@ -1241,5 +1250,15 @@ class DataContainer:
 
 
 def obj_is_data_container(obj):
+    """
+    Simple method to check whether an object is a data container
+
+    Args:
+        obj:
+
+    Returns:
+        bool:  True if it is
+
+    """
     answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
     return answer
