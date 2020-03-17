@@ -162,8 +162,17 @@ class CombineImage(object):
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
             msgs.warn("The following files contain different lamp status")
-            for file in self.files:
-                print(msgs.indent() + file)
+            # Get the longest strings
+            maxlen = max([len("Filename")]+[len(os.path.split(x)[1]) for x in self.files])
+            maxlmp = max([len("Lamp status")]+[len(x) for x in lampstat])
+            strout = "{0:" + str(maxlen) + "}  {1:s}"
+            # Print the messages
+            print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
+            print(msgs.indent() + strout.format("Filename", "Lamp status"))
+            print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
+            for ff, file in enumerate(self.files):
+                print(msgs.indent() + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
+            print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
             msgs.error("Unable to combine frames with different lamp status")
 
         # Coadd them
