@@ -4,12 +4,8 @@
 .. include:: ../links.rst
 """
 
-import inspect
-
 import os
 import numpy as np
-
-from abc import ABCMeta
 
 from pypeit import msgs
 from pypeit.par import pypeitpar
