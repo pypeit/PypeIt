@@ -1563,7 +1563,7 @@ class TelluricPar(ParSet):
                           'polish the best fit at the end, which can improve the optimization slightly. See ' \
                           'scipy.optimize.differential_evolution for details.'
 
-        defaults['disp'] = True
+        defaults['disp'] = False
         dtypes['disp'] = bool
         descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will  display status messages to the ' \
                         'screen indicating the status of the optimization. See documentation for telluric.Telluric ' \
