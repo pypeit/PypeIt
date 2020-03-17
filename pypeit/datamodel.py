@@ -473,6 +473,7 @@ from astropy.table import Table
 
 from pypeit import io
 from pypeit import masterframe
+from pypeit import msgs
 
 class DataContainer:
     """
@@ -540,6 +541,13 @@ class DataContainer:
 
     Each derived class should provide a version to guard against data
     model changes during development.
+    """
+
+    # Define hdu_prefix
+    hdu_prefix = None
+    """
+    If set, all HDUs generated for this DataContainer will have this prefix
+    Be wary of nested DataContainer's!!
     """
 
     # Define the data model
@@ -1197,7 +1205,7 @@ class DataContainer:
 
     # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
-    def from_file(cls, ifile):
+    def from_file(cls, ifile, verbose=True):
         """
         Instantiate the object from an extension in the specified fits file.
 
@@ -1213,8 +1221,10 @@ class DataContainer:
         """
         if not os.path.isfile(ifile):
             raise FileNotFoundError('{0} does not exist!'.format(ifile))
+        if verbose:
+            msgs.info("Loading {} from {}".format(cls.__name__, ifile))
         with fits.open(ifile) as hdu:
-            return cls.from_hdu(hdu)
+            return cls.from_hdu(hdu, hdu_prefix=cls.hdu_prefix)
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)

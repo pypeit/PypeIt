@@ -103,13 +103,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
     def __init__(self, left, right, nspat=None, spectrograph=None, mask=None,
-                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0, master_key=None,
-                 master_dir=None, reuse=False):
-
-        # Instantiate the MasterFrame
-        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-        #                                 master_key=master_key, file_format=self.master_format,
-        #                                 reuse_masters=reuse)
+                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())

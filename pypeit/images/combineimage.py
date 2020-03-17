@@ -143,8 +143,8 @@ class CombineImage(object):
             else:
                 ivar_stack[kk, :, :] = 1.
             # Mask cosmic rays
-            if pypeitImage.mask.crmask is not None:
-                crmask_stack[kk, :, :] = pypeitImage.mask.crmask
+            if pypeitImage.crmask is not None:
+                crmask_stack[kk, :, :] = pypeitImage.crmask
             # Read noise squared image
             if pypeitImage.rn2img is not None:
                 rn2img_stack[kk, :, :] = pypeitImage.rn2img

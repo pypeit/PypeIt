@@ -218,13 +218,13 @@ def build_from_file_list(spectrograph, det, par, bpm, file_list, bias, pixel_fla
 
     """
     # Process steps
-    process_steps = procimg.init_process_steps(bias, par)
-    process_steps += ['trim', 'apply_gain', 'orient']
-    if pixel_flat is not None or illum_flat is not None:
-        process_steps += ['flatten']
-    process_steps += ['extras']
-    if par['cr_reject']:
-        process_steps += ['crmask']
+    #process_steps = procimg.init_process_steps(bias, par)
+    #process_steps += ['trim', 'apply_gain', 'orient']
+    #if pixel_flat is not None or illum_flat is not None:
+    #    process_steps += ['flatten']
+    #process_steps += ['extras']
+    #if par['cr_reject']:
+    #    process_steps += ['crmask']
 
     combineImage = combineimage.CombineImage(spectrograph, det, par, file_list)
     pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,

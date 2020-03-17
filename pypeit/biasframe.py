@@ -9,23 +9,11 @@ import os
 from IPython import embed
 
 from pypeit import msgs
-from pypeit import masterframe
 from pypeit.par import pypeitpar
-from pypeit.images import calibrationimage
-from pypeit.images import pypeitimage
+from pypeit.images import buildcalibration
 
 
-class BiasImage(calibrationimage.CalibrationImage):
-    # Set the version of this class
-    version = '1.0.0'
-
-    # Output to disk
-    output_to_disk = ('BIAS_IMAGE',)
-    hdu_prefix = 'BIAS_'
-    master_type = 'Bias'
-
-
-class BiasFrame(calibrationimage.BuildCalibrationImage):
+class BiasFrame(buildcalibration.BuildCalibrationImage):
     """
     Class to generate/load the Bias image or instructions on how to deal
     with the bias.
@@ -63,19 +51,15 @@ class BiasFrame(calibrationimage.BuildCalibrationImage):
     #master_type = 'Bias'
     #master_version = '1.0.0'
 
-    image_type = BiasImage
-
-    postbias_process_steps = ['trim']
-    postbias_process_steps += ['orient']
-
     def __init__(self, spectrograph, par, det, files=None):
 
+        if not isinstance(par, pypeitpar.FrameGroupPar):
+            msgs.error('Provided ParSet for must be type FrameGroupPar.')
         self.par = par
 
         # Start us up
-        calibrationimage.BuildCalibrationImage.__init__(self, spectrograph, det,
-                                                        self.par['process'], files,
-                                                        bias=None)
+        buildcalibration.BuildCalibrationImage.__init__(self, spectrograph, det,
+                                                        self.par, files, bias=None)
 
     def build_image(self, overwrite=False, trim=True):
         """

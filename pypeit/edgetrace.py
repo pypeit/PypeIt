@@ -53,7 +53,8 @@ detector is as follows::
     rdx.par['calibrations']['traceframe']['process']['bias'] = 'skip'
 
     # Construct the TraceImage
-    traceImage = traceimage.TraceImage(rdx.spectrograph, files=files, det=det,
+    # TODO -- Update this
+    traceImage = pypeit.images.buildcalibration.TraceImage(rdx.spectrograph, files=files, det=det,
                                        par=rdx.par['calibrations']['traceframe'])
     traceImage.build_image()
 
@@ -84,6 +85,7 @@ exposure in a fits file called `trace_file`::
     master_dir = os.path.split(os.path.abspath(trace_file))[0]
     master_key = 'test_trace_{0}'.format(det)
 
+    # TODO - update this
     traceImage = traceimage.TraceImage(spec, files=[trace_file], det=det,
                                        par=par['calibrations']['traceframe'])
     traceImage.build_image()
@@ -126,7 +128,7 @@ from pypeit import slittrace
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
-from pypeit.traceimage import TraceImage
+from pypeit.images.buildcalibration import TraceImage
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
@@ -265,9 +267,9 @@ class EdgeTraceSet(object):
         qa_path (:obj:`str`, optional):
             Directory for QA output. If None, no QA plots are
             provided.
-        img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`, optional):
+        img (`numpy.ndarray`_, :class:`pypeit.images.buildcalibration.TraceImage`, optional):
             Two-dimensional image used to trace slit edges. If a
-            :class:`pypeit.traceimage.TraceImage` is provided, the
+            :class:`pypeit.images.buildcalibration.TraceImage` is provided, the
             raw files used to construct the image are saved.
         bpm (`numpy.ndarray`_, optional):
             Bad-pixel boolean mask for the trace image. Must have the
@@ -310,7 +312,7 @@ class EdgeTraceSet(object):
             The list of raw files used to construct the trace image
             (:attr:`img`). Only defined if argument `img` in
             :func:`initial_trace` or :func:`auto_trace` is a
-            :class:`pypeit.traceimage.TraceImage` object.
+            :class:`pypeit.images.buildcalibration.TraceImage` object.
         img (`numpy.ndarray`_):
             See argument list.
         bpm (`numpy.ndarray`_):
@@ -337,7 +339,7 @@ class EdgeTraceSet(object):
         binning (:obj:`str`, optional):
             On-detector binning of the data ordered spectral then
             spatial with format, e.g., `2,1`. Ignored if `img` is
-            an instance of :class:`pypeit.traceimage.TraceImage`.
+            an instance of :class:`pypeit.images.buildcalibration.TraceImage`.
         traceid (`numpy.ndarray`_):
             The list of unique trace IDs.
         spat_img (`numpy.ndarray`_):
@@ -658,9 +660,9 @@ class EdgeTraceSet(object):
             - Use :func:`save` to save the results, if requested.
 
         Args:
-            img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`):
+            img (`numpy.ndarray`_, :class:`pypeit.images.buildcalibration.TraceImage`):
                 2D image used to trace slit edges. If a
-                :class:`pypeit.traceimage.TraceImage` is provided,
+                :class:`pypeit.images.buildcalibration.TraceImage` is provided,
                 the raw files used to construct the image and on-chip
                 binning are saved; the latter overrides any directly
                 provided `binning`. The array should have shape
@@ -676,7 +678,7 @@ class EdgeTraceSet(object):
             binning (:obj:`str`, optional):
                 On-detector binning of the data ordered spectral then
                 spatial with format, e.g., `2,1`. Ignored if `img` is
-                an instance of :class:`pypeit.traceimage.TraceImage`.
+                an instance of :class:`pypeit.images.buildcalibration.TraceImage`.
             save (:obj:`bool`, optional):
                 Save the result to the master frame.
             debug (:obj:`bool`, optional):
@@ -827,9 +829,9 @@ class EdgeTraceSet(object):
         frame; see `save` argument and :func:`save`.
 
         Args:
-            img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`):
+            img (`numpy.ndarray`_, :class:`pypeit.images.buildcalibration.TraceImage`):
                 2D image used to trace slit edges. If a
-                :class:`pypeit.traceimage.TraceImage` is provided,
+                :class:`pypeit.images.buildcalibration.TraceImage` is provided,
                 the raw files used to construct the image and on-chip
                 binning are saved; the latter overrides any directly
                 provided `binning`. The array should have shape
@@ -845,7 +847,7 @@ class EdgeTraceSet(object):
             binning (:obj:`str`, optional):
                 On-detector binning of the data ordered spectral then
                 spatial with format, e.g., `2,1`. Ignored if `img` is
-                an instance of :class:`pypeit.traceimage.TraceImage`.
+                an instance of :class:`pypeit.images.buildcalibration.TraceImage`.
             save (:obj:`bool`, optional):
                 Save the result to the master frame.
         """

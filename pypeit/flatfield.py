@@ -22,7 +22,6 @@ from pypeit import masterframe
 from pypeit import slittrace
 
 from pypeit.par import pypeitpar
-from pypeit.images import calibrationimage
 from pypeit import datamodel
 from pypeit.core import flat
 from pypeit.core import tracewave
@@ -89,20 +88,6 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
-
-class BuildFlatImage(calibrationimage.BuildCalibrationImage):
-    """
-    Generate an unnormalzed pixelflat image by processing and combining one or more arc frames.
-
-    See :class:`pypeit.images.BuildCalibrationImage` for the __init__
-    """
-    # Define the processing steps *after* bias/overscan subtraction
-    postbias_process_steps = ['trim']
-    postbias_process_steps += ['orient']
-    postbias_process_steps += ['apply_gain']
-    #    self.process_steps += ['crmask']
-
-    # Image type will be a PypeItImage
 
 class FlatField(object):
     """

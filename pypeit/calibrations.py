@@ -15,17 +15,14 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import arcimage
-from pypeit import tiltimage
-from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import edgetrace
 from pypeit import masterframe
 from pypeit import slittrace
-from pypeit import traceimage
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import waveimage
+from pypeit.images import buildcalibration
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import parse
 from pypeit.par import pypeitpar
@@ -301,7 +298,7 @@ class Calibrations(object):
         # Prep
         arc_files = self._prep_calibrations('arc')
         masterframe_name = masterframe.construct_file_name(
-            arcimage.ArcImage, self.master_key_dict['arc'], master_dir=self.master_dir)
+            buildcalibration.ArcImage, self.master_key_dict['arc'], master_dir=self.master_dir)
 
         # Previously calculated?  If so, reuse
         if self._cached('arc', self.master_key_dict['arc']):
@@ -310,21 +307,17 @@ class Calibrations(object):
 
         # Reuse master frame?
         if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.msarc = arcimage.ArcImage.from_master_file(masterframe_name)
+            self.msarc = buildcalibration.ArcImage.from_file(masterframe_name)
         else:  # Build it
-            msgs.info("Preparing a master {0:s} frame".format(arcimage.ArcImage.frametype))
-            buildArcImage = arcimage.BuildArcImage(self.spectrograph, self.det,
-                                                        self.par['arcframe']['process'],
-                                                        arc_files,
-                                                        bias=self.msbias)
-            self.msarc = buildArcImage.build_image(bias=self.msbias, bpm=self.msbpm)
-
+            msgs.info("Preparing a master {0:s} frame".format(buildcalibration.ArcImage.frametype))
+            self.msarc = buildcalibration.buildcalibrationimage(self.spectrograph, self.det,
+                                                        self.par['arcframe'], arc_files,
+                                                        bias=self.msbias, bpm=self.msbpm)
             # Save
             if self.save_masters:
                 self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
                                           self.spectrograph.spectrograph,  # Header
-                                          steps=buildArcImage.process_steps,
-                                          raw_files=arc_files)
+                                          steps=self.msarc.process_steps, raw_files=arc_files)
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
         # Return
@@ -349,7 +342,7 @@ class Calibrations(object):
         # Prep
         tilt_files = self._prep_calibrations('tilt')
         masterframe_name = masterframe.construct_file_name(
-            tiltimage.TiltImage, self.master_key_dict['tilt'], master_dir=self.master_dir)
+            buildcalibration.TiltImage, self.master_key_dict['tilt'], master_dir=self.master_dir)
 
         # Previously calculated?  If so, reuse
         if self._cached('tiltimg', self.master_key_dict['tilt']):
@@ -358,19 +351,17 @@ class Calibrations(object):
 
         # Reuse master frame?
         if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.mstilt = tiltimage.TiltImage.from_master_file(masterframe_name)
+            self.mstilt = buildcalibration.TiltImage.from_file(masterframe_name)
         else: # Build
-            msgs.info("Preparing a master {0:s} frame".format(tiltimage.TiltImage.frametype))
-            buildtiltImage = tiltimage.BuildTiltImage(self.spectrograph, self.det,
-                                                       self.par['tiltframe']['process'],
-                                                       tilt_files, bias=self.msbias)
-            self.mstilt = buildtiltImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            msgs.info("Preparing a master {0:s} frame".format(buildcalibration.TiltImage.frametype))
+            self.mstilt = buildcalibration.buildcalibrationimage(self.spectrograph, self.det, self.par['tiltframe'],
+                                                                 tilt_files, bias=self.msbias, bpm=self.msbpm)
 
             # Save to Masters
             if self.save_masters:
                 self.mstilt.to_master_file(self.master_dir, self.master_key_dict['tilt'],  # Naming
                                       self.spectrograph.spectrograph,  # Header
-                                      steps=buildtiltImage.process_steps,
+                                      steps=self.mstilt.process_steps,
                                       raw_files=tilt_files)
 
         # Cache
@@ -396,8 +387,16 @@ class Calibrations(object):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
+        if self.par['biasframe']['useframe'].lower() == 'none':
+            self.msbias = None
+            return self.msbias
+
         # Prep
         bias_files = self._prep_calibrations('bias')
+        # Construct the name, in case we need it
+        masterframe_name = masterframe.construct_file_name(buildcalibration.BiasImage,
+                                                           self.master_key_dict['bias'],
+                                                           master_dir=self.master_dir)
 
         # Grab from internal dict (or hard-drive)?
         if self._cached('bias', self.master_key_dict['bias']):
@@ -405,28 +404,25 @@ class Calibrations(object):
             msgs.info("Reloading the bias from the internal dict")
             return self.msbias
 
-        # Instantiate
-        self.biasFrame = biasframe.BiasFrame(self.spectrograph, self.par['biasframe'],
-                                             self.det, files=bias_files)
-
-        # Construct the name, in case we need it
-        masterframe_name = masterframe.construct_file_name(biasframe.BiasImage,
-                                                           self.master_key_dict['bias'],
-                                                           master_dir=self.master_dir)
-        # Try to load the master bias
-        self.msbias = self.biasFrame.load(masterframe_name, reuse_masters=self.reuse_masters)
-        if self.msbias is None:
-            # Build it and save it
-            self.msbias = self.biasFrame.build_image()
-            if self.save_masters and self.msbias is not None:
+        # Try to load?
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.msbias = buildcalibration.BiasImage.from_file(masterframe_name)
+        else:
+            # Without files, we are stuck
+            if len(bias_files) == 0:
+                self.msbias = None
+                return self.msbias
+            # Build it
+            self.msbias = buildcalibration.buildcalibrationimage(self.spectrograph, self.det,
+                                                                 self.par['biasframe'], bias_files)
+            # Save it?
+            if self.save_masters:
                 self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
                                           self.spectrograph.spectrograph,  # Header
-                                          steps=self.biasFrame.process_steps,
+                                          steps=self.msbias.process_steps,
                                           raw_files=bias_files)
-
         # Save & return
         self._update_cache('bias', 'bias', self.msbias)
-
         return self.msbias
 
     def get_bpm(self):
@@ -548,13 +544,11 @@ class Calibrations(object):
             self.flatimages = flatfield.FlatImages.from_file(masterframe_name)
         else:
             # Process/combine the input pixelflat frames
-            buildflatImage = flatfield.BuildFlatImage(self.spectrograph, self.det,
-                                                      self.par['pixelflatframe']['process'],
-                                                      pixflat_image_files, bias=self.msbias)
-            pixflatimage = buildflatImage.build_image(bias=self.msbias, bpm=self.msbpm)
-
+            stacked_pixflat = buildcalibration.buildcalibrationimage(self.spectrograph, self.det,
+                                                                     self.par['pixelflatframe'], pixflat_image_files,
+                                                                     bias=self.msbias, bpm=self.msbpm)
             # Normalize and illumination
-            flatField = flatfield.FlatField(pixflatimage, self.spectrograph, self.par['flatfield'],
+            flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
                 det=self.det, slits=self.slits, wavetilts=self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show)
@@ -585,8 +579,7 @@ class Calibrations(object):
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning
-        # TODO: These will barf if self.wavetilts['tilts'] isn't
-        # defined.
+        # TODO: These will barf if self.wavetilts['tilts'] isn't defined.
         if self.flatimages.pixelflat is None:
             msgs.warn('You are not pixel flat fielding your data!!!')
         if self.flatimages.illumflat is None or not self.par['flatfield']['illumflatten']:
@@ -649,10 +642,9 @@ class Calibrations(object):
                 self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
                                                     files=trace_image_files)
                 # Build the trace image
-                buildtraceImage = traceimage.BuildTraceImage(self.spectrograph, self.det,
-                                                             self.par['traceframe']['process'],
-                                                             trace_image_files, bias=self.msbias)
-                self.traceImage = buildtraceImage.build_image(bias=self.msbias, bpm=self.msbpm)
+                self.traceImage = buildcalibration.buildcalibrationimage(self.spectrograph, self.det,
+                                                                         self.par['traceframe'], trace_image_files,
+                                                                         bias=self.msbias, bpm=self.msbpm)
 
                 try:
                     self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
