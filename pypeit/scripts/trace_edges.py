@@ -140,7 +140,7 @@ def main(args):
         # Build the trace image
         #traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
         #traceImage.build_image(bias=msbias, bpm=msbpm)
-        traceImage = buildimage.buildimage_fromlist(spec, det, bias_par, bias_files, bias=msbias,
+        traceImage = buildimage.buildimage_fromlist(spec, det, proc_par, bias_files, bias=msbias,
                                                     bpm=msbpm)
 
         # Trace the slit edges
@@ -155,7 +155,8 @@ def main(args):
                                                                 master_dir=master_dir)
         edges.save(edge_masterframe_name, master_dir=master_dir, master_key=master_key)
         # Write the MasterSlits file
-        edges.get_slits().to_master()
+        edges.get_slits().to_master_file(master_dir, master_key,  # Naming
+                              spec.spectrograph)  # Header
 
     return 0
 
