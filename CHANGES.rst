@@ -1,6 +1,6 @@
 
-0.13.2dev
----------
+0.13.2 (17 Mar 2020)
+--------------------
 
 - Added PypeIt identify GUI script for manual wavelength calibration
 - Add bitmask tests and print bitmask names that are invalid when
@@ -14,10 +14,6 @@
 - Deal with non-extracted Standard
 - docs docs and more docs
 - A QA fix too
-
-
-
-- docs docs and more docs
 
 0.13.1 (07 Mar 2020)
 --------------------
