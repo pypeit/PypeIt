@@ -85,11 +85,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
             par['calibrations']['wavelengths']['method'] = 'identify'  # 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = ''
-            # par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+            par['calibrations']['wavelengths']['lamps'] = ['ThAr']  # TODO :: This default may need to be changed to FeAr
         if self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM_4375.fits'
-            # par['calibrations']['wavelengths']['lamps'] = ['ThAr']
+            par['calibrations']['wavelengths']['lamps'] = ['ThAr']  # TODO :: This default may need to be changed to FeAr
 
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
@@ -321,6 +321,29 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             kk += 1
         return "_".join(lampstat)
 
+    def set_detector_par(self, par, det, value, force_update=False):
+        """
+        Update or set a parameter in the detector array
+
+        TODO ::  THIS METHOD NEEDS TO BE DELETED ONCE NEW DETECTOR CLASS IS IMPLEMENTED!!!
+
+        Args:
+            par : str
+              Parameter that needs to be updated
+            det : int
+              Detector number
+            value : any type
+              Updated value to assign parameter 'par'
+            force_update : bool
+              Overwrite a parameter, even if it's been set
+        """
+        from copy import deepcopy
+        # Update the value
+        if self.detector[det-1][par] is None or force_update:
+            msgs.info("Updating detector {0:d} parameter: {1:s}".format(det, par))
+            self.detector[det-1][par] = deepcopy(value)
+        return
+
     def get_rawimage(self, raw_file, det):
         """
         Read a raw KCWI data frame
@@ -362,6 +385,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Some properties of the image
         numamps = head0['NVIDINP']
+        specflip = True if head0['AMPID1'] == 2 else False
+        gainmul, gainarr = head0['GAINMUL'], []
         # Exposure time (used by ProcessRawImage)
         headarr = self.get_headarr(hdu)
         exptime = self.get_meta_value(headarr, 'exptime')
@@ -392,11 +417,20 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 # Assign the amplifier
                 pix_img[datasec] = i+1
 
+                if section == 'DSEC':  # Only do this once
+                    # Assign the gain for this amplifier
+                    gainarr += [head0["GAIN{0:1d}".format(i+1)]*gainmul]
+
             # Finish
             if section == 'DSEC':
                 rawdatasec_img = pix_img.copy()
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
+
+        # Update detector parameters
+        self.set_detector_par('gain', det, gainarr, force_update=True)
+        self.set_detector_par('ronoise', det, [2.7]*numamps, force_update=True)  # Note, if it's a fast read, the RON=5e-
+        self.set_detector_par('specflip', det, specflip, force_update=True)
 
         # Return
         return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
