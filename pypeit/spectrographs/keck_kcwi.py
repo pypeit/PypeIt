@@ -391,7 +391,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return raw_img, [head0], exptime, rawdatasec_img, oscansec_img
+        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """

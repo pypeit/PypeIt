@@ -426,7 +426,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         -------
         array : ndarray
             Combined image
-        headarr (list of headers)
+        hdu (astropy.io.fits.HDUList)
         sections : tuple
             List of datasec, oscansec sections
 
@@ -488,7 +488,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Return
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-        return image, [head0], exptime, rawdatasec_img, oscansec_img
+        return image, hdu, exptime, rawdatasec_img, oscansec_img
         #return image, hdu, (dsec, osec)
 
     '''

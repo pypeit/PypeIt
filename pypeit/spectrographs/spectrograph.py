@@ -454,7 +454,8 @@ class Spectrograph(object):
         Returns:
             tuple:
                 raw_img (np.ndarray) -- Raw image for this detector
-                headarr (list of headers)
+                hdu (fits.HDUList)
+                    HDUList of the file
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
@@ -516,7 +517,7 @@ class Spectrograph(object):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return raw_img, headarr, exptime, rawdatasec_img, oscansec_img
+        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def get_lamps_status(self, headarr):
         """
