@@ -127,7 +127,7 @@ class ProcessRawImage(object):
             np.ndarray: Copy of self.ivar
 
         """
-        msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
+        #msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
         # Convenience
         #detector = self.spectrograph.detector[self.det-1]
         # Generate
@@ -155,7 +155,7 @@ class ProcessRawImage(object):
             np.ndarray: Copy of the read noise squared image
 
         """
-        msgs.info("Generating read noise image from detector properties and amplifier layout)")
+        #msgs.info("Generating read noise image from detector properties and amplifier layout)")
         # Convenience
         #detector = self.spectrograph.detector[self.det-1]
         # Build it

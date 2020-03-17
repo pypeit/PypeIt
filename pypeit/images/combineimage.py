@@ -152,9 +152,10 @@ class CombineImage(object):
             # TODO This seems kludgy to me. Why not just pass ignore_saturation to process_one and ignore the saturation
             # when the mask is actually built, rather than untoggling the bit here
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
-                indx = pypeitImage.mask.bitmask.flagged(pypeitImage.mask.fullmask, flag=['SATURATION'])
-                pypeitImage.mask.fullmask[indx] = pypeitImage.mask.bitmask.turn_off(pypeitImage.mask.fullmask[indx], 'SATURATION')
-            mask_stack[kk, :, :] = pypeitImage.mask.fullmask
+                indx = pypeitImage.bitmask.flagged(pypeitImage.fullmask, flag=['SATURATION'])
+                pypeitImage.fullmask[indx] = pypeitImage.bitmask.turn_off(
+                    pypeitImage.fullmask[indx], 'SATURATION')
+            mask_stack[kk, :, :] = pypeitImage.fullmask
 
         # Coadd them
         weights = np.ones(nimages)/float(nimages)
@@ -168,13 +169,13 @@ class CombineImage(object):
         # Build the last one
         final_pypeitImage = pypeitimage.PypeItImage(img_list_out[0],
                                                     ivar=utils.inverse(var_list_out[0]),
-                                                    bpm=pypeitImage.mask.bpm,
+                                                    bpm=pypeitImage.bpm,
                                                     rn2img=var_list_out[1],
                                                     crmask=np.invert(outmask),
                                                     detector=pypeitImage.detector)
         nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
                                                               apply_gain='apply_gain' in process_steps)
-        final_pypeitImage.mask.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,
+        final_pypeitImage.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,
                                saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
                                mincounts=pypeitImage.detector['mincounts'])
         # Return

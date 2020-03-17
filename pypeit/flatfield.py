@@ -509,8 +509,8 @@ class FlatField(object):
         # TODO: The above should be the same as self.slits.nspec, self.slits.nspat
         rawflat = self.rawflatimg.image
         # Good pixel mask
-        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.mask.bpm is None else (
-                1-self.rawflatimg.mask.bpm).astype(bool)
+        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
+                1-self.rawflatimg.bpm).astype(bool)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))

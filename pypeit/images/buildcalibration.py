@@ -261,6 +261,8 @@ def buildcalibrationimage(spectrograph, det, frame_par, files, bias=None, bpm=No
         finalImage = TiltImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'trace':
         finalImage = TraceImage.from_pypeitimage(pypeitImage)
+    elif frame_par['frametype'] in ['pixelflat']:
+        finalImage = pypeitImage
     else:
         finalImage = None
         embed(header='193 of calibrationimage')
