@@ -487,7 +487,6 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     if len(table_keys) == 1:
         # TODO: If we pass hdr directly, does this call include any
         # table meta?
-        import pdb; pdb.set_trace()
         return fits.BinTableHDU(data=d[table_keys[0]], header=_hdr,
                                 name=table_keys[0] if name is None else name)
 

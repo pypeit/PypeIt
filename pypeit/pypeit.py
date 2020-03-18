@@ -16,7 +16,6 @@ from pypeit import ginga
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit.core import save
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 

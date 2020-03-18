@@ -11,11 +11,8 @@ import os
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import masterframe
 from pypeit import datamodel
-from pypeit.core import pixels
-from pypeit.core import save
-from pypeit.core import load
+
 from IPython import embed
 
 

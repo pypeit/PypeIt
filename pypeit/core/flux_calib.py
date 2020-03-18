@@ -23,9 +23,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import debugger
 from pypeit.wavemodel import conv2res
-from pypeit.core import pydl, load, save, coadd
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit import specobjs
+from pypeit.core import pydl
 
 from IPython import embed
 

@@ -14,14 +14,10 @@ from matplotlib import pyplot as plt
 from astropy import stats, visualization
 
 from pypeit import msgs
-from pypeit import masterframe
 from pypeit import datamodel
 from pypeit import ginga
-from pypeit import utils
 from pypeit.core import arc
-from pypeit.core import tracewave, pixels
-from pypeit.core import save
-from pypeit.core import load
+from pypeit.core import tracewave
 
 from IPython import embed
 

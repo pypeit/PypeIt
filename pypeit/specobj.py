@@ -55,6 +55,8 @@ class SpecObj(datamodel.DataContainer):
     """
     version = '1.1.0'
 
+    hdu_prefix = None
+
     datamodel = {
         'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
         'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
@@ -100,7 +102,7 @@ class SpecObj(datamodel.DataContainer):
         'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
         'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
         'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
-        #
+        # Detector
         'DET': dict(otype=(int, np.integer), desc='Detector number'),
         'BINNING': dict(otype=str, desc='Detector binning in PypeIt orientation "spec_bin,spat_bin", e.g. "1,1"'),
         'PLATESCALE': dict(otype=float, desc='Platescale in arcsec'),
@@ -161,7 +163,7 @@ class SpecObj(datamodel.DataContainer):
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
                limit_hdus=None, force_dict_bintbl=False):
         """
         Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
