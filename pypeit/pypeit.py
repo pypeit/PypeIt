@@ -143,6 +143,7 @@ class PypeIt(object):
         # TODO: Is anything written to the qa dir or only to qa/PNGs?
         # Should we have separate calibration and science QA
         # directories?
+        # An html file wrapping them all too
 
         # Instantiate Calibrations class
         self.caliBrate \
