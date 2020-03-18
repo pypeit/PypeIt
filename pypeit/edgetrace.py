@@ -1116,6 +1116,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             _outfile = _outfile[:_outfile.rfind('.')] 
             compress = True
 
+        # First check if a trace is available
+        if self.is_empty:
+            msgs.error("No trace information available")
         # Build the list of extensions to write
         # TODO: Separately adding the design and object data is
         # necessary because of a bug in the behavior of empty binary

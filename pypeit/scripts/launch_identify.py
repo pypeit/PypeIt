@@ -66,7 +66,7 @@ def main(args):
     par = spec.default_pypeit_par()['calibrations']['wavelengths']
 
     # Get the lamp list
-    if args.lamps is None:
+    if args.lamps == '':
         lamplist = par['lamps']
         if lamplist is None:
             print("ERROR :: Cannot determine the lamps")
@@ -83,22 +83,31 @@ def main(args):
     wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) else None
 
     # Load the MasterFrame (if it exists and is desired)?
-    wavecal = WaveCalib(msarc, slits, spec, par)
+    wavecal = WaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
+                        master_key=mkey, master_dir=mdir, msbpm=msarc.mask)
     arccen, arc_maskslit = wavecal.extract_arcs()
 
-    binspec, binspat = parse.parse_binning(spec.get_meta_value(msarc.head0['F1'], 'binning'))
-
     # Launch the identify window
-    arcfitter = gui.identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib)
+    arcfitter = gui_identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
+                                        wavelim=[args.wmin, args.wmax])
     final_fit = arcfitter.get_results()
 
     # Ask the user if they wish to store the result in PypeIt calibrations
-    ans = ''
-    while ans != 'y' and ans != 'n':
-        ans = input("Would you like to store this wavelength solution in the archive? (y/n):")
-    if ans == 'y' and final_fit['rms'] < 0.1:
-        gratname = fits.getheader(msarc.head0['F1'])[spec.meta['dispname']['card']].replace("/", "_")
-        dispangl = "UNKNOWN"
-        templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=mdir)
-        print("Your wavelength solution has been stored")
-        print("Please consider sending your solution to the PypeIt team!")
+    if final_fit['rms'] < args.rmstol:
+        ans = ''
+        while ans != 'y' and ans != 'n':
+            ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
+        if ans == 'y':
+            gratname = fits.getheader(msarc.head0['F1'])[spec.meta['dispname']['card']].replace("/", "_")
+            dispangl = "UNKNOWN"
+            templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl)
+            print("Your wavelength solution has been stored")
+            print("Please consider sending your solution to the PypeIt team!")
+    else:
+        print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], args.rmstol))
+        print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
+        ans = ''
+        while ans != 'y' and ans != 'n':
+            ans = input("Would you like to store the line IDs? (y/n): ")
+        if ans == 'y':
+            arcfitter.save_IDs()

@@ -717,6 +717,80 @@ class FlexurePar(ParSet):
 #                             self.data['spectrum']))
 
 
+class AlignPar(ParSet):
+    """
+    The parameter set used to hold arguments for tracing the
+    alignments in an align frame.
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+
+    """
+
+    def __init__(self, locations=None, trace_npoly=None, trim_edge=None, sig_thresh=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        defaults['locations'] = [0.0, 0.5, 1.0]
+        dtypes['locations'] = [list, numpy.ndarray]
+        descr['locations'] = 'Locations of the bars, in a list, specified as a fraction of the slit width'
+
+        defaults['trace_npoly'] = 8
+        dtypes['trace_npoly'] = int
+        descr['trace_npoly'] = 'Order of the polynomial to use when fitting the trace of a single bar'
+
+        defaults['trim_edge'] = [1, 1]
+        dtypes['trim_edge'] = list
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
+
+        defaults['sig_thresh'] = 1.0  # This must be low, because the routine will find the
+        dtypes['sig_thresh'] = [int, float]
+        descr['sig_thresh'] = 'Significance threshold for finding an alignment trace. This should be a low' \
+                              'number to ensure that the algorithm finds all bars. The algorithm will' \
+                              'then only use the N most significant detections, where N is the number' \
+                              'of elements specified in the "locations" keyword argument'
+
+        # Instantiate the parameter set
+        super(AlignPar, self).__init__(list(pars.keys()),
+                                           values=list(pars.values()),
+                                           defaults=list(defaults.values()),
+                                           options=list(options.values()),
+                                           dtypes=list(dtypes.values()),
+                                           descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['locations', 'trace_npoly', 'trim_edge', 'sig_thresh']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for WaveTiltsPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        """
+        Check the parameters are valid for the provided method.
+        """
+        pass
 
 
 class Coadd1DPar(ParSet):
@@ -1404,7 +1478,7 @@ class TelluricPar(ParSet):
                           'polish the best fit at the end, which can improve the optimization slightly. See ' \
                           'scipy.optimize.differential_evolution for details.'
 
-        defaults['disp'] = True
+        defaults['disp'] = False
         dtypes['disp'] = bool
         descr['disp'] = 'Argument for scipy.optimize.differential_evolution which will  display status messages to the ' \
                         'screen indicating the status of the optimization. See documentation for telluric.Telluric ' \
@@ -1626,7 +1700,7 @@ class ReduxPar(ParSet):
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
         return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
-                'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red',
+                'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
                 'vlt_fors2', 'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2',
@@ -2942,8 +3016,8 @@ class CalibrationsPar(ParSet):
     """
     def __init__(self, caldir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
-                 pinholeframe=None, traceframe=None, standardframe=None, flatfield=None,
-                 wavelengths=None, slitedges=None, tilts=None):
+                 pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
+                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2993,6 +3067,10 @@ class CalibrationsPar(ParSet):
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
+        defaults['alignframe'] = FrameGroupPar(frametype='align', number=0)
+        dtypes['alignframe'] = [ ParSet, dict ]
+        descr['alignframe'] = 'The frames and combination rules for the align frames'
+
         defaults['arcframe'] = FrameGroupPar(frametype='arc', number=1,
                                              process=ProcessImagesPar(sigrej=-1))
         dtypes['arcframe'] = [ ParSet, dict ]
@@ -3011,6 +3089,10 @@ class CalibrationsPar(ParSet):
         dtypes['standardframe'] = [ ParSet, dict ]
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
+
+        defaults['alignment'] = AlignPar()
+        dtypes['alignment'] = [ ParSet, dict ]
+        descr['alignment'] = 'Define the procedure for the alignment of traces'
 
         defaults['flatfield'] = FlatFieldPar()
         dtypes['flatfield'] = [ ParSet, dict ]
@@ -3045,7 +3127,7 @@ class CalibrationsPar(ParSet):
         parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias' ]
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
-                             'pinholeframe', 'traceframe', 'standardframe', 'flatfield',
+                             'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',
                              'wavelengths', 'slitedges', 'tilts']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
@@ -3068,6 +3150,10 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('pixelflat', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
+        pk = 'alignframe'
+        kwargs[pk] = FrameGroupPar.from_dict('align', cfg[pk]) if pk in k else None
+        pk = 'alignment'
+        kwargs[pk] = AlignPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'traceframe'
         kwargs[pk] = FrameGroupPar.from_dict('trace', cfg[pk]) if pk in k else None
         pk = 'standardframe'
@@ -3150,7 +3236,7 @@ class PypeItPar(ParSet):
         # *not* None (i.e., the ones that are defined) need to be set
         defaults['rdx'] = ReduxPar()
         dtypes['rdx'] = [ ParSet, dict ]
-        descr['rdx'] = 'PypIt reduction rules.'
+        descr['rdx'] = 'PypeIt reduction rules.'
 
 #        defaults['baseprocess'] = ProcessImagesPar()
 #        dtypes['baseprocess'] = [ ParSet, dict ]
