@@ -17,8 +17,8 @@ from pypeit import msgs
 from pypeit import specobj
 from pypeit.io import initialize_header, init_hdus
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
+from pypeit.images import detector_container
 
 from IPython import embed
 
@@ -63,12 +63,22 @@ class SpecObjs(object):
         slf = cls()
         # Add on the header
         slf.header = hdul[0].header
-        # Loop on em
-        for hdu in hdul[1:]:
-            #tbl = fits.connect.read_table_fits(hdul, hdu=kk)
-            sobj = specobj.SpecObj.from_hdu(hdu)
-            slf.add_sobj(sobj)
 
+        detector_hdus = {}
+        # Loop for Detectors first as we need to add these to the objects
+        for hdu in hdul[1:]:
+            if 'DETECTOR' in hdu.name:
+                detector_hdus[hdu.header['DET']] = detector_container.DetectorContainer.from_hdu(hdu)
+        # Now the objects
+        for hdu in hdul[1:]:
+            if 'DETECTOR' in hdu.name:
+                continue
+            sobj = specobj.SpecObj.from_hdu(hdu)
+            # Check for detector
+            if sobj.DET in detector_hdus.keys():
+                sobj.DETECTOR = detector_hdus[sobj.DET]
+            # Append
+            slf.add_sobj(sobj)
         # Return
         return slf
 
@@ -562,6 +572,7 @@ class SpecObjs(object):
         prihdu.header['DMODVER'] = (self.version, 'Datamodel version')
 
         ext = len(hdus)-1
+        detector_hdus = {}
         # Loop on the SpecObj objects
         for sobj in self.specobjs:
             if sobj is None:
@@ -571,8 +582,15 @@ class SpecObjs(object):
             keywd = 'EXT{:04d}'.format(ext)
             prihdu.header[keywd] = sobj.NAME
 
-            # Table
-            shdu = sobj.to_hdu()
+            # HDUs
+            shdul = sobj.to_hdu()
+            if len(shdul) == 2:  # Detector?
+                detector_hdus[sobj['DET']] = shdul[1]
+                shdu = [shdul[0]]
+            elif len(shdul) == 1:  # Detector?
+                shdu = shdul
+            else:
+                msgs.error("Should not get here...")
             # Check -- If sobj had only 1 array, the BinTableHDU test will fail
             assert len(shdu) == 1, 'Bad data model!!'
             assert isinstance(shdu[0], fits.hdu.table.BinTableHDU), 'Bad data model2'
@@ -580,6 +598,14 @@ class SpecObjs(object):
             shdu[0].name = sobj.NAME
             # Append
             hdus += shdu
+
+        # Deal with Detectors
+        for key, item in detector_hdus.items():
+            # TODO - Add EXT to the primary header for these??
+            # Name
+            item.name = specobj.det_hdu_prefix(key)+item.name
+            # Append
+            hdus += [item]
 
         # A few more for the header
         prihdu.header['NSPEC'] = len(hdus) - 1

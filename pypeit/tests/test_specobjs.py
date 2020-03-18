@@ -11,6 +11,8 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit import specobj
+from pypeit.tests import tstutils
+
 msgs.reset(verbosity=2)
 
 def data_path(filename):
@@ -25,7 +27,7 @@ def sobj2():
     return specobj.SpecObj('MultiSlit', 1, SLITID=1)
 @pytest.fixture
 def sobj3():
-    return specobj.SpecObj('MultiSlit', 1, SLITID=2)
+    return specobj.SpecObj('MultiSlit', 2, SLITID=2)
 
 
 def test_init(sobj1, sobj2):
@@ -84,6 +86,8 @@ def test_io(sobj1, sobj2, sobj3):
     #sobjs[0]['BOX_COUNTS'] = np.ones_like(sobjs[0].BOX_WAVE)  # This tests single array
     sobjs[1]['BOX_COUNTS'] = np.ones_like(sobjs[0].BOX_WAVE)
     sobjs[2]['BOX_COUNTS'] = np.ones_like(sobjs[0].BOX_WAVE)
+    # Detector
+    sobjs[0]['DETECTOR'] = tstutils.get_kastb_detector()
     # Write
     header = fits.PrimaryHDU().header
     ofile = data_path('tst_specobjs.fits')
@@ -92,10 +96,14 @@ def test_io(sobj1, sobj2, sobj3):
     sobjs.write_to_fits(header, ofile, overwrite=False)
     # Read
     hdul = fits.open(ofile)
-    assert len(hdul) == 4
+    assert len(hdul) == 5 # 4 Obj + 1 Detector
     #
     _sobjs = specobjs.SpecObjs.from_fitsfile(ofile)
     assert _sobjs.nobj == 3
     assert np.array_equal(sobjs[0].BOX_WAVE, _sobjs[0].BOX_WAVE)
     assert np.array_equal(sobjs[1].BOX_WAVE, _sobjs[1].BOX_WAVE)
+    # Detector
+    assert _sobjs[0].DETECTOR is not None, '1st object started with Detector'
+    assert _sobjs[1].DETECTOR is not None, '2nd object has DET=1 so should get decorated'
+    assert _sobjs[2].DETECTOR is None
 

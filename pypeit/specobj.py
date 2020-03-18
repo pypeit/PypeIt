@@ -21,11 +21,14 @@ from pypeit.core import parse
 from pypeit.core import flux_calib
 from pypeit import utils
 from pypeit import datamodel
+from pypeit.images import detector_container
 
 naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[skey.lower()] = skey
 
+def det_hdu_prefix(det):
+    return 'DET{:02d}-'.format(det)
 
 class SpecObj(datamodel.DataContainer):
     """Class to handle object spectra from a single exposure
@@ -104,8 +107,9 @@ class SpecObj(datamodel.DataContainer):
         'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
         # Detector
         'DET': dict(otype=(int, np.integer), desc='Detector number'),
-        'BINNING': dict(otype=str, desc='Detector binning in PypeIt orientation "spec_bin,spat_bin", e.g. "1,1"'),
-        'PLATESCALE': dict(otype=float, desc='Platescale in arcsec'),
+        #'BINNING': dict(otype=str, desc='Detector binning in PypeIt orientation "spec_bin,spat_bin", e.g. "1,1"'),
+        #'PLATESCALE': dict(otype=float, desc='Platescale in arcsec'),
+        'DETECTOR': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         #
         'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
         'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
@@ -162,6 +166,15 @@ class SpecObj(datamodel.DataContainer):
         # Echelle
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
+
+    def _bundle(self, ext=None, transpose_arrays=False):
+        _d = super(SpecObj, self)._bundle(ext=ext, transpose_arrays=transpose_arrays)
+        # Move DetectorContainer into its own HDU
+        if _d[0]['DETECTOR'] is not None:
+            _d.append(dict(detector=_d[0].pop('DETECTOR')))
+        # Return
+        return _d
+
 
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
                limit_hdus=None, force_dict_bintbl=False):

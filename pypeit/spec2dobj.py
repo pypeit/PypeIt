@@ -25,7 +25,6 @@ from pypeit.images import detector_container
 def hdu_prefix(det):
     return 'DET{:02d}-'.format(det)
 
-
 class Spec2DObj(datamodel.DataContainer):
     """Class to handle 2D spectral image outputs of PypeIt
 
