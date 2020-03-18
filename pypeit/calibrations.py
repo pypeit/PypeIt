@@ -424,13 +424,13 @@ class Calibrations(object):
             # Without files, we are stuck
             if len(bias_files) == 0:
                 self.msbias = None
-                return self.msbias
-            # Build it
-            self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+            else:
+                # Build it
+                self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                 self.par['biasframe'], bias_files)
-            # Save it?
-            if self.save_masters:
-                self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
+                # Save it?
+                if self.save_masters:
+                    self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
                                           self.spectrograph.spectrograph,  # Header
                                           steps=self.msbias.process_steps,
                                           raw_files=bias_files)
