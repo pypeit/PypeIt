@@ -155,6 +155,7 @@ def main(args):
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
     # Now show each image to a separate channel
 

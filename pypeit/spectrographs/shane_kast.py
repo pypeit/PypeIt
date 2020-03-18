@@ -469,8 +469,6 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         """
         par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red_ret'
-        par['calibrations']['pixelflatframe']['number'] = 3
-        par['calibrations']['traceframe']['number'] = 3
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']

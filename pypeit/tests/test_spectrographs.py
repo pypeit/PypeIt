@@ -23,8 +23,8 @@ def test_gemini_flamingos():
     det = 1
     _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
     bpm = s.bpm(example_file, det)
-    assert data.shape == (1022, 1024)
-    assert bpm.shape == (1022, 1024)
+    assert data.shape == (2048, 2048)
+    assert bpm.shape == (2048, 2048)
 
 @dev_suite_required
 def test_gemini_gnirs():

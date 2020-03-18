@@ -25,3 +25,6 @@ def test_masterframe_methods():
     hdr = masterframe.build_master_header(buildimage.ArcImage, master_key, master_dir, 'shane_kast_blue')
     assert isinstance(hdr, fits.Header)
 
+    # Get those keys!
+    _master_key, _master_dir = masterframe.grab_key_mdir(hdr)
+    assert _master_key == master_key

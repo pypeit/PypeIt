@@ -31,15 +31,14 @@ class PypeItImage(datamodel.DataContainer):
     The intent is to keep this object as light-weight as possible.
 
     Args:
-        image (np.ndarray or None):
-        ivar (np.ndarray, optional):
-        rn2img (np.ndarray, optional):
-        bpm (np.ndarray, optional):
-            Passed to self.mask
-        crmask (np.ndarray, optional):
-            Passed to self.mask
-        fullmask (np.ndarray, optional):
-            Passed to self.mask
+        image (`np.ndarray`_ or None):
+            See datamodel for description
+        ivar (`np.ndarray`_, optional):
+        rn2img (`np.ndarray`_, optional):
+        bpm (`np.ndarray`_, optional):
+        crmask (`np.ndarray`_, optional):
+        fullmask (`np.ndarray`_, optional):
+        detector (:class:`pypeit.images.data_container.DataContainer`):
 
     Attributes:
         hdu_prefix (str, optional):
@@ -48,6 +47,7 @@ class PypeItImage(datamodel.DataContainer):
             in more complex DataContainers
         head0 (astropy.io.fits.Header):
         detector (:class:`pypeit.images.detector_container.DetectorContainer`):
+        files (list):
 
     """
     # Set the version of this class
@@ -62,16 +62,19 @@ class PypeItImage(datamodel.DataContainer):
         'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
     }
-    bitmask = maskimage.ImageBitMask()
-
     datamodel = datamodel_v100.copy()
 
+    # For masking
+    bitmask = maskimage.ImageBitMask()
+
+    hdu_prefix = None
+
     @classmethod
-    def from_file(cls, ifile, hdu_prefix=None):
+    def from_file(cls, ifile):
         """
         Instantiate from a file on disk (FITS file)
 
-        Overload to grab Header
+        Overloaded :func:`pypeit.datamodel.DataContainer.from_file` to grab Header
 
         Args:
             ifile (str):
@@ -81,7 +84,6 @@ class PypeItImage(datamodel.DataContainer):
                 Loaded up PypeItImage with the primary Header attached
 
         """
-        #slf = super(PypeItImage, cls).from_hdu(hdul, hdu_prefix=hdu_prefix)
         slf = super(PypeItImage, cls).from_file(ifile)
 
         # Header
@@ -99,9 +101,10 @@ class PypeItImage(datamodel.DataContainer):
         This is *not* a deepcopy
 
         Args:
-            pypeitImage (PypeItImage):
+            pypeitImage (:class:`PypeItImage`):
 
         Returns:
+            pypeitImage (:class:`PypeItImage`):
 
         """
 
@@ -126,6 +129,7 @@ class PypeItImage(datamodel.DataContainer):
     def _init_internals(self):
         self.head0 = None
         self.process_steps = None
+        self.files = None
 
 
     def _bundle(self):
@@ -170,7 +174,7 @@ class PypeItImage(datamodel.DataContainer):
         """
         Generate the CR mask frame
 
-        Mainly a wrapper to procimg.lacosmic
+        Mainly a wrapper to :func:`pypeit.core.procimg.lacosmic`
 
         Args:
             par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
@@ -225,7 +229,7 @@ class PypeItImage(datamodel.DataContainer):
                 Defaults to self.detector['mincounts']
 
         Returns:
-            numpy.ndarray: Copy of the bit value mask for the science image.
+            `np.ndarray`_: Copy of the bit value mask for the science image.
         """
         _mincounts = self.detector['mincounts'] if mincounts is None else mincounts
         _saturation = self.detector['saturation'] if saturation is None else saturation
@@ -275,7 +279,7 @@ class PypeItImage(datamodel.DataContainer):
         Update a mask using the slitmask
 
         Args:
-            slitmask (np.ndarray):
+            slitmask (`np.ndarray`_):
                 Slitmask with -1 values pixels *not* in a slit
 
         """
@@ -292,12 +296,63 @@ class PypeItImage(datamodel.DataContainer):
         ones are turned on.
 
         Args:
-            crmask_new (np.ndarray):
+            crmask_new (`np.ndarray`_):
                 New CR mask
         """
         self.fullmask = self.bitmask.turn_off(self.fullmask, 'CR')
         indx = crmask_new.astype(bool)
         self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'CR')
+
+    def sub(self, other, par):
+        """
+        Subtract one PypeItImage from another
+        Extras (e.g. ivar, masks) are included if they are present
+
+        Args:
+            other (:class:`PypeItImage`):
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the defaults
+        Returns:
+            PypeItImage:
+        """
+        if not isinstance(other, PypeItImage):
+            msgs.error("Misuse of the subtract method")
+        # Images
+        newimg = self.image - other.image
+
+        # Mask time
+        outmask_comb = (self.fullmask == 0) & (other.fullmask == 0)
+
+        # Variance
+        if self.ivar is not None:
+            new_ivar = utils.inverse(utils.inverse(self.ivar) + utils.inverse(other.ivar))
+            new_ivar[np.invert(outmask_comb)] = 0
+        else:
+            new_ivar = None
+
+        # RN2
+        if self.rn2img is not None:
+            new_rn2 = self.rn2img + other.rn2img
+        else:
+            new_rn2 = None
+
+        # Files
+        new_files = self.files + other.files
+
+        # Instantiate
+        new_sciImg = PypeItImage(image=newimg, ivar=new_ivar, bpm=self.bpm, rn2img=new_rn2,
+                                 detector=self.detector)
+        new_sciImg.files = new_files
+        #TODO: KW properly handle adding the bits
+        crmask_diff = new_sciImg.build_crmask(par)
+        # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
+        new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
+        # Note that the following uses the saturation and mincounts held in
+        # self.detector
+        new_sciImg.build_mask()
+
+        return new_sciImg
 
     def show(self):
         """
@@ -314,66 +369,6 @@ class PypeItImage(datamodel.DataContainer):
         # Image
         rdict = {}
         for attr in self.datamodel.keys():
-            if hasattr(self, attr) and getattr(self, attr) is not None:
-                rdict[attr] = True
-            else:
-                rdict[attr] = False
-        repr += ' images={}'.format(rdict)
-        repr = repr + '>'
-        return repr
-
-
-class ImageMask(datamodel.DataContainer):
-    """
-    Class to handle masks associated with an Image
-
-    Args:
-        bpm (np.ndarray):
-            Bad pixel mask (int)
-        crmask (np.ndarray, optional):
-            Cosmic Ray mask (boolean)
-
-    Attributes:
-        fullmask (np.ndarray):
-            The bitmask values for the full mask
-        pars (dict):
-            Used to hold parameters used when creating masks
-    """
-
-    bitmask = maskimage.ImageBitMask()
-    version = '1.0.0'
-    datamodel = {
-        'bpm': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask'),
-        'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
-        'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
-    }
-
-    def __init__(self, bpm, crmask=None, fullmask=None):
-
-        # Setup the DataContainer
-        super(ImageMask, self).__init__({'bpm': bpm, 'crmask': crmask, 'fullmask': fullmask})
-
-    def _bundle(self):
-        """
-        Over-write default _bundle() method to restrict to fullmask only
-
-        Note:  crmask will not write to FITS as it is bool
-
-        Returns:
-            :obj:`list`: A list of dictionaries, each list element is
-            written to its own fits extension.
-        """
-        d = []
-        if self.fullmask is not None:
-            d.append(dict(fullmask=self.fullmask))
-        return d
-
-
-    def __repr__(self):
-        repr = '<{:s}: '.format(self.__class__.__name__)
-        # Image
-        rdict = {}
-        for attr in ['bpm', 'crmask', 'fullmask']:
             if hasattr(self, attr) and getattr(self, attr) is not None:
                 rdict[attr] = True
             else:

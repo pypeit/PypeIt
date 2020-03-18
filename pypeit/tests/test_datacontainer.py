@@ -26,6 +26,7 @@ class BasicContainer(DataContainer):
     datamodel = {'vec1': dict(otype=np.ndarray, atype=float, descr='Test'),
                  'meta1': dict(otype=str, decr='test'),
                  'arr1': dict(otype=np.ndarray, atype=float, descr='test')}
+    hdu_prefix = 'TST_'
 
     def __init__(self, vec1, meta1, arr1):
         # All arguments are passed directly to the container
@@ -234,6 +235,7 @@ def test_fulldatamodel():
     full_dmodel = pypeitimage.PypeItImage.full_datamodel(include_parent=False)
     assert 'detector' not in full_dmodel
 
+
 def test_single_element_array():
     data = BasicContainer(np.arange(1).astype(float), 'length=10', np.arange(10).astype(float))
     hdu = data.to_hdu()
@@ -290,7 +292,8 @@ def test_basic():
     # Test written data against input
     with fits.open(ofile) as hdu:
         assert len(hdu) == 2, 'Should be two extensions'
-        assert hdu[1].name == 'BASIC', 'Incorrect extension Name'
+        # This tests hdu_prefix
+        assert hdu[1].name == 'TST_BASIC', 'Incorrect extension Name'
         assert len(hdu[1].data) == 10, 'Incorrect number of rows'
         assert hdu[1].columns.names == ['vec1', 'arr1'], 'Incorrect column names'
         assert 'meta1' in hdu[1].header, 'Missing header keyword'
@@ -306,7 +309,7 @@ def test_basic():
 
     with fits.open(ofile) as hdu:
         assert len(hdu) == 2, 'Should be two extensions'
-        assert hdu[1].name == 'BASIC', 'Incorrect extension Name'
+        assert hdu[1].name == 'TST_BASIC', 'Incorrect extension Name'
         assert len(hdu[1].data) == 1, 'Incorrect number of rows'
         assert hdu[1].columns.names == ['vec1', 'arr1'], 'Incorrect column names'
         assert 'meta1' in hdu[1].header, 'Missing header keyword'

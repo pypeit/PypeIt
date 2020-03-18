@@ -149,6 +149,18 @@ class Calibrations(object):
         self._reset_internals()
 
     def _prep_calibrations(self, ctype):
+        """
+        Parse self.fitstbl for rows matching the calibration type
+        and initialize the self.master_key_dict
+
+        Args:
+            ctype (str):
+                Calibration type, e.g. 'flat', 'arc', 'bias'
+
+        Returns:
+            list:  List of image files matching input type
+
+        """
         # Grab rows and files
         rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
         image_files = self.fitstbl.frame_paths(rows)
@@ -179,8 +191,6 @@ class Calibrations(object):
         self.slits = None
         self.wavecalib = None
         self.wavetilts = None
-        #self.mspixelflat = None
-        #self.msillumflat = None
         self.flatimages = None
         self.mswave = None
         self.calib_ID = None
@@ -388,16 +398,18 @@ class Calibrations(object):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        if self.par['biasframe']['useframe'].lower() == 'none':
-            self.msbias = None
-            return self.msbias
-
         # Prep
         bias_files = self._prep_calibrations('bias')
         # Construct the name, in case we need it
         masterframe_name = masterframe.construct_file_name(buildimage.BiasImage,
                                                            self.master_key_dict['bias'],
                                                            master_dir=self.master_dir)
+
+        # This needs to come after prep or the code crashes when saving as master_key_dict['bias'] is not set
+        if self.par['biasframe']['useframe'].lower() == 'none':
+            self.msbias = None
+            return self.msbias
+
 
         # Grab from internal dict (or hard-drive)?
         if self._cached('bias', self.master_key_dict['bias']):
@@ -640,17 +652,16 @@ class Calibrations(object):
             if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
                 self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
             else:
-                # Build me
-                self.edges = edgetrace.EdgeTraceSet(self.spectrograph, self.par['slitedges'],
-                                                    files=trace_image_files)
                 # Build the trace image
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['traceframe'], trace_image_files,
                                                         bias=self.msbias, bpm=self.msbpm)
+                # Build me
+                self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph, self.par['slitedges'],
+                                                    files=trace_image_files)
 
                 try:
-                    self.edges.auto_trace(self.traceImage, bpm=self.msbpm, det=self.det,
-                                          save=False) # self.save_masters) #, debug=True, show_stages=True)
+                    self.edges.auto_trace(bpm=self.msbpm, det=self.det, save=False)
                 except:
                     self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
                                     master_key=self.master_key_dict['trace'])

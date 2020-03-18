@@ -85,13 +85,14 @@ Insufficient Lines
 TODO: Explain how to add more
 
 
-Current TiltImage Data Model
+Current WaveTilts Data Model
 ============================
 
 Internally, the image is held in
-:class:`pypeit.wavetilts.TiltImages`
+:class:`pypeit.wavetilts.WaveTilts`
 which is a :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-TO APPEAR HERE
+
+.. include:: include/datamodel_wavetilts.rst
 

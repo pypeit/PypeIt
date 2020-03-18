@@ -118,20 +118,13 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'mmt_binospec'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 0
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 5
-        par['calibrations']['arcframe']['process']['overscan'] ='median'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 20.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Tilt and slit parameters

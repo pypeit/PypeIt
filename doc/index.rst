@@ -85,6 +85,7 @@ MasterFrames
    master_flat
    master_tilt
    master_tilts
+   master_wave
    master_wvcalib
 
 Spectrographs

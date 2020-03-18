@@ -141,12 +141,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     #     Set default parameters for NIRSPEC reductions
     #     """
     #     par = pypeitpar.PypeItPar()
-    #     # Frame numbers
-    #     par['calibrations']['standardframe']['number'] = 1
-    #     par['calibrations']['biasframe']['number'] = 0
-    #     par['calibrations']['pixelflatframe']['number'] = 5
-    #     par['calibrations']['traceframe']['number'] = 5
-    #     par['calibrations']['arcframe']['number'] = 1
     #     # Do not flux calibrate
     #     # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
     #     par['flexure'] = pypeitpar.FlexurePar()

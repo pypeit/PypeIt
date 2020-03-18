@@ -125,7 +125,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['method'] = 'reidentify'
         #par['calibrations']['wavelengths']['method'] = 'full_template'
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
@@ -158,7 +158,6 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
 
         # Scienceimage parameters
         #par['reduce']['sig_thresh'] = 5
-        #par['reduce']['maxnumber'] = 2
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [10,10]
         # Always flux calibrate, starting with default parameters
@@ -273,7 +272,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
         par['calibrations']['wavelengths']['match_toler']=5.0
@@ -286,7 +285,6 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         # Scienceimage parameters
         par['reduce']['findobj']['sig_thresh'] = 5
         # TODO: I think this parameter was removed
-        #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
 
         # Always flux calibrate, starting with default parameters

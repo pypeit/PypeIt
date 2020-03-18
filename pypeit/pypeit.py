@@ -571,11 +571,11 @@ class PypeIt(object):
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg - buildimage.buildimage_fromlist(
+            self.sciImg = self.sciImg.sub(buildimage.buildimage_fromlist(
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
                 pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
-                ignore_saturation=False)
+                ignore_saturation=False), frame_par['process'])
 
         # Update mask for slitmask; uses pad in EdgeTraceSetPar
         self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img())

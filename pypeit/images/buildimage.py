@@ -60,7 +60,7 @@ class TiltImage(pypeitimage.PypeItImage):
     hdu_prefix = 'TILT_'
 
     # Master fun
-    master_type = 'Tilt'
+    master_type = 'Tiltimg'
     frametype = 'tilt'
     file_format = 'fits'
 
@@ -150,6 +150,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
 
     # Internals
     finalImage.process_steps = process_steps
+    finalImage.files = file_list
 
     # Return
     return finalImage
