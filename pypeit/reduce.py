@@ -947,8 +947,8 @@ class EchelleReduce(Reduce):
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.fullmask == 0
         # Find objects
-        specobj_dict = {'setup': self.setup, 'slitid': 999, #'orderindx': 999,
-                        'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
+        specobj_dict = {'SLITID': 999, #'orderindx': 999,
+                        'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 
         # Select the edges to use: Selects the edges tweaked by the
         # illumination profile if they're present; otherwise, it

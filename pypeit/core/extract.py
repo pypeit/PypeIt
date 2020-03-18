@@ -1779,8 +1779,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
 
     if specobj_dict is None:
-        specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999,
-                        'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
+        specobj_dict = {'SLITID': 999, 'ECH_ORDERINDX': 999,
+                        'DET': 1, 'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
 
 
     # TODO Update FOF algorithm here with the one from scikit-learn.
@@ -1830,9 +1830,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
         inmask_iord = inmask & thismask
-        specobj_dict['slitid'] = iord
-        specobj_dict['orderindx'] = iord
-        specobj_dict['order'] = order_vec[iord]
+        specobj_dict['SLITID'] = iord
+        specobj_dict['ECH_ORDERINDX'] = iord
+        specobj_dict['ECH_ORDER'] = order_vec[iord]
         try:
             std_in = std_trace[:,iord]
         except TypeError:
@@ -1973,9 +1973,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
-                                             objtype=sobjs_align[0].OBJTYPE,
-                                             orderindx=iord,
-                                             ech_order=order_vec[iord])
+                                             OBJTYPE=sobjs_align[0].OBJTYPE,
+                                             ECH_ORDERINDX=iord,
+                                             ECH_ORDER=order_vec[iord])
                 #thisobj.ECH_ORDERINDX = iord
                 #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]
