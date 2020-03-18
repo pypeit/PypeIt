@@ -594,7 +594,6 @@ Key                   Type                                            Options   
 ====================  ==============================================  =======================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 ``exprng``            list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].                                                                                                                                                                                                                    
 ``frametype``         str                                             ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``science``, ``standard``, ``trace``, ``tilt``  ``science``                   Frame type.  Options are: arc, bias, dark, pinhole, pixelflat, science, standard, trace, tilt                                                                                                                                                                                                                                                                                                                                                                                      
-``number``            int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                                                                                                                                                                                                                                         
 ``process``           :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                       `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                                                                                                                                                                                                                                               
 ``processing_steps``  list                                            ``orient``, ``trim``, ``apply_gain``, ``flatten``, ``crmask``                                            []                            Steps to be applied during processing.  Modify these at your own risk!! Bias and overscan subtraction depend on whether bias frames were included and also the settings in ["process"]. orient: Orient the image in the PypeIt frame (required!)trim: Trim the image (Code will probably break if not set)apply_gain: Convert ADU to electronsflatten:  Apply the flat field image(s), if providedcrmask: Generate a cosmic ray mask (recommended only for standard/science frames)
 ``useframe``          str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                                                                                                                                                                                                                                    
@@ -725,24 +724,20 @@ Alterations to the default parameters are::
       spectrograph = keck_deimos
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 2
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -753,11 +748,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
@@ -786,24 +779,20 @@ Alterations to the default parameters are::
       spectrograph = keck_lris_blue
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -812,11 +801,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           method = full_template
@@ -846,24 +833,20 @@ Alterations to the default parameters are::
       spectrograph = keck_lris_red
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -872,11 +855,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
@@ -914,35 +895,29 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 60, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = 100, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           exprng = 100, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = None, 60
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[flatfield]]
@@ -988,7 +963,6 @@ Alterations to the default parameters are::
       spectrograph = keck_nirspec_low
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
           [[[process]]]
               overscan = none
@@ -998,7 +972,6 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 20, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1006,14 +979,12 @@ Alterations to the default parameters are::
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -1024,13 +995,11 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               bias = force
       [[standardframe]]
-          number = 1
           exprng = None, 20
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -1071,7 +1040,6 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
-          number = 5
           processing_steps = trim, orient
           [[[process]]]
               overscan = none
@@ -1081,20 +1049,17 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 20, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -1104,12 +1069,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 20
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -1147,32 +1110,26 @@ Alterations to the default parameters are::
       spectrograph = keck_hires_red
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = None, 600
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -1199,25 +1156,21 @@ Alterations to the default parameters are::
       spectrograph = shane_kast_blue
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = None, 61
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1226,11 +1179,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 61
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -1260,25 +1211,21 @@ Alterations to the default parameters are::
       spectrograph = shane_kast_red
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = None, 61
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1287,11 +1234,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 61
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -1312,25 +1257,21 @@ Alterations to the default parameters are::
       spectrograph = shane_kast_red_ret
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = None, 61
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 3
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1339,11 +1280,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 61
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -1362,24 +1301,20 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 0.1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
@@ -1387,10 +1322,8 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
   [scienceframe]
       exprng = 1, None
@@ -1405,7 +1338,6 @@ Alterations to the default parameters are::
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          number = 5
           exprng = None, 1
           processing_steps = trim, orient
           [[[process]]]
@@ -1416,20 +1348,17 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = None, 120
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -1442,12 +1371,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 120
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -1477,7 +1404,6 @@ Alterations to the default parameters are::
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          number = 5
           exprng = None, 1
           processing_steps = trim, orient
           [[[process]]]
@@ -1488,20 +1414,17 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = None, 120
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -1514,12 +1437,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 120
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -1546,37 +1467,31 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_uvb
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           method = reidentify
@@ -1604,37 +1519,31 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_vis
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[flatfield]]
           tweak_slits_thresh = 0.9
@@ -1686,24 +1595,20 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_nir
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
@@ -1711,12 +1616,10 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               bias = force
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               bias = skip
@@ -1779,7 +1682,6 @@ Alterations to the default parameters are::
       spectrograph = vlt_fors2
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
           [[[process]]]
               overscan = median
@@ -1788,19 +1690,16 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = median
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
@@ -1810,12 +1709,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = median
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = median
@@ -1854,19 +1751,16 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1877,13 +1771,11 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 5
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 30
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -1920,7 +1812,6 @@ Alterations to the default parameters are::
       spectrograph = gemini_flamingos1
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
           [[[process]]]
               overscan = none
@@ -1930,20 +1821,17 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 1, 50
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -1953,12 +1841,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 60
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -1993,7 +1879,6 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
-          number = 5
           processing_steps = trim, orient
           [[[process]]]
               overscan = none
@@ -2003,21 +1888,18 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 50, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           exprng = 50, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -2027,12 +1909,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 30
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -2067,22 +1947,18 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               combine = median
@@ -2091,10 +1967,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           method = full_template
@@ -2120,22 +1994,18 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               combine = median
@@ -2144,10 +2014,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           method = full_template
@@ -2171,22 +2039,18 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               combine = median
@@ -2195,10 +2059,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           method = full_template
@@ -2224,7 +2086,6 @@ Alterations to the default parameters are::
       spectrograph = magellan_fire
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
           [[[process]]]
               overscan = none
@@ -2234,20 +2095,17 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 20, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -2257,12 +2115,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 60
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -2308,7 +2164,6 @@ Alterations to the default parameters are::
       spectrograph = magellan_fire_long
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
           [[[process]]]
               overscan = none
@@ -2318,20 +2173,17 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 1, 50
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -2341,12 +2193,10 @@ Alterations to the default parameters are::
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 60
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
@@ -2380,34 +2230,28 @@ Alterations to the default parameters are::
       spectrograph = magellan_mage
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 20, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = 20, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = None, 20
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -2444,24 +2288,20 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods1r
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -2470,11 +2310,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -2503,24 +2341,20 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods1b
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -2529,11 +2363,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -2559,24 +2391,20 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods2r
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -2585,11 +2413,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -2617,24 +2443,20 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods2b
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
           processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -2643,11 +2465,9 @@ Alterations to the default parameters are::
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
@@ -2673,32 +2493,26 @@ Alterations to the default parameters are::
       spectrograph = lbt_luci1
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           lamps = OH_NIRES
@@ -2727,32 +2541,26 @@ Alterations to the default parameters are::
       spectrograph = lbt_luci2
   [calibrations]
       [[biasframe]]
-          number = 5
           processing_steps = trim, orient
       [[darkframe]]
           processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           lamps = OH_NIRES
@@ -2789,26 +2597,21 @@ Alterations to the default parameters are::
           exprng = 20, None
           processing_steps = trim, orient
       [[arcframe]]
-          number = 5
           exprng = 20, None
           processing_steps = trim, orient, apply_gain
           [[[process]]]
-              overscan = median
               sigrej = -1
       [[tiltframe]]
-          number = 1
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 5
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
           exprng = None, 100

@@ -12,6 +12,8 @@ from pkg_resources import resource_filename
 from pypeit.par.parset import ParSet
 from pypeit.images import buildimage
 from pypeit.flatfield import FlatImages
+from pypeit.wavetilts import WaveTilts
+from pypeit.waveimage import WaveImage
 
 from IPython import embed
 
@@ -74,9 +76,15 @@ if __name__ == '__main__':
 
     for imgtyp,ofile in zip([buildimage.ArcImage,
                              buildimage.BiasImage,
+                             buildimage.TiltImage,
+                             WaveTilts,
+                             WaveImage,
                              FlatImages],
                             [os.path.join(output_path, 'datamodel_arcimage.rst'),
                              os.path.join(output_path, 'datamodel_biasimage.rst'),
+                             os.path.join(output_path, 'datamodel_tiltimage.rst'),
+                             os.path.join(output_path, 'datamodel_wavetilts.rst'),
+                             os.path.join(output_path, 'datamodel_waveimage.rst'),
                              os.path.join(output_path, 'datamodel_flatimages.rst'),
                               ]):
         # Build the Table

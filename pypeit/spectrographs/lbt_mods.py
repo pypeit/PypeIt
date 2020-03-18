@@ -32,12 +32,6 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Shane Kast reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 1
-        par['calibrations']['pixelflatframe']['number'] = 1
-        par['calibrations']['traceframe']['number'] = 1
-        par['calibrations']['arcframe']['number'] = 1
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing

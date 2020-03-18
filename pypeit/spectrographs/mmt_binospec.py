@@ -118,13 +118,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'mmt_binospec'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 0
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 5
-        par['calibrations']['arcframe']['process']['overscan'] ='median'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5

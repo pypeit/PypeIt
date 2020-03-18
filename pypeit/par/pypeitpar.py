@@ -96,7 +96,7 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, number=None, exprng=None, process=None,
+    def __init__(self, frametype=None, useframe=None, exprng=None, process=None,
                  processing_steps=None):
         # Grab the parameter names and values from the function
         # arguments
@@ -124,10 +124,10 @@ class FrameGroupPar(ParSet):
         dtypes['useframe'] = str
         descr['useframe'] = 'A master calibrations file to use if it exists.'
 
-        defaults['number'] = 0
-        dtypes['number'] = int
-        descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
-                          'the number of frames to use of this type'
+        #defaults['number'] = 0
+        #dtypes['number'] = int
+        #descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
+        #                  'the number of frames to use of this type'
 
         defaults['exprng'] = [None, None]
         dtypes['exprng'] = list
@@ -165,7 +165,7 @@ class FrameGroupPar(ParSet):
     @classmethod
     def from_dict(cls, frametype, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['useframe', 'number', 'exprng', 'processing_steps']
+        parkeys = ['useframe', 'exprng', 'processing_steps']
         # TODO: cfg can contain frametype but it is ignored...
         allkeys = parkeys + ['process', 'frametype']
         badkeys = numpy.array([pk not in allkeys for pk in k])
@@ -2990,46 +2990,46 @@ class CalibrationsPar(ParSet):
         dtypes['bpm_usebias'] = bool
         descr['bpm_usebias'] = 'Make a bad pixel mask from bias frames? Bias frames must be provided.'
 
-        defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5, processing_steps=['trim', 'orient'])
+        defaults['biasframe'] = FrameGroupPar(frametype='bias', processing_steps=['trim', 'orient'])
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
-        defaults['darkframe'] = FrameGroupPar(frametype='bias', number=0, processing_steps=['trim', 'orient'])
+        defaults['darkframe'] = FrameGroupPar(frametype='bias', processing_steps=['trim', 'orient'])
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
         # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
-        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5,
+        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat',
                                                    process=ProcessImagesPar(satpix='nothing'),
                                                    processing_steps=['trim', 'orient', 'apply_gain'])
         dtypes['pixelflatframe'] = [ ParSet, dict ]
         descr['pixelflatframe'] = 'The frames and combination rules for the field flattening'
 
-        defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole', number=0,
+        defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole',
                                                  processing_steps = ['trim', 'orient', 'apply_gain'])
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
-        defaults['arcframe'] = FrameGroupPar(frametype='arc', number=1,
+        defaults['arcframe'] = FrameGroupPar(frametype='arc',
                                              process=ProcessImagesPar(sigrej=-1),
                                              processing_steps = ['trim', 'orient', 'apply_gain'])
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
-        defaults['tiltframe'] = FrameGroupPar(frametype='tilt', number=1,
+        defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
                                               process=ProcessImagesPar(sigrej=-1),
                                               processing_steps = ['trim', 'orient', 'apply_gain'])
         dtypes['tiltframe'] = [ ParSet, dict ]
         descr['tiltframe'] = 'The frames and combination rules for the wavelength tilts'
 
-        defaults['traceframe'] = FrameGroupPar(frametype='trace', number=3,
+        defaults['traceframe'] = FrameGroupPar(frametype='trace',
                                                # Note that CR masking is found to be too problematic!!
                                                processing_steps = ['trim', 'orient', 'apply_gain'])
 
         dtypes['traceframe'] = [ ParSet, dict ]
         descr['traceframe'] = 'The frames and combination rules for images used for slit tracing'
 
-        defaults['standardframe'] = FrameGroupPar(frametype='standard', number=1,
+        defaults['standardframe'] = FrameGroupPar(frametype='standard',
                                                   processing_steps = ['trim', 'orient', 'apply_gain',
                                                                       'flatten', 'crmask'])
         dtypes['standardframe'] = [ ParSet, dict ]
