@@ -608,9 +608,11 @@ class PypeIt(object):
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
-        # Tack on binning and platescale; only for specobjs.write_info()
-        self.sobjs.BINNING = self.sciImg.detector.binning
-        self.sobjs.PLATESCALE = self.sciImg.detector.platescale  # This should be order dependent
+        # TODO -- Do this upstream
+        # Tack on detector
+        for sobj in self.sobjs:
+            sobj.DETECTOR = self.sciImg.detector
+        #self.sobjs.PLATESCALE = self.sciImg.detector.platescale  # This should be order dependent
 
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(self.det, self.sciImg.image, self.sciImg.ivar, self.skymodel,

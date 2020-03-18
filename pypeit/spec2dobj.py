@@ -109,11 +109,11 @@ class Spec2DObj(datamodel.DataContainer):
         # Return
         return d
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
                limit_hdus=None, force_dict_bintbl=False):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
-        _d['hdu_prefix'] = self.hdu_prefix
+        #_d['hdu_prefix'] = self.hdu_prefix
         #
         return super(Spec2DObj, self).to_hdu(**_d)
 

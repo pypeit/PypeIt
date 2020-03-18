@@ -629,9 +629,9 @@ class SpecObjs(object):
                 continue
             # Detector items
             #binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
-            binspectral, binspatial = parse.parse_binning(specobj.BINNING)
+            binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
             #platescale = sci_dict[det]['detector'].platescale
-            platescale = specobj.PLATESCALE
+            platescale = specobj.DETECTOR.platescale
             # Append
             spat_pixpos.append(specobj.SPAT_PIXPOS)
             if pypeline == 'MultiSlit':
@@ -646,7 +646,7 @@ class SpecObjs(object):
             if 'BOX_RADIUS' in specobj.keys():
                 slit_pix = 2.0 * specobj.BOX_RADIUS
                 # Convert to arcsec
-                binspectral, binspatial = parse.parse_binning(specobj.BINNING)
+                binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)
                 #binspectral, binspatial = parse.parse_binning(binning)
                 # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
                 # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
