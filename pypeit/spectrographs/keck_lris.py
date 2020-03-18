@@ -221,7 +221,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         -------
         array : ndarray
           Combined image
-        hdu : HDUList
+        hdu (astropy.io.fits.HDUList)
         sections : list
           List of datasec, oscansec, ampsec sections
           datasec, oscansec needs to be for an *unbinned* image as per standard convention

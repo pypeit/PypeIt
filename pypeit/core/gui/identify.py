@@ -20,6 +20,8 @@ from astropy.table import Table
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
                     "         Navigate (LMB drag = pan, RMB drag = zoom)",
+                   'left'  : "Advance the line list slider to the left by one",
+                   'right' : "Advance the line list slider to the right by one",
                    'p' : "Toggle pan/zoom with the cursor",
                    'q' : "Close Identify window and continue PypeIt reduction",
                    'a' : "Automatically identify lines using current solution",
@@ -580,6 +582,16 @@ class Identify(object):
 
         if key == '?':
             self.print_help()
+        elif key == 'left':
+            widx = self._slideval - 1
+            if widx < 0:
+                widx = self._lines.size-1
+            self.linelist_update(widx)
+        elif key == 'right':
+            widx = self._slideval + 1
+            if widx >= self._lines.size:
+                widx = 0
+            self.linelist_update(widx)
         elif key == 'a':
             if self._fitdict['coeff'] is not None:
                 self.auto_id()
@@ -677,12 +689,18 @@ class Identify(object):
     def fitsol_value(self, xfit=None, idx=None):
         """Calculate the wavelength at a pixel
 
-        Args:
-            xfit (ndarray, float): Pixel values that the user wishes to evaluate the wavelength
-            idx (int): Index of the arc line detections that the user wishes to evaluate the wavelength
+        Parameters
+        ----------
 
-        Returns:
-            disp (ndarray, float, None): The wavelength (Angstroms) of the requested pixels
+        xfit : ndarray, float
+            Pixel values that the user wishes to evaluate the wavelength
+        idx : ndarray, int
+            Index of the arc line detections that the user wishes to evaluate the wavelength
+
+        Returns
+        -------
+
+        disp : The wavelength (Angstroms) of the requested pixels
         """
         if xfit is None:
             xfit = self._detns
@@ -833,23 +851,25 @@ class Identify(object):
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
 
 
-def initialise(arccen, slit=0, par=None, wv_calib_all=None):
+def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
     .. todo::
 
         * Implement multislit functionality
 
-    Parameters
-    ----------
-    arccen : ndarray
-        Arc spectrum
-    slit : int, optional
-        The slit to be used for wavelength calibration
-    par : :obj:`int`, optional
-        The slit to be used for wavelength calibration
-    wv_calib_all : :obj:`dict`, None, optional
-        If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+        Parameters
+        ----------
+        arccen : ndarray
+            Arc spectrum
+        slit : int, optional
+            The slit to be used for wavelength calibration
+        par : :obj:`int`, optional
+            The slit to be used for wavelength calibration
+        wv_calib_all : :obj:`dict`, None, optional
+            If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+        wavelim : :obj:`list`, None, optional
+            A two element list containing the desired minimum and maximum wavelength of the linelist
 
     Returns
     -------
@@ -861,7 +881,7 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None):
     par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
     # If a wavelength calibration has been performed already, load it:
-    wv_calib = wv_calib_all[str(slit)]
+    wv_calib = wv_calib_all[str(slit)] if wv_calib_all is not None else None
 
     # Extract the lines that are detected in arccen
     thisarc = arccen[:, slit]
@@ -875,6 +895,15 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None):
         line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
     else:
         line_lists = waveio.load_line_lists(par['lamps'])
+
+    # Trim the wavelength scale if requested
+    if wavelim is not None:
+        ww = np.ones(line_lists.size, dtype=bool)
+        if wavelim[0] is not None:
+            ww &= line_lists['wave'] > wavelim[0]
+        if wavelim[1] is not None:
+            ww &= line_lists['wave'] < wavelim[1]
+        line_lists = line_lists[ww]
 
     # Create a Line2D instance for the arc spectrum
     spec = Line2D(np.arange(thisarc.size), thisarc,

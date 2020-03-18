@@ -251,7 +251,7 @@ def fit_flat(flat, tilts_dict, tslits_dict_in, slit, inmask = None,
     log_flat_fit = log_flat[fit_spec][isrt_spec]
     log_ivar_fit = log_ivar[fit_spec][isrt_spec]
     inmask_log_fit = inmask_log[fit_spec][isrt_spec]
-    logrej = 0.5 # rejectino threshold for spectral fit in log(image)
+    logrej = 0.5  # rejection threshold for spectral fit in log(image)
 
     # ToDo Figure out how to deal with the fits going crazy at the edges of the chip in spec direction
     spec_set_fine, outmask_spec, specfit, _, exit_status = \

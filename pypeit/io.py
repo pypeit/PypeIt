@@ -88,6 +88,8 @@ def rec_to_fits_type(col_element, single_row=False):
         return '{0}D'.format(n)
     if col_element.dtype.name == 'float32':  # JXP -- Hack for when slit edges are modified in the Flat making
         return '{0}E'.format(n)
+    if col_element.dtype.name == 'float64':  # JXP -- Hack for when slit edges are modified in the Flat making
+        return '{0}D'.format(n)
 
     # If it makes it here, assume its a string
     l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])

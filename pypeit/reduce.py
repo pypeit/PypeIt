@@ -308,9 +308,9 @@ class Reduce(object):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
     def find_objects(self, image, std_trace=None,
-                            show_peaks=False, show_fits=False,
-                            show_trace=False, show=False, manual_extract_dict=None,
-                            debug=False):
+                     show_peaks=False, show_fits=False,
+                     show_trace=False, show=False, manual_extract_dict=None,
+                     debug=False):
         """
         Single pass at finding objects in the input image
 
@@ -1044,7 +1044,7 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     """
     indx = [c.__name__ == spectrograph.pypeline+'Reduce' for c in Reduce.__subclasses__()]
     if not np.any(indx):
-        msgs.error('Pipeline {0} is not defined!'.format(spectrograph.pypeline))
+        msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
                                                          par, caliBrate, **kwargs)
 
