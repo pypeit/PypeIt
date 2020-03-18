@@ -31,10 +31,11 @@ class Spec2DObj(datamodel.DataContainer):
 
     One generates one of these Objects for each detector in the exposure.
 
+    See datamodel below and at :ref:`spec2dobj_datamodel`
+
     Args:
 
     Attributes:
-        See datamodel
         head0 (`astropy.fits.Header`):
             Primary header if instantiated from a FITS file
 

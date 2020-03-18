@@ -102,8 +102,11 @@ indicate object traces.
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
-Current Data Model
-==================
+
+.. _spec2dobj_datamodel:
+
+Current Spec2DObj Data Model
+============================
 
 Internally, the image is held in
 :class:`pypeit.spec2dobj.AllSpec2DObj` which holds
