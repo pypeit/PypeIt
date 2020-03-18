@@ -424,7 +424,6 @@ class Calibrations(object):
             # Without files, we are stuck
             if len(bias_files) == 0:
                 self.msbias = None
-                return self.msbias
             else:
                 # Build it
                 self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
