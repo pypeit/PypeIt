@@ -240,7 +240,7 @@ class Calibrations(object):
            self.calib_dict[master_key] = {}
 
         Args:
-            master_type (str): Type of calibration frame
+            master_type (str): Type of calibration frame, e.g. 'bias', 'arc', ..
             master_key (str): Master key naming
 
         Returns:
@@ -253,7 +253,7 @@ class Calibrations(object):
             return False
         if master_key in self.calib_dict.keys():
             if master_type in self.calib_dict[master_key].keys():
-                # Found the previous master in memory
+                # Found the previous master in memory (may be None)
                 msgs.info('Using {0} for {1} found in cache.'.format(master_type, master_key))
                 return True
         # Master key exists but no master in memory for this specific type
@@ -425,15 +425,16 @@ class Calibrations(object):
             if len(bias_files) == 0:
                 self.msbias = None
                 return self.msbias
-            # Build it
-            self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                self.par['biasframe'], bias_files)
-            # Save it?
-            if self.save_masters:
-                self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
-                                          self.spectrograph.spectrograph,  # Header
-                                          steps=self.msbias.process_steps,
-                                          raw_files=bias_files)
+            else:
+                # Build it
+                self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                    self.par['biasframe'], bias_files)
+                # Save it?
+                if self.save_masters:
+                    self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
+                                              self.spectrograph.spectrograph,  # Header
+                                              steps=self.msbias.process_steps,
+                                              raw_files=bias_files)
         # Save & return
         self._update_cache('bias', 'bias', self.msbias)
         return self.msbias

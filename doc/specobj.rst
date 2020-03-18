@@ -57,11 +57,12 @@ In addition, one :class:`pypeit.images.detector_container.DetectorContainer`
 is written to an HDU (e.g. DET01-DETECTOR) for each detector
 with at least one spectrum extracted.
 
-
-.. include:: include/datamodel_specobj.rst
-
-
 The :class:`pypeit.specobj.SpecObj` objects are held
 interally by a
 :class:`pypeit.specobjs.SpecObjs` object.
+
+
+
+.. include:: include/datamodel_specobj.rst
+
 

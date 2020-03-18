@@ -644,15 +644,17 @@ class PypeIt(object):
             None or SpecObjs:  All of the objects saved to disk
 
         """
-        # TODO: Need some checks here that the exposure has been reduced
+        # TODO: Need some checks here that the exposure has been reduced?
 
         # Determine the headers
         head1d = self.fitstbl[frame]
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
-        #refframe = 'pixel' if self.caliBrate.par['wavelengths']['reference'] == 'pixel' else \
-        #    self.caliBrate.par['wavelengths']['frame']
+
+        # Check for the directory
+        if not os.path.isdir(self.science_path):
+            os.makedirs(self.science_path)
 
         # 1D spectra
         if all_specobjs.nobj > 0:
@@ -664,7 +666,7 @@ class PypeIt(object):
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
-        # 2D
+        # 2D spectra
         update_det = self.par['rdx']['detnum']
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                master_key_dict=self.caliBrate.master_key_dict,
@@ -673,10 +675,6 @@ class PypeIt(object):
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 
-        # Determine the paths/filenames
-        #save.save_all(sci_dict, self.caliBrate.master_key_dict, self.caliBrate.master_dir,
-        #              self.spectrograph, head1d, head2d, self.science_path, basename,
-        #              update_det=self.par['rdx']['detnum'], binning=self.fitstbl['binning'][frame])
 
     def msgs_reset(self):
         """
