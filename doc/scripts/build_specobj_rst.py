@@ -37,13 +37,13 @@ if __name__ == '__main__':
         lines += ['Version: {:s}'.format(obj.version)]
         lines += ['']
 
-        data_model = obj.data_model
+        data_model = obj.datamodel
 
         keys = list(data_model.keys())
         keys.sort()
 
         data_table = numpy.empty((len(data_model)+1, 4), dtype=object)
-        data_table[0,:] = ['Key', 'Obj Type', 'Array Type', 'Description']
+        data_table[0,:] = ['Obj', 'Obj Type', 'Array Type', 'Description']
         for i,k in enumerate(keys):
             # Key
             data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatum=True)

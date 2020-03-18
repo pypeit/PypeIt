@@ -113,3 +113,7 @@ the full set of
 The data model for the latter is:
 
 .. include:: include/datamodel_spec2dobj.rst
+
+Each array and the :class:`pypeit.images.detector_container.DetectorContainer`
+is written as a separate HDU prefixed by the detector number,
+DET01-
