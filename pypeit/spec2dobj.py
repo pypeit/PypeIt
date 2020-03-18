@@ -167,7 +167,7 @@ class AllSpec2DObj(object):
         # Detectors included
         detectors = hdul[0].header[slf.hdr_prefix+'DETS']
         for det in [int(item) for item in detectors.split(',')]:
-            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=hdu_prefix(det))
+            obj = Spec2DObj.from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
             slf[det] = obj
         # Header
         slf['meta']['head0'] = hdul[0].header
