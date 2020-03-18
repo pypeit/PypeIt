@@ -803,7 +803,8 @@ class DataContainer:
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
+               hdu_prefix=None):
         """
         Parse data read from a set of HDUs.
 
@@ -858,7 +859,9 @@ class DataContainer:
                 Tranpose *all* the arrays read from any binary
                 tables. This is meant to invert the use of
                 ``transpose_arrays`` in :func:`_bound`.
-            hdu_prefix
+            hdu_prefix (:obj:`str`, optional):
+                Decorate the HDUs with this prefix
+                Note, this over-rides any internally set hdu_prefix value
 
         Returns:
             tuple:
@@ -905,7 +908,10 @@ class DataContainer:
         # implement this restriction.
 
         # Handle hdu_prefix
-        prefix = '' if cls.hdu_prefix is None else cls.hdu_prefix
+        if hdu_prefix is not None:
+            prefix = hdu_prefix
+        else:
+            prefix = '' if cls.hdu_prefix is None else cls.hdu_prefix
 
         # HDUs can have dictionary elements directly.
         keys = np.array(list(d.keys()))
@@ -1111,7 +1117,7 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True):
+    def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None):
         """
         Instantiate the object from an HDU extension.
 
@@ -1120,6 +1126,8 @@ class DataContainer:
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) with the data to use for instantiation.
+            hdu_prefix (:obj:`str`, optional):
+                Passed to _parse()
         """
         # NOTE: We can't use `cls(cls._parse(hdu))` here because this
         # will call the `__init__` method of the derived class and we
@@ -1130,7 +1138,7 @@ class DataContainer:
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
         self = super().__new__(cls)
-        d, dm_version_passed, dm_type_passed = cls._parse(hdu)
+        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if chk_version:
             if not dm_version_passed:
