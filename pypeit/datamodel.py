@@ -651,7 +651,6 @@ class DataContainer:
         # Validate the object
         self._validate()
 
-
         if self.version is None:
             raise ValueError('Must define a version for the class.')
 
@@ -804,7 +803,7 @@ class DataContainer:
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None, debug=False):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False):
         """
         Parse data read from a set of HDUs.
 
@@ -906,14 +905,8 @@ class DataContainer:
         # implement this restriction.
 
         # Handle hdu_prefix
-        if hdu_prefix is None:
-            if cls.hdu_prefix is None:
-                prefix = ''
-            else:
-                prefix = cls.hdu_prefix.upper()
-        else:
-            prefix = hdu_prefix.upper()
-        #
+        prefix = '' if cls.hdu_prefix is None else cls.hdu_prefix
+
         # HDUs can have dictionary elements directly.
         keys = np.array(list(d.keys()))
         indx = np.isin([prefix+key.upper() for key in keys], _ext)
@@ -1033,8 +1026,7 @@ class DataContainer:
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
-               limit_hdus=None):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1069,9 +1061,6 @@ class DataContainer:
                 are identical.
             primary_hdr (`astropy.io.fits.Header`, optional):
                 Header to add to the primary if add_primary=True
-            hdu_prefix (str, optional):
-                Prefix for HDU name.  Convenient (required) for writing more several
-                DataContainers of the same name
             limit_hdus (list, optional):
                 Limit the HDUs that can be written to the items in this list
 
@@ -1103,9 +1092,9 @@ class DataContainer:
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr)]
         # Prefixes
-        if hdu_prefix is not None:
+        if self.hdu_prefix is not None:
             for ihdu in hdu:
-                ihdu.name = hdu_prefix+ihdu.name
+                ihdu.name = self.hdu_prefix+ihdu.name
         # Limit?
         if limit_hdus:
             # Wish I could do this as a list iterator...
@@ -1118,7 +1107,7 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
+    def from_hdu(cls, hdu, chk_version=True):
         """
         Instantiate the object from an HDU extension.
 
@@ -1137,7 +1126,7 @@ class DataContainer:
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
         self = super().__new__(cls)
-        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
+        d, dm_version_passed, dm_type_passed = cls._parse(hdu)
         # Check version and type?
         if chk_version:
             if not dm_version_passed:
@@ -1149,7 +1138,7 @@ class DataContainer:
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
-                hdu_prefix=None, limit_hdus=None):
+                limit_hdus=None):
         """
         Write the data to a file.
 
@@ -1174,12 +1163,9 @@ class DataContainer:
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
-            hdu_prefix (:obj:`str`, optional):
-                Prefix for all HDU elements except primary
-                Passed to to_hdu()
         """
         io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
-                                     hdu_prefix=hdu_prefix, limit_hdus=limit_hdus),
+                                     limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
     def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
@@ -1209,7 +1195,7 @@ class DataContainer:
                                               spectrograph, steps=steps,
                                               raw_files=raw_files)
         # Finish
-        self.to_file(ofile, primary_hdr=hdr, hdu_prefix=self.hdu_prefix,
+        self.to_file(ofile, primary_hdr=hdr,
                      limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
 
     # TODO: Add options to compare the checksum and/or check the package versions
@@ -1242,7 +1228,7 @@ class DataContainer:
         if verbose:
             msgs.info("Loading {} from {}".format(cls.__name__, ifile))
         with fits.open(ifile) as hdu:
-            return cls.from_hdu(hdu, hdu_prefix=cls.hdu_prefix)
+            return cls.from_hdu(hdu)
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)
