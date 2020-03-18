@@ -386,7 +386,7 @@ class Reduce(object):
         return None, None, None
 
     def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
-                      show_fit=False, show=False, show_objs=False, joint_fit=False):
+                      show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
 
@@ -399,8 +399,6 @@ class Reduce(object):
             show_fit (bool, optional):
             show (bool, optional):
             show_objs (bool, optional):
-            joint_fit (bool):
-                Jointly fit the sky in all slits simultaneously?
 
         Returns:
             numpy.ndarray: image of the the global sky model
@@ -431,7 +429,7 @@ class Reduce(object):
         original = True if ((trim_edg[0] == 0) and (trim_edg[1] == 0)) else False
         left, right = self.slits.select_edges(original=original)
 
-        if joint_fit:
+        if self.par['reduce']['skysub']['joint_fit']:
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
             inmask = (self.sciImg.mask == 0) & thismask & skymask_now
@@ -1164,7 +1162,7 @@ class IFUReduce(Reduce):
         skymask_init = self.load_skyregions()
 
         # Global sky subtract
-        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False, joint_fit=True).copy()
+        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
 
         from pypeit.io import write_to_fits
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)

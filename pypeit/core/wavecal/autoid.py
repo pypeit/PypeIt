@@ -942,7 +942,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             try:
                 sv_IDs.append(patt_dict['IDs'])
             except KeyError:
-                msgs.warn("Barfed in reidentify..")
+                msgs.warn("Failed to perform wavelength calibration in reidentify..")
                 sv_IDs.append(np.zeros_like(detections))
             else:
                 # Save now in case the next one barfs
