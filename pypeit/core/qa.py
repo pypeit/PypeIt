@@ -347,14 +347,16 @@ def gen_mf_html(pypeit_file, qa_path):
         calib_dict = yaml.load(infile, Loader=yaml.FullLoader)
     # Parse
     setup = list(calib_dict.keys())[0]
-    dets, cbsets = [], []
+    cbsets = []
     for key in calib_dict[setup].keys():
         if key == '--':
             continue
-        if isinstance(key,str):
-            dets.append(int(key))
+        #if isinstance(key,str):
+        #    dets.append(int(key))
         else:
             cbsets.append(key)
+    # Fake out dets
+    dets = (1+np.arange(99)).tolist()
     # Generate MF file
     MF_filename = os.path.join('{:s}'.format(qa_path), 'MF_{:s}.html'.format(setup))
     body = ''
