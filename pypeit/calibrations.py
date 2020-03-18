@@ -149,6 +149,18 @@ class Calibrations(object):
         self._reset_internals()
 
     def _prep_calibrations(self, ctype):
+        """
+        Parse self.fitstbl for rows matching the calibration type
+        and initialize the self.master_key_dict
+
+        Args:
+            ctype (str):
+                Calibration type, e.g. 'flat', 'arc', 'bias'
+
+        Returns:
+            list:  List of image files matching input type
+
+        """
         # Grab rows and files
         rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
         image_files = self.fitstbl.frame_paths(rows)
@@ -179,8 +191,6 @@ class Calibrations(object):
         self.slits = None
         self.wavecalib = None
         self.wavetilts = None
-        #self.mspixelflat = None
-        #self.msillumflat = None
         self.flatimages = None
         self.mswave = None
         self.calib_ID = None

@@ -31,15 +31,14 @@ class PypeItImage(datamodel.DataContainer):
     The intent is to keep this object as light-weight as possible.
 
     Args:
-        image (np.ndarray or None):
-        ivar (np.ndarray, optional):
-        rn2img (np.ndarray, optional):
-        bpm (np.ndarray, optional):
-            Passed to self.mask
-        crmask (np.ndarray, optional):
-            Passed to self.mask
-        fullmask (np.ndarray, optional):
-            Passed to self.mask
+        image (`np.ndarray`_ or None):
+            See datamodel for description
+        ivar (`np.ndarray`_, optional):
+        rn2img (`np.ndarray`_, optional):
+        bpm (`np.ndarray`_, optional):
+        crmask (`np.ndarray`_, optional):
+        fullmask (`np.ndarray`_, optional):
+        detector (:class:`pypeit.images.data_container.DataContainer`):
 
     Attributes:
         hdu_prefix (str, optional):
@@ -68,12 +67,14 @@ class PypeItImage(datamodel.DataContainer):
     # For masking
     bitmask = maskimage.ImageBitMask()
 
+    hdu_prefix = None
+
     @classmethod
-    def from_file(cls, ifile, hdu_prefix=None):
+    def from_file(cls, ifile):
         """
         Instantiate from a file on disk (FITS file)
 
-        Overload to grab Header
+        Overloaded :func:`pypeit.datamodel.DataContainer.from_file` to grab Header
 
         Args:
             ifile (str):
@@ -83,10 +84,7 @@ class PypeItImage(datamodel.DataContainer):
                 Loaded up PypeItImage with the primary Header attached
 
         """
-        #slf = super(PypeItImage, cls).from_hdu(hdul, hdu_prefix=hdu_prefix)
         slf = super(PypeItImage, cls).from_file(ifile)
-
-        # TODO -- Check if master and launch the right one if so
 
         # Header
         slf.head0 = fits.getheader(ifile)
@@ -103,9 +101,10 @@ class PypeItImage(datamodel.DataContainer):
         This is *not* a deepcopy
 
         Args:
-            pypeitImage (PypeItImage):
+            pypeitImage (:class:`PypeItImage`):
 
         Returns:
+            pypeitImage (:class:`PypeItImage`):
 
         """
 
@@ -175,7 +174,7 @@ class PypeItImage(datamodel.DataContainer):
         """
         Generate the CR mask frame
 
-        Mainly a wrapper to procimg.lacosmic
+        Mainly a wrapper to :func:`pypeit.core.procimg.lacosmic`
 
         Args:
             par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
@@ -230,7 +229,7 @@ class PypeItImage(datamodel.DataContainer):
                 Defaults to self.detector['mincounts']
 
         Returns:
-            numpy.ndarray: Copy of the bit value mask for the science image.
+            `np.ndarray`_: Copy of the bit value mask for the science image.
         """
         _mincounts = self.detector['mincounts'] if mincounts is None else mincounts
         _saturation = self.detector['saturation'] if saturation is None else saturation
@@ -280,7 +279,7 @@ class PypeItImage(datamodel.DataContainer):
         Update a mask using the slitmask
 
         Args:
-            slitmask (np.ndarray):
+            slitmask (`np.ndarray`_):
                 Slitmask with -1 values pixels *not* in a slit
 
         """
@@ -297,7 +296,7 @@ class PypeItImage(datamodel.DataContainer):
         ones are turned on.
 
         Args:
-            crmask_new (np.ndarray):
+            crmask_new (`np.ndarray`_):
                 New CR mask
         """
         self.fullmask = self.bitmask.turn_off(self.fullmask, 'CR')
@@ -310,7 +309,7 @@ class PypeItImage(datamodel.DataContainer):
         Extras (e.g. ivar, masks) are included if they are present
 
         Args:
-            other (`PypeItImage`_):
+            other (:class:`PypeItImage`):
             par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
                 Parameters that dictate the processing of the images.  See
                 :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the defaults

@@ -96,8 +96,8 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
 # TODO JFH: we make exceptions for core objects like specobjs
-# TODO JXP: This will be elimiated as core and put back into pypeit once we have
-#  proper datamodels for all these.
+# TODO JXP: This will be elimiated as core and put back into specobjs once
+#  we have proper datamodels for all these.
 def save_obj_info(all_specobjs, spectrograph, outfile, sci_dict, binning='None'):
     """
     Write info to an ASCII file

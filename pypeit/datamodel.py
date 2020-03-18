@@ -663,9 +663,10 @@ class DataContainer:
 
         Args:
             include_parent (bool, optional):
+                If True, include the parent entry in additional to its pieces
 
         Returns:
-            dict
+            dict: All the keys, items of the nested datamodel's
 
         """
         #
@@ -858,6 +859,7 @@ class DataContainer:
                 Tranpose *all* the arrays read from any binary
                 tables. This is meant to invert the use of
                 ``transpose_arrays`` in :func:`_bound`.
+            hdu_prefix
 
         Returns:
             tuple:
@@ -903,11 +905,16 @@ class DataContainer:
         # capitalized, while the datamodel doesn't (currently)
         # implement this restriction.
 
-        # HDUs can have dictionary elements directly.
+        # Handle hdu_prefix
         if hdu_prefix is None:
-            prefix = ''
+            if cls.hdu_prefix is None:
+                prefix = ''
+            else:
+                prefix = cls.hdu_prefix.upper()
         else:
             prefix = hdu_prefix.upper()
+        #
+        # HDUs can have dictionary elements directly.
         keys = np.array(list(d.keys()))
         indx = np.isin([prefix+key.upper() for key in keys], _ext)
         if np.any(indx):
@@ -1137,10 +1144,8 @@ class DataContainer:
                 raise IOError("Bad datamodel version in your hdu's")
             if not dm_type_passed:
                 raise IOError("Bad datamodel type in your hdu's")
-        try:
-            DataContainer.__init__(self, d)
-        except:
-            embed(header='1127 of datamodel')
+        # Finish
+        DataContainer.__init__(self, d)
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
@@ -1185,11 +1190,16 @@ class DataContainer:
         self.hdu_prefix and self.output_to_disk must be set (or None)
 
         Args:
-            master_dir:
-            master_key:
-            spectrograph:
-            steps:
-            raw_files:
+            master_dir (str):
+                path to Masters folder
+            master_key (str):
+                Master key, e.g. A_1_01
+            spectrograph (str):
+                Name of the spectrograph
+            steps (list, optional):
+                List of steps taken to build this DataContainer
+            raw_files (list):
+                List of raw data files used to build this DataContainer
             **kwargs: passed to to_file()
         """
         # Output file
@@ -1198,6 +1208,7 @@ class DataContainer:
         hdr = masterframe.build_master_header(self, master_key, master_dir,
                                               spectrograph, steps=steps,
                                               raw_files=raw_files)
+        # Finish
         self.to_file(ofile, primary_hdr=hdr, hdu_prefix=self.hdu_prefix,
                      limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
 

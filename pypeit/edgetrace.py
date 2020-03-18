@@ -53,7 +53,7 @@ detector is as follows::
     rdx.par['calibrations']['traceframe']['process']['bias'] = 'skip'
 
     # Construct the TraceImage
-    # TODO -- Update this
+    # TODO -- Update this doc
     traceImage = pypeit.images.buildcalibration.TraceImage(rdx.spectrograph, files=files, det=det,
                                        par=rdx.par['calibrations']['traceframe'])
     traceImage.build_image()
@@ -398,7 +398,7 @@ class EdgeTraceSet(object):
         # TODO: Add type-checking for spectrograph and par
         if not isinstance(trace_img, TraceImage):
             msgs.error("Bad input for img.  Must be a TraceImage object")
-        self.trace_img = trace_img      # The image used to find the slit edges
+        self.trace_img = trace_img      # Input  TraceImage
         self.img = trace_img.image      # The image used to find the slit edges
         self.spectrograph = spectrograph    # Spectrograph used to take the data
         self.par = par                      # Parameters used for slit edge tracing
@@ -412,7 +412,7 @@ class EdgeTraceSet(object):
         # TODO: Need a separate mask for the sobel image?
         self.nspec = None               # The shape of the trace image is (nspec,nspat)
         self.nspat = None
-        self.binning = None
+        self.binning = None             # Detector ordered:  spec, spat
 
         self.traceid = None             # The ID numbers for each trace
         self.spat_img = None            # (Integer) Pixel nearest the slit edge for each trace

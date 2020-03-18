@@ -118,7 +118,6 @@ def rec_to_fits_col_dim(col_element, single_row=False):
         None if the object is not multidimensional.
     """
     _col_element = col_element if single_row else col_element[0]
-    #_col_element = col_element #if single_row else col_element[0]
     return None if len(_col_element.shape) < 2 else str(_col_element.shape[::-1])
 
 

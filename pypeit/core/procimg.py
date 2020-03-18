@@ -697,7 +697,7 @@ def set_process_steps(bias, frame_par):
 
     Args:
         bias (None or np.ndarray):
-        frame_par (ProcessImagesPar):
+        frame_par (:class:`pypeit.par.pypeitpar.FramePar`):
 
     Returns:
         list: List of the processing steps to begin with.  Can be empty

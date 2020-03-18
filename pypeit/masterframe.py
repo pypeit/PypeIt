@@ -43,7 +43,7 @@ def grab_key_mdir(inp):
     Grab master_key and master_dir from a file or header
 
     Args:
-        inp (:obj:`str1 or astropy.io.fits.Header):
+        inp (:obj:`str` or astropy.io.fits.Header):
 
     Returns:
         tuple:  str, str of master_key and master_dir
