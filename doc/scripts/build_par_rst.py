@@ -7,6 +7,9 @@ Dynamically build the rst documentation of the pypeit parameters.
 import os
 import time
 import textwrap
+
+from IPython import embed
+
 import numpy
 
 from pkg_resources import resource_filename
@@ -81,7 +84,7 @@ if __name__ == '__main__':
     spectrographs = valid_spectrographs()
     for spec in spectrographs:
         s = load_spectrograph(spec)
-        lines += [ ' '.join([s.telescope['name'], s.camera]) ]
+        lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.spectrograph)]) ]
         lines += [ '-'*len(lines[-1]) ]
         lines += [ 'Alterations to the default parameters are::' ]
         lines += ['']

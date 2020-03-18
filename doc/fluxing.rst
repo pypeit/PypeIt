@@ -21,8 +21,8 @@ fluxing operation.
 
 WARNING: The code only allows for a select set of :doc:`standards`.
 
-Sensitivity Function
---------------------
+Sensitivity FunctionI
+---------------------
 
 If you wish to generate a sensitivity function from an
 input standard star file, then you need to set std_file
@@ -36,8 +36,8 @@ The former specifies the spec1d spectrum file produced
 by PypeIt for the standard star.  The latter specifies
 the output file name, which will be overwritten if need be.
 
-Fluxing
--------
+Flux
+----
 
 To flux one or more spec1d files, generate a `flux read`, e.g.::
 

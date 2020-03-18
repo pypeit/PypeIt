@@ -36,10 +36,10 @@ else:
 outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
 
-def build_template(in_files, slits, wv_cuts, binspec, outroot,
+def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=True, ifiles=None, det_cut=None, chk=False,
-                   miny=None):
+                   miny=None, overwrite=True):
     """
     Generate a full_template for a given instrument
 
@@ -54,6 +54,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
             Spectral binning of the archived spectrum
         outroot (str):
             Name of output archive
+        outdir (str):
+            Name of output directory
         lowredux (bool, optional):
             If true, in_files are from LowRedux
         wvspec (ndarray, optional):
@@ -72,6 +74,9 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         subtract_conti (bool, optional):
             Subtract the continuum for the final archive
     """
+    if outdir is None:
+        outdir = outpath
+
     # Load xidl file
     # Grab it
     # Load and splice
@@ -132,17 +137,20 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         debugger.plot1d(nwwv, nwspec)
         embed(header='102')
     # Generate the table
-    write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut)
+    write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
 
 
 def pypeit_arcspec(in_file, slit):
     """
-    Documentation needed.
+    Load up the arc spectrum from an input JSON file
+
     Args:
-        in_file:
-        slit:
+        in_file (str):
+        slit (int):
+            slit index
 
     Returns:
+        np.ndarray, np.ndarray:  wave, flux
 
     """
     wv_dict = ltu.loadjson(in_file)
@@ -154,15 +162,24 @@ def pypeit_arcspec(in_file, slit):
     return wv_vac, np.array(iwv_calib['spec'])
 
 
-def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
+def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
     """From within PypeIt, generate a template file if the user manually identifies an arc spectrum
 
-    Args:
-        iwv_calib (dict): Wavelength calibration returned by final_fit
-        binspec (int): Spectral binning
-        specname (str): Name of instrument
-        gratname (str): Name of grating
-        dispangl (str): Dispersion angle
+    Parameters
+    ----------
+
+    iwv_calib : dict
+        Wavelength calibration returned by final_fit
+    binspec : int
+        Spectral binning
+    specname : str
+        Name of instrument
+    gratname : str
+        Name of grating
+    dispangl : str
+        Dispersion angle
+    outdir : str, None
+        Output directory
     """
     x = np.arange(len(iwv_calib['spec']))
     wv_vac = utils.func_val(iwv_calib['fitc'], x / iwv_calib['xnorm'], iwv_calib['function'],
@@ -180,12 +197,12 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl):
         cntr += 1
     slits = [0]
     lcut = [3200.]
-    build_template("", slits, lcut, binspec, outroot, wvspec=wvspec, lowredux=False)
+    build_template("", slits, lcut, binspec, outroot, outdir=outdir, wvspec=wvspec, lowredux=False, overwrite=False)
     # Return
     return
 
 
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None):
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
     """
     TODO: Documentation needed
     Args:
@@ -195,6 +212,8 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=
         outpath:
         outroot:
         det_cut:
+        order:
+        overwrite:
 
     Returns:
 
@@ -215,7 +234,7 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=
             tbl['det'][gdwv] += deti
     # Write
     outfile = os.path.join(outpath, outroot)
-    tbl.write(outfile, overwrite=True)
+    tbl.write(outfile, overwrite=overwrite)
     print("Wrote: {}".format(outfile))
 
 
@@ -402,6 +421,7 @@ def main(flg):
         build_template([wfile1,wfile2,wfile3], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut, chk=True)
 
+    # ###############################################3
     # Keck/LRISr
     if flg & (2**10): # R400
         binspec = 2
@@ -434,7 +454,20 @@ def main(flg):
         wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_5000', 'MasterWaveCalib_B_1_01.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
-    if flg & (2**13):  # Magellan/MagE
+    if flg & (2**27):  # R600/7500
+        # slits = [1-10]  # 5000 -- 7840
+        # slits = [1-4]  # 7840 -- 9230
+        binspec = 2
+        outroot='keck_lris_red_600_7500.fits'
+        slits = [10, 4]
+        lcut = [7840.]
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_7500', 'MasterWaveCalib_I_1_01.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
+                       chk=True, normalize=True, subtract_conti=True)
+
+    # ##################################
+    # Magellan/MagE
+    if flg & (2**13):
         # Load
         mase_path = os.path.join(os.getenv('XIDL_DIR'), 'Magellan', 'MAGE', 'mase', 'Calib')
         sav_file = os.path.join(mase_path, 'MagE_wvguess_jfh.idl')
@@ -754,12 +787,16 @@ if __name__ == '__main__':
 
     # WHT/ISIS
     #flg += 2**23  # Convert JSON to FITS
+
     # Magellan/FIRE
     #flg += 2**24  # FIRE Echelle
     #flg += 2**25  # FIRElongslit
+
     # Gemini Flamingos2
     #flg += 2**26  # Longslit
-    flg += 2**19
+
+    # Keck/LRIS r
+    flg += 2**27  # R600/7500
 
     main(flg)
 
