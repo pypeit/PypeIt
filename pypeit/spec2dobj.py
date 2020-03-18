@@ -22,8 +22,9 @@ from pypeit import datamodel
 from pypeit.images import detector_container
 
 
-def hdu_prefix(det):
+def spec2d_hdu_prefix(det):
     return 'DET{:02d}-'.format(det)
+
 
 class Spec2DObj(datamodel.DataContainer):
     """Class to handle 2D spectral image outputs of PypeIt
@@ -35,7 +36,7 @@ class Spec2DObj(datamodel.DataContainer):
     Attributes:
         See datamodel
         head0 (`astropy.fits.Header`):
-        sciimg (`np.ndarray`_):
+            Primary header if instantiated from a FITS file
 
     """
     version = '1.0.0'
@@ -61,7 +62,7 @@ class Spec2DObj(datamodel.DataContainer):
     @classmethod
     def from_file(cls, file, det):
         hdul = fits.open(file)
-        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=hdu_prefix(det))
+        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
         slf.head0 = hdul[0].header
         return slf
 
@@ -74,16 +75,24 @@ class Spec2DObj(datamodel.DataContainer):
 
 
     def _init_internals(self):
+        """
+        All modifiable internals go here
+        """
         self.head0 = None
 
     def _vaildate(self):
+        """
+        Assert that the detector has been set
+
+        Returns:
+
+        """
         assert self.det is not None, 'Must set det at instantiation!'
 
     def _bundle(self):
         """
-        Over-write default _bundle() method to write one
-        HDU per image.  Any extras are in the HDU header of
-        the primary image.
+        Over-write default _bundle() method to separate the DetectorContainer
+        into its own HDU
 
         Returns:
             :obj:`list`: A list of dictionaries, each list element is
@@ -109,18 +118,19 @@ class Spec2DObj(datamodel.DataContainer):
         # Return
         return d
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_dict_bintbl=False):
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        #_d['hdu_prefix'] = self.hdu_prefix
-        #
-        return super(Spec2DObj, self).to_hdu(**_d)
-
-
     @property
     def hdu_prefix(self):
-        return hdu_prefix(self.det)  #'DET{:02d}-'.format(self.det)
+        """
+        Provides for a dynamic hdu_prefix based on our naming model
+
+        see :func:`spec2d_hdu_prefix`
+
+        Returns:
+            str
+
+        """
+        return spec2d_hdu_prefix(self.det)
+
 
 class AllSpec2DObj(object):
     """
@@ -130,12 +140,21 @@ class AllSpec2DObj(object):
     Anything that goes into self['meta'] must be parseable into a FITS Header
 
     Restrict keys to be type int or 'meta'
-    and items to be `Spec2DObj`_
+    and items to be :class:`Spec2DObj`
 
     """
     hdr_prefix = 'ALLSPEC2D_'
     @classmethod
     def from_fits(cls, filename):
+        """
+
+        Args:
+            filename (str):
+
+        Returns:
+            :class:`AllSpec2DObj`:
+
+        """
         # Instantiate
         slf = cls()
         # Open
