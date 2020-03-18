@@ -150,14 +150,14 @@ class AllSpec2DObj(object):
             obj = Spec2DObj.from_hdu(hdul, hdu_prefix=hdu_prefix(det))
             slf[det] = obj
         # Header
-        slf.head0 = hdul[0].header
+        slf['meta']['head0'] = hdul[0].header
         return slf
 
-
     def __init__(self):
-        super(AllSpec2DObj, self).__init__()
+        # Init meta
         self['meta'] = {}
-        self.head0 = None
+
+    # TODO -- Turn off attribute setting
 
     def keys(self):
         return self.__dict__.keys()
@@ -238,7 +238,10 @@ class AllSpec2DObj(object):
         # Loop on em (in order of detector)
         keys = list(self.keys())
         keys.remove('meta')
-        keys.sort()
+        try:
+            keys.sort()
+        except TypeError:
+            embed(header='244 of spec2dobj')
         extnum = 1
         for key in keys:
             #
