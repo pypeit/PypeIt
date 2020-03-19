@@ -15,7 +15,7 @@ from pypeit import ginga, msgs, edgetrace
 from pypeit import masterframe
 from pypeit.par import pypeitpar
 from pypeit.images import pypeitimage
-from pypeit.core import procimg, extract, arc, pixels, save, load
+from pypeit.core import procimg, extract, arc, pixels, load
 
 
 #class AlignFrame(masterframe.MasterFrame):

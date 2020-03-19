@@ -239,7 +239,7 @@ class SpecObj(datamodel.DataContainer):
             # ObjID
             name = naming_model['obj']
             ech_name = naming_model['obj']
-            if self['ECH_FRACPOS'] is None: # not in self._data.meta.keys():
+            if self['ECH_FRACPOS'] is None:
                 name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
@@ -256,7 +256,7 @@ class SpecObj(datamodel.DataContainer):
         elif 'MultiSlit' in self.PYPELINE:
             # Spat
             name = naming_model['spat']
-            if 'SPAT_PIXPOS' not in self._data.meta.keys():
+            if self['SPAT_PIXPOS'] is None:
                 name += '----'
             else:
                 name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
@@ -269,7 +269,7 @@ class SpecObj(datamodel.DataContainer):
         elif 'IFU' in self.PYPELINE:
             # Spat
             name = naming_model['spat']
-            if self['SPAT_PIXPOS'] is None: # not in self._data.meta.keys():
+            if self['SPAT_PIXPOS'] is None:
                 name += '----'
             else:
                 name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
@@ -310,7 +310,7 @@ class SpecObj(datamodel.DataContainer):
         x = np.linspace(0., 1., npix)
         # Apply
         for attr in ['BOX', 'OPT']:
-            if self[attr+'_WAVE'] is not None: #in self._data.keys():
+            if self[attr+'_WAVE'] is not None:
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
                           msgs.newline() + "{0:s}".format(str(self.NAME)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
@@ -350,7 +350,7 @@ class SpecObj(datamodel.DataContainer):
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:
-            if self[attr+'_WAVE'] is not None: # not in self._data.keys():
+            if self[attr+'_WAVE'] is not None:
                 continue
             msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
 
@@ -441,7 +441,7 @@ class SpecObj(datamodel.DataContainer):
         """
         swave = extraction+'_WAVE'
         smask = extraction+'_MASK'
-        if self[swave] is None:  #not in self._data.keys():
+        if self[swave] is None:
             msgs.error("This object has not been extracted with extract={}.".format(extraction))
         # Fluxed?
         if fluxed:
