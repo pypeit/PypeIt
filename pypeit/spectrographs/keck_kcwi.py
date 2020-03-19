@@ -12,12 +12,14 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 
 class KeckKCWISpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/KCWI specific code
     """
+    ndet = 1
 
     def __init__(self):
         # Get it started
@@ -25,25 +27,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_kcwi'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'KCWI'
-        self.detector = [pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.147,  # arcsec/pixel
-                            darkcurr        = None,  # <-- TODO : Need to set this
-                            saturation      = 65535.,
-                            nonlinear       = 0.95,       # For lack of a better number!
-                            numamplifiers   = 4,          # <-- This is provided in the header
-                            gain            = [0]*4,  # <-- This is provided in the header
-                            ronoise         = [0]*4,  # <-- TODO : Need to set this for other setups
-                            datasec         = ['']*4,     # <-- This is provided in the header
-                            oscansec        = ['']*4,     # <-- This is provided in the header
-                            suffix          = '_01'
-                            )]
-        self.numhead = 1
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?
@@ -56,6 +39,56 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     @property
     def pypeline(self):
         return 'IFU'
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Some properties of the image
+        head0 = hdu[0].header
+        binning = self.compound_meta(self.get_headarr(hdu), "binning")
+        numamps = head0['NVIDINP']
+        specflip = True if head0['AMPID1'] == 2 else False
+        gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
+        ronarr = np.ones(numamps) * 2.7
+        dsecarr = np.array(['']*numamps)
+
+        for ii in range(numamps):
+            # Assign the gain for this amplifier
+            gainarr[ii] = head0["GAIN{0:1d}".format(ii + 1)] * gainmul
+
+        detector = dict(det             = det,
+                        binning         = binning,
+                        dataext         = 0,
+                        specaxis        = 0,
+                        specflip        = specflip,
+                        spatflip        = False,
+                        xgap            = 0.,
+                        ygap            = 0.,
+                        ysize           = 1.,
+                        platescale      = 0.147,  # arcsec/pixel
+                        darkcurr        = None,  # <-- TODO : Need to set this
+                        mincounts       = -1e10,
+                        saturation      = 65535.,
+                        nonlinear       = 0.95,       # For lack of a better number!
+                        numamplifiers   = numamps,
+                        gain            = gainarr,
+                        ronoise         = ronarr,  # <-- TODO : Need to set this for other setups
+                        datasec         = dsecarr.copy(),     # <-- This is provided in the header
+                        oscansec        = dsecarr.copy(),     # <-- This is provided in the header
+                        )
+        # Return
+        return detector_container.DetectorContainer(**detector)
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -97,7 +130,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Return
         return par
-
 
     def init_meta(self):
         """
@@ -324,29 +356,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             kk += 1
         return "_".join(lampstat)
 
-    def set_detector_par(self, par, det, value, force_update=False):
-        """
-        Update or set a parameter in the detector array
-
-        TODO ::  THIS METHOD NEEDS TO BE DELETED ONCE NEW DETECTOR CLASS IS IMPLEMENTED!!!
-
-        Args:
-            par : str
-              Parameter that needs to be updated
-            det : int
-              Detector number
-            value : any type
-              Updated value to assign parameter 'par'
-            force_update : bool
-              Overwrite a parameter, even if it's been set
-        """
-        from copy import deepcopy
-        # Update the value
-        if self.detector[det-1][par] is None or force_update:
-            msgs.info("Updating detector {0:d} parameter: {1:s}".format(det, par))
-            self.detector[det-1][par] = deepcopy(value)
-        return
-
     def get_rawimage(self, raw_file, det):
         """
         Read a raw KCWI data frame
@@ -368,12 +377,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
           Detector number
         Returns
         -------
-        array : ndarray
-          Combined image
-        hdu : HDUList
-        sections : list
-          List of datasec, oscansec, ampsec sections
-          datasec, oscansec needs to be for an *unbinned* image as per standard convention
+        tuple
+            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
@@ -383,13 +388,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading KCWI file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
+        detpar = self.get_detector_par(hdu, det if det is None else 1)
         head0 = hdu[0].header
-        raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
+        raw_img = hdu[detpar['dataext']].data.astype(float)
 
         # Some properties of the image
         numamps = head0['NVIDINP']
-        specflip = True if head0['AMPID1'] == 2 else False
-        gainmul, gainarr = head0['GAINMUL'], []
         # Exposure time (used by ProcessRawImage)
         headarr = self.get_headarr(hdu)
         exptime = self.get_meta_value(headarr, 'exptime')
@@ -420,23 +424,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 # Assign the amplifier
                 pix_img[datasec] = i+1
 
-                if section == 'DSEC':  # Only do this once
-                    # Assign the gain for this amplifier
-                    gainarr += [head0["GAIN{0:1d}".format(i+1)]*gainmul]
-
             # Finish
             if section == 'DSEC':
                 rawdatasec_img = pix_img.copy()
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
 
-        # Update detector parameters
-        self.set_detector_par('gain', det, gainarr, force_update=True)
-        self.set_detector_par('ronoise', det, [2.7]*numamps, force_update=True)  # Note, if it's a fast read, the RON=5e-
-        self.set_detector_par('specflip', det, specflip, force_update=True)
-
         # Return
-        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+        return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """

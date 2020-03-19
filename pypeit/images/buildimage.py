@@ -153,6 +153,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
         finalImage = TiltImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'trace':
         finalImage = TraceImage.from_pypeitimage(pypeitImage)
+    elif frame_par['frametype'] == 'align':
+        finalImage = AlignImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] in ['pixelflat', 'science', 'standard']:
         finalImage = pypeitImage
     else:
