@@ -48,6 +48,8 @@ class PypeItImage(datamodel.DataContainer):
         head0 (astropy.io.fits.Header):
         detector (:class:`pypeit.images.detector_container.DetectorContainer`):
         files (list):
+        rawheadlst (list):
+            List containing headers of the raw image file
 
     """
     # Set the version of this class
@@ -118,7 +120,7 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,  # This should contain all datamodel items
-                 crmask=None, fullmask=None, detector=None):
+                 crmask=None, fullmask=None, detector=None, rawheadlist=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -130,6 +132,7 @@ class PypeItImage(datamodel.DataContainer):
         self.head0 = None
         self.process_steps = None
         self.files = None
+        self.rawheadlist = None
 
 
     def _bundle(self):

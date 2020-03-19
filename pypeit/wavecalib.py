@@ -103,7 +103,7 @@ class WaveCalib(object):
         self.par = par
 
         # Optional parameters
-        self.bpm = msbpm
+        self.bpm = msarc.mask if msbpm is None else msbpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -183,6 +183,7 @@ class WaveCalib(object):
         """
         # Obtain a list of good slits
         ok_mask = np.where(np.invert(self.maskslits))[0]
+
         # Obtain calibration for all slits
         if method == 'simple':
             lines = self.par['lamps']

@@ -26,6 +26,7 @@ class FrameTypeBitMask(BitMask):
         # 3.7, we can remove this (and other) OrderedDict usage in favor
         # of just a normal dict.
         frame_types = OrderedDict([
+                       ('align', 'Trace constant spatial positions along the slit'),
                          ('arc', 'Arc lamp observation used for wavelength calibration'),
                         ('bias', 'Bias readout for detector bias subtraction'),
                         ('dark', 'Shuttered exposure to measure dark current'),

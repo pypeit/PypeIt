@@ -146,13 +146,25 @@ class PypeIt(object):
         # An html file wrapping them all too
 
         # Instantiate Calibrations class
-        self.caliBrate \
-            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                 self.spectrograph,
-                                                 caldir=self.calibrations_path,
-                                                 qadir=self.qa_path,
-                                                 reuse_masters=self.reuse_masters,
-                                                 show=self.show)
+        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
+            self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+                                                     self.spectrograph,
+                                                     caldir=self.calibrations_path,
+                                                     qadir=self.qa_path,
+                                                     reuse_masters=self.reuse_masters,
+                                                     show=self.show)
+        elif self.spectrograph.pypeline in ['IFU']:
+            self.caliBrate \
+                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
+                                               self.spectrograph,
+                                               caldir=self.calibrations_path,
+                                               qadir=self.qa_path,
+                                               reuse_masters=self.reuse_masters,
+                                               show=self.show)
+        else:
+            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
+
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used
