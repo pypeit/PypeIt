@@ -31,6 +31,7 @@ class ArcImage(pypeitimage.PypeItImage):
     master_type = 'Arc'
     file_format = 'fits'
 
+
 class AlignImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Arc Image
@@ -46,6 +47,7 @@ class AlignImage(pypeitimage.PypeItImage):
     master_type = 'Align'
     file_format = 'fits'
 
+
 class BiasImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Tilt Image
@@ -54,7 +56,7 @@ class BiasImage(pypeitimage.PypeItImage):
     version = pypeitimage.PypeItImage.version
 
     # Output to disk
-    output_to_disk = ('BIAS_IMAGE',)
+    output_to_disk = ('BIAS_IMAGE', 'BIAS_DETECTOR')
     hdu_prefix = 'BIAS_'
     master_type = 'Bias'
     file_format = 'fits'
