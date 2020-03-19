@@ -2,16 +2,19 @@ import os
 
 from pypeit.scripts import coadd_1dspec
 
+def test_lrisr():
+    dpath = '/home/xavier/scratch/FRB190714/keck_lris_red_C/Science'
+    file1 = 'spec1d_LR.20200128.55304-frb1907B_LRISr_2020Jan28T152144.726.fits'
+    file2 = 'spec1d_LR.20200128.56019-frb1907B_LRISr_2020Jan28T153339.168.fits'
+    file3 = 'spec1d_LR.20200128.56734-frb1907B_LRISr_2020Jan28T154534.733.fits'
+    file4 = 'spec1d_LR.20200128.57449-frb1907B_LRISr_2020Jan28T155729.779.fits'
 
-dpath = '/home/xavier/scratch/FRB190714/keck_lris_red_C/Science'
-file1 = 'spec1d_LR.20200128.55304-frb1907B_LRISr_2020Jan28T152144.726.fits'
-file2 = 'spec1d_LR.20200128.56019-frb1907B_LRISr_2020Jan28T153339.168.fits'
-
-coadd_1dspec.coadd1d_filelist([os.path.join(dpath, file1),
-                               os.path.join(dpath, file2)],
-                              'tst_lris_files',
-                              1)
-
+    coadd_1dspec.coadd1d_filelist([os.path.join(dpath, file1),
+                                   os.path.join(dpath, file2),
+                                   os.path.join(dpath, file3),
+                                   os.path.join(dpath, file4)],
+                                  'tst_lris_files',
+                                  1)
 
 def test_kastb():
     dpath = '/home/xavier/local/Python/PypeIt-development-suite/REDUX_OUT/Shane_Kast_blue/600_4310_d55/shane_kast_blue_A'
