@@ -106,6 +106,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
     sync_dict = None
     for ifile in files[1:]:
         sync_dict = coadd.sync_pair(files[0], ifile, det, sync_dict=sync_dict)
+    embed(header='109 of coadd_1dspec')
     #
     header = fits.getheader(files[0])
     spectrograph = load_spectrograph(header['PYP_SPEC'])
@@ -119,7 +120,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
     # Loop on entries
     for key in sync_dict:
 
-        coaddfile = outroot+'-SPAT{:04d}'.format(key)+'.fits'
+        coaddfile = outroot+'-SPAT{:04d}-DET{:02d}'.format(key, det)+'.fits'
 
         coAdd1d = coadd1d.CoAdd1D.get_instance(sync_dict[key]['files'],
                                              sync_dict[key]['names'],

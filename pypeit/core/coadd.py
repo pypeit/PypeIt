@@ -3039,7 +3039,7 @@ def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
     assert len(in_files) == len(in_names)
     # Check for indx
     if len(sync_dict) > 0:
-        ikeys = list(sync_dict.keys())
+        ikeys = np.array(list(sync_dict.keys()))
         mtch = np.abs(ikeys-in_indx) < sync_toler
         nmtch = np.sum(mtch)
         if nmtch == 0:
@@ -3116,7 +3116,7 @@ def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=F
         update_sync_dict(sync_dict, indx1, files, names)
 
     # Deal with not done
-    if np.any(not done2):
+    if np.any(np.invert(done2)):
         for sobj2 in spec2[np.invert(done2)]:
             indx2 = int(sobj2.SPAT_PIXPOS+shift)
             update_sync_dict(sync_dict, indx2, [spec2_file], [sobj2.NAME])
