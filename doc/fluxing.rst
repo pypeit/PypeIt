@@ -74,104 +74,58 @@ The algorithm options are:
 Applying the Sensitivity Function
 =================================
 
-Flux
-----
+Once you have generated a `Sensitivity Function`_, you may apply
+it to one or more :doc:`out_spec1D` files.
+The files are modified in place, filling the OPT_FLAM, BOX_FLAM, etc.
+entries, as described in :doc:`specobj`.
 
-To flux one or more spec1d files, generate a `flux read`, e.g.::
+Flux File
+---------
+
+To flux one or more spec1d files, generate a flux_file that is has the
+following format::
 
     flux read
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits FRB181112_fors2_1.fits
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits FRB181112_fors2_2.fits
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits FRB181112_fors2_3.fits
+       spec1dfile1 sensfile
+       spec1dfile2
+          ...
+          ...
     flux end
 
-The first entry of each row is the spec1d file to be fluxed
-and the second provides the output filename.
-One separates the two entries by *a single space*!
+    OR
 
-.. _fluxspec-script:
+    flux read
+       spec1dfile1 sensfile1
+       spec1dfile2 sensfile2
+       spec1dfile3 sensfile3
+          ...
+    flux end
 
-Flux Spec Script
-================
+Here is an actual example
 
-It may be preferential to flux the spectra after the main reduction
-(i.e. run_pypeit).  PypeIt provides a script to guide the process.
-Here is the usage::
+    flux read
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits Keck_LRISr_600_7500_sens.fits
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits
+    flux end
 
-    pypeit_flux_spec FRB181112.flux -h
-    usage: pypeit_flux_spec [-h] [--debug] [--plot] [--par_outfile] flux_file
+pypeit_flux_calib
+-----------------
 
-    Parse
+Fluxing is performed with the *pypeit_flux_calib* script.
+Use *pypeit_flux_calib -h* to see its full usage.  Here is a
+typical call::
 
-    positional arguments:
-      flux_file      File to guide fluxing process
+    pypeit_flux_calib flux_file.txt
 
-    optional arguments:
-      -h, --help     show this help message and exit
-      --debug        show debug plots?
-      --plot         Show the sensitivity function?
-      --par_outfile  Output to save the parameters
-
-The parameters used to guide the process are written to par_outfile
-(default = fluxing.par) and --plot will generate a simple plot of
-the sensitivity function.
-
-.. _fluxspec-class:
+Again, the :doc:`out_spec1D` files are modified in place.
+See :ref:`pypeit-1dspec` for details on how to view them.
 
 FluxSpec Class
 ==============
 
-The guts of the flux algorithms are guided by the FluxSpec class.
-See the
-`FluxSpec.ipynb <https://github.com/pypeit/pypeit/blob/master/doc/nb/FluxSpec.ipynb>`_
-Notebook on GitHub (in doc/nb) for some usage examples, although
-we recommend that most users use the :ref:`fluxspec-script`.
-
-.. _fluxspec-file:
-
-Example File
-============
-
-Here is a complete example file::
-
-    # User-defined fluxing parameters
-    [rdx]
-       spectrograph = vlt_fors2
-    [fluxcalib]
-       balm_mask_wid = 12.
-       #std_file = spec1d_STD_vlt_fors2_2018Dec04T004939.578.fits
-       sensfunc = bpm16274_fors2.fits
-
-    flux read
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits FRB181112_fors2_1.fits
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits FRB181112_fors2_2.fits
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits FRB181112_fors2_3.fits
-    flux end
-
-Note the std_file is commented out to avoid remaking the sensitivity function.
-
-
-Fluxing Output
-==============
-
-Science
--------
-The resulting fluxed science spectrum, :math:`\rm f_\lambda`,
-is given in units of :math:`10^{-17}\,\rm ergs/s/cm^2/Angstrom`
-and is stored in the 'box_flam' extension of the extracted 1D
-spectrum. If an optimal extraction was successful, there also
-exists an 'opt_flam' extension in the 1D spectrum.
-
-Standard
---------
-The 1D extracted standard spectrum is also saved as an output
-of the fluxing routine. The counts and fluxed standard spectrum
-are available in the 'box_counts' and 'box_flam' extensions,
-respectively. The fluxed spectrum saved here is the fluxed standard,
-using the sensitivity function generated from itself (rather than
-the archived fluxed standard star loaded from CALSPEC), and can be
-examined and compared to the expected :math:`\rm f_\lambda` as a
-sanity check.
+The guts of the flux algorithms are guided by the :class:`pypeit.fluxcalibrate/FluxCalibrate`.
+class.
 
 Troubleshooting
 ===============

@@ -936,10 +936,12 @@ class DataContainer:
 
 
         for e in _ext:
-            # Check for header elements
+            # Check for header elements, but do not over-ride existing items
             indx = np.isin([key.upper() for key in keys], list(_hdu[e].header.keys()))
             if np.any(indx):
                 for key in keys[indx]:
+                    if key in d.keys() and d[key] is not None:
+                        continue
                     d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
                                 else eval(_hdu[e].header[key.upper()])
             # Parse BinTableHDUs
@@ -1138,7 +1140,7 @@ class DataContainer:
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
         self = super().__new__(cls)
-        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
+        _d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if chk_version:
             if not dm_version_passed:
@@ -1146,7 +1148,7 @@ class DataContainer:
             if not dm_type_passed:
                 raise IOError("Bad datamodel type in your hdu's")
         # Finish
-        DataContainer.__init__(self, d)
+        DataContainer.__init__(self, _d)
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
