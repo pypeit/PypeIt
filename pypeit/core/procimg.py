@@ -267,9 +267,7 @@ def gain_frame(amp_img, gain):
     return gain_img
 
 
-
-
-def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
+def rn_frame(datasec_img, gain, ronoise):
     """ Generate a RN image
 
     Parameters
@@ -280,6 +278,10 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
     rn_img : ndarray
       Read noise *variance* image (i.e. RN**2)
     """
+    # Determine the number of amplifiers from the datasec image
+    numamplifiers = np.amax(datasec_img)
+
+    # Check the input types
     _gain = np.asarray(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
     _ronoise = np.asarray(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
                         else np.array([ronoise])
@@ -726,7 +728,7 @@ def init_process_steps(bias, proc_par):
     return process_steps
 
 
-def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
+def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None, adderr=0.01, rnoise=None):
     """
     Calculate the variance image including detector noise.
@@ -745,11 +747,6 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
             Gain for each amplifier
         ronoise (:obj:`float`, array-like):
             Read-noise for each amplifier
-        numamplifiers (:obj:`int`, optional):
-            Number of amplifiers.  Default is 1.  (TODO: This is
-            superfluous.  Could get the number of amplifiers from the
-            maximum value in datasec_img or the length of the
-            gain/ronoise lists.)
         darkcurr (:obj:`float`, optional):
             Dark current in electrons per second if the exposure time is
             provided, otherwise in electrons.  If None, set to 0.
@@ -775,7 +772,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
     if rnoise is None:
-        rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
+        rnoise = rn_frame(datasec_img, gain, ronoise)
 
     # No sky frame provided
     if skyframe is None:

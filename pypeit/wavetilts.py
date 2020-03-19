@@ -365,7 +365,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Parse the upper and lower sigma rejection thresholds; used
         # when rescaling continuum from center spectrum.
         lower_rej, upper_rej = self.par['cont_rej'] if hasattr(self.par['cont_rej'], '__len__') \
-                                    else numpy.repeat(self.par['cont_rej'], 2)
+                                    else np.repeat(self.par['cont_rej'], 2)
 
         # Fit the continuum of the extracted arc spectra for each slit
         nspec, nslits = self.arccen.shape

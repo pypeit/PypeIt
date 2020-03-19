@@ -426,7 +426,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         -------
         array : ndarray
             Combined image
-        hdu: HDUList
+        hdu (astropy.io.fits.HDUList)
         sections : tuple
             List of datasec, oscansec sections
 
