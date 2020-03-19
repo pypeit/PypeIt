@@ -44,7 +44,7 @@ class SpecObjs(object):
     version = '1.0.0'
 
     @classmethod
-    def from_fitsfile(cls, fits_file):
+    def from_fitsfile(cls, fits_file, det=None):
         """
         Instantiate from a FITS file
 
@@ -52,6 +52,8 @@ class SpecObjs(object):
 
         Args:
             fits_file (str):
+            det (int, optional):
+                Only load SpecObj matching this det value
 
         Returns:
             specobsj.SpecObjs
@@ -74,6 +76,9 @@ class SpecObjs(object):
             if 'DETECTOR' in hdu.name:
                 continue
             sobj = specobj.SpecObj.from_hdu(hdu)
+            # Restrict on det?
+            if det is not None and sobj.DET != det:
+                continue
             # Check for detector
             if sobj.DET in detector_hdus.keys():
                 sobj.DETECTOR = detector_hdus[sobj.DET]

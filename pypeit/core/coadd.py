@@ -3016,6 +3016,115 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 
+def spec_to_arc(spec, maxspat, det, extract='OPT', sigma=2.):
+    # Generate "arc spectra"
+    arc_spec = np.zeros(maxspat)
+    xval = np.arange(maxspat)
+
+    # Add in Gaussian
+    for sobj in spec:
+        # Detector
+        if sobj.DET != det:
+            continue
+        gdi = sobj[extract+'_COUNTS_IVAR'] > 0
+        s2n = np.median(sobj[extract+'_COUNTS'][gdi] * np.sqrt(sobj[extract+'_COUNTS_IVAR'][gdi]))
+        # Add it in
+        arc_spec += s2n * np.exp(-1*(sobj.SPAT_PIXPOS-xval)**2 / (2*sigma**2))
+
+    # Return
+    return arc_spec
+
+def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
+    #
+    assert len(in_files) == len(in_names)
+    # Check for indx
+    if len(sync_dict) > 0:
+        ikeys = list(sync_dict.keys())
+        mtch = np.abs(ikeys-in_indx) < sync_toler
+        nmtch = np.sum(mtch)
+        if nmtch == 0:
+            indx = in_indx
+        elif nmtch == 1:
+            indx = ikeys[mtch][0]
+        else:
+            raise ValueError("Too many matches!")
+    else:
+        indx = in_indx
+
+    # Now update
+    files = np.array(in_files)
+    names = np.array(in_names)
+    keep = np.ones_like(names).astype(bool)
+    if indx in sync_dict.keys():
+        # Avoid writing file1 names twice
+        for ii, ifile in enumerate(in_files):
+            if ifile in sync_dict[indx]['files']:
+                keep[ii] = False
+    else:
+        # Init
+        sync_dict[indx] = {}
+        sync_dict[indx]['files'] = []
+        sync_dict[indx]['names'] = []
+    # Append
+    sync_dict[indx]['files'] += files[keep].tolist()
+    sync_dict[indx]['names'] += names[keep].tolist()
+
+def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=False):
+
+    if sync_dict is None:
+        sync_dict = {}
+    # Load spectra, restricted by det
+    spec1 = specobjs.SpecObjs.from_fitsfile(spec1_file, det=det)
+    spec2 = specobjs.SpecObjs.from_fitsfile(spec2_file, det=det)
+
+    # Max spat
+    maxspat = int(np.max(np.concatenate([spec1.SPAT_PIXPOS, spec2.SPAT_PIXPOS]))) + 10
+
+    # Test
+    #spec2.SPAT_PIXPOS = spec2.SPAT_PIXPOS - 5.
+
+    # Arcs
+    arc1 = spec_to_arc(spec1, maxspat, det)
+    arc2 = spec_to_arc(spec2, maxspat, det)
+
+    # Cross-correlate
+    shift, cross_corr = wvutils.xcorr_shift(arc1, arc2, debug=debug)
+
+    # Loop me now
+    done2 = np.ones(spec2.nobj).astype(bool)
+
+    for sobj1 in spec1:
+        #
+        indx1 = int(sobj1.SPAT_PIXPOS)
+        # Match
+        mtch = np.abs(sobj1.SPAT_PIXPOS-spec2.SPAT_PIXPOS-shift) < sync_toler
+        nmtch = np.sum(mtch)
+        if nmtch == 0:  # No match with sobj2, save only sobj1 for now
+            files = [spec1_file]
+            names = [sobj1.NAME]
+        elif nmtch == 1:  # Matched
+            idx = np.where(mtch)[0][0]
+            sobj2 = spec2[idx]
+            files = [spec1_file, spec2_file]
+            names = [sobj1.NAME, sobj2.NAME]
+            #
+            done2[idx] = True
+
+        else:
+            embed(header="70 Should not get here")
+        # Update
+        update_sync_dict(sync_dict, indx1, files, names)
+
+    # Deal with not done
+    if np.any(not done2):
+        for sobj2 in spec2[np.invert(done2)]:
+            indx2 = int(sobj2.SPAT_PIXPOS+shift)
+            update_sync_dict(sync_dict, indx2, [spec2_file], [sobj2.NAME])
+
+    # Populate the sync_dict
+    return sync_dict
+
+
 
 class CoAdd1d(object):
 

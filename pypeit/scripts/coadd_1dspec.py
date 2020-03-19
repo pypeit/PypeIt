@@ -9,6 +9,7 @@ import numpy as np
 from pypeit import par, msgs
 import argparse
 from pypeit import coadd1d
+from pypeit.core import coadd
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
@@ -98,6 +99,36 @@ def read_coaddfile(ifile):
 
     # Return
     return cfg_lines, spec1dfiles, objids
+
+
+def coadd1d_filelist(files, outroot, det, debug=False, show=False):
+    # Build sync_dict
+    sync_dict = None
+    for ifile in files[1:]:
+        sync_dict = coadd.sync_pair(files[0], ifile, det, sync_dict=sync_dict)
+    #
+    header = fits.getheader(files[0])
+    spectrograph = load_spectrograph(header['PYP_SPEC'])
+    par = spectrograph.default_pypeit_par()
+    #par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), merge_with=config_lines)
+    #par.to_config(args.par_outfile)
+
+    par['coadd1d']['flux_value'] = False
+
+    sensfile = None
+    # Loop on entries
+    for key in sync_dict:
+
+        coaddfile = outroot+'-SPAT{:04d}'.format(key)+'.fits'
+
+        coAdd1d = coadd1d.CoAdd1D.get_instance(sync_dict[key]['files'],
+                                             sync_dict[key]['names'],
+                                             sensfile=sensfile, par=par['coadd1d'],
+                                             debug=debug, show=show)
+        # Run
+        coAdd1d.run()
+        # Save to file
+        coAdd1d.save(coaddfile)
 
 
 def parser(options=None):
@@ -191,11 +222,11 @@ def main(args):
     # text files, whereas there are things like yaml and json that do this well already.
 
     # Instantiate
-    coadd = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
+    coAdd1d = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
                                        debug=args.debug, show=args.show)
     # Run
-    coadd.run()
+    coAdd1d.run()
     # Save to file
-    coadd.save(coaddfile)
+    coAdd1d.save(coaddfile)
     msgs.info('Coadding complete')
 

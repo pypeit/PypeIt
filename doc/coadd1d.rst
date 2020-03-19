@@ -1,8 +1,9 @@
-.. highlight:: rest
-
-****************
+================
 Coadd 1D Spectra
-****************
+================
+
+Overview
+========
 
 This document will describe how to combine the 1D spectra
 from multiple exposures of the same object.
@@ -15,52 +16,56 @@ part of the data reduction process.
 The current defaults use the Optimal extraction
 and fluxed data.
 
-READ NO FURTHER AS THIS IS ALL OUT OF DATE
 
-Coadd 1dspec
-++++++++++++
+pypeit_coadd_1dspec
+===================
 
-The primary script is called `pypeit_coadd_1dspec` and takes
-an input YAML file to guide the process.  Here is the usage::
+The primary script is called `pypeit_coadd_1dspec`_ which takes
+an input file to guide the process.  The format of that file
+is described in the *usage* of the script, i.e. type
+*pypeit_coadd_1dspec -h*.  Here is an example from the Dev Suite
+for the *shane_kast_blue* instrument::
 
-    FILL IN
+    # User-defined coadding parameters
+    [coadd1d]
+       coaddfile = 'J1217p3905_coadd.fits'
 
-Turning on debugging will generate a series of diagnostic plots
-and likely hit as set_trace in the code.
+    # Read in the data
+    coadd1d read
+      Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits SPAT0176-SLIT0000-DET01
+      Science/spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits SPAT0175-SLIT0000-DET01
+    coadd1d
 
-Input File
-++++++++++
+The opening block sets parameters for the process, including
+the output file name.  See `Parameters`_ for common choices.
 
-The information PypeIt's coadder uses is contained
-within a file described in the usage.
+The data block provides a list of :doc:`out_spec1D.rst` files
+and the object name in each to be coadded.
+See :doc:`specobj` for a discussion of the naming.
+
 
 The list of object identifiers in a given spec1d file can be
-output with the pypeit_show_1dspec script, e.g.::
+output with the *pypeit_show_1dspec* script, e.g.::
 
-    pypeit_show_1dspec filename.fits --list
+    pypeit_show_1dspec spec1d-filename.fits --list
 
-These can also be recovered from the object info files in the Science/folder
-(one per exposure).
+These can also be recovered from the object info files
+in the Science/folder (one per exposure).
 
 The coadding algorithm will attempt to match this object identifier
 to those in each data file, within some tolerance on object and slit
 position. 'outfile' is the filename of the coadded spectrum produced.
 
-Spectral Parameters
-+++++++++++++++++++
+Parameters
+==========
 
-By default, the algorithm will combine the optimally extracted,
-fluxed spectra from each exposure.  You may modify the extraction
-method, e.g.::
+Fluxing
++++++++
 
-    'extract': 'box'
+The default parameters assume your spectra have gone
+through :doc:`fluxing`.  If not you should set::
 
-and/or specify whether the spectrum is fluxed::
-
-    'flux': False
-
-Note that these parameters must be outside of the 'a', 'b', 'c', etc. dicts
-or else they will have no effect.
+    flux_value = False
 
 Flux ScalingI
 +++++++++++++
