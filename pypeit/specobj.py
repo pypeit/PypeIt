@@ -107,20 +107,21 @@ class SpecObj(datamodel.DataContainer):
         'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
         # Detector
         'DET': dict(otype=(int, np.integer), desc='Detector number'),
-        #'BINNING': dict(otype=str, desc='Detector binning in PypeIt orientation "spec_bin,spat_bin", e.g. "1,1"'),
-        #'PLATESCALE': dict(otype=float, desc='Platescale in arcsec'),
         'DETECTOR': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         #
         'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
         'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
         'SPAT_PIXPOS': dict(otype=(float, np.floating), desc='Spatial location of the trace on detector (pixel)'),
         'SPAT_FRACPOS': dict(otype=(float, np.floating), desc='Fractional location of the object on the slit'),
-        #
-        'SLITID': dict(otype=(int, np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
+        # Slit and Object
+        'SLITID': dict(otype=(int, np.integer), desc='PypeIt slit ID. Increasing from left to right on detector. Zero based.'),
         'OBJID': dict(otype=(int, np.integer),
                       desc='Object ID for multislit data. Each object is given an index for the slit '
                            'it appears increasing from from left to right. These are one based.'),
         'NAME': dict(otype=str, desc='Name of the object following the naming model'),
+        'RA': dict(otype=float, desc='Right Ascension (J2000) decimal degree'),
+        'DEC': dict(otype=float, desc='Declination (J2000) decimal degree'),
+        'MASK_SLITID': dict(otype=(int, np.integer), desc='Slitmask slit ID'),
         #
         'ECH_OBJID': dict(otype=(int, np.integer),
                           desc='Object ID for echelle data. Each object is given an index in the order '
