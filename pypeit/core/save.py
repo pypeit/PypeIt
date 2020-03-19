@@ -2,6 +2,7 @@
 """
 import os
 import datetime
+import warnings
 
 import numpy as np
 
@@ -83,7 +84,7 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
         all_specobjs.write_to_fits(header, outfile1d, update_det=update_det)
         # Txt file
         # TODO JFH: Make this a method in the specobjs class.
-        save_obj_info(all_specobjs, spectrograph, outfiletxt, binning=binning)
+        save_obj_info(all_specobjs, spectrograph, outfiletxt, sci_dict, binning=binning)
 
     # Write 2D images for the Science Frame
     save_2d_images(sci_dict, head2d, spectrograph, master_key_dict, master_dir, outfile2d, update_det=update_det)
@@ -95,7 +96,9 @@ def save_all(sci_dict, master_key_dict, master_dir, spectrograph, head1d, head2d
 # TODO: (KBW) I don't think core algorithms should take class
 # arguments...
 # TODO JFH: we make exceptions for core objects like specobjs
-def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
+# TODO JXP: This will be elimiated as core and put back into specobjs once
+#  we have proper datamodels for all these.
+def save_obj_info(all_specobjs, spectrograph, outfile, sci_dict, binning='None'):
     """
     Write info to an ASCII file
 
@@ -109,10 +112,14 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
 
     """
     slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
-    binspectral, binspatial = parse.parse_binning(binning)
+    #binspectral, binspatial = parse.parse_binning(binning)
     for specobj in all_specobjs.specobjs:
+        det = specobj.DET
         if specobj is None:
             continue
+        # Detector items
+        binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
+        platescale = sci_dict[det]['detector'].platescale
         # Append
         spat_pixpos.append(specobj.SPAT_PIXPOS)
         if spectrograph.pypeline == 'MultiSlit':
@@ -131,14 +138,16 @@ def save_obj_info(all_specobjs, spectrograph, outfile, binning='None'):
             # JFH TODO This should be using the order_platescale for each order. Furthermore, not all detectors
             # have the same platescale, i.e. with GNIRS it is the same detector but a different camera hence a
             # different attribute. platescale should be a spectrograph attribute determined on the fly.
-            boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            #boxsize.append(slit_pix*binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            boxsize.append(slit_pix*binspatial*platescale)
         else:
             boxsize.append(0.)
 
         # Optimal profile (FWHM)
         # S2N -- default to boxcar
         if hasattr(specobj, 'FWHMFIT'):
-            opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            #opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*spectrograph.detector[specobj.DET-1]['platescale'])
+            opt_fwhm.append(np.median(specobj.FWHMFIT)* binspatial*platescale)
             # S2N -- optimal
             ivar = specobj.OPT_COUNTS_IVAR
             is2n = np.median(specobj.OPT_COUNTS*np.sqrt(ivar))
@@ -398,6 +407,7 @@ def write_fits(hdr, data, outfile, extnames=None, checksum=True):
     Returns:
 
     """
+    warnings.warn("To be depracated!!")
     # Format the output
     ext = extnames if isinstance(extnames, list) else [extnames]
     if len(ext) > 1 and not isinstance(data, list):

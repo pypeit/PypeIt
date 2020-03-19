@@ -17,6 +17,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(LBTMODSSpectrograph, self).__init__()
@@ -30,12 +32,6 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Shane Kast reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 1
-        par['calibrations']['pixelflatframe']['number'] = 1
-        par['calibrations']['traceframe']['number'] = 1
-        par['calibrations']['arcframe']['number'] = 1
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
@@ -241,7 +237,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
@@ -364,7 +360,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
@@ -485,7 +481,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
@@ -607,7 +603,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit

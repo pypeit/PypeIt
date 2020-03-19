@@ -96,7 +96,8 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, number=None, exprng=None, process=None):
+    def __init__(self, frametype=None, useframe=None, exprng=None, process=None,
+                 processing_steps=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -123,10 +124,10 @@ class FrameGroupPar(ParSet):
         dtypes['useframe'] = str
         descr['useframe'] = 'A master calibrations file to use if it exists.'
 
-        defaults['number'] = 0
-        dtypes['number'] = int
-        descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
-                          'the number of frames to use of this type'
+        #defaults['number'] = 0
+        #dtypes['number'] = int
+        #descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
+        #                  'the number of frames to use of this type'
 
         defaults['exprng'] = [None, None]
         dtypes['exprng'] = list
@@ -135,9 +136,21 @@ class FrameGroupPar(ParSet):
                           'the list.  Use None to indicate no limit; i.e., to select exposures ' \
                           'with any time greater than 30 sec, use exprng = [30, None].'
 
+        defaults['processing_steps'] = []
+        dtypes['processing_steps'] = list
+        options['processing_steps'] = FrameGroupPar.valid_processing_steps()
+        descr['processing_steps'] = 'Steps to be applied during processing.  Modify these at your own risk!! ' \
+                'Bias and overscan subtraction depend on whether bias frames were included and ' \
+                'also the settings in ["process"]. ' \
+                'orient: Orient the image in the PypeIt frame (required!)' \
+                'trim: Trim the image (Code will probably break if not set)' \
+                'apply_gain: Convert ADU to electrons' \
+                'flatten:  Apply the flat field image(s), if provided' \
+                'crmask: Generate a cosmic ray mask (recommended only for standard/science frames)'
+
         defaults['process'] = ProcessImagesPar()
         dtypes['process'] = [ ParSet, dict ]
-        descr['process'] = 'Parameters used for basic image processing'
+        descr['process'] = 'Low level parameters used for basic image processing'
 
         # Instantiate the parameter set
         super(FrameGroupPar, self).__init__(list(pars.keys()),
@@ -152,7 +165,7 @@ class FrameGroupPar(ParSet):
     @classmethod
     def from_dict(cls, frametype, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['useframe', 'number', 'exprng']
+        parkeys = ['useframe', 'exprng', 'processing_steps']
         # TODO: cfg can contain frametype but it is ignored...
         allkeys = parkeys + ['process', 'frametype']
         badkeys = numpy.array([pk not in allkeys for pk in k])
@@ -171,6 +184,13 @@ class FrameGroupPar(ParSet):
         Return the list of valid frame types.
         """
         return FrameTypeBitMask().keys()
+
+    @staticmethod
+    def valid_processing_steps():
+        """
+        Return the list of valid processing steps
+        """
+        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask']
 
     def validate(self):
         if self.data['useframe'] is None:
@@ -191,8 +211,7 @@ class ProcessImagesPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, overscan=None, overscan_par=None, match=None, combine=None, satpix=None,
-                 cr_reject=None,
+    def __init__(self, overscan=None, overscan_par=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
 
@@ -233,12 +252,6 @@ class ProcessImagesPar(ParSet):
                                 'order, window size ; for \'median\', set overscan_par = ' \
                                 'None or omit the keyword.'
 
-        # TODO I don't think this option is implemented? Deprecate?
-        defaults['match'] = -1
-        dtypes['match'] = [int, float]
-        descr['match'] = '(Deprecate?) Match frames with pixel counts that are within N-sigma ' \
-                         'of one another, where match=N below.  If N < 0, nothing is matched.'
-
         defaults['combine'] = 'weightmean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
         dtypes['combine'] = str
@@ -251,9 +264,10 @@ class ProcessImagesPar(ParSet):
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
 
-        defaults['cr_reject'] = False
-        dtypes['cr_reject'] = bool
-        descr['cr_reject'] = 'Perform cosmic ray rejection'
+        # Moved to processing_steps
+        #defaults['cr_reject'] = False
+        #dtypes['cr_reject'] = bool
+        #descr['cr_reject'] = 'Perform cosmic ray rejection'
 
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
@@ -314,8 +328,8 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['bias', 'overscan', 'overscan_par', 'match',
-                   'combine', 'satpix', 'cr_reject', 'sigrej', 'n_lohi',
+        parkeys = ['bias', 'overscan', 'overscan_par',
+                   'combine', 'satpix', 'sigrej', 'n_lohi',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
                    'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
@@ -446,7 +460,7 @@ class FlatFieldPar(ParSet):
     """
     def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
-                 tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_pad=None,
+                 tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None):
 
         # Grab the parameter names and values from the function
@@ -530,18 +544,19 @@ class FlatFieldPar(ParSet):
                              'function.  Single values are used for both slit edges; a ' \
                              'two-tuple can be used to trim the left and right sides differently.'
 
-        defaults['slit_pad'] = 5.
-        dtypes['slit_pad'] = [int, float]
-        descr['slit_pad'] = 'The number of pixels to pad the slit edges when constructing the ' \
-                            'slit-illumination profile. Single value applied to both edges.'
+        defaults['slit_illum_pad'] = 5.
+        dtypes['slit_illum_pad'] = [int, float]
+        descr['slit_illum_pad'] = 'The number of pixels to pad the slit edges when constructing ' \
+                                  'the slit-illumination profile. Single value applied to both ' \
+                                  'edges.'
 
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
         descr['illum_iter'] = 'The number of rejection iterations to perform when constructing ' \
                               'the slit-illumination profile.  No rejection iterations are ' \
-                              'performed if 0.'
+                              'performed if 0.  WARNING: Functionality still being tested.'
 
-        defaults['illum_rej'] = 3.
+        defaults['illum_rej'] = 5.
         dtypes['illum_rej'] = [int, float]
         descr['illum_rej'] = 'The sigma threshold used in the rejection iterations used to ' \
                              'refine the slit-illumination profile.  Rejection iterations are ' \
@@ -570,7 +585,7 @@ class FlatFieldPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
-                   'rej_sticky', 'slit_trim', 'slit_pad', 'illum_iter', 'illum_rej',
+                   'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
                    'twod_fit_npoly']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -1784,7 +1799,7 @@ class ReduxPar(ParSet):
         # to be redefined here.   To fix this, spectrograph specific
         # parameter sets (like DetectorPar) and where they go needs to
         # be rethought.
-        return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly',
+        return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red',
                 'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
                 'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
                 'wht_isis_blue', 'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
@@ -1806,7 +1821,7 @@ class WavelengthSolutionPar(ParSet):
     """
     def __init__(self, reference=None, method=None, echelle=None, ech_fix_format=None,
                  ech_nspec_coeff=None, ech_norder_coeff=None, ech_sigrej=None, lamps=None,
-                 nonlinear_counts=None, sigdetect=None, fwhm=None, reid_arxiv=None,
+                 sigdetect=None, fwhm=None, reid_arxiv=None,
                  nreid_min=None, cc_thresh=None, cc_local_thresh=None, nlocal_cc=None,
                  rms_threshold=None, match_toler=None, func=None, n_first=None, n_final=None,
                  sigrej_first=None, sigrej_final=None, wv_cen=None, disp=None, numsearch=None,
@@ -1891,10 +1906,10 @@ class WavelengthSolutionPar(ParSet):
         # These are the parameters used for arc line detection
         # TODO: Why is this not always defined by the detectors of the
         # spectrograph?
-        defaults['nonlinear_counts'] = 1e10
-        dtypes['nonlinear_counts'] = float
-        descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
-                                    'be accurately centroided'
+        #defaults['nonlinear_counts'] = None
+        #dtypes['nonlinear_counts'] = float
+        #descr['nonlinear_counts'] = 'Arc lines above this saturation threshold are not used in wavelength solution fits because they cannot' \
+        #                            'be accurately centroided'
 
         defaults['sigdetect'] = 5.
         dtypes['sigdetect'] =  [int, float, list, numpy.ndarray]
@@ -2040,7 +2055,7 @@ class WavelengthSolutionPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['reference', 'method', 'echelle', 'ech_fix_format', 'ech_nspec_coeff',
-                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'nonlinear_counts', 'sigdetect',
+                   'ech_norder_coeff', 'ech_sigrej', 'lamps', 'sigdetect',
                    'fwhm', 'reid_arxiv', 'nreid_min', 'cc_thresh', 'cc_local_thresh',
                    'nlocal_cc', 'rms_threshold', 'match_toler', 'func', 'n_first','n_final',
                    'sigrej_first', 'sigrej_final', 'wv_cen', 'disp', 'numsearch', 'nfitpix',
@@ -3158,42 +3173,53 @@ class CalibrationsPar(ParSet):
         dtypes['bpm_usebias'] = bool
         descr['bpm_usebias'] = 'Make a bad pixel mask from bias frames? Bias frames must be provided.'
 
-        defaults['biasframe'] = FrameGroupPar(frametype='bias', number=5)
+        defaults['biasframe'] = FrameGroupPar(frametype='bias', processing_steps=['trim', 'orient'])
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
-        defaults['darkframe'] = FrameGroupPar(frametype='bias', number=0)
+        defaults['darkframe'] = FrameGroupPar(frametype='bias', processing_steps=['trim', 'orient'])
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
         # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
-        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat', number=5, process=ProcessImagesPar(satpix='nothing'))
+        defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat',
+                                                   process=ProcessImagesPar(satpix='nothing'),
+                                                   processing_steps=['trim', 'orient', 'apply_gain'])
         dtypes['pixelflatframe'] = [ ParSet, dict ]
         descr['pixelflatframe'] = 'The frames and combination rules for the field flattening'
 
-        defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole', number=0)
+        defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole',
+                                                 processing_steps = ['trim', 'orient', 'apply_gain'])
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
-        defaults['alignframe'] = FrameGroupPar(frametype='align', number=0)
+        defaults['alignframe'] = FrameGroupPar(frametype='align',
+                                               processing_steps=['trim', 'orient', 'apply_gain'])
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
-        defaults['arcframe'] = FrameGroupPar(frametype='arc', number=1,
-                                             process=ProcessImagesPar(sigrej=-1))
+        defaults['arcframe'] = FrameGroupPar(frametype='arc',
+                                             process=ProcessImagesPar(sigrej=-1),
+                                             processing_steps = ['trim', 'orient', 'apply_gain'])
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
-        defaults['tiltframe'] = FrameGroupPar(frametype='tilt', number=1,
-                                              process=ProcessImagesPar(sigrej=-1))
+        defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
+                                              process=ProcessImagesPar(sigrej=-1),
+                                              processing_steps = ['trim', 'orient', 'apply_gain'])
         dtypes['tiltframe'] = [ ParSet, dict ]
         descr['tiltframe'] = 'The frames and combination rules for the wavelength tilts'
 
-        defaults['traceframe'] = FrameGroupPar(frametype='trace', number=3)
+        defaults['traceframe'] = FrameGroupPar(frametype='trace',
+                                               # Note that CR masking is found to be too problematic!!
+                                               processing_steps = ['trim', 'orient', 'apply_gain'])
+
         dtypes['traceframe'] = [ ParSet, dict ]
         descr['traceframe'] = 'The frames and combination rules for images used for slit tracing'
 
-        defaults['standardframe'] = FrameGroupPar(frametype='standard', number=1)
+        defaults['standardframe'] = FrameGroupPar(frametype='standard',
+                                                  processing_steps = ['trim', 'orient', 'apply_gain',
+                                                                      'flatten', 'crmask'])
         dtypes['standardframe'] = [ ParSet, dict ]
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
@@ -3354,7 +3380,9 @@ class PypeItPar(ParSet):
         dtypes['calibrations'] = [ ParSet, dict ]
         descr['calibrations'] = 'Parameters for the calibration algorithms'
 
-        defaults['scienceframe'] = FrameGroupPar(frametype='science')
+        defaults['scienceframe'] = FrameGroupPar(frametype='science',
+                                                 processing_steps = ['trim', 'orient', 'apply_gain',
+                                                                     'flatten', 'crmask'])
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
@@ -3738,7 +3766,7 @@ class DetectorPar(ParSet):
     def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip=None, xgap=None,
                  ygap=None, ysize=None, platescale=None, darkcurr=None, saturation=None,
                  mincounts=None, nonlinear=None, numamplifiers=None, gain=None, ronoise=None,
-                 datasec=None, oscansec=None, suffix=None):
+                 datasec=None, oscansec=None, suffix=None, det=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3856,6 +3884,10 @@ class DetectorPar(ParSet):
         dtypes['suffix'] = str
         descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
 
+        defaults['det'] = 1
+        dtypes['det'] = int
+        descr['det'] = 'PypeIt designation for detector number.  1 based indexing'
+
         # Instantiate the parameter set
         super(DetectorPar, self).__init__(list(pars.keys()),
                                           values=list(pars.values()),
@@ -3870,7 +3902,8 @@ class DetectorPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
                    'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
-                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix']
+                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix',
+                   'det']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

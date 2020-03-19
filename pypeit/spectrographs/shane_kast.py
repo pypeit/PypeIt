@@ -12,6 +12,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 from pypeit.core import parse
 
 from IPython import embed
@@ -20,8 +21,11 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
+
         super(ShaneKastSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast'
         self.telescope = telescopes.ShaneTelescopePar()
@@ -165,30 +169,52 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         super(ShaneKastBlueSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_blue'
         self.camera = 'KASTb'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.43,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 2,
-                            gain            = [1.2, 1.2],
-                            ronoise         = [3.7, 3.7],
-                            datasec         = ['[:, 1:1024]', '[:, 1025:2048]'],    # These are rows, columns on the raw frame, 1-indexed
-                            oscansec        = ['[:, 2050:2080]', '[:, 2081:2111]'],
-                            suffix          = '_blue'
-                            )]
-        self.numhead = 1
         # Uses timeunit from parent class
         # Uses default primary_hdrext
         self.sky_file = 'sky_kastb_600.fits'
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+
+        # Detector 1
+        detector_dict = dict(
+            binning=self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            det=1,
+            dataext=0,
+            specaxis=1,
+            specflip=False,
+            spatflip=False,
+            platescale=0.43,
+            saturation=65535.,
+            mincounts=-1e10,
+            nonlinear=0.76,
+            numamplifiers=2,
+            gain=np.asarray([1.2, 1.2]),
+            ronoise=np.asarray([3.7, 3.7]),
+            xgap=0.,
+            ygap=0.,
+            ysize=1.,
+            darkcurr=0.0,
+            datasec=np.asarray(['[:, 1:1024]', '[:, 1025:2048]']),  # These are rows, columns on the raw frame, 1-indexed
+            oscansec=np.asarray(['[:, 2050:2080]', '[:, 2081:2111]']),
+        )
+        # suffix='_blue'
+        detector = detector_container.DetectorContainer(**detector_dict)
+
+        # Return
+        return detector
 
     def default_pypeit_par(self):
         """
@@ -206,7 +232,7 @@ class ShaneKastBlueSpectrograph(ShaneKastSpectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         # Set wave tilts order
         par['calibrations']['tilts']['spat_order'] = 3
@@ -277,62 +303,44 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         super(ShaneKastRedSpectrograph, self).__init__()
         self.spectrograph = 'shane_kast_red'
         self.camera = 'KASTr'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.43,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 2,
-                            gain            = [1.9, 1.9],
-                            ronoise         = [3.8, 3.8],
-                            suffix          = '_red'
-                            )]
-        self.numhead = 1
-        # Uses timeunit from parent class
-        # Uses default primary_hdrext
-        # self.sky_file = ?
 
-    def default_pypeit_par(self):
+    def get_detector_par(self, hdu, det):
         """
-        Set default parameters for Shane Kast Red reductions.
-        """
-        par = ShaneKastSpectrograph.default_pypeit_par()
-        par['rdx']['spectrograph'] = 'shane_kast_red'
-
-        # 1D wavelength solution
-        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-
-        return par
-
-    def config_specific_par(self, scifile, inp_par=None):
-        """
-        Modify the PypeIt parameters to specific instrument configurations.
+        Return a DectectorContainer for the current image
 
         Args:
-            scifile (str):
-                File to use when determining the configuration and how
-                to adjust the input parameters.
-            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
-                Parameter set used for the full run of PypeIt.  If None,
-                use :func:`default_pypeit_par`.
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
 
         Returns:
-            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
-            adjusted for configuration specific parameter values.
-        """
-        par = self.default_pypeit_par() if inp_par is None else inp_par
+            :class:`pypeit.images.detector_container.DetectorContainer`:
 
-        # Parse from the header
-        header = fits.open(scifile)[0].header
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.43,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.76,
+            mincounts       = -1e10,
+            numamplifiers   = 2,
+            gain            = np.atleast_1d([1.9, 1.9]),
+            ronoise         = np.atleast_1d([3.8, 3.8]),
+            )
+
+        # Parse datasec, oscancsec from the header
+        header = hdu[0].header
         naxis1 = header['NAXIS1']
         crval1u = header['CRVAL1U']
         nover = header['COVER']
@@ -353,11 +361,24 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
         oscansec = ['[:,{}:{}]'.format(xo1_1,xo1_2), '[:,{}:{}]'.format(xo2_1,xo2_2)]
 
         # Fill it up
-        self.detector[0]['datasec'] = datasec
-        self.detector[0]['oscansec'] = oscansec
+        detector_dict['datasec'] = np.atleast_1d(datasec)
+        detector_dict['oscansec'] = np.atleast_1d(oscansec)
+
+        return detector_container.DetectorContainer(**detector_dict)
+
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for Shane Kast Red reductions.
+        """
+        par = ShaneKastSpectrograph.default_pypeit_par()
+        par['rdx']['spectrograph'] = 'shane_kast_red'
+
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['NeI','HgI','HeI','ArI']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         return par
-
 
     def init_meta(self):
         """
@@ -402,31 +423,45 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         self.spectrograph = 'shane_kast_red_ret'
         # WARNING: This is not unique wrt ShaneKastRed...
         self.camera = 'KASTr'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.774,
-                            darkcurr        = 0.0,
-                            saturation      = 120000., # JFH adjusted to this level as the flat are otherwise saturated
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 3.0,
-                            ronoise         = 12.5,
-                            datasec         = '[:,1:1200]',
-                            oscansec        = '[:,1203:1232]',
-                            suffix          = '_red'
-                            )]
-        # TODO: Can we change suffix to be unique wrt ShaneKastRed?
-        self.numhead = 1
-        # Uses timeunit from parent class
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.774,
+            darkcurr        = 0.0,
+            saturation      = 120000., # JFH adjusted to this level as the flat are otherwise saturated
+            nonlinear       = 0.76,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(3.0),
+            ronoise         = np.atleast_1d(12.5),
+            datasec         = np.atleast_1d('[:,1:1200]'),
+            oscansec        = np.atleast_1d('[:,1203:1232]'),
+         )
+
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
@@ -434,12 +469,10 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
         """
         par = ShaneKastSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'shane_kast_red_ret'
-        par['calibrations']['pixelflatframe']['number'] = 3
-        par['calibrations']['traceframe']['number'] = 3
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 5.
 
         return par

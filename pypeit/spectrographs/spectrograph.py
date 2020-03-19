@@ -82,6 +82,8 @@ class Spectrograph(object):
     """
     __metaclass__ = ABCMeta
 
+    ndet = None
+
     def __init__(self):
         self.spectrograph = 'base'
         self.camera = 'base'
@@ -101,7 +103,7 @@ class Spectrograph(object):
         # Default extension with the primary header data
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
-        self.numhead = 0
+        #self.numhead = 0
 
         self.minexp = 0  # NEED TO TIE TO INSTRUMENT PAR INSTEAD
 
@@ -113,11 +115,14 @@ class Spectrograph(object):
         self.init_meta()
         self.validate_metadata()
 
+        # Validate detector
+        assert self.ndet > 0
+
     @staticmethod
     def default_pypeit_par():
         return pypeitpar.PypeItPar()
 
-    def nonlinear_counts(self, det, datasec_img=None, apply_gain=True):
+    def nonlinear_counts(self, detector_par, datasec_img=None, apply_gain=True):
         """
         Return the counts at which the detector response becomes
         non-linear.
@@ -125,8 +130,7 @@ class Spectrograph(object):
         Default is to apply the gain, i.e. return this is counts not ADU
 
         Args:
-            det (:obj:`int`):
-                1-indexed detector number.
+            detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
             datasec_img (np.ndarray, optional):
                 If provided, nonlinear_counts is returned as an image.
                 DO NOT USE THIS OPTION; IT IS NOT YET IMPLEMENTED
@@ -142,11 +146,11 @@ class Spectrograph(object):
             same shape is returned
         """
         # Deal with gain
-        gain = np.atleast_1d(self.detector[det-1]['gain']).tolist()
+        gain = np.atleast_1d(detector_par['gain']).tolist()
         if not apply_gain:  # Set to 1 if gain is not to be applied
             gain = [1. for item in gain]
         # Calculation without gain
-        nonlinear_counts = self.detector[det-1]['saturation']*self.detector[det-1]['nonlinear']
+        nonlinear_counts = detector_par['saturation']*detector_par['nonlinear']
         # Finish
         if datasec_img is not None:  # 2D image
             nonlinear_counts = nonlinear_counts * procimg.gain_frame(datasec_img, gain)
@@ -182,15 +186,15 @@ class Spectrograph(object):
                 raise TypeError('Telescope parameters must be one of those specified in'
                                 'pypeit.telescopes.')
 
-    def _check_detector(self):
-        # Check the detector
-        if self.detector is None:
-            raise ValueError('Must first define spectrograph detector parameters!')
-        for d in self.detector:
-            if not isinstance(d, pypeitpar.DetectorPar):
-                raise TypeError('Detector parameters must be specified using DetectorPar.')
+    #def _check_detector(self):
+    #    # Check the detector
+    #    if self.detector is None:
+    #        raise ValueError('Must first define spectrograph detector parameters!')
+    #    for d in self.detector:
+    #        if not isinstance(d, pypeitpar.DetectorPar):
+    #            raise TypeError('Detector parameters must be specified using DetectorPar.')
 
-    def raw_is_transposed(self, det=1):
+    def raw_is_transposed(self, detector_par):
         """
         Indicates that raw files read by `astropy.io.fits`_ yields an
         image with the spatial dimension along rows, meaning that the
@@ -198,13 +202,12 @@ class Spectrograph(object):
         the spectral dimension along rows.
 
         Args:
-            det (:obj:`int`, optional):
-                1-indexed detector number.
+            detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
 
         Returns:
             :obj:`bool`: Flag that transpose is required.
         """
-        return self.detector[det-1]['specaxis'] == 1
+        return detector_par['specaxis'] == 1
 
     '''
     # THIS WILL PROBABLY NEED TO COME BACK
@@ -240,11 +243,12 @@ class Spectrograph(object):
         header_cards += ['filename']  # For fluxing
         return header_cards
 
-    def orient_image(self, rawimage, det):
+    def orient_image(self, detector_par, rawimage):
         """
-        Orient the image into the PypeIt frame
+        Orient the image into the PypeIt spec,spat configuration
 
         Args:
+            detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`):
             rawimage (np.ndarray):
                 Image in the raw frame
             det (int):
@@ -256,13 +260,13 @@ class Spectrograph(object):
         """
         image = rawimage.copy()
         # Transpose?
-        if self.raw_is_transposed(det):
+        if self.raw_is_transposed(detector_par):
             image = image.T
         # Flip spectral axis?
-        if self.detector[det-1]['specflip'] is True:
+        if detector_par['specflip'] is True:
             image = np.flip(image, axis=0)
         # Flip spatial axis?
-        if self.detector[det-1]['spatflip'] is True:
+        if detector_par['spatflip'] is True:
             image = np.flip(image, axis=1)
         return image
 
@@ -294,10 +298,10 @@ class Spectrograph(object):
         """
         # Load the raw frame
         if filename is not None:
-            _, _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
+            detector_par, _,  _, _, rawdatasec_img, _ = self.get_rawimage(filename, det)
             # Trim + reorient
             trim = procimg.trim_frame(rawdatasec_img, rawdatasec_img < 1)
-            orient = self.orient_image(trim, det)
+            orient = self.orient_image(detector_par, trim)#, det)
             #
             shape = orient.shape
         else: # This is risky if you don't really know what you are doing!
@@ -444,6 +448,9 @@ class Spectrograph(object):
         """
         self.meta = {}
 
+    def get_detector_par(self, hdu, det):
+        pass
+
     def get_rawimage(self, raw_file, det):
         """
         Load up the raw image and generate a few other bits and pieces
@@ -455,18 +462,24 @@ class Spectrograph(object):
 
         Returns:
             tuple:
+                detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`)
                 raw_img (np.ndarray) -- Raw image for this detector
                 hdu (fits.HDUList)
                     HDUList of the file
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
-                binning_raw (tuple)
 
         """
-        # Raw image
+        # Open
         hdu = fits.open(raw_file)
-        raw_img = hdu[self.detector[det-1]['dataext']].data.astype(float)
+
+        # Grab the DetectorPar
+        detector = self.get_detector_par(hdu, det)
+
+        # Raw image
+        raw_img = hdu[detector['dataext']].data.astype(float)
+        # TODO -- Move to FLAMINGOS2 spectrograph
         # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
         # it's easier to change here than writing another get_rawimage function in the spectrograph file.
         if raw_img.ndim == 3:
@@ -480,7 +493,7 @@ class Spectrograph(object):
 
         # Rawdatasec, oscansec images
         binning = self.get_meta_value(headarr, 'binning')
-        if self.detector[det - 1]['specaxis'] == 1:
+        if detector['specaxis'] == 1:
             binning_raw = (',').join(binning.split(',')[::-1])
         else:
             binning_raw = binning
@@ -491,19 +504,19 @@ class Spectrograph(object):
             # Try using the image sections as header keywords
             # TODO -- Deal with user windowing of the CCD (e.g. Kast red)
             #  Code like the following maybe useful
-            #hdr = hdu[self.detector[det - 1]['dataext']].header
-            #image_sections = [hdr[key] for key in self.detector[det - 1][section]]
-            # Grab from DetectorPar in the Spectrograph class
-            image_sections = self.detector[det-1][section]
-            if not isinstance(image_sections, list):
-                image_sections = [image_sections]
+            #hdr = hdu[detector[det - 1]['dataext']].header
+            #image_sections = [hdr[key] for key in detector[det - 1][section]]
+            # Grab from Detector
+            image_sections = detector[section]
+            #if not isinstance(image_sections, list):
+            #    image_sections = [image_sections]
             # Always assume normal FITS header formatting
             one_indexed = True
             include_last = True
 
             # Initialize the image (0 means no amplifier)
             pix_img = np.zeros(raw_img.shape, dtype=int)
-            for i in range(self.detector[det-1]['numamplifiers']):
+            for i in range(detector['numamplifiers']):
 
                 if image_sections[i] is not None:
                     # Convert the data section from a string to a slice
@@ -519,7 +532,7 @@ class Spectrograph(object):
                 oscansec_img = pix_img.copy()
 
         # Return
-        return raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+        return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def get_lamps_status(self, headarr):
         """
@@ -723,10 +736,11 @@ class Spectrograph(object):
                 else:
                     msgs.warn('Problem opening {0}.'.format(inp) + msgs.newline()
                               + 'Proceeding, but should consider removing this file!')
-                    return ['None']*self.numhead
+                    return ['None']*999 # self.numhead
         else:
             hdu = inp
-        return [hdu[k].header for k in range(self.numhead)]
+        return [hdu[k].header for k in range(len(hdu))]
+        #return [hdu[k].header for k in range(self.numhead)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
@@ -748,44 +762,44 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
-    @property
-    def ndet(self):
-        """Return the number of detectors."""
-        return 0 if self.detector is None else len(self.detector)
+    #@property
+    #def ndet(self):
+    #    """Return the number of detectors."""
+    #    return 0 if self.detector is None else len(self.detector)
 
     @property
     def pypeline(self):
         return 'MultiSlit'
 
-    def mm_per_pix(self, det=1):
-        """
-        Return the spatial scale at the telescope focal plane in mm per
-        pixel at the detector.
-
-        The fratio and diameter of the telescope must be defined.
-
-        Args:
-            det (:obj:`int`, optional):
-                Detector to use for the spectrograph platescale.
-
-        Returns:
-            float: The spatial scale at the telescope focal plane in mm
-            per detector pixel scale.
-        
-        Raises:
-            ValueError: 
-                Raised if the telescope is undefined, any of the numbers
-                needed for the calculation are not available, or the
-                selected detector is out of range.
-        """
-        if det > self.ndet:
-            raise ValueError('Selected detector out of range; det={0}..{1}.'.format(1,self.ndet))
-        tel_platescale = None if self.telescope is None else self.telescope.platescale()
-        if self.telescope is None or tel_platescale is None or \
-                self.detector[det-1]['platescale'] is None:
-            raise ValueError('Incomplete information to calculate mm per pixel.')
-
-        return self.detector[det-1]['platescale']/tel_platescale
+#    def mm_per_pix(self, det=1):
+#        """
+#        Return the spatial scale at the telescope focal plane in mm per
+#        pixel at the detector.
+#
+#        The fratio and diameter of the telescope must be defined.
+#
+#        Args:
+#            det (:obj:`int`, optional):
+#                Detector to use for the spectrograph platescale.
+#
+#        Returns:
+#            float: The spatial scale at the telescope focal plane in mm
+#            per detector pixel scale.
+#
+#        Raises:
+#            ValueError:
+#                Raised if the telescope is undefined, any of the numbers
+#                needed for the calculation are not available, or the
+#                selected detector is out of range.
+#        """
+#        if det > self.ndet:
+#            raise ValueError('Selected detector out of range; det={0}..{1}.'.format(1,self.ndet))
+#        tel_platescale = None if self.telescope is None else self.telescope.platescale()
+#        if self.telescope is None or tel_platescale is None or \
+#                self.detector[det-1]['platescale'] is None:
+#            raise ValueError('Incomplete information to calculate mm per pixel.')
+#
+#        return self.detector[det-1]['platescale']/tel_platescale
 
     def order_platescale(self, order_vec, binning=None):
         """

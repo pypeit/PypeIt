@@ -40,7 +40,7 @@ def main(args):
     from pypeit.masterframe import MasterFrame
     from pypeit.spectrographs.util import load_spectrograph
     from pypeit.core import parse
-    from pypeit.core.gui import identify as gui_identify
+    from pypeit.core import gui
     from pypeit.core.wavecal import waveio, templates
     from pypeit.wavecalib import WaveCalib
     from pypeit import slittrace
@@ -89,8 +89,7 @@ def main(args):
     wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) else None
 
     # Load the MasterFrame (if it exists and is desired)?
-    wavecal = WaveCalib(msarc, slits, spec, par, binspectral=binspec, det=args.det,
-                        master_key=mkey, master_dir=mdir, msbpm=msarc.mask)
+    wavecal = WaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
 
     arccen, arc_maskslit = wavecal.extract_arcs()
 

@@ -25,17 +25,17 @@ if __name__ == '__main__':
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
-    input_base = os.path.join(pypeit_root, 'doc', 'scripts', 'base_specobj_rst.txt')
-    with open(input_base, 'r') as f:
-        lines = [ l.replace('\n','') for l in f.readlines() ]
+    lines = []
     lines += ['']
 
     # Start to append the automatically generated documentation
     lines += ['Current SpecObj Data Model']
     lines += ['==========================']
     lines += ['']
+    lines += ['Version: {:s}'.format(specobj.SpecObj.version)]
+    lines += ['']
 
-    data_model = specobj.data_model
+    data_model = specobj.SpecObj.data_model
 
     keys = list(data_model.keys())
     keys.sort()
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     lines += [ParSet._data_table_string(data_table, delimeter='rst')]
 
     # Finish
-    output_rst = os.path.join(pypeit_root, 'doc', 'specobj.rst')
+    output_rst = os.path.join(pypeit_root, 'doc', 'include', 'datamodel_specobj.rst')
     with open(output_rst, 'w') as f:
         f.write('\n'.join(lines))
 

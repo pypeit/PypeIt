@@ -53,8 +53,9 @@ Current TiltImage Data Model
 
 Internally, the image is held in
 :class:`pypeit.tiltimage.TiltImage`
-which is a :class:`pypeit.datamodel.DataContainer`.
+which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
+:class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-TO APPEAR HERE
+.. include:: include/datamodel_tiltimage.rst
 

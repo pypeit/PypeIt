@@ -41,8 +41,11 @@ If your image appears to be in err, here are the things to consider:
 Current BiasImage Data Model
 ============================
 
-Internally, the image is held in BiasImage DataContainer.
+Internally, the image is held in
+:class:`pypeit.images.buildimage.BiasImage`
+which is a :class:`pypeit.images.pypeitimage.PypeItImage` and
+:class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-TO APPEAR HERE
+.. include:: include/datamodel_biasimage.rst
 
