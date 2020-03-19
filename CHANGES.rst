@@ -1,19 +1,7 @@
 
-0.13.2dev
+0.13.3dev
 ---------
 
-- Added PypeIt identify GUI script for manual wavelength calibration
-- Add bitmask tests and print bitmask names that are invalid when
-  exception raised.
-- Parameter set keywords now sorted when exported to an rst table.
-- Enable user to scale flux of coadded 1D spectrum to a filter magnitude
-- Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
-- Add more cards to spec1d header output
-- Fixes a few sensfunc bugs
-- Added template for LRIS 600/7500
-- Deal with non-extracted Standard
-- docs docs and more docs
-- A QA fix too
 - Replaces usage of the `tslits_dict` dictionary with
   `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
   object is now the main master file used for passing around the slit
@@ -44,6 +32,22 @@
 
 
 - Added `bspline_qa` for generic QA of a bspline fit.
+
+0.13.2 (17 Mar 2020)
+--------------------
+
+- Added PypeIt identify GUI script for manual wavelength calibration
+- Add bitmask tests and print bitmask names that are invalid when
+  exception raised.
+- Parameter set keywords now sorted when exported to an rst table.
+- Enable user to scale flux of coadded 1D spectrum to a filter magnitude
+- Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
+- Add more cards to spec1d header output
+- Fixes a few sensfunc bugs
+- Added template for LRIS 600/7500
+- Deal with non-extracted Standard
+- docs docs and more docs
+- A QA fix too
 
 0.13.1 (07 Mar 2020)
 --------------------

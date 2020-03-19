@@ -17,8 +17,8 @@ IPython>=7.2.0
 #python>=3.7
 #ginga>=2.9  -- Can't include ginga as pip will not grab the JXP fork
 
-# linetools
-linetools>=0.2
+# linetools -- This causes readthedocs to barf
+#linetools>=0.2
 # arclines
 numba>=0.39.0
 

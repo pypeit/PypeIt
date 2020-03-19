@@ -27,6 +27,7 @@ provide instrument-specific:
 .. include:: ../links.rst
 """
 import os
+from copy import deepcopy
 import warnings
 
 from abc import ABCMeta
@@ -463,7 +464,8 @@ class Spectrograph(object):
             tuple:
                 detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`)
                 raw_img (np.ndarray) -- Raw image for this detector
-                hdu (astropy.io.fits.HDUList)
+                hdu (fits.HDUList)
+                    HDUList of the file
                 exptime (float)
                 rawdatasec_img (np.ndarray)
                 oscansec_img (np.ndarray)
@@ -531,6 +533,30 @@ class Spectrograph(object):
 
         # Return
         return detector, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def get_lamps_status(self, headarr):
+        """
+        Return a string containing the information on the lamp status
+
+        Args:
+            headarr (list of fits headers):
+              list of headers
+
+        Returns:
+            str: A string that uniquely represents the lamp status
+        """
+        # Loop through all lamps and collect their status
+        kk = 1
+        lampstat = []
+        while True:
+            lampkey = 'lampstat{:02d}'.format(kk)
+            if lampkey not in self.meta.keys():
+                break
+            ext = self.meta[lampkey]['ext']
+            card = self.meta[lampkey]['card']
+            lampstat += [str(headarr[ext][card])]
+            kk += 1
+        return "_".join(lampstat)
 
     def get_meta_value(self, inp, meta_key, required=False, ignore_bad_header=False,
                        usr_row=None, no_fussing=False):

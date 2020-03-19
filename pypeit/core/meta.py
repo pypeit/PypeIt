@@ -9,7 +9,6 @@ common metadata used for all specrographs.
 """
 
 from collections import OrderedDict
-
 import numpy as np
 
 from astropy import units, coordinates
@@ -135,6 +134,8 @@ def define_additional_meta(nlamps=20):
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
                 = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
+        additional_meta['lampshst{:02d}'.format(kk + 1)] \
+            = dict(dtype=str, comment='Status of a lamp shutter (e.g closed/open)')
     return additional_meta
 
 

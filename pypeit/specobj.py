@@ -45,7 +45,7 @@ class SpecObj(datamodel.DataContainer):
            Type of object ('unknown', 'standard', 'science')
         slitid (int, optional):
            Identifier for the slit (max=9999).
-           Multislit only
+           Multislit and IFU
         specobj_dict (dict, optional):
            Uswed in the objfind() method of extract.py to Instantiate
         orderindx (int, optional):
@@ -197,8 +197,10 @@ class SpecObj(datamodel.DataContainer):
             return self.ECH_ORDER
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
+        elif self.PYPELINE == 'IFU':
+            return self.SLITID
         else:
-            msgs.error("Uh oh")
+            msgs.error("Bad PYPELINE")
 
 
     @property
@@ -207,8 +209,10 @@ class SpecObj(datamodel.DataContainer):
             return self.ECH_ORDERINDX
         elif self.PYPELINE == 'MultiSlit':
             return self.SLITID
+        elif self.PYPELINE == 'IFU':
+            return self.SLITID
         else:
-            msgs.error("Uh oh")
+            msgs.error("Bad PYPELINE")
 
     def set_name(self):
         """
@@ -251,12 +255,25 @@ class SpecObj(datamodel.DataContainer):
         elif 'MultiSlit' in self.PYPELINE:
             # Spat
             name = naming_model['spat']
-            if self['SPAT_PIXPOS'] is None: # not in self._data.meta.keys():
+            if 'SPAT_PIXPOS' not in self._data.meta.keys():
                 name += '----'
             else:
                 name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
             # Slit
             name += '-'+naming_model['slit']
+            name += '{:04d}'.format(self.SLITID)
+            sdet = parse.get_dnum(self.DET, prefix=False)
+            name += '-{:s}{:s}'.format(naming_model['det'], sdet)
+            self.NAME = name
+        elif 'IFU' in self.PYPELINE:
+            # Spat
+            name = naming_model['spat']
+            if self['SPAT_PIXPOS'] is None: # not in self._data.meta.keys():
+                name += '----'
+            else:
+                name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
+            # Slit
+            name += '-' + naming_model['slit']
             name += '{:04d}'.format(self.SLITID)
             sdet = parse.get_dnum(self.DET, prefix=False)
             name += '-{:s}{:s}'.format(naming_model['det'], sdet)

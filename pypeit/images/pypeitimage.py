@@ -20,7 +20,6 @@ from pypeit import utils
 from IPython import embed
 
 
-
 class PypeItImage(datamodel.DataContainer):
     """
     Class to hold a single image from a single detector in PypeIt
@@ -48,6 +47,8 @@ class PypeItImage(datamodel.DataContainer):
         head0 (astropy.io.fits.Header):
         detector (:class:`pypeit.images.detector_container.DetectorContainer`):
         files (list):
+        rawheadlst (list):
+            List containing headers of the raw image file
 
     """
     # Set the version of this class
@@ -130,6 +131,7 @@ class PypeItImage(datamodel.DataContainer):
         self.head0 = None
         self.process_steps = None
         self.files = None
+        self.rawheadlist = None
 
 
     def _bundle(self):

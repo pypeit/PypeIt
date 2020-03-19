@@ -35,10 +35,21 @@ def deimos_flat_files():
 @pytest.fixture
 @dev_suite_required
 def kast_blue_bias_files():
-    kast_blue_bias_files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
+    kast_blue_files = glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA',
                                                   'shane_kast_blue', '600_4310_d55', 'b1?.fits*'))
+    kast_blue_files.sort()
+    # Trim to bias
+    kast_blue_bias_files = kast_blue_files[5:]
     return kast_blue_bias_files
 
+#@dev_suite_required
+#def test_instantiate(kast_blue_bias_files):
+#    # Empty
+#    bias_frame0 = biasframe.BiasFrame(shane_kast_blue)
+#    assert bias_frame0.nfiles == 0
+#    #
+#    bias_frame1 = biasframe.BiasFrame(shane_kast_blue, files=kast_blue_bias_files)
+#    assert bias_frame1.nfiles == 5
 
 @dev_suite_required
 def test_process(kast_blue_bias_files):
