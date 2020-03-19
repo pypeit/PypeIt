@@ -129,6 +129,7 @@ from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.images.buildimage import TraceImage
+from pypeit.images import detector_container
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
@@ -1122,6 +1123,8 @@ class EdgeTraceSet(object):
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')])
+        # Add detector
+        hdu += self.trace_img.detector.to_hdu()
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
@@ -1218,9 +1221,10 @@ class EdgeTraceSet(object):
             msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
-            # THIS IS A HACK
+            # THIS IS A HACK UNTIL WE MAKE THIS A DataContainer
             img = hdu['TRACEIMG'].data.astype(float)
-            traceImage = TraceImage(img)
+            detector = detector_container.DetectorContainer.from_hdu(hdu['DETECTOR'])
+            traceImage = TraceImage(img, detector=detector)
             #
             this = cls(traceImage, load_spectrograph(hdu[0].header['PYP_SPEC']),
                        EdgeTracePar.from_header(hdu[0].header))
