@@ -15,10 +15,7 @@ import numpy as np
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import arcimage
-from pypeit import tiltimage
 from pypeit import alignframe
-from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import edgetrace
 from pypeit import masterframe
@@ -325,7 +322,7 @@ class Calibrations(object):
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msarc = buildimage.ArcImage.from_file(masterframe_name)
         else:  # Build it
-            msgs.info("Preparing a master {0:s} frame".format(buildimage.ArcImage.frametype))
+            msgs.info("Preparing a master {0:s} frame".format(buildimage.ArcImage.master_type))
             self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['arcframe'], arc_files,
                                                         bias=self.msbias, bpm=self.msbpm)
@@ -369,7 +366,7 @@ class Calibrations(object):
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.mstilt = buildimage.TiltImage.from_file(masterframe_name)
         else: # Build
-            msgs.info("Preparing a master {0:s} frame".format(buildimage.TiltImage.frametype))
+            msgs.info("Preparing a master {0:s} frame".format(buildimage.TiltImage.master_type))
             self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                 self.par['tiltframe'],
                                                 tilt_files, bias=self.msbias, bpm=self.msbpm)
@@ -408,38 +405,55 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        align_rows = self.fitstbl.find_frames('align', calib_ID=self.calib_ID, index=True)
-        self.align_files = self.fitstbl.frame_paths(align_rows)
-        self.master_key_dict['align'] \
-                = self.fitstbl.master_key(align_rows[0] if len(align_rows) > 0 else self.frame,
-                                          det=self.det)
+        align_files = self._prep_calibrations('align')
+        #align_rows = self.fitstbl.find_frames('align', calib_ID=self.calib_ID, index=True)
+        #self.align_files = self.fitstbl.frame_paths(align_rows)
+        #self.master_key_dict['align'] \
+        #        = self.fitstbl.master_key(align_rows[0] if len(align_rows) > 0 else self.frame,
+        #                                  det=self.det)
+        masterframe_name = masterframe.construct_file_name(
+            buildimage.AlignImage, self.master_key_dict['align'], master_dir=self.master_dir)
 
+        # Previously cahded?
         if self._cached('align', self.master_key_dict['align']):
             # Previously calculated
             self.msalign = self.calib_dict[self.master_key_dict['align']]['align']
+        elif os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.msalign = buildimage.AlignImage.from_file(masterframe_name)
         else:
             # Instantiate with everything needed to generate the image (in case we do)
-            self.alignFrame = alignframe.AlignFrame(self.spectrograph, files=self.align_files,
-                                              det=self.det, msbias=self.msbias,
-                                              par=self.par['alignframe'],
-                                              master_key=self.master_key_dict['align'],
-                                              master_dir=self.master_dir,
-                                              reuse_masters=self.reuse_masters)
+            #self.alignFrame = alignframe.AlignFrame(self.spectrograph, files=self.align_files,
+            #                                  det=self.det, msbias=self.msbias,
+            #                                  par=self.par['alignframe'],
+            #                                  master_key=self.master_key_dict['align'],
+            #                                  master_dir=self.master_dir,
+            #                                  reuse_masters=self.reuse_masters)
+            self.align = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                         self.par['alignframe'],
+                                                         align_files, bias=self.msbias, bpm=self.msbpm)
 
             # Load the MasterFrame (if it exists and is desired)?
-            self.msalign = self.alignFrame.load()
-            if self.msalign is None:  # Otherwise build it
-                msgs.info("Preparing a master {0:s} frame".format(self.alignFrame.frametype))
-                self.msalign = self.alignFrame.build_image(bias=self.msbias, bpm=self.msbpm)
-                # Need to set head0 here, since a master align frame loaded from file will have head0 set.
-                self.msalign.head0 = self.alignFrame.build_master_header(steps=self.alignFrame.process_steps,
-                                                                     raw_files=self.alignFrame.file_list)
-                # Save to Masters
-                if self.save_masters:
-                    self.alignFrame.save()
+            #self.msalign = self.alignFrame.load()
+            #if self.msalign is None:  # Otherwise build it
+            #    msgs.info("Preparing a master {0:s} frame".format(self.alignFrame.master_type))
+            #    self.msalign = self.alignFrame.build_image(bias=self.msbias, bpm=self.msbpm)
+            #    # Need to set head0 here, since a master align frame loaded from file will have head0 set.
+            #    self.msalign.head0 = self.alignFrame.build_master_header(steps=self.alignFrame.process_steps,
+            #                                                         raw_files=self.alignFrame.file_list)
+            #   # Save to Masters
+            #    if self.save_masters:
+            #        self.alignFrame.save()
+            # Save to Masters
+            if self.save_masters:
+                self.msalign.to_master_file(self.master_dir, self.master_key_dict['align'],  # Naming
+                                       self.spectrograph.spectrograph,  # Header
+                                       steps=self.msalign.process_steps,
+                                       raw_files=align_files)
 
             # Store the alignment frame
             self._update_cache('align', 'align', self.msalign)
+
+        # JXP STOPPED HERE
 
         # Check if the alignment dictionary exists
         if self._cached('align_dict', self.master_key_dict['align']) \
@@ -1028,8 +1042,7 @@ class MultiSlitCalibrations(Calibrations):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
                                                     qadir=qadir, reuse_masters=reuse_masters,
                                                     show=show, save_masters=save_masters)
-        #self.steps = MultiSlitCalibrations.default_steps()
-        self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
+        self.steps = MultiSlitCalibrations.default_steps()
 
     @staticmethod
     def default_steps():

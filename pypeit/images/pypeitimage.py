@@ -20,7 +20,6 @@ from pypeit import utils
 from IPython import embed
 
 
-
 class PypeItImage(datamodel.DataContainer):
     """
     Class to hold a single image from a single detector in PypeIt
@@ -120,7 +119,7 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,  # This should contain all datamodel items
-                 crmask=None, fullmask=None, detector=None, rawheadlist=None):
+                 crmask=None, fullmask=None, detector=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())

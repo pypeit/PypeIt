@@ -29,9 +29,22 @@ class ArcImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Arc'
-    frametype = 'arc'
     file_format = 'fits'
 
+class AlignImage(pypeitimage.PypeItImage):
+    """
+    Simple DataContainer for the Arc Image
+    """
+    # Peg the version of this class to that of PypeItImage
+    version = pypeitimage.PypeItImage.version
+
+    # I/O
+    output_to_disk = ('ALIGN_IMAGE', 'ALIGN_FULLMASK', 'ALIGN_DETECTOR')
+    hdu_prefix = 'ALIGN_'
+
+    # Master fun
+    master_type = 'Align'
+    file_format = 'fits'
 
 class BiasImage(pypeitimage.PypeItImage):
     """
@@ -61,7 +74,6 @@ class TiltImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Tiltimg'
-    frametype = 'tilt'
     file_format = 'fits'
 
 
@@ -79,7 +91,6 @@ class TraceImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Trace'
-    frametype = 'trace'
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
@@ -151,6 +162,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     # Internals
     finalImage.process_steps = process_steps
     finalImage.files = file_list
+    finalImage.rawheadlist = pypeitImage.rawheadlist
+    finalImage.head0 = pypeitImage.head0
 
     # Return
     return finalImage

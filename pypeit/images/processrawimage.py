@@ -135,7 +135,6 @@ class ProcessRawImage(object):
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
                                              self.detector['gain'], self.detector['ronoise'],
                                              darkcurr=self.detector['darkcurr'],
-                                             #numamplifiers=self.detector['numamplifiers'],
                                              exptime=self.exptime,
                                              rnoise=self.rn2img)
         # Ivar
@@ -162,8 +161,7 @@ class ProcessRawImage(object):
         # Build it
         self.rn2img = procimg.rn_frame(self.datasec_img,
                                        self.detector['gain'],
-                                       self.detector['ronoise']),
-                                       #numamplifiers=self.detector['numamplifiers'])
+                                       self.detector['ronoise'])
         # Return
         return self.rn2img.copy()
 
@@ -238,7 +236,9 @@ class ProcessRawImage(object):
         #pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning, rawheadlst=self.headarr,
         #                                      ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img, bpm=bpm,
-                                              detector=self.detector, rawheadlst=self.headarr)
+                                              detector=self.detector)
+        pypeitImage.rawheadlist = self.headarr
+
         # Mask(s)
         if 'crmask' in process_steps:
             pypeitImage.build_crmask(self.par)
