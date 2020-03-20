@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+#
+# See top-level LICENSE file for Copyright information
+#
+# -*- coding: utf-8 -*-
+
+
+"""
+Use PypeIt to define the sky background regions.
+"""
+
+from pypeit.scripts import skysub_regions
+import sys
+
+if __name__ == '__main__':
+    sys.exit(skysub_regions.main(skysub_regions.parser()))

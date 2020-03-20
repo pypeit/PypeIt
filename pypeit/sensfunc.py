@@ -7,11 +7,11 @@ import scipy
 from IPython import embed
 import inspect
 
+from matplotlib import pyplot as plt
+
 from pypeit import msgs
 from pypeit import ginga
-from pypeit import masterframe
 from pypeit import specobjs
-from pypeit.par import pypeitpar
 from pypeit.core import flux_calib
 from pypeit.core import telluric
 from pypeit.spectrographs.util import load_spectrograph
@@ -21,6 +21,7 @@ from pypeit.core import coadd
 from pypeit.core.wavecal import wvutils
 from pypeit import utils
 from pypeit.io import initialize_header
+from pypeit.core import meta
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -100,6 +101,8 @@ class SensFunc(object):
         # If the user provided RA and DEC use those instead of what is in meta
         star_ra = self.meta_spec['RA'] if self.par['star_ra'] is None else self.par['star_ra']
         star_dec = self.meta_spec['DEC'] if self.par['star_dec'] is None else self.par['star_dec']
+        star_ra, star_dec = meta.convert_radec(star_ra, star_dec)  # Convert to decimal deg, as need be
+
         # Read in standard star dictionary
         self.std_dict = flux_calib.get_standard_spectrum(star_type=self.par['star_type'], star_mag=self.par['star_mag'],
                                                          ra=star_ra, dec=star_dec)
@@ -133,6 +136,9 @@ class SensFunc(object):
             if self.wave_sens.shape[1] == 1:
                 self.wave_sens = self.wave_sens.flatten()
                 self.sensfunc = self.sensfunc.flatten()
+        # Show?
+        if self.debug:
+            self.show()
         return
 
     def eval_sensfunc(self, wave, iorddet):
@@ -145,10 +151,7 @@ class SensFunc(object):
 
     def save(self):
         """
-        Saves sensitivity
-        Returns
-        -------
-
+        Saves sensitivity to self.sensfile
         """
 
         # Write to outfile
@@ -258,12 +261,24 @@ class SensFunc(object):
             splice_wave_mask = (wave_splice >= wave_mask_min) & (wave_splice <= wave_mask_max)
             sensfunc_splice[splice_wave_mask] = self.eval_sensfunc(wave_splice[splice_wave_mask], idet)
 
+        # Interpolate over gaps
+        zeros = sensfunc_splice == 0.
+        if np.any(zeros):
+            msgs.info("Interpolating over gaps")
+            interp_func = scipy.interpolate.interp1d(wave_splice[np.invert(zeros)],
+                                                 sensfunc_splice[np.invert(zeros)],
+                                                 kind='nearest', fill_value='extrapoloate')
+            zero_values = interp_func(wave_splice[zeros])
+            sensfunc_splice[zeros] = zero_values
+
         self.steps.append(inspect.stack()[0][3])
 
         return wave_splice, sensfunc_splice
 
     def show(self):
-        pass
+        plt.plot(self.wave_sens, self.sensfunc)
+        plt.show()
+        plt.close()
 
 # TODO Add a method which optionally merges sensfunc using the nsens > 1 logic
 

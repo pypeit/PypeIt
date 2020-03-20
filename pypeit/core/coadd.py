@@ -32,6 +32,7 @@ from pypeit import io
 from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
+from pypeit.core import flux_calib
 
 # TODO: These shouldn't be here. They should be changed on a
 # plot-by-plot basis, and each plot should end with a recall of
@@ -2696,9 +2697,7 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     wave_lower = waveimg_stack[wavemask].min()
     wave_upper = waveimg_stack[wavemask].max()
     ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
-    wave_bins = wave_grid[ind_lower:ind_upper + 1]
-
-    return wave_bins
+    return wave_grid[ind_lower:ind_upper + 1]
 
 
 def get_spat_bins(thismask_stack, trace_stack):
@@ -3073,6 +3072,11 @@ class CoAdd1d(object):
         self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
         # Coadd the data
         self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
+        # Scale to a filter magnitude?
+        if self.par['filter'] != 'none':
+            scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.mask_coadd, self.par)
+            self.flux_coadd *= scale
+            self.ivar_coadd = self.ivar_coadd / scale**2
 
     def load(self):
         """

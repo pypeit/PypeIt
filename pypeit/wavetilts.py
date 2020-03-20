@@ -277,6 +277,7 @@ class WaveTilts(masterframe.MasterFrame):
                                       spec_order=spec_order,maxdev=self.par['maxdev2d'],
                                       sigrej=self.par['sigrej2d'], func2d=self.par['func2d'],
                                       doqa=doqa, master_key=self.master_key, slit=slit,
+                                      minmax_extrap=self.par['minmax_extrap'],
                                       show_QA=show_QA, out_dir=self.qa_path, debug=debug)
 
         # Evaluate the fit
@@ -369,7 +370,7 @@ class WaveTilts(masterframe.MasterFrame):
         # Parse the upper and lower sigma rejection thresholds; used
         # when rescaling continuum from center spectrum.
         lower_rej, upper_rej = self.par['cont_rej'] if hasattr(self.par['cont_rej'], '__len__') \
-                                    else numpy.repeat(self.par['cont_rej'], 2)
+                                    else np.repeat(self.par['cont_rej'], 2)
 
         # Fit the continuum of the extracted arc spectra for each slit
         nspec, nslits = self.arccen.shape

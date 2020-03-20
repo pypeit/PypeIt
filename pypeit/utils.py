@@ -849,8 +849,7 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
     return sset, outmask, yfit, reduced_chi, exit_status
 
 
-def bspline_profile_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None,
-                       show=True):
+def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None, show=True):
     """
     Construct a QA plot of the bspline fit.
 

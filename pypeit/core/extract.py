@@ -1190,7 +1190,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     #debug_all=True
     if debug_all:
         show_peaks=True
-        #show_fits = True
+        show_fits = True
         show_trace = True
         show_cont = True
 
@@ -1219,13 +1219,17 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if inmask is None:
         inmask = thismask
     # If spec_min_max was not passed in, determine it from the thismask
-    if spec_min_max is None:
+    if spec_min_max is None or np.any([s is None for s in spec_min_max]):
+        if spec_min_max is None:
+            spec_min_max = [None, None]
         ispec, ispat = np.where(thismask)
-        spec_min_max = (ispec.min(), ispec.max())
-
+        if spec_min_max[0] is None:
+            spec_min_max[0] = ispec.min()
+        if spec_min_max[1] is None:
+            spec_min_max[1] = ispec.max()
 
     totmask = thismask & inmask & np.invert(edgmask)
-    thisimg =image*totmask
+    thisimg = image*totmask
     #  Smash the image (for this slit) into a single flux vector.  How many pixels wide is the slit at each Y?
     xsize = slit_righ - slit_left
     #nsamp = np.ceil(np.median(xsize)) # JFH Changed 07-07-19
@@ -1480,7 +1484,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         msgs.info('No objects found')
         skymask = create_skymask_fwhm(sobjs,thismask)
         return specobjs.SpecObjs(), skymask[thismask]
-
+    else:
+        msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
     msgs.info('Fitting the object traces')
 
@@ -1502,7 +1507,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs[iobj].TRACE_SPAT = xfit_gweight[:, iobj]
             sobjs[iobj].SPAT_PIXPOS = sobjs[iobj].TRACE_SPAT[specmid]
             sobjs[iobj].set_name()
-
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
@@ -1623,8 +1627,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                 color = 'blue'
             ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
 
+    msgs.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 
     return sobjs, skymask[thismask]
+
 
 def remap_orders(xinit, spec_min_max, inverse=False):
 

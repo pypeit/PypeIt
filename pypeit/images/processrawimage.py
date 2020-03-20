@@ -1,7 +1,7 @@
 """ Object to process a single raw image """
 
 import inspect
-
+from copy import deepcopy
 import numpy as np
 
 from pypeit import msgs
@@ -54,6 +54,7 @@ class ProcessRawImage(object):
         self.datasec_img = rawImage.rawdatasec_img.copy()
         self.oscansec_img = rawImage.oscansec_img
         self.image = rawImage.raw_image.copy()
+        self.headarr = deepcopy(self.spectrograph.get_headarr(rawImage.hdu))
         self.orig_shape = rawImage.raw_image.shape
         self.exptime = rawImage.exptime
 
@@ -131,7 +132,6 @@ class ProcessRawImage(object):
         # Generate
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
                                              detector['gain'], detector['ronoise'],
-                                             numamplifiers=detector['numamplifiers'],
                                              darkcurr=detector['darkcurr'],
                                              exptime=self.exptime,
                                              rnoise=self.rn2img)
@@ -159,8 +159,7 @@ class ProcessRawImage(object):
         # Build it
         self.rn2img = procimg.rn_frame(self.datasec_img,
                                        detector['gain'],
-                                       detector['ronoise'],
-                                       numamplifiers=detector['numamplifiers'])
+                                       detector['ronoise'])
         # Return
         return self.rn2img.copy()
 
@@ -219,7 +218,9 @@ class ProcessRawImage(object):
             steps_copy.remove('apply_gain')
         # Flat field
         if 'flatten' in process_steps:
-            self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+            if pixel_flat is not None:
+                self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+            # TODO: Print a warning when it is None?
             steps_copy.remove('flatten')
 
         # Fresh BPM
@@ -232,8 +233,8 @@ class ProcessRawImage(object):
             steps_copy.remove('extras')
 
         # Generate a PypeItImage
-        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning,
-                                                       ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
+        pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning, rawheadlst=self.headarr,
+                                              ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
         # Mask(s)
         if 'crmask' in process_steps:
             if 'extras' in process_steps:
@@ -249,6 +250,9 @@ class ProcessRawImage(object):
                                saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
                                mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
         # Error checking
+        # TODO: We shouldn't be using assert in production-level code.
+        # If we're satisfied that this is debugged now, we should
+        # remove this or replace this with a raise or msgs.error call.
         assert len(steps_copy) == 0
 
         # Return

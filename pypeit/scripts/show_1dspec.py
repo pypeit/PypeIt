@@ -21,8 +21,8 @@ def parser(options=None):
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument("--exten", type=int, default=1, help="FITS extension")
-    parser.add_argument("--obj", type=str, help="Object name in lieu of extension, e.g. O424-S1466-D02-I0013")
-    parser.add_argument("--extract", type=str, default='OPT', help="Extraction method. Default is optimal. ['BOX', 'OPT']")
+    parser.add_argument("--obj", type=str, help="Object name in lieu of extension, e.g. SPAT0424-SLIT0000-DET01")
+    parser.add_argument("--extract", type=str, default='OPT', help="Extraction method. Default is OPT. ['BOX', 'OPT']")
     parser.add_argument("--flux", default=False, action="store_true", help="Show fluxed spectrum?")
 
     if options is None:
@@ -31,7 +31,6 @@ def parser(options=None):
         args = parser.parse_args(options)
     return args
 
-#def main(args, unit_test=False):
 def main(args):
     """ Runs the XSpecGui on an input file
     """
@@ -66,25 +65,14 @@ def main(args):
         spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
 
 
+    # Setup
     app = QApplication(sys.argv)
     # Screen dimensions
     width = app.desktop().screenGeometry().width()
     scale = 2. * (width/3200.)
-    # XSpectrum1D
-    #spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
 
-    # JFH TODO get this unit test garbage out of here. Scripts should never have unit test arguments.
-    #if unit_test is False:
-    #    app = QApplication(sys.argv)
-    #    # Screen dimensions
-    #    width = app.desktop().screenGeometry().width()
-    #    scale = 2. * (width/3200.)
-
-    #gui = XSpecGui(spec, unit_test=unit_test, screen_scale=scale)
+    # Launch
     gui = XSpecGui(spec, screen_scale=scale)
     gui.show()
     app.exec_()
-    #if unit_test is False:
-    #    gui.show()
-    #    app.exec_()
 

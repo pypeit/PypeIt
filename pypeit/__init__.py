@@ -21,7 +21,7 @@ warnings.formatwarning = short_warning
 
 
 # Set version
-__version__ = '0.12.4dev'
+__version__ = '0.13.3dev'
 
 # Report current coverage
 __coverage__ = 0.55
@@ -58,6 +58,7 @@ signal.signal(signal.SIGINT, signal_handler)
 # TODO: Need some way of selectively doing this.  Once you import
 # pypeit, this affects the behavior of pyplot for *anything* else you
 # plot in a given session.
+# These lines should be commented unless one is running remotely the Dev Suite (e.g. Kyle)
 #from matplotlib import pyplot
 #pyplot.switch_backend('agg')
 

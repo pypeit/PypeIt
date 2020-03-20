@@ -20,7 +20,6 @@ from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
 
 
-
 class WaveCalib(masterframe.MasterFrame):
     """
     Class to guide wavelength calibration
@@ -36,6 +35,7 @@ class WaveCalib(masterframe.MasterFrame):
             :attr:`spectrograph`.
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
             The parameters used for the wavelength solution
+            Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
         det (int, optional): Detector number
         master_key (str, optional)
@@ -83,7 +83,7 @@ class WaveCalib(masterframe.MasterFrame):
         self.par = par
 
         # Optional parameters
-        self.bpm = msbpm
+        self.bpm = msarc.mask if msbpm is None else msbpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -163,6 +163,7 @@ class WaveCalib(masterframe.MasterFrame):
         """
         # Obtain a list of good slits
         ok_mask = np.where(np.invert(self.maskslits))[0]
+
         # Obtain calibration for all slits
         if method == 'simple':
             lines = self.par['lamps']

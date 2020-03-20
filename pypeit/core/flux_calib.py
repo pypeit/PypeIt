@@ -42,12 +42,10 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
     standard star files (hopefully).  Priority is by order of search.
 
     Args:
-        ra (str):
-            Object right-ascension in hh:mm:ss string format (e.g.,
-            '05:06:36.6').
-        dec (str):
-            Object declination in dd:mm:ss string format (e.g.,
-            52:52:01.0')
+        ra (float):
+            Object right-ascension in decimal deg
+        dec (float):
+            Object declination in decimal deg
         toler (:class:`astropy.units.quantity.Quantity`, optional):
             Tolerance on matching archived standards to input.  Expected
             to be in arcmin.
@@ -56,27 +54,23 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             star exists within the input ra, dec, and toler range.
 
     Returns:
-        dict, bool: If check is True, return True or False depending on
-        if the object is matched to a library standard star.  If check
-        is False and no match is found, return None.  Otherwise, return
+        dict or bool: If check is True, return True or False depending on
+        if the object is matched to a library standard star.
+        If check is False and no match is found, return None.  Otherwise, return
         a dictionary with the matching standard star with the following
         meta data:
 
-            - 'file': str -- Filename table
+            - 'cal_file': str -- Filename table
             - 'name': str -- Star name
-            - 'ra': str -- RA(J2000)
-            - 'dec': str -- DEC(J2000)
+            - 'std_ra': str -- RA(J2000)
+            - 'std_dec': str -- DEC(J2000)
 
     """
     # Priority
     std_sets = ['xshooter', 'calspec', 'esofil']
 
     # SkyCoord
-    try:
-        ra, dec = float(ra), float(dec)
-        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.deg, units.deg))
-    except:
-        obj_coord = coordinates.SkyCoord(ra, dec, unit=(units.hourangle, units.deg))
+    obj_coord = coordinates.SkyCoord(ra, dec, unit='deg')
 
     # Loop on standard sets
     closest = dict(sep=999 * units.deg)
@@ -139,6 +133,10 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
                                    units.erg / units.s / units.cm ** 2 / units.AA
+                # At this low resolution, best to throw out entries affected by A and B-band absorption
+                mask = (std_dict['wave'].value > 7551.) & (std_dict['wave'].value < 7749.)
+                std_dict['wave'] = std_dict['wave'][np.invert(mask)]
+                std_dict['flux'] = std_dict['flux'][np.invert(mask)]
             else:
                 msgs.error('Do not know how to parse {0} file.'.format(sset))
             msgs.info("Fluxes are flambda, normalized to 1e-17")
@@ -255,24 +253,25 @@ def stellar_model(V, sptype):
 
     return std_dict
 
+
 def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
-    '''
+    """
     Get the standard spetrum using given information of your standard/telluric star.
 
     Args:
-        star_type: str
+        star_type (str):
             Spectral type of your standard/telluric star
-        star_mag: float
+        star_mag (float):
             Apparent magnitude of the telluric star
-        ra: str
+        ra (float):
             Standard right-ascension in hh:mm:ss string format (e.g.,'05:06:36.6').
-        dec: str
+        dec (float):
             Object declination in dd:mm:ss string format (e.g., 52:52:01.0')
 
     Returns:
         dict: Dictionary containing the information you provided and the
         standard/telluric spectrum.
-    '''
+    """
     # Create star model
     if (ra is not None) and (dec is not None) and (star_mag is None) and (star_type is None):
         # Pull star spectral model from archive
@@ -675,8 +674,8 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
         polycorrect=polycorrect, debug=debug, show_QA=False)
 
     if debug:
-        plt.plot(wave_star.value[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')
-        plt.plot(wave_star.value[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r',label='Fluxed Observed Star')
+        plt.plot(wave_star[mask_sens], flux_true[mask_sens], color='k',lw=2, label='Reference Star')
+        plt.plot(wave_star[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r', label='Fluxed Observed Star')
         plt.xlabel(r'Wavelength [$\AA$]')
         plt.ylabel('Flux [erg/s/cm2/Ang.]')
         plt.legend(fancybox=True, shadow=True)
@@ -1070,7 +1069,8 @@ def load_filter_file(filter):
     # Return
     return wave, instr
 
-def scale_in_filter(xspec, scale_dict):
+
+def scale_in_filter(wave, flux, gpm, scale_dict):
     """
     Scale spectra to input magnitude in given filter
 
@@ -1081,33 +1081,33 @@ def scale_in_filter(xspec, scale_dict):
       - 'masks' (list, optional): Wavelength ranges to mask in calculation
 
     Args:
-        xspec (linetools.spectra.xspectrum1d.XSpectrum1D):
-        scale_dict (dict):
+        wave (np.ndarray):
+        flux (np.ndarray):
+        gpm (np.ndarray):
+            True is good
+        scale_dict (dict like):
+            Usually is a Coadd1DPar() object
+            Requires mag_type, filter, filter_mag, and filter_mask
 
     Returns:
-        linetools.spectra.xspectrum1d.XSpectrum1D, float:  Scaled spectrum
+        float: scale value for the flux, i.e. newflux = flux * scale
     """
-    # Parse the spectrum
-    sig = xspec.sig
-    gdx = sig > 0.
-    wave = xspec.wavelength.value[gdx]
-    flux = xspec.flux.value[gdx]
 
     # Mask further?
-    if 'masks' in scale_dict:
-        if scale_dict['masks'] is not None:
-            gdp = np.ones_like(wave, dtype=bool)
-            for mask in scale_dict['masks']:
-                bad = (wave > mask[0]) & (wave < mask[1])
-                gdp[bad] = False
-            # Cut again
-            wave = wave[gdp]
-            flux = flux[gdp]
+    if scale_dict['filter_mask'] is not None:
+        # Funny formatting
+        if isinstance(scale_dict['filter_mask'], str):
+            regions = scale_dict['filter_mask'].split(',')
+        else:
+            regions = scale_dict['filter_mask']
+        for region in regions:
+            mask = region.split(':')
+            gpm[(wave > float(mask[0])) & (wave < float(mask[1]))] = False
+    mag_type = scale_dict['mag_type']
 
-    if ('mag_type' in scale_dict) | (scale_dict['mag_type'] is not None):
-        mag_type = scale_dict['mag_type']
-    else:
-        mag_type = 'AB'
+    # Parse the spectrum
+    wave = wave[gpm]
+    flux = flux[gpm]
 
     # Grab the instrument response function
     fwave, trans = load_filter_file(scale_dict['filter'])
@@ -1115,7 +1115,7 @@ def scale_in_filter(xspec, scale_dict):
 
     # Convolve
     allt = tfunc(wave)
-    wflam = np.sum(flux*allt) / np.sum(allt) * PYPEIT_FLUX_SCALE * units.erg/units.s/units.cm**2/units.AA
+    wflam = np.sum(flux*allt)/np.sum(allt)* PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.AA
 
     mean_wv = np.sum(fwave*trans)/np.sum(trans) * units.AA
 
@@ -1126,15 +1126,13 @@ def scale_in_filter(xspec, scale_dict):
         # Apparent AB
         AB = -2.5 * np.log10(fnu.to('erg/s/cm**2/Hz').value) - 48.6
         # Scale factor
-        Dm = AB - scale_dict['mag']
+        Dm = AB - scale_dict['filter_mag']
         scale = 10**(Dm/2.5)
         msgs.info("Scaling spectrum by {}".format(scale))
-        # Generate
-        new_spec = XSpectrum1D.from_tuple((xspec.wavelength, xspec.flux*scale, xspec.sig*scale))
     else:
-        msgs.error("Need a magnitude for scaling")
+        msgs.error("Bad magnitude type")
 
-    return new_spec,scale
+    return scale
 
 
 def generate_sensfunc_old(wave, counts, counts_ivar, airmass, exptime, longitude, latitude, telluric=True, star_type=None,

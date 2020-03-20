@@ -127,7 +127,8 @@ class MasterFrame(object):
             # User does not want to load masters
             msgs.warn('You requested that PypeIt not reuse existing masters!')
             return
-        if not self.exists:
+        if not os.path.isfile(_ifile):
+        #if not self.exists: # JFH Previous coding error precluded ifile ever being used
             # Master file doesn't exist
             msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.master_file_path))
             return

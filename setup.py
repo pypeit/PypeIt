@@ -51,7 +51,7 @@ def get_requirements():
 
 NAME = 'pypeit'
 # do not use x.x.x-dev.  things complain.  instead use x.x.xdev
-VERSION = '0.12.4dev'
+VERSION = '0.13.3dev'
 RELEASE = 'dev' not in VERSION
 
 def run_setup(data_files, scripts, packages, install_requires):

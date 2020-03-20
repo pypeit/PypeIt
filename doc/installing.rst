@@ -2,7 +2,8 @@
 Installing PypeIt
 *****************
 
-This document will describe how to install PypeIt.
+This document describes how to install PypeIt.
+Both for users and developers.
 
 Installing Dependencies
 =======================
@@ -11,7 +12,7 @@ Though we have tried to keep the number of dependencies low,
 there are a few packages that need to be installed (various python packages
 and linetools).
 
-In general, we recommend that you use Anaconda for the majority
+We highly recommend that you use Anaconda for the majority
 of these installations.
 
 Detailed installation instructions are presented below:
@@ -19,7 +20,8 @@ Detailed installation instructions are presented below:
 Python Dependencies
 -------------------
 
-PypeIt depends on the following list of Python packages. 
+PypeIt depends on the following list of Python packages.
+Install these first.
 
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
@@ -31,11 +33,11 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
-* yaml -- You may need to install pyyaml
+* `yaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
-
+* `linetools <https://github.com/linetools/linetools/>`_ -- version 0.2 or later
 
 If you are using Anaconda, you can check the presence of these packages with::
 
@@ -47,12 +49,15 @@ If any of the packages are out of date, they can be updated with a command like:
 
 	conda update scipy
 
+
+GitHub cloning
+++++++++++++++
+
 The following packages need to be installed by cloning from GitHub:
 
 * `ginga <https://github.com/profxj/ginga>`_ JXP's fork of Ginga
-* `linetools <https://github.com/linetools/linetools/>`_ Linetools is a package designed for the analysis of 1-D spectra.
 
-Do **not** use pip install for these.
+Do **not** use pip install for this.
 
 To remind you, install via GitHub with a sequence like::
 
@@ -62,16 +67,24 @@ To remind you, install via GitHub with a sequence like::
 
 This will push the code into your Python distribution.
 
-Installing PypeIt
-=================
+PypeIt
+======
 
-We recommend that you install PypeIt with `pip`::
+Read all of the text in this sub-section before choosing how you
+wish to install `PypeIt`.
+
+If you are not using code on the edge of development, then
+we recommend that you install PypeIt with `pip`::
 
     pip install pypeit
 
 Nuff said.  If you have not yet satisfied all the requirements, PypeIt will fail
-when you first attempt to run it.  You can grab all of them (except `ginga`) by
-doing::
+when you first attempt to run it.   Try it::
+
+    run_pypeit -h
+
+This will fail if one or more requirements are missing.
+You can grab all of them (except `ginga`; see `GitHub cloning` above) by doing::
 
     pip install -r path/requirements.txt
 
@@ -79,8 +92,8 @@ where path is to wherever `pip` installed the code.  Or you can download the
 `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`_ file
 and run on it directly.
 
-However, if you are going to work on development branches then you
-will need to install via GitHub::
+However, if you are going to use development branches (common, we fear)
+then you will need to install via GitHub::
 
     git clone https://github.com/pypeit/PypeIt.git
 
@@ -88,8 +101,11 @@ And we then recommend you install with::
 
     python setup.py develop
 
-Tests
-=====
+Again, do a test run as above to check you have all the requirements.
+
+Testing the Installation
+========================
+
 In order to assess whether PypeIt has been properly installed,
 we suggest you run the following tests:
 
@@ -105,10 +121,10 @@ then type run_pypeit.::
 2. Run the PypeIt unit tests
 ----------------------------
 
-If you cloned the Repo (i.e., not PyPI),
-then you can run the
-standard tests by doing::
+If you cloned the Repo (i.e., you did *not* use `pip`)
+then you can run the standard tests by doing::
 
+    cd `repository_folder`
     python setup.py test
 
 

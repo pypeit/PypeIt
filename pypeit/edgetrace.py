@@ -385,6 +385,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
     """
     master_type = 'Edges'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
+
+    # TODO: Discuss having this operate on a set of files
     def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
                  img=None, bpm=None, det=1, binning=None, auto=False, debug=False,
                  show_stages=False, save=False, load=False):
@@ -767,11 +769,17 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # was automatically identified. One problem with adding
         # slits first is that we may have to sync the slits again.
         if self.par['rm_slits'] is not None:
-            self.rm_user_traces(trace.parse_user_slits(self.par['rm_slits'], self.det, rm=True))
+            rm_user_slits = trace.parse_user_slits(self.par['rm_slits'],
+                                                   self.det, rm=True)
+            if rm_user_slits is not None:
+                self.rm_user_traces(rm_user_slits)
 
-        # Add user traces
+            # Add user traces
         if self.par['add_slits'] is not None:
-            self.add_user_traces(trace.parse_user_slits(self.par['add_slits'], self.det))
+            add_user_slits = trace.parse_user_slits(self.par['add_slits'],
+                                                    self.det)
+            if add_user_slits is not None:
+                self.add_user_traces(add_user_slits)
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
@@ -1077,7 +1085,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         #   - PCA type, used for rebuilding the PCA when loading
         prihdr['PCATYPE'] = ('None' if self.pca is None else self.pca_type,
                              'PypeIt: Edge trace PCA type')
-        #   - The dispersion name is needed to setup some spectrographs
+        #   - The dispersion name is needed in the setup of some
+        #     spectrographs
         if self.spectrograph.dispname is not None:
             prihdr['DISPNAME'] = (self.spectrograph.dispname, 'Spectrograph disperser')
         #   - Indicate the type if fit (TODO: Keep the fit parameters?)
@@ -1107,6 +1116,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             _outfile = _outfile[:_outfile.rfind('.')] 
             compress = True
 
+        # First check if a trace is available
+        if self.is_empty:
+            msgs.error("No trace information available")
         # Build the list of extensions to write
         # TODO: Separately adding the design and object data is
         # necessary because of a bug in the behavior of empty binary
@@ -1258,6 +1270,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 PCA object(s). If the header indicates that the PCA
                 was not originally performed, this is ignored.
         """
+        hdunames = [h.name for h in hdu]
         # Read and assign data from the fits file
         self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
         if len(self.files) == 0:
@@ -1309,7 +1322,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
             self.pca = [ TracePCA.from_hdu(hdu[ext]) for ext in ['LPCA', 'RPCA']] \
                             if self.par['left_right_pca'] else TracePCA.from_hdu(hdu['PCA'])
 
-        # Read the disperser if possible
+        # Read the disperser if possible. This is needed for the
+        # spec_min_max property of some spectrographs.
         if self.spectrograph.dispname is None:
             try:
                 self.spectrograph.dispname = hdu[0].header['DISPNAME']
@@ -4283,7 +4297,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.binning)
-        slitspat = slittrace.slit_spat_pos(left, right, self.nspat)
+        slitspat = slittrace.SlitTraceSet.slit_spat_pos(left, right, self.nspat)
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return

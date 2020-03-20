@@ -131,7 +131,6 @@ class PypeIt(object):
         self.reuse_masters = reuse_masters
         self.show = show
 
-
         # Set paths
         if self.par['calibrations']['caldir'] == 'default':
             self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')
@@ -148,13 +147,25 @@ class PypeIt(object):
         # directories?
 
         # Instantiate Calibrations class
-        self.caliBrate \
-            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                 self.spectrograph,
-                                                 caldir=self.calibrations_path,
-                                                 qadir=self.qa_path,
-                                                 reuse_masters=self.reuse_masters,
-                                                 show=self.show)
+        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
+            self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+                                                     self.spectrograph,
+                                                     caldir=self.calibrations_path,
+                                                     qadir=self.qa_path,
+                                                     reuse_masters=self.reuse_masters,
+                                                     show=self.show)
+        elif self.spectrograph.pypeline in ['IFU']:
+            self.caliBrate \
+                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
+                                               self.spectrograph,
+                                               caldir=self.calibrations_path,
+                                               qadir=self.qa_path,
+                                               reuse_masters=self.reuse_masters,
+                                               show=self.show)
+        else:
+            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
+
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used
@@ -473,7 +484,7 @@ class PypeIt(object):
             std_outfile (str): Filename for the standard star spec1d file
 
         Returns:
-            ndarray: Trace of the standard star on input detector
+            ndarray or None: Trace of the standard star on input detector
 
         """
         if std_redux is False and std_outfile is not None:
@@ -485,6 +496,9 @@ class PypeIt(object):
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
+                # No standard extracted on this detector??
+                if sobjs_std is None:
+                    return None
                 std_trace = sobjs_std.TRACE_SPAT
                 # flatten the array if this multislit
                 if 'MultiSlit' in self.spectrograph.pypeline:
@@ -567,14 +581,12 @@ class PypeIt(object):
         msgs.sciexp = self.sciImg
 
         # Instantiate Reduce object
-        # TODO: Do we need these maskslits to be part of self?
-        self.maskslits = self.caliBrate.slits.mask.copy()
         # Required for pypeline specific object
         # TODO -- caliBrate should be replaced by the ~3 primary Objects needed
         #   once we have the data models in place.
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
                                            self.par, self.caliBrate,
-                                           maskslits=self.maskslits,
+                                           maskslits=self.caliBrate.slits.mask.copy(),
                                            ir_redux=self.ir_redux,
                                            std_redux=self.std_redux,
                                            objtype=self.objtype,

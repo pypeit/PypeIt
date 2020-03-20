@@ -17,6 +17,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import arcimage
 from pypeit import tiltimage
+from pypeit import alignframe
 from pypeit import biasframe
 from pypeit import flatfield
 from pypeit import traceimage
@@ -159,6 +160,8 @@ class Calibrations(object):
         # TraceSlits)
         self.shape = None
         self.msarc = None
+        self.msalign = None
+        self.alignment = None
         self.msbias = None
         self.msbpm = None
         self.slits = None
@@ -304,6 +307,9 @@ class Calibrations(object):
         if self.msarc is None:  # Otherwise build it
             msgs.info("Preparing a master {0:s} frame".format(self.arcImage.frametype))
             self.msarc = self.arcImage.build_image(bias=self.msbias, bpm=self.msbpm)
+            # Need to set head0 here, since a master arc frame loaded from file will have head0 set.
+            self.msarc.head0 = self.arcImage.build_master_header(steps=self.arcImage.process_steps,
+                                                                 raw_files=self.arcImage.file_list)
             # Save to Masters
             if self.save_masters:
                 self.arcImage.save()
@@ -367,6 +373,87 @@ class Calibrations(object):
         # TODO in the future add in a tilt_inmask
         #self._update_cache('tilt', 'tilt_inmask', self.mstilt_inmask)
         return self.mstilt
+
+    def get_align(self):
+        """
+        Load or generate the alignment frame
+
+        Requirements:
+           master_key, det, par
+
+        Returns:
+            ndarray or str: :attr:`align`
+
+        """
+        # Check for existing data
+        if not self._chk_objs(['msbpm', 'tslits_dict']):
+            msgs.error("Don't have all the objects")
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        align_rows = self.fitstbl.find_frames('align', calib_ID=self.calib_ID, index=True)
+        self.align_files = self.fitstbl.frame_paths(align_rows)
+        self.master_key_dict['align'] \
+                = self.fitstbl.master_key(align_rows[0] if len(align_rows) > 0 else self.frame,
+                                          det=self.det)
+
+        if self._cached('align', self.master_key_dict['align']):
+            # Previously calculated
+            self.msalign = self.calib_dict[self.master_key_dict['align']]['align']
+        else:
+            # Instantiate with everything needed to generate the image (in case we do)
+            self.alignFrame = alignframe.AlignFrame(self.spectrograph, files=self.align_files,
+                                              det=self.det, msbias=self.msbias,
+                                              par=self.par['alignframe'],
+                                              master_key=self.master_key_dict['align'],
+                                              master_dir=self.master_dir,
+                                              reuse_masters=self.reuse_masters)
+
+            # Load the MasterFrame (if it exists and is desired)?
+            self.msalign = self.alignFrame.load()
+            if self.msalign is None:  # Otherwise build it
+                msgs.info("Preparing a master {0:s} frame".format(self.alignFrame.frametype))
+                self.msalign = self.alignFrame.build_image(bias=self.msbias, bpm=self.msbpm)
+                # Need to set head0 here, since a master align frame loaded from file will have head0 set.
+                self.msalign.head0 = self.alignFrame.build_master_header(steps=self.alignFrame.process_steps,
+                                                                     raw_files=self.alignFrame.file_list)
+                # Save to Masters
+                if self.save_masters:
+                    self.alignFrame.save()
+
+            # Store the alignment frame
+            self._update_cache('align', 'align', self.msalign)
+
+        # Check if the alignment dictionary exists
+        if self._cached('align_dict', self.master_key_dict['align']) \
+                and self._cached('wtmask', self.master_key_dict['align']):
+            self.align_dict = self.calib_dict[self.master_key_dict['align']]['align_dict']
+        else:
+            # Extract some header info needed by the algorithm
+            binning = self.spectrograph.get_meta_value(self.align_files[0], 'binning')
+
+            # Instantiate
+            self.alignment = alignframe.Alignment(self.msalign, self.tslits_dict, self.spectrograph,
+                                                  self.par['alignment'],
+                                                  det=self.det, binning=binning,
+                                                  master_key=self.master_key_dict['align'],
+                                                  master_dir=self.master_dir,
+                                                  reuse_masters=self.reuse_masters,
+                                                  qa_path=self.qa_path, msbpm=self.msbpm)
+
+            # Master
+            self.align_dict = self.alignment.load()
+            if self.align_dict is None:
+                self.align_dict = self.alignment.run(self.show)
+                if self.save_masters:
+                    self.alignment.save()
+
+            # Save & return
+            self._update_cache('align', 'align_dict', self.align_dict)
+
+        return self.msalign, self.align_dict
 
     def get_bias(self):
         """
@@ -564,15 +651,11 @@ class Calibrations(object):
             # Run
             self.mspixelflat, self.msillumflat = self.flatField.run(show=self.show)
 
-            # TODO: Tilts are unchanged, right?
-#            # If we tweaked the slits, update the tilts_dict and
-#            # tslits_dict to reflect new slit edges
-#            if self.par['flatfield']['tweak_slits']:
-#                # flatfield updates slits directly and only alters the
-#                # *_tweak set. This updates the MasterEdges
-#                msgs.info('Using slit boundary tweaks from IllumFlat and updated tilts image')
-##                self.tslits_dict = self.flatField.tslits_dict
-#                self.tilts_dict = self.flatField.tilts_dict
+            # Objects should point to the same data
+            # TODO: Remove these lines once we're sure the coding is
+            # correct so that they're not tripped.
+            # assert self.slits is self.flatField.slits
+            # assert self.tilts_dict is self.flatField.tilts_dict
 
             # Save to Masters
             if self.save_masters:
@@ -582,42 +665,29 @@ class Calibrations(object):
                 # profile, re-write them so that the tweaked slits are
                 # included.
                 if self.par['flatfield']['tweak_slits']:
+                    # Update the SlitTraceSet master
                     self.slits.to_master()
+                    # TODO: The waveTilts datamodel needs to be improved
+                    # Objects should point to the same data
+                    # TODO: Remove this line once we're sure the coding
+                    # is correct so that they're not tripped.
+                    # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
+                    # Update the WaveTilts master
+                    self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
+                    self.waveTilts.save()
 
-#                # If we tweaked the slits update the master files for tilts and slits
-#                # TODO: These should be saved separately
-#                if self.par['flatfield']['tweak_slits']:
-#                    msgs.info('Updating MasterTrace and MasterTilts using tweaked slit boundaries')
-#                    # flatfield updates slits directly and only alters
-#                    # the *_tweak set. This updates the MasterEdges
-#                    # file with the new data from the flat-field slit
-#                    # tweaks.
-#                    # TODO: Make SlitTraceSet a masterframe?
-#                    self.edges.update_slits(self.slits)
-#                    self.edges.save()
-
-                    # TODO: Tilts are unchanged, right?
-#                    # Write the final_tilts using the new slit boundaries to the MasterTilts file
-#                    self.waveTilts.final_tilts = self.flatField.tilts_dict['tilts']
-#                    self.waveTilts.tilts_dict = self.flatField.tilts_dict
-#                    self.waveTilts.save()
-
-        # 4) If either of the two flats are still None, use unity
-        # everywhere and print out a warning
-        # TODO: These will barf if self.tilts_dict['tilts'] isn't
-        # defined.
+        # 4) If either of the two flats are still None, warn the user
+        # that the correction will not be applied.
         if self.mspixelflat is None:
-#            self.mspixelflat = np.ones_like(self.tilts_dict['tilts'])
             msgs.warn('You are not pixel flat fielding your data!!!')
         if self.msillumflat is None or not self.par['flatfield']['illumflatten']:
-#            self.msillumflat = np.ones_like(self.tilts_dict['tilts'])
             msgs.warn('You are not illumination flat fielding your data!')
 
         # Save & return
         self._update_cache('flat', ('pixelflat','illumflat'), (self.mspixelflat,self.msillumflat))
         return self.mspixelflat, self.msillumflat
 
-    # TODO: if write_qa need to provide qa_path!
+    # TODO: if write_qa, need to provide qa_path!
     # TODO: why do we allow redo here?
     def get_slits(self, redo=False, write_qa=True):
         """
@@ -740,7 +810,7 @@ class Calibrations(object):
         # TODO we are regenerating this mask a lot in this module. Could reduce that
 
         self.waveImage = waveimage.WaveImage(self.slits, self.tilts_dict['tilts'], self.wv_calib,
-                                             self.spectrograph, self.det, self.slits.mask,
+                                             self.spectrograph, self.det, 
                                              master_key=self.master_key_dict['arc'],
                                              master_dir=self.master_dir,
                                              reuse_masters=self.reuse_masters)
@@ -769,7 +839,7 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits']):
-            msgs.error('dont have all the objects')
+            msgs.error('Not enough information to load/generate the wavelength calibration')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -889,9 +959,6 @@ class Calibrations(object):
         """
         Run full the full recipe of calibration steps
         """
-        # TODO: Is there anywhere in pypeit where the output from these
-        # `get_*` methods are caught? Do we need to keep returning
-        # self.* attributes?
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
         msgs.info("Calibration complete!")
@@ -951,11 +1018,11 @@ class MultiSlitCalibrations(Calibrations):
     ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False, steps=None):
+                 show=False):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
                                                     qadir=qadir, reuse_masters=reuse_masters,
                                                     show=show)
-        self.steps = MultiSlitCalibrations.default_steps() if steps is None else steps
+        self.steps = MultiSlitCalibrations.default_steps()
 
     @staticmethod
     def default_steps():
@@ -972,4 +1039,31 @@ class MultiSlitCalibrations(Calibrations):
     # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
     # Notes on order of steps if flexure compensation is implemented
     #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+
+
+class IFUCalibrations(Calibrations):
+    """
+    Child of Calibrations class for performing IFU calibrations.
+    See :class:`pypeit.calibrations.Calibrations` for arguments.
+
+    """
+
+    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
+                 show=False):
+        super(IFUCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
+                                                    qadir=qadir, reuse_masters=reuse_masters,
+                                                    show=show)
+        self.steps = IFUCalibrations.default_steps()
+
+    @staticmethod
+    def default_steps():
+        """
+        This defines the steps for calibrations and their order
+
+        Returns:
+            list: Calibration steps, in order of execution
+
+        """
+        # Order matters!
+        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats', 'wave']
 
