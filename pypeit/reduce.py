@@ -8,8 +8,8 @@ from abc import ABCMeta
 from linetools import utils as ltu
 
 from pypeit import specobjs
-from pypeit import ginga, msgs, edgetrace
-from pypeit.core import skysub, extract, pixels, wave
+from pypeit import ginga, msgs
+from pypeit.core import skysub, extract, wave, flexure
 
 from IPython import embed
 
@@ -476,7 +476,7 @@ class Reduce(object):
 
         Spectra are modified in place (wavelengths are shifted)
 
-        Wrapper to wave.flexure_obj()
+        Wrapper to flexure.flexure_obj()
 
         Args:
             sobjs (:class:`pypeit.specobjs.SpecObjs`):
@@ -485,7 +485,7 @@ class Reduce(object):
         """
 
         if self.par['flexure']['method'] != 'skip':
-            flex_list = wave.flexure_obj(sobjs, self.maskslits, self.par['flexure']['method'],
+            flex_list = flexure.flexure_obj(sobjs, self.maskslits, self.par['flexure']['method'],
                                          self.par['flexure']['spectrum'],
                                          mxshft=self.par['flexure']['maxshift'])
             # QA
