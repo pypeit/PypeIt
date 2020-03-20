@@ -23,10 +23,20 @@ from pypeit.core import qa
 
 from IPython import embed
 
-def flexure_spat_shift(sciimg, slits):
+def flexure_spat_shift(sciimg, slits, debug=False):
+    """
+
+    Args:
+        sciimg:
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+
+    Returns:
+
+    """
 
     #slitmask = pixels.tslits2mask(tslits_dict)
     slitmask = slits.slit_img()
+    left, right = slits.select_edges()
     onslits = (slitmask > -1)
     corr_slits = (onslits.astype(float)).flatten()
     #corr_roll = np.roll(corr_slits, 10, axis=1).astype(float)
@@ -48,7 +58,7 @@ def flexure_spat_shift(sciimg, slits):
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
     msgs.info('Flexure compensation ')
-    debug=True
+
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan
         plt.figure(figsize=(14, 6))
@@ -58,21 +68,22 @@ def flexure_spat_shift(sciimg, slits):
         plt.legend()
         plt.show()
 
-    embed(header='56 of flexure.py')
-
-    # Now translate the slits in the tslits_dict
-    slits.left_flexure = slits.left + lag_max[0]
-    slits.right_flexure = slits.right + lag_max[0]
-
     #tslits_shift = trace_slits.shift_slits(tslits_dict, lag_max)
     # Now translate the tilts
 
     #slitmask_shift = pixels.tslits2mask(tslits_shift)
-    slitmask_shift = slits.slit_img()
-    viewer, ch = ginga.show_image (sciimg)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id) #, args.det)
-    ginga.show_slits(viewer, ch, tslits_shift['slit_left'], tslits_shift['slit_righ'])
-    ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'])
+    #slitmask_shift = slits.slit_img(flexure=lag_max[0])
+    if debug:
+        # Now translate the slits in the tslits_dict
+        _, _ = slits.select_edges(flexure=lag_max[0])
+        viewer, ch = ginga.show_image(sciimg)
+        ginga.show_slits(viewer, ch, slits.left_flexure, slits.right_flexure)#, slits.id) #, args.det)
+        embed(header='83 of flexure.py')
+    #ginga.show_slits(viewer, ch, tslits_shift['slit_left'], tslits_shift['slit_righ'])
+    #ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'])
+
+    return lag_max[0]
+
 
 
 def load_sky_spectrum(sky_file):

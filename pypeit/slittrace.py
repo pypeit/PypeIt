@@ -412,7 +412,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return left, right
 
-    def slit_img(self, pad=None, slitids=None, original=False):
+    def slit_img(self, pad=None, slitids=None, original=False, flexure=None):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -474,7 +474,7 @@ class SlitTraceSet(datamodel.DataContainer):
         spec = np.arange(self.nspec)
 
         # Choose the slit edges to use
-        left, right = self.select_edges(original=original)
+        left, right = self.select_edges(original=original, flexure=flexure)
 
         # TODO: When specific slits are chosen, need to check that the
         # padding doesn't lead to slit overlap.
