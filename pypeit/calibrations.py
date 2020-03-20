@@ -474,10 +474,11 @@ class Calibrations(object):
             if os.path.isfile(masterframe_name) and self.reuse_masters:
                 self.align_dict = self.alignment.load(masterframe_name)
             else:
-                self.align_dict, _ = self.alignment.run(self.show)
+                self.align_dict = self.alignment.run(self.show)
                 # Save to Masters
                 if self.save_masters:
-                    self.alignment.save(outfile=masterframe_name)
+                    self.alignment.save(master_dir=self.master_dir, master_key=self.master_key_dict['trace'],
+                                        outfile=masterframe_name)
 
             # Save & return
             self._update_cache('align', 'align_dict', self.align_dict)

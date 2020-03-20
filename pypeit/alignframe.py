@@ -5,12 +5,13 @@ Module for generating an Alignment image to map constant spatial locations
 .. include:: ../links.rst
 """
 import os
-import pdb
 import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit import ginga, msgs, edgetrace
+from pypeit import ginga, msgs
+from pypeit import masterframe
+from pypeit import io
 from pypeit.core import extract, arc, save, load
 
 
@@ -41,6 +42,7 @@ class Alignment():
             List of the processing steps performed
     """
     # Frametype is a class attribute
+    version = '1.0.0'
     frametype = 'alignment'
     master_type = 'Alignment'
     file_format = 'fits'
@@ -173,7 +175,7 @@ class Alignment():
         # Return the profile information as a single dictionary
         return dict(alignments=alignprof)
 
-    def save(self, outfile=None, overwrite=True):
+    def save(self, master_key, master_dir, outfile=None, overwrite=True):
         """
         Save the alignment traces to a master frame.
 
@@ -183,7 +185,7 @@ class Alignment():
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _outfile = self.master_file_path if outfile is None else outfile
+        _outfile = outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -191,7 +193,12 @@ class Alignment():
             return
 
         # Report and save
-        prihdr = self.build_master_header(steps=self.steps)
+        # First do the header
+        if master_key is not None:
+            prihdr = masterframe.build_master_header(self, master_key, master_dir,
+                                              self.spectrograph.spectrograph)
+        else:
+            prihdr = io.initialize_header()
         #   - Add the binning
         prihdr['BINNING'] = (self.binning, 'PypeIt: Binning')
         #   - Add the detector number
@@ -238,7 +245,7 @@ class Alignment():
         # Return
         return self.align_dict
 
-    def run(self, show_trace=False, skip_QA=False, debug=False):
+    def run(self, show_trace=False):
         """
         Main driver for alignment profile tracing
 
