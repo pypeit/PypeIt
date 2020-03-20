@@ -21,76 +21,6 @@ naming_model = {}
 for skey in ['SPAT', 'SLIT', 'DET', 'SCI','OBJ', 'ORDER']:
     naming_model[skey.lower()] = skey
 
-# Data model -- Put here to be able to reach it without instantiating the class
-#  These are outward facing items, i.e. items that the user will receive and use.
-#  These are upper case to distinguish them from internal attributes
-data_model = {
-    'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
-    'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
-    'FWHMFIT': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),
-    'OPT_WAVE': dict(otype=np.ndarray, atype=float, desc='Optimal Wavelengths (Angstroms)'),
-    'OPT_FLAM': dict(otype=np.ndarray, atype=float, desc='Optimal flux (erg/s/cm^2/Ang)'),
-    'OPT_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Optimal flux uncertainty (erg/s/cm^2/Ang)'),
-    'OPT_FLAM_IVAR': dict(otype=np.ndarray, atype=float, desc='Optimal flux inverse variance (erg/s/cm^2/Ang)^-2'),
-    'OPT_COUNTS': dict(otype=np.ndarray, atype=float, desc='Optimal flux (counts)'),
-    'OPT_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
-                            desc='Inverse variance of optimally extracted flux using modelivar image (counts^2)'),
-    'OPT_COUNTS_SIG': dict(otype=np.ndarray, atype=float,
-                             desc='Optimally extracted noise from IVAR (counts)'),
-    'OPT_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
-                             desc='Optimally extracted noise variance, sky+read noise only (counts^2)'),
-    'OPT_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimally extracted flux'),
-    'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Optimally extracted sky (counts)'),
-    'OPT_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Optimally extracted RN squared (counts)'),
-    'OPT_FRAC_USE': dict(otype=np.ndarray, atype=float,
-                         desc='Fraction of pixels in the object profile subimage used for this extraction'),
-    'OPT_CHI2': dict(otype=np.ndarray, atype=float,
-                     desc='Reduced chi2 of the model fit for this spectral pixel'),
-    'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Boxcar Wavelengths (Angstroms)'),
-    'BOX_FLAM': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (erg/s/cm^2/Ang)'),
-    'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Boxcar flux uncertainty (erg/s/cm^2/Ang)'),
-    'BOX_FLAM_IVAR': dict(otype=np.ndarray, atype=float, desc='Boxcar flux inverse variance (erg/s/cm^2/Ang)^-2'),
-    'BOX_COUNTS': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (counts)'),
-    'BOX_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
-                            desc='Inverse variance of optimally extracted flux using modelivar image (counts^2)'),
-    'BOX_COUNTS_SIG': dict(otype=np.ndarray, atype=float,
-                           desc='Boxcar extracted noise from IVAR (counts)'),
-    'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
-                             desc='Boxcar extracted noise variance, sky+read noise only (counts^2)'),
-    'BOX_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimally extracted flux'),
-    'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted sky (counts)'),
-    'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted RN squared (counts)'),
-    'BOX_FRAC_USE': dict(otype=np.ndarray, atype=float,
-                         desc='Fraction of pixels in the object profile subimage used for this extraction'),
-    'BOX_CHI2': dict(otype=np.ndarray, atype=float,
-                     desc='Reduced chi2 of the model fit for this spectral pixel'),
-    'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
-    #
-    'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
-    'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
-    'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
-    #
-    'DET': dict(otype=(int,np.integer), desc='Detector number'),
-    'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
-    'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
-    'SPAT_PIXPOS': dict(otype=(float,np.floating), desc='Spatial location of the trace on detector (pixel)'),
-    'SPAT_FRACPOS': dict(otype=(float,np.floating), desc='Fractional location of the object on the slit'),
-    #
-    'SLITID': dict(otype=(int,np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
-    'OBJID': dict(otype=(int, np.integer), desc='Object ID for multislit data. Each object is given an index for the slit '
-                                                  'it appears increasing from from left to right. These are one based.'),
-    'NAME': dict(otype=str, desc='Name of the object following the naming model'),
-    #
-    'ECH_OBJID': dict(otype=(int, np.integer),
-                      desc='Object ID for echelle data. Each object is given an index in the order '
-                           'it appears increasing from from left to right. These are one based.'),
-    'ECH_ORDERINDX': dict(otype=(int, np.integer), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
-    'ECH_FRACPOS': dict(otype=(float,np.floating), desc='Synced echelle fractional location of the object on the slit'),
-    'ECH_ORDER': dict(otype=(int, np.integer), desc='Physical echelle order'),
-    'ECH_NAME': dict(otype=str, desc='Name of the object for echelle data. Same as NAME above but order numbers are '
-                                     'omitted giving a unique name per object.')
-}
-
 
 class SpecObj(object):
     """Class to handle object spectra from a single exposure
@@ -131,6 +61,79 @@ class SpecObj(object):
         'FRAC_USE' : frac_use  # Fraction of pixels in the object profile subimage used for this extraction
         'CHI2' : chi2  # Reduced chi2 of the model fit for this spectral pixel
     """
+    flavor = 'SpecObj'
+    version = '1.0'
+
+    data_model = {
+        'TRACE_SPAT': dict(otype=np.ndarray, atype=float, desc='Object trace along the spec (spatial pixel)'),
+        'FWHM': dict(otype=float, desc='Spatial FWHM of the object (pixels)'),
+        'FWHMFIT': dict(otype=np.ndarray, desc='Spatial FWHM across the detector (pixels)'),
+        'OPT_WAVE': dict(otype=np.ndarray, atype=float, desc='Optimal Wavelengths (Angstroms)'),
+        'OPT_FLAM': dict(otype=np.ndarray, atype=float, desc='Optimal flux (erg/s/cm^2/Ang)'),
+        'OPT_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Optimal flux uncertainty (erg/s/cm^2/Ang)'),
+        'OPT_FLAM_IVAR': dict(otype=np.ndarray, atype=float, desc='Optimal flux inverse variance (erg/s/cm^2/Ang)^-2'),
+        'OPT_COUNTS': dict(otype=np.ndarray, atype=float, desc='Optimal flux (counts)'),
+        'OPT_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
+                                desc='Inverse variance of optimally extracted flux using modelivar image (counts^2)'),
+        'OPT_COUNTS_SIG': dict(otype=np.ndarray, atype=float,
+                               desc='Optimally extracted noise from IVAR (counts)'),
+        'OPT_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
+                                 desc='Optimally extracted noise variance, sky+read noise only (counts^2)'),
+        'OPT_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimally extracted flux'),
+        'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Optimally extracted sky (counts)'),
+        'OPT_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Optimally extracted RN squared (counts)'),
+        'OPT_FRAC_USE': dict(otype=np.ndarray, atype=float,
+                             desc='Fraction of pixels in the object profile subimage used for this extraction'),
+        'OPT_CHI2': dict(otype=np.ndarray, atype=float,
+                         desc='Reduced chi2 of the model fit for this spectral pixel'),
+        'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Boxcar Wavelengths (Angstroms)'),
+        'BOX_FLAM': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (erg/s/cm^2/Ang)'),
+        'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Boxcar flux uncertainty (erg/s/cm^2/Ang)'),
+        'BOX_FLAM_IVAR': dict(otype=np.ndarray, atype=float, desc='Boxcar flux inverse variance (erg/s/cm^2/Ang)^-2'),
+        'BOX_COUNTS': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (counts)'),
+        'BOX_COUNTS_IVAR': dict(otype=np.ndarray, atype=float,
+                                desc='Inverse variance of optimally extracted flux using modelivar image (counts^2)'),
+        'BOX_COUNTS_SIG': dict(otype=np.ndarray, atype=float,
+                               desc='Boxcar extracted noise from IVAR (counts)'),
+        'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
+                                 desc='Boxcar extracted noise variance, sky+read noise only (counts^2)'),
+        'BOX_MASK': dict(otype=np.ndarray, atype=bool, desc='Mask for optimally extracted flux'),
+        'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted sky (counts)'),
+        'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted RN squared (counts)'),
+        'BOX_FRAC_USE': dict(otype=np.ndarray, atype=float,
+                             desc='Fraction of pixels in the object profile subimage used for this extraction'),
+        'BOX_CHI2': dict(otype=np.ndarray, atype=float,
+                         desc='Reduced chi2 of the model fit for this spectral pixel'),
+        'BOX_RADIUS': dict(otype=float, desc='Size of boxcar radius (pixels)'),
+        #
+        'FLEX_SHIFT': dict(otype=float, desc='Shift of the spectrum to correct for flexure (pixels)'),
+        'VEL_TYPE': dict(otype=str, desc='Type of heliocentric correction (if any)'),
+        'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
+        #
+        'DET': dict(otype=(int, np.integer), desc='Detector number'),
+        'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
+        'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
+        'SPAT_PIXPOS': dict(otype=(float, np.floating), desc='Spatial location of the trace on detector (pixel)'),
+        'SPAT_FRACPOS': dict(otype=(float, np.floating), desc='Fractional location of the object on the slit'),
+        #
+        'SLITID': dict(otype=(int, np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
+        'OBJID': dict(otype=(int, np.integer),
+                      desc='Object ID for multislit data. Each object is given an index for the slit '
+                           'it appears increasing from from left to right. These are one based.'),
+        'NAME': dict(otype=str, desc='Name of the object following the naming model'),
+        #
+        'ECH_OBJID': dict(otype=(int, np.integer),
+                          desc='Object ID for echelle data. Each object is given an index in the order '
+                               'it appears increasing from from left to right. These are one based.'),
+        'ECH_ORDERINDX': dict(otype=(int, np.integer), desc='Order indx, analogous to SLITID for echelle. Zero based.'),
+        'ECH_FRACPOS': dict(otype=(float, np.floating),
+                            desc='Synced echelle fractional location of the object on the slit'),
+        'ECH_ORDER': dict(otype=(int, np.integer), desc='Physical echelle order'),
+        'ECH_NAME': dict(otype=str,
+                         desc='Name of the object for echelle data. Same as NAME above but order numbers are '
+                              'omitted giving a unique name per object.')
+    }
+
     @classmethod
     def from_table(cls, table, copy_dict=None):
         if table.meta['PYPELINE'] in ['MultiSlit', 'IFU']:
@@ -276,11 +279,11 @@ class SpecObj(object):
             self.__setitem__(item, value)
 
     def __setitem__(self, item, value):
-        if item not in data_model.keys():
+        if item not in self.data_model.keys():
             raise IOError("Cannot set {} attribute.  It is not in the data model".format(item))
-        if not isinstance(value, data_model[item]['otype']):
+        if not isinstance(value, self.data_model[item]['otype']):
             print("Wrong data type for attribute: {}".format(item))
-            print("Allowed type(s) are: {}".format(data_model[item]['otype']))
+            print("Allowed type(s) are: {}".format(self.data_model[item]['otype']))
             raise IOError("Try again")
         if isinstance(value, np.ndarray):
             self._data[item] = value

@@ -7,6 +7,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 from IPython import embed
 
@@ -14,32 +15,49 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/MOSFIRE specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KeckMOSFIRESpectrograph, self).__init__()
         self.telescope = telescopes.KeckTelescopePar()
         self.spectrograph = 'keck_mosfire'
         self.camera = 'MOSFIRE'
-        self.detector = [
-                # Detector 1
-            pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.193,
-                            darkcurr        = 0.8,
-                            saturation      = 1e9, # ADU, this is hacked for now
-                            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
-                            numamplifiers   = 1,
-                            gain            = 2.15,  # Taken from MOSFIRE detector webpage
-                            ronoise         = 5.8, # This is for 16 non-destructuve reads, the default readout mode
-                            datasec         = '[:,:]',
-                            oscansec        = '[:,:]'
-                            )]
-        self.numhead = 1
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.193,
+            darkcurr        = 0.8,
+            saturation      = 1e9, # ADU, this is hacked for now
+            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers   = 1,
+            mincounts       = -1e10,
+            gain            = np.atleast_1d(2.15),  # Taken from MOSFIRE detector webpage
+            ronoise         = np.atleast_1d(5.8), # This is for 16 non-destructuve reads, the default readout mode
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+        )
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
@@ -54,7 +72,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'

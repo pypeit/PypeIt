@@ -11,14 +11,12 @@ from collections import OrderedDict
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
-from pypeit.images import scienceimage
+from pypeit.images import buildimage
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa
-from pypeit.core import wave
 from pypeit.core import save
 from pypeit import specobjs
-from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 
 from configobj import ConfigObj
@@ -80,7 +78,7 @@ class PypeIt(object):
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
-        self.spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[0])
+        self.spectrograph = load_spectrograph(spectrograph_name)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
 
         # --------------------------------------------------------------
@@ -145,6 +143,7 @@ class PypeIt(object):
         # TODO: Is anything written to the qa dir or only to qa/PNGs?
         # Should we have separate calibration and science QA
         # directories?
+        # An html file wrapping them all too
 
         # Instantiate Calibrations class
         if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
@@ -434,7 +433,7 @@ class PypeIt(object):
             sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
                 sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
                 sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-                sci_dict[self.det]['specobjs'], \
+                sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
                         = self.extract_one(frames, self.det, bg_frames,
                                            std_outfile=std_outfile)
             # JFH TODO write out the background frame?
@@ -548,12 +547,16 @@ class PypeIt(object):
                 = self.get_sci_metadata(frames[0], det)
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
+        if self.std_redux:
+            frame_par = self.par['calibrations']['standardframe']
+        else:
+            frame_par = self.par['scienceframe']
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
 
         # Force the illumination flat to be None if the user doesn't
         # want to apply the correction.
-        illum_flat = self.caliBrate.msillumflat \
+        illum_flat = self.caliBrate.flatimages.illumflat \
                         if self.par['calibrations']['flatfield']['illumflatten'] else None
 
         # TODO: report if illum_flat is None? Done elsewhere, but maybe
@@ -561,18 +564,20 @@ class PypeIt(object):
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciImg = scienceimage.build_from_file_list(
-            self.spectrograph, det, self.par['scienceframe']['process'],
-            self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
-            self.caliBrate.mspixelflat, illum_flat=illum_flat)
+        self.sciImg = buildimage.buildimage_fromlist(
+            self.spectrograph, det, frame_par,
+            sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
+            pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
+            ignore_saturation=False)
 
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg - scienceimage.build_from_file_list(
-                self.spectrograph, det, self.par['scienceframe']['process'],
-                self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
-                self.caliBrate.mspixelflat, illum_flat=illum_flat)
+            self.sciImg = self.sciImg.sub(buildimage.buildimage_fromlist(
+                self.spectrograph, det, frame_par,bg_file_list,
+                bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
+                pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
+                ignore_saturation=False), frame_par['process'])
 
         # Update mask for slitmask; uses pad in EdgeTraceSetPar
         self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img())
@@ -607,7 +612,8 @@ class PypeIt(object):
             obstime=self.obstime)
 
         # Return
-        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, \
+               self.sobjs, self.sciImg.detector
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename):

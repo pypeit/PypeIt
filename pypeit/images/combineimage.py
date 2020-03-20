@@ -128,7 +128,7 @@ class CombineImage(object):
                 return pypeitImage
             elif kk == 0:
                 # Get ready
-                shape = (nimages, pypeitImage.bpm.shape[0], pypeitImage.bpm.shape[1])
+                shape = (nimages, pypeitImage.image.shape[0], pypeitImage.image.shape[1])
                 img_stack = np.zeros(shape)
                 ivar_stack= np.zeros(shape)
                 rn2img_stack = np.zeros(shape)
@@ -137,7 +137,7 @@ class CombineImage(object):
                 bitmask = maskimage.ImageBitMask()
                 mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
             # Grab the lamp status
-            lampstat += [self.spectrograph.get_lamps_status(pypeitImage.rawheadlst)]
+            lampstat += [self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)]
             # Process
             img_stack[kk,:,:] = pypeitImage.image
             # Construct raw variance image and turn into inverse variance
@@ -155,9 +155,10 @@ class CombineImage(object):
             # TODO This seems kludgy to me. Why not just pass ignore_saturation to process_one and ignore the saturation
             # when the mask is actually built, rather than untoggling the bit here
             if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
-                indx = pypeitImage.bitmask.flagged(pypeitImage.mask, flag=['SATURATION'])
-                pypeitImage.mask[indx] = pypeitImage.bitmask.turn_off(pypeitImage.mask[indx], 'SATURATION')
-            mask_stack[kk, :, :] = pypeitImage.mask
+                indx = pypeitImage.bitmask.flagged(pypeitImage.fullmask, flag=['SATURATION'])
+                pypeitImage.fullmask[indx] = pypeitImage.bitmask.turn_off(
+                    pypeitImage.fullmask[indx], 'SATURATION')
+            mask_stack[kk, :, :] = pypeitImage.fullmask
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -190,13 +191,13 @@ class CombineImage(object):
                                                     bpm=pypeitImage.bpm,
                                                     rn2img=var_list_out[1],
                                                     crmask=np.invert(outmask),
-                                                    binning=pypeitImage.binning,
-                                                    rawheadlst=pypeitImage.rawheadlst)
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.det,
+                                                    detector=pypeitImage.detector)
+        # Internals
+        final_pypeitImage.rawheadlist = pypeitImage.rawheadlist
+
+        nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
                                                               apply_gain='apply_gain' in process_steps)
-        final_pypeitImage.build_mask(final_pypeitImage.image, final_pypeitImage.ivar,
-                               saturation=nonlinear_counts, #self.spectrograph.detector[self.det-1]['saturation'],
-                               mincounts=self.spectrograph.detector[self.det-1]['mincounts'])
+        final_pypeitImage.build_mask(saturation=nonlinear_counts)
         # Return
         return final_pypeitImage
 
@@ -210,5 +211,4 @@ class CombineImage(object):
 
         """
         return len(self.files) if isinstance(self.files, (np.ndarray, list)) else 0
-
 
