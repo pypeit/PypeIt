@@ -202,6 +202,15 @@ class ProcessRawImage(object):
             :class:`pypeit.images.pypeitimage.PypeItImage`:
 
         """
+        # Calculate flexure?
+        # TODO -- Make this a process step?
+        if self.par['flexure_correct'] and slits is not None:
+            self.flexure_shift = flexure.flexure_spat_shift(self.image, slits)
+            # Build illum_flat
+            # TODO -- do this
+            if illum_flat is not None:
+                pass
+                #_illum_flat = method_to_build_it(illum_flat, self.flexure_shift)
         # For error checking
         steps_copy = process_steps.copy()
         # Get started
@@ -226,7 +235,7 @@ class ProcessRawImage(object):
         if 'flatten' in process_steps:
             if pixel_flat is not None:
                 # TODO -- Correct the illum_flat for flexure
-                self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm, slits=slits)
+                self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
             # TODO: Print a warning when it is None?
             steps_copy.remove('flatten')
 
@@ -257,7 +266,7 @@ class ProcessRawImage(object):
         # Return
         return pypeitImage
 
-    def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False, slits=None):
+    def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
         """
         Flat field the proc image
 
@@ -282,10 +291,6 @@ class ProcessRawImage(object):
         # BPM
         if bpm is None:
             bpm = self.bpm
-        # Calculate flexure?
-        if self.par['flexure_correct']:
-            self.flexure_shift = flexure.flexure_spat_shift(self.image, slits)
-        # Do it
         # TODO -- Adjust the illum_flat with flexure
         self.image = flat.flatfield(self.image, pixel_flat, bpm, illum_flat=illum_flat)
         self.steps[step] = True

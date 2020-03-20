@@ -61,6 +61,33 @@ class WaveTilts(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
+    def fit2tiltimg(self, slitmask, flexure=0.):
+        """
+        Generate a tilt image from the fit parameters
+
+        Mainly to allow for flexure
+
+        Args:
+            slitmask (`np.ndarray`_):
+            flexure (float, optional):
+                Spatial shift of the tilt image onto the desired frame (typically a science image)
+
+        Returns:
+            `np.ndarray`_:  New tilt image
+
+        """
+        # TODO -- worry about skipped/broken slits (i.e. maskslits)
+        final_tilts = np.zeros_like(self.tilts)
+        for slit in range(self.nslit):
+            coeff_out = self.coeffs[:self.spec_order[slit]+1,:self.spat_order[slit]+1,slit]
+            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d, spat_shift=-1*flexure)
+            #
+            thismask_science = slitmask == slit
+            final_tilts[thismask_science] = _tilts[thismask_science]
+        # Return
+        return final_tilts
+
+
 
 class BuildWaveTilts(object):
     """

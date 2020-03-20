@@ -1,4 +1,4 @@
-"""
+""" of the tilt image onto the desired frame (typically a science image)
 Main driver class for PypeIt run
 
 .. include common links, assuming primary doc root is up one directory
@@ -16,6 +16,7 @@ from pypeit import ginga
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
+from pypeit import io
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -590,8 +591,9 @@ class PypeIt(object):
                 pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
                 ignore_saturation=False), frame_par['process'])
 
-        # Update mask for slitmask; uses pad in EdgeTraceSetPar
-        self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img())
+        # Update mask for slitmask; uses pad in EdgeTraceSetPar; and flexure
+        # Do this in Reduce where flexure is dealt with
+        #self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure))
 
         # For QA on crash
         msgs.sciexp = self.sciImg
@@ -600,6 +602,7 @@ class PypeIt(object):
         # Required for pypeline specific object
         # TODO -- caliBrate should be replaced by the ~3 primary Objects needed
         #   once we have the data models in place.
+        # At instantiaton, the fullmask in self.sciImg is modified
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
                                            self.par, self.caliBrate,
                                            maskslits=self.caliBrate.slits.mask.copy(),
@@ -676,19 +679,28 @@ class PypeIt(object):
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
             header = all_specobjs.build_header(head1d, head2d, self.spectrograph)
+            # TODO -- Need to check this is working ok before merging
             all_specobjs.write_to_fits(header, outfile1d, update_det=self.par['rdx']['detnum'])
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # 2D spectra
-        update_det = self.par['rdx']['detnum']
-        pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
-                                               master_key_dict=self.caliBrate.master_key_dict,
-                                               master_dir=self.caliBrate.master_dir
-                                               ) if update_det is None else None
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
+        update_det = self.par['rdx']['detnum']
+        # Build header?
+        if update_det is None or not os.path.isfile(outfile2d):
+            pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
+                                               master_key_dict=self.caliBrate.master_key_dict,
+                                               master_dir=self.caliBrate.master_dir)
+            hdus = None
+        else:
+            # Load from existing to replace only the new ones
+            embed(header='701')
+            hdus, _ = io.init_hdus(update_det, outfile2d)
+            pri_hdr = None
+        # Write
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det, hdus=hdus)
 
 
     def msgs_reset(self):

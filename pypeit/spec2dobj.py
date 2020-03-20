@@ -265,7 +265,7 @@ class AllSpec2DObj(object):
         #
         return hdr
 
-    def write_to_fits(self, outfile, pri_hdr=None, update_det=None, overwrite=True):
+    def write_to_fits(self, outfile, pri_hdr=None, update_det=None, overwrite=True, hdus=None):
         """
         Write the spec2d FITS file
 
@@ -283,9 +283,7 @@ class AllSpec2DObj(object):
 
 
         # Start the HDU list (or read from disk) and Primary header
-        if os.path.isfile(outfile) and update_det is not None:
-            hdus, prihdu = io.init_hdus(update_det, outfile)
-        else:
+        if hdus is None:
             # Primary HDU for output
             prihdu = fits.PrimaryHDU()
             # Header
@@ -293,6 +291,8 @@ class AllSpec2DObj(object):
                 prihdu.header = pri_hdr
             # Update with original header, skipping a few keywords
             hdus = [prihdu]
+        else:
+            prihdu = hdus[0]
 
         # Add meta to Primary Header
         for key in self['meta']:
@@ -307,7 +307,7 @@ class AllSpec2DObj(object):
             embed(header='244 of spec2dobj')
         extnum = 1
         for key in keys:
-            #
+            # TODO -- Deal with update_det
             hdul = self[key].to_hdu()
             # TODO -- Make adding EXT000X a default of DataContainer
             for hdu in hdul:

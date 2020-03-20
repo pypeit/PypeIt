@@ -63,10 +63,12 @@ class Calibrations(object):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
 
+    .. todo: Fix these
+
     Attributes:
-        TODO: Fix these
         fitstbl
         save_masters
+        wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
         write_qa
         show
         spectrograph
@@ -1054,11 +1056,8 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
-
-    # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
-    # Notes on order of steps if flexure compensation is implemented
-    #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats', 'wave']
+        #return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
 
 class IFUCalibrations(Calibrations):

@@ -25,7 +25,11 @@ import astropy
 import sklearn
 import pypeit
 import time
+
+
 from IPython import embed
+
+# TODO -- Move this module to core/
 
 def init_record_array(shape, dtype):
     r"""
@@ -145,6 +149,8 @@ def rec_to_bintable(arr, name=None, hdr=None):
                                                       array=arr[n])
                                             for n in arr.dtype.names], name=name, header=hdr)
 
+
+'''
 def init_hdus(update_det, outfile):
     """
     Load up existing header and HDUList
@@ -167,14 +173,13 @@ def init_hdus(update_det, outfile):
     # Names
     hdu_names = [hdu.name for hdu in hdus]
     # Remove the detector(s) being updated
-    if not isinstance(update_det, list):
-        update_det = [update_det]
+    _update_det = numpy.atleast_1d(update_det)
     popme = []
 
     # Find em
     for ss,hdu_name in enumerate(hdu_names):
-        for det in update_det:
-            sdet = pypeit.core.parse.get_dnum(det, prefix=False)
+        for det in _update_det:
+            sdet = pypeit.get_dnum(det, prefix=False)
             idx = '{:s}{:s}'.format(pypeit.specobj.naming_model['det'], sdet)
             if idx in hdu_name:
                 popme.append(ss)
@@ -182,9 +187,12 @@ def init_hdus(update_det, outfile):
     for popthis in reversed(popme):
         hdus.pop(popthis)
         keywd = 'EXT{:04d}'.format(popthis)
-        prihdu.header.remove(keywd)
+        # Not always used (e.g. DETECTOR)
+        if keywd in prihdu.header:
+            prihdu.header.remove(keywd)
     # Return
     return hdus, prihdu
+'''
 
 def compress_file(ifile, overwrite=False, rm_original=True):
     """
@@ -502,10 +510,12 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
-        cols += [fits.Column(name=key, format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
+        try:
+            cols += [fits.Column(name=key, format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
                              dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                             #dim=rec_to_fits_col_dim(numpy.asarray(d[key]), single_row=single_row),
                              array=numpy.expand_dims(d[key], 0) if single_row else numpy.asarray(d[key]))]
+        except:
+            import pdb; pdb.set_trace()
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 

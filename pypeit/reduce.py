@@ -85,12 +85,8 @@ class Reduce(object):
         #self.wave_par = self.par['calibrations']['wavelengths']
         #self.flex_par = self.par['flexure']
         # Parse
+        # TODO -- Remove caliBrate
         self.caliBrate = caliBrate
-        self.tilts = self.caliBrate.wavetilts['tilts']
-        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
-        # TODO: We keep creating this image...
-        # NOTE: this uses the par defined by EdgeTraceSet; this will
-        # use the tweaked traces if they exist
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
         #      Otherwise you have to keep in mind flexure, tweaking, etc.
@@ -99,10 +95,27 @@ class Reduce(object):
         self.slits_specmin = self.caliBrate.slits.specmin
         self.slits_specmax = self.caliBrate.slits.specmax
         self.nsilts = self.caliBrate.slits.nslits
+        # TODO: We keep creating this image...
         self.slitmask = self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure)
+        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
+        # NOTE: this uses the par defined by EdgeTraceSet; this will
+        # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
         self.spatial_coo = self.caliBrate.slits.spatial_coordinates(flexure=self.sciImg.flexure)
         self.maskslits = self._get_goodslits(maskslits)
+
+        # Tilts
+        #   Deal with Flexure
+        if self.sciImg.flexure is not None:
+            self.tilts = self.caliBrate.wavetilts.fit2tiltimg(self.slitmask, flexure=self.sciImg.flexure)
+        else:
+            self.tilts = self.caliBrate.wavetilts['tilts']
+
+        #viewer, ch = ginga.show_image(self.tilts)#, chname=ch_name, clear=clear, wcs_match=True)
+        #viewer, ch = ginga.show_image(self.slitmask)#, chname=ch_name, clear=clear, wcs_match=True)
+        #viewer, ch = ginga.show_image(self.sciImg.fullmask)#, chname=ch_name, clear=clear, wcs_match=True)
+        #ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)  # , self.slits.id)
+        #embed(header='112 of reduce')
 
         # Load up other input items
         self.ir_redux = ir_redux

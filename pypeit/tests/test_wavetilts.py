@@ -10,6 +10,7 @@ import numpy as np
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import wavetilts
+from pypeit import slittrace
 from pypeit.core import tracewave, pixels
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
@@ -55,6 +56,27 @@ def test_instantiate_from_master(master_dir):
                                'MasterTilts_A_1_01.fits')
     waveTilts = wavetilts.WaveTilts.from_file(master_file)
     assert isinstance(waveTilts.tilts, np.ndarray)
+
+
+# Test rebuild tilts with a flexure offset
+@cooked_required
+def test_flexure(master_dir):
+    flexure = 1.
+    master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue', 'MasterTilts_A_1_01.fits')
+    #master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT', 'shane_kast_blue', '600_4310_d55',
+    #                           'shane_kast_blue_A','Masters',
+    #                           'MasterTilts_A_1_01.fits')
+    waveTilts = wavetilts.WaveTilts.from_file(master_file)
+    # Need slitmask
+    slit_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue', 'MasterSlits_A_1_01.fits.gz')
+    #slit_file =os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT', 'shane_kast_blue', '600_4310_d55',
+    #                                                  'shane_kast_blue_A','Masters',  'MasterSlits_A_1_01.fits.gz')
+    slits = slittrace.SlitTraceSet.from_file(slit_file)
+    slitmask = slits.slit_img(flexure=flexure)
+    # Do it
+    new_tilts = waveTilts.fit2tiltimg(slitmask, spat_shift=flexure)
+    # Test?
+
 
 # Test BuildWaveTilts
 @cooked_required
