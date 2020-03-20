@@ -54,7 +54,8 @@ class SlitTraceSet(datamodel.DataContainer):
     file_format = 'fits.gz'
     """File format for the master frame file."""
     # Set the version of this class
-    version = '1.0.0'
+    minimum_version = '1.1.0'
+    version = '1.1.0'
     hdu_prefix = None
     output_to_disk = None
     """SlitTraceSet data model version."""
@@ -71,13 +72,13 @@ class SlitTraceSet(datamodel.DataContainer):
                  'pad': dict(otype=int,
                              descr='Integer number of pixels to consider beyond the slit edges.'),
                  'nslits': dict(otype=int, descr='Number of slits.'),
-                 'id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number'),
-                 'left': dict(otype=np.ndarray, atype=np.floating,
+                 #'id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number'),
+                 'left_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
-                                    'per slit.  Shape is Nspec by Nslits.'),
-                 'right': dict(otype=np.ndarray, atype=np.floating,
+                                    'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
+                 'right_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all right edges, one '
-                                    'per slit.  Shape is Nspec by Nslits.'),
+                                    'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
                  'left_tweak': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Spatial coordinates (pixel indices) of all left '
                                           'edges, one per slit.  These traces have been adjusted '
@@ -86,9 +87,9 @@ class SlitTraceSet(datamodel.DataContainer):
                                      descr='Spatial coordinates (pixel indices) of all right '
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
-                 'center': dict(otype=np.ndarray, atype=np.floating,
-                               descr='Spatial coordinates of the slit centers.  Shape is Nspec '
-                                     'by Nslits.'),
+                 #'center': dict(otype=np.ndarray, atype=np.floating,
+                 #              descr='Spatial coordinates of the slit centers.  Shape is Nspec '
+                 #                    'by Nslits.'),
                  'mask': dict(otype=np.ndarray, atype=np.bool_,
                               descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
                  'specmin': dict(otype=np.ndarray, atype=np.floating,
@@ -102,7 +103,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
-    def __init__(self, left, right, nspat=None, spectrograph=None, mask=None,
+    def __init__(self, left_init, right_init, nspat=None, spectrograph=None, mask=None,
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
 
         # Instantiate the DataContainer
@@ -111,7 +112,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # contain self or the MasterFrame arguments.
         # TODO: Does it matter if the calling function passes the
         # keyword arguments in a different order?
-        datamodel.DataContainer.__init__(self, d=dict(left=left, right=right, nspat=nspat, spectrograph=spectrograph,
+        datamodel.DataContainer.__init__(self, d=dict(left_init=left_init, right_init=right_init, nspat=nspat, spectrograph=spectrograph,
                                                       mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
                                                       binspat=binspat, pad=pad))
 
@@ -255,14 +256,14 @@ class SlitTraceSet(datamodel.DataContainer):
         Validate the slit traces.
         """
         # Allow the object to be empty
-        if self.left is None or self.right is None:
+        if self.left_init is None or self.right_init is None:
             return
-        if self.left.shape != self.right.shape:
-            raise ValueError('Input left and right traces should have the same shape.')
-        if self.left.ndim == 1:
+        if self.left_init.shape != self.right_init.shape:
+            raise ValueError('Input left_init and right_init traces should have the same shape.')
+        if self.left_init.ndim == 1:
             # Object contains a single slit.  Expand the dimensions.
-            self.left = np.expand_dims(self.left, 1)
-            self.right = np.expand_dims(self.right, 1)
+            self.left_init = np.expand_dims(self.left_init, 1)
+            self.right_init = np.expand_dims(self.right_init, 1)
 
         # Do the same for the tweaked traces. NOTE: Tweaked traces will
         # only exist if they were read from an output file; i.e., the
@@ -277,21 +278,22 @@ class SlitTraceSet(datamodel.DataContainer):
                 self.left_tweak = np.expand_dims(self.left_tweak, 1)
                 self.right_tweak = np.expand_dims(self.right_tweak, 1)
 
-        self.nspec, self.nslits = self.left.shape
+        self.nspec, self.nslits = self.left_init.shape
 
         # Center is always defined by the original traces, not the
         # tweaked ones. TODO: Is that the behavior we want? An argument
         # in favor is that this means that the slit IDs are always tied
         # to the original traces, not the tweaked ones.
-        self.center = (self.left+self.right)/2
+        # We want the tweaked, or even the flexure corrected centers for that
+        #self.center = (self.left_init+self.right_init)/2
 
         if self.nspat is None:
             # TODO: May want nspat to be a required argument given the
             # only other option is this kludge, which should basically
             # never be useful.
-            self.nspat = np.amax(np.append(self.left, self.right))
-        if self.id is None:
-            self._set_slitids()
+            self.nspat = np.amax(np.append(self.left_init, self.right_init))
+        #if self.id is None:
+        #    self._set_slitids()
         if self.spectrograph is None:
             self.spectrograph = 'unknown'
         if self.mask is None:
@@ -306,6 +308,10 @@ class SlitTraceSet(datamodel.DataContainer):
         self.mask = np.atleast_1d(self.mask)
         self.specmin = np.atleast_1d(self.specmin)
         self.specmax = np.atleast_1d(self.specmax)
+
+    def _init_internals(self):
+        self.left_flexure = None
+        self.right_flexure = None
 
     def _bundle(self):
         """
@@ -363,8 +369,8 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         Initialize the tweaked slits.
         """
-        self.left_tweak = self.left.copy()
-        self.right_tweak = self.right.copy()
+        self.left_tweak = self.left_init.copy()
+        self.right_tweak = self.right_init.copy()
 
     def rm_tweaked(self):
         """
@@ -373,7 +379,7 @@ class SlitTraceSet(datamodel.DataContainer):
         self.left_tweak = None
         self.right_tweak = None
 
-    def select_edges(self, original=False):
+    def select_edges(self, original=False, flexure=None):
         """
         Select between the original or tweaked slit edges.
 
@@ -395,8 +401,16 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         # TODO: Add a copy argument?
         if self.left_tweak is not None and self.right_tweak is not None and not original:
-            return self.left_tweak, self.right_tweak
-        return self.left, self.right
+            left, right = self.left_tweak, self.right_tweak
+        else:
+            left, right = self.left_init, self.right_init
+        # Flexture?
+        if flexure:
+            self.left_flexure = left + flexure
+            self.right_flexure = right + flexure
+            left, right = self.left_flexure, self.right_flexure
+        # Return
+        return left, right
 
     def slit_img(self, pad=None, slitids=None, original=False):
         r"""

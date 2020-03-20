@@ -263,8 +263,7 @@ class Reduce(object):
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.find_objects(self.sciImg.image - self.initial_sky,
-                                  #std_trace=std_trace,
-                                  std_trace=True,
+                                  std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
                                   manual_extract_dict=manual_extract_dict, debug=True)
@@ -428,9 +427,6 @@ class Reduce(object):
 
         # Loop on slits
         for slit in gdslits:
-            # JXP
-            if slit not in [0,1,3]:
-                continue
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
             thismask = (self.slitmask == slit)
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
@@ -739,9 +735,6 @@ class MultiSlitReduce(Reduce):
 
         # Loop on slits
         for slit in gdslits:
-            # JXP
-            if slit not in [0,1,3]:
-                continue
             qa_title ="Finding objects on slit # {:d}".format(slit)
             msgs.info(qa_title)
             thismask = (self.slitmask == slit)

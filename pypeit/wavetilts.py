@@ -68,7 +68,7 @@ class BuildWaveTilts(object):
 
     Args:
         mstilt (:class:`pypeit.tilitimage.TiltImage`): Tilt image
-        slits (:class:`pypeit.edgetrace.SlitTraceSet`, None):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
             Slit edges
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
@@ -161,18 +161,18 @@ class BuildWaveTilts(object):
         # the slits
         if self.slits is not None and self.mstilt is not None:
             # NOTE: This uses the interneral definition of `pad`
+            # TODO -- This needs to deal with flexure
             self.slitmask_science = self.slits.slit_img()
             gpm = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.mstilt.image.shape
             self.nslits = self.slits.nslits
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.left)
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.right)
-            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.center)
+            # Grab left, right and resize as need be
+            left, right = self.slits.select_edges()
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
+            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (left+right)/2)
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.mstilt.image < self.nonlinear_counts)
         else:

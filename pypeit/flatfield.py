@@ -449,7 +449,9 @@ class FlatField(object):
         # Other setup
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
 
-        median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
+        # CONFIRM THIS SHOULD BE ON INIT
+        median_slit_width = np.median(self.slits.right_init - self.slits.left_init, axis=0)
+        #median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
 
         if tweak_slits:
             # NOTE: This copies the input slit edges to a set that can
@@ -691,7 +693,7 @@ class FlatField(object):
                 # TODO: Should the tweak be based on the bspline fit?
                 left_thresh, left_shift, self.slits.left_tweak[:,slit], right_thresh, \
                     right_shift, self.slits.right_tweak[:,slit] \
-                        = flat.tweak_slit_edges(self.slits.left[:,slit], self.slits.right[:,slit],
+                        = flat.tweak_slit_edges(self.slits.left_init[:,slit], self.slits.right_init[:,slit],
                                                 spat_coo_data, spat_flat_data,
                                                 thresh=tweak_slits_thresh,
                                                 maxfrac=tweak_slits_maxfrac)

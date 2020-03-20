@@ -18,8 +18,8 @@ def data_path(filename):
 
 def test_init():
 
-    slits = SlitTraceSet(left=np.full((1000,3), 2, dtype=float),
-                         right=np.full((1000,3), 8, dtype=float), nspat=10, spectrograph='dummy')
+    slits = SlitTraceSet(left_init=np.full((1000,3), 2, dtype=float),
+                         right_init=np.full((1000,3), 8, dtype=float), nspat=10, spectrograph='dummy')
 
     assert np.all(slits.center == 5), 'Bad center'
 
@@ -43,9 +43,9 @@ def test_io():
     # indicate it should be reused
     #_slits = SlitTraceSet.from_master('dummy', os.getcwd())
     _slits = SlitTraceSet.from_file(master_file)
-    assert np.array_equal(_slits.left, np.full((1000,3), 2, dtype=float)), 'Bad left read'
+    assert np.array_equal(_slits.left_init, np.full((1000,3), 2, dtype=float)), 'Bad left read'
     # And that it's the same as the existing one
-    assert np.array_equal(_slits.left, slits.left), 'Bad left read'
+    assert np.array_equal(_slits.left_init, slits.left_init), 'Bad left read'
 
     # Try to read/write to a custom file name
     # Remove existing file from previous runs that were interrupted
@@ -61,7 +61,7 @@ def test_io():
 
     # Test from_file
     _slits = SlitTraceSet.from_file(other_ofile)
-    assert np.array_equal(slits.right, _slits.right), 'Bad read from_file'
+    assert np.array_equal(slits.right_init, _slits.right_init), 'Bad read from_file'
 
     # Clean up
     os.remove(master_file)
@@ -82,9 +82,9 @@ def test_io_single():
 
     _slits = SlitTraceSet.from_file(tst_file)
 
-    assert np.array_equal(_slits.left, np.full((1000, 1), 2, dtype=float)), 'Bad left read'
+    assert np.array_equal(_slits.left_init, np.full((1000, 1), 2, dtype=float)), 'Bad left read'
     # And that it's the same as the existing one
-    assert np.array_equal(_slits.left, slits.left), 'Bad left read'
+    assert np.array_equal(_slits.left_init, slits.left_init), 'Bad left read'
 
     # Try to read/write to a custom file name
     # Remove existing file from previous runs that were interrupted
@@ -99,7 +99,7 @@ def test_io_single():
 
     # Test from_file
     _slits = SlitTraceSet.from_file(tst_file)
-    assert np.array_equal(slits.right, _slits.right), 'Bad read from_file'
+    assert np.array_equal(slits.right_init, _slits.right_init), 'Bad read from_file'
 
     # Clean up
     os.remove(tst_file)

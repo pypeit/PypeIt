@@ -4292,7 +4292,7 @@ class EdgeTraceSet(object):
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return
-        return slittrace.SlitTraceSet(left=left, right=right, nspat=self.nspat,
+        return slittrace.SlitTraceSet(left_init=left, right_init=right, nspat=self.nspat,
                                       spectrograph=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'])#, master_key=self.master_key,
