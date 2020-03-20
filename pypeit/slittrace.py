@@ -574,7 +574,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 coo_img = coo
         return coo_img
 
-    def spatial_coordinates(self, original=False):
+    def spatial_coordinates(self, original=False, flexure=None):
         """
         Return a fiducial coordinate for each slit.
 
@@ -594,7 +594,7 @@ class SlitTraceSet(datamodel.DataContainer):
             `numpy.ndarray`_: Vector with the list of floating point
             spatial coordinates.
         """
-        left, right = self.select_edges(original=original)
+        left, right = self.select_edges(original=original, flexure=None)
         return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
     @staticmethod

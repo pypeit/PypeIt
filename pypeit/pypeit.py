@@ -581,8 +581,6 @@ class PypeIt(object):
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
 
-        embed(header='584')
-
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
@@ -632,7 +630,8 @@ class PypeIt(object):
 
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(self.det, self.sciImg.image, self.sciImg.ivar, self.skymodel,
-                                        self.objmodel, self.ivarmodel, self.outmask, self.sciImg.detector)
+                                        self.objmodel, self.ivarmodel, self.outmask, self.sciImg.detector,
+                                        self.sciImg.flexure)
 
 
         # Return

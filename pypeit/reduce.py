@@ -1,3 +1,9 @@
+"""
+Main driver class for skysubtraction and extraction
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+"""
 
 import inspect
 import numpy as np
@@ -80,15 +86,24 @@ class Reduce(object):
         #self.flex_par = self.par['flexure']
         # Parse
         self.caliBrate = caliBrate
-        self.slits = self.caliBrate.slits
         self.tilts = self.caliBrate.wavetilts['tilts']
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # TODO: We keep creating this image...
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
-        self.slitmask = self.slits.slit_img()
+        # Slit pieces
+        #   WARNING -- It is best to unpack here then pass around self.slits
+        #      Otherwise you have to keep in mind flexure, tweaking, etc.
+        #self.slits = self.caliBrate.slits
+        self.slits_left, self.slits_right = self.caliBrate.slits.select_edges(flexure=self.sciImg.flexure)
+        self.slits_specmin = self.caliBrate.slits.specmin
+        self.slits_specmax = self.caliBrate.slits.specmax
+        self.nsilts = self.caliBrate.slits.nslits
+        self.slitmask = self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure)
         self.sciImg.update_mask_slitmask(self.slitmask)
+        self.spatial_coo = self.caliBrate.slits.spatial_coordinates(flexure=self.sciImg.flexure)
         self.maskslits = self._get_goodslits(maskslits)
+
         # Load up other input items
         self.ir_redux = ir_redux
         self.std_redux = std_redux
@@ -423,7 +438,7 @@ class Reduce(object):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Loop on slits
         for slit in gdslits:
@@ -433,8 +448,8 @@ class Reduce(object):
             # Find sky
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                           thismask, left[:,slit], right[:,slit], inmask=inmask,
-                                           sigrej=sigrej,
+                                           thismask, self.slits_left[:,slit], self.slits_right[:,slit],
+                                           inmask=inmask, sigrej=sigrej,
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
@@ -546,7 +561,7 @@ class Reduce(object):
                 return self.maskslits
             except AttributeError:
                 # If maskslits was not passed, and it does not exist in self, reduce all slits
-                self.maskslits = np.zeros(self.slits.nslits, dtype=bool)
+                self.maskslits = np.zeros(self.nslits, dtype=bool)
                 return self.maskslits
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
@@ -644,12 +659,12 @@ class Reduce(object):
                 ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
         if slits:
-            if self.slits is not None:
+            if self.slits_left is not None:
                 # TODO: IDs are always set by the original edge traces
                 # produced by EdgeTraceSet, not the tweaked ones
                 # produced by FlatField. Is that the desired behavior?
-                left, right = self.slits.select_edges()
-                ginga.show_slits(viewer, ch, left, right, self.slits.id)
+                #left, right = self.slits.select_edges()
+                ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)#, self.slits.id)
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
@@ -731,7 +746,7 @@ class MultiSlitReduce(Reduce):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Loop on slits
         for slit in gdslits:
@@ -750,7 +765,7 @@ class MultiSlitReduce(Reduce):
             # is. This will be a png file(s) per slit.
 
             sobjs_slit, skymask[thismask] = \
-                extract.objfind(image, thismask, left[:,slit], right[:,slit], inmask=inmask,
+                extract.objfind(image, thismask, self.slits_left[:,slit], self.slits_right[:,slit], inmask=inmask,
                                 ir_redux=self.ir_redux,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
@@ -812,7 +827,7 @@ class MultiSlitReduce(Reduce):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
@@ -842,7 +857,7 @@ class MultiSlitReduce(Reduce):
                     self.extractmask[thismask] = skysub.local_skysub_extract(
                     self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
                     self.global_sky, self.sciImg.rn2img,
-                    thismask, left[:,slit], right[:, slit],
+                    thismask, self.slits_left[:,slit], self.slits_right[:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix,
                     model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
                     box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
@@ -880,7 +895,8 @@ class EchelleReduce(Reduce):
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
-                            else self.spectrograph.order_vec(self.slits.spatial_coordinates())
+                            else self.spectrograph.order_vec(self.spatial_coo)
+                            #else self.spectrograph.order_vec(self.slits.spatial_coordinates())
 
     def get_platescale(self, sobj):
         """
@@ -955,13 +971,14 @@ class EchelleReduce(Reduce):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # TODO This is a bad idea -- we want to find everything for standards
         #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
-            image, self.sciImg.ivar, self.slitmask, left, right, self.order_vec, self.maskslits,
-            spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
+            image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right, self.order_vec, self.maskslits,
+            spec_min_max=np.vstack((self.specmin, self.specmax)),
+            #spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
@@ -1013,13 +1030,13 @@ class EchelleReduce(Reduce):
         self.global_sky = global_sky
 
         # TODO: Is this already available from the __init__ or could it have been overwritten?
-        self.slitmask = self.slits.slit_img()
+        #self.slitmask = self.slits.slit_img()
 
         # Select the edges to use: Selects the edges tweaked by the
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Pulled out some parameters to make the method all easier to read
         bsp = self.par['reduce']['skysub']['bspline_spacing']
@@ -1033,7 +1050,7 @@ class EchelleReduce(Reduce):
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.sciImg.fullmask, self.tilts, self.waveimg,
                                                   self.global_sky, self.sciImg.rn2img,
-                                                  self.slits.nslits, left, right, self.slitmask,
+                                                  self.nslits, self.slits_left, self.slits_right, self.slitmask,
                                                   sobjs, self.order_vec, spat_pix=spat_pix,
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,
