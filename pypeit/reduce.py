@@ -12,6 +12,7 @@ from linetools import utils as ltu
 from pypeit import specobjs
 from pypeit import ginga, msgs, masterframe
 from pypeit.core import skysub, extract, pixels, wave
+from pypeit.images import buildimage
 
 from IPython import embed
 
@@ -432,7 +433,9 @@ class Reduce(object):
         if self.par['reduce']['skysub']['joint_fit']:
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
-            inmask = (self.sciImg.mask == 0) & thismask & skymask_now
+            inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
+            import pdb
+            pdb.set_trace()
             wavenorm = self.caliBrate.waveImage.image / np.max(self.caliBrate.waveImage.image)
             # Find sky
             self.global_sky[thismask] \
@@ -1120,9 +1123,10 @@ class IFUReduce(Reduce):
             # Setup the master frame name
             master_dir = self.caliBrate.master_dir
             master_key = list(self.caliBrate.calib_dict)[0] + "_" + sciName
-            mstr_skyreg = masterframe.MasterFrame("SkyRegions", file_format='fits.gz', master_dir=master_dir,
-                                                  master_key=master_key)
-            regfile = mstr_skyreg.master_file_path
+
+            regfile = masterframe.construct_file_name(buildimage.SkyRegions,
+                                                      master_key=master_key,
+                                                      master_dir=master_dir)
             # Check if a file exists
             if os.path.exists(regfile):
                 msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
@@ -1178,6 +1182,7 @@ class IFUReduce(Reduce):
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+
 
 # TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
 def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):

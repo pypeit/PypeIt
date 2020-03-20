@@ -93,6 +93,18 @@ class TraceImage(pypeitimage.PypeItImage):
     master_type = 'Trace'
 
 
+class SkyRegions(pypeitimage.PypeItImage):
+    """
+    Simple DataContainer for the SkyRegions Image
+    """
+    # Peg the version of this class to that of PypeItImage
+    version = pypeitimage.PypeItImage.version
+
+    # Master fun
+    master_type = 'SkyRegions'
+    file_format = 'fits.gz'
+
+
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                         bias=None, bpm=None, pixel_flat=None,
                         illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5,

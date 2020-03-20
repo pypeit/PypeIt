@@ -18,6 +18,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import slittrace
+from pypeit import masterframe
 from pypeit.core.gui.skysub_regions import SkySubGUI
 from pypeit.core import procimg
 from pypeit.par.util import parse_pypeit_file
@@ -86,7 +87,7 @@ def main(args):
     # Load the spectrograph
     cfg = ConfigObj(cfg_lines)
     spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[sciIdx])
+    spectrograph = load_spectrograph(spectrograph_name)
     msgs.info('Loaded spectrograph {0}'.format(spectrograph.spectrograph))
     spectrograph_cfg_lines = spectrograph.config_specific_par(fname).to_config()
     par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
@@ -99,9 +100,9 @@ def main(args):
     mkey = fitstbl.master_key(0, det=args.det)
 
     # Load the frame data
-    rawimage, _, _, datasec, _ = spectrograph.get_rawimage(fname, args.det)
+    detpar, rawimage, _, _, datasec, _ = spectrograph.get_rawimage(fname, args.det)
     rawimage = procimg.trim_frame(rawimage, datasec < 1)
-    frame = spectrograph.orient_image(rawimage, args.det)
+    frame = spectrograph.orient_image(detpar, rawimage)
 
     # Set paths
     if par['calibrations']['caldir'] == 'default':
@@ -115,7 +116,10 @@ def main(args):
         mdir = mdir_base
 
     # Load the slits information
-    slits = slittrace.SlitTraceSet.from_master(mkey, mdir)
+    slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
+                                                            master_key=mkey,
+                                                            master_dir=mdir)
+    slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
 
     # Derive an appropriate output filename
     prefix = os.path.splitext(file_base)

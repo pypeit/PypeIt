@@ -225,14 +225,10 @@ class Alignment():
         Returns:
             dict or None: self.align_dict
         """
-        # Check on whether to reuse and whether the file exists
-        master_file = self.chk_load_master(ifile)
-        if master_file is None:
-            return
-        msgs.info('Loading Master frame: {0}'.format(master_file))
+        msgs.info('Loading Master frame: {0}'.format(ifile))
         # Load
         extnames = ['ALIGNMENTS']
-        *data, head0 = load.load_multiext_fits(master_file, extnames)
+        *data, head0 = load.load_multiext_fits(ifile, extnames)
 
         # Fill the dict
         self.align_dict = {}
