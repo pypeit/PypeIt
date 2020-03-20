@@ -11,6 +11,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
+from pypeit.images import detector_container
 
 from IPython import embed
 
@@ -19,38 +20,56 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle MDM OSMOS MDM4K instrument+detector
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(MDMOSMOSMDM4KSpectrograph, self).__init__()
         self.spectrograph = 'mdm_osmos_mdm4k'
         self.telescope = telescopes.MDMTelescopePar()
         self.camera = 'MDM4K'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.273,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 4,
-                            gain            = [2.2, 2.2, 2.2, 2.2],
-                            ronoise         = [5.0, 5.0, 5.0, 5.0],
-                            datasec         = ['[9:509,33:2064]', '[509:,33:2064]',
-                                               '[9:509, 2065:4092', '[509:, 2065:4092'],
-                            oscansec        = ['[9:509, 1:32]', '[509:, 1:32]',
-                                               '[9:509, 4098:]', '[509:, 4098:]'],
-                            suffix          = ''
-                            )]
-        self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+
+        # Detector 1
+        detector_dict = dict(
+            binning         =self.get_meta_value(self.get_headarr(hdu), 'binning'),
+            det=1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = True,
+            spatflip        = False,
+            xgap            = 0.,
+            ygap            = 0.,
+            ysize           = 1.,
+            platescale      = 0.273,
+            mincounts       = -1e10,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.86,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.2, 2.2, 2.2, 2.2]),
+            ronoise         = np.atleast_1d([5.0, 5.0, 5.0, 5.0]),
+            datasec         = np.atleast_1d(['[9:509,33:2064]', '[509:,33:2064]',
+                '[9:509, 2065:4092', '[509:, 2065:4092']),
+            oscansec        = np.atleast_1d(['[9:509, 1:32]', '[509:, 1:32]',
+                '[9:509, 4098:]', '[509:, 4098:]']),
+        )
+        # Return
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
@@ -69,7 +88,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI']
         par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Do not flux calibrate
         #par['fluxcalib'] = None
