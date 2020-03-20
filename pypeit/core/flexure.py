@@ -3,11 +3,15 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
+import inspect
+
 import numpy as np
 import copy
 from matplotlib import pyplot as plt
+from matplotlib import gridspec
 
 from astropy import stats
+from astropy import units
 
 from linetools.spectra import xspectrum1d
 
@@ -15,6 +19,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit.core import arc
 from pypeit import ginga
+from pypeit.core import qa
 
 from IPython import embed
 
@@ -55,13 +60,17 @@ def flexure_spat_shift(sciimg, slits):
 
     embed(header='56 of flexure.py')
 
-
     # Now translate the slits in the tslits_dict
-    tslits_shift = trace_slits.shift_slits(tslits_dict, lag_max)
+    slits.left_flexure = slits.left + lag_max[0]
+    slits.right_flexure = slits.right + lag_max[0]
+
+    #tslits_shift = trace_slits.shift_slits(tslits_dict, lag_max)
     # Now translate the tilts
 
-    slitmask_shift = pixels.tslits2mask(tslits_shift)
+    #slitmask_shift = pixels.tslits2mask(tslits_shift)
+    slitmask_shift = slits.slit_img()
     viewer, ch = ginga.show_image (sciimg)
+    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id) #, args.det)
     ginga.show_slits(viewer, ch, tslits_shift['slit_left'], tslits_shift['slit_righ'])
     ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'])
 
@@ -371,4 +380,156 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
             flex_dict['sky_spec'].append(new_sky)
 
     return flex_list
+
+
+# TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
+#  AND THIS IS WHY THE CODE IS CRASHING
+def flexure_qa(specobjs, maskslits, basename, det, flex_list,
+               slit_cen=False, out_dir=None):
+    """
+
+    Args:
+        specobjs:
+        maskslits (np.ndarray):
+        basename (str):
+        det (int):
+        flex_list (list):
+        slit_cen:
+        out_dir:
+
+    """
+    plt.rcdefaults()
+    plt.rcParams['font.family']= 'times new roman'
+
+    # Grab the named of the method
+    method = inspect.stack()[0][3]
+    #
+    gdslits = np.where(np.invert(maskslits))[0]
+
+    # Loop over slits, and then over objects here
+    for slit in gdslits:
+        indx = specobjs.slitorder_indices(slit)
+        this_specobjs = specobjs[indx]
+        this_flex_dict = flex_list[slit]
+
+        # Setup
+        if slit_cen:
+            nobj = 1
+            ncol = 1
+        else:
+            nobj = np.sum(indx)
+            ncol = min(3, nobj)
+        #
+        if nobj == 0:
+            continue
+        nrow = nobj // ncol + ((nobj % ncol) > 0)
+        # Outfile, one QA file per slit
+        outfile = qa.set_qa_filename(basename, method + '_corr', det=det,slit=(slit + 1), out_dir=out_dir)
+        plt.figure(figsize=(8, 5.0))
+        plt.clf()
+        gs = gridspec.GridSpec(nrow, ncol)
+        for iobj, specobj in enumerate(this_specobjs):
+            if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
+                continue
+            # Correlation QA
+            ax = plt.subplot(gs[iobj//ncol, iobj % ncol])
+            # Fit
+            fit = this_flex_dict['polyfit'][iobj]
+            xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][iobj] #+ flex_dict['shift'][o]
+            #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+            model = utils.func_val(fit, xval, 'polynomial')
+            mxmod = np.max(model)
+            ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
+            ylim = [ylim_min, 1.3]
+            ax.plot(xval-this_flex_dict['corr_cen'][iobj], model/mxmod, 'k-')
+            # Measurements
+            ax.scatter(this_flex_dict['subpix'][iobj]-this_flex_dict['corr_cen'][iobj],
+                       this_flex_dict['corr'][iobj]/mxmod, marker='o')
+            # Final shift
+            ax.plot([this_flex_dict['shift'][iobj]]*2, ylim, 'g:')
+            # Label
+            if slit_cen:
+                ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
+            else:
+                ax.text(0.5, 0.25, '{:s}'.format(specobj.NAME), transform=ax.transAxes, size='large', ha='center')
+            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][iobj]),
+                    transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
+            # Axes
+            ax.set_ylim(ylim)
+            ax.set_xlabel('Lag')
+        # Finish
+        plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
+        plt.savefig(outfile, dpi=400)
+        plt.close()
+
+        # Sky line QA (just one object)
+        if slit_cen:
+            iobj = 0
+        else:
+            iobj = 0
+            specobj = this_specobjs[iobj]
+
+        if len(this_flex_dict['shift']) == 0:
+            return
+
+        # Repackage
+        sky_spec = this_flex_dict['sky_spec'][iobj]
+        arx_spec = this_flex_dict['arx_spec'][iobj]
+
+        # Sky lines
+        sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
+                              7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
+                              10013.99, 10372.88])*units.AA
+        dwv = 20.*units.AA
+        gdsky = np.where((sky_lines > sky_spec.wvmin) & (sky_lines < sky_spec.wvmax))[0]
+        if len(gdsky) == 0:
+            msgs.warn("No sky lines for Flexure QA")
+            return
+        if len(gdsky) > 6:
+            idx = np.array([0, 1, len(gdsky)//2, len(gdsky)//2+1, -2, -1])
+            gdsky = gdsky[idx]
+
+        # Outfile
+        outfile = qa.set_qa_filename(basename, method+'_sky', det=det,slit=(slit + 1), out_dir=out_dir)
+        # Figure
+        plt.figure(figsize=(8, 5.0))
+        plt.clf()
+        nrow, ncol = 2, 3
+        gs = gridspec.GridSpec(nrow, ncol)
+        if slit_cen:
+            plt.suptitle('Sky Comparison for Slit Center', y=1.05)
+        else:
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=1.05)
+
+        for ii, igdsky in enumerate(gdsky):
+            skyline = sky_lines[igdsky]
+            ax = plt.subplot(gs[ii//ncol, ii % ncol])
+            # Norm
+            pix = np.where(np.abs(sky_spec.wavelength-skyline) < dwv)[0]
+            f1 = np.sum(sky_spec.flux[pix])
+            f2 = np.sum(arx_spec.flux[pix])
+            norm = f1/f2
+            # Plot
+            ax.plot(sky_spec.wavelength[pix], sky_spec.flux[pix], 'k-', label='Obj',
+                    drawstyle='steps-mid')
+            pix2 = np.where(np.abs(arx_spec.wavelength-skyline) < dwv)[0]
+            ax.plot(arx_spec.wavelength[pix2], arx_spec.flux[pix2]*norm, 'r-', label='Arx',
+                    drawstyle='steps-mid')
+            # Axes
+            ax.xaxis.set_major_locator(plt.MultipleLocator(dwv.value))
+            ax.set_xlabel('Wavelength')
+            ax.set_ylabel('Counts')
+
+        # Legend
+        plt.legend(loc='upper left', scatterpoints=1, borderpad=0.3,
+                   handletextpad=0.3, fontsize='small', numpoints=1)
+
+        # Finish
+        plt.savefig(outfile, dpi=400)
+        plt.close()
+        #plt.close()
+
+    plt.rcdefaults()
+
+    return
 

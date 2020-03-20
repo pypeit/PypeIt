@@ -494,7 +494,7 @@ class Reduce(object):
                                          self.par['flexure']['spectrum'],
                                          mxshft=self.par['flexure']['maxshift'])
             # QA
-            wave.flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+            flexure.flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
         else:
             msgs.info('Skipping flexure correction.')
 
