@@ -417,7 +417,7 @@ class Calibrations(object):
         # Previously cahded?
         if self._cached('align', self.master_key_dict['align']):
             # Previously calculated
-            self.msalign = self.calib_dict[self.master_key_dict['align']]['align']
+            self.msalign = self.calib_dict[self.master_key_dict['align']]['alignframe']
         elif os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msalign = buildimage.AlignImage.from_file(masterframe_name)
         else:
@@ -428,9 +428,9 @@ class Calibrations(object):
             #                                  master_key=self.master_key_dict['align'],
             #                                  master_dir=self.master_dir,
             #                                  reuse_masters=self.reuse_masters)
-            self.align = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                         self.par['alignframe'],
-                                                         align_files, bias=self.msbias, bpm=self.msbpm)
+            self.msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                          self.par['alignframe'],
+                                                          align_files, bias=self.msbias, bpm=self.msbpm)
 
             # Load the MasterFrame (if it exists and is desired)?
             #self.msalign = self.alignFrame.load()
@@ -446,14 +446,12 @@ class Calibrations(object):
             # Save to Masters
             if self.save_masters:
                 self.msalign.to_master_file(self.master_dir, self.master_key_dict['align'],  # Naming
-                                       self.spectrograph.spectrograph,  # Header
-                                       steps=self.msalign.process_steps,
-                                       raw_files=align_files)
+                                            self.spectrograph.spectrograph,  # Header
+                                            steps=self.msalign.process_steps,
+                                            raw_files=align_files)
 
             # Store the alignment frame
             self._update_cache('align', 'align', self.msalign)
-
-        # JXP STOPPED HERE
 
         # Check if the alignment dictionary exists
         if self._cached('align_dict', self.master_key_dict['align']) \
@@ -461,23 +459,25 @@ class Calibrations(object):
             self.align_dict = self.calib_dict[self.master_key_dict['align']]['align_dict']
         else:
             # Extract some header info needed by the algorithm
-            binning = self.spectrograph.get_meta_value(self.align_files[0], 'binning')
+            binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
 
             # Instantiate
             self.alignment = alignframe.Alignment(self.msalign, self.slits, self.spectrograph,
                                                   self.par['alignment'],
                                                   det=self.det, binning=binning,
                                                   master_key=self.master_key_dict['align'],
-                                                  master_dir=self.master_dir,
-                                                  reuse_masters=self.reuse_masters,
                                                   qa_path=self.qa_path, msbpm=self.msbpm)
 
-            # Master
-            self.align_dict = self.alignment.load()
-            if self.align_dict is None:
-                self.align_dict = self.alignment.run(self.show)
+            # Load from disk (MasterFrame)?
+            masterframe_name = masterframe.construct_file_name(alignframe.Alignment, self.master_key_dict['align'],
+                                                               master_dir=self.master_dir)
+            if os.path.isfile(masterframe_name) and self.reuse_masters:
+                self.align_dict = self.alignment.load(masterframe_name)
+            else:
+                self.align_dict, _ = self.alignment.run(self.show)
+                # Save to Masters
                 if self.save_masters:
-                    self.alignment.save()
+                    self.alignment.save(outfile=masterframe_name)
 
             # Save & return
             self._update_cache('align', 'align_dict', self.align_dict)
