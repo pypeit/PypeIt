@@ -40,7 +40,6 @@ def flexure_spat_shift(sciimg, slits, debug=False):
 
     #slitmask = pixels.tslits2mask(tslits_dict)
     slitmask = slits.slit_img()
-    left, right = slits.select_edges()
     onslits = (slitmask > -1)
     corr_slits = (onslits.astype(float)).flatten()
     #corr_roll = np.roll(corr_slits, 10, axis=1).astype(float)
@@ -58,7 +57,7 @@ def flexure_spat_shift(sciimg, slits, debug=False):
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(xcorr_norm, sigdetect=3.0,
                                                                                      fit_frac_fwhm=1.5, fwhm=5.0,
                                                                                      cont_frac_fwhm=1.0, cont_samp=30,
-                                                                                     nfind=1, debug=True)
+                                                                                     nfind=1, debug=debug)
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
     msgs.info('Flexure compensation ')

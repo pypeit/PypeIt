@@ -578,7 +578,10 @@ class PypeIt(object):
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
             pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
+            slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
+
+        embed(header='584')
 
         # Background Image?
         if len(bg_frames) > 0:

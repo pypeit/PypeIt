@@ -7,6 +7,7 @@ import numpy as np
 from pypeit import msgs
 from pypeit.core import procimg
 from pypeit.core import flat
+from pypeit.core import flexure
 from pypeit.par import pypeitpar
 from pypeit.images import pypeitimage
 from pypeit.images import rawimage
@@ -35,6 +36,8 @@ class ProcessRawImage(object):
             Holds the datasec_img which specifies the amp for each pixel in the
             current self.image image.  This is modified as the image is, i.e.
             orientation and trimming.
+        flexure_shift (float):
+            Holds the flexure shift, if calculated
     """
     def __init__(self, rawImage, par, bpm=None):
 
@@ -66,6 +69,7 @@ class ProcessRawImage(object):
         # Attributes
         self.ivar = None
         self.rn2img = None
+        self.flexure_shift = None
 
         # All possible processing steps
         #  Note these have to match the method names below
@@ -165,7 +169,7 @@ class ProcessRawImage(object):
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps, pixel_flat=None, illum_flat=None, bias=None):
+    def process(self, process_steps, pixel_flat=None, illum_flat=None, bias=None, slits=None):
         """
         Process the image
 
@@ -221,7 +225,8 @@ class ProcessRawImage(object):
         # Flat field
         if 'flatten' in process_steps:
             if pixel_flat is not None:
-                self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+                # TODO -- Correct the illum_flat for flexure
+                self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm, slits=slits)
             # TODO: Print a warning when it is None?
             steps_copy.remove('flatten')
 
@@ -233,10 +238,8 @@ class ProcessRawImage(object):
         self.build_ivar()
 
         # Generate a PypeItImage
-        #pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning, rawheadlst=self.headarr,
-        #                                      ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img, bpm=bpm,
-                                              detector=self.detector)
+                                              detector=self.detector, flexure=self.flexure_shift)
         pypeitImage.rawheadlist = self.headarr
 
         # Mask(s)
@@ -254,7 +257,7 @@ class ProcessRawImage(object):
         # Return
         return pypeitImage
 
-    def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False):
+    def flatten(self, pixel_flat, illum_flat=None, bpm=None, force=False, slits=None):
         """
         Flat field the proc image
 
@@ -279,7 +282,11 @@ class ProcessRawImage(object):
         # BPM
         if bpm is None:
             bpm = self.bpm
+        # Calculate flexure?
+        if self.par['flexure_correct']:
+            self.flexure_shift = flexure.flexure_spat_shift(self.image, slits)
         # Do it
+        # TODO -- Adjust the illum_flat with flexure
         self.image = flat.flatfield(self.image, pixel_flat, bpm, illum_flat=illum_flat)
         self.steps[step] = True
 

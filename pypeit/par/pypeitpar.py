@@ -213,7 +213,8 @@ class ProcessImagesPar(ParSet):
     """
     def __init__(self, overscan=None, overscan_par=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
+                 flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -265,9 +266,9 @@ class ProcessImagesPar(ParSet):
                                        ', '.join(options['satpix']))
 
         # Moved to processing_steps
-        #defaults['cr_reject'] = False
-        #dtypes['cr_reject'] = bool
-        #descr['cr_reject'] = 'Perform cosmic ray rejection'
+        defaults['flexure_correct'] = False
+        dtypes['flexure_correct'] = bool
+        descr['flexure_correct'] = 'Perform flexure correction (spatial) on the images'
 
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
@@ -331,7 +332,8 @@ class ProcessImagesPar(ParSet):
         parkeys = ['bias', 'overscan', 'overscan_par',
                    'combine', 'satpix', 'sigrej', 'n_lohi',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim',
+                   'flexure_correct']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

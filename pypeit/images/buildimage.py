@@ -98,7 +98,7 @@ class TraceImage(pypeitimage.PypeItImage):
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                         bias=None, bpm=None, pixel_flat=None,
                         illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5,
-                        ignore_saturation=True):
+                        ignore_saturation=True, slits=None):
     """
     Build a PypeItImage from a list of files (and instructions)
 
@@ -142,7 +142,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
                                    illum_flat=illum_flat, sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
-                                   ignore_saturation=ignore_saturation)
+                                   ignore_saturation=ignore_saturation, slits=slits)
     #
     # Decorate according to the type of calibration
     #   Primarily for handling MasterFrames
