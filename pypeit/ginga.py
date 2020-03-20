@@ -301,7 +301,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                        'synchronized into slits.')
         if left_ids is not None or right_ids is not None:
             msgs.warn('For showing synced edges, left and right ID numbers are ignored.')
-        nslits = left.shape[1]
+        nslits = _left.shape[1]
         _left_ids = None
         _right_ids = None
         _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
