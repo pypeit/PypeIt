@@ -110,10 +110,6 @@ def test_quicklook():
                                    os.path.join(calib_dir,
                                         'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
 
-<<<<<<< HEAD
-
-=======
->>>>>>> rmtdict
 @dev_suite_required
 def test_trace_edges():
     # Define the output directories (HARDCODED!!)
