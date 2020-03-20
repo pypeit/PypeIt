@@ -12,29 +12,40 @@ oringinally for echelle spectroscopy and since expanded
 to low-resolution spectrometers.  This documentation details
 the code, how to run it, and what it produces.
 
-Getting Started
-+++++++++++++++
+Users
+=====
+
+If you are mainly here to use PypeIt to reduce
+your observational data then this section is for you.
+
+Ideally, you will need to go no further than the few links
+in this section take you.
 
 .. toctree::
    :maxdepth: 1
 
-   installing
-   code_flow
    codeconduct
+   installing
+   cookbook
+
+Most of the docs that follow on this page
+are for expert users or developers.
 
 Running PypeIt
-++++++++++++++
+==============
 
-`PYPEIT HOWTO <https://tinyurl.com/pypeit-howto>`_
+This section contains quick links to the docs
+describing the primary aspects of running PypeIt.
+
+But you should be referring to the :doc:`cookbook`
+for a full description of the process.
 
 .. toctree::
    :maxdepth: 2
 
-   pypeit_par
-   cookbook
    setup
    pypeit_file
-   calcheck
+   pypeit_par
    running
    quicklook
 
@@ -55,21 +66,35 @@ Calibrations
 .. toctree::
    :maxdepth: 2
 
-   calibrations
-   bias
+   customize_calibs
+   bias_sub
    slit_tracing
    wave_calib
    wavetilts
-   flatfielding
    fluxing
 
-Instruments
-+++++++++++
+MasterFrames
+++++++++++++
 
 .. toctree::
    :maxdepth: 2
 
-   instruments
+   master_arc
+   master_bias
+   master_edges
+   master_flat
+   master_tilt
+   master_tilts
+   master_wave
+   master_wvcalib
+
+Spectrographs
++++++++++++++
+
+.. toctree::
+   :maxdepth: 2
+
+   spectrographs
    deimos
    lris
    mage
@@ -101,6 +126,7 @@ For Developers
 .. toctree::
    :maxdepth: 1
 
+   code_flow
    development
    scripts
    flow

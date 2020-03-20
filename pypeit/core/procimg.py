@@ -12,7 +12,7 @@ from pypeit import utils
 from pypeit.core import parse
 
 
-def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
+def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
@@ -21,7 +21,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     This routine is mostly courtesy of Malte Tewes
 
     Args:
-        det:
         sciframe:
         saturation:
         nonlinear:
@@ -37,9 +36,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         ndarray: mask of cosmic rays (0=no CR, 1=CR)
 
     """
-
-    dnum = parse.get_dnum(det)
-
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 #    msgs.work("Include these parameters in the settings files to be adjusted by the user")
     # Set the settings
@@ -267,9 +263,7 @@ def gain_frame(amp_img, gain):
     return gain_img
 
 
-
-
-def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
+def rn_frame(datasec_img, gain, ronoise):
     """ Generate a RN image
 
     Parameters
@@ -280,6 +274,10 @@ def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
     rn_img : ndarray
       Read noise *variance* image (i.e. RN**2)
     """
+    # Determine the number of amplifiers from the datasec image
+    numamplifiers = np.amax(datasec_img)
+
+    # Check the input types
     _gain = np.asarray(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
     _ronoise = np.asarray(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
                         else np.array([ronoise])
@@ -354,7 +352,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     # Amplifiers
     amps = np.unique(datasec_img[datasec_img > 0]).tolist()
 
-    # Perform the bias subtraction for each amplifier
+    # Perform the overscan subtraction for each amplifier
     for amp in amps:
         # Pull out the overscan data
         overscan, _ = rect_slice_with_mask(rawframe, oscansec_img, amp)
@@ -692,8 +690,7 @@ def trim_frame(frame, mask):
                    'pixels outside the data sections.')
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
-
-def init_process_steps(bias, proc_par):
+def set_process_steps(bias, frame_par):
     """
     Initialize the processing steps
     This first set is related to bias and overscan subtraction
@@ -702,13 +699,15 @@ def init_process_steps(bias, proc_par):
 
     Args:
         bias (None or np.ndarray):
-        proc_par (ProcessImagesPar):
+        frame_par (:class:`pypeit.par.pypeitpar.FramePar`):
 
     Returns:
         list: List of the processing steps to begin with.  Can be empty
 
     """
-    process_steps = []
+    process_steps = frame_par['processing_steps'].copy()
+    # Deal with bias now
+    proc_par = frame_par['process']
     # Bias image
     if proc_par['bias'].lower() == 'as_available':
         if bias is not None:
@@ -725,8 +724,40 @@ def init_process_steps(bias, proc_par):
     # Return
     return process_steps
 
+#def init_process_steps(bias, proc_par):
+#    """
+#    Initialize the processing steps
+#    This first set is related to bias and overscan subtraction
+#
+#    Could include dark subtraction someday
+##
+#    Args:
+#        bias (None or np.ndarray):
+#        proc_par (ProcessImagesPar):
+#
+#    Returns:
+#        list: List of the processing steps to begin with.  Can be empty
+#
+#    """
+#    process_steps = []
+#    # Bias image
+#    if proc_par['bias'].lower() == 'as_available':
+#        if bias is not None:
+#            process_steps.append('subtract_bias')
+#    elif proc_par['bias'].lower() == 'force':
+#        if bias is None:
+#            msgs.error("Must provide bias frames!")
+#        process_steps.append('subtract_bias')
+#    elif proc_par['bias'].lower() == 'skip':
+#        pass
+#    # Overscan
+#    if proc_par['overscan'].lower() != 'none':
+#        process_steps.append('subtract_overscan')
+#    # Return
+#    return process_steps
 
-def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
+
+def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None,
                    exptime=None, skyframe=None, objframe=None, adderr=0.01, rnoise=None):
     """
     Calculate the variance image including detector noise.
@@ -745,11 +776,6 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
             Gain for each amplifier
         ronoise (:obj:`float`, array-like):
             Read-noise for each amplifier
-        numamplifiers (:obj:`int`, optional):
-            Number of amplifiers.  Default is 1.  (TODO: This is
-            superfluous.  Could get the number of amplifiers from the
-            maximum value in datasec_img or the length of the
-            gain/ronoise lists.)
         darkcurr (:obj:`float`, optional):
             Dark current in electrons per second if the exposure time is
             provided, otherwise in electrons.  If None, set to 0.
@@ -775,7 +801,7 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
     if rnoise is None:
-        rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
+        rnoise = rn_frame(datasec_img, gain, ronoise)
 
     # No sky frame provided
     if skyframe is None:

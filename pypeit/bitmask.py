@@ -20,6 +20,7 @@ Base class for handling bit masks.
 .. include:: ../links.rst
 
 """
+from IPython import embed
 import numpy
 import os
 import textwrap
@@ -109,8 +110,10 @@ class BitMask:
         if numpy.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
         # Flags should be among the bitmask keys
-        if numpy.any([f not in self.keys() for f in _flag]):
-            raise ValueError('Some bit names not recognized.')
+        indx = numpy.array([f not in self.keys() for f in _flag])
+        if numpy.any(indx):
+            raise ValueError('The following bit names are not recognized: {0}'.format(
+                             ', '.join(_flag[indx])))
 #        # Flags should be strings
 #        if numpy.any([ not isinstance(f, str) for f in _flag ]):
 #            raise TypeError('Provided bit names must be strings!')
@@ -167,12 +170,16 @@ class BitMask:
 
     def keys(self):
         """
-        Return a list of the bits; 'NULL' keywords are ignored.
+        Return a list of the bit keywords.
+
+        Keywords are sorted by their bit value and 'NULL' keywords are
+        ignored.
         
         Returns:
             list: List of bit keywords.
         """
-        return list(set(self.bits.keys())-set(['NULL']))
+        k = numpy.array(list(self.bits.keys()))
+        return k[[_k != 'NULL' for _k in k]].tolist()
 
     def info(self):
         """
@@ -281,7 +288,7 @@ class BitMask:
             return []
         keys = numpy.array(self.keys())
         indx = numpy.array([1<<self.bits[k] & value != 0 for k in keys])
-        return list(keys[indx])
+        return (keys[indx]).tolist()
 
     def toggle(self, value, flag):
         """
@@ -353,10 +360,11 @@ class BitMask:
         Ensure that a bit is turned off in the provided bitmask value.
 
         Args:
-            value (uint or array): Bitmask value.  It should be less
-                than or equal to :attr:`max_value`; however, that is not
-                checked.
-            flag (list, numpy.ndarray, or str): Bit name(s) to turn off.
+            value (int, array-like):
+                Bitmask value.  It should be less than or equal to
+                :attr:`max_value`; however, that is not checked.
+            flag (str, array-like):
+                Bit name(s) to turn off.
         
         Returns:
             uint: New bitmask value after turning off the selected bit.

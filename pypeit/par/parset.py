@@ -241,8 +241,14 @@ class ParSet(object):
                 warnings.warn('List includes a mix of ParSet and dicts with other types.  '
                               'Displaying and writing the ParSet will not be correct!')
 
-        if self.options[key] is not None and value not in self.options[key]:
-            raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
+        if self.options[key] is not None:
+            if isinstance(value, list):  # We do not require a list match a list!
+                for item in value:
+                    if item not in self.options[key]:
+                        raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
+                            key, value, self.options[key]))
+            elif value not in self.options[key]:
+                raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
                                                                     key, value, self.options[key]))
         if self.dtype[key] is not None \
                 and not any([ isinstance(value, d) for d in self.dtype[key]]):
@@ -721,7 +727,8 @@ class ParSet(object):
         new_parsets = []
         data_table = numpy.empty((self.npar+1, 5), dtype=object)
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
-        for i,k in enumerate(self.keys()):
+        sorted_keys = numpy.sort(self.keys())
+        for i,k in enumerate(sorted_keys):
             data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatum=True)
             if isinstance(self.data[k], ParSet):
                 if type(self.data[k]).__name__ not in parsets_listed:

@@ -1,16 +1,53 @@
 
-0.13.2dev
+0.13.3dev
 ---------
+
+- Replaces usage of the `tslits_dict` dictionary with
+  `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
+  object is now the main master file used for passing around the slit
+  edges once the edges are determined by `EdgeTraceSet`.
+- Removes usage of `pypeit.pixels.tslits2mask` and replaces it with
+  `pypeit.slittrace.SlitTraceSet.slit_img`.
+- Significant changes to flat-fielding control flow.
+    - Added `rej_sticky`, `slit_trim`, `slit_pad`, `illum_iter`,
+      `illum_rej`, `twod_fit_npoly` parameters to FlatFieldPar.
+    - Illumination flat no longer removed if the user doesn't want to
+      apply it to the data.  The flat was always created, but all that
+      work was lost if the illumination correction wasn't requested.
+    - Replaced tweak edges method with a more direct algorithm.
+    - `pypeit.core.flat.fit_flat` moved to
+      `pypeit.flatfield.FlatField.fit`.
+- Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
+  sobel image to the ginga display.
+- Added `bspline_profile_qa` for generic QA of a bspline fit.
+- Eliminate MasterFrame class
+- Masks handled by a DataContainer
+- Move DetectorPar into a DataContainer (named DetectorContainer) which enables frame-level construction
+- Advances to DataContainer (array type checking; nested DataContainers; to_master_file)
+- Dynamic docs for calibration images
+- Every calibration output to disk is help within a DataContainer, separate from
+  previous classes.  Exception is WaveCalib (this needsd a fit DataContainer first)
+- Substantial refactoring of Calibrations
+
+
+
+- Added `bspline_qa` for generic QA of a bspline fit.
+
+0.13.2 (17 Mar 2020)
+--------------------
+
 - Added PypeIt identify GUI script for manual wavelength calibration
+- Add bitmask tests and print bitmask names that are invalid when
+  exception raised.
+- Parameter set keywords now sorted when exported to an rst table.
 - Enable user to scale flux of coadded 1D spectrum to a filter magnitude
 - Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
 - Add more cards to spec1d header output
 - Fixes a few sensfunc bugs
 - Added template for LRIS 600/7500
 - Deal with non-extracted Standard
-
-
-
+- docs docs and more docs
+- A QA fix too
 
 0.13.1 (07 Mar 2020)
 --------------------
@@ -124,7 +161,7 @@
   of each slit/order.  For VLT XShooter NIR, this was needed to ensure
   the sigma calculation didn't include the off-order spectral positions.
 - Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
-  construces a ``tslits_dict`` object directly from the Master file.
+  constructs a ``tslits_dict`` object directly from the Master file.
 
 0.11.0.1
 ---------

@@ -1,5 +1,8 @@
 """
 Main driver class for PypeIt run
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import time
 import os
@@ -8,14 +11,12 @@ from collections import OrderedDict
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
-from pypeit.images import scienceimage
+from pypeit.images import buildimage
 from pypeit import ginga
 from pypeit import reduce
 from pypeit.core import qa
-from pypeit.core import wave
 from pypeit.core import save
 from pypeit import specobjs
-from pypeit.core import pixels
 from pypeit.spectrographs.util import load_spectrograph
 
 from configobj import ConfigObj
@@ -77,7 +78,7 @@ class PypeIt(object):
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
         spectrograph_name = cfg['rdx']['spectrograph']
-        self.spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[0])
+        self.spectrograph = load_spectrograph(spectrograph_name)
         msgs.info('Loaded spectrograph {0}'.format(self.spectrograph.spectrograph))
 
         # --------------------------------------------------------------
@@ -142,15 +143,28 @@ class PypeIt(object):
         # TODO: Is anything written to the qa dir or only to qa/PNGs?
         # Should we have separate calibration and science QA
         # directories?
+        # An html file wrapping them all too
 
         # Instantiate Calibrations class
-        self.caliBrate \
-            = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                 self.spectrograph,
-                                                 caldir=self.calibrations_path,
-                                                 qadir=self.qa_path,
-                                                 reuse_masters=self.reuse_masters,
-                                                 show=self.show)
+        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
+            self.caliBrate \
+                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+                                                     self.spectrograph,
+                                                     caldir=self.calibrations_path,
+                                                     qadir=self.qa_path,
+                                                     reuse_masters=self.reuse_masters,
+                                                     show=self.show)
+        elif self.spectrograph.pypeline in ['IFU']:
+            self.caliBrate \
+                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
+                                               self.spectrograph,
+                                               caldir=self.calibrations_path,
+                                               qadir=self.qa_path,
+                                               reuse_masters=self.reuse_masters,
+                                               show=self.show)
+        else:
+            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
+
         # Init
         self.verbosity = verbosity
         # TODO: I don't think this ever used
@@ -404,6 +418,7 @@ class PypeIt(object):
                                 set(np.arange(self.spectrograph.ndet))-set(detectors)])))
 
         # Loop on Detectors
+        # TODO: Attempt to put in a multiprocessing call here?
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
             sci_dict[self.det] = {}
@@ -418,7 +433,7 @@ class PypeIt(object):
             sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
                 sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
                 sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-                sci_dict[self.det]['specobjs'], \
+                sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
                         = self.extract_one(frames, self.det, bg_frames,
                                            std_outfile=std_outfile)
             # JFH TODO write out the background frame?
@@ -480,7 +495,7 @@ class PypeIt(object):
             if np.any(this_det):
                 sobjs_det = sobjs[this_det]
                 sobjs_std = sobjs_det.get_std()
-                # No standard extracted??
+                # No standard extracted on this detector??
                 if sobjs_std is None:
                     return None
                 std_trace = sobjs_std.TRACE_SPAT
@@ -505,62 +520,78 @@ class PypeIt(object):
         sci_ID and det need to have been set internally prior to calling this method
 
         Args:
-            frames (list):
-                List of frames to extract;  stacked if more than one is provided
-            det (int):
-            bg_frames (list):
-                List of frames to use as the background
-                Can be empty
-            std_outfile (str, optional):
+            frames (:obj:`list`):
+                List of frames to extract; stacked if more than one
+                is provided
+            det (:obj:`int`):
+                Detector number (1-indexed)
+            bg_frames (:obj:`list`):
+                List of frames to use as the background. Can be
+                empty.
+            std_outfile (:obj:`str`, optional):
+                Filename for the standard star spec1d file. Passed
+                directly to :func:`get_std_trace`.
 
         Returns:
-            seven objects are returned::
-                - ndarray: Science image
-                - ndarray: Science inverse variance image
-                - ndarray: Model of the sky
-                - ndarray: Model of the object
-                - ndarray: Model of inverse variance
-                - ndarray: Mask
-                - :obj:`pypeit.specobjs.SpecObjs`: spectra
+            tuple: Returns six `numpy.ndarray`_ objects and a
+            :class:`pypeit.specobjs.SpecObjs` object with the
+            extracted spectra from this exposure/detector pair. The
+            six `numpy.ndarray`_ objects are (1) the science image,
+            (2) its inverse variance, (3) the sky model, (4) the
+            object model, (5) the model inverse variance, and (6) the
+            mask.
 
         """
         # Grab some meta-data needed for the reduction from the fitstbl
-        self.objtype, self.setup, self.obstime, self.basename, self.binning = self.get_sci_metadata(frames[0], det)
+        self.objtype, self.setup, self.obstime, self.basename, self.binning \
+                = self.get_sci_metadata(frames[0], det)
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
+        if self.std_redux:
+            frame_par = self.par['calibrations']['standardframe']
+        else:
+            frame_par = self.par['scienceframe']
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
 
+        # Force the illumination flat to be None if the user doesn't
+        # want to apply the correction.
+        illum_flat = self.caliBrate.flatimages.illumflat \
+                        if self.par['calibrations']['flatfield']['illumflatten'] else None
+
+        # TODO: report if illum_flat is None? Done elsewhere, but maybe
+        # want to do so here either only or also.
+
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciImg = scienceimage.build_from_file_list(
-            self.spectrograph, det, self.par['scienceframe']['process'],
-            self.caliBrate.msbpm, sci_files, self.caliBrate.msbias,
-            self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
+        self.sciImg = buildimage.buildimage_fromlist(
+            self.spectrograph, det, frame_par,
+            sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
+            pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
+            ignore_saturation=False)
 
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg - scienceimage.build_from_file_list(
-                self.spectrograph, det, self.par['scienceframe']['process'],
-                self.caliBrate.msbpm, bg_file_list, self.caliBrate.msbias,
-                self.caliBrate.mspixelflat, illum_flat=self.caliBrate.msillumflat)
+            self.sciImg = self.sciImg.sub(buildimage.buildimage_fromlist(
+                self.spectrograph, det, frame_par,bg_file_list,
+                bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
+                pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
+                ignore_saturation=False), frame_par['process'])
 
-        # Update mask for slitmask
-        slitmask = pixels.tslits2mask(self.caliBrate.tslits_dict)
-        self.sciImg.update_mask_slitmask(slitmask)
+        # Update mask for slitmask; uses pad in EdgeTraceSetPar
+        self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img())
 
         # For QA on crash
         msgs.sciexp = self.sciImg
 
         # Instantiate Reduce object
-        self.maskslits = self.caliBrate.tslits_dict['maskslits'].copy()
         # Required for pypeline specific object
         # TODO -- caliBrate should be replaced by the ~3 primary Objects needed
         #   once we have the data models in place.
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
                                            self.par, self.caliBrate,
-                                           maskslits=self.maskslits,
+                                           maskslits=self.caliBrate.slits.mask.copy(),
                                            ir_redux=self.ir_redux,
                                            std_redux=self.std_redux,
                                            objtype=self.objtype,
@@ -581,7 +612,8 @@ class PypeIt(object):
             obstime=self.obstime)
 
         # Return
-        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+        return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, \
+               self.sobjs, self.sciImg.detector
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, sci_dict, basename):
@@ -590,10 +622,11 @@ class PypeIt(object):
 
         Args:
             frame (:obj:`int`):
-              0-indexed row in the metadata table with the frame that
-              has been reduced.
+                0-indexed row in the metadata table with the frame
+                that has been reduced.
             sci_dict (:obj:`dict`):
-              Dictionary containing the primary outputs of extraction
+                Dictionary containing the primary outputs of
+                extraction
             basename (:obj:`str`):
                 The root name for the output file.
 

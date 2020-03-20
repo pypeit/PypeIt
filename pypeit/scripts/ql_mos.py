@@ -54,8 +54,9 @@ def main(pargs):
     if pargs.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[scienceframe]']
-    cfg_lines += ['    [[process]]']
-    cfg_lines += ['          cr_reject = False']
+    cfg_lines += ['    processing_steps = orient,trim,apply_gain,flatten']
+    #cfg_lines += ['    [[process]]']
+    #cfg_lines += ['          cr_reject = False']
     if pargs.user_pixflat is not None:
         cfg_lines += ['[calibrations]']
         cfg_lines += ['    [[flatfield]]']

@@ -30,6 +30,8 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle KECK/HIRES specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KECKHIRESSpectrograph, self).__init__()
@@ -285,7 +287,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters

@@ -755,12 +755,12 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Now do some QA
     # TODO: I think we should do the QA outside of core functions.
     if doqa:
-        plot_tilt_2d(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
+        arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
                      rms_fit, fwhm, slit=slit, setup=master_key, show_QA=show_QA, out_dir=out_dir)
-        plot_tilt_spat(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
+        arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
                        spec_order, rms_fit, fwhm, slit=slit, setup=master_key, show_QA=show_QA,
                        out_dir=out_dir)
-        plot_tilt_spec(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
+        arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
                        slit=slit, setup=master_key, show_QA=show_QA, out_dir=out_dir)
 
     return tilt_fit_dict, trc_tilt_dict_out
@@ -793,6 +793,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
 
 def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
     """
+    Evaluate the wavelength tilt model over the full image.
 
     Parameters
     ----------
@@ -802,15 +803,17 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
         result of griddata tilt fit
     func2d: str
         the 2d function used to fit the tilts
-    spat_shift (float):
-        Spatial shift to be added to image pixels before evaluation to deal with flexure compensation.
+    spat_shift : float
+        Spatial shift to be added to image pixels before evaluation
+        to deal with flexure compensation.
+
     Returns
     -------
     tilts: ndarray, float
-        Image indicating how spectral pixel locations move across the image. This output is used in the pipeline.
+        Image indicating how spectral pixel locations move across the
+        image. This output is used in the pipeline.
 
     """
-
     # Compute the tilts image
     nspec, nspat = shape
     xnspecmin1 = float(nspec - 1)
@@ -825,7 +828,8 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
     return np.fmax(np.fmin(tilts, 1.2), -0.2)
 
 
-def plot_tilt_2d(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
+# This method needs to match the name in pypeit.core.qa.set_qa_filename()
+def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
                  slit=0, setup='A', outfile=None, show_QA=False, out_dir=None):
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'Helvetica'
@@ -867,7 +871,8 @@ def plot_tilt_2d(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order
     plt.rcdefaults()
 
 
-def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, fwhm,
+# This method needs to match the name in pypeit.core.qa.set_qa_filename()
+def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, fwhm,
                    slit=0, setup='A', outfile=None, show_QA=False, out_dir=None):
     """ Generate a QA plot of the residuals for the fit to the tilts in the spectral direction one slit at a time
 
@@ -950,7 +955,7 @@ def plot_tilt_spec(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, 
     plt.rcdefaults()
 
 
-def plot_tilt_spat(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms,
+def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms,
                    fwhm,
                    setup='A', slit=0, outfile=None, show_QA=False, out_dir=None):
     plt.rcdefaults()

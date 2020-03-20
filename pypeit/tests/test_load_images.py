@@ -8,12 +8,10 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit.images.calibrationimage import CalibrationImage
 from pypeit.images.rawimage import RawImage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core import procimg
 
 par = pypeitpar.ProcessImagesPar()
 

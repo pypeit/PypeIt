@@ -2697,9 +2697,7 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     wave_lower = waveimg_stack[wavemask].min()
     wave_upper = waveimg_stack[wavemask].max()
     ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
-    wave_bins = wave_grid[ind_lower:ind_upper + 1]
-
-    return wave_bins
+    return wave_grid[ind_lower:ind_upper + 1]
 
 
 def get_spat_bins(thismask_stack, trace_stack):

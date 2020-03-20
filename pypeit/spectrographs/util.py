@@ -9,6 +9,7 @@ from IPython import embed
 # TODO: Allow the spectrographs to be identified by their camera?  Won't
 # work for 'shane_kast_red' and 'shane_kast_red_ret'.
 
+
 def valid_spectrographs():
     """
     Return a list of allowed spectrograph names
@@ -20,8 +21,8 @@ def valid_spectrographs():
     # TODO: Is there a more clever way to do this?  If we change these
     # names, we could do something like what's done in
     # pypeit.instantiate_me.
-    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly', 'keck_nires',
-            'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red',
+    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
+            'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores', 'wht_isis_blue',
             'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir', 'vlt_fors2',
             'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2', 'gemini_gmos_south_ham',
@@ -33,7 +34,7 @@ def valid_spectrographs():
             #'keck_hires_blue']
 
 
-def load_spectrograph(spectrograph, ifile=None):
+def load_spectrograph(spectrograph):
     """
     Instantiate a :class:`spectrographs.spectrograph.Spectrograph`, if
     possible.
@@ -44,9 +45,6 @@ def load_spectrograph(spectrograph, ifile=None):
             instance, the instance is simply returned.  If a string, the
             string is used to select the spectrograph to instantiate.
             If None, None is returned.
-        ifile (str, optional):
-            Intended to be a scifile to guide components of the
-            Spectrograph object at instantiation
 
     Returns:
         :class:`spectrographs.spectrograph.Spectrograph`: The spectrograph used to obtain the data to be reduced.
@@ -74,11 +72,11 @@ def load_spectrograph(spectrograph, ifile=None):
     if spectrograph == 'keck_lris_blue':
         return spectrographs.keck_lris.KeckLRISBSpectrograph()
 
-    if spectrograph == 'keck_lris_red':
-        return spectrographs.keck_lris.KeckLRISRSpectrograph(ifile=ifile)
+    if spectrograph == 'keck_kcwi':
+        return spectrographs.keck_kcwi.KeckKCWISpectrograph()
 
-    if spectrograph == 'keck_lris_red_longonly':
-        return spectrographs.keck_lris.KeckLRISRLSpectrograph()
+    if spectrograph == 'keck_lris_red':
+        return spectrographs.keck_lris.KeckLRISRSpectrograph()
 
     if spectrograph == 'keck_hires_red':
         return spectrographs.keck_hires.KECKHIRESRSpectrograph()

@@ -72,22 +72,24 @@ def rec_to_fits_type(col_element, single_row=False):
     """
     _col_element = col_element if single_row else col_element[0]
     n = 1 if len(_col_element.shape) == 0 else _col_element.size
-    if col_element.dtype == numpy.bool:
+    if col_element.dtype.type in [bool, numpy.bool, numpy.bool_]:
         return '{0}L'.format(n)
-    if col_element.dtype == numpy.uint8:
+    if col_element.dtype.type == numpy.uint8:
         return '{0}B'.format(n)
-    if col_element.dtype == numpy.int16 or col_element.dtype == numpy.uint16:
+    if col_element.dtype.type in [numpy.int16, numpy.uint16]:
         return '{0}I'.format(n)
-    if col_element.dtype == numpy.int32 or col_element.dtype == numpy.uint32:
+    if col_element.dtype.type in [numpy.int32, numpy.uint32]:
         return '{0}J'.format(n)
-    if col_element.dtype == numpy.int64 or col_element.dtype == numpy.uint64:
+    if col_element.dtype.type in [numpy.int64, numpy.uint64]:
         return '{0}K'.format(n)
-    if col_element.dtype == numpy.float32:
+    if col_element.dtype.type == numpy.float32:
         return '{0}E'.format(n)
-    if col_element.dtype == numpy.float64:
+    if col_element.dtype.type == numpy.float64:
         return '{0}D'.format(n)
     if col_element.dtype.name == 'float32':  # JXP -- Hack for when slit edges are modified in the Flat making
         return '{0}E'.format(n)
+    if col_element.dtype.name == 'float64':  # JXP -- Hack for when slit edges are modified in the Flat making
+        return '{0}D'.format(n)
 
     # If it makes it here, assume its a string
     l = int(col_element.dtype.str[col_element.dtype.str.find('U')+1:])
@@ -118,7 +120,7 @@ def rec_to_fits_col_dim(col_element, single_row=False):
         None if the object is not multidimensional.
     """
     _col_element = col_element if single_row else col_element[0]
-    return None if len(_col_element.shape) == 1 else str(_col_element.shape[::-1])
+    return None if len(_col_element.shape) < 2 else str(_col_element.shape[::-1])
 
 
 def rec_to_bintable(arr, name=None, hdr=None):
@@ -456,9 +458,10 @@ def dict_to_hdu(d, name=None, hdr=None):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
-        cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
-                                 dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                                 array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
+        cols += [fits.Column(name=key, format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
+                             dim=rec_to_fits_col_dim(d[key], single_row=single_row),
+                             #dim=rec_to_fits_col_dim(numpy.asarray(d[key]), single_row=single_row),
+                             array=numpy.expand_dims(d[key], 0) if single_row else numpy.asarray(d[key]))]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
@@ -565,5 +568,6 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     if _ofile is not ofile:
         print('Compressing file: {0}'.format(_ofile))
         compress_file(_ofile, overwrite=True)
-    print('File written to: {0}'.format(ofile))
+    pypeit.msgs.info('File written to: {0}'.format(ofile))
+
 

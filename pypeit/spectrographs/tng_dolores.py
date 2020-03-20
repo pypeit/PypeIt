@@ -16,6 +16,7 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
+    ndet = 1
 
     def __init__(self):
         super(TNGDoloresSpectrograph, self).__init__()

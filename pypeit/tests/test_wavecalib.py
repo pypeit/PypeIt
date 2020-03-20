@@ -14,6 +14,7 @@ from pypeit import wavecalib
 from pypeit.core.wavecal import waveio
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.spectrographs import util
+from pypeit import masterframe
 
 @cooked_required
 def test_user_redo():
@@ -24,11 +25,11 @@ def test_user_redo():
     par = spectrograph.default_pypeit_par()['calibrations']['wavelengths']
     master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'WaveCalib')
     master_key = 'ShaneKastBlue_A'
-    waveCalib = wavecalib.WaveCalib(None, None, spectrograph, par, master_dir=master_dir,
-                                    master_key=master_key, reuse_masters=True)
-    assert os.path.isfile(waveCalib.master_file_path), 'Did not find Cooked file.'
+    master_filename = masterframe.construct_file_name(wavecalib.WaveCalib, master_key, master_dir=master_dir)
+    waveCalib = wavecalib.WaveCalib(None, None, None, par)
+    assert os.path.isfile(master_filename), 'Did not find Cooked file.'
 
-    wv_calib = waveCalib.load()
+    wv_calib = waveCalib.load(master_filename)
     # Setup
     waveCalib.par['sigdetect'] = 5.
     nslit = 1
@@ -41,8 +42,7 @@ def test_user_redo():
     # Test
     assert new_wv_calib['0']['rms'] < 0.2
     # Now also test the utility script that reads in the wavecalib
-    #wv_calib_load = wavecalib.WaveCalib.load_from_file(waveCalib.master_file_path)
-    wv_calib_load = waveio.load_wavelength_calibration(waveCalib.master_file_path)
+    wv_calib_load = waveio.load_wavelength_calibration(master_filename)
     assert np.all(wv_calib['0']['fitc'] == wv_calib_load['0']['fitc'])
 
 

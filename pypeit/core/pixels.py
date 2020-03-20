@@ -1,12 +1,10 @@
 """ Routines related to mapping pixels to physical positions
 """
+from IPython import embed
+
 import numpy as np
 
 from pypeit import msgs
-from pypeit import debugger
-
-from IPython import embed
-
 
 
 def gen_pixloc(frame_shape, xgap=0, ygap=0, ysize=1., gen=True):
@@ -81,117 +79,6 @@ def phys_to_pix(array, pixlocn, axis):
     pix = np.argmin(np.absolute(_array[:,:,None] - diff[None,None,:]), axis=2).astype(int)
     return pix.ravel() if doravel else pix
 
-# This routine is now deprecated and should not be used.
-def slit_pixels(slit_left_in, slit_righ_in, nspat, pad = 0.0):
-    """ Generate an image indicating the slit/order associated with each pixel.
-
-    Parameters
-    ----------
-    slit_left : ndarray
-        Array containing the left trace. This can either be a 2-d array with shape (nspec, nTrace)
-        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
-
-    slit_righ : ndarray
-        Array containing the right trace. This can either be a 2-d array with shape (nspec, nTrace)
-        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
-
-    nspat : tuple
-      Spatial dimension of the frames
-
-    pad : int or float
-      Pad the mask in both dimensions by this amount.
-
-    Returns
-    -------
-    slitmask : ndarray int
-      An image assigning each pixel to a slit number. A value of -1 indicates
-      that this pixel does not belong to any slit.
-    """
-
-    # This little bit of code allows the input lord and rord to either be (nspec, nslit) arrays or a single
-    # vectors of size (nspec)
-    nspec = slit_left_in.shape[0]
-    if slit_left_in.ndim == 2:
-        nslits = slit_left_in.shape[1]
-        all_lordloc = slit_left_in
-        all_rordloc = slit_righ_in
-    else:
-        nslits = 1
-        all_lordloc = slit_left_in.reshape(slit_left_in.size,1)
-        all_rordloc = slit_righ_in.reshape(slit_righ_in.size,1)
-
-    slitmask = np.full((nspec, nspat),-1,dtype=int)
-    spat_img = np.outer(np.ones(nspec,dtype=int), np.arange(nspat,dtype=int)) # spatial position everywhere along image
-
-    for islit in range(nslits):
-        left_trace_img = np.outer(all_lordloc[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        righ_trace_img = np.outer(all_rordloc[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        thismask = (spat_img > (left_trace_img - pad)) & (spat_img < (righ_trace_img + pad))
-        if not np.any(thismask):
-            msgs.warn("There are no pixels in slit {:d}".format(islit))
-            continue
-        slitmask[thismask] = islit
-    return slitmask
-
-
-def tslits2mask(tslits_dict, pad=None):
-    """ Generate an image indicating the slit/order associated with each pixel.
-
-    Parameters
-    ----------
-    slit_left : ndarray
-        Array containing the left trace. This can either be a 2-d array with shape (nspec, nTrace)
-        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
-
-    slit_righ : ndarray
-        Array containing the right trace. This can either be a 2-d array with shape (nspec, nTrace)
-        for multiple traces, or simply a 1-d array with shape  (nspec) for a single trace.
-
-    nspat : tuple
-      Spatial dimension of the frames
-
-    pad : int or float
-      Pad the mask in both dimensions by this amount.
-
-    Returns
-    -------
-    slitmask : ndarray int
-      An image assigning each pixel to a slit number. A value of -1 indicates
-      that this pixel does not belong to any slit.
-    """
-
-    # This little bit of code allows the input lord and rord to either be (nspec, nslit) arrays or a single
-    # vectors of size (nspec)
-
-    slit_left = tslits_dict['slit_left']
-    slit_righ = tslits_dict['slit_righ']
-    nslits = tslits_dict['nslits']
-    nspec = tslits_dict['nspec']
-    nspat = tslits_dict['nspat']
-    spec_min = tslits_dict['spec_min']
-    if spec_min is None:
-        spec_min = np.zeros(nslits, dtype=int)
-    spec_max = tslits_dict['spec_max']
-    if spec_max is None:
-        spec_max = np.full(nslits, nspec-1, dtype=int)
-    if pad is None:
-        pad = tslits_dict['pad']
-
-    slitmask = np.full((nspec, nspat),-1,dtype=int)
-    spat_img, spec_img = np.meshgrid(np.arange(nspat), np.arange(nspec))
-
-    for islit in range(nslits):
-        left_trace_img = np.outer(slit_left[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        righ_trace_img = np.outer(slit_righ[:,islit], np.ones(nspat))  # left slit boundary replicated spatially
-        thismask = (spat_img > (left_trace_img - pad)) & (spat_img < (righ_trace_img + pad)) & \
-                   (spec_img >= spec_min[islit]) & (spec_img <= spec_max[islit])
-        if not np.any(thismask):
-            msgs.warn("There are no pixels in slit {:d}".format(islit))
-            continue
-        slitmask[thismask] = islit
-
-    return slitmask
-
 
 def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     """ Generate a frame that identifies each pixel to an amplifier,
@@ -232,7 +119,7 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
         try:
             retarr[w] = i+1
         except IndexError:
-            debugger.set_trace()
+            embed()
         # Save these locations for trimming
         if i == 0:
             xfin = xv.copy()
@@ -244,7 +131,10 @@ def pix_to_amp(naxis0, naxis1, datasec, numamplifiers):
     w = np.ix_(xfin, yfin)
     return retarr[w]
 
+
 # ToDO rewrite this function to use images rather than loops as in flat_fit.py
+# TODO: This is used by core/extract.py and core/skysub.py.
+# Flat-fielding now uses SlitTraceSet methods instead. Merge the usage?
 def ximg_and_edgemask(lord_in, rord_in, slitpix, trim_edg=(3,3), xshift=0.):
     """
     Generate the ximg and edgemask frames
