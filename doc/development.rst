@@ -348,19 +348,25 @@ repository.  Tagging a release version of the code is triggered anytime
 a hotfix or the development branch of the code is merged into ``master``.
 The tagging process is as follows:
 
- * The intent to tag a new version is announced via a `New Issue
-   <https://github.com/pypeit/PypeIt/issues/new>`_ posted to the repo.
-   Core developers then have 24 hours to indicate if there's any reason
-   to hold off for a minor but critical development that should first be
-   merged into ``develop``.  This "grace" period can be circumvented for
-   critical hotfixes to ``master``.
+ * At regular pypeit telecons or over the pypeit developers Slack, the
+   core development team will decide to merge the ``develop`` branch
+   into ``master``.
 
- * A `PR <https://github.com/pypeit/PypeIt/compare>`_ is then issued to
-   merge ``develop`` or the hotfix into ``master`` and must meet the
-   same `Pull Request Acceptance Requirements`_ when merging new
-   branches into ``develop``.  For these merges, particular attention
-   should be paid to the accuracy of the `documentation`_ and isolation
-   of any code that is "unsupported."
+ * A branch is created off of ``develop`` (typically called ``staged``)
+   and then a `PR <https://github.com/pypeit/PypeIt/compare>`_ is issued
+   to merge ``staged`` into ``master``.  This merge must meet the same
+   `Pull Request Acceptance Requirements`_ when merging new branches
+   into ``develop``.  However, typically the unit and development-suite
+   tests do not need to be run because ``develop`` has already passed
+   these tests and ``staged`` will not make any substantive changes to
+   the code.
+
+   .. code-block:: bash
+
+        cd $PYPEIT_DIR
+
+        git checkout develop
+        git checkout -b staged
 
  * Once the PR is accepted *but before being merged into master*, the
    code is tagged as follows (uses `bumpversion`_):
@@ -381,38 +387,43 @@ The tagging process is as follows:
         git push
         git push --tags
 
- * The PR is accepted and ``develop`` or the hotfix is merged into
-   ``master``.  Hotfix branches are deleted, but the ``develop`` branch
-   should not be.
+ * The PR is accepted and ``staged`` is merged into ``master``.  Hotfix
+   branches are deleted, but the ``develop`` branch should not be.
 
  * The tag is released for `pip`_ installation.
 
     .. code-block:: bash
 
-        # Make sure you have twine installed
-        pip install twine
+        # Make sure you have the most recent version of twine installed
+        pip install twine --upgrade
         # Construct the pip distribution
         python setup.py sdist bdist_wheel
         # Test the upload
-        twine upload --repository-url https://test.pypi.org/legacy/ dist/*
+        twine upload --repository pypeit-test dist/*
         # Upload, this time it's for keeps
-        twine upload dist/*
+        twine upload --repository pypeit dist/*
 
     For the uploading, you need a ``~/.pypirc`` file that looks like this:
 
     .. code-block:: ini
 
         [distutils]
-        index-servers = pypi
+        index-servers = 
+            pypeit
+            pypeit-test
 
-        [pypi]
-        repository = https://upload.pypi.org/legacy/
+        [pypeit]
+        repository: https://upload.pypi.org/legacy/
         username = pypeit
         password = [ask for this]
 
- * A branch is created to advance the version of the code to a
-   development version string and to update ``develop`` with the new
-   master:
+        [pypeit-test]
+        repository: https://test.pypi.org/legacy/
+        username = pypeit
+        password = [ask for this]
+
+ * Now we need to advance the version of the code to a new development
+   version and merge ``develop`` with the new ``master``:
 
     .. code-block:: bash
 
@@ -431,14 +442,15 @@ The tagging process is as follows:
         git add -u
         git commit -m 'CHANGES'
 
- * A quick PR is issued that pulls ``devup`` into ``develop``.  All of
-   the `Pull Request Acceptance Requirements`_ should already be
+ * Finally, a quick PR is issued that pulls ``devup`` into ``develop``.
+   All of the `Pull Request Acceptance Requirements`_ should already be
    satisfied, meaning that the PR should be quickly accepted and merged.
 
 ----
 
-This document was developed and mutually agreed upon by: Kyle Westfall, J. Xavier Prochaska, Joseph Hennawi
+This document was developed and mutually agreed upon by: Kyle Westfall,
+J. Xavier Prochaska, Joseph Hennawi.
 
-*Last Modified: 20 Dec 2019*
+*Last Modified: 18 Mar 2020*
 
 
