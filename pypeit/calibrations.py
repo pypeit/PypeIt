@@ -668,12 +668,6 @@ class Calibrations(object):
             # Run
             self.flatimages = flatField.run(show=self.show) #, debug=True)
 
-            # Objects should point to the same data
-            # TODO: Remove these lines once we're sure the coding is
-            # correct so that they're not tripped.
-            # assert self.slits is self.flatField.slits
-            # assert self.tilts_dict is self.flatField.tilts_dict
-
             # Save to Masters
             if self.save_masters:
                 self.flatimages.to_master_file(self.master_dir, self.master_key_dict['flat'],  # Naming
