@@ -18,14 +18,14 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
 from pypeit import masterframe
-# NOTE: only used by the FlatField.show method
+from pypeit import bspline
 from pypeit import slittrace
 
 from pypeit.par import pypeitpar
 from pypeit import datamodel
 from pypeit.core import flat
 from pypeit.core import tracewave
-from pypeit.core import pydl
+from pypeit.core import basis
 
 
 class FlatImages(datamodel.DataContainer):
@@ -579,7 +579,7 @@ class FlatField(object):
             # don't have to instantiate invvar and profile_basis
             spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
                     = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
-                                            np.ones_like(spec_coo_data), inmask=spec_gpm_data,
+                                            np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -662,8 +662,11 @@ class FlatField(object):
             # 1/10th of a pixel, but do not allow a bsp smaller than
             # the typical sampling. Use the bspline class to determine
             # the breakpoints:
-            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
-                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+#            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
+#                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+#                                                     1.2*np.median(np.diff(spat_coo_data))))
+            spat_bspl = bspline.bspline(spat_coo_data, nord=4,
+                                        bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
                                                      1.2*np.median(np.diff(spat_coo_data))))
             # TODO: Can we add defaults to bspline_profile so that we
             # don't have to instantiate invvar and profile_basis
@@ -776,7 +779,8 @@ class FlatField(object):
             twod_ivar_data = twod_gpm_data.astype(float)/(twod_sig**2)
             twod_sigrej = 4.0
 
-            poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
+#            poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
+            poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
 #            np.savez_compressed('rmtdict.npz', good_frac=good_frac, npoly=npoly, spat_coo=spat_coo,
 #                                spec_coo=spec_coo, spec_gpm=spec_gpm, spec_coo_data=spec_coo_data,
@@ -795,10 +799,19 @@ class FlatField(object):
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
-                                            poly_basis, inmask=twod_gpm_data, nord=4,
+                                            poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+
+# TODO: Used for testing bspline
+#            np.savez_compressed('slit{0}_twod.npz'.format(slit+1),
+#                                twod_spat_coo_data=twod_spat_coo_data,
+#                                twod_spec_coo_data=twod_spec_coo_data,
+#                                twod_flat_data=twod_flat_data,
+#                                twod_ivar_data=twod_ivar_data,
+#                                poly_basis=poly_basis,
+#                                twod_gpm_data=twod_gpm_data)
 
             if debug:
                 # TODO: Make a plot that shows the residuals in the 2D
