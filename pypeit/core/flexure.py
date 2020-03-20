@@ -23,14 +23,18 @@ from pypeit.core import qa
 
 from IPython import embed
 
+
 def flexure_spat_shift(sciimg, slits, debug=False):
     """
+    Calculate a rigid flexure shift in the spatial dimension
+    between the slitmask and the science image.
 
     Args:
-        sciimg:
+        sciimg (`np.ndarray`_):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
     Returns:
+        float:  The flexure shift
 
     """
 
