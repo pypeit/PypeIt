@@ -666,7 +666,13 @@ class Calibrations(object):
             flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
                 det=self.det, slits=self.slits, wavetilts=self.wavetilts)
             # Run
-            self.flatimages = flatField.run(show=self.show)
+            self.flatimages = flatField.run(show=self.show) #, debug=True)
+
+            # Objects should point to the same data
+            # TODO: Remove these lines once we're sure the coding is
+            # correct so that they're not tripped.
+            # assert self.slits is self.flatField.slits
+            # assert self.tilts_dict is self.flatField.tilts_dict
 
             # Save to Masters
             if self.save_masters:
