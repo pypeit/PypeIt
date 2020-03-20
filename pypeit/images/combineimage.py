@@ -175,7 +175,6 @@ class CombineImage(object):
                 print(msgs.indent() + strout.format(os.path.split(file)[1], " ".join(lampstat[ff].split("_"))))
             print(msgs.indent() + '-'*maxlen + "  " + '-'*maxlmp)
             embed(header='')
-            msgs.error("Unable to combine frames with different lamp status")
 
         # Coadd them
         weights = np.ones(nimages)/float(nimages)
