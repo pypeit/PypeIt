@@ -955,6 +955,12 @@ class DataContainer:
                         d[key] = _hdu[e].data[key][0] if (single_row and _hdu[e].data[key].ndim > 1) else _hdu[e].data[key]
                         if transpose_table_arrays:
                             d[key] = d[key].T
+
+        # Hack to expunge charray which are basically deprecated and cause trouble..
+        for key in d:
+            if isinstance(d[key], np.chararray):
+                d[key] = np.asarray(d[key])
+        # Return
         return d, dm_version_passed, dm_type_passed
 
     def __getattr__(self, item):

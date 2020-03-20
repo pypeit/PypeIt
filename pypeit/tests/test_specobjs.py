@@ -89,7 +89,7 @@ def test_io(sobj1, sobj2, sobj3):
     # Detector
     sobjs[0]['DETECTOR'] = tstutils.get_kastb_detector()
     tmp = tstutils.get_kastb_detector()
-    pytest.set_trace()
+
     tmp['det'] = 2
     sobjs[1]['DETECTOR'] = tmp
     # Write
@@ -108,8 +108,8 @@ def test_io(sobj1, sobj2, sobj3):
     assert _sobjs.nobj == 3
     assert np.array_equal(sobjs[0].BOX_WAVE, _sobjs[0].BOX_WAVE)
     assert np.array_equal(sobjs[1].BOX_WAVE, _sobjs[1].BOX_WAVE)
-    _sobjs.write_to_fits(header, ofile, overwrite=True, debug=True)
-    '''
+    _sobjs.write_to_fits(header, ofile, overwrite=True)
+
     # Detector
     assert _sobjs[0].DETECTOR is not None, '1st object started with Detector'
     assert _sobjs[1].DETECTOR is not None, '2nd object has DET=1 so should get decorated'
@@ -120,13 +120,11 @@ def test_io(sobj1, sobj2, sobj3):
     sobjs[0]['BOX_WAVE'] = np.arange(2000).astype(float)
     sobjs1[0]['DETECTOR'] = tstutils.get_kastb_detector()
     header1 = fits.PrimaryHDU().header
-    sobjs1.write_to_fits(header1, ofile, overwrite=True, debug=True, update_det=1)
+    sobjs1.write_to_fits(header1, ofile, overwrite=True, update_det=1)
 
     # Test
     _sobjs1 = specobjs.SpecObjs.from_fitsfile(ofile)
     assert _sobjs1.nobj == 3
-    pytest.set_trace()
-    '''
-
+    assert _sobjs1[2].BOX_WAVE.size == 2000
 
     os.remove(ofile)
