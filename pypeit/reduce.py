@@ -266,7 +266,7 @@ class Reduce(object):
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
-                                  manual_extract_dict=manual_extract_dict, debug=True)
+                                  manual_extract_dict=manual_extract_dict)
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
