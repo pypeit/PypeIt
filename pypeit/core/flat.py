@@ -378,14 +378,7 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
             msgs.error('Tweak left edge has failed!  Bad continuous region.')
         i = contiguous_region.stop-1
         if i >= 0 and norm_flat[i-1] > norm_flat[i]:
-            if debug:
-                plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
-                            s=10, color='C3', lw=0)
-                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
-                            lw=0)
-                plt.show()
-            msgs.error('Tweak left edge has failed!  Unexpected illumination profile structure.')
+            msgs.warn('When adjusting left edge, found noisy illumination profile structure.')
         if debug:
             plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
                         color='C3', lw=0)
@@ -439,14 +432,7 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
             msgs.error('Tweak right edge has failed!  Bad continuous region.')
         i = contiguous_region.start
         if i < norm_flat.size-1 and norm_flat[i+1] > norm_flat[i]:
-            if debug:
-                plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
-                            s=10, color='C3', lw=0)
-                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
-                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
-                            lw=0)
-                plt.show()
-            msgs.error('Tweak left edge has failed!  Unexpected illumination profile structure.')
+            msgs.warn('When adjusting right edge, found noisy illumination profile structure.')
         if debug:
             plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
                         color='C3', lw=0)
