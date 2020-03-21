@@ -134,7 +134,7 @@ def main(args):
     #waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
 
     # Grab the slit edges
-    left, right = slits.select_edges(flexure=spec2DObj.flexure)
+    left, right = slits.select_edges(flexure=spec2DObj.spat_flexure)
 
     # Grab the Object
 
