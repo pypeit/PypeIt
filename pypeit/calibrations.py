@@ -692,6 +692,7 @@ class Calibrations(object):
                     self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
                                                   self.spectrograph.spectrograph)
         else:
+            self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
 
         # 4) If either of the two flats are still None, use unity
