@@ -163,7 +163,7 @@ def main(args):
     # Now show each image to a separate channel
 
     # SCIIMG
-    image = spec2DObj.sciimg # Raw science image
+    image = spec2DObj.sciimg  # Processed science image
     (mean, med, sigma) = sigma_clipped_stats(image[spec2DObj.mask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma

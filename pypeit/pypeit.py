@@ -630,18 +630,21 @@ class PypeIt(object):
         # Tack on detector
         for sobj in self.sobjs:
             sobj.DETECTOR = self.sciImg.detector
-        #self.sobjs.PLATESCALE = self.sciImg.detector.platescale  # This should be order dependent
 
         # Construct the Spec2DObj
-        spec2DObj = spec2dobj.Spec2DObj(self.det, self.sciImg.image, self.sciImg.ivar, self.skymodel,
-                                        self.objmodel, self.ivarmodel, waveImg, self.outmask, self.sciImg.detector,
-                                        self.sciImg.spat_flexure)
-
-
+        spec2DObj = spec2dobj.Spec2DObj(det=self.det,
+                                        sciimg=self.sciImg.image,
+                                        ivarraw=self.sciImg.ivar,
+                                        skymodel=self.skymodel,
+                                        objmodel=self.objmodel,
+                                        ivarmodel=self.ivarmodel,
+                                        waveimg=waveImg,
+                                        mask=self.outmask,
+                                        detector=self.sciImg.detector,
+                                        spat_flexure=self.sciImg.spat_flexure)
         # Return
         return spec2DObj, self.sobjs
-        #return self.sciImg.image, self.sciImg.ivar, self.skymodel, self.objmodel, self.ivarmodel, self.outmask, \
-        #       self.sobjs, self.sciImg.detector
+
 
     # TODO: Why not use self.frame?
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
@@ -689,19 +692,12 @@ class PypeIt(object):
         # 2D spectra
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
         update_det = self.par['rdx']['detnum']
-        # Build header?
-        if update_det is None or not os.path.isfile(outfile2d):
-            pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
+        # Build header
+        pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir)
-            hdus = None
-        else:
-            # Load from existing to replace only the new ones
-            embed(header='701')
-            hdus, _ = io.init_hdus(update_det, outfile2d)
-            pri_hdr = None
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det, hdus=hdus)
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
 
 
     def msgs_reset(self):
