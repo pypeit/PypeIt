@@ -690,13 +690,13 @@ class Calibrations(object):
                     # is correct so that they're not tripped.
                     # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
                     # Update the WaveTilts master
-                    self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
-                    self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
-                                                  self.spectrograph.spectrograph)
+                    # MADE ON-THE-SPOT
+                    #self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
+                    #self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
+                    #                              self.spectrograph.spectrograph)
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning
-        # TODO: These will barf if self.wavetilts['tilts'] isn't defined.
         if self.flatimages.pixelflat is None:
             msgs.warn('You are not pixel flat fielding your data!!!')
         if self.flatimages.illumflat is None or not self.par['flatfield']['illumflatten']:
@@ -1056,7 +1056,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']#, 'wave']
         #return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
 

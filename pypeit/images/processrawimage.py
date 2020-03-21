@@ -36,8 +36,8 @@ class ProcessRawImage(object):
             Holds the datasec_img which specifies the amp for each pixel in the
             current self.image image.  This is modified as the image is, i.e.
             orientation and trimming.
-        flexure_shift (float):
-            Holds the flexure shift, if calculated
+        spat_flexure_shift (float):
+            Holds the spatial flexure shift, if calculated
     """
     def __init__(self, rawImage, par, bpm=None):
 
@@ -69,7 +69,7 @@ class ProcessRawImage(object):
         # Attributes
         self.ivar = None
         self.rn2img = None
-        self.flexure_shift = None
+        self.spat_flexure_shift = None
 
         # All possible processing steps
         #  Note these have to match the method names below
@@ -169,7 +169,8 @@ class ProcessRawImage(object):
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps, pixel_flat=None, illum_flat=None, bias=None, slits=None):
+    def process(self, process_steps, pixel_flat=None, illum_flat=None, bias=None,
+                correct_flexure=False, slits=None):
         """
         Process the image
 
@@ -197,20 +198,13 @@ class ProcessRawImage(object):
                 Bias image
             bpm (np.ndarray, optional):
                 Bad pixel mask image
+            slits (:class:`pypeit.slittrace.SlitTrace`, optional):
+                Used to calculate spatial flexure between the image and the slits
 
         Returns:
             :class:`pypeit.images.pypeitimage.PypeItImage`:
 
         """
-        # Calculate flexure?
-        # TODO -- Make this a process step?
-        if self.par['flexure_correct'] and slits is not None:
-            self.flexure_shift = flexure.flexure_spat_shift(self.image, slits)
-            # Build illum_flat
-            # TODO -- do this
-            if illum_flat is not None:
-                pass
-                #_illum_flat = method_to_build_it(illum_flat, self.flexure_shift)
         # For error checking
         steps_copy = process_steps.copy()
         # Get started
@@ -231,6 +225,16 @@ class ProcessRawImage(object):
         if 'apply_gain' in process_steps:
             self.apply_gain()
             steps_copy.remove('apply_gain')
+
+        # This needs to come after trim, orient
+        # Calculate flexure -- May not be used, but always calculated when slits are provided
+        if slits is not None:
+            self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
+        # Build illum_flat here
+        if illum_flat is not None:
+            # TODO -- deal with flexure correction
+            pass
+
         # Flat field
         if 'flatten' in process_steps:
             if pixel_flat is not None:
@@ -247,8 +251,9 @@ class ProcessRawImage(object):
         self.build_ivar()
 
         # Generate a PypeItImage
-        pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img, bpm=bpm,
-                                              detector=self.detector, flexure=self.flexure_shift)
+        pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
+                                              bpm=bpm, detector=self.detector,
+                                              spat_flexure=self.spat_flexure_shift)
         pypeitImage.rawheadlist = self.headarr
 
         # Mask(s)
@@ -386,7 +391,7 @@ class ProcessRawImage(object):
         return ('<{:s}: file={}, steps={}>'.format(
             self.__class__.__name__, self.filename, self.steps))
 
-
+'''
 def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,
                         process_steps=None, bias=None):
     """
@@ -431,5 +436,6 @@ def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,
 
     # Return
     return pypeitImage
+'''
 
 

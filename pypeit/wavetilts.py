@@ -30,7 +30,8 @@ class WaveTilts(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    version = '1.0.0'
+    minimum_versio = '1.0.0'
+    version = '1.1.0'
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
@@ -41,7 +42,7 @@ class WaveTilts(datamodel.DataContainer):
     file_format = 'fits'
 
     datamodel = {
-        'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
+        #'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
         'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit.' \
                        'One set per slit/order (3D array).'),
         'slitcen': dict(otype=np.ndarray, atype=np.floating,
@@ -53,7 +54,7 @@ class WaveTilts(datamodel.DataContainer):
                            desc='Order for spectral fit'),
         'func2d': dict(otype=str,desc='Function used for the 2D fit'),
     }
-    def __init__(self, tilts, coeffs, slitcen, nslit, spat_order, spec_order, func2d):
+    def __init__(self, coeffs, slitcen, nslit, spat_order, spec_order, func2d):
 
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -656,7 +657,7 @@ class BuildWaveTilts(object):
             plt.show()
 
         # Build and return DataContainer
-        tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen':self.slitcen,
+        tilts_dict = {'coeffs':self.coeffs, 'slitcen':self.slitcen, #'tilts':self.final_tilts,
                       'func2d':self.par['func2d'], 'nslit':self.nslits,
                       'spat_order':self.spat_order, 'spec_order':self.spec_order}
         return WaveTilts(**tilts_dict), maskslits

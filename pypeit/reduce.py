@@ -29,9 +29,10 @@ class Reduce(object):
         sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph (pypeit.spectrograph.Spectrograph):
         par (pypeit.par.pyepeitpar.PypeItPar):
-        caliBrate (pypeit.calibrations.Calibrations):
-           This is only used as a container and it must contain the main products
-           of WaveTilts, WaveImage, and EdgeTrace
+        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
+        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+        objtype (str):
+           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
         det (int, optional):
            Detector indice
         setup (str, optional):
@@ -39,8 +40,6 @@ class Reduce(object):
         maskslits (ndarray, optional):
           Specifies masked out slits
           True = Masked
-        objtype (str, optional):
-           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
         show (bool, optional):
            Show plots along the way?
 
@@ -70,9 +69,9 @@ class Reduce(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, sciImg, spectrograph, par, caliBrate,
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, objtype,
                  ir_redux=False, det=1, std_redux=False, show=False,
-                 objtype='science', binning=None, setup=None, maskslits=None):
+                 binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -82,31 +81,31 @@ class Reduce(object):
         self.objtype = objtype
         self.par = par
         # Parse
-        # TODO -- Remove caliBrate
-        self.caliBrate = caliBrate
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
         #      Otherwise you have to keep in mind flexure, tweaking, etc.
-        #self.slits = self.caliBrate.slits
-        self.slits_left, self.slits_right = self.caliBrate.slits.select_edges(flexure=self.sciImg.flexure)
-        self.slits_specmin = self.caliBrate.slits.specmin
-        self.slits_specmax = self.caliBrate.slits.specmax
-        self.nsilts = self.caliBrate.slits.nslits
+
+        # Flexure
+        if objtype == 'science':
+            if 'scienceframe' in self.par['flexure']['spat_frametypes']:
+                spat_flexure_shift = self.sciImg.spat_flexure
+
+        self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.sciImg.flexure)
+        self.slits_specmin = slitTrace.specmin
+        self.slits_specmax = slitTrace.specmax
+        self.nsilts = slitTrace.nslits
         # TODO: We keep creating this image...
-        self.slitmask = self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure)
+        self.slitmask = slitTrace.slit_img(flexure=self.sciImg.flexure)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
-        self.spatial_coo = self.caliBrate.slits.spatial_coordinates(flexure=self.sciImg.flexure)
+        self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.sciImg.flexure)
         self.maskslits = self._get_goodslits(maskslits)
 
         # Tilts
         #   Deal with Flexure
-        if self.sciImg.flexure is not None:
-            self.tilts = self.caliBrate.wavetilts.fit2tiltimg(self.slitmask, flexure=self.sciImg.flexure)
-        else:
-            self.tilts = self.caliBrate.wavetilts['tilts']
+        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=self.sciImg.flexure)
 
         #viewer, ch = ginga.show_image(self.tilts)#, chname=ch_name, clear=clear, wcs_match=True)
         #viewer, ch = ginga.show_image(self.slitmask)#, chname=ch_name, clear=clear, wcs_match=True)
@@ -215,7 +214,7 @@ class Reduce(object):
                 inmask = (self.sciImg.fullmask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                               inmask, self.caliBrate.mswave.image,
+                                               inmask, self.wave_img,
                                                global_sky, self.sciImg.rn2img,
                                                self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)
@@ -226,7 +225,7 @@ class Reduce(object):
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                self.local_skysub_extract(self.caliBrate.mswave.image, global_sky, self.sobjs_obj,
+                self.local_skysub_extract(self.wave_img, global_sky, self.sobjs_obj,
                                           model_noise=(not self.ir_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
@@ -1081,7 +1080,7 @@ class EchelleReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 # TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
-def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
+def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -1093,7 +1092,9 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
         sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
         par (pypeit.par.pyepeitpar.PypeItPar):
-        caliBrate (pypeit.calibrations.Calibrations):
+        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
+        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+
         **kwargs
             Passed to Parent init
 
@@ -1104,7 +1105,7 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     if not np.any(indx):
         msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
-                                                         par, caliBrate, **kwargs)
+                                                         par, slitTrace, waveTilts, **kwargs)
 
 
 

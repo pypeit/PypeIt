@@ -882,7 +882,9 @@ class FlatField(object):
 
         # Update the tilts dictionary if the slit edges were tweaked
         if tweak_slits:
-            self.wavetilts['tilts'] = tweaked_tilts
+            pass
+            # Removed as we should make this on-the-spot
+            #self.wavetilts['tilts'] = tweaked_tilts
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0

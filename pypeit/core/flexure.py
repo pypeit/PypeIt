@@ -24,7 +24,7 @@ from pypeit.core import qa
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False):
+def spat_flexure_shift(sciimg, slits, debug=True):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -37,7 +37,6 @@ def spat_flexure_shift(sciimg, slits, debug=False):
         float:  The flexure shift
 
     """
-
     #slitmask = pixels.tslits2mask(tslits_dict)
     slitmask = slits.slit_img()
     onslits = (slitmask > -1)
@@ -58,9 +57,15 @@ def spat_flexure_shift(sciimg, slits, debug=False):
                                                                                      fit_frac_fwhm=1.5, fwhm=5.0,
                                                                                      cont_frac_fwhm=1.0, cont_samp=30,
                                                                                      nfind=1, debug=debug)
+    # No peak? -- e.g. data fills the entire detector
+    if len(tampl) == 0:
+        msgs.warn('No peak found in spatial flexure.  Assuming there is none..')
+        return 0.
+
+    # Find the peak
     xcorr_max = np.interp(pix_max, np.arange(lags.shape[0]), xcorr_norm)
     lag_max = np.interp(pix_max, np.arange(lags.shape[0]), lags)
-    msgs.info('Flexure compensation ')
+    msgs.info('Spatial flexure measured: {}', lag_max[0])
 
     if debug:
         # Interpolate for bad lines since the fitting code often returns nan

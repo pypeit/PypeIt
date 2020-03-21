@@ -582,6 +582,8 @@ class PypeIt(object):
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
 
+        embed(header='585 of pypeit')
+
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)

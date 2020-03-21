@@ -676,7 +676,7 @@ class FlexurePar(ParSet):
         descr['spec_method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
                           'extraction of objects (not recommended).  ' \
-                          'Options are: None, {0}'.format(', '.join(options['method']))
+                          'Options are: None, {0}'.format(', '.join(options['spec_method']))
 
         defaults['spec_maxshift'] = 20
         dtypes['spec_maxshift'] = [int, float]
@@ -699,7 +699,8 @@ class FlexurePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
+        parkeys = ['spec_method', 'spec_maxshift', 'spectrum',
+                   'spat_frametypes']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
