@@ -39,7 +39,7 @@ sciimg = hdul[1].data
 slits = slittrace.SlitTraceSet.from_file(slits_file)
 tilts = wavetilts.WaveTilts.from_file(tilts_file)
 
-flexure.flexure_spat_shift(sciimg, slits)
+flexure.spat_flexure_shift(sciimg, slits)
 
 embed(header='34')
 
@@ -50,7 +50,7 @@ def test_flex_shift():
     arx_file = pypeit.__path__[0]+'/data/sky_spec/sky_LRISb_600.fits'
     arx_spec = readspec(arx_file)
     # Call
-    flex_dict = wave.flex_shift(obj_spec, arx_spec, mxshft=60)
+    flex_dict = flexure.spec_flex_shift(obj_spec, arx_spec, mxshft=60)
 
 #    # Apply
 #    from scipy import interpolate

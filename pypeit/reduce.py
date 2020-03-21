@@ -81,9 +81,6 @@ class Reduce(object):
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        #self.extraction_par = self.par['reduce']['extraction']
-        #self.wave_par = self.par['calibrations']['wavelengths']
-        #self.flex_par = self.par['flexure']
         # Parse
         # TODO -- Remove caliBrate
         self.caliBrate = caliBrate
@@ -331,7 +328,7 @@ class Reduce(object):
             # TODO -- Should we move these to redux.run()?
             # Flexure correction if this is not a standard star
             if not self.std_redux:
-                self.flexure_correct(self.sobjs, basename)
+                self.spec_flexure_correct(self.sobjs, basename)
             # Heliocentric
             radec = ltu.radec_to_coord((ra, dec))
             self.helio_correct(self.sobjs, radec, obstime)
@@ -500,8 +497,8 @@ class Reduce(object):
 
         return None, None, None, None, None
 
-    def flexure_correct(self, sobjs, basename):
-        """ Correct for flexure
+    def spec_flexure_correct(self, sobjs, basename):
+        """ Correct for spectral flexure
 
         Spectra are modified in place (wavelengths are shifted)
 
@@ -513,12 +510,12 @@ class Reduce(object):
 
         """
 
-        if self.par['flexure']['method'] != 'skip':
-            flex_list = flexure.flexure_obj(sobjs, self.maskslits, self.par['flexure']['method'],
+        if self.par['flexure']['spec_method'] != 'skip':
+            flex_list = flexure.spec_flexure_obj(sobjs, self.maskslits, self.par['flexure']['spec_method'],
                                          self.par['flexure']['spectrum'],
-                                         mxshft=self.par['flexure']['maxshift'])
+                                         mxshft=self.par['flexure']['spec_maxshift'])
             # QA
-            flexure.flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+            flexure.spec_flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
         else:
             msgs.info('Skipping flexure correction.')
 

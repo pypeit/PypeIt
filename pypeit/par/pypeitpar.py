@@ -214,7 +214,7 @@ class ProcessImagesPar(ParSet):
     def __init__(self, overscan=None, overscan_par=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
-                 flexure_correct=None):
+                 ):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -264,11 +264,6 @@ class ProcessImagesPar(ParSet):
         dtypes['satpix'] = str
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
-
-        # Moved to processing_steps
-        defaults['flexure_correct'] = False
-        dtypes['flexure_correct'] = bool
-        descr['flexure_correct'] = 'Perform flexure correction (spatial) on the images'
 
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
@@ -333,7 +328,7 @@ class ProcessImagesPar(ParSet):
                    'combine', 'satpix', 'sigrej', 'n_lohi',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
                    'rmcompact', 'sigclip', 'sigfrac', 'objlim',
-                   'flexure_correct']
+                   ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -645,13 +640,14 @@ class FlatFieldPar(ParSet):
 
 class FlexurePar(ParSet):
     """
-    A parameter set holding the arguments for how to perform the flexure
-    correction.
+    A parameter set holding the arguments for how to perform flexure
+    corrections, both spatial and spectral
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, method=None, maxshift=None, spectrum=None):
+    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None,
+                 spat_frametypes=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -667,17 +663,24 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['method'] = 'skip'
-        options['method'] = FlexurePar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
+        defaults['spat_frametypes'] = []
+        options['spat_frametypes'] = FlexurePar.valid_frametypes()
+        dtypes['spat_frametypes'] = list
+        descr['spat_frametypes'] = 'Frametypes for spatial flexure corrections'
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        defaults['spec_method'] = 'skip'
+        options['spec_method'] = FlexurePar.valid_methods()
+        dtypes['spec_method'] = str
+        descr['spec_method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
                           'extraction of objects (not recommended).  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
-        defaults['maxshift'] = 20
-        dtypes['maxshift'] = [int, float]
-        descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
+        defaults['spec_maxshift'] = 20
+        dtypes['spec_maxshift'] = [int, float]
+        descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
         defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
                                             'paranal_sky.fits')
@@ -696,7 +699,7 @@ class FlexurePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = [ 'method', 'maxshift', 'spectrum' ]
+        parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -708,11 +711,11 @@ class FlexurePar(ParSet):
         return cls(**kwargs)
 
     @staticmethod
-    def valid_frames():
+    def valid_frametypes():
         """
-        Return the valid frame types.
+        Return the valid frame types for spatial flexure corrections
         """
-        return ['pixelflat', 'pinhole']
+        return ['scienceframe']
 
     @staticmethod
     def valid_methods():

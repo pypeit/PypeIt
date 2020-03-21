@@ -24,7 +24,7 @@ from pypeit.core import qa
 from IPython import embed
 
 
-def flexure_spat_shift(sciimg, slits, debug=False):
+def spat_flexure_shift(sciimg, slits, debug=False):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -104,7 +104,7 @@ def load_sky_spectrum(sky_file):
     return sky_spec
 
 
-def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
+def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -280,8 +280,7 @@ def flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     return flex_dict
 
 
-
-def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
+def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
     Args:
@@ -346,7 +345,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
             obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
             # Calculate the shift
-            fdict = flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
+            fdict = spec_flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
             punt = False
             if fdict is None:
                 msgs.warn("Flexure shift calculation failed for this spectrum.")
@@ -398,7 +397,7 @@ def flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
 # TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
 #  AND THIS IS WHY THE CODE IS CRASHING
-def flexure_qa(specobjs, maskslits, basename, det, flex_list,
+def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
                slit_cen=False, out_dir=None):
     """
 
