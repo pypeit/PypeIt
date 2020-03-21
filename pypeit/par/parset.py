@@ -254,6 +254,7 @@ class ParSet(object):
                                                                     key, value, self.options[key]))
         if self.dtype[key] is not None \
                 and not any([ isinstance(value, d) for d in self.dtype[key]]):
+            import pdb; pdb.set_trace()
             raise TypeError('Input value for {0} has incorrect type: {1}.'.format(key, value) +
                             '\nValid types are: {0}'.format(self.dtype[key]))
 
