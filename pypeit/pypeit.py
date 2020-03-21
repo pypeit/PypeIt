@@ -582,12 +582,11 @@ class PypeIt(object):
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
 
-        embed(header='585 of pypeit')
-
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg.sub(buildimage.buildimage_fromlist(
+            self.sciImg = self.sciImg.sub(
+                buildimage.buildimage_fromlist(
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
                 pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat=illum_flat,
@@ -602,15 +601,15 @@ class PypeIt(object):
 
         # Instantiate Reduce object
         # Required for pypeline specific object
-        # TODO -- caliBrate should be replaced by the ~3 primary Objects needed
-        #   once we have the data models in place.
         # At instantiaton, the fullmask in self.sciImg is modified
         self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
-                                           self.par, self.caliBrate,
+                                           self.par, self.caliBrate.slits,
+                                           self.caliBrate.wavetilts,
+                                           self.caliBrate.wv_calib,
+                                           self.objtype,
                                            maskslits=self.caliBrate.slits.mask.copy(),
                                            ir_redux=self.ir_redux,
                                            std_redux=self.std_redux,
-                                           objtype=self.objtype,
                                            setup=self.setup,
                                            show=self.show,
                                            det=det, binning=self.binning)
@@ -622,7 +621,7 @@ class PypeIt(object):
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.redux.run(
+        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, waveImg = self.redux.run(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
@@ -635,7 +634,7 @@ class PypeIt(object):
 
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(self.det, self.sciImg.image, self.sciImg.ivar, self.skymodel,
-                                        self.objmodel, self.ivarmodel, self.outmask, self.sciImg.detector,
+                                        self.objmodel, self.ivarmodel, waveImg, self.outmask, self.sciImg.detector,
                                         self.sciImg.flexure)
 
 

@@ -177,6 +177,7 @@ class BuildWaveImage(object):
         return txt
 
 
+# TODO -- Move this as a method on a WaveCalib DataContainer
 def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     """
     Main algorithm to build the wavelength image
@@ -202,6 +203,7 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     for slit in ok_slits:
         thismask = (slitmask == slit)
         if par['echelle']:
+            embed(header='205 this may be broken..')
             # TODO: Put this in `SlitTraceSet`?
             order, indx = spectrograph.slit2order(slit_spat_pos[slit])
             # evaluate solution

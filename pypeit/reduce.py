@@ -16,6 +16,7 @@ from linetools import utils as ltu
 from pypeit import specobjs
 from pypeit import ginga, msgs
 from pypeit.core import skysub, extract, wave, flexure
+from pypeit import waveimage
 
 from IPython import embed
 
@@ -64,13 +65,18 @@ class Reduce(object):
             Only object finding but no extraction
         sobjs (SpecObsj):
             Final extracted object list with trace corrections applied
+        spat_flexure_shift (float):
+        tilts (`np.ndarray`_):
+            WaveTilts images generated on-the-spot
+        waveImg (`np.ndarray`_):
+            WaveImage image generated on-the-spot
 
     """
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, objtype,
-                 ir_redux=False, det=1, std_redux=False, show=False,
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
+                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -88,24 +94,31 @@ class Reduce(object):
         # Flexure
         if objtype == 'science':
             if 'scienceframe' in self.par['flexure']['spat_frametypes']:
-                spat_flexure_shift = self.sciImg.spat_flexure
+                self.spat_flexure_shift = self.sciImg.spat_flexure
+        else:
+            self.spat_flexure_shift = None
 
-        self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.sciImg.flexure)
+        self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.spat_flexure_shift)
         self.slits_specmin = slitTrace.specmin
         self.slits_specmax = slitTrace.specmax
         self.nsilts = slitTrace.nslits
         # TODO: We keep creating this image...
-        self.slitmask = slitTrace.slit_img(flexure=self.sciImg.flexure)
+        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
-        self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.sciImg.flexure)
+        self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
         self.maskslits = self._get_goodslits(maskslits)
 
         # Tilts
         #   Deal with Flexure
-        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=self.sciImg.flexure)
+        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=self.spat_flexure_shift)
+
+        # Wavelengths
+        self.waveImg = waveimage.build_waveimg(self.spectrograph, self.tilts, slitTrace,
+                                               wv_calib, spat_flexure=self.spat_flexure_shift)
+
 
         #viewer, ch = ginga.show_image(self.tilts)#, chname=ch_name, clear=clear, wcs_match=True)
         #viewer, ch = ginga.show_image(self.slitmask)#, chname=ch_name, clear=clear, wcs_match=True)
@@ -225,7 +238,7 @@ class Reduce(object):
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                self.local_skysub_extract(self.wave_img, global_sky, self.sobjs_obj,
+                self.local_skysub_extract(global_sky, self.sobjs_obj,
                                           model_noise=(not self.ir_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
@@ -333,7 +346,7 @@ class Reduce(object):
             self.helio_correct(self.sobjs, radec, obstime)
 
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveImg
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -482,7 +495,7 @@ class Reduce(object):
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, waveimg, global_sky, sobjs,
+    def local_skysub_extract(self, waveImg, global_sky, sobjs,
                              model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
         """
@@ -694,8 +707,8 @@ class MultiSlitReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
-        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
+        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """
@@ -803,7 +816,7 @@ class MultiSlitReduce(Reduce):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract(self, waveimg, global_sky, sobjs,
+    def local_skysub_extract(self, global_sky, sobjs,
                              spat_pix=None, model_noise=True,
                              show_resids=False,
                              show_profile=False, show=False):
@@ -813,7 +826,6 @@ class MultiSlitReduce(Reduce):
         Wrapper to skysub.local_skysub_extract
 
         Args:
-            waveimg (np.ndarray):
             global_sky (np.ndarray):
             sobjs (:class:`pypeit.specobjs.SpecObjs`):
             spat_pix (np.ndarray, optional):
@@ -826,7 +838,6 @@ class MultiSlitReduce(Reduce):
             tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
 
         """
-        self.waveimg = waveimg
         self.global_sky = global_sky
 
         # get the good slits and assign self.maskslits
@@ -864,7 +875,7 @@ class MultiSlitReduce(Reduce):
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
-                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
+                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveImg,
                     self.global_sky, self.sciImg.rn2img,
                     thismask, self.slits_left[:,slit], self.slits_right[:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix,
@@ -899,8 +910,8 @@ class EchelleReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
-        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
+        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -1013,7 +1024,7 @@ class EchelleReduce(Reduce):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract(self, waveimg, global_sky, sobjs,
+    def local_skysub_extract(self, global_sky, sobjs,
                              spat_pix=None, model_noise=True, min_snr=2.0, fit_fwhm=False,
                              show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
@@ -1022,7 +1033,6 @@ class EchelleReduce(Reduce):
         Wrapper to skysub.local_skysub_extract
 
         Args:
-            waveimg (np.ndarray):
             global_sky (np.ndarray):
             sobjs (:class:`pypeit.specobjs.SpecObjs`):
             spat_pix (np.ndarray, optional):
@@ -1035,7 +1045,6 @@ class EchelleReduce(Reduce):
             tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
 
         """
-        self.waveimg = waveimg
         self.global_sky = global_sky
 
         # TODO: Is this already available from the __init__ or could it have been overwritten?
@@ -1057,7 +1066,7 @@ class EchelleReduce(Reduce):
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
-                                                  self.sciImg.fullmask, self.tilts, self.waveimg,
+                                                  self.sciImg.fullmask, self.tilts, self.waveImg,
                                                   self.global_sky, self.sciImg.rn2img,
                                                   self.nslits, self.slits_left, self.slits_right, self.slitmask,
                                                   sobjs, self.order_vec, spat_pix=spat_pix,
@@ -1080,7 +1089,7 @@ class EchelleReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 # TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
-def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, **kwargs):
+def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -1105,7 +1114,8 @@ def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, **kwargs):
     if not np.any(indx):
         msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
-                                                         par, slitTrace, waveTilts, **kwargs)
+                                                         par, slitTrace,
+                                                         waveTilts, wv_calib, objtype, **kwargs)
 
 
 

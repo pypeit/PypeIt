@@ -78,7 +78,7 @@ class WaveTilts(datamodel.DataContainer):
 
         """
         # TODO -- worry about skipped/broken slits (i.e. maskslits)
-        final_tilts = np.zeros_like(self.tilts)
+        final_tilts = np.zeros_like(slitmask).astype(float)
         for slit in range(self.nslit):
             coeff_out = self.coeffs[:self.spec_order[slit]+1,:self.spat_order[slit]+1,slit]
             _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d, spat_shift=-1*flexure)

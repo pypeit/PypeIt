@@ -47,8 +47,10 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always correct for flexure, starting with default parameters
-        par['flexure']['method'] = 'boxcar'
+        # Always correct for spectral flexure, starting with default parameters
+        par['flexure']['spec_method'] = 'boxcar'
+        # Always correct for spatial flexure on science images
+        par['flexure']['spat_frametypes'] = ['scienceframe']
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
