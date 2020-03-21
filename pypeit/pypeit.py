@@ -635,7 +635,7 @@ class PypeIt(object):
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(self.det, self.sciImg.image, self.sciImg.ivar, self.skymodel,
                                         self.objmodel, self.ivarmodel, waveImg, self.outmask, self.sciImg.detector,
-                                        self.sciImg.flexure)
+                                        self.sciImg.spat_flexure)
 
 
         # Return

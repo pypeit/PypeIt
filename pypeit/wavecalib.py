@@ -18,6 +18,7 @@ from pypeit import masterframe
 from pypeit.core import arc, qa
 from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
+from pypeit import utils
 from pypeit import datamodel
 
 #class WaveCalib(datamodel.DataContainer):
@@ -514,5 +515,56 @@ class WaveCalib(object):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+
+
+# TODO -- Move this as a method on a WaveCalib DataContainer
+def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
+    """
+    Main algorithm to build the wavelength image
+
+    Returns:
+        `numpy.ndarray`_: The wavelength image.
+    """
+    # Setup
+    ok_slits = np.where(np.invert(slits.mask))[0]
+    image = np.zeros_like(tilts)
+    slitmask = slits.slit_img(flexure=spat_flexure)
+
+    par = wv_calib['par']
+    slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
+
+    # If this is echelle print out a status message and do some error checking
+    if par['echelle']:
+        msgs.info('Evaluating 2-d wavelength solution for echelle....')
+        if len(wv_calib['fit2d']['orders']) != len(ok_slits):
+            msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
+
+    # Unpack some 2-d fit parameters if this is echelle
+    for slit in ok_slits:
+        thismask = (slitmask == slit)
+        if par['echelle']:
+            embed(header='205 this may be broken..')
+            # TODO: Put this in `SlitTraceSet`?
+            order, indx = spectrograph.slit2order(slit_spat_pos[slit])
+            # evaluate solution
+            image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
+                                             tilts[thismask],
+                                             wv_calib['fit2d']['func2d'],
+                                             x2=np.ones_like(tilts[thismask])*order,
+                                             minx=wv_calib['fit2d']['min_spec'],
+                                             maxx=wv_calib['fit2d']['max_spec'],
+                                             minx2=wv_calib['fit2d']['min_order'],
+                                             maxx2=wv_calib['fit2d']['max_order'])
+            image[thismask] /= order
+        else:
+            iwv_calib = wv_calib[str(slit)]
+            image[thismask] = utils.func_val(iwv_calib['fitc'], tilts[thismask],
+                                             iwv_calib['function'],
+                                             minx=iwv_calib['fmin'],
+                                             maxx=iwv_calib['fmax'])
+
+    # Return
+    return image
 
 

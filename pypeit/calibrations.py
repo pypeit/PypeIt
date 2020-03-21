@@ -22,7 +22,6 @@ from pypeit import masterframe
 from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
-from pypeit import waveimage
 from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import parse
@@ -803,6 +802,7 @@ class Calibrations(object):
             ndarray: :attr:`mswave` wavelength image
 
         """
+        msgs.error("NO LONGER USED.  GENERATE ON-THE-SPOT with code in pypeit.wavecalib")
         # Check for existing data
         if not self._chk_objs(['wavetilts', 'slits', 'wv_calib']):
             self.mswave = None

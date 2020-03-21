@@ -150,7 +150,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         header['WCS-XIMG'] = waveimg
 
     # Giddy up
-    ch.load_np(chname, img, 'fits', header)
+    ch.load_np(chname, img, 'fits', header, wcs_img=waveimg)
     canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at

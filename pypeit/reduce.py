@@ -16,7 +16,7 @@ from linetools import utils as ltu
 from pypeit import specobjs
 from pypeit import ginga, msgs
 from pypeit.core import skysub, extract, wave, flexure
-from pypeit import waveimage
+from pypeit import wavecalib
 
 from IPython import embed
 
@@ -116,7 +116,7 @@ class Reduce(object):
         self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=self.spat_flexure_shift)
 
         # Wavelengths
-        self.waveImg = waveimage.build_waveimg(self.spectrograph, self.tilts, slitTrace,
+        self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
                                                wv_calib, spat_flexure=self.spat_flexure_shift)
 
 

@@ -38,7 +38,7 @@ class PypeItImage(datamodel.DataContainer):
         crmask (`np.ndarray`_, optional):
         fullmask (`np.ndarray`_, optional):
         detector (:class:`pypeit.images.data_container.DataContainer`):
-        flexure (:obj:`float`, optional):
+        spat_flexure (:obj:`float`, optional):
 
     Attributes:
         hdu_prefix (str, optional):

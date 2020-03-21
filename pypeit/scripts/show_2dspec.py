@@ -130,8 +130,9 @@ def main(args):
     slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
     slits = slittrace.SlitTraceSet.from_file(slit_file)
 
-    wave_key = '{0}_{1:02d}'.format(spec2DObj.head0['ARCMKEY'], args.det)
-    waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
+    # Wavelengths
+    #wave_key = '{0}_{1:02d}'.format(spec2DObj.head0['ARCMKEY'], args.det)
+    #waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
 
     # Grab the slit edges
     left, right = slits.select_edges(flexure=spec2DObj.flexure)
@@ -169,7 +170,7 @@ def main(args):
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg_file, clear=True)
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, left, right)#, slits.id) #, args.det)
@@ -182,7 +183,7 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg_file,
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
@@ -192,7 +193,7 @@ def main(args):
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.mask == 0)  # sky residual map
-    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg_file,
+    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
@@ -202,7 +203,7 @@ def main(args):
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
     image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.mask == 0)
-    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg_file,
+    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
