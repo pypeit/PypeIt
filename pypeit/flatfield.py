@@ -876,7 +876,10 @@ class FlatField(object):
                                         * np.fmax(spec_model[onslit], 1.0)
 
             # Construct the pixel flat
-            self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
+            # TODO -- Are we ok with this change??
+            #self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
+            self.mspixelflat[onslit] = 1.
+            self.mspixelflat[onslit_trimmed] = rawflat[onslit_trimmed]/self.flat_model[onslit_trimmed]
             # TODO: Add some code here to treat the edges and places where fits
             # go bad?
 
@@ -905,27 +908,29 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
         procflat (`np.ndarray`_):
         flat_model (`np.ndarray`_):
         wcs_match (bool, optional):
-        slits (:class:`pypeit.slittrace.SlitTrace`, optional):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
 
     Returns:
 
     """
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
+    left, right = slits.select_edges()
+
     # TODO: Add an option that shows the relevant stuff in a
     # matplotlib window.
-    viewer, ch = ginga.show_image(mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
+    viewer, ch = ginga.show_image(mspixelflat, chname='pixelflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match, clear=True)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right)#,  slits.id)
     viewer, ch = ginga.show_image(msillumflat, chname='illumflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right)#, slits.id)
     viewer, ch = ginga.show_image(procflat, chname='flat', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right)#, slits.id)
     viewer, ch = ginga.show_image(flat_model, chname='flat_model', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right)#, slits.id)
 

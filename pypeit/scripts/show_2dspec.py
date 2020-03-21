@@ -134,6 +134,8 @@ def main(args):
     #waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
 
     # Grab the slit edges
+    if spec2DObj.spat_flexure is not None:
+        msgs.info("Offseting slits by {}".format(spec2DObj.spat_flexure))
     left, right = slits.select_edges(flexure=spec2DObj.spat_flexure)
 
     # Grab the Object
