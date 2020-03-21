@@ -92,11 +92,10 @@ class Reduce(object):
         #      Otherwise you have to keep in mind flexure, tweaking, etc.
 
         # Flexure
+        self.spat_flexure_shift = None
         if objtype == 'science':
             if 'scienceframe' in self.par['flexure']['spat_frametypes']:
                 self.spat_flexure_shift = self.sciImg.spat_flexure
-        else:
-            self.spat_flexure_shift = None
 
         self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.spat_flexure_shift)
         self.slits_specmin = slitTrace.specmin

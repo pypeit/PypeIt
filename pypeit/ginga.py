@@ -146,11 +146,13 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
+    '''
     if waveimg is not None:
         header['WCS-XIMG'] = waveimg
+    '''
 
     # Giddy up
-    ch.load_np(chname, img, 'fits', header, wcs_img=waveimg)
+    ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
     canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at

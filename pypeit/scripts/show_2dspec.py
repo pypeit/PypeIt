@@ -25,7 +25,6 @@ from pypeit import specobjs
 from pypeit.core.parse import get_dnum
 from pypeit.images.maskimage import ImageBitMask
 from pypeit import masterframe
-from pypeit import waveimage
 from pypeit import spec2dobj
 
 
@@ -171,6 +170,7 @@ def main(args):
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
+
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
     ginga.show_slits(viewer, ch, left, right)#, slits.id) #, args.det)
