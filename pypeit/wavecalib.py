@@ -103,7 +103,10 @@ class WaveCalib(object):
         self.par = par
 
         # Optional parameters
-        self.bpm = msarc.mask if msbpm is None else msbpm
+        self.bpm = msbpm
+        if self.bpm is None:
+            if msarc is not None:  # Can be None for load;  will remove this for DataContainer
+                self.bpm = msarc.mask 
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
