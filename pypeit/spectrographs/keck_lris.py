@@ -50,7 +50,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Always correct for spectral flexure, starting with default parameters
         par['flexure']['spec_method'] = 'boxcar'
         # Always correct for spatial flexure on science images
-        par['flexure']['spat_frametypes'] = ['scienceframe']
+        # TODO -- Get Kyle to help me deal with one-element lists.  The following is a hack
+        par['flexure']['spat_frametypes'] = ['scienceframe', '']
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
