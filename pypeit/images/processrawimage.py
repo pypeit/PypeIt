@@ -169,9 +169,7 @@ class ProcessRawImage(object):
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps,
-                flatimages=None,
-                bias=None,
+    def process(self, process_steps, flatimages=None, bias=None,
                 slits=None, debug=False):
         """
         Process the image

@@ -698,44 +698,49 @@ class FlatField(object):
                           + '          Either the slit has many bad pixels, the model of the '
                           'spectral shape is poor, or the illumination profile is very irregular.')
 
-            # Construct the empirical illumination profile
-            _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
-                    = flat.construct_illum_profile(norm_spec, spat_coo_init, median_slit_width[slit],
-                                                   spat_gpm=spat_gpm, spat_samp=spat_samp,
-                                                   illum_iter=illum_iter, illum_rej=illum_rej,
-                                                   debug=debug)
+            # First fit -- With initial slits
+            exit_status, spat_coo_data,  spat_flat_data, spat_bspl, spat_gpm_fit, \
+                spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
+                norm_spec, spat_coo_init, median_slit_width[slit], spat_gpm, spat_samp,
+                illum_rej, sticky, gpm, illum_iter, debug=debug)
 
-            if sticky:
-                # Add rejected pixels to gpm
-                gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
-
-            # Make sure that the normalized and filtered flat is finite!
-            if np.any(np.invert(np.isfinite(spat_flat_data))):
-                msgs.error('Inifinities in slit illumination function computation!')
-
-            # Determine the breakpoint spacing from the sampling of the
-            # spatial coordinates. Use breakpoints at a spacing of a
-            # 1/10th of a pixel, but do not allow a bsp smaller than
-            # the typical sampling. Use the bspline class to determine
-            # the breakpoints:
-#            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
-#                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+            #            # Construct the empirical illumination profile
+#            _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
+#                    = flat.construct_illum_profile(norm_spec, spat_coo_init, median_slit_width[slit],
+#                                                   spat_gpm=spat_gpm, spat_samp=spat_samp,
+#                                                   illum_iter=illum_iter, illum_rej=illum_rej,
+#                                                   debug=debug)
+#
+#            if sticky:
+#                # Add rejected pixels to gpm
+#                gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
+#
+#            # Make sure that the normalized and filtered flat is finite!
+#            if np.any(np.invert(np.isfinite(spat_flat_data))):
+#                msgs.error('Inifinities in slit illumination function computation!')
+#
+#            # Determine the breakpoint spacing from the sampling of the
+#            # spatial coordinates. Use breakpoints at a spacing of a
+#            # 1/10th of a pixel, but do not allow a bsp smaller than
+#            # the typical sampling. Use the bspline class to determine
+#            # the breakpoints:
+#           # spat_bspl = pydl.bspline(spat_coo_data, nord=4,
+#           #                          bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+#           #                                          1.2*np.median(np.diff(spat_coo_data))))
+#            spat_bspl = bspline.bspline(spat_coo_data, nord=4,
+#                                        bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
 #                                                     1.2*np.median(np.diff(spat_coo_data))))
-            spat_bspl = bspline.bspline(spat_coo_data, nord=4,
-                                        bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
-                                                     1.2*np.median(np.diff(spat_coo_data))))
-            # TODO: Can we add defaults to bspline_profile so that we
-            # don't have to instantiate invvar and profile_basis
-            spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-                    = utils.bspline_profile(spat_coo_data, spat_flat_data,
-                                            np.ones_like(spat_flat_data),
-                                            np.ones_like(spat_flat_data), nord=4, upper=5.0,
-                                            lower=5.0, fullbkpt=spat_bspl.breakpoints)
+#            # TODO: Can we add defaults to bspline_profile so that we
+#            # don't have to instantiate invvar and profile_basis
+#            spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
+#                    = utils.bspline_profile(spat_coo_data, spat_flat_data,
+#                                            np.ones_like(spat_flat_data),
+#                                            np.ones_like(spat_flat_data), nord=4, upper=5.0,
+#                                            lower=5.0, fullbkpt=spat_bspl.breakpoints)
+            # TODO -- Move this down
             if exit_status > 1:
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
                           'included in flat-field model for slit {0}!'.format(slit))
-                # Save the nada
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
 
 
             # NOTE: The bspline fit is used to construct the
@@ -748,6 +753,7 @@ class FlatField(object):
             # illumination profiles, if requested
             if tweak_slits:
                 # TODO: Should the tweak be based on the bspline fit?
+                # TODO: Will this break if
                 left_thresh, left_shift, self.slits.left_tweak[:,slit], right_thresh, \
                     right_shift, self.slits.right_tweak[:,slit] \
                         = flat.tweak_slit_edges(self.slits.left_init[:,slit], self.slits.right_init[:,slit],
@@ -768,37 +774,42 @@ class FlatField(object):
                 # Construct the empirical illumination profile
                 # TODO -- Do we need to reconstruct spat_gpm :: JXP says no
                 # TODO -- How about median_slit_width? :: JXP says no
-                _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
-                    = flat.construct_illum_profile(norm_spec, spat_coo_tweak,
-                                                   median_slit_width[slit],
-                                                   spat_gpm=spat_gpm,
-                                                   spat_samp=spat_samp,
-                                                   illum_iter=illum_iter,
-                                                   illum_rej=illum_rej,
-                                                   debug=debug)
-                # TODO -- Include this??
-                #if sticky:
-                #    # Add rejected pixels to gpm
-                #    gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
-                # Re-fit
-                spat_bspl = bspline.bspline(spat_coo_data, nord=4,
-                                            bkspace=np.fmax(1.0 / median_slit_width[slit] / 10.0,
-                                                            1.2 * np.median(np.diff(spat_coo_data))))
-                # TODO: Can we add defaults to bspline_profile so that we
-                # don't have to instantiate invvar and profile_basis
-                spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-                    = utils.bspline_profile(spat_coo_data, spat_flat_data,
-                                            np.ones_like(spat_flat_data),
-                                            np.ones_like(spat_flat_data), nord=4, upper=5.0,
-                                            lower=5.0, fullbkpt=spat_bspl.breakpoints)
-                if exit_status > 1:
-                    msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
-                              'included in flat-field model for slit {0}!'.format(slit))
-                    # Save the nada
-                    self.list_of_spat_bsplines.append(bspline.bspline(None))
+                exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
+                    spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
+                    norm_spec, spat_coo_tweak, median_slit_width[slit], spat_gpm, spat_samp,
+                    illum_rej, sticky, gpm, illum_iter, debug=False)
 
-                # Add the relevant pixels into the new tilts image
-                tweaked_tilts[onslit] = tilts[onslit]
+#                    _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
+#                    = flat.construct_illum_profile(norm_spec, spat_coo_tweak,
+#                                                   median_slit_width[slit],
+#                                                   spat_gpm=spat_gpm,
+#                                                   spat_samp=spat_samp,
+#                                                   illum_iter=illum_iter,
+#                                                   illum_rej=illum_rej,
+#                                                   debug=debug)
+#                # TODO -- Include this??
+#                #if sticky:
+#                #    # Add rejected pixels to gpm
+#                #    gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
+#                # Re-fit
+#                spat_bspl = bspline.bspline(spat_coo_data, nord=4,
+#                                            bkspace=np.fmax(1.0 / median_slit_width[slit] / 10.0,
+#                                                            1.2 * np.median(np.diff(spat_coo_data))))
+#                # TODO: Can we add defaults to bspline_profile so that we
+#                # don't have to instantiate invvar and profile_basis
+#                spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
+#                    = utils.bspline_profile(spat_coo_data, spat_flat_data,
+#                                            np.ones_like(spat_flat_data),
+#                                            np.ones_like(spat_flat_data), nord=4, upper=5.0,
+#                                            lower=5.0, fullbkpt=spat_bspl.breakpoints)
+#                if exit_status > 1:
+#                    msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
+#                              'included in flat-field model for slit {0}!'.format(slit))
+#                    # Save the nada
+#                    self.list_of_spat_bsplines.append(bspline.bspline(None))
+#
+#                # Add the relevant pixels into the new tilts image
+#                #tweaked_tilts[onslit] = tilts[onslit]
                 spat_coo_final = spat_coo_tweak
             else:
                 _slitid_img = slitid_img_init
@@ -844,6 +855,9 @@ class FlatField(object):
                 # TODO -- Fix this for flexure!!
                 self.msillumflat[onslit] = spat_bspl.value(spat_coo_final[onslit])[0]
                 self.list_of_spat_bsplines.append(spat_bspl)
+            else:
+                # Save the nada
+                self.list_of_spat_bsplines.append(bspline.bspline(None))
 
             # ----------------------------------------------------------
             # Fit the 2D residuals of the 1D spectral and spatial fits.
@@ -989,6 +1003,46 @@ class FlatField(object):
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
 
         # TODO: Should we do both of the above for illumflat?
+
+    def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, spat_samp,
+                    illum_rej, sticky, gpm, illum_iter, debug=False):
+
+        # Construct the empirical illumination profile
+        _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
+            = flat.construct_illum_profile(norm_spec, spat_coo, median_slit_width,
+                                           spat_gpm=spat_gpm, spat_samp=spat_samp,
+                                           illum_iter=illum_iter, illum_rej=illum_rej,
+                                           debug=debug)
+
+        if sticky:
+            # Add rejected pixels to gpm
+            gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
+
+        # Make sure that the normalized and filtered flat is finite!
+        if np.any(np.invert(np.isfinite(spat_flat_data))):
+            msgs.error('Inifinities in slit illumination function computation!')
+
+        # Determine the breakpoint spacing from the sampling of the
+        # spatial coordinates. Use breakpoints at a spacing of a
+        # 1/10th of a pixel, but do not allow a bsp smaller than
+        # the typical sampling. Use the bspline class to determine
+        # the breakpoints:
+        #            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
+        #                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+        #                                                     1.2*np.median(np.diff(spat_coo_data))))
+        spat_bspl = bspline.bspline(spat_coo_data, nord=4,
+                                    bkspace=np.fmax(1.0 / median_slit_width / 10.0,
+                                                    1.2 * np.median(np.diff(spat_coo_data))))
+        # TODO: Can we add defaults to bspline_profile so that we
+        # don't have to instantiate invvar and profile_basis
+        spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
+            = utils.bspline_profile(spat_coo_data, spat_flat_data,
+                                    np.ones_like(spat_flat_data),
+                                    np.ones_like(spat_flat_data), nord=4, upper=5.0,
+                                    lower=5.0, fullbkpt=spat_bspl.breakpoints)
+        # Return
+        return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
+               spat_flat_fit, spat_flat_data_raw
 
 
 def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, slits=None):
