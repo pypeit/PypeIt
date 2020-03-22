@@ -89,7 +89,7 @@ class Calibrations(object):
     # think the code won't save masters if they're reused, but allowing
     # save_masters as an argument allows us to make this explicit.
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, save_masters=True,
-                 reuse_masters=False, show=False, flexure_par=None):
+                 reuse_masters=False, show=False):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -115,10 +115,6 @@ class Calibrations(object):
         self.qa_path = qadir
         self.write_qa = qadir is not None
         self.show = show
-
-        # Flexure
-        # TODO -- Have Calibrations take the full par
-        self.flexure_par = flexure_par
 
         # Check that the masters can be reused and/or saved
         #if caldir is None:
@@ -702,7 +698,7 @@ class Calibrations(object):
         # everywhere and print out a warning
         if self.flatimages.pixelflat is None:
             msgs.warn('You are not pixel flat fielding your data!!!')
-        if self.flatimages.illumflat is None or not self.par['flatfield']['illumflatten']:
+        if self.flatimages.illumflat is None:# or not self.par['flatfield']['illumflatten']:
             msgs.warn('You are not illumination flat fielding your data!')
 
         # Cache & return
@@ -964,10 +960,8 @@ class Calibrations(object):
             self.wt_maskslits = np.zeros(self.slits.nslits, dtype=bool)
         else: # Build
             # Flexure
-            if 'tiltframe' in self.flexure_par['spat_frametypes']:
-                _spat_flexure = self.mstilt.spat_flexure
-            else:
-                _spat_flexure = None
+            _spat_flexure = self.mstilt.spat_flexure \
+                if self.par['tiltframe']['process']['spat_flexure_correct'] else None
             # Instantiate
             buildwaveTilts = wavetilts.BuildWaveTilts(
                 self.mstilt, self.slits, self.spectrograph, self.par['tilts'],

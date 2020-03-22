@@ -94,7 +94,7 @@ class Reduce(object):
         # Flexure
         self.spat_flexure_shift = None
         if objtype == 'science':
-            if 'scienceframe' in self.par['flexure']['spat_frametypes']:
+            if self.par['scienceframe']['process']['spat_flexure_correct']:
                 self.spat_flexure_shift = self.sciImg.spat_flexure
         else:
             embed(header='100 of reduce')  # Think through standard without spatial flexure correction
@@ -114,7 +114,7 @@ class Reduce(object):
 
         # Tilts
         #   Deal with Flexure
-        if 'tiltframe' in self.par['flexure']['spat_frametypes']:
+        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
             _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
             # If they both shifted the same, there will be no reason to shift the tilts
             tilt_flexure_shift = _spat_flexure - waveTilts.spat_flexure

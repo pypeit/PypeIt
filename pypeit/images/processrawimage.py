@@ -169,8 +169,11 @@ class ProcessRawImage(object):
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps, pixel_flat=None, illum_flat_fit=None, bias=None,
-                correct_flexure=False, slits=None):
+    def process(self, process_steps,
+                flatimages=None,
+                #pixel_flat=None, illum_flat_fit=None,
+                bias=None,
+                slits=None):
         """
         Process the image
 
@@ -190,11 +193,7 @@ class ProcessRawImage(object):
         Args:
             process_steps (list):
                 List of processing steps
-            pixel_flat (np.ndarray, optional):
-                Pixel flat image
-            illum_flat_fit (:class:`pypeit.bspline.bspline`, optional):
-                if provided, use this bspline fit to construct an illumination flat
-                Requires slits
+            flatimages (:class:`pypeit.flatfield.FlatImages`):
             bias (np.ndarray, optional):
                 Bias image
             bpm (np.ndarray, optional):
@@ -233,17 +232,18 @@ class ProcessRawImage(object):
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
 
         # Generate the illumination flat
-        if illum_flat_fit is not None:
-            if slits is None:
-                msgs.error("Need to provide slits with illum_flat_fit")
+        if self.par['illumflatten']:
+            if flatimages is None or slits is None:
+                msgs.error("Need to provide slits and flatimages to illumination flat")
+            shift = self.spat_flexure_shift if self.par['spat_flexure_correct'] else None
+            illum_flat = flatimages.generate_illumflat(slits, flexure_shift=shift)
         else:
             illum_flat = None
 
         # Flat field
         if 'flatten' in process_steps:
-            if pixel_flat is not None:
-                # TODO -- Correct the illum_flat for flexure
-                self.flatten(pixel_flat, illum_flat=illum_flat, bpm=self.bpm)
+            if flatimages is not None:
+                self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
             # TODO: Print a warning when it is None?
             steps_copy.remove('flatten')
 
@@ -282,7 +282,7 @@ class ProcessRawImage(object):
         Wrapper to flat.flatfield
 
         Args:
-            pixel_flat (np.ndarray):
+            pixel_flat (`np.ndarray`_):
                 Pixel flat image
             illum_flat (np.ndarray, optional):
                 Illumination flat image
@@ -297,6 +297,9 @@ class ProcessRawImage(object):
         if self.steps[step] and (not force):
             msgs.warn("Image was already flat fielded.  Returning the current image")
             return self.image.copy()
+        # Check
+        if pixel_flat is None:
+            msgs.error("You requested flattening but provided no pixel flat!")
         # BPM
         if bpm is None:
             bpm = self.bpm

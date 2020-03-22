@@ -154,8 +154,7 @@ class PypeIt(object):
                                                      caldir=self.calibrations_path,
                                                      qadir=self.qa_path,
                                                      reuse_masters=self.reuse_masters,
-                                                     show=self.show,
-                                                     flexure_par=self.par['flexure'])
+                                                     show=self.show)
         elif self.spectrograph.pypeline in ['IFU']:
             self.caliBrate \
                 = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
@@ -566,30 +565,14 @@ class PypeIt(object):
         # Get the standard trace if need be
         std_trace = self.get_std_trace(self.std_redux, det, std_outfile)
 
-        # TODO: report if illum_flat is None? Done elsewhere, but maybe
-        # want to do so here either only or also.
-
-        # Force the illumination flat to be None if the user doesn't
-        # want to apply the correction.
-        if self.par['calibrations']['flatfield']['illumflatten']:
-            illum_flat_fit = self.caliBrate.flatimages.spat_bspl
-        else:
-            illum_flat_fit = None
-
-        #embed(header='577 of pypeit')
-        #self.caliBrate.flatimages.pixelflat[:] = 1.
-        #illum_flat[:] = 1.
-
-        correct_flexure = self.objtype+'frame' in self.par['flexure']['spat_frametypes']
         # Build Science image
-        embed(header='582 of pypeit')
         sci_files = self.fitstbl.frame_paths(frames)
         self.sciImg = buildimage.buildimage_fromlist(
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
-            pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
+            flatimages=self.caliBrate.flatimages,
+            #pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
             slits=self.caliBrate.slits,  # For flexure correction
-            correct_flexure=correct_flexure,
             ignore_saturation=False)
 
         # Background Image?
@@ -599,8 +582,8 @@ class PypeIt(object):
                 buildimage.buildimage_fromlist(
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
-                pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
-                correct_flexure=correct_flexure,
+                flatimages=self.caliBrate.flatimages,
+                #pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 

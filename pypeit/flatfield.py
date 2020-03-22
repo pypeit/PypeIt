@@ -53,7 +53,8 @@ class FlatImages(datamodel.DataContainer):
         'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='B-spline models for Illumination flat'),
     }
 
-    def __init__(self, procflat, pixelflat, illumflat, flat_model, spat_bsplines):
+    def __init__(self, procflat=None, pixelflat=None, illumflat=None,
+                 flat_model=None, spat_bsplines=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -93,17 +94,27 @@ class FlatImages(datamodel.DataContainer):
         return d
 
     def generate_illumflat(self, slits, flexure_shift=None):
+        """
+
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            flexure_shift (float, optional):
+
+        Returns:
+
+        """
         msillumflat = np.ones_like(self.procflat)
         # Loop
-        for slit in range(self.slits.nslits):
-            _slitid_img = slits.slit_img(slitids=slit, flexure_shift=flexure_shift)
+        for slit in range(slits.nslits):
+            _slitid_img = slits.slit_img(slitids=slit, flexure=flexure_shift)
             onslit = _slitid_img == slit
-            spat_coo = self.slits.spatial_coordinate_image(slitids=slit,
+            spat_coo = slits.spatial_coordinate_image(slitids=slit,
                                                            slitid_img=_slitid_img,
                                                            flexure_shift=flexure_shift)
 
-            msillumflat[onslit] = self.spat_bspl.value(spat_coo[onslit])[0]
+            msillumflat[onslit] = self.spat_bsplines[slit].value(spat_coo[onslit])[0]
         # TODO -- Update the internal one?  Or remove it altogether??
+        return msillumflat
 
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
@@ -279,8 +290,11 @@ class FlatField(object):
             self.show(wcs_match=True)
 
         # Return
-        return FlatImages(self.rawflatimg.image, self.mspixelflat,
-                          self.msillumflat, self.flat_model, np.asarray(self.list_of_spat_bsplines))
+        return FlatImages(procflat=self.rawflatimg.image,
+                          pixelflat=self.mspixelflat,
+                          illumflat=self.msillumflat,
+                          flat_model=self.flat_model,
+                          spat_bsplines=np.asarray(self.list_of_spat_bsplines))
 
     def show(self, wcs_match=True):
         """

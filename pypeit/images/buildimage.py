@@ -96,8 +96,10 @@ class TraceImage(pypeitimage.PypeItImage):
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
-                        bias=None, bpm=None, pixel_flat=None, correct_flexure=False,
-                        illum_flat_fit=None, sigma_clip=False, sigrej=None, maxiters=5,
+                        bias=None, bpm=None,
+                        flatimages=None,
+                        #pixel_flat=None, illum_flat_fit=None,
+                        sigma_clip=False, sigrej=None, maxiters=5,
                         ignore_saturation=True, slits=None):
     """
     Build a PypeItImage from a list of files (and instructions)
@@ -139,9 +141,10 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     process_steps = procimg.set_process_steps(bias, frame_par)
     #
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
-                                   illum_flat_fit=illum_flat_fit, sigma_clip=sigma_clip,
-                                   correct_flexure=correct_flexure,
+    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm,
+                                   #pixel_flat=pixel_flat, illum_flat_fit=illum_flat_fit,
+                                   flatimages=flatimages,
+                                   sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
                                    ignore_saturation=ignore_saturation, slits=slits)
     #
