@@ -196,8 +196,6 @@ class ProcessRawImage(object):
             flatimages (:class:`pypeit.flatfield.FlatImages`):
             bias (np.ndarray, optional):
                 Bias image
-            bpm (np.ndarray, optional):
-                Bad pixel mask image
             slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
                 Used to calculate spatial flexure between the image and the slits
 
@@ -237,6 +235,14 @@ class ProcessRawImage(object):
                 msgs.error("Need to provide slits and flatimages to illumination flat")
             shift = self.spat_flexure_shift if self.par['spat_flexure_correct'] else None
             illum_flat = flatimages.generate_illumflat(slits, flexure_shift=shift)
+            from pypeit import ginga
+            left, right = slits.select_edges(flexure=shift)
+            viewer, ch = ginga.show_image(illum_flat, chname='illum_flat')
+            ginga.show_slits(viewer, ch, left, right)  # , slits.id)
+            #
+            orig_image = self.image.copy()
+            viewer, ch = ginga.show_image(orig_image, chname='orig_image')
+            ginga.show_slits(viewer, ch, left, right)  # , slits.id)
         else:
             illum_flat = None
 
@@ -246,6 +252,10 @@ class ProcessRawImage(object):
                 self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
             # TODO: Print a warning when it is None?
             steps_copy.remove('flatten')
+
+        viewer, ch = ginga.show_image(self.image, chname='image')
+        ginga.show_slits(viewer, ch, left, right)  # , slits.id)
+        embed(header='258 of processrawimage')
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)

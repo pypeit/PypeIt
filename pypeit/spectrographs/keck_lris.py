@@ -47,18 +47,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always correct for spectral flexure, starting with default parameters
-        par['flexure']['spec_method'] = 'boxcar'
-        # Always correct for spatial flexure on science images
-        # TODO -- Get Kyle to help me deal with one-element lists.  The following is a hack
-        par['flexure']['spat_frametypes'] = ['scienceframe', '']
-
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]    # This may be too low for LRISb
         par['calibrations']['traceframe']['exprng'] = [None, 30]
+
+        # Flexure
+        # Always correct for spectral flexure, starting with default parameters
+        par['flexure']['spec_method'] = 'boxcar'
+        # Always correct for spatial flexure on science images
+        # TODO -- Decide whether to make the following defaults
+        #   May not want to do them for LongSlit
+        #par['scienceframe']['process']['spat_flexure_correct'] = True
+        #par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+
         par['scienceframe']['exprng'] = [29, None]
         return par
 

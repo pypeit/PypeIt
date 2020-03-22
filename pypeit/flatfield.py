@@ -764,6 +764,7 @@ class FlatField(object):
                 onslit = _slitid_img == slit
                 spat_coo = self.slits.spatial_coordinate_image(slitids=slit,
                                                                slitid_img=_slitid_img)
+                # TODO -- We need to refit the illum flat here!
 
                 # Add the relevant pixels into the new tilts image
                 tweaked_tilts[onslit] = tilts[onslit]
@@ -807,6 +808,7 @@ class FlatField(object):
             # Construct the illumination profile with the tweaked edges
             # of the slit
             if exit_status <= 1:
+                # TODO -- Fix this for flexure!!
                 self.msillumflat[onslit] = spat_bspl.value(spat_coo[onslit])[0]
 
             # ----------------------------------------------------------
