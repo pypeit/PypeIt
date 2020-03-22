@@ -490,7 +490,7 @@ class SlitTraceSet(datamodel.DataContainer):
         return slitid_img
 
     def spatial_coordinate_image(self, slitids=None, full=False, slitid_img=None, pad=None,
-                                 original=False):
+                                 original=False, flexure_shift=None):
         r"""
         Generate an image with the normalized spatial coordinate
         within each slit.
@@ -540,7 +540,7 @@ class SlitTraceSet(datamodel.DataContainer):
         if full and len(_slitids) > 1:
             msgs.error('For a full image with the slit coordinates, must select a single slit.')
 
-        # Generate the slit ID if it wasn't provided
+        # Generate the slit ID image if it wasn't provided
         if not full:
             if slitid_img is None:
                 slitid_img = self.slit_img(pad=pad, slitids=_slitids, original=original)
@@ -548,7 +548,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 msgs.error('Provided slit ID image does not have the correct shape!')
 
         # Choose the slit edges to use
-        left, right = self.select_edges(original=original)
+        left, right = self.select_edges(original=original, flexure=flexure_shift)
 
         # Slit width
         slitwidth = right - left
@@ -594,7 +594,8 @@ class SlitTraceSet(datamodel.DataContainer):
             `numpy.ndarray`_: Vector with the list of floating point
             spatial coordinates.
         """
-        left, right = self.select_edges(original=original, flexure=None)
+        # TODO -- Confirm it makes sense to pass in flexure
+        left, right = self.select_edges(original=original, flexure=flexure)
         return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
     @staticmethod

@@ -230,6 +230,17 @@ class bspline(datamodel.DataContainer):
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
 
+    def _bundle(self):
+        """
+        Overload for the HDU name
+
+        Returns:
+            list:
+
+        """
+        return super(bspline, self)._bundle(ext='BSPLINE')
+
+
     def copy(self):
         """
         Return a copied instance of the object.

@@ -17,9 +17,7 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
-from pypeit import masterframe
 from pypeit import bspline
-from pypeit import slittrace
 
 from pypeit.par import pypeitpar
 from pypeit import datamodel
@@ -36,7 +34,8 @@ class FlatImages(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    version = '1.0.0'
+    minimum_version = '1.1.0'
+    version = '1.1.0'
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
@@ -51,9 +50,10 @@ class FlatImages(datamodel.DataContainer):
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'illumflat': dict(otype=np.ndarray, atype=np.floating, desc='Illumination flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='B-spline models for Illumination flat'),
     }
 
-    def __init__(self, procflat, pixelflat, illumflat, flat_model):
+    def __init__(self, procflat, pixelflat, illumflat, flat_model, spat_bsplines):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -79,15 +79,48 @@ class FlatImages(datamodel.DataContainer):
             if self[key] is None:
                 continue
             # Array?
-            if self.datamodel[key]['otype'] == np.ndarray:
+            if self.datamodel[key]['otype'] == np.ndarray and key != 'spat_bsplines':
                 tmp = {}
                 tmp[key] = self[key]
                 d.append(tmp)
+            elif key == 'spat_bsplines':
+                # TODO -- Decide whether to name by slit ID. Bring back slitids?
+                for spat_bspl in self[key]:
+                    d.append(dict(bspline=spat_bspl))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
         return d
 
+    def generate_illumflat(self, slits, flexure_shift=None):
+        msillumflat = np.ones_like(self.procflat)
+        # Loop
+        for slit in range(self.slits.nslits):
+            _slitid_img = slits.slit_img(slitids=slit, flexure_shift=flexure_shift)
+            onslit = _slitid_img == slit
+            spat_coo = self.slits.spatial_coordinate_image(slitids=slit,
+                                                           slitid_img=_slitid_img,
+                                                           flexure_shift=flexure_shift)
+
+            msillumflat[onslit] = self.spat_bspl.value(spat_coo[onslit])[0]
+        # TODO -- Update the internal one?  Or remove it altogether??
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
+               hdu_prefix=None):
+        # Grab everything but the bspline's
+        _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
+        # Now the bsplines
+        list_of_bsplines = []
+        for ihdu in hdu:
+            if ihdu.name == 'BSPLINE':
+                ibspl = bspline.bspline.from_hdu(ihdu)
+                if ibspl.version != bspline.bspline.version:
+                    msgs.warn("Your bspline is out of date!!")
+                list_of_bsplines.append(ibspl)
+        # Finish
+        _d['spat_bsplines'] = np.asarray(list_of_bsplines)
+        return _d, dm_version_passed, dm_type_passed
 
 class FlatField(object):
     """
@@ -125,6 +158,7 @@ class FlatField(object):
             Illumination flat
         flat_model (`np.ndarray`_):
             Model of the flat
+        list_of_spat_bsplines (list):
     """
 
     # Frame type is a class attribute
@@ -149,6 +183,7 @@ class FlatField(object):
         self.mspixelflat = None     # Normalized pixel flat
         self.msillumflat = None     # Slit illumination flat
         self.flat_model = None      # Model flat
+        self.list_of_spat_bsplines = None
 
         # Completed steps
         self.steps = []
@@ -245,7 +280,7 @@ class FlatField(object):
 
         # Return
         return FlatImages(self.rawflatimg.image, self.mspixelflat,
-                          self.msillumflat, self.flat_model)
+                          self.msillumflat, self.flat_model, np.asarray(self.list_of_spat_bsplines))
 
     def show(self, wcs_match=True):
         """
@@ -413,6 +448,9 @@ class FlatField(object):
 
         # TODO: The difference between run() and fit() is pretty minimal
         # if we just built rawflatimg here...
+
+        # Init
+        self.list_of_spat_bsplines = []
 
         # Set parameters (for convenience;
         # TODO get rid of this and just use  the parameter values directly
@@ -678,10 +716,13 @@ class FlatField(object):
                                             np.ones_like(spat_flat_data),
                                             np.ones_like(spat_flat_data), nord=4, upper=5.0,
                                             lower=5.0, fullbkpt=spat_bspl.breakpoints)
-            embed(header='674 of flatfield')
             if exit_status > 1:
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
                           'included in flat-field model for slit {0}!'.format(slit))
+                self.list_of_spat_bsplines.append(bspline.bspline(None))
+            else:
+                self.list_of_spat_bsplines.append(spat_bspl)
+
 
             # NOTE: The bspline fit is used to construct the
             # illumination flat within the *tweaked* slit edges, after

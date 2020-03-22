@@ -51,8 +51,8 @@ class CombineImage(object):
         if self.nfiles == 0:
             msgs.error('Combineimage requires a list of files to instantiate')
 
-    def process_one(self, filename, process_steps, bias, pixel_flat=None, illum_flat=None, bpm=None,
-                    slits=None):
+    def process_one(self, filename, process_steps, bias, pixel_flat=None, illum_flat_fit=None,
+                    bpm=None, slits=None, correct_flexure=False):
         """
         Process a single image
 
@@ -79,12 +79,14 @@ class CombineImage(object):
         # Process
         processrawImage = processrawimage.ProcessRawImage(rawImage, self.par, bpm=bpm)
         processedImage = processrawImage.process(process_steps, bias=bias, pixel_flat=pixel_flat,
-                                                 illum_flat=illum_flat, slits=slits)
+                                                 illum_flat_fit=illum_flat_fit, slits=slits,
+                                                 correct_flexure=correct_flexure)
         # Return
         return processedImage
 
-    def run(self, process_steps, bias, pixel_flat=None, illum_flat=None,
+    def run(self, process_steps, bias, pixel_flat=None, illum_flat_fit=None,
             ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5,
+            correct_flexure=False,
             slits=None):
         """
         Generate a PypeItImage from a list of images
@@ -124,7 +126,8 @@ class CombineImage(object):
         for kk, ifile in enumerate(self.files):
             # Process a single image
             pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat=pixel_flat,
-                                           illum_flat=illum_flat, bpm=bpm, slits=slits)
+                                           illum_flat_fit=illum_flat_fit, bpm=bpm, slits=slits,
+                                           correct_flexure=correct_flexure)
             # Are we all done?
             if nimages == 1:
                 return pypeitImage

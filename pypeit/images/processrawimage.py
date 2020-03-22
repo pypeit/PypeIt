@@ -169,7 +169,7 @@ class ProcessRawImage(object):
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps, pixel_flat=None, illum_flat=None, bias=None,
+    def process(self, process_steps, pixel_flat=None, illum_flat_fit=None, bias=None,
                 correct_flexure=False, slits=None):
         """
         Process the image
@@ -192,13 +192,14 @@ class ProcessRawImage(object):
                 List of processing steps
             pixel_flat (np.ndarray, optional):
                 Pixel flat image
-            illum_flat (np.ndarray, optional):
-                Illumination flat
+            illum_flat_fit (:class:`pypeit.bspline.bspline`, optional):
+                if provided, use this bspline fit to construct an illumination flat
+                Requires slits
             bias (np.ndarray, optional):
                 Bias image
             bpm (np.ndarray, optional):
                 Bad pixel mask image
-            slits (:class:`pypeit.slittrace.SlitTrace`, optional):
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
                 Used to calculate spatial flexure between the image and the slits
 
         Returns:
@@ -230,10 +231,13 @@ class ProcessRawImage(object):
         # Calculate flexure -- May not be used, but always calculated when slits are provided
         if slits is not None:
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
-        # Build illum_flat here
-        if illum_flat is not None:
-            # TODO -- deal with flexure correction
-            pass
+
+        # Generate the illumination flat
+        if illum_flat_fit is not None:
+            if slits is None:
+                msgs.error("Need to provide slits with illum_flat_fit")
+        else:
+            illum_flat = None
 
         # Flat field
         if 'flatten' in process_steps:

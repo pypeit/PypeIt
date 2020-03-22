@@ -186,7 +186,13 @@ def test_io():
     assert np.array_equal(_spec_bspl.breakpoints, spec_bspl.breakpoints)
     # Write again
     _spec_bspl.to_file(ofile, overwrite=True)
+
+    # None
+    bspl = bspline.bspline(None)
+    bspl.to_file(ofile, overwrite=True)
+
     os.remove(ofile)
+
 
 def test_profile_spat():
     """
