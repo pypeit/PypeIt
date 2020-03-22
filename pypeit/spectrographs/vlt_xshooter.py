@@ -347,23 +347,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
-                                   0.33141317, 0.38813936, 0.44310197, 0.49637422,
-                                   0.54839496, 0.59948157, 0.65005956, 0.70074477,
-                                   0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
-        return ord_spat_pos
+        return np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
+                         0.33141317, 0.38813936, 0.44310197, 0.49637422,
+                         0.54839496, 0.59948157, 0.65005956, 0.70074477,
+                         0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
 
     @property
     def orders(self):
         return np.arange(26, 10, -1, dtype=int)
-
 
     @property
     def spec_min_max(self):
         spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
         spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
         return np.vstack((spec_min, spec_max))
-
 
     def order_platescale(self, order_vec, binning=None):
         """

@@ -264,8 +264,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 #        return '1,1'
 
     def order_platescale(self, order_vec, binning=None):
-
-
         """
         Returns the plate scale in arcseconds for each order
 
@@ -282,6 +280,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         order_platescale: ndarray, float
 
         """
+        self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return np.full(order_vec.size, 0.05)
         elif '32/mm' in self.dispname:
@@ -291,6 +290,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def norders(self):
+        self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return 4
         elif '32/mm' in self.dispname:
@@ -300,6 +300,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def order_spat_pos(self):
+        self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return np.array([0.050, 0.215, 0.442, 0.759])
         elif '32/mm' in self.dispname:
@@ -309,6 +310,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def orders(self):
+        self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             return np.arange(6,2,-1, dtype=int)
         elif '32/mm' in self.dispname:
@@ -318,6 +320,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def spec_min_max(self):
+        self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             spec_max = np.asarray([1022, 1022, 1022, 1022])
             spec_min = np.asarray([450, 0, 0, 0])

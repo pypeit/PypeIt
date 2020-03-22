@@ -40,35 +40,39 @@ class SkySubGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, outname, det, tslits_dict, axes,
-                 printout=False, runtime=False, resolution=1000):
-        """Controls for the interactive sky regions definition tasks in PypeIt.
+    def __init__(self, canvas, image, frame, outname, det, slits, axes, printout=False,
+                 runtime=False, resolution=1000):
+        """
+        Controls for the interactive sky regions definition tasks in PypeIt.
 
         The main goal of this routine is to interactively select sky background
         regions.
 
-        Args:
-            canvas : Matploltib figure canvas
-                The canvas on which all axes are contained
-            image : AxesImage
-                The image plotted to screen
-            frame : ndarray
-                The image data
-            outname : str
-                The output filename to save the sky regions mask
-            det : int
-                Detector to add a slit on
-            tslits_dict : dict
-                Dictionary containing information about the slit traces
-            axes : dict
-                Dictionary of four Matplotlib axes instances (Main spectrum panel, two for residuals, one for information)
-            printout : bool
-                Should the results be printed to screen
-            runtime : bool
-                Is the GUI being launched during data reduction?
-            resolution : int
-                The resolution of the skysub definitions. It is the number of pixels to divide the
-                 slit width by (i.e. 1000 pixels means a resolution of 0.1% of the slit width).
+        Parameters
+        ----------
+        canvas : Matploltib figure canvas
+            The canvas on which all axes are contained
+        image : AxesImage
+            The image plotted to screen
+        frame : ndarray
+            The image data
+        outname : str
+            The output filename to save the sky regions mask
+        det : int
+            Detector to add a slit on
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Object with the image coordinates of the slit edges
+        axes : dict
+            Dictionary of four Matplotlib axes instances (Main
+            spectrum panel, two for residuals, one for information)
+        printout : bool
+            Should the results be printed to screen
+        runtime : bool
+            Is the GUI being launched during data reduction?
+        resolution : int
+            The resolution of the skysub definitions. It is the
+            number of pixels to divide the slit width by (i.e. 1000
+            pixels means a resolution of 0.1% of the slit width).
         """
         # Store the axes
         self._det = det
@@ -81,8 +85,8 @@ class SkySubGUI(object):
         self._runtime = runtime
         self.axes = axes
         self._currslit = -1
-        self.tslits_dict = tslits_dict
-        self._nslits = tslits_dict['slit_left'].shape[1]
+        self.slits = slits
+        self._nslits = slits.nslits
         self._resolution = int(resolution)
         self._allreg = np.zeros(int(resolution), dtype=np.bool)
         self._specx = np.arange(int(resolution))
@@ -110,7 +114,13 @@ class SkySubGUI(object):
         self.canvas = canvas
 
         # Interaction variables
-        self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
+
+        # Does the user need to provide a response before any other
+        # operation will be permitted? Once the user responds, the
+        # second element of this array provides the action to be
+        # performed.
+        self._respreq = [False, None]
+
         self._qconf = False  # Confirm quit message
         self._changes = False
         self._use_updates = True
@@ -126,34 +136,34 @@ class SkySubGUI(object):
         self.reset_regions()
 
     @classmethod
-    def initialize(cls, det, frame, tslits_dict, outname="skyregions.fits", runtime=False, printout=False):
-        """Initialize the 'ObjFindGUI' window for interactive object tracing
-
-            Args:
-                frame : ndarray
-                    Sky subtracted science image
-                tslits_dict : dict, None
-                    Dictionary containing slit trace information
-                det : int
-                    Detector index
-                printout : bool
-                    Should the results be printed to screen
-                runtime : bool
-                    Is this GUI being launched during a data reduction?
-
-            Returns:
-                ObjFindGUI: Returns an instance of the ObjFindGUI class
+    def initialize(cls, det, frame, slits, outname="skyregions.fits", runtime=False,
+                   printout=False):
         """
-        # This allows the input lord and rord to either be (nspec, nslit) arrays or a single
-        # vectors of size (nspec)
-        if tslits_dict['slit_left'].ndim == 2:
-            nslit = tslits_dict['slit_left'].shape[1]
-        else:
-            nslit = 1
-            tslits_dict['slit_left'] = tslits_dict['slit_left'].reshape((tslits_dict['slit_left'].size, 1))
-            tslits_dict['slit_righ'] = tslits_dict['slit_righ'].reshape((tslits_dict['slit_righ'].size, 1))
-        lordloc = tslits_dict['slit_left']
-        rordloc = tslits_dict['slit_righ']
+        Initialize the 'ObjFindGUI' window for interactive object tracing
+
+        Parameters
+        ----------
+        frame : ndarray
+            Sky subtracted science image
+        slits : :class:`~pypeit.slittrace.SlitTraceSet`
+            Object with the image coordinates of the slit edges
+        det : int
+            Detector index
+        printout : bool
+            Should the results be printed to screen
+        runtime : bool
+            Is this GUI being launched during a data reduction?
+
+        Returns
+        -------
+        srgui : :class:`SkySubGUI`
+            Returns an instance of the :class:`SkySubGUI` class
+        """
+        # NOTE: SlitTraceSet objects always store the left and right
+        # traces as 2D arrays, even if there's only one slit.
+        nslit = slits.nslits
+        lordloc = slits.left
+        rordloc = slits.right
 
         # Determine the scale of the image
         med = np.median(frame)
@@ -184,8 +194,8 @@ class SkySubGUI(object):
         axes = dict(main=ax, info=axinfo)
         # Initialise the object finding window and display to screen
         fig.canvas.set_window_title('PypeIt - Sky regions')
-        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, tslits_dict, axes,
-                          printout=printout, runtime=runtime)
+        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, printout=printout,
+                          runtime=runtime)
         plt.show()
 
         return srgui
@@ -216,18 +226,22 @@ class SkySubGUI(object):
         axcolor = 'lightgoldenrodyellow'
         # Continue with reduction (using updated specobjs)
         ax_cont = plt.axes([0.82, 0.85, 0.15, 0.05])
-        self._ax_cont = Button(ax_cont, "Continue (and save changes)", color=axcolor, hovercolor='y')
+        self._ax_cont = Button(ax_cont, "Continue (and save changes)", color=axcolor,
+                               hovercolor='y')
         self._ax_cont.on_clicked(self.button_cont)
         # Continue with reduction (using original specobjs)
         ax_exit = plt.axes([0.82, 0.79, 0.15, 0.05])
-        self._ax_exit = Button(ax_exit, "Continue (don't save changes)", color=axcolor, hovercolor='y')
+        self._ax_exit = Button(ax_exit, "Continue (don't save changes)", color=axcolor,
+                               hovercolor='y')
         self._ax_exit.on_clicked(self.button_exit)
         # Frame for the sliders
-        self.axes['allslitreg'] = plt.axes([0.82, 0.68, 0.15, 0.04], facecolor='black', title="Assign sky regions to all slits")
+        self.axes['allslitreg'] = plt.axes([0.82, 0.68, 0.15, 0.04], facecolor='black',
+                                           title="Assign sky regions to all slits")
         self.axes['allslitreg'].get_xaxis().set_ticks([])
         self.axes['allslitreg'].get_yaxis().set_ticks([])
         self.axes['allslitreg'].axvspan(0, self._resolution-1, color='lightgrey')
-        self.axes['allslitreg'].set_xlim(-self._resolution/10, self._resolution+self._resolution/10)
+        self.axes['allslitreg'].set_xlim(-self._resolution/10,
+                                         self._resolution + self._resolution/10)
         self.axes['allslitreg'].set_ylim(0, 1)
 
     def button_cont(self, event):
@@ -238,7 +252,8 @@ class SkySubGUI(object):
                 A matplotlib event instance
         """
         self._respreq = [True, "exit_update"]
-        self.update_infobox(message="Are you sure you want to exit and save the newly defined sky regions?", yesno=True)
+        self.update_infobox(message='Are you sure you want to exit and save the newly defined '
+                                    'sky regions?', yesno=True)
 
     def button_exit(self, event):
         """What to do when the 'exit and do not save changes' button is clicked
@@ -248,7 +263,8 @@ class SkySubGUI(object):
                 A matplotlib event instance
         """
         self._respreq = [True, "exit_restore"]
-        self.update_infobox(message="Are you sure you want to exit without saving the  sky regions?", yesno=True)
+        self.update_infobox(message='Are you sure you want to exit without saving the  sky '
+                                    'regions?', yesno=True)
 
     def replot(self):
         """Redraw the entire canvas
@@ -269,21 +285,22 @@ class SkySubGUI(object):
         # Loop through all slits:
         for sl in range(self._nslits):
             # Fill fraction of the slit
-            diff = self.tslits_dict['slit_righ'][:,sl] - self.tslits_dict['slit_left'][:,sl]
+            diff = self.slits.right[:,sl] - self.slits.left[:,sl]
             tmp = np.zeros(self._resolution+2)
             tmp[1:-1] = self._skyreg[sl]
             wl = np.where(tmp[1:] > tmp[:-1])[0]
             wr = np.where(tmp[1:] < tmp[:-1])[0]
             for rr in range(wl.size):
-                left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
-                righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
-                self._fitr.append(self.axes['main'].fill_betweenx(self._spectrace, left, righ, facecolor='red',
-                                                                  alpha=0.5))
+                left = self.slits.left[:, sl] + wl[rr]*diff/(self._resolution-1.0)
+                righ = self.slits.left[:, sl] + wr[rr]*diff/(self._resolution-1.0)
+                self._fitr.append(self.axes['main'].fill_betweenx(self._spectrace, left, righ,
+                                                                  facecolor='red', alpha=0.5))
         # Plot the region on top of the "all slits" panel
         trans = mtransforms.blended_transform_factory(self.axes['allslitreg'].transData,
                                                       self.axes['allslitreg'].transAxes)
         self._fita = self.axes['allslitreg'].fill_between(self._specx, 0, 1, transform=trans,
-                                                          where=self._allreg, facecolor='red', alpha=0.5, zorder=10)
+                                                          where=self._allreg, facecolor='red',
+                                                          alpha=0.5, zorder=10)
 
     def draw_callback(self, event):
         """Draw callback (i.e. everytime the canvas is being drawn/updated)
@@ -306,8 +323,8 @@ class SkySubGUI(object):
         # Find the current slit
         self._currslit = -1
         yv = np.argmin(np.abs(event.ydata-self._spectrace))
-        wsl = np.where((event.xdata > self.tslits_dict['slit_left'][yv, :]) &
-                       (event.xdata < self.tslits_dict['slit_righ'][yv, :]))[0]
+        wsl = np.where((event.xdata > self.slits.left[yv,:]) &
+                       (event.xdata < self.slits.right[yv,:]))[0]
         # Double check there's only one solution
         if wsl.size == 1:
             self._currslit = int(wsl[0])
@@ -434,7 +451,8 @@ class SkySubGUI(object):
         # Check if the user really wants to quit
         if key == 'q' and self._qconf:
             if self._changes:
-                self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
+                self.update_infobox(message='WARNING: There are unsaved changes!!\nPress q '
+                                            'again to exit', yesno=False)
                 self._qconf = True
             else:
                 msgs.bug("Need to change this to kill and return the results to PypeIt")
@@ -475,7 +493,8 @@ class SkySubGUI(object):
                 self.recenter()
         elif key == 'qu' or key == 'qr':
             if self._changes:
-                self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
+                self.update_infobox(message='WARNING: There are unsaved changes!!\nPress q '
+                                            'again to exit', yesno=False)
                 self._qconf = True
             else:
                 plt.close()
@@ -506,19 +525,19 @@ class SkySubGUI(object):
         left_edg, righ_edg = np.zeros((self.nspec, 0)), np.zeros((self.nspec, 0))
         spec_min, spec_max = np.array([]), np.array([])
         for sl in range(self._nslits):
-            diff = self.tslits_dict['slit_righ'][:, sl] - self.tslits_dict['slit_left'][:, sl]
+            diff = self.slits.right[:,sl] - self.slits.left[:,sl]
             tmp = np.zeros(self._resolution+2)
             tmp[1:-1] = self._skyreg[sl]
             wl = np.where(tmp[1:] > tmp[:-1])[0]
             wr = np.where(tmp[1:] < tmp[:-1])[0]
             for rr in range(wl.size):
-                left = self.tslits_dict['slit_left'][:, sl] + wl[rr]*diff/(self._resolution-1.0)
-                righ = self.tslits_dict['slit_left'][:, sl] + wr[rr]*diff/(self._resolution-1.0)
+                left = self.slits.left[:,sl] + wl[rr] * diff / (self._resolution - 1.0)
+                righ = self.slits.left[:,sl] + wr[rr] * diff / (self._resolution - 1.0)
                 left_edg = np.append(left_edg, left[:, np.newaxis], axis=1)
                 righ_edg = np.append(righ_edg, righ[:, np.newaxis], axis=1)
                 nreg += 1
-                spec_min = np.append(spec_min, self.tslits_dict['spec_min'][sl])
-                spec_max = np.append(spec_max, self.tslits_dict['spec_max'][sl])
+                spec_min = np.append(spec_min, self.slits.specmin[sl])
+                spec_max = np.append(spec_max, self.slits.specmax[sl])
         reg_dict = dict(pad=0, slit_left=left_edg, slit_righ=righ_edg, nslits=nreg,
                         nspec=self.nspec, nspat=self.nspat, spec_min=spec_min, spec_max=spec_max)
         return (pixels.tslits2mask(reg_dict) >= 0).astype(np.int)
@@ -547,16 +566,19 @@ class SkySubGUI(object):
         """
         self.axes['info'].clear()
         if default:
-            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options", transform=self.axes['info'].transAxes,
-                          horizontalalignment='center', verticalalignment='center')
+            self.axes['info'].text(0.5, 0.5, "Press '?' to list the available options",
+                                   transform=self.axes['info'].transAxes,
+                                   horizontalalignment='center', verticalalignment='center')
             self.canvas.draw()
             return
         # Display the message
         self.axes['info'].text(0.5, 0.5, message, transform=self.axes['info'].transAxes,
                       horizontalalignment='center', verticalalignment='center')
         if yesno:
-            self.axes['info'].fill_between([0.8, 0.9], 0, 1, facecolor='green', alpha=0.5, transform=self.axes['info'].transAxes)
-            self.axes['info'].fill_between([0.9, 1.0], 0, 1, facecolor='red', alpha=0.5, transform=self.axes['info'].transAxes)
+            self.axes['info'].fill_between([0.8, 0.9], 0, 1, facecolor='green', alpha=0.5,
+                                           transform=self.axes['info'].transAxes)
+            self.axes['info'].fill_between([0.9, 1.0], 0, 1, facecolor='red', alpha=0.5,
+                                           transform=self.axes['info'].transAxes)
             self.axes['info'].text(0.85, 0.5, "YES", transform=self.axes['info'].transAxes,
                           horizontalalignment='center', verticalalignment='center')
             self.axes['info'].text(0.95, 0.5, "NO", transform=self.axes['info'].transAxes,
@@ -570,13 +592,13 @@ class SkySubGUI(object):
         """
         # Figure out the locations of the start values
         ys = np.argmin(np.abs(self._start[1]-self._spectrace))
-        difs = self.tslits_dict['slit_righ'][ys, self._currslit] - self.tslits_dict['slit_left'][ys, self._currslit]
-        sval = (self._start[0]-self.tslits_dict['slit_left'][ys, self._currslit]) / difs
+        difs = self.slits.right[ys,self._currslit] - self.slits.left[ys,self._currslit]
+        sval = (self._start[0] - self.slits.left[ys,self._currslit]) / difs
         sidx = int(round(self._resolution*sval))
         # Figure out the locations of the start values
         yf = np.argmin(np.abs(self._end[1]-self._spectrace))
-        diff = self.tslits_dict['slit_righ'][yf, self._currslit] - self.tslits_dict['slit_left'][yf, self._currslit]
-        fval = (self._end[0]-self.tslits_dict['slit_left'][yf, self._currslit]) / diff
+        diff = self.slits.right[yf,self._currslit] - self.slits.left[yf,self._currslit]
+        fval = (self._end[0] - self.slits.left[yf,self._currslit]) / diff
         fidx = int(round(self._resolution*fval))
         # Switch the indices if needed
         if sidx > fidx:

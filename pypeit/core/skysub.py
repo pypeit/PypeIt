@@ -923,11 +923,13 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
 
-def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, tslits_dict, sobjs, order_vec,
-                             spat_pix=None, fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
-                             std=False, prof_nsigma=None, niter=4, box_rad_order=7, sigrej=3.5, bkpts_optimal=True,
-                             sn_gauss=4.0, model_full_slit=False, model_noise=True, debug_bkpts=False,
-                             show_profile=False, show_resids=False, show_fwhm=False):
+def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, norders,
+                             left, right, slitmask, sobjs, order_vec, spat_pix=None,
+                             fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0,
+                             trim_edg=(3,3), std=False, prof_nsigma=None, niter=4, box_rad_order=7,
+                             sigrej=3.5, bkpts_optimal=True, sn_gauss=4.0, model_full_slit=False,
+                             model_noise=True, debug_bkpts=False, show_profile=False,
+                             show_resids=False, show_fwhm=False):
     """
     Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
 
@@ -939,7 +941,18 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
         waveimg:
         global_sky:
         rn2img:
-        tslits_dict:
+        norders (:obj:`int`):
+            Number of echelle orders
+        left (`numpy.ndarray`_):
+            Spatial-pixel coordinates for the left edges of each
+            order.
+        right (`numpy.ndarray`_):
+            Spatial-pixel coordinates for the right edges of each
+            order.
+        slitmask (`numpy.ndarray`_):
+            Image identifying the 0-indexed order associated with
+            each pixel. Pixels with -1 are not associatead with any
+            order.
         sobjs:
         order_vec:
         spat_pix:
@@ -972,7 +985,6 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
     # Allocate the images that are needed
     # Initialize to mask in case no objects were found
-    slitmask = pixels.tslits2mask(tslits_dict)
     outmask = np.copy(mask)
     extractmask = (mask == 0)
     # TODO case of no objects found should be properly dealt with by local_skysub_extract
@@ -984,7 +996,6 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
     ivarmodel = np.copy(sciivar)
     sobjs = sobjs.copy()
 
-    norders = tslits_dict['nslits']
     slit_vec = np.arange(norders)
 
     if (np.sum(sobjs.sign > 0) % norders) == 0:
@@ -1089,7 +1100,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
         # Local sky subtraction and extraction
         skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] = local_skysub_extract(
             sciimg, sciivar, tilts, waveimg, global_sky,rn2img, thismask,
-            tslits_dict['slit_left'][:,iord],tslits_dict['slit_righ'][:, iord], sobjs[thisobj], spat_pix=spat_pix,
+            left[:,iord], right[:,iord], sobjs[thisobj], spat_pix=spat_pix,
             inmask=inmask,std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg,
             prof_nsigma=prof_nsigma, niter=niter, box_rad=box_rad_order[iord], sigrej=sigrej, bkpts_optimal=bkpts_optimal,
             sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debug_bkpts,

@@ -23,7 +23,8 @@ def parser(options=None):
                         help='If providing a pypeit file, use the trace images for this '
                              'calibration group.  If None, use the first calibration group.')
     parser.add_argument('-d', '--detector', default=None, type=int,
-                        help='Only analyze the specified detector; otherwise analyze all.')
+                        help='Only analyze the specified detector; otherwise analyze all or '
+                             'detectors selected by the pypeit file, if provided.')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier, which is only used if providing'
                              'files directly: {0}'.format(', '.join(valid_spectrographs())))
@@ -67,6 +68,7 @@ def main(args):
                                      if args.redux_path is None else args.redux_path)
 
         rdx = PypeIt(pypeit_file, redux_path=redux_path)
+        detectors = rdx.par['rdx']['detnum'] if args.detector is None else args.detectors
         # Save the spectrograph
         spec = rdx.spectrograph
         # Get the calibration group to use
@@ -95,6 +97,7 @@ def main(args):
         # Set the QA path
         qa_path = rdx.qa_path
     else:
+        detectors = args.detector
         spec = load_spectrograph(args.spectrograph)
         master_key_base = 'A_1'
         binning = '1,1' if args.binning is None else args.binning
@@ -111,8 +114,11 @@ def main(args):
 
         # Set the QA path
         qa_path = os.path.join(os.path.abspath(os.path.split(files[0])[0]), 'QA')
-    
-    detectors = np.arange(spec.ndet)+1 if args.detector is None else [args.detector]
+
+    if detectors is None: 
+        detectors = np.arange(spec.ndet)+1
+    if isinstance(detectors, int):
+        detectors = [detectors]
     master_dir = os.path.join(redux_path, args.master_dir)
     for det in detectors:
         # Master keyword for output file name
@@ -140,7 +146,10 @@ def main(args):
                                        auto=True, debug=args.debug, show_stages=args.show,
                                        qa_path=qa_path)
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
+        # Write the MasterEdges file
         edges.save()
+        # Write the MasterSlits file
+        edges.get_slits().to_master()
 
     return 0
 

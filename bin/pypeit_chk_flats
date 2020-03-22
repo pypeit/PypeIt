@@ -4,8 +4,6 @@
 Show the trace image in a Ginga window with edges
 """
 
-import pypeit.scripts.chk_flats as chk_flats
-
+from pypeit.scripts import chk_flats
 if __name__ == '__main__':
-    args = chk_flats.parser()
-    chk_flats.main(args)
+    chk_flats.main(chk_flats.parser())

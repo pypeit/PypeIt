@@ -31,7 +31,8 @@ class WaveTilts(masterframe.MasterFrame):
 
     Args:
         msarc (ndarray): Arc image
-        tslits_dict (dict or None): dict from TraceSlits class (e.g. slitpix)
+        slits (:class:`pypeit.edgetrace.SlitTraceSet`, None):
+            Slit edges
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         par (:class:`pypeit.par.pypeitpar.WaveTiltsPar` or None):
@@ -104,7 +105,7 @@ class WaveTilts(masterframe.MasterFrame):
         return slf
 
     # TODO This needs to be modified to take an inmask
-    def __init__(self, msarc, tslits_dict, spectrograph, par, wavepar, det=1, master_key=None,
+    def __init__(self, msarc, slits, spectrograph, par, wavepar, det=1, master_key=None,
                  master_dir=None, reuse_masters=False, qa_path=None, msbpm=None):
 
         # TODO: Perform type checking
@@ -117,7 +118,7 @@ class WaveTilts(masterframe.MasterFrame):
                                          master_key=master_key, reuse_masters=reuse_masters)
 
         self.msarc = msarc
-        self.tslits_dict = tslits_dict
+        self.slits = slits
         self.msbpm = msbpm
         self.det = det
         self.qa_path = qa_path
@@ -134,16 +135,20 @@ class WaveTilts(masterframe.MasterFrame):
         # code needs for execution. This also deals with arcimages that
         # have a different binning then the trace images used to defined
         # the slits
-        if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
+        if self.slits is not None and self.msarc is not None:
+            # NOTE: This uses the interneral definition of `pad`
+            self.slitmask_science = self.slits.slit_img()
             gpm = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
-            self.nslits = self.tslits_dict['slit_left'].shape[1]
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_left'])
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slit_righ'])
-            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science, self.tslits_dict['slitcen'])
+            self.nslits = self.slits.nslits
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+                                                  self.slits.left)
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+                                                  self.slits.right)
+            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
+                                                  self.slits.center)
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.msarc.image < self.nonlinear_counts)
         else:
@@ -726,8 +731,8 @@ class WaveTilts(masterframe.MasterFrame):
 
         viewer, ch = ginga.show_image(self.arcimg*(self.slitmask == slit), chname='Tilts')
         ginga.show_tilts(viewer, ch, self.trace_dict,
-                         sedges=(self.tslits_dict['slit_left'][:,slit],
-                         self.tslits_dict['slit_righ'][:,slit]), points=True, clear_canvas=True)
+                         sedges=(self.slits.left[:,slit], self.slits.right[:,slit]), points=True,
+                         clear_canvas=True)
 
     def __repr__(self):
         # Generate sets string
