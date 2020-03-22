@@ -319,7 +319,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                               bpm=np.invert(sub_inmask.astype(bool)),
                               trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm,
                               maxdev=maxdev, niter=6, idx=str(iline), debug=show_tracefits,
-                              xmin=0.0, xmax=float(nsub - 1))
+                              xmin=0.0, xmax=float(nsub - 1), flavor='tilts')
 
         # Update the spatial positions to include based on the fitted
         # line trace positions
@@ -537,6 +537,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     -------
 
     """
+    #show_tracefits = True
+    #debug_pca = True
     # TODO: Explain procedure in docstring
 
     # TODO: Document where these come from.

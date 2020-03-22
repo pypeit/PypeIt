@@ -126,7 +126,6 @@ class Reduce(object):
         self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
                                                wv_calib, spat_flexure=self.spat_flexure_shift)
 
-
         #viewer, ch = ginga.show_image(self.tilts)#, chname=ch_name, clear=clear, wcs_match=True)
         #viewer, ch = ginga.show_image(self.slitmask)#, chname=ch_name, clear=clear, wcs_match=True)
         #viewer, ch = ginga.show_image(self.sciImg.fullmask)#, chname=ch_name, clear=clear, wcs_match=True)
@@ -470,7 +469,6 @@ class Reduce(object):
         #left, right = self.slits.select_edges()
 
         # Loop on slits
-        show_fit = True
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
             thismask = (self.slitmask == slit)
@@ -483,7 +481,6 @@ class Reduce(object):
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
-            embed(header='486 of reduce')
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True

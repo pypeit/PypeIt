@@ -574,9 +574,9 @@ class PypeIt(object):
         # TODO: report if illum_flat is None? Done elsewhere, but maybe
         # want to do so here either only or also.
 
-        embed(header='577 of pypeit')
+        #embed(header='577 of pypeit')
         #self.caliBrate.flatimages.pixelflat[:] = 1.
-        illum_flat[:] = 1.
+        #illum_flat[:] = 1.
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
@@ -601,9 +601,9 @@ class PypeIt(object):
         # Do this in Reduce where flexure is dealt with
         #self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure))
 
-        embed(header='600 of pypeit')
-        self.caliBrate.slits.mask[:] = True
-        self.caliBrate.slits.mask[4] = False
+        #embed(header='600 of pypeit')
+        #self.caliBrate.slits.mask[:] = True
+        #self.caliBrate.slits.mask[4] = False
 
         # For QA on crash
         msgs.sciexp = self.sciImg

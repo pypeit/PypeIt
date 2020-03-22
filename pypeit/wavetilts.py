@@ -351,7 +351,8 @@ class BuildWaveTilts(object):
 #        return tilt_fit_dict['coeff2']
         return self.all_fit_dict[slit]['coeff2']
 
-    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
+    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen,
+                    debug_pca=False, show_tracefits=False):
         """
         Trace the tilts
 
@@ -382,8 +383,8 @@ class BuildWaveTilts(object):
                                            inmask=self.gpm, fwhm=self.wavepar['fwhm'],
                                            spat_order=self.par['spat_order'],
                                            maxdev_tracefit=self.par['maxdev_tracefit'],
-                                           sigrej_trace=self.par['sigrej_trace'])
-                                           #, debug_pca=True, show_tracefits=True)
+                                           sigrej_trace=self.par['sigrej_trace'],
+                                           debug_pca=debug_pca, show_tracefits=show_tracefits)
 
         # Return
         self.steps.append(inspect.stack()[0][3])
@@ -546,6 +547,10 @@ class BuildWaveTilts(object):
         if maskslits is None:
             maskslits = np.zeros(self.nslits, dtype=bool)
 
+        #embed(header='549')
+        #maskslits[:] = True
+        #maskslits[4] = False
+
         # Extract the arc spectra for all slits
         self.arccen, self.arccen_bpm, self.arc_maskslit = self.extract_arcs()
 
@@ -591,11 +596,10 @@ class BuildWaveTilts(object):
         self.spec_order = np.zeros(self.nslits, dtype=int)
 
         # TODO sort out show methods for debugging
-        #if show:
-        #    viewer,ch = ginga.show_image(self.mstilt*(self.slitmask > -1),chname='tilts')
+        if show:
+            viewer,ch = ginga.show_image(self.mstilt.image*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
-        embed(header='598 of wavetilts')
         for slit in gdslits:
             msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.nslits-1))
             # Identify lines for tracing tilts
@@ -619,8 +623,8 @@ class BuildWaveTilts(object):
 
             # TODO: Show the traces before running the 2D fit
 
-            #if show:
-            #    ginga.show_tilts(viewer, ch, self.trace_dict)
+            if show:
+                ginga.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
@@ -798,10 +802,11 @@ class BuildWaveTilts(object):
             Use 'ginga' to display to an RC Ginga.
 
         """
+        left, right = self.slits.select_edges()
 
         viewer, ch = ginga.show_image(self.arcimg*(self.slitmask == slit), chname='Tilts')
         ginga.show_tilts(viewer, ch, self.trace_dict,
-                         sedges=(self.slits.left[:,slit], self.slits.right[:,slit]), points=True,
+                         sedges=(left[:,slit], right[:,slit]), points=True,
                          clear_canvas=True)
 
     def __repr__(self):
