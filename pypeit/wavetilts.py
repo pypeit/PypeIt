@@ -53,8 +53,9 @@ class WaveTilts(datamodel.DataContainer):
         'spec_order': dict(otype=np.ndarray, atype=np.integer,
                            desc='Order for spectral fit'),
         'func2d': dict(otype=str,desc='Function used for the 2D fit'),
+        'spat_flexure': dict(otype=float, desc='Flexure shift from the input TiltImage'),
     }
-    def __init__(self, coeffs, slitcen, nslit, spat_order, spec_order, func2d):
+    def __init__(self, coeffs, slitcen, nslit, spat_order, spec_order, func2d, spat_flexure):
 
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -97,7 +98,7 @@ class BuildWaveTilts(object):
     Class to guide slit/order tracing
 
     Args:
-        mstilt (:class:`pypeit.tilitimage.TiltImage`): Tilt image
+        mstilt (:class:`pypeit.images.buildimage.TiltImage`): Tilt image
         slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
             Slit edges
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
@@ -113,6 +114,9 @@ class BuildWaveTilts(object):
             Bad pixel mask.  If not provided, a dummy array with no
             masking is generated.
         master_key (:obj:`str`, optional):  For naming QA only
+        spat_flexure (float, optional):
+            If input, the slitmask and slit edges are shifted prior
+            to tilt analysis.
 
 
     Attributes:
@@ -162,8 +166,8 @@ class BuildWaveTilts(object):
 #        return slf
 
     # TODO This needs to be modified to take an inmask
-    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None, msbpm=None,
-                 master_key=None):
+    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None,
+                 msbpm=None, master_key=None, spat_flexure=None):
 
         # TODO: Perform type checking
         self.spectrograph = spectrograph
@@ -176,6 +180,7 @@ class BuildWaveTilts(object):
         self.det = det
         self.qa_path = qa_path
         self.master_key = master_key
+        self.spat_flexure = spat_flexure
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
@@ -192,14 +197,14 @@ class BuildWaveTilts(object):
         if self.slits is not None and self.mstilt is not None:
             # NOTE: This uses the interneral definition of `pad`
             # TODO -- This needs to deal with flexure
-            self.slitmask_science = self.slits.slit_img()
+            self.slitmask_science = self.slits.slit_img(flexure=self.spat_flexure)
             gpm = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.mstilt.image.shape
             self.nslits = self.slits.nslits
             # Grab left, right and resize as need be
-            left, right = self.slits.select_edges()
+            left, right = self.slits.select_edges(self.spat_flexure)
             self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
             self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (left+right)/2)
@@ -590,6 +595,7 @@ class BuildWaveTilts(object):
         #    viewer,ch = ginga.show_image(self.mstilt*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
+        embed(header='598 of wavetilts')
         for slit in gdslits:
             msgs.info('Computing tilts for slit {0}/{1}'.format(slit, self.nslits-1))
             # Identify lines for tracing tilts
@@ -661,7 +667,8 @@ class BuildWaveTilts(object):
         # Build and return DataContainer
         tilts_dict = {'coeffs':self.coeffs, 'slitcen':self.slitcen, #'tilts':self.final_tilts,
                       'func2d':self.par['func2d'], 'nslit':self.nslits,
-                      'spat_order':self.spat_order, 'spec_order':self.spec_order}
+                      'spat_order':self.spat_order, 'spec_order':self.spec_order,
+                      'spat_flexure': self.spat_flexure}
         return WaveTilts(**tilts_dict), maskslits
 
 #    def save(self, outfile, master_dir, overwrite=True):

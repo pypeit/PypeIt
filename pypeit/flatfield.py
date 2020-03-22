@@ -102,7 +102,7 @@ class FlatField(object):
             The `Spectrograph` instance that sets the instrument used to
             take the observations.  See usage by
             :class:`pypeit.processimages.ProcessImages` base class.
-        par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
             The parameters used to type and process the flat frames.
         files (:obj:`list`, optional):
             The list of files to process.  Can be an empty list.
@@ -118,12 +118,12 @@ class FlatField(object):
             :class:`pypeit.wavetilts.WaveTilts`.
 
     Attributes:
-        rawflatimg (PypeItImage):
-        mspixelflat (ndarray):
+        rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        mspixelflat (`np.ndarray`_):
             Normalized flat
-        msillumflat (ndarray):
+        msillumflat (`np.ndarray`_):
             Illumination flat
-        flat_model (ndarray):
+        flat_model (`np.ndarray`_):
             Model of the flat
     """
 
@@ -539,6 +539,7 @@ class FlatField(object):
             # Collapse the slit spatially and fit the spectral function
 
             # Create the tilts image for this slit
+            # TODO -- Shift back if tilt image was flexure corrected
             tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit],
                                         self.wavetilts['func2d'])
             # Convert the tilt image to an image with the spectral pixel index

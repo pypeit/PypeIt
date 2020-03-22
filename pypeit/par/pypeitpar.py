@@ -717,7 +717,7 @@ class FlexurePar(ParSet):
         Return the valid frame types for spatial flexure corrections
         """
         # TODO -- Get Kyle to help me deal with one-element lists.  The following is a hack
-        return ['scienceframe', '']
+        return ['scienceframe', 'tiltframe', '']  # tiltframe is experimental!
 
     @staticmethod
     def valid_methods():

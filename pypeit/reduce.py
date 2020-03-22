@@ -96,6 +96,8 @@ class Reduce(object):
         if objtype == 'science':
             if 'scienceframe' in self.par['flexure']['spat_frametypes']:
                 self.spat_flexure_shift = self.sciImg.spat_flexure
+        else:
+            embed(header='100 of reduce')  # Think through standard without spatial flexure correction
 
         self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.spat_flexure_shift)
         self.slits_specmin = slitTrace.specmin
@@ -112,7 +114,13 @@ class Reduce(object):
 
         # Tilts
         #   Deal with Flexure
-        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=self.spat_flexure_shift)
+        if 'tiltframe' in self.par['flexure']['spat_frametypes']:
+            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            # If they both shifted the same, there will be no reason to shift the tilts
+            tilt_flexure_shift = _spat_flexure - waveTilts.spat_flexure
+        else:
+            tilt_flexure_shift = self.spat_flexure_shift
+        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift) #self.spat_flexure_shift)
 
         # Wavelengths
         self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
@@ -462,6 +470,7 @@ class Reduce(object):
         #left, right = self.slits.select_edges()
 
         # Loop on slits
+        show_fit = True
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
             thismask = (self.slitmask == slit)
@@ -474,6 +483,7 @@ class Reduce(object):
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
+            embed(header='486 of reduce')
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.maskslits[slit] = True

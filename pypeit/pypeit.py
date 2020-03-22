@@ -154,7 +154,8 @@ class PypeIt(object):
                                                      caldir=self.calibrations_path,
                                                      qadir=self.qa_path,
                                                      reuse_masters=self.reuse_masters,
-                                                     show=self.show)
+                                                     show=self.show,
+                                                     flexure_par=self.par['flexure'])
         elif self.spectrograph.pypeline in ['IFU']:
             self.caliBrate \
                 = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
@@ -573,6 +574,10 @@ class PypeIt(object):
         # TODO: report if illum_flat is None? Done elsewhere, but maybe
         # want to do so here either only or also.
 
+        embed(header='577 of pypeit')
+        #self.caliBrate.flatimages.pixelflat[:] = 1.
+        illum_flat[:] = 1.
+
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
         self.sciImg = buildimage.buildimage_fromlist(
@@ -595,6 +600,10 @@ class PypeIt(object):
         # Update mask for slitmask; uses pad in EdgeTraceSetPar; and flexure
         # Do this in Reduce where flexure is dealt with
         #self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure))
+
+        embed(header='600 of pypeit')
+        self.caliBrate.slits.mask[:] = True
+        self.caliBrate.slits.mask[4] = False
 
         # For QA on crash
         msgs.sciexp = self.sciImg

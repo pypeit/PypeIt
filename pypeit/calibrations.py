@@ -65,9 +65,8 @@ class Calibrations(object):
     .. todo: Fix these
 
     Attributes:
-        fitstbl
-        save_masters
         wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
+        mstilt (:class:`pypeit.images.buildimage.TiltImage`):
         write_qa
         show
         spectrograph
@@ -90,7 +89,7 @@ class Calibrations(object):
     # think the code won't save masters if they're reused, but allowing
     # save_masters as an argument allows us to make this explicit.
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, save_masters=True,
-                 reuse_masters=False, show=False):
+                 reuse_masters=False, show=False, flexure_par=None):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
@@ -116,6 +115,10 @@ class Calibrations(object):
         self.qa_path = qadir
         self.write_qa = qadir is not None
         self.show = show
+
+        # Flexure
+        # TODO -- Have Calibrations take the full par
+        self.flexure_par = flexure_par
 
         # Check that the masters can be reused and/or saved
         #if caldir is None:
@@ -370,7 +373,8 @@ class Calibrations(object):
             msgs.info("Preparing a master {0:s} frame".format(buildimage.TiltImage.master_type))
             self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                 self.par['tiltframe'],
-                                                tilt_files, bias=self.msbias, bpm=self.msbpm)
+                                                tilt_files, bias=self.msbias, bpm=self.msbpm,
+                                                         slits=self.slits)  # For flexure
 
             # Save to Masters
             if self.save_masters:
@@ -959,10 +963,17 @@ class Calibrations(object):
             self.wavetilts = wavetilts.WaveTilts.from_file(masterframe_name)
             self.wt_maskslits = np.zeros(self.slits.nslits, dtype=bool)
         else: # Build
+            # Flexure
+            if 'tiltframe' in self.flexure_par['spat_frametypes']:
+                _spat_flexure = self.mstilt.spat_flexure
+            else:
+                _spat_flexure = None
+            # Instantiate
             buildwaveTilts = wavetilts.BuildWaveTilts(
                 self.mstilt, self.slits, self.spectrograph, self.par['tilts'],
                 self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
-                msbpm=self.msbpm, master_key=self.master_key_dict['tilt'])
+                msbpm=self.msbpm, master_key=self.master_key_dict['tilt'],
+                spat_flexure=_spat_flexure)
 
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.wavetilts, self.wt_maskslits \
@@ -1040,10 +1051,10 @@ class MultiSlitCalibrations(Calibrations):
     ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False, save_masters=True):
+                 show=False, save_masters=True, **kwargs):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
                                                     qadir=qadir, reuse_masters=reuse_masters,
-                                                    show=show, save_masters=save_masters)
+                                                    show=show, save_masters=save_masters, **kwargs)
         self.steps = MultiSlitCalibrations.default_steps()
 
     @staticmethod
