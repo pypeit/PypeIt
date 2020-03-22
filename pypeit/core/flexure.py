@@ -29,16 +29,22 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
 
+    It is *important* to use original=True when defining the
+    slitmask as everything should be relative to the initial slits
+
+    Otherwise, the WaveTilts could get out of sync with science images
+
     Args:
         sciimg (`np.ndarray`_):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
     Returns:
-        float:  The flexure shift
+        float:  The spatial flexure shift relative to the initial slits
 
     """
     #slitmask = pixels.tslits2mask(tslits_dict)
-    slitmask = slits.slit_img()
+    # TODO -- Add in short slits too
+    slitmask = slits.slit_img(initial=True) #, short_slits=True
     onslits = (slitmask > -1)
     corr_slits = (onslits.astype(float)).flatten()
     #corr_roll = np.roll(corr_slits, 10, axis=1).astype(float)

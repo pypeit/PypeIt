@@ -171,9 +171,8 @@ class ProcessRawImage(object):
 
     def process(self, process_steps,
                 flatimages=None,
-                #pixel_flat=None, illum_flat_fit=None,
                 bias=None,
-                slits=None):
+                slits=None, debug=False):
         """
         Process the image
 
@@ -235,14 +234,15 @@ class ProcessRawImage(object):
                 msgs.error("Need to provide slits and flatimages to illumination flat")
             shift = self.spat_flexure_shift if self.par['spat_flexure_correct'] else None
             illum_flat = flatimages.generate_illumflat(slits, flexure_shift=shift)
-            from pypeit import ginga
-            left, right = slits.select_edges(flexure=shift)
-            viewer, ch = ginga.show_image(illum_flat, chname='illum_flat')
-            ginga.show_slits(viewer, ch, left, right)  # , slits.id)
-            #
-            orig_image = self.image.copy()
-            viewer, ch = ginga.show_image(orig_image, chname='orig_image')
-            ginga.show_slits(viewer, ch, left, right)  # , slits.id)
+            if debug:
+                from pypeit import ginga
+                left, right = slits.select_edges(flexure=shift)
+                viewer, ch = ginga.show_image(illum_flat, chname='illum_flat')
+                ginga.show_slits(viewer, ch, left, right)  # , slits.id)
+                #
+                orig_image = self.image.copy()
+                viewer, ch = ginga.show_image(orig_image, chname='orig_image')
+                ginga.show_slits(viewer, ch, left, right)  # , slits.id)
         else:
             illum_flat = None
 
@@ -252,10 +252,10 @@ class ProcessRawImage(object):
                 self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
             # TODO: Print a warning when it is None?
             steps_copy.remove('flatten')
-
-        viewer, ch = ginga.show_image(self.image, chname='image')
-        ginga.show_slits(viewer, ch, left, right)  # , slits.id)
-        embed(header='258 of processrawimage')
+        if debug:
+            viewer, ch = ginga.show_image(self.image, chname='image')
+            ginga.show_slits(viewer, ch, left, right)  # , slits.id)
+            embed(header='258 of processrawimage')
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)

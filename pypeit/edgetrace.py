@@ -4284,6 +4284,12 @@ class EdgeTraceSet(object):
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
 
+        # TODO -- Have Kyle help me keep the short slits
+        #short_flag = ['SHORTSLIT']
+        #short_exclude = self.bitmask.bad_flags.remove('SHORTSLIT')
+        #gd_short = np.invert(self.fully_masked_traces(flag=short_flag,
+        #                                         exclude=short_exclude))
+
         # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
