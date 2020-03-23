@@ -242,11 +242,15 @@ class ParSet(object):
                               'Displaying and writing the ParSet will not be correct!')
 
         if self.options[key] is not None:
-            if isinstance(value, list):  # We do not require a list match a list!
-                for item in value:
-                    if item not in self.options[key]:
-                        raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
-                            key, value, self.options[key]))
+            if isinstance(value, list):
+                # `value` can be a list of items, all of which must be
+                # one of the valid options.
+                indx = numpy.isin(value, self.options[key], invert=True)
+                if numpy.any(indx):
+                    raise ValueError('Input value for {0} invalid'.format(key)
+                                     + '; {0}'.format(numpy.atleast_1d(value)[indx]) 
+                                     + ' are not valid options.\n'
+                                     + 'Options are: {0}'.format(self.options[key]))
             elif value not in self.options[key]:
                 raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
                                                                     key, value, self.options[key]))
