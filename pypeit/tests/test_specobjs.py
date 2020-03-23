@@ -24,10 +24,10 @@ def sobj1():
     return specobj.SpecObj('MultiSlit', 1, SLITID=0)
 @pytest.fixture
 def sobj2():
-    return specobj.SpecObj('MultiSlit', 1, SLITID=1)
+    return specobj.SpecObj('MultiSlit', 2, SLITID=1)
 @pytest.fixture
 def sobj3():
-    return specobj.SpecObj('MultiSlit', 2, SLITID=2)
+    return specobj.SpecObj('MultiSlit', 3, SLITID=0)
 
 
 def test_init(sobj1, sobj2):
@@ -88,22 +88,43 @@ def test_io(sobj1, sobj2, sobj3):
     sobjs[2]['BOX_COUNTS'] = np.ones_like(sobjs[0].BOX_WAVE)
     # Detector
     sobjs[0]['DETECTOR'] = tstutils.get_kastb_detector()
+    tmp = tstutils.get_kastb_detector()
+
+    tmp['det'] = 2
+    sobjs[1]['DETECTOR'] = tmp
     # Write
     header = fits.PrimaryHDU().header
+    header['TST'] = 'TEST'
     ofile = data_path('tst_specobjs.fits')
     if os.path.isfile(ofile):
         os.remove(ofile)
     sobjs.write_to_fits(header, ofile, overwrite=False)
     # Read
     hdul = fits.open(ofile)
-    assert len(hdul) == 5 # 4 Obj + 1 Detector
+    assert len(hdul) == 6 # Primary + 3 Obj + 2 Detectors
+    assert hdul[0].header['NSPEC'] == 3
     #
     _sobjs = specobjs.SpecObjs.from_fitsfile(ofile)
     assert _sobjs.nobj == 3
     assert np.array_equal(sobjs[0].BOX_WAVE, _sobjs[0].BOX_WAVE)
     assert np.array_equal(sobjs[1].BOX_WAVE, _sobjs[1].BOX_WAVE)
+    _sobjs.write_to_fits(header, ofile, overwrite=True)
+
     # Detector
     assert _sobjs[0].DETECTOR is not None, '1st object started with Detector'
     assert _sobjs[1].DETECTOR is not None, '2nd object has DET=1 so should get decorated'
     assert _sobjs[2].DETECTOR is None
 
+    # Now try updates!
+    sobjs1 = specobjs.SpecObjs([sobj1])
+    sobjs[0]['BOX_WAVE'] = np.arange(2000).astype(float)
+    sobjs1[0]['DETECTOR'] = tstutils.get_kastb_detector()
+    header1 = fits.PrimaryHDU().header
+    sobjs1.write_to_fits(header1, ofile, overwrite=True, update_det=1)
+
+    # Test
+    _sobjs1 = specobjs.SpecObjs.from_fitsfile(ofile)
+    assert _sobjs1.nobj == 3
+    assert _sobjs1[2].BOX_WAVE.size == 2000
+
+    os.remove(ofile)

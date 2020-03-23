@@ -28,7 +28,8 @@ def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5
         maxiter:
         grow:
         remove_compact_obj:
-        sigclip:
+        sigclip (float):
+            Threshold for identifying a CR
         sigfrac:
         objlim:
 

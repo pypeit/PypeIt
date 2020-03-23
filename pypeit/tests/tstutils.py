@@ -21,13 +21,28 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
 
-# Create a decorator for tests that require the PypeIt dev suite
+# ----------------------------------------------------------------------
+# pytest @decorators setting the tests to perform
+
+# Tests require the PypeIt dev-suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
                                         reason='test requires dev suite')
 
+# Tests require the Cooked data
 cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
                             reason='no dev-suite cooked directory')
+
+# Tests require the bspline c extension
+try:
+    from pypeit.bspline import utilc
+except:
+    bspline_ext = False
+else:
+    bspline_ext = True
+bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not import C extension')
+# ----------------------------------------------------------------------
+
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -44,6 +59,7 @@ def get_kastb_detector():
     spectrograph = load_spectrograph('shane_kast_blue')
     hdul = fits.HDUList([])
     return spectrograph.get_detector_par(hdul, 1)
+
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
     """
@@ -126,6 +142,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             fitstbl.set_calibration_groups(global_frames=['bias', 'dark'])
 
     return fitstbl
+
 
 # TODO: Need to split this into functions that do and do not require
 # cooked.

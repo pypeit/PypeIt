@@ -146,11 +146,13 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
+    '''
     if waveimg is not None:
         header['WCS-XIMG'] = waveimg
+    '''
 
     # Giddy up
-    ch.load_np(chname, img, 'fits', header)
+    ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
     canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at
@@ -301,7 +303,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                        'synchronized into slits.')
         if left_ids is not None or right_ids is not None:
             msgs.warn('For showing synced edges, left and right ID numbers are ignored.')
-        nslits = left.shape[1]
+        nslits = _left.shape[1]
         _left_ids = None
         _right_ids = None
         _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)

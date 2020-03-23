@@ -213,7 +213,9 @@ class ProcessImagesPar(ParSet):
     """
     def __init__(self, overscan=None, overscan_par=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
+                 spat_flexure_correct=None, illumflatten=None,
+                 ):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -264,11 +266,6 @@ class ProcessImagesPar(ParSet):
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
 
-        # Moved to processing_steps
-        #defaults['cr_reject'] = False
-        #dtypes['cr_reject'] = bool
-        #descr['cr_reject'] = 'Perform cosmic ray rejection'
-
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
         descr['sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
@@ -314,6 +311,14 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
+        defaults['spat_flexure_correct'] = False
+        dtypes['spat_flexure_correct'] = bool
+        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
+
+        defaults['illumflatten'] = False
+        dtypes['illumflatten'] = bool
+        descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
+
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
                                                values=list(pars.values()),
@@ -331,7 +336,9 @@ class ProcessImagesPar(ParSet):
         parkeys = ['bias', 'overscan', 'overscan_par',
                    'combine', 'satpix', 'sigrej', 'n_lohi',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim',
+                   'spat_flexure_correct', 'illumflatten',
+                   ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -458,7 +465,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None,
+    def __init__(self, method=None, frame=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None):
@@ -492,9 +499,6 @@ class FlatFieldPar(ParSet):
         descr['frame'] = 'Frame to use for field flattening.  Options are: "pixelflat", ' \
                          'or a specified calibration filename.'
 
-        defaults['illumflatten'] = True
-        dtypes['illumflatten'] = bool
-        descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
 
         defaults['spec_samp_fine'] = 1.2
         dtypes['spec_samp_fine'] = [int, float]
@@ -583,7 +587,7 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse',
+        parkeys = ['method', 'frame', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
                    'twod_fit_npoly']
@@ -636,20 +640,22 @@ class FlatFieldPar(ParSet):
                                 self.data['frame']))
 
         # Check that if tweak slits is true that illumflatten is alwo true
-        if self.data['tweak_slits'] and not self.data['illumflatten']:
-            raise ValueError('In order to tweak slits illumflatten must be set to True')
+        # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
+        #if self.data['tweak_slits'] and not self.data['illumflatten']:
+        #    raise ValueError('In order to tweak slits illumflatten must be set to True')
 
 
 
 class FlexurePar(ParSet):
     """
-    A parameter set holding the arguments for how to perform the flexure
-    correction.
+    A parameter set holding the arguments for how to perform flexure
+    corrections, both spatial and spectral
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, method=None, maxshift=None, spectrum=None):
+    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None):
+#                 spat_frametypes=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -665,17 +671,25 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['method'] = 'skip'
-        options['method'] = FlexurePar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
+
+#        defaults['spat_frametypes'] = []
+#        options['spat_frametypes'] = FlexurePar.valid_frametypes()
+#        dtypes['spat_frametypes'] = list
+#        descr['spat_frametypes'] = 'Frametypes for spatial flexure corrections'
+#
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        defaults['spec_method'] = 'skip'
+        options['spec_method'] = FlexurePar.valid_methods()
+        dtypes['spec_method'] = str
+        descr['spec_method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
                           'extraction of objects (not recommended).  ' \
-                          'Options are: None, {0}'.format(', '.join(options['method']))
+                          'Options are: None, {0}'.format(', '.join(options['spec_method']))
 
-        defaults['maxshift'] = 20
-        dtypes['maxshift'] = [int, float]
-        descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
+        defaults['spec_maxshift'] = 20
+        dtypes['spec_maxshift'] = [int, float]
+        descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
         defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
                                             'paranal_sky.fits')
@@ -694,7 +708,8 @@ class FlexurePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = [ 'method', 'maxshift', 'spectrum' ]
+        parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
+#                   'spat_frametypes']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -705,12 +720,13 @@ class FlexurePar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_frames():
-        """
-        Return the valid frame types.
-        """
-        return ['pixelflat', 'pinhole']
+#    @staticmethod
+#    def valid_frametypes():
+#        """
+#        Return the valid frame types for spatial flexure corrections
+#        """
+#        # TODO -- Get Kyle to help me deal with one-element lists.  The following is a hack
+#        return ['scienceframe', 'tiltframe', '']  # tiltframe is experimental!
 
     @staticmethod
     def valid_methods():
@@ -3111,6 +3127,8 @@ class CalibrationsPar(ParSet):
         defaults['standardframe'] = FrameGroupPar(frametype='standard',
                                                   processing_steps = ['trim', 'orient', 'apply_gain',
                                                                       'flatten', 'crmask'])
+        # TODO -- Is there a way to do this more transparently??
+        defaults['standardframe']['process']['illumflatten'] = True
         dtypes['standardframe'] = [ ParSet, dict ]
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
@@ -3274,7 +3292,10 @@ class PypeItPar(ParSet):
         defaults['scienceframe'] = FrameGroupPar(frametype='science',
                                                  processing_steps = ['trim', 'orient', 'apply_gain',
                                                                      'flatten', 'crmask'])
+        # TODO -- Is there a way to do this more transparently?
+        defaults['scienceframe']['process']['illumflatten'] = True
         dtypes['scienceframe'] = [ ParSet, dict ]
+
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
         defaults['reduce'] = ReducePar()

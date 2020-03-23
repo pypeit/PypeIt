@@ -38,6 +38,7 @@ class PypeItImage(datamodel.DataContainer):
         crmask (`np.ndarray`_, optional):
         fullmask (`np.ndarray`_, optional):
         detector (:class:`pypeit.images.data_container.DataContainer`):
+        spat_flexure (:obj:`float`, optional):
 
     Attributes:
         hdu_prefix (str, optional):
@@ -52,7 +53,8 @@ class PypeItImage(datamodel.DataContainer):
 
     """
     # Set the version of this class
-    version = '1.0.0'
+    minimum_useful_version = '1.0.0'
+    version = '1.0.1'
     #
     datamodel_v100 = {
         'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
@@ -62,6 +64,7 @@ class PypeItImage(datamodel.DataContainer):
         'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
         'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
+        'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
     }
     datamodel = datamodel_v100.copy()
 
@@ -119,7 +122,7 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,  # This should contain all datamodel items
-                 crmask=None, fullmask=None, detector=None):
+                 crmask=None, fullmask=None, detector=None, spat_flexure=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())

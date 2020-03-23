@@ -107,20 +107,21 @@ class SpecObj(datamodel.DataContainer):
         'VEL_CORR': dict(otype=float, desc='Relativistic velocity correction for wavelengths'),
         # Detector
         'DET': dict(otype=(int, np.integer), desc='Detector number'),
-        #'BINNING': dict(otype=str, desc='Detector binning in PypeIt orientation "spec_bin,spat_bin", e.g. "1,1"'),
-        #'PLATESCALE': dict(otype=float, desc='Platescale in arcsec'),
         'DETECTOR': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         #
         'PYPELINE': dict(otype=str, desc='Name of the PypeIt pipeline mode'),
         'OBJTYPE': dict(otype=str, desc='PypeIt type of object (standard, science)'),
         'SPAT_PIXPOS': dict(otype=(float, np.floating), desc='Spatial location of the trace on detector (pixel)'),
         'SPAT_FRACPOS': dict(otype=(float, np.floating), desc='Fractional location of the object on the slit'),
-        #
-        'SLITID': dict(otype=(int, np.integer), desc='Slit ID. Increasing from left to right on detector. Zero based.'),
+        # Slit and Object
+        'SLITID': dict(otype=(int, np.integer), desc='PypeIt slit ID. Increasing from left to right on detector. Zero based.'),
         'OBJID': dict(otype=(int, np.integer),
                       desc='Object ID for multislit data. Each object is given an index for the slit '
                            'it appears increasing from from left to right. These are one based.'),
         'NAME': dict(otype=str, desc='Name of the object following the naming model'),
+        'RA': dict(otype=float, desc='Right Ascension (J2000) decimal degree'),
+        'DEC': dict(otype=float, desc='Declination (J2000) decimal degree'),
+        'MASK_SLITID': dict(otype=(int, np.integer), desc='Slitmask slit ID'),
         #
         'ECH_OBJID': dict(otype=(int, np.integer),
                           desc='Object ID for echelle data. Each object is given an index in the order '
@@ -238,7 +239,7 @@ class SpecObj(datamodel.DataContainer):
             # ObjID
             name = naming_model['obj']
             ech_name = naming_model['obj']
-            if self['ECH_FRACPOS'] is None: # not in self._data.meta.keys():
+            if self['ECH_FRACPOS'] is None:
                 name += '----'
             else:
                 # JFH TODO Why not just write it out with the decimal place. That is clearer than this??
@@ -255,7 +256,7 @@ class SpecObj(datamodel.DataContainer):
         elif 'MultiSlit' in self.PYPELINE:
             # Spat
             name = naming_model['spat']
-            if 'SPAT_PIXPOS' not in self._data.meta.keys():
+            if self['SPAT_PIXPOS'] is None:
                 name += '----'
             else:
                 name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
@@ -268,7 +269,7 @@ class SpecObj(datamodel.DataContainer):
         elif 'IFU' in self.PYPELINE:
             # Spat
             name = naming_model['spat']
-            if self['SPAT_PIXPOS'] is None: # not in self._data.meta.keys():
+            if self['SPAT_PIXPOS'] is None:
                 name += '----'
             else:
                 name += '{:04d}'.format(int(np.rint(self.SPAT_PIXPOS)))
@@ -309,7 +310,7 @@ class SpecObj(datamodel.DataContainer):
         x = np.linspace(0., 1., npix)
         # Apply
         for attr in ['BOX', 'OPT']:
-            if self[attr+'_WAVE'] is not None: #in self._data.keys():
+            if self[attr+'_WAVE'] is not None:
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
                           msgs.newline() + "{0:s}".format(str(self.NAME)))
                 f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
@@ -349,7 +350,7 @@ class SpecObj(datamodel.DataContainer):
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:
-            if self[attr+'_WAVE'] is not None: # not in self._data.keys():
+            if self[attr+'_WAVE'] is None:
                 continue
             msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
 
@@ -440,7 +441,7 @@ class SpecObj(datamodel.DataContainer):
         """
         swave = extraction+'_WAVE'
         smask = extraction+'_MASK'
-        if self[swave] is None:  #not in self._data.keys():
+        if self[swave] is None:
             msgs.error("This object has not been extracted with extract={}.".format(extraction))
         # Fluxed?
         if fluxed:

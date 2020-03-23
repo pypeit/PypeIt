@@ -15,7 +15,7 @@ from astropy.table import Table
 
 from pypeit import msgs
 from pypeit import specobj
-from pypeit.io import initialize_header, init_hdus
+from pypeit.io import initialize_header
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
@@ -544,7 +544,7 @@ class SpecObjs(object):
         # Return
         return header
 
-    def write_to_fits(self, header, outfile, overwrite=True, update_det=None):
+    def write_to_fits(self, header, outfile, overwrite=True, update_det=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
@@ -561,33 +561,40 @@ class SpecObjs(object):
             msgs.warn("Outfile exists.  Set overwrite=True to clobber it")
             return
 
+
         # If the file exists and update_det is provided, use the existing header
         #   and load up all the other hdus so that we only over-write the ones
         #   we are updating
         if os.path.isfile(outfile) and (update_det is not None):
-            hdus, prihdu = init_hdus(update_det, outfile)
+            _specobjs = SpecObjs.from_fitsfile(outfile)
+            # Pop out those with this detector
+            for kk,sobj in enumerate(_specobjs):
+                if sobj.DET in np.atleast_1d(update_det):
+                    _specobjs.remove_sobj(kk)
+            # Add in the new
+            for sobj in self.specobjs:
+                _specobjs.add_sobj(sobj)
         else:
-            # Build up the Header
-            prihdu = fits.PrimaryHDU()
-            hdus = [prihdu]
-            prihdu.header = header
+            _specobjs = self.specobjs
+
+        # Build up the Header
+        prihdu = fits.PrimaryHDU()
+        hdus = [prihdu]
+        prihdu.header = header
 
         # Add class info
         prihdu.header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
         prihdu.header['DMODVER'] = (self.version, 'Datamodel version')
 
-        ext = len(hdus)-1
         detector_hdus = {}
+        nspec, ext = 0, 0
         # Loop on the SpecObj objects
-        for sobj in self.specobjs:
+        for sobj in _specobjs:
             if sobj is None:
                 continue
-            ext += 1
-            # Add header keyword
-            keywd = 'EXT{:04d}'.format(ext)
-            prihdu.header[keywd] = sobj.NAME
-
             # HDUs
+            if debug:
+                import pdb; pdb.set_trace()
             shdul = sobj.to_hdu()
             if len(shdul) == 2:  # Detector?
                 detector_hdus[sobj['DET']] = shdul[1]
@@ -601,31 +608,40 @@ class SpecObjs(object):
             assert isinstance(shdu[0], fits.hdu.table.BinTableHDU), 'Bad data model2'
             # Name
             shdu[0].name = sobj.NAME
+            # Extension
+            keywd = 'EXT{:04d}'.format(ext)
+            prihdu.header[keywd] = sobj.NAME
+            ext += 1
+            nspec += 1
             # Append
             hdus += shdu
 
         # Deal with Detectors
         for key, item in detector_hdus.items():
             # TODO - Add EXT to the primary header for these??
+            prefix = specobj.det_hdu_prefix(key)
             # Name
-            item.name = specobj.det_hdu_prefix(key)+item.name
+            if prefix not in item.name:  # In case we are re-loading
+                item.name = specobj.det_hdu_prefix(key)+item.name
             # Append
             hdus += [item]
 
         # A few more for the header
-        prihdu.header['NSPEC'] = len(hdus) - 1
-        #prihdu.header['NPIX'] = specObjs.trace_spat.shape[1]
+        prihdu.header['NSPEC'] = nspec
 
         # Code versions
         _ = initialize_header(prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)
+        if debug:
+            import pdb; pdb.set_trace()
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
 
-    def write_info(self, outfile, pypeline):
+    def write_info(self, outfile, pypeline, update_det=None):
+        # TODO -- Deal with update_det
         slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
         # binspectral, binspatial = parse.parse_binning(binning)
         for specobj in self.specobjs:

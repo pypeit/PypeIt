@@ -47,15 +47,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always correct for flexure, starting with default parameters
-        par['flexure']['method'] = 'boxcar'
-
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]    # This may be too low for LRISb
         par['calibrations']['traceframe']['exprng'] = [None, 30]
+
+        # Flexure
+        # Always correct for spectral flexure, starting with default parameters
+        par['flexure']['spec_method'] = 'boxcar'
+        # Always correct for spatial flexure on science images
+        # TODO -- Decide whether to make the following defaults
+        #   May not want to do them for LongSlit
+        #par['scienceframe']['process']['spat_flexure_correct'] = True
+        #par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+
         par['scienceframe']['exprng'] = [29, None]
         return par
 
@@ -85,6 +92,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA if longslit
         #  This is a little risky as a user could put long into their maskname
         #  But they would then need to over-ride in their PypeIt file
+        if scifile is None:
+            msgs.error("You have not included a standard or science file in your PypeIt file to determine the configuration")
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # This might only be required for det=2, but we'll see..

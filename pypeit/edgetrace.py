@@ -129,6 +129,7 @@ from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.images.buildimage import TraceImage
+from pypeit.images import detector_container
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
@@ -1122,6 +1123,8 @@ class EdgeTraceSet(object):
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')])
+        # Add detector
+        hdu += self.trace_img.detector.to_hdu()
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
@@ -1218,9 +1221,10 @@ class EdgeTraceSet(object):
             msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
-            # THIS IS A HACK
+            # THIS IS A HACK UNTIL WE MAKE THIS A DataContainer
             img = hdu['TRACEIMG'].data.astype(float)
-            traceImage = TraceImage(img)
+            detector = detector_container.DetectorContainer.from_hdu(hdu['DETECTOR'])
+            traceImage = TraceImage(img, detector=detector)
             #
             this = cls(traceImage, load_spectrograph(hdu[0].header['PYP_SPEC']),
                        EdgeTracePar.from_header(hdu[0].header))
@@ -4280,6 +4284,12 @@ class EdgeTraceSet(object):
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
 
+        # TODO -- Have Kyle help me keep the short slits
+        #short_flag = ['SHORTSLIT']
+        #short_exclude = self.bitmask.bad_flags.remove('SHORTSLIT')
+        #gd_short = np.invert(self.fully_masked_traces(flag=short_flag,
+        #                                         exclude=short_exclude))
+
         # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
@@ -4288,7 +4298,7 @@ class EdgeTraceSet(object):
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return
-        return slittrace.SlitTraceSet(left=left, right=right, nspat=self.nspat,
+        return slittrace.SlitTraceSet(left_init=left, right_init=right, nspat=self.nspat,
                                       spectrograph=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'])#, master_key=self.master_key,

@@ -28,10 +28,12 @@ def init_dict():
                  skymodel = 0.95 * np.ones_like(sciimg),
                  objmodel = np.ones_like(sciimg),
                  ivarmodel = 0.05 * np.ones_like(sciimg),
+                 waveimg = 1000 * np.ones_like(sciimg),
                  mask = np.ones_like(sciimg).astype(int),
                  det = 1,
                  detector = None,
-        )
+                 spat_flexure=3.5,
+                 )
     return sdict
 
 ####################################################3
@@ -85,7 +87,43 @@ def test_all2dobj_write(init_dict):
     allspec2D[1].detector = tstutils.get_kastb_detector()
     # Write
     ofile = data_path('tst_allspec2d.fits')
+    if os.path.isfile(ofile):
+        os.remove(ofile)
     allspec2D.write_to_fits(ofile)
     # Read
     _allspec2D = spec2dobj.AllSpec2DObj.from_fits(ofile)
+    # Write again
+    os.remove(ofile)
+    _allspec2D.write_to_fits(ofile)
 
+    os.remove(ofile)
+
+def test_all2dobj_update(init_dict):
+    # Build two
+    spec2DObj1 = spec2dobj.Spec2DObj(**init_dict)
+    spec2DObj2 = spec2dobj.Spec2DObj(**init_dict)
+    spec2DObj2.det = 2
+    #
+    allspec2D = spec2dobj.AllSpec2DObj()
+    allspec2D['meta']['ir_redux'] = False
+    allspec2D[1] = spec2DObj1
+    allspec2D[2] = spec2DObj2
+
+    # Write
+    ofile = data_path('tst_allspec2d.fits')
+    if os.path.isfile(ofile):
+        os.remove(ofile)
+    allspec2D.write_to_fits(ofile)
+
+    # Update
+    _allspec2D = spec2dobj.AllSpec2DObj()
+    spec2DObj1.sciimg = spec2DObj1.sciimg.copy()*2.
+    _allspec2D['meta']['ir_redux'] = False
+    _allspec2D[1] = spec2DObj1
+    _allspec2D.write_to_fits(ofile, update_det=1, overwrite=True)
+
+    # Check
+    allspec2D_2 = spec2dobj.AllSpec2DObj.from_fits(ofile)
+    assert np.array_equal(allspec2D_2[1].sciimg, spec2DObj1.sciimg)
+
+    os.remove(ofile)

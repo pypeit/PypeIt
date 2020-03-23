@@ -25,7 +25,6 @@ from pypeit import specobjs
 from pypeit.core.parse import get_dnum
 from pypeit.images.maskimage import ImageBitMask
 from pypeit import masterframe
-from pypeit import waveimage
 from pypeit import spec2dobj
 
 
@@ -130,8 +129,14 @@ def main(args):
     slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
     slits = slittrace.SlitTraceSet.from_file(slit_file)
 
-    wave_key = '{0}_{1:02d}'.format(spec2DObj.head0['ARCMKEY'], args.det)
-    waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
+    # Wavelengths
+    #wave_key = '{0}_{1:02d}'.format(spec2DObj.head0['ARCMKEY'], args.det)
+    #waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
+
+    # Grab the slit edges
+    if spec2DObj.spat_flexure is not None:
+        msgs.info("Offseting slits by {}".format(spec2DObj.spat_flexure))
+    left, right = slits.select_edges(flexure=spec2DObj.spat_flexure)
 
     # Grab the Object
 
@@ -160,16 +165,17 @@ def main(args):
     # Now show each image to a separate channel
 
     # SCIIMG
-    image = spec2DObj.sciimg # Raw science image
+    image = spec2DObj.sciimg  # Processed science image
     (mean, med, sigma) = sigma_clipped_stats(image[spec2DObj.mask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg_file, clear=True)
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
+
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id) #, args.det)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id) #, args.det)
 
     # SKYSUB
     image = (spec2DObj.sciimg - spec2DObj.skymodel) * (spec2DObj.mask == 0)  # sky subtracted image
@@ -179,31 +185,31 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg_file,
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id)
 
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.mask == 0)  # sky residual map
-    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg_file,
+    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
     image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.mask == 0)
-    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg_file,
+    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

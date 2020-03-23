@@ -22,7 +22,6 @@ from pypeit import masterframe
 from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
-from pypeit import waveimage
 from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import parse
@@ -63,10 +62,11 @@ class Calibrations(object):
             Show plots of PypeIt's results as the code progesses.
             Requires interaction from the users.
 
+    .. todo: Fix these
+
     Attributes:
-        TODO: Fix these
-        fitstbl
-        save_masters
+        wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
+        mstilt (:class:`pypeit.images.buildimage.TiltImage`):
         write_qa
         show
         spectrograph
@@ -369,7 +369,8 @@ class Calibrations(object):
             msgs.info("Preparing a master {0:s} frame".format(buildimage.TiltImage.master_type))
             self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                 self.par['tiltframe'],
-                                                tilt_files, bias=self.msbias, bpm=self.msbpm)
+                                                tilt_files, bias=self.msbias, bpm=self.msbpm,
+                                                         slits=self.slits)  # For flexure
 
             # Save to Masters
             if self.save_masters:
@@ -688,16 +689,16 @@ class Calibrations(object):
                     # is correct so that they're not tripped.
                     # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
                     # Update the WaveTilts master
-                    self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
-                    self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
-                                                  self.spectrograph.spectrograph)
+                    # MADE ON-THE-SPOT
+                    #self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
+                    #self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
+                    #                              self.spectrograph.spectrograph)
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning
-        # TODO: These will barf if self.wavetilts['tilts'] isn't defined.
         if self.flatimages.pixelflat is None:
             msgs.warn('You are not pixel flat fielding your data!!!')
-        if self.flatimages.illumflat is None or not self.par['flatfield']['illumflatten']:
+        if self.flatimages.illumflat is None:# or not self.par['flatfield']['illumflatten']:
             msgs.warn('You are not illumination flat fielding your data!')
 
         # Cache & return
@@ -801,6 +802,7 @@ class Calibrations(object):
             ndarray: :attr:`mswave` wavelength image
 
         """
+        msgs.error("NO LONGER USED.  GENERATE ON-THE-SPOT with code in pypeit.wavecalib")
         # Check for existing data
         if not self._chk_objs(['wavetilts', 'slits', 'wv_calib']):
             self.mswave = None
@@ -957,10 +959,15 @@ class Calibrations(object):
             self.wavetilts = wavetilts.WaveTilts.from_file(masterframe_name)
             self.wt_maskslits = np.zeros(self.slits.nslits, dtype=bool)
         else: # Build
+            # Flexure
+            _spat_flexure = self.mstilt.spat_flexure \
+                if self.par['tiltframe']['process']['spat_flexure_correct'] else None
+            # Instantiate
             buildwaveTilts = wavetilts.BuildWaveTilts(
                 self.mstilt, self.slits, self.spectrograph, self.par['tilts'],
                 self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
-                msbpm=self.msbpm, master_key=self.master_key_dict['tilt'])
+                msbpm=self.msbpm, master_key=self.master_key_dict['tilt'],
+                spat_flexure=_spat_flexure)
 
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.wavetilts, self.wt_maskslits \
@@ -1038,10 +1045,10 @@ class MultiSlitCalibrations(Calibrations):
     ..todo:: Rename this child or eliminate altogether
     """
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False, save_masters=True):
+                 show=False, save_masters=True, **kwargs):
         super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
                                                     qadir=qadir, reuse_masters=reuse_masters,
-                                                    show=show, save_masters=save_masters)
+                                                    show=show, save_masters=save_masters, **kwargs)
         self.steps = MultiSlitCalibrations.default_steps()
 
     @staticmethod
@@ -1054,11 +1061,8 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
-
-    # TODO For flexure compensation add a method adjust_flexure to calibrations which will get called from extract_one
-    # Notes on order of steps if flexure compensation is implemented
-    #  ['bpm', 'bias', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']#, 'wave']
+        #return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
 
 
 class IFUCalibrations(Calibrations):

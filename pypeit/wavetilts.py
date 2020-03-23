@@ -30,7 +30,8 @@ class WaveTilts(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    version = '1.0.0'
+    minimum_versio = '1.0.0'
+    version = '1.1.0'
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
@@ -41,7 +42,7 @@ class WaveTilts(datamodel.DataContainer):
     file_format = 'fits'
 
     datamodel = {
-        'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
+        #'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
         'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit.' \
                        'One set per slit/order (3D array).'),
         'slitcen': dict(otype=np.ndarray, atype=np.floating,
@@ -52,8 +53,9 @@ class WaveTilts(datamodel.DataContainer):
         'spec_order': dict(otype=np.ndarray, atype=np.integer,
                            desc='Order for spectral fit'),
         'func2d': dict(otype=str,desc='Function used for the 2D fit'),
+        'spat_flexure': dict(otype=float, desc='Flexure shift from the input TiltImage'),
     }
-    def __init__(self, tilts, coeffs, slitcen, nslit, spat_order, spec_order, func2d):
+    def __init__(self, coeffs, slitcen, nslit, spat_order, spec_order, func2d, spat_flexure):
 
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -61,14 +63,43 @@ class WaveTilts(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
+    def fit2tiltimg(self, slitmask, flexure=None):
+        """
+        Generate a tilt image from the fit parameters
+
+        Mainly to allow for flexure
+
+        Args:
+            slitmask (`np.ndarray`_):
+            flexure (float, optional):
+                Spatial shift of the tilt image onto the desired frame (typically a science image)
+
+        Returns:
+            `np.ndarray`_:  New tilt image
+
+        """
+        _flexure = 0. if flexure is None else flexure
+
+        # TODO -- worry about skipped/broken slits (i.e. maskslits)
+        final_tilts = np.zeros_like(slitmask).astype(float)
+        for slit in range(self.nslit):
+            coeff_out = self.coeffs[:self.spec_order[slit]+1,:self.spat_order[slit]+1,slit]
+            _tilts = tracewave.fit2tilts(final_tilts.shape, coeff_out, self.func2d, spat_shift=-1*_flexure)
+            #
+            thismask_science = slitmask == slit
+            final_tilts[thismask_science] = _tilts[thismask_science]
+        # Return
+        return final_tilts
+
+
 
 class BuildWaveTilts(object):
     """
     Class to guide slit/order tracing
 
     Args:
-        mstilt (:class:`pypeit.tilitimage.TiltImage`): Tilt image
-        slits (:class:`pypeit.edgetrace.SlitTraceSet`, None):
+        mstilt (:class:`pypeit.images.buildimage.TiltImage`): Tilt image
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
             Slit edges
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
@@ -83,6 +114,9 @@ class BuildWaveTilts(object):
             Bad pixel mask.  If not provided, a dummy array with no
             masking is generated.
         master_key (:obj:`str`, optional):  For naming QA only
+        spat_flexure (float, optional):
+            If input, the slitmask and slit edges are shifted prior
+            to tilt analysis.
 
 
     Attributes:
@@ -132,8 +166,8 @@ class BuildWaveTilts(object):
 #        return slf
 
     # TODO This needs to be modified to take an inmask
-    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None, msbpm=None,
-                 master_key=None):
+    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None,
+                 msbpm=None, master_key=None, spat_flexure=None):
 
         # TODO: Perform type checking
         self.spectrograph = spectrograph
@@ -146,6 +180,7 @@ class BuildWaveTilts(object):
         self.det = det
         self.qa_path = qa_path
         self.master_key = master_key
+        self.spat_flexure = spat_flexure
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
@@ -161,18 +196,18 @@ class BuildWaveTilts(object):
         # the slits
         if self.slits is not None and self.mstilt is not None:
             # NOTE: This uses the interneral definition of `pad`
-            self.slitmask_science = self.slits.slit_img()
+            # TODO -- This needs to deal with flexure
+            self.slitmask_science = self.slits.slit_img(flexure=self.spat_flexure)
             gpm = (self.msbpm == 0) if self.msbpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.mstilt.image.shape
             self.nslits = self.slits.nslits
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.left)
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.right)
-            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.center)
+            # Grab left, right and resize as need be
+            left, right = self.slits.select_edges(self.spat_flexure)
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
+            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (left+right)/2)
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.gpm = (arc.resize_mask2arc(self.shape_arc, gpm)) & (self.mstilt.image < self.nonlinear_counts)
         else:
@@ -316,7 +351,8 @@ class BuildWaveTilts(object):
 #        return tilt_fit_dict['coeff2']
         return self.all_fit_dict[slit]['coeff2']
 
-    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen):
+    def trace_tilts(self, arcimg, lines_spec, lines_spat, thismask, slit_cen,
+                    debug_pca=False, show_tracefits=False):
         """
         Trace the tilts
 
@@ -347,8 +383,8 @@ class BuildWaveTilts(object):
                                            inmask=self.gpm, fwhm=self.wavepar['fwhm'],
                                            spat_order=self.par['spat_order'],
                                            maxdev_tracefit=self.par['maxdev_tracefit'],
-                                           sigrej_trace=self.par['sigrej_trace'])
-                                           #, debug_pca=True, show_tracefits=True)
+                                           sigrej_trace=self.par['sigrej_trace'],
+                                           debug_pca=debug_pca, show_tracefits=show_tracefits)
 
         # Return
         self.steps.append(inspect.stack()[0][3])
@@ -511,6 +547,10 @@ class BuildWaveTilts(object):
         if maskslits is None:
             maskslits = np.zeros(self.nslits, dtype=bool)
 
+        #embed(header='549')
+        #maskslits[:] = True
+        #maskslits[4] = False
+
         # Extract the arc spectra for all slits
         self.arccen, self.arccen_bpm, self.arc_maskslit = self.extract_arcs()
 
@@ -556,8 +596,8 @@ class BuildWaveTilts(object):
         self.spec_order = np.zeros(self.nslits, dtype=int)
 
         # TODO sort out show methods for debugging
-        #if show:
-        #    viewer,ch = ginga.show_image(self.mstilt*(self.slitmask > -1),chname='tilts')
+        if show:
+            viewer,ch = ginga.show_image(self.mstilt.image*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
         for slit in gdslits:
@@ -583,8 +623,8 @@ class BuildWaveTilts(object):
 
             # TODO: Show the traces before running the 2D fit
 
-            #if show:
-            #    ginga.show_tilts(viewer, ch, self.trace_dict)
+            if show:
+                ginga.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit] = self._parse_param(self.par, 'spat_order', slit)
             self.spec_order[slit] = self._parse_param(self.par, 'spec_order', slit)
@@ -629,9 +669,10 @@ class BuildWaveTilts(object):
             plt.show()
 
         # Build and return DataContainer
-        tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen':self.slitcen,
+        tilts_dict = {'coeffs':self.coeffs, 'slitcen':self.slitcen, #'tilts':self.final_tilts,
                       'func2d':self.par['func2d'], 'nslit':self.nslits,
-                      'spat_order':self.spat_order, 'spec_order':self.spec_order}
+                      'spat_order':self.spat_order, 'spec_order':self.spec_order,
+                      'spat_flexure': self.spat_flexure}
         return WaveTilts(**tilts_dict), maskslits
 
 #    def save(self, outfile, master_dir, overwrite=True):
@@ -761,10 +802,11 @@ class BuildWaveTilts(object):
             Use 'ginga' to display to an RC Ginga.
 
         """
+        left, right = self.slits.select_edges()
 
         viewer, ch = ginga.show_image(self.arcimg*(self.slitmask == slit), chname='Tilts')
         ginga.show_tilts(viewer, ch, self.trace_dict,
-                         sedges=(self.slits.left[:,slit], self.slits.right[:,slit]), points=True,
+                         sedges=(left[:,slit], right[:,slit]), points=True,
                          clear_canvas=True)
 
     def __repr__(self):

@@ -1,15 +1,50 @@
-.. _flexure:
-
-.. highlight:: rest
-
-******************
+==================
 Flexure Correction
-******************
-
-This document will describe how a flexure correction
-is performed for each 1D spectrum extracted in PypeIt.
+==================
 
 Overview
+========
+
+PypeIt can account for `Spectral`_ and `Spatial`_ flexure
+in the instrument.  The former is applied by default
+while the latter requires extra care and expertise.
+
+We discuss each in turn.
+
+Spatial
+=======
+
+The code has a simple yet relatively robust method to cross-correlate
+the slits against any input image to determine a rigid, spatial offset.
+This algorithm is performed for any frametype with
+**spat_flexure** included in the `processing_steps` of
+:ref:`pypeit_par:FrameGroupPar Keywords`.
+
+We have made our own determinations for which instruments
+to enable this as the default. Inspect the
+:ref:`pypeit_par:Instrument-Specific Default Configuration`
+list to see if your instrument is included.
+
+At the time these docs were recorded, the only *frametype*'s
+that can be corrected are the *standard* and *scienceframe*.
+If you wished to turn on this correction for the scienceframe,
+add this to your PypeIt file::
+
+    COMING SOON
+
+This will:
+
+ - Calculate a spatial offset for each science frame from the slits
+ - Apply this correction for the illumination flat (COMING)
+ - Apply this correction prior to sky subtrction and extraction
+
+Future work
+-----------
+
+ - Allow for spatial offset in the arc
+ - Handle insturments where the scienceframe doubles as the *tilt* image
+
+Spectral
 ========
 
 By default, the code will calculate a flexure shift based on the
@@ -27,7 +62,7 @@ are respectively used (see :ref:`sky-models` for all sky models).
 
 
 Algorithm
-=========
+---------
 
 The basic algorithm may be summarized as follows:
 
@@ -48,33 +83,12 @@ The basic algorithm may be summarized as follows:
 
 8. Apply shift
 
+QA
+--
 
-Usage
-=====
-
-By default in ARMLSD, a flexure correction is performed
-on the boxcar extraction of the sky.  This may be disabled
-by the following setting in the .pypeit file::
-
-    reduce flexure spectrum None
-
-
-One can alternatively use the optimal extraction (if it is
-performed) with::
-
-    reduce flexure spectrum optimal
-
-By default, the maximum shift allowed in pixels is 20.  If
-you suspect a higher shift is required (e.g. results are poor),
-you may increase the default (e.g. to 50 pixels)::
-
-    reduce flexure maxshift 50
-
-
-.. _sky-models:
 
 Alternate sky models
-====================
+--------------------
 
 You may find that the default sky models are not the best suited 
 for your data.There is a script that allows the user to plot the 
@@ -111,13 +125,4 @@ The models supplied with PypeIt are,
 +-----------------------------------+-----------------------------------------------------------------------------------+
 | sky_LRISr_600_7500_5460_7950.fits |  Description to come                                                              |
 +-----------------------------------+-----------------------------------------------------------------------------------+
-
-Other
-=====
-
-An alternate algorithm (activated with: reduce flexure spec slit_cen) measures the
-flexure from a sky spectrum extracted down the center of the slit.
-This is then imposed on the wavelength image so that any extractions
-that follow have a flexure correction already applied.  Thus far, this
-algorithm has given poorer results than the default.
 

@@ -40,15 +40,6 @@ def test_addrm_slit():
     edges.rm_user_traces(rm_user_slits)
     assert edges.ntrace//2 == nslits, 'Did not remove trace.'
 
-# TODO: The tests below seem to have limited use.  Our normal testing
-# operations are to run the dev suite, use that output to make the
-# cooked data, and then run the cooked-specific unit tests.  The code
-# below amounts to checking that the code has a stable performance
-# (valuable) and that it didn't change between when we run the dev
-# suite and when we run the unit tests (not so valuable).  We should be
-# doing the more difficult thing of checking that the tracing is
-# providing consistent results...
-
 @cooked_required
 def test_chk_kast_slits():
     """ This tests finding the longslit for Kast blue """
@@ -63,7 +54,7 @@ def test_chk_kast_slits():
         nslits = edges.ntrace//2
         # Rerun (but don't write QA plots)
         edges.qa_path = None
-        edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
+        edges.auto_trace(bpm=edges.bpm, det=edges.det, binning=edges.binning)
         assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
 @cooked_required
@@ -78,7 +69,7 @@ def test_chk_lris_blue_slits():
         nslits = edges.ntrace//2
         # Rerun (but don't write QA plots)
         edges.qa_path = None
-        edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
+        edges.auto_trace(bpm=edges.bpm, det=edges.det, binning=edges.binning)
         assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
 @cooked_required
@@ -94,7 +85,7 @@ def test_chk_lris_red_slits():
         nslits = edges.ntrace//2
         # Rerun (but don't write QA plots)
         edges.qa_path = None
-        edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
+        edges.auto_trace(bpm=edges.bpm, det=edges.det, binning=edges.binning)
         assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
 @cooked_required
@@ -108,7 +99,7 @@ def test_chk_deimos_slits():
     nslits = edges.ntrace//2
     # Rerun (but don't write QA plots)
     edges.qa_path = None
-    edges.auto_trace(edges.img, bpm=edges.bpm, det=edges.det, binning=edges.binning)
+    edges.auto_trace(bpm=edges.bpm, det=edges.det, binning=edges.binning)
     assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
 

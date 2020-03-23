@@ -55,7 +55,9 @@ class Spec2DObj(datamodel.DataContainer):
         'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image'),
         'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
+        'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='2D mask image'),
+        'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
     }
@@ -67,7 +69,8 @@ class Spec2DObj(datamodel.DataContainer):
         slf.head0 = hdul[0].header
         return slf
 
-    def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel, mask, detector):
+    def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
+                 waveimg, mask, detector, spat_flexure):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -180,8 +183,16 @@ class AllSpec2DObj(object):
 
     # TODO -- Turn off attribute setting
 
+    @property
+    def detectors(self):
+        dets = self.keys
+        dets.remove('meta')
+        dets.sort()
+        return dets
+
+    @property
     def keys(self):
-        return self.__dict__.keys()
+        return list(self.__dict__.keys())
 
     def __setitem__(self, item, value):
         """
@@ -279,36 +290,39 @@ class AllSpec2DObj(object):
             overwrite (bool, optional):
 
         """
+        if os.path.isfile(outfile):
+            if not overwrite:
+                msgs.warn("File {} exits.  Use -o to overwrite.".format(outfile))
+                return
+            if update_det is not None:
+                # Load up and replace
+                _allspecobj = AllSpec2DObj.from_fits(outfile)
+                for det in _allspecobj.detectors:
+                    if det in np.atleast_1d(update_det):
+                        continue
+                    else:
+                        self[det] = _allspecobj[det]
 
-
-        # Start the HDU list (or read from disk) and Primary header
-        if os.path.isfile(outfile) and update_det is not None:
-            hdus, prihdu = io.init_hdus(update_det, outfile)
-        else:
-            # Primary HDU for output
-            prihdu = fits.PrimaryHDU()
-            # Header
-            if pri_hdr is not None:
-                prihdu.header = pri_hdr
-            # Update with original header, skipping a few keywords
-            hdus = [prihdu]
+        # Primary HDU for output
+        prihdu = fits.PrimaryHDU()
+        # Header
+        if pri_hdr is not None:
+            prihdu.header = pri_hdr
 
         # Add meta to Primary Header
         for key in self['meta']:
+            # This is not a header card
+            if key == 'head0':
+                continue
+            #
             prihdu.header[self.hdr_prefix+key.upper()] = self['meta'][key]
 
         # Loop on em (in order of detector)
-        keys = list(self.keys())
-        keys.remove('meta')
-        try:
-            keys.sort()
-        except TypeError:
-            embed(header='244 of spec2dobj')
         extnum = 1
-        for key in keys:
-            #
-            hdul = self[key].to_hdu()
-            # TODO -- Make adding EXT000X a default of DataContainer
+        hdus = [prihdu]
+        for det in self.detectors:
+            hdul = self[det].to_hdu()
+            # TODO -- Make adding EXT000X a default of DataContainer?
             for hdu in hdul:
                 keywd = 'EXT{:04d}'.format(extnum)
                 prihdu.header[keywd] = hdu.name
@@ -317,7 +331,7 @@ class AllSpec2DObj(object):
             hdus += hdul
 
         # Detectors included
-        detectors = str(keys)[1:-1]
+        detectors = str(self.detectors)[1:-1]  # Remove the [ and ]
         prihdu.header[self.hdr_prefix+'DETS'] = detectors
 
         # Finish
