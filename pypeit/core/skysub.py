@@ -620,6 +620,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img, t
         for spec in sobjs:
             spec.maskwidth = max_slit_width/2.0
 
+    # TODO -- This should be using the SlitTraceSet method
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
     nspat = sciimg.shape[1]
