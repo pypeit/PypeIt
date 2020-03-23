@@ -412,7 +412,8 @@ class CoAdd2D(object):
         pseudo_dict['sobjs'] = sobjs
         self.pseudo_dict=pseudo_dict
 
-        return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs
+        return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, \
+               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector
 
 
     def save_masters(self):

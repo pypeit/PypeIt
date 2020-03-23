@@ -218,7 +218,7 @@ def main(args):
         # Reduce
         msgs.info('Running the extraction')
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
-        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
+        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'] = coadd.reduce(
             pseudo_dict, show = args.show, show_peaks = args.peaks)
         # Save pseudo image master files
         coadd.save_masters()
@@ -231,8 +231,8 @@ def main(args):
         os.makedirs(scipath)
 
     # Save the results
-    save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
-                  head2d, scipath, basename)#, binning=coadd.binning)
+    save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph,
+                  head1d, head2d, scipath, basename, binning=coadd.binning)
 
 
 
