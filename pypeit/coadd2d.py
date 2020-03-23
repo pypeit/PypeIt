@@ -422,12 +422,15 @@ class CoAdd2D(object):
 
         # TODO: These saving operations are a temporary kludge
         # spectrograph is needed for header
-        waveImage = WaveImage(None, None, None, self.spectrograph, None,
-                              master_key=master_key_dict['arc'], master_dir=self.master_dir)
-        waveImage.save(image=self.pseudo_dict['waveimg'])
+        waveImage = WaveImage(self.pseudo_dict['waveimg'])
+        waveImage.to_master_file(self.master_dir, master_key_dict['arc'],
+                                 self.spectrograph.spectrograph)
+        #None, None, None, self.spectrograph, None,
+        #                      master_key=master_key_dict['arc'], master_dir=self.master_dir)
 
         # TODO: Assumes overwrite=True
-        self.pseudo_dict['slits'].to_master()
+        self.pseudo_dict['slits'].to_master_file(self.master_dir, master_key_dict['trace'],
+            self.spectrograph.spectrograph)
 
     def snr_report(self, snr_bar, slitid=None):
 
