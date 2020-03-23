@@ -14,6 +14,8 @@ from pypeit.io import initialize_header
 
 from astropy.io import fits
 
+# TODO -- Move this module to core/
+
 
 def construct_file_name(master_obj, master_key, master_dir=None):
     """
