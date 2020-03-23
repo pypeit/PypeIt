@@ -822,7 +822,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             pb = (np.outer(area, np.ones(nspat,dtype=float))).flat[inside]
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
-                keep = np.ones(bkpt.size, type=bool)
+                keep = np.ones(bkpt.size, dtype=bool)
             bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
                                              norm_ivar.flat[inside[ss]],pb[ss], nord=4,
                                              bkpt=bkpt[keep], maxiter=2)

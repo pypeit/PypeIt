@@ -104,7 +104,7 @@ following format::
 Here is an actual example
 
     flux read
-      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits Keck_LRISr_600_7500_sens.fits
+      spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits VLT_FORS2_sens.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits
     flux end

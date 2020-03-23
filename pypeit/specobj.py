@@ -350,7 +350,7 @@ class SpecObj(datamodel.DataContainer):
         """
         # Loop on extraction modes
         for attr in ['BOX', 'OPT']:
-            if self[attr+'_WAVE'] is not None:
+            if self[attr+'_WAVE'] is None:
                 continue
             msgs.info("Fluxing {:s} extraction for:".format(attr) + msgs.newline() + "{}".format(self))
 
