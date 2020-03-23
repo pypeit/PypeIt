@@ -2950,7 +2950,8 @@ class ExtractionPar(ParSet):
     """
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
-                 model_full_slit=None, manual=None, skip_optimal=None):
+                 model_full_slit=None, manual=None, skip_optimal=None,
+                 use_profile_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2999,6 +3000,12 @@ class ExtractionPar(ParSet):
                                    'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
                                    'observations using narrow slits or echelle observations with narrow slits'
 
+        defaults['use_profile_mask'] = True
+        dtypes['use_profile_mask'] = bool
+        descr['use_profile_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
+                             'Turning this off may help with bright emission lines.'
+
+
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
@@ -3017,7 +3024,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
-                   'skip_optimal']
+                   'skip_optimal', 'use_profile_mask']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

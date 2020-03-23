@@ -44,6 +44,8 @@ def parser(options=None):
                         action = "store_true")
     parser.add_argument('--embed', default=False, help='Upon completion embed in ipython shell',
                         action='store_true')
+    parser.add_argument('--ignore_extract_mask', default=False, help='Upon completion embed in ipython shell',
+                        action='store_true')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -140,16 +142,16 @@ def main(args):
 
     # Grab the Object
 
+    bitMask = ImageBitMask()
+
     # Show the bitmask?
     if args.showmask:
         mask_in = spec2DObj.mask
         # Unpack the bitmask
-        bitMask = ImageBitMask()
         #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
         #    = bitMask.unpack(mask)
     else:
         mask_in = None
-        bitMask = None
 
     # Object traces from spec1d file
     spec1d_file = args.file.replace('spec2d', 'spec1d')
@@ -178,7 +180,13 @@ def main(args):
     ginga.show_slits(viewer, ch, left, right)#, slits.id) #, args.det)
 
     # SKYSUB
-    image = (spec2DObj.sciimg - spec2DObj.skymodel) * (spec2DObj.mask == 0)  # sky subtracted image
+    if args.ignore_extract_mask:
+        # TODO -- Is there a cleaner way to do this?
+        gpm = (spec2DObj.mask == 0) | (spec2DObj.mask == 2**bitMask.bits['EXTRACT'])
+    else:
+        gpm = spec2DObj.mask == 0
+
+    image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm #(spec2DObj.mask == 0)  # sky subtracted image
     (mean, med, sigma) = sigma_clipped_stats(image[spec2DObj.mask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma

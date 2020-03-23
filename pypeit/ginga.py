@@ -125,8 +125,8 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     # Input checks
     if cuts is not None and len(cuts) != 2:
         raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
-    if bitmask is not None and mask is None:
-        raise ValueError('If providing a bitmask, must also provide the mask values.')
+    if mask is not None and bitmask is None:
+        raise ValueError('If providing a mask, must also provide the bitmask.')
 
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
@@ -180,7 +180,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     # If bitmask was passed in, assume this is an extraction qa image
     # and use the mask to identify why each pixel was masked
-    if bitmask is not None:
+    if mask is not None:
         # Unpack the bitmask
         bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
                 = bitmask.unpack(mask)

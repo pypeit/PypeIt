@@ -259,8 +259,8 @@ class PypeIt(object):
 
         """
         # Validate the parameter set
-        required = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib']
-        can_be_None = ['flexure', 'fluxcalib']
+        required = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure']#, 'fluxcalib']
+        can_be_None = [] #'flexure', 'fluxcalib']
         self.par.validate_keys(required=required, can_be_None=can_be_None)
 
         self.tstart = time.time()
@@ -591,9 +591,9 @@ class PypeIt(object):
         # Do this in Reduce where flexure is dealt with
         #self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure))
 
-        embed(header='600 of pypeit')
-        self.caliBrate.slits.mask[:] = True
-        self.caliBrate.slits.mask[6] = False
+        #embed(header='600 of pypeit')
+        #self.caliBrate.slits.mask[:] = True
+        #self.caliBrate.slits.mask[6] = False
 
         # For QA on crash
         msgs.sciexp = self.sciImg

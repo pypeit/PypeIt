@@ -877,21 +877,23 @@ class MultiSlitReduce(Reduce):
             if np.any(thisobj):
                 thismask = (self.slitmask == slit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
-                inmask = (self.sciImg.fullmask == 0) & thismask
+                #inmask = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
                     self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveImg,
                     self.global_sky, self.sciImg.rn2img,
                     thismask, self.slits_left[:,slit], self.slits_right[:, slit],
-                    self.sobjs[thisobj], spat_pix=spat_pix,
+                    self.sobjs[thisobj], self.sciImg.fullmask,
+                    spat_pix=spat_pix,
                     model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
                     box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
                     sigrej=self.par['reduce']['skysub']['sky_sigrej'],
                     model_noise=model_noise, std=self.std_redux,
                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
                     sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
-                    inmask=inmask, show_profile=show_profile)
+                    show_profile=show_profile,
+                use_profile_mask=self.par['reduce']['extraction']['use_profile_mask'])
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
