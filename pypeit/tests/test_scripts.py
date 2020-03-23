@@ -35,6 +35,7 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
+
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -231,4 +232,3 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
-

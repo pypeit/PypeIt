@@ -656,7 +656,7 @@ class Calibrations(object):
         elif os.path.isfile(masterframe_name) and self.reuse_masters:
             # Load MasterFrame
             self.flatimages = flatfield.FlatImages.from_file(masterframe_name)
-        else:
+        elif len(pixflat_image_files) > 0:
             # Process/combine the input pixelflat frames
             stacked_pixflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['pixelflatframe'],
@@ -666,7 +666,7 @@ class Calibrations(object):
             flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
                 det=self.det, slits=self.slits, wavetilts=self.wavetilts)
             # Run
-            self.flatimages = flatField.run(show=self.show)
+            self.flatimages = flatField.run(show=self.show) #, debug=True)
 
             # Save to Masters
             if self.save_masters:
@@ -691,6 +691,9 @@ class Calibrations(object):
                     self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
                     self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
                                                   self.spectrograph.spectrograph)
+        else:
+            self.flatimages = flatfield.FlatImages(None, None, None, None)
+            msgs.warn("No pixelflats provided")
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning

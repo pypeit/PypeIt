@@ -694,7 +694,7 @@ class FlatField(object):
                         = flat.tweak_slit_edges(self.slits.left[:,slit], self.slits.right[:,slit],
                                                 spat_coo_data, spat_flat_data,
                                                 thresh=tweak_slits_thresh,
-                                                maxfrac=tweak_slits_maxfrac)
+                                                maxfrac=tweak_slits_maxfrac, debug=debug)
                 # TODO: Because the padding doesn't consider adjacent
                 # slits, calling slit_img for individual slits can be
                 # different from the result when you construct the

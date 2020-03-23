@@ -685,7 +685,6 @@ class MultiSlitReduce(Reduce):
             float:
 
         """
-        #plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
         plate_scale = self.sciImg.detector.platescale
         return plate_scale
 

@@ -50,6 +50,8 @@ def test_write(vec_coo, bogus_vectors):
     pca.build_interpolator([1,2])
 
     ofile = 'junkpca.fits'
+    if os.path.isfile(ofile):
+        os.remove(ofile)
     fits.HDUList([fits.PrimaryHDU(), pca.to_hdu()]).writeto(ofile)
     os.remove(ofile)
 
@@ -60,6 +62,8 @@ def test_read(vec_coo, bogus_vectors):
     pca.build_interpolator([1,2])
 
     ofile = 'junkpca.fits'
+    if os.path.isfile(ofile):
+        os.remove(ofile)
     fits.HDUList([fits.PrimaryHDU(), pca.to_hdu()]).writeto(ofile)
     readpca = TracePCA.from_file(ofile)
 
