@@ -591,9 +591,9 @@ class PypeIt(object):
         # Do this in Reduce where flexure is dealt with
         #self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure))
 
-        embed(header='600 of pypeit')
-        self.caliBrate.slits.mask[:] = True
-        self.caliBrate.slits.mask[6] = False
+        #embed(header='600 of pypeit')
+        #self.caliBrate.slits.mask[:] = True
+        #self.caliBrate.slits.mask[6] = False
 
         # For QA on crash
         msgs.sciexp = self.sciImg
