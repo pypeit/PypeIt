@@ -5,7 +5,7 @@ Coadding module.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
-
+import inspect
 import os
 
 from IPython import embed
@@ -17,7 +17,28 @@ from pypeit import utils
 from pypeit import specobjs
 from pypeit import msgs
 from pypeit.core import coadd
+from pypeit import datamodel
 
+class OneSpec(datamodel.DataContainer):
+    version = '1.0.0'
+
+    datamodel = {
+        'wave': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength array'),
+        'flux': dict(otype=np.ndarray, atype=np.floating, desc='Flux/counts array'),
+        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
+        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array'),
+        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric'),
+        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model'),
+        'fluxmode': dict(otype=str, desc='Fluxing mode (options: counts, flam)'),
+    }
+
+    def __init__(self, wave, flux, ivar, mask=None, telluric=None,
+                 obj_model=None):
+
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=_d)
 
 class CoAdd1D(object):
 

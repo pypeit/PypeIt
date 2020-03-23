@@ -844,11 +844,13 @@ class Coadd1DPar(ParSet):
         # Initialize the other used specifications for this parameter
         # set
         defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
         # Extraction to use
         defaults['ex_value'] = 'OPT'
+        options['ex_value'] = Coadd1DPar.valid_ex()
         dtypes['ex_value'] = str
         descr['ex_value'] = "The extraction to coadd, i.e. optimal or boxcar. Must be either 'OPT' or 'BOX'"
 
@@ -1016,6 +1018,13 @@ class Coadd1DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+
+    @staticmethod
+    def valid_ex():
+        """
+        Return the valid flat-field methods
+        """
+        return ['BOX', 'OPT']
 
 
 class Coadd2DPar(ParSet):

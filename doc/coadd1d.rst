@@ -21,7 +21,12 @@ pypeit_coadd_1dspec
 ===================
 
 The primary script is called `pypeit_coadd_1dspec`_ which takes
-an input file to guide the process.  The format of that file
+an input file to guide the process.
+
+coadd1d file
+------------
+
+The format of that file
 is described in the *usage* of the script, i.e. type
 *pypeit_coadd_1dspec -h*.  Here is an example from the Dev Suite
 for the *shane_kast_blue* instrument::
@@ -52,27 +57,58 @@ output with the *pypeit_show_1dspec* script, e.g.::
 These can also be recovered from the object info files
 in the Science/folder (one per exposure).
 
-The coadding algorithm will attempt to match this object identifier
-to those in each data file, within some tolerance on object and slit
-position. 'outfile' is the filename of the coadded spectrum produced.
+run
+---
+
+Then run the script::
+
+    pypeit_coadd_1dspec FRB190714_LRISr_coadd1d_file.txt --show
+
+A substantial set of output are printed to the screen, and
+if successful the final spectrum is written to disk.
+And the parameters that guide the coadd process are written
+to disk for your records. The default location is *coadd1d.par*.
+You can choose another location with the `--par_outfile`_
+option.
+
+Command Line Options
+--------------------
+
+--show
+++++++
+
+At the end of the process, this will launch a *matplotlib* window
+showing the stacked spectrum on the bottom.  The top panel
+illustrates the number of pixels included in the stack.
+
+--par_outfile
++++++++++++++
+
+This input filename will hold a listing of the parameters
+used to run the coadd1d process.
 
 Parameters
 ==========
 
 Fluxing
-+++++++
+-------
 
 The default parameters assume your spectra have gone
 through :doc:`fluxing`.  If not you should set::
 
     flux_value = False
 
-Flux ScalingI
-+++++++++++++
+Flux Scale
+++++++++++
 
-Each entry can include a *scale* dict that will be used to
-scale the flux of the coadded spectrum using an input filter
-and magnitude.  Here is an example::
+If your data has been fluxed, you may scale the coadded
+spectrum to a chosen value (typically a photometric
+measurement) in one of many filter curves.
+
+To do so, you need to add the *filter* and *magnitude*
+to the [coadd1d] block of the
+
+Here is an example::
 
     'a':
         'object': ['SPAT0119-SLIT0000-DET01', 'SPAT0159-SLIT0000-DET01', 'SPAT0079-SLIT0000-DET01']
@@ -115,59 +151,6 @@ three approaches, described below.
 The default is `bspline` which is likely best for low S/N data.
 The algorithm may be modified with the cr_two_alg parameter.
 
-.. _cr_diff:
-
-diff
-****
-
-This algorithm compares the difference between the
-spectra and clips those that are `cr_nsig` away from
-the standard deviation.
-
-ratio
-*****
-
-Similar to :ref:`cr_diff` above, but the ratio is also compared.
-This may be the best algorithm for high S/N data with
-strong emission lines.
-
-bspline
-*******
-
-A b-spline is fit to all of the pixels of the 2 spectra.
-By default, a breakpoint spacing of 6 pixels is used.
-Very narrow and bright emission lines may be rejected
-with this spacing and a lower value should be used
-(see :ref:`cosmic_ray_keys`).  Of course, lowering
-the spacing will increase the likelihood of including
-cosmic rays.  This algorithm is best suited for lower
-S/N spectra.
-
-
-Three+ Spectra
---------------
-
-For three or more spectra, the algorithm derives a median
-spectrum from the data and identifies cosmic rays or other
-deviant pixels from large deviations off the median.
-
-Additional Coadding Parameters
-++++++++++++++++++++++++++++++
-You can adjust the default methods by which PypeIt coadds
-spectra by adding a dict named 'global' or a 'local' dict
-in the object block::
-
-    'spectrograph': 'shane_kast_blue'
-    'filenames': ['spec1d_1.fits', 'spec1d_2.fits', 'spec1d_3.fits']
-    'global':
-        'wave_grid_method': 'velocity'
-    'a':
-        'object': 'O503-S4701-D01-I0035'
-        'outfile': 'tmp.hdf5'
-        'local':
-            'otol': 10
-
-The adjustable parameters and options are:
 
 Wavelength Rebinning
 --------------------
@@ -186,8 +169,8 @@ wave_grid_method     default: concatenate     create a new wavelength grid onto 
                                               specified by the input parameter 'A_pix'
 ==================   =======================  ==================================================
 
-Flux Scaling
-------------
+Scaling
+-------
 
 ==================   =======================  ==================================================
 Parameter            Option                   Description

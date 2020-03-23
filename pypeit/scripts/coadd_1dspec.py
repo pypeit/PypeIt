@@ -71,7 +71,7 @@ def read_coaddfile(ifile):
     if s >= 0 and e < 0:
         msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
-        msgs.error("Missing coadd1d block in in {0}. Check the input format for the .coadd1d file".format(ifile))
+        msgs.error("Missing coadd1d read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
