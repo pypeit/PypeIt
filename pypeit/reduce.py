@@ -1088,23 +1088,66 @@ class IFUReduce(Reduce):
         # Make sure the full slit is used
         self.slitmask = self.slits.slit_img(original=True)
 
-    def build_scaleimg(self, scale_dict, ref_slit=0):
+    def build_scaleimg(self, ref_slit):
         """
         Generate a relative scaling image for slit-based IFU.
         All slits are scaled relative to ref_slit
 
         Args:
-            scale_dict (dict):
-                A two element dictionary containing "scale" (an ndarray of the 1D flux) and
-                "wavscl" (an ndarray corresponding to the wavelength solution at the location
-                of the extracted flux). The ndarray is shape (nspec, nslit).
-
+            ref_slit (int):
+                The slit index to be used as a reference
         Returns:
-            dict: an updated scale_dict
+            ndarray: An image containing the appropriate scaling
 
         """
-        scale_dict
-        scale, wavscl
+        # Get the plate scale
+        plate_scale = self.get_platescale(None)
+
+        # Find the slits with the minimum and maximum wavelength
+        mawave = np.ma.masked_array(self.caliBrate.mswave.image, mask=self.caliBrate.mswave.image == 0)
+        ypixmn, minidx = np.unravel_index(np.ma.argmin(mawave), mawave.shape)
+        ypixmx, maxidx = np.unravel_index(np.ma.argmax(mawave), mawave.shape)
+        wmin = np.where((self.slits.left[ypixmn, :] <= minidx) & (minidx <= self.slits.right[ypixmn, :]))[0]
+        wmax = np.where((self.slits.left[ypixmx, :] <= maxidx) & (maxidx <= self.slits.right[ypixmx, :]))[0]
+        # Check that only one slit satisfies these conditions
+        if wmin.size != 1:
+            msgs.warn("Multiple slits satisfying minimum condition - taking only the first!")
+        if wmax.size != 1:
+            msgs.warn("Multiple slits satisfying maximum condition - taking only the first!")
+        wmin = wmin[0]
+        wmax = wmax[0]
+
+        # Construct an array of slits to use
+        ref_slits = np.array([ref_slit])
+        if wmin not in ref_slits:
+            ref_slits = np.append(ref_slits, wmin)
+        if wmax not in ref_slits:
+            ref_slits = np.append(ref_slits, wmax)
+        ref_slits = np.sort(ref_slits)
+
+        import pdb
+        pdb.set_trace()
+        np.argmin(self.caliBrate.mswave.image)
+
+        # Get the relative scaling (use standard star profile, if available)
+        flat_modl = self.caliBrate.flatimages.flat_model
+        flat_ivar = np.ones_like(flat_modl)
+        glob_skym = np.zeros_like(flat_modl)
+        rn2img = self.sciImg.rn2img  # This is an approximation, probably fine
+        specobj_dict = dict(setup=None, slitid=999, det=self.det, objtype=self.objtype, pypeline='IFU', orderindx=999)
+        if self.objtype == 'standard':
+            # Initialise a SpecObj
+            relspec = specobj.SpecObj("IFU", self.det, specobj_dict=specobj_dict)
+            relspec.TRACE_SPAT = 0.5 * (self.slits.left[:, ref_slit] + self.slits.right[:, ref_slit])
+            # Do a boxcar extraction - assume standard is in the middle of the slit
+            extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+                                   self.caliBrate.mswave.image, glob_skym, rn2img,
+                                   self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                   relspec)
+            scale_dict['scale'][:, ss] = relspec.BOX_COUNTS.copy() / relspec.BOX_NBOX.copy()
+            scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
+        elif self.objtype in ['science', 'science_coadd2d']:
+            pass
 
     def get_platescale(self, dummy):
         """
@@ -1189,31 +1232,8 @@ class IFUReduce(Reduce):
         # If this is a slit-based IFU, perform a relative scaling of the IFU slits
         if self.par['reduce']['cube']['slit_spec']:
             msgs.info("Calculating relative scaling for slit-based IFU")
-            scale_dict = dict(scale=np.zeros_like(self.slits.left),
-                              wavscl=np.zeros_like(self.slits.left))
-            # Get the relative scaling (use standard star profile, if available)
-            flat_modl = self.caliBrate.flatimages.flat_model
-            flat_ivar = np.ones_like(flat_modl)
-            glob_skym = np.zeros_like(flat_modl)
-            rn2img = self.sciImg.rn2img  # This is an approximation, probably fine
-            for ss in range(self.slits.left.shape[1]):
-                specobj_dict = dict(setup=None, slitid=999, det=self.det, objtype=self.objtype, pypeline='IFU', orderindx=999)
-                if self.objtype == 'standard':
-                    # Initialise a SpecObj
-                    relspec = specobj.SpecObj("IFU", self.det, specobj_dict=specobj_dict)
-                    relspec.TRACE_SPAT = 0.5*(self.slits.left[:, ss]+self.slits.right[:, ss])
-                    # Do a boxcar extraction - assume standard is in the middle of the slit
-                    extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                           self.caliBrate.mswave.image, glob_skym, rn2img,
-                                           self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
-                                           relspec)
-                    scale_dict['scale'][:, ss] = relspec.BOX_COUNTS.copy() / relspec.BOX_NBOX.copy()
-                    scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
-                elif self.objtype in ['science', 'science_coadd2d']:
-                    pass
-
-        # Use the reference slit, stitched either side with slits that extend to the minimum and maximum wavelength
-        scaleimg = build_scaleimg(scale_dict, ref_slit=ref_slit)
+            # Use the reference slit, stitched either side with slits that extend to the minimum and maximum wavelength
+            scaleimg = self.build_scaleimg(ref_slit)
 
         # Check if the user has a pre-defined sky regions file
         skymask_init = self.load_skyregions()
