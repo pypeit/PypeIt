@@ -25,7 +25,11 @@ import astropy
 import sklearn
 import pypeit
 import time
+
+
 from IPython import embed
+
+# TODO -- Move this module to core/
 
 def init_record_array(shape, dtype):
     r"""
@@ -145,6 +149,50 @@ def rec_to_bintable(arr, name=None, hdr=None):
                                                       array=arr[n])
                                             for n in arr.dtype.names], name=name, header=hdr)
 
+
+'''
+def init_hdus(update_det, outfile):
+    """
+    Load up existing header and HDUList
+
+    ..todo:: Confirm this works when you are modifying an inner HDU
+
+    Args:
+        update_det (int or list):
+        outfile (str):
+
+    Returns:
+        fits.HDUList, fits.PrimaryHDU
+
+    """
+    #
+    hdus = fits.open(outfile)
+    pypeit.msgs.info("Using existing output file, including the Header")
+    pypeit.msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
+    prihdu = hdus[0]
+    # Names
+    hdu_names = [hdu.name for hdu in hdus]
+    # Remove the detector(s) being updated
+    _update_det = numpy.atleast_1d(update_det)
+    popme = []
+
+    # Find em
+    for ss,hdu_name in enumerate(hdu_names):
+        for det in _update_det:
+            sdet = pypeit.get_dnum(det, prefix=False)
+            idx = '{:s}{:s}'.format(pypeit.specobj.naming_model['det'], sdet)
+            if idx in hdu_name:
+                popme.append(ss)
+    # Remove em (and the bit in the Header too)
+    for popthis in reversed(popme):
+        hdus.pop(popthis)
+        keywd = 'EXT{:04d}'.format(popthis)
+        # Not always used (e.g. DETECTOR)
+        if keywd in prihdu.header:
+            prihdu.header.remove(keywd)
+    # Return
+    return hdus, prihdu
+'''
 
 def compress_file(ifile, overwrite=False, rm_original=True):
     """
@@ -326,7 +374,7 @@ def header_version_check(hdr, warning_only=True):
     return all_identical
 
 
-def dict_to_hdu(d, name=None, hdr=None):
+def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write a dictionary to a fits HDU.
 
@@ -434,10 +482,14 @@ def dict_to_hdu(d, name=None, hdr=None):
 
     # If there aren't any arrays or tables, return an empty ImageHDU with just the header data.
     if len(array_keys) < 1 and len(table_keys) < 1:
-        return fits.ImageHDU(header=_hdr, name=name)
+        if force_to_bintbl:
+            return fits.BinTableHDU(header=_hdr, name=name)
+        else:
+            return fits.ImageHDU(header=_hdr, name=name)
+
 
     # If there's only a single array, return it in an ImageHDU
-    if len(array_keys) == 1:
+    if len(array_keys) == 1 and not force_to_bintbl:
         return fits.ImageHDU(data=d[array_keys[0]], header=_hdr,
                              name=array_keys[0] if name is None else name)
 
@@ -458,13 +510,16 @@ def dict_to_hdu(d, name=None, hdr=None):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
-        cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
+        try:
+            cols += [fits.Column(name=key, format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
                              dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                             array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
+                             array=numpy.expand_dims(d[key], 0) if single_row else numpy.asarray(d[key]))]
+        except:
+            import pdb; pdb.set_trace()
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
-def write_to_hdu(d, name=None, hdr=None):
+def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
     """
     Write the input to an astropy.io.fits HDU extension.
 
@@ -485,6 +540,8 @@ def write_to_hdu(d, name=None, hdr=None):
             Name for the HDU extension.
         hdr (`astropy.io.fits.Header`_, optional):
             Header to include in the HDU.
+        force_dict_bintbl (bool, optional):
+            Force dict into a BinTableHDU
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -497,7 +554,7 @@ def write_to_hdu(d, name=None, hdr=None):
 
     """
     if isinstance(d, dict):
-        return dict_to_hdu(d, name=name, hdr=hdr)
+        return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_dict_bintbl)
     if isinstance(d, Table):
         return fits.BinTableHDU(data=d, name=name, header=hdr)
     if isinstance(d, (numpy.ndarray, list)):
@@ -565,7 +622,8 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     # it directly
     # TODO: use pypmsgs?
     if _ofile is not ofile:
-        print('Compressing file: {0}'.format(_ofile))
+        pypeit.msgs.info('Compressing file: {0}'.format(_ofile))
         compress_file(_ofile, overwrite=True)
-    print('File written to: {0}'.format(ofile))
+    pypeit.msgs.info('File written to: {0}'.format(ofile))
+
 

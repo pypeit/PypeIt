@@ -21,10 +21,11 @@ from pypeit import msgs
 from pypeit import ginga
 from pypeit import slittrace
 from pypeit import specobjs
-from pypeit.core import pixels
+
 from pypeit.core.parse import get_dnum
 from pypeit.images.maskimage import ImageBitMask
-from pypeit.masterframe import MasterFrame
+from pypeit import masterframe
+from pypeit import spec2dobj
 
 
 def parser(options=None):
@@ -61,11 +62,13 @@ def show_trace(specobjs, det, viewer, ch):
 def main(args):
 
     # List only?
-    hdu = fits.open(args.file)
-    head0 = hdu[0].header
     if args.list:
+        hdu = fits.open(args.file)
         hdu.info()
         return
+
+    # Load it up
+    spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det)
 
     # Setup for PYPIT imports
     msgs.reset(verbosity=2)
@@ -75,60 +78,71 @@ def main(args):
     sdet = get_dnum(args.det, prefix=False)
 
     # One detector, sky sub for now
-    names = [hdu[i].name for i in range(len(hdu))]
+#    names = [hdu[i].name for i in range(len(hdu))]
+#
+#    try:
+#        exten = names.index('DET{:s}-PROCESSED'.format(sdet))
+#    except:  # Backwards compatability
+#        msgs.error('Requested detector {:s} was not processed.\n'
+#                   'Maybe you chose the wrong one to view?\n'
+#                   'Set with --det= or check file contents with --list'.format(sdet))
+#    sciimg = hdu[exten].data
+#    try:
+#        exten = names.index('DET{:s}-SKY'.format(sdet))
+#    except:  # Backwards compatability
+#        msgs.error('Requested detector {:s} has no sky model.\n'
+#                   'Maybe you chose the wrong one to view?\n'
+#                   'Set with --det= or check file contents with --list'.format(sdet))
+#    skymodel = hdu[exten].data
+#    try:
+#        exten = names.index('DET{:s}-MASK'.format(sdet))
+#    except ValueError:  # Backwards compatability
+#        msgs.error('Requested detector {:s} has no bit mask.\n'
+#                   'Maybe you chose the wrong one to view?\n'
+#                   'Set with --det= or check file contents with --list'.format(sdet))
+#    mask = hdu[exten].data
+#    try:
+#        exten = names.index('DET{:s}-IVARMODEL'.format(sdet))
+#    except ValueError:  # Backwards compatability
+#        msgs.error('Requested detector {:s} has no IVARMODEL.\n'
+#                   'Maybe you chose the wrong one to view?\n' +
+#                   'Set with --det= or check file contents with --list'.format(sdet))
+#    ivarmodel = hdu[exten].data
+##    # Read in the object model for residual map
+#    try:
+#        exten = names.index('DET{:s}-OBJ'.format(sdet))
+#    except ValueError:  # Backwards compatability
+#        msgs.error('Requested detector {:s} has no object model.\n'
+#                   'Maybe you chose the wrong one to view?\n' +
+#                   'Set with --det= or check file contents with --list'.format(sdet))
+#    objmodel = hdu[exten].data
 
-    try:
-        exten = names.index('DET{:s}-PROCESSED'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} was not processed.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    sciimg = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-SKY'.format(sdet))
-    except:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no sky model.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    skymodel = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-MASK'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no bit mask.\n'
-                   'Maybe you chose the wrong one to view?\n'
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    mask = hdu[exten].data
-    try:
-        exten = names.index('DET{:s}-IVARMODEL'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no IVARMODEL.\n'
-                   'Maybe you chose the wrong one to view?\n' +
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    ivarmodel = hdu[exten].data
-    # Read in the object model for residual map
-    try:
-        exten = names.index('DET{:s}-OBJ'.format(sdet))
-    except ValueError:  # Backwards compatability
-        msgs.error('Requested detector {:s} has no object model.\n'
-                   'Maybe you chose the wrong one to view?\n' +
-                   'Set with --det= or check file contents with --list'.format(sdet))
-    objmodel = hdu[exten].data
     # Get waveimg
-    mdir = head0['PYPMFDIR']
+    mdir = spec2DObj.head0['PYPMFDIR']
     if not os.path.exists(mdir):
         mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir=mdir_base
 
-    slits_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
-    slits = slittrace.SlitTraceSet.from_master(slits_key, mdir)
+    # Slits
+    slits_key = '{0}_{1:02d}'.format(spec2DObj.head0['TRACMKEY'], args.det)
+    slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
+    slits = slittrace.SlitTraceSet.from_file(slit_file)
 
-    wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
-    waveimg = os.path.join(mdir, MasterFrame.construct_file_name('Wave', wave_key))
+    # Wavelengths
+    #wave_key = '{0}_{1:02d}'.format(spec2DObj.head0['ARCMKEY'], args.det)
+    #waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
+
+    # Grab the slit edges
+    if spec2DObj.spat_flexure is not None:
+        msgs.info("Offseting slits by {}".format(spec2DObj.spat_flexure))
+    left, right = slits.select_edges(flexure=spec2DObj.spat_flexure)
+
+    # Grab the Object
 
     # Show the bitmask?
     if args.showmask:
-        mask_in = mask
+        mask_in = spec2DObj.mask
         # Unpack the bitmask
         bitMask = ImageBitMask()
         #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
@@ -151,50 +165,51 @@ def main(args):
     # Now show each image to a separate channel
 
     # SCIIMG
-    image = sciimg # Raw science image
-    (mean, med, sigma) = sigma_clipped_stats(image[mask == 0], sigma_lower=5.0, sigma_upper=5.0)
+    image = spec2DObj.sciimg  # Processed science image
+    (mean, med, sigma) = sigma_clipped_stats(image[spec2DObj.mask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg, clear=True)
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
+
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id) #, args.det)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id) #, args.det)
 
     # SKYSUB
-    image = (sciimg - skymodel) * (mask == 0)  # sky subtracted image
-    (mean, med, sigma) = sigma_clipped_stats(image[mask == 0], sigma_lower=5.0, sigma_upper=5.0)
+    image = (spec2DObj.sciimg - spec2DObj.skymodel) * (spec2DObj.mask == 0)  # sky subtracted image
+    (mean, med, sigma) = sigma_clipped_stats(image[spec2DObj.mask == 0], sigma_lower=5.0, sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg,
+    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id)
 
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
-    image = (sciimg - skymodel) * np.sqrt(ivarmodel) * (mask == 0)  # sky residual map
-    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=waveimg,
+    image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.mask == 0)  # sky residual map
+    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
-    image = (sciimg - skymodel - objmodel) * np.sqrt(ivarmodel) * (mask == 0)
-    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=waveimg,
+    image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.mask == 0)
+    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right)#, slits.id)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

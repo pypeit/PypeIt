@@ -12,7 +12,6 @@ import pickle
 from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
-from pypeit.core import save
 from pypeit.core import coadd
 from pypeit import specobjs
 from pypeit import utils

@@ -3,8 +3,7 @@
 import numpy as np
 
 from pypeit import msgs
-from pypeit.par import pypeitpar
-from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -17,34 +16,47 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRSPEC specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KeckNIRSPECSpectrograph, self).__init__()
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'NIRSPEC'
-        self.detector = [
-                # Detector 1
-            pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.193,
-                            darkcurr        = 0.8,
-                            saturation      = 100000.,
-                            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
-                            numamplifiers   = 1,
-                            gain            = 5.8,
-                            ronoise         = 23,
-                            datasec         = '[:,:]',
-                            oscansec        = '[:,:]'
-                            )]
-        self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        detector_dict = dict(
+            det=1,
+            binning         ='1,1',  # No binning allowed
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.193,
+            darkcurr        = 0.8,
+            saturation      = 100000.,
+            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers   = 1,
+            mincounts       = -1e10,
+            gain            = np.atleast_1d(5.8),
+            ronoise         = np.atleast_1d(23.),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
 
     def default_pypeit_par(self):
@@ -60,7 +72,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
@@ -129,12 +141,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     #     Set default parameters for NIRSPEC reductions
     #     """
     #     par = pypeitpar.PypeItPar()
-    #     # Frame numbers
-    #     par['calibrations']['standardframe']['number'] = 1
-    #     par['calibrations']['biasframe']['number'] = 0
-    #     par['calibrations']['pixelflatframe']['number'] = 5
-    #     par['calibrations']['traceframe']['number'] = 5
-    #     par['calibrations']['arcframe']['number'] = 1
     #     # Do not flux calibrate
     #     # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
     #     par['flexure'] = pypeitpar.FlexurePar()

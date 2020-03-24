@@ -28,8 +28,6 @@ from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit import msgs
 from pypeit.core import combine
-from pypeit import io
-from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 from pypeit.core import flux_calib

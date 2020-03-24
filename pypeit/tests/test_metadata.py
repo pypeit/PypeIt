@@ -58,12 +58,7 @@ def test_lris_red_multi_400():
     file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_red',
                           'multi_400_8500_d560', '*.fits.gz'))
     cfg_lines = ['[rdx]',
-                 'spectrograph = keck_lris_red',
-                 '[calibrations]',
-                 '[[pixelflatframe]]',
-                 'number = 3',
-                 '[[standardframe]]',
-                 'number = 0']
+                 'spectrograph = keck_lris_red']
     ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
@@ -79,12 +74,7 @@ def test_lris_red_multi():
     file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_red',
                           'multi*', '*.fits*'))
     cfg_lines = ['[rdx]',
-                 'spectrograph = keck_lris_red',
-                 '[calibrations]',
-                 '[[pixelflatframe]]',
-                 'number = 3',
-                 '[[standardframe]]',
-                 'number = 0']
+                 'spectrograph = keck_lris_red']
     ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
     ps.build_fitstbl()
     ps.get_frame_types(flag_unknown=True)
@@ -99,12 +89,7 @@ def test_lris_red_multi_run():
     file_list = glob.glob(os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_red',
                           'multi*', '*.fits*'))
     cfg_lines = ['[rdx]',
-                 'spectrograph = keck_lris_red',
-                 '[calibrations]',
-                 '[[pixelflatframe]]',
-                 'number = 3',
-                 '[[standardframe]]',
-                 'number = 0']
+                 'spectrograph = keck_lris_red']
     ps = PypeItSetup(file_list, cfg_lines=cfg_lines)
     ps.run(setup_only=True)
 

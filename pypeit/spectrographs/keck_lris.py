@@ -13,6 +13,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 from IPython import embed
 
@@ -20,6 +21,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/LRIS specific code
     """
+    ndet = 2
+
     def __init__(self):
         # Get it started
         super(KeckLRISSpectrograph, self).__init__()
@@ -44,15 +47,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always correct for flexure, starting with default parameters
-        par['flexure']['method'] = 'boxcar'
-
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]    # This may be too low for LRISb
         par['calibrations']['traceframe']['exprng'] = [None, 30]
+
+        # Flexure
+        # Always correct for spectral flexure, starting with default parameters
+        par['flexure']['spec_method'] = 'boxcar'
+        # Always correct for spatial flexure on science images
+        # TODO -- Decide whether to make the following defaults
+        #   May not want to do them for LongSlit
+        #par['scienceframe']['process']['spat_flexure_correct'] = True
+        #par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+
         par['scienceframe']['exprng'] = [29, None]
         return par
 
@@ -82,6 +92,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA if longslit
         #  This is a little risky as a user could put long into their maskname
         #  But they would then need to over-ride in their PypeIt file
+        if scifile is None:
+            msgs.error("You have not included a standard or science file in your PypeIt file to determine the configuration")
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # This might only be required for det=2, but we'll see..
@@ -219,12 +231,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
           Detector number; Default = both
         Returns
         -------
-        array : ndarray
-          Combined image
-        hdu (astropy.io.fits.HDUList)
-        sections : list
-          List of datasec, oscansec, ampsec sections
-          datasec, oscansec needs to be for an *unbinned* image as per standard convention
+        tuple
+            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')
@@ -340,7 +348,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+        return self.get_detector_par(hdu, det if det is None else 1), \
+                array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -352,49 +361,60 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         super(KeckLRISBSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_blue'
         self.camera = 'LRISb'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.135,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 2,
-                            gain            = [1.55, 1.56],
-                            ronoise         = [3.9, 4.2],
-                            datasec         = ['',''],
-                            oscansec        = ['',''],
-                            suffix          = '_01blue'
-                            ),
-                #Detector 2
-                pypeitpar.DetectorPar(
-                            dataext         = 2,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.135,
-                            darkcurr        = 0.,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 2,
-                            gain            = [1.63, 1.70],
-                            ronoise         = [3.6, 3.6],
-                            datasec         = ['',''],
-                            oscansec        = ['',''],
-                            suffix          = '_02blue'
-                            )]
-        self.numhead = 5
         # Uses default timeunit
         # Uses default primary_hdrext
         self.sky_file = 'sky_LRISb_600.fits'
+
+    def get_detector_par(self, hdu, det):
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.135,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.86,
+            mincounts       = -1e10,
+            numamplifiers   = 2,
+            gain            = np.atleast_1d([1.55, 1.56]),
+            ronoise         = np.atleast_1d([3.9, 4.2]),
+            )
+        # Detector 2
+        detector_dict2 = detector_dict1.copy()
+        detector_dict2.update(dict(
+            det=2,
+            dataext=2,
+            gain=np.atleast_1d([1.63, 1.70]),
+            ronoise=np.atleast_1d([3.6, 3.6])
+        ))
+
+        # Instantiate
+        detector_dicts = [detector_dict1, detector_dict2]
+        detector = detector_container.DetectorContainer(**detector_dicts[det])
+
+        # Deal with number of amps
+        namps = hdu[0].header['NUMAMPS']
+        # The website does not give values for single amp per detector so we take the mean
+        #   of the values provided
+        if namps == 2:
+            detector.numamplifiers = 1
+            detector.gain = np.atleast_1d(np.mean(detector.gain))
+            detector.ronoise = np.atleast_1d(np.mean(detector.ronoise))
+        elif namps == 4:
+            pass
+        else:
+            msgs.error("Did not see this namps coming..")
+
+        # Return
+        return detector
+
 
     def default_pypeit_par(self):
         """
@@ -411,7 +431,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
 
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
         par['calibrations']['wavelengths']['method'] = 'full_template'
@@ -515,74 +535,79 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
     """
-    def __init__(self, ifile=None):
+    def __init__(self):
         # Get it started
         super(KeckLRISRSpectrograph, self).__init__()
         self.spectrograph = 'keck_lris_red'
         self.camera = 'LRISr'
-        # Allow for variable namps
-        if ifile is not None:
-            hdu = fits.open(ifile)
-            head0 = hdu[0].header
-            if head0['AMPPSIZE'] == '[1:1024,1:4096]':
-                namps = 2
-            elif head0['AMPPSIZE'] == '[1:2048,1:4096]':
-                namps = 1
-            else:
-                msgs.error("Bad amp size (windowed??)!!")
-        else: # Default
-            namps = 2
+#        # Allow for variable namps
+#        if ifile is not None:
+#            hdu = fits.open(ifile)
+#            head0 = hdu[0].header
+#            if head0['AMPPSIZE'] == '[1:1024,1:4096]':
+#                namps = 2
+#            elif head0['AMPPSIZE'] == '[1:2048,1:4096]':
+#                namps = 1
+#            else:
+#                msgs.error("Bad amp size (windowed??)!!")
+#        else: # Default
+#            namps = 2
         #
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         =1,
-                            specaxis        =0,
-                            specflip        =False,
-                            xgap            =0.,
-                            ygap            =0.,
-                            ysize           =1.,
-                            platescale      =0.135,
-                            darkcurr        =0.0,
-                            saturation      =65535.,
-                            nonlinear       =0.76,
-                            numamplifiers   =2,
-                            gain            =[1.255, 1.18],
-                            ronoise         =[4.64, 4.76],
-                            datasec         = ['',''],
-                            oscansec        = ['',''],
-                            suffix          ='_01red'
-                            ),
-                #Detector 2
-                pypeitpar.DetectorPar(
-                            dataext         =2,
-                            specaxis        =0,
-                            specflip        = False,
-                            xgap            =0.,
-                            ygap            =0.,
-                            ysize           =1.,
-                            platescale      =0.135,
-                            darkcurr        =0.,
-                            saturation      =65535., 
-                            nonlinear       =0.76,
-                            numamplifiers   =2,
-                            gain            =[1.191, 1.162],
-                            ronoise         =[4.54, 4.62],
-                            datasec         = ['',''],
-                            oscansec        = ['',''],
-                            suffix          ='_02red'
-                            )]
-        # Now deal with namps
-        if namps == 1:
-            for idx in [0,1]:
-                self.detector[idx]['numamplifiers'] = 1
-                self.detector[idx]['gain'] = [self.detector[idx]['gain'][0]]
-                self.detector[idx]['ronoise'] = [self.detector[idx]['ronoise'][0]]
-            self.numhead = 3
-        elif namps == 2:
-            self.numhead = 5
+    def get_detector_par(self, hdu, det):
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning=binning,
+            det=1,
+            dataext=1,
+            specaxis=0,
+            specflip=False,
+            spatflip=False,
+            platescale=0.135,
+            darkcurr=0.0,
+            saturation=65535.,
+            nonlinear=0.76,
+            mincounts=-1e10,
+            numamplifiers=2,
+            gain=np.atleast_1d([1.255, 1.18]),
+            ronoise=np.atleast_1d([4.64, 4.76]),
+        )
+        # Detector 2
+        detector_dict2 = detector_dict1.copy()
+        detector_dict2.update(dict(
+            det=2,
+            dataext=2,
+            gain=np.atleast_1d([1.191, 1.162]),
+            ronoise=np.atleast_1d([4.54, 4.62])
+        ))
+
+        # Instantiate
+        detector_dicts = [detector_dict1, detector_dict2]
+        detector = detector_container.DetectorContainer(**detector_dicts[det])
+
+        # Deal with number of amps
+        namps = hdu[0].header['NUMAMPS']
+        # The website does not give values for single amp per detector so we take the mean
+        #   of the values provided
+        if namps == 2:
+            detector.numamplifiers = 1
+            # Long silt mode
+            if hdu[0].header['AMPPSIZE'] == '[1:1024,1:4096]':
+                idx = 0 if det==1 else 1  # Vid1 for det=1, Vid4 for det=2
+                detector.gain = np.atleast_1d(detector.gain[idx])
+                detector.ronoise = np.atleast_1d(detector.ronoise[idx])
+            else:
+                detector.gain = np.atleast_1d(np.mean(detector.gain))
+                detector.ronoise = np.atleast_1d(np.mean(detector.ronoise))
+        elif namps == 4:
+            pass
         else:
-            msgs.error("Bad namps value: {}".format(namps))
+            msgs.error("Did not see this namps coming..")
+
+        # Return
+        return detector
 
     def default_pypeit_par(self):
         """
@@ -595,7 +620,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'CdI', 'KrI', 'XeI', 'ZnI', 'HgI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Tilts
         # These are the defaults
@@ -742,56 +767,56 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         return bpm_img
 
 
-class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
-    """
-    Child to handle Keck/LRISr in Long-slit readout mode (Vid1, Vid4)
-    """
-    def __init__(self):
-        # Get it started
-        super(KeckLRISRSpectrograph, self).__init__()
-        self.spectrograph = 'keck_lris_red_longonly'
-        self.camera = 'LRISr'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         =1,
-                            specaxis        =0,
-                            specflip        = False,
-                            xgap            =0.,
-                            ygap            =0.,
-                            ysize           =1.,
-                            platescale      =0.135,
-                            darkcurr        =0.0,
-                            saturation      =65535.,  # Gain applied
-                            nonlinear       =0.86,          # Modified by JXP to go higher
-                            numamplifiers   =1,
-                            gain            =[1.255],
-                            ronoise         =[4.64],
-                            datasec         = ['',''],
-                            oscansec        = ['',''],
-                            suffix          ='_01red'
-                            ),
-                #Detector 2
-                pypeitpar.DetectorPar(
-                            dataext         =2,
-                            specaxis        =0,
-                            specflip        = False,
-                            xgap            =0.,
-                            ygap            =0.,
-                            ysize           =1.,
-                            platescale      =0.135,
-                            darkcurr        =0.,
-                            saturation      =65535.,  # Gain applied
-                            nonlinear       =0.86,
-                            numamplifiers   =1,
-                            gain            =[1.162],
-                            ronoise         =[4.62],
-                            datasec         = ['',''],
-                            oscansec        = ['',''],
-                            suffix          ='_02red'
-                            )]
-        self.numhead = 3
-        # Uses default timeunit
+#class KeckLRISRLSpectrograph(KeckLRISRSpectrograph):
+#    """
+#    Child to handle Keck/LRISr in Long-slit readout mode (Vid1, Vid4)
+#    """
+#    def __init__(self):
+#        # Get it started
+#        super(KeckLRISRSpectrograph, self).__init__()
+#        self.spectrograph = 'keck_lris_red_longonly'
+#        self.camera = 'LRISr'
+#        self.detector = [
+#                # Detector 1
+#                pypeitpar.DetectorPar(
+#                            dataext         =1,
+#                            specaxis        =0,
+#                            specflip        = False,
+#                            xgap            =0.,
+#                            ygap            =0.,
+#                            ysize           =1.,
+#                            platescale      =0.135,
+#                            darkcurr        =0.0,
+#                            saturation      =65535.,  # Gain applied
+#                            nonlinear       =0.86,          # Modified by JXP to go higher
+#                            numamplifiers   =1,
+#                            gain            =[1.255],
+#                            ronoise         =[4.64],
+#                            datasec         = ['',''],
+#                            oscansec        = ['',''],
+#                            suffix          ='_01red'
+#                            ),
+#                #Detector 2
+#                pypeitpar.DetectorPar(
+#                            dataext         =2,
+#                            specaxis        =0,
+#                            specflip        = False,
+#                            xgap            =0.,
+#                            ygap            =0.,
+#                            ysize           =1.,
+#                            platescale      =0.135,
+#                            darkcurr        =0.,
+#                            saturation      =65535.,  # Gain applied
+#                            nonlinear       =0.86,
+#                            numamplifiers   =1,
+#                            gain            =[1.162],
+#                            ronoise         =[4.62],
+#                            datasec         = ['',''],
+#                            oscansec        = ['',''],
+#                            suffix          ='_02red'
+#                            )]
+#        self.numhead = 3
+#        # Uses default timeunit
 
 
 def lris_read_amp(inp, ext):

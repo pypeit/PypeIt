@@ -32,17 +32,21 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 # Instruments Served
 * Gemini/GNIRS
 * Gemini/GMOS 
+* Gemini/FLAMINGOS 2 
 * Lick/Kast 
-* Lick/APF (planned)
 * Magellan/MagE
+* Magellan/Fire
 * Keck/DEIMOS
 * Keck/LRIS 
-* Keck/MOSFIRE (soon)
+* Keck/MOSFIRE  (beta)
 * Keck/NIRES
 * Keck/NIRSPEC (low-dispersion)
 * VLT/X-Shooter
 * VLT/FORS2
 * WHT/ISIS
+* LBT/Luci-I, Luci-II
+* LBT/MODS (beta)
+* Lick/APF (planned)
 
 # Requirements
 

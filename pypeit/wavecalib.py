@@ -15,19 +15,40 @@ import linetools.utils
 
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit.core import arc, qa, pixels
+from pypeit.core import arc, qa
 from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
+from pypeit import utils
+from pypeit import datamodel
 
+#class WaveCalib(datamodel.DataContainer):
+#    # Peg the version of this class to that of PypeItImage
+#    version = '1.0.0'
+#
+#    # I/O
+#    output_to_disk = None
+#    hdu_prefix = None
+#
+#    # Master fun
+#    frametype = 'wv_calib'
+#    master_type = 'WaveCalib'
+#
+#    # Data model
+#    datamodel_v100 = {
+#        'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
+#        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
+#    }
+#
+#    datamodel = datamodel_v100.copy()
 
-class WaveCalib(masterframe.MasterFrame):
+class WaveCalib(object):
     """
     Class to guide wavelength calibration
 
     Args:
         msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
             Arc image, created by the ArcImage class
-        slits (:class:`pypeit.edgetrace.SlitTraceSet`, None):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
             Slit edges
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the
@@ -38,11 +59,9 @@ class WaveCalib(masterframe.MasterFrame):
             Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
         det (int, optional): Detector number
-        master_key (str, optional)
-        master_dir (str, optional): Path to master frames
-        reuse_masters (bool, optional):  Load from disk if possible
-        qa_path (str, optional):  For QA
         msbpm (ndarray, optional): Bad pixel mask image
+        qa_path (str, optional):  For QA
+        master_key (:obj:`str`, optional):  For naming QA only
 
     Attributes:
         frametype : str
@@ -62,19 +81,21 @@ class WaveCalib(masterframe.MasterFrame):
             Good pixel mask
             Eventually, we might attach this to self.msarc although that would then
             require that we write it to disk with self.msarc.image
+        nonlinear_counts (float):
+            Specifies saturation level for the arc lines
     """
     # Frametype is a class attribute
     frametype = 'wv_calib'
     master_type = 'WaveCalib'
+    file_format = 'json'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
-                 master_key=None, master_dir=None, reuse_masters=False, qa_path=None,
-                 msbpm=None):
+                 qa_path=None, msbpm=None, master_key=None):
 
         # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format='json',
-                                         reuse_masters=reuse_masters)
+        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
+        #                                 master_key=master_key, file_format='json',
+        #                                 reuse_masters=reuse_masters)
 
         # Required parameters (but can be None)
         self.msarc = msarc
@@ -83,7 +104,10 @@ class WaveCalib(masterframe.MasterFrame):
         self.par = par
 
         # Optional parameters
-        self.bpm = msarc.mask if msbpm is None else msbpm
+        self.bpm = msbpm
+        if self.bpm is None:
+            if msarc is not None:  # Can be None for load;  will remove this for DataContainer
+                self.bpm = msarc.mask 
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -96,7 +120,8 @@ class WaveCalib(masterframe.MasterFrame):
 
         # Get the non-linear count level
         self.nonlinear_counts = 1e10 if self.spectrograph is None \
-            else self.spectrograph.nonlinear_counts(self.det)
+            else self.spectrograph.nonlinear_counts(self.msarc.detector)
+            #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
@@ -115,12 +140,10 @@ class WaveCalib(masterframe.MasterFrame):
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
             self.nslits = self.slits.nslits
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.left)
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.slits.right)
-            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                self.slits.center)
+            left, right = self.slits.select_edges()
+            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
+            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
+            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (left+right)/2)
             self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
             # We want even the saturated lines in full_template for the cross-correlation
@@ -139,7 +162,6 @@ class WaveCalib(masterframe.MasterFrame):
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
-            self.nonlinear_counts = None
 
     def build_wv_calib(self, arccen, method, skip_QA=False):
         """
@@ -204,7 +226,7 @@ class WaveCalib(masterframe.MasterFrame):
                     self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
+            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask, nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
             final_fit = {}
@@ -233,14 +255,15 @@ class WaveCalib(masterframe.MasterFrame):
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
-                                           slit_spat_pos=self.spat_coo)
+                                           slit_spat_pos=self.spat_coo,
+                                           nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
             final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det,
-                                             self.binspectral,
+                                             self.binspectral, nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
@@ -355,7 +378,7 @@ class WaveCalib(masterframe.MasterFrame):
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
         """
-        _outfile = self.master_file_path if outfile is None else outfile
+        _outfile = outfile # self.master_file_path if outfile is None else outfile
         # Check if it exists
         if os.path.exists(_outfile) and not overwrite:
             msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
@@ -372,7 +395,7 @@ class WaveCalib(masterframe.MasterFrame):
         linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
         msgs.info('Master frame written to {0}'.format(_outfile))
 
-    def load(self, ifile=None):
+    def load(self, ifile):
         """
         Load a full (all slit) wavelength calibration.
 
@@ -388,12 +411,7 @@ class WaveCalib(masterframe.MasterFrame):
             dict or None: self.wv_calib
         """
         # Check on whether to reuse and whether the file exists
-        master_file = self.chk_load_master(ifile)
-        if master_file is None:
-            return
-        # Read, save it to self, return
-        msgs.info('Loading Master frame: {0}'.format(master_file))
-        self.wv_calib = waveio.load_wavelength_calibration(master_file)
+        self.wv_calib = waveio.load_wavelength_calibration(ifile)
         return self.wv_calib
 
     def make_maskslits(self, nslit):
@@ -500,5 +518,56 @@ class WaveCalib(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+
+
+# TODO -- Move this as a method on a WaveCalib DataContainer
+def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
+    """
+    Main algorithm to build the wavelength image
+
+    Returns:
+        `numpy.ndarray`_: The wavelength image.
+    """
+    # Setup
+    ok_slits = np.where(np.invert(slits.mask))[0]
+    image = np.zeros_like(tilts)
+    slitmask = slits.slit_img(flexure=spat_flexure)
+
+    par = wv_calib['par']
+    slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
+
+    # If this is echelle print out a status message and do some error checking
+    if par['echelle']:
+        msgs.info('Evaluating 2-d wavelength solution for echelle....')
+        if len(wv_calib['fit2d']['orders']) != len(ok_slits):
+            msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
+
+    # Unpack some 2-d fit parameters if this is echelle
+    for slit in ok_slits:
+        thismask = (slitmask == slit)
+        if par['echelle']:
+            embed(header='205 this may be broken..')
+            # TODO: Put this in `SlitTraceSet`?
+            order, indx = spectrograph.slit2order(slit_spat_pos[slit])
+            # evaluate solution
+            image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
+                                             tilts[thismask],
+                                             wv_calib['fit2d']['func2d'],
+                                             x2=np.ones_like(tilts[thismask])*order,
+                                             minx=wv_calib['fit2d']['min_spec'],
+                                             maxx=wv_calib['fit2d']['max_spec'],
+                                             minx2=wv_calib['fit2d']['min_order'],
+                                             maxx2=wv_calib['fit2d']['max_order'])
+            image[thismask] /= order
+        else:
+            iwv_calib = wv_calib[str(slit)]
+            image[thismask] = utils.func_val(iwv_calib['fitc'], tilts[thismask],
+                                             iwv_calib['function'],
+                                             minx=iwv_calib['fmin'],
+                                             maxx=iwv_calib['fmax'])
+
+    # Return
+    return image
 
 

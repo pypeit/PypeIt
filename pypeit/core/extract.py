@@ -20,6 +20,7 @@ from pypeit import ginga
 from pypeit import specobj
 from pypeit import specobjs
 from pypeit import tracepca
+from pypeit import bspline
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
@@ -760,8 +761,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis
-                                      ,maxiter=1,kwargs_bspline= {'nbkpts':nbkpts})
+        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+                                               norm_ivar.flat[inside], profile_basis,
+                                               maxiter=1, kwargs_bspline={'nbkpts':nbkpts})
         # Check to see if the mode fit failed, if so punt and return a Gaussian
         if not np.any(mode_shift_out[1]):
             msgs.info('B-spline fit to trace correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
@@ -772,7 +774,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
 
         mode_shift_set = mode_shift_out[0]
-        temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
+#        temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
+        temp_set = bspline.bspline(None, fullbkpt=mode_shift_set.breakpoints,
+                                   nord=mode_shift_set.nord)
         temp_set.coeff = mode_shift_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_shift_set.coeff[1, :]
@@ -782,8 +786,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside], norm_ivar.flat[inside], profile_basis,
-                                            maxiter=1,fullbkpt = mode_shift_set.breakpoints)
+        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+                                                 norm_ivar.flat[inside], profile_basis, maxiter=1,
+                                                 fullbkpt=mode_shift_set.breakpoints)
         if not np.any(mode_stretch_out[1]):
             msgs.info('B-spline fit to width correction failed for fit to ninside = {:}'.format(ninside) + ' pixels')
             msgs.info("Returning Gaussian profile")
@@ -792,7 +797,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
         mode_stretch_set = mode_stretch_out[0]
-        temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
+#        temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
+        temp_set = bspline.bspline(None, fullbkpt=mode_stretch_set.breakpoints,
+                                   nord=mode_stretch_set.nord)
         temp_set.coeff = mode_stretch_set.coeff[0, :]
         h0, _ = temp_set.value(xx)
         temp_set.coeff = mode_stretch_set.coeff[1, :]
@@ -816,9 +823,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             pb = (np.outer(area, np.ones(nspat,dtype=float))).flat[inside]
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
-                keep = np.ones(bkpt.size, type=bool)
-            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]],norm_obj.flat[inside[ss]],norm_ivar.flat[inside[ss]],pb[ss],
-                                    nord = 4, bkpt=bkpt[keep],maxiter=2)
+                keep = np.ones(bkpt.size, dtype=bool)
+            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
+                                             norm_ivar.flat[inside[ss]],pb[ss], nord=4,
+                                             bkpt=bkpt[keep], maxiter=2)
             if not np.any(bset_out[1]):
                 msgs.info('B-spline to profile in trace and width correction loop failed for fit to ninside = {:}'.format(ninside) + ' pixels')
                 msgs.info("Returning Gaussian profile")
@@ -842,8 +850,9 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]],norm_obj.flat[ss[inside]], norm_ivar.flat[ss[inside]], pb.flat[ss[inside]],
-                            nord=4, bkpt = bkpt, upper = 10, lower=10)
+    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
+                                     norm_ivar.flat[ss[inside]], pb.flat[ss[inside]], nord=4,
+                                     bkpt=bkpt, upper=10, lower=10)
     bset = bset_out[0]
     outmask = bset_out[1]
 
@@ -1157,11 +1166,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             Order of polynomial fit to the illumination pattern across the slit when peak finding
         specobj_dict: dict, default = None
             Dictionary containing meta-data for the objects that will be
-            propgated into the SpecObj objects, i.e. setup, slitid,
+            propgated into the SpecObj objects, i.e. setup, SLITID,
             detector, object type, and pipeline. The default is None, in
             which case the following dictionary will be used::
             
-                specobj_dict = {'setup': None, 'slitid': 999, 'det': 1,
+                specobj_dict = {'setup': None, 'SLITID': 999, 'det': 1,
                                 'objtype': 'unknown', 'pypeline': 'unknown'}
 
     Returns:
@@ -1187,7 +1196,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         show_cont = True
 
     if specobj_dict is None:
-        specobj_dict = dict(setup=None, slitid=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
+        #specobj_dict = dict(setup=None, SLITID=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
+        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit', ORDERINDX=999)
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1251,7 +1261,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     cont, cont_mask0 = arc.iter_continuum(
         fluxconv0, inmask=smash_mask, fwhm=fwhm,cont_frac_fwhm=2.0, sigthresh=2.0, sigrej=2.0, cont_samp=cont_samp,
         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=ir_redux, debug=show_cont,
-        qa_title='Smash Image Background, 1st iteration: Slit# {:d}'.format(specobj_dict['slitid']))
+        qa_title='Smash Image Background, 1st iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
 
     # Second iteration
     flux_mean_med = np.median(flux_mean[cont_mask0])
@@ -1261,7 +1271,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     cont, cont_mask = arc.iter_continuum(
         fluxconv, inmask=smash_mask, fwhm=fwhm, cont_frac_fwhm=2.0, sigthresh=2.0, sigrej=2.0, cont_samp=cont_samp,
         npoly=(0 if (nsamp/fwhm < 20.0) else npoly_cont), cont_mask_neg=ir_redux, debug=show_cont,
-        qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['slitid']))
+        qa_title='Smash Image Background: 2nd iteration: Slit# {:d}'.format(specobj_dict['SLITID']))
     fluxconv_cont = (fluxconv - cont) if cont_fit else fluxconv
     # JFH TODO Do we need a running median as was done in the OLD code? Maybe needed for long slits. We could use
     #  use the cont_mask to isolate continuum pixels, and then interpolate the unmasked pixels.
@@ -1303,16 +1313,16 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     if not np.any(cont_mask):
         cont_mask = np.ones(int(nsamp),dtype=bool) # if all pixels are masked for some reason, don't mask
 
-    (mean, med, skythresh) = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
-    (mean, med, sigma)     = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
+    mean, med, skythresh = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=1.5)
+    mean, med, sigma     = stats.sigma_clipped_stats(fluxconv_cont[cont_mask], sigma=2.5)
 
     if(skythresh == 0.0) & (sigma != 0.0):
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma == 0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
         good = fluxconv_cont > 0.0
         if np.any(good) == True:
-            (mean, med_sn2, skythresh) = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
-            (mean, med_sn2, sigma) = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
+            mean, med_sn2, skythresh = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
+            mean, med_sn2, sigma = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
             msgs.error('Object finding failed. All the elements of the fluxconv_cont spatial profile array are zero')
     else:
@@ -1373,7 +1383,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         nobj_reg = len(xcen)
         # Now create SpecObj objects for all of these
         for iobj in range(nobj_reg):
-            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
+            thisobj = specobj.SpecObj(**specobj_dict)# 'UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
             #
             thisobj.SPAT_FRACPOS = xcen[iobj]/nsamp
             thisobj.smash_peakflux = ypeak[iobj]
@@ -1402,8 +1412,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         plt.legend()
         plt.xlabel('Approximate Spatial Position (pixels)')
         plt.ylabel('F/sigma (significance)')
-        plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['slitid']))
+        plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['SLITID']))
         plt.show()
+        viewer, ch = ginga.show_image(image*(thismask*inmask))
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
@@ -1611,7 +1622,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # If requested display the resulting traces on top of the image
     if show_trace:
         viewer, ch = ginga.show_image(image*(thismask*inmask))
-        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].slitid)
+        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].SLITID)
         for iobj in range(nobj):
             if sobjs[iobj].hand_extract_flag == False:
                 color = 'orange'
@@ -1781,8 +1792,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
 
     if specobj_dict is None:
-        specobj_dict = {'setup': 'unknown', 'slitid': 999, 'orderindx': 999,
-                        'det': 1, 'objtype': 'unknown', 'pypeline': 'Echelle'}
+        specobj_dict = {'SLITID': 999, 'ECH_ORDERINDX': 999,
+                        'DET': 1, 'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
 
 
     # TODO Update FOF algorithm here with the one from scikit-learn.
@@ -1826,15 +1837,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     skymask_objfind = np.copy(allmask)
     # Loop over orders and find objects
     sobjs = specobjs.SpecObjs()
-    # ToDo replace orderindx with the true order number here? Maybe not. Clean up slitid and orderindx!
+    # ToDo replace orderindx with the true order number here? Maybe not. Clean up SLITID and orderindx!
     gdorders = np.arange(norders)[np.invert(maskslits)]
     for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
         thismask = slitmask == iord
         inmask_iord = inmask & thismask
-        specobj_dict['slitid'] = iord
-        specobj_dict['orderindx'] = iord
-        specobj_dict['order'] = order_vec[iord]
+        specobj_dict['SLITID'] = iord
+        specobj_dict['ECH_ORDERINDX'] = iord
+        specobj_dict['ECH_ORDER'] = order_vec[iord]
         try:
             std_in = std_trace[:,iord]
         except TypeError:
@@ -1975,9 +1986,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             if not np.any(on_order):
                 # Add this to the sobjs_align, and assign required tags
                 thisobj = specobj.SpecObj('Echelle', sobjs_align[0].DET,
-                                             objtype=sobjs_align[0].OBJTYPE,
-                                             orderindx=iord,
-                                             ech_order=order_vec[iord])
+                                             OBJTYPE=sobjs_align[0].OBJTYPE,
+                                             ECH_ORDERINDX=iord,
+                                             ECH_ORDER=order_vec[iord])
                 #thisobj.ECH_ORDERINDX = iord
                 #thisobj.ech_order = order_vec[iord]
                 thisobj.SPAT_FRACPOS = uni_frac[iobj]

@@ -1,3 +1,9 @@
+"""
+Main driver class for skysubtraction and extraction
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+"""
 
 import inspect
 import numpy as np
@@ -8,8 +14,9 @@ from abc import ABCMeta
 from linetools import utils as ltu
 
 from pypeit import specobjs
-from pypeit import ginga, msgs, edgetrace
-from pypeit.core import skysub, extract, pixels, wave
+from pypeit import ginga, msgs
+from pypeit.core import skysub, extract, wave, flexure
+from pypeit import wavecalib
 
 from IPython import embed
 
@@ -23,9 +30,10 @@ class Reduce(object):
         sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph (pypeit.spectrograph.Spectrograph):
         par (pypeit.par.pyepeitpar.PypeItPar):
-        caliBrate (pypeit.calibrations.Calibrations):
-           This is only used as a container and it must contain the main products
-           of WaveTilts, WaveImage, and EdgeTrace
+        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
+        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+        objtype (str):
+           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
         det (int, optional):
            Detector indice
         setup (str, optional):
@@ -33,8 +41,6 @@ class Reduce(object):
         maskslits (ndarray, optional):
           Specifies masked out slits
           True = Masked
-        objtype (str, optional):
-           Specifies object being reduced 'science' 'standard' 'science_coadd2d'
         show (bool, optional):
            Show plots along the way?
 
@@ -59,14 +65,19 @@ class Reduce(object):
             Only object finding but no extraction
         sobjs (SpecObsj):
             Final extracted object list with trace corrections applied
+        spat_flexure_shift (float):
+        tilts (`np.ndarray`_):
+            WaveTilts images generated on-the-spot
+        waveImg (`np.ndarray`_):
+            WaveImage image generated on-the-spot
 
     """
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, sciImg, spectrograph, par, caliBrate,
-                 ir_redux=False, det=1, std_redux=False, show=False,
-                 objtype='science', binning=None, setup=None, maskslits=None):
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
+                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
+                 binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -75,20 +86,52 @@ class Reduce(object):
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
-        #self.extraction_par = self.par['reduce']['extraction']
-        #self.wave_par = self.par['calibrations']['wavelengths']
-        #self.flex_par = self.par['flexure']
         # Parse
-        self.caliBrate = caliBrate
-        self.slits = self.caliBrate.slits
-        self.tilts = self.caliBrate.tilts_dict['tilts']
-        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
+        # Slit pieces
+        #   WARNING -- It is best to unpack here then pass around self.slits
+        #      Otherwise you have to keep in mind flexure, tweaking, etc.
+
+        # Flexure
+        self.spat_flexure_shift = None
+        if objtype == 'science':
+            if self.par['scienceframe']['process']['spat_flexure_correct']:
+                self.spat_flexure_shift = self.sciImg.spat_flexure
+        else:
+            embed(header='100 of reduce')  # Think through standard without spatial flexure correction
+
+        self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.spat_flexure_shift)
+        self.slits_specmin = slitTrace.specmin
+        self.slits_specmax = slitTrace.specmax
+        self.nsilts = slitTrace.nslits
         # TODO: We keep creating this image...
+        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)
+        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
-        self.slitmask = self.slits.slit_img()
         self.sciImg.update_mask_slitmask(self.slitmask)
+        self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
         self.maskslits = self._get_goodslits(maskslits)
+
+        # Tilts
+        #   Deal with Flexure
+        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            # If they both shifted the same, there will be no reason to shift the tilts
+            tilt_flexure_shift = _spat_flexure - waveTilts.spat_flexure
+        else:
+            tilt_flexure_shift = self.spat_flexure_shift
+        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift) #self.spat_flexure_shift)
+
+        # Wavelengths
+        self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
+                                               wv_calib, spat_flexure=self.spat_flexure_shift)
+
+        #viewer, ch = ginga.show_image(self.tilts)#, chname=ch_name, clear=clear, wcs_match=True)
+        #viewer, ch = ginga.show_image(self.slitmask)#, chname=ch_name, clear=clear, wcs_match=True)
+        #viewer, ch = ginga.show_image(self.sciImg.fullmask)#, chname=ch_name, clear=clear, wcs_match=True)
+        #ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)  # , self.slits.id)
+        #embed(header='112 of reduce')
+
         # Load up other input items
         self.ir_redux = ir_redux
         self.std_redux = std_redux
@@ -187,21 +230,21 @@ class Reduce(object):
                 '''
                 # True  = Good, False = Bad for inmask
                 thismask = (self.slitmask == iobj)  # pixels for this slit
-                inmask = (self.sciImg.mask == 0) & thismask
+                inmask = (self.sciImg.fullmask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                               inmask, self.caliBrate.mswave,
+                                               inmask, self.wave_img,
                                                global_sky, self.sciImg.rn2img,
                                                self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
             self.ivarmodel = np.copy(self.sciImg.ivar)
-            self.outmask = self.sciImg.mask
+            self.outmask = self.sciImg.fullmask
             self.skymodel = global_sky.copy()
         else:  # Local sky subtraction and optimal extraction.
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = \
-                self.local_skysub_extract(self.caliBrate.mswave, global_sky, self.sobjs_obj,
+                self.local_skysub_extract(global_sky, self.sobjs_obj,
                                           model_noise=(not self.ir_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
@@ -263,7 +306,8 @@ class Reduce(object):
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
             self.sobjs_obj, self.nobj, self.skymask = \
                 self.find_objects(self.sciImg.image - self.initial_sky,
-                                  std_trace=std_trace, show=self.reduce_show,
+                                  std_trace=std_trace,
+                                  show=self.reduce_show,
                                   show_peaks=show_peaks,
                                   manual_extract_dict=manual_extract_dict)
         else:
@@ -287,7 +331,7 @@ class Reduce(object):
             # Set to sciivar. Could create a model but what is the point?
             self.ivarmodel = np.copy(self.sciImg.ivar)
             # Set to the initial mask in case no objects were found
-            self.outmask = self.sciImg.mask
+            self.outmask = self.sciImg.fullmask
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
@@ -302,13 +346,13 @@ class Reduce(object):
             # TODO -- Should we move these to redux.run()?
             # Flexure correction if this is not a standard star
             if not self.std_redux:
-                self.flexure_correct(self.sobjs, basename)
+                self.spec_flexure_correct(self.sobjs, basename)
             # Heliocentric
             radec = ltu.radec_to_coord((ra, dec))
             self.helio_correct(self.sobjs, radec, obstime)
 
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveImg
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -364,7 +408,7 @@ class Reduce(object):
             skymask = skymask_pos
 
         if show:
-            self.show('image', image=image*(self.sciImg.mask == 0), chname='objfind',sobjs=sobjs_obj_single, slits=True)
+            self.show('image', image=image*(self.sciImg.fullmask == 0), chname='objfind',sobjs=sobjs_obj_single, slits=True)
 
         # For nobj we take only the positive objects
         return sobjs_obj_single, nobj_single, skymask
@@ -422,18 +466,18 @@ class Reduce(object):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Loop on slits
         for slit in gdslits:
             msgs.info("Global sky subtraction for slit: {:d}".format(slit))
             thismask = (self.slitmask == slit)
-            inmask = (self.sciImg.mask == 0) & thismask & skymask_now
+            inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # Find sky
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                           thismask, left[:,slit], right[:,slit], inmask=inmask,
-                                           sigrej=sigrej,
+                                           thismask, self.slits_left[:,slit], self.slits_right[:,slit],
+                                           inmask=inmask, sigrej=sigrej,
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
@@ -442,7 +486,11 @@ class Reduce(object):
                 self.maskslits[slit] = True
 
         if update_crmask:
-            self.sciImg.update_mask_cr(subtract_img=self.global_sky)
+            # Find CRs with sky subtraction
+            self.sciImg.build_crmask(self.par['scienceframe']['process'],
+                                   subtract_img=self.global_sky)
+            # Update the fullmask
+            self.sciImg.update_mask_cr(self.sciImg.crmask)
 
         # Step
         self.steps.append(inspect.stack()[0][3])
@@ -455,7 +503,7 @@ class Reduce(object):
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, waveimg, global_sky, sobjs,
+    def local_skysub_extract(self, waveImg, global_sky, sobjs,
                              model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
         """
@@ -469,12 +517,12 @@ class Reduce(object):
 
         return None, None, None, None, None
 
-    def flexure_correct(self, sobjs, basename):
-        """ Correct for flexure
+    def spec_flexure_correct(self, sobjs, basename):
+        """ Correct for spectral flexure
 
         Spectra are modified in place (wavelengths are shifted)
 
-        Wrapper to wave.flexure_obj()
+        Wrapper to flexure.flexure_obj()
 
         Args:
             sobjs (:class:`pypeit.specobjs.SpecObjs`):
@@ -482,12 +530,12 @@ class Reduce(object):
 
         """
 
-        if self.par['flexure']['method'] != 'skip':
-            flex_list = wave.flexure_obj(sobjs, self.maskslits, self.par['flexure']['method'],
+        if self.par['flexure']['spec_method'] != 'skip':
+            flex_list = flexure.spec_flexure_obj(sobjs, self.maskslits, self.par['flexure']['spec_method'],
                                          self.par['flexure']['spectrum'],
-                                         mxshft=self.par['flexure']['maxshift'])
+                                         mxshft=self.par['flexure']['spec_maxshift'])
             # QA
-            wave.flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+            flexure.spec_flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
         else:
             msgs.info('Skipping flexure correction.')
 
@@ -543,7 +591,7 @@ class Reduce(object):
                 return self.maskslits
             except AttributeError:
                 # If maskslits was not passed, and it does not exist in self, reduce all slits
-                self.maskslits = np.zeros(self.slits.nslits, dtype=bool)
+                self.maskslits = np.zeros(self.nslits, dtype=bool)
                 return self.maskslits
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
@@ -574,7 +622,7 @@ class Reduce(object):
         """
 
         if showmask:
-            mask_in = self.sciImg.mask
+            mask_in = self.sciImg.fullmask
             bitmask_in = self.sciImg.bitmask
         else:
             mask_in = None
@@ -582,10 +630,10 @@ class Reduce(object):
 
         if attr == 'global':
             # global sky subtraction
-            if self.sciImg.image is not None and self.global_sky is not None and self.sciImg.mask is not None:
+            if self.sciImg.image is not None and self.global_sky is not None and self.sciImg.fullmask is not None:
                 # sky subtracted image
-                image = (self.sciImg.image - self.global_sky)*(self.sciImg.mask == 0)
-                mean, med, sigma = stats.sigma_clipped_stats(image[self.sciImg.mask == 0], sigma_lower=5.0,
+                image = (self.sciImg.image - self.global_sky)*(self.sciImg.fullmask == 0)
+                mean, med, sigma = stats.sigma_clipped_stats(image[self.sciImg.fullmask == 0], sigma_lower=5.0,
                                                        sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
@@ -595,10 +643,10 @@ class Reduce(object):
                                               #, cuts=(cut_min, cut_max))
         elif attr == 'local':
             # local sky subtraction
-            if self.sciImg.image is not None and self.skymodel is not None and self.sciImg.mask is not None:
+            if self.sciImg.image is not None and self.skymodel is not None and self.sciImg.fullmask is not None:
                 # sky subtracted image
-                image = (self.sciImg.image - self.skymodel)*(self.sciImg.mask == 0)
-                mean, med, sigma = stats.sigma_clipped_stats(image[self.sciImg.mask == 0], sigma_lower=5.0,
+                image = (self.sciImg.image - self.skymodel)*(self.sciImg.fullmask == 0)
+                mean, med, sigma = stats.sigma_clipped_stats(image[self.sciImg.fullmask == 0], sigma_lower=5.0,
                                                        sigma_upper=5.0)
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
@@ -610,9 +658,9 @@ class Reduce(object):
             # sky residual map with object included
             if self.sciImg.image is not None and self.skymodel is not None \
                     and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.sciImg.mask is not None:
+                    and self.sciImg.fullmask is not None:
                 image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
-                image *= (self.sciImg.mask == 0)
+                image *= (self.sciImg.fullmask == 0)
                 ch_name = chname if chname is not None else 'sky_resid_{}'.format(self.det)
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                               bitmask=bitmask_in, mask=mask_in, clear=clear,
@@ -621,10 +669,10 @@ class Reduce(object):
             # full residual map with object model subtractede
             if self.sciImg.image is not None and self.skymodel is not None \
                     and self.objmodel is not None and self.ivarmodel is not None \
-                    and self.sciImg.mask is not None:
+                    and self.sciImg.fullmask is not None:
                 # full model residual map
                 image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
-                image *= (self.sciImg.mask == 0)
+                image *= (self.sciImg.fullmask == 0)
                 ch_name = chname if chname is not None else 'resid_{}'.format(self.det)
                 viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
                                               bitmask=bitmask_in, mask=mask_in, clear=clear,
@@ -641,12 +689,12 @@ class Reduce(object):
                 ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
         if slits:
-            if self.slits is not None:
+            if self.slits_left is not None:
                 # TODO: IDs are always set by the original edge traces
                 # produced by EdgeTraceSet, not the tweaked ones
                 # produced by FlatField. Is that the desired behavior?
-                left, right = self.slits.select_edges()
-                ginga.show_slits(viewer, ch, left, right, self.slits.id)
+                #left, right = self.slits.select_edges()
+                ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)#, self.slits.id)
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
@@ -667,8 +715,8 @@ class MultiSlitReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
-        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
+        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """
@@ -676,14 +724,15 @@ class MultiSlitReduce(Reduce):
         The input argument is ignored
 
         Args:
-            dummy (:class:`pypeit.specobj.SpecObj`):
+            dummy:
                 ignored
+                Keeps argument lists the same amongst the children
 
         Returns:
             float:
 
         """
-        plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+        plate_scale = self.sciImg.detector.platescale
         return plate_scale
 
     def find_objects_pypeline(self, image, std_trace=None,
@@ -727,24 +776,26 @@ class MultiSlitReduce(Reduce):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Loop on slits
         for slit in gdslits:
             qa_title ="Finding objects on slit # {:d}".format(slit)
             msgs.info(qa_title)
             thismask = (self.slitmask == slit)
-            inmask = (self.sciImg.mask == 0) & thismask
+            inmask = (self.sciImg.fullmask == 0) & thismask
             # Find objects
-            specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
-                            'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
+            #specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
+            #                'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
+            specobj_dict = {'SLITID': slit, #'orderindx': 999,
+                            'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
 
             sobjs_slit, skymask[thismask] = \
-                extract.objfind(image, thismask, left[:,slit], right[:,slit], inmask=inmask,
+                extract.objfind(image, thismask, self.slits_left[:,slit], self.slits_right[:,slit], inmask=inmask,
                                 ir_redux=self.ir_redux,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
@@ -764,7 +815,7 @@ class MultiSlitReduce(Reduce):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            self.show('image', image=image*(self.sciImg.mask == 0), chname = 'objfind',
+            self.show('image', image=image*(self.sciImg.fullmask == 0), chname = 'objfind',
                       sobjs=sobjs, slits=True)
 
         # Return
@@ -773,7 +824,7 @@ class MultiSlitReduce(Reduce):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract(self, waveimg, global_sky, sobjs,
+    def local_skysub_extract(self, global_sky, sobjs,
                              spat_pix=None, model_noise=True,
                              show_resids=False,
                              show_profile=False, show=False):
@@ -783,7 +834,6 @@ class MultiSlitReduce(Reduce):
         Wrapper to skysub.local_skysub_extract
 
         Args:
-            waveimg (np.ndarray):
             global_sky (np.ndarray):
             sobjs (:class:`pypeit.specobjs.SpecObjs`):
             spat_pix (np.ndarray, optional):
@@ -796,7 +846,6 @@ class MultiSlitReduce(Reduce):
             tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
 
         """
-        self.waveimg = waveimg
         self.global_sky = global_sky
 
         # get the good slits and assign self.maskslits
@@ -806,13 +855,13 @@ class MultiSlitReduce(Reduce):
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
-        self.outmask = np.copy(self.sciImg.mask)
+        self.outmask = np.copy(self.sciImg.fullmask)
         # Initialize to input mask in case no objects were found
-        self.extractmask = (self.sciImg.mask == 0)
+        self.extractmask = (self.sciImg.fullmask == 0)
         # Initialize to zero in case no objects were found
         self.objmodel = np.zeros_like(self.sciImg.image)
         # Set initially to global sky in case no objects were found
@@ -830,15 +879,16 @@ class MultiSlitReduce(Reduce):
             if np.any(thisobj):
                 thismask = (self.slitmask == slit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
-                inmask = (self.sciImg.mask == 0) & thismask
+                inmask = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
-                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg, self.global_sky, self.sciImg.rn2img,
-                    thismask, left[:,slit], right[:, slit],
+                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveImg,
+                    self.global_sky, self.sciImg.rn2img,
+                    thismask, self.slits_left[:,slit], self.slits_right[:, slit],
                     self.sobjs[thisobj], spat_pix=spat_pix,
                     model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
-                    box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(0), #self.spectrograph.detector[self.det-1]['platescale'],
+                    box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
                     sigrej=self.par['reduce']['skysub']['sky_sigrej'],
                     model_noise=model_noise, std=self.std_redux,
                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
@@ -847,7 +897,7 @@ class MultiSlitReduce(Reduce):
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
-        iextract = (self.sciImg.mask == 0) & (self.extractmask == False)
+        iextract = (self.sciImg.fullmask == 0) & (self.extractmask == False)
         self.outmask[iextract] = self.sciImg.bitmask.turn_on(self.outmask[iextract], 'EXTRACT')
 
         # Step
@@ -868,12 +918,13 @@ class EchelleReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
-        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
+        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
-                            else self.spectrograph.order_vec(self.slits.spatial_coordinates())
+                            else self.spectrograph.order_vec(self.spatial_coo)
+                            #else self.spectrograph.order_vec(self.slits.spatial_coordinates())
 
     def get_platescale(self, sobj):
         """
@@ -939,22 +990,23 @@ class EchelleReduce(Reduce):
         skymask = np.zeros_like(image, dtype=bool)
 
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
-        inmask = self.sciImg.mask == 0
+        inmask = self.sciImg.fullmask == 0
         # Find objects
-        specobj_dict = {'setup': self.setup, 'slitid': 999, #'orderindx': 999,
-                        'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
+        specobj_dict = {'SLITID': 999, #'orderindx': 999,
+                        'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 
         # Select the edges to use: Selects the edges tweaked by the
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # TODO This is a bad idea -- we want to find everything for standards
         #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
-            image, self.sciImg.ivar, self.slitmask, left, right, self.order_vec, self.maskslits,
-            spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
+            image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right, self.order_vec, self.maskslits,
+            spec_min_max=np.vstack((self.specmin, self.specmax)),
+            #spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
@@ -973,14 +1025,14 @@ class EchelleReduce(Reduce):
         # Steps
         self.steps.append(inspect.stack()[0][3])
         if show:
-            self.show('image', image=image*(self.sciImg.mask == 0), chname='ech_objfind',sobjs=sobjs_ech, slits=False)
+            self.show('image', image=image*(self.sciImg.fullmask == 0), chname='ech_objfind',sobjs=sobjs_ech, slits=False)
 
         return sobjs_ech, len(sobjs_ech), skymask
 
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract(self, waveimg, global_sky, sobjs,
+    def local_skysub_extract(self, global_sky, sobjs,
                              spat_pix=None, model_noise=True, min_snr=2.0, fit_fwhm=False,
                              show_profile=False, show_resids=False, show_fwhm=False, show=False):
         """
@@ -989,7 +1041,6 @@ class EchelleReduce(Reduce):
         Wrapper to skysub.local_skysub_extract
 
         Args:
-            waveimg (np.ndarray):
             global_sky (np.ndarray):
             sobjs (:class:`pypeit.specobjs.SpecObjs`):
             spat_pix (np.ndarray, optional):
@@ -1002,17 +1053,16 @@ class EchelleReduce(Reduce):
             tuple: skymodel (np.ndarray), objmodel (np.ndarray), ivarmodel (np.ndarray), outmask (np.ndarray), sobjs
 
         """
-        self.waveimg = waveimg
         self.global_sky = global_sky
 
         # TODO: Is this already available from the __init__ or could it have been overwritten?
-        self.slitmask = self.slits.slit_img()
+        #self.slitmask = self.slits.slit_img()
 
         # Select the edges to use: Selects the edges tweaked by the
         # illumination profile if they're present; otherwise, it
         # selects the original edges from EdgeTraceSet. To always
         # select the latter, use the method with `original=True`.
-        left, right = self.slits.select_edges()
+        #left, right = self.slits.select_edges()
 
         # Pulled out some parameters to make the method all easier to read
         bsp = self.par['reduce']['skysub']['bspline_spacing']
@@ -1024,9 +1074,9 @@ class EchelleReduce(Reduce):
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
-                                                  self.sciImg.mask, self.tilts, self.waveimg,
+                                                  self.sciImg.fullmask, self.tilts, self.waveImg,
                                                   self.global_sky, self.sciImg.rn2img,
-                                                  self.slits.nslits, left, right, self.slitmask,
+                                                  self.nslits, self.slits_left, self.slits_right, self.slitmask,
                                                   sobjs, self.order_vec, spat_pix=spat_pix,
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,
@@ -1047,7 +1097,7 @@ class EchelleReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 # TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
-def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
+def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -1059,7 +1109,9 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
         sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
         par (pypeit.par.pyepeitpar.PypeItPar):
-        caliBrate (pypeit.calibrations.Calibrations):
+        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
+        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+
         **kwargs
             Passed to Parent init
 
@@ -1070,7 +1122,8 @@ def instantiate_me(sciImg, spectrograph, par, caliBrate, **kwargs):
     if not np.any(indx):
         msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
-                                                         par, caliBrate, **kwargs)
+                                                         par, slitTrace,
+                                                         waveTilts, wv_calib, objtype, **kwargs)
 
 
 

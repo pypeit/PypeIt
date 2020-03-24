@@ -19,7 +19,15 @@
       `pypeit.flatfield.FlatField.fit`.
 - Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
   sobel image to the ginga display.
-- Added `bspline_qa` for generic QA of a bspline fit.
+- Added `bspline_profile_qa` for generic QA of a bspline fit.
+- Eliminate MasterFrame class
+- Masks handled by a DataContainer
+- Move DetectorPar into a DataContainer (named DetectorContainer) which enables frame-level construction
+- Advances to DataContainer (array type checking; nested DataContainers; to_master_file)
+- Dynamic docs for calibration images
+- Every calibration output to disk is help within a DataContainer, separate from
+  previous classes.  Exception is WaveCalib (this needsd a fit DataContainer first)
+- Substantial refactoring of Calibrations
 
 0.13.2 (17 Mar 2020)
 --------------------

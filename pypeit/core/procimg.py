@@ -12,7 +12,7 @@ from pypeit import utils
 from pypeit.core import parse
 
 
-def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
+def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
@@ -21,7 +21,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     This routine is mostly courtesy of Malte Tewes
 
     Args:
-        det:
         sciframe:
         saturation:
         nonlinear:
@@ -29,7 +28,8 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         maxiter:
         grow:
         remove_compact_obj:
-        sigclip:
+        sigclip (float):
+            Threshold for identifying a CR
         sigfrac:
         objlim:
 
@@ -37,9 +37,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         ndarray: mask of cosmic rays (0=no CR, 1=CR)
 
     """
-
-    dnum = parse.get_dnum(det)
-
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 #    msgs.work("Include these parameters in the settings files to be adjusted by the user")
     # Set the settings
@@ -694,8 +691,7 @@ def trim_frame(frame, mask):
                    'pixels outside the data sections.')
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
-
-def init_process_steps(bias, proc_par):
+def set_process_steps(bias, frame_par):
     """
     Initialize the processing steps
     This first set is related to bias and overscan subtraction
@@ -704,13 +700,15 @@ def init_process_steps(bias, proc_par):
 
     Args:
         bias (None or np.ndarray):
-        proc_par (ProcessImagesPar):
+        frame_par (:class:`pypeit.par.pypeitpar.FramePar`):
 
     Returns:
         list: List of the processing steps to begin with.  Can be empty
 
     """
-    process_steps = []
+    process_steps = frame_par['processing_steps'].copy()
+    # Deal with bias now
+    proc_par = frame_par['process']
     # Bias image
     if proc_par['bias'].lower() == 'as_available':
         if bias is not None:

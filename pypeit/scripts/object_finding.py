@@ -18,8 +18,7 @@ from astropy.io import fits
 from pypeit.core import gui
 from pypeit import msgs
 from pypeit.core.parse import get_dnum
-from pypeit import edgetrace
-from pypeit.masterframe import MasterFrame
+from pypeit import slittrace
 
 
 def parser(options=None):
@@ -104,6 +103,8 @@ def main(args):
     # Assumes a MasterSlit file has been written
     slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
                                                mdir)
+
+    # Object traces
     left, right = slits.select_edges()
 
     # Get object traces

@@ -53,7 +53,8 @@ detector is as follows::
     rdx.par['calibrations']['traceframe']['process']['bias'] = 'skip'
 
     # Construct the TraceImage
-    traceImage = traceimage.TraceImage(rdx.spectrograph, files=files, det=det,
+    # TODO -- Update this doc
+    traceImage = pypeit.images.buildcalibration.TraceImage(rdx.spectrograph, files=files, det=det,
                                        par=rdx.par['calibrations']['traceframe'])
     traceImage.build_image()
 
@@ -84,6 +85,7 @@ exposure in a fits file called `trace_file`::
     master_dir = os.path.split(os.path.abspath(trace_file))[0]
     master_key = 'test_trace_{0}'.format(det)
 
+    # TODO - update this
     traceImage = traceimage.TraceImage(spec, files=[trace_file], det=det,
                                        par=par['calibrations']['traceframe'])
     traceImage.build_image()
@@ -126,7 +128,8 @@ from pypeit import slittrace
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
-from pypeit.traceimage import TraceImage
+from pypeit.images.buildimage import TraceImage
+from pypeit.images import detector_container
 from pypeit.tracepca import TracePCA
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
@@ -192,7 +195,8 @@ class EdgeTraceBitMask(BitMask):
         return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT']
 
 
-class EdgeTraceSet(masterframe.MasterFrame):
+# TODO -- Make a DataContainer
+class EdgeTraceSet(object):
     r"""
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
@@ -250,6 +254,11 @@ class EdgeTraceSet(masterframe.MasterFrame):
         - Provide some guidance for the parameters to use.
 
     Args:
+        trace_img (:class:`pypeit.images.buildcalibration.TraceImage`):
+            Two-dimensional image used to trace slit edges. If a
+            :class:`pypeit.images.buildcalibration.TraceImage` is provided, the
+            raw files used to construct the image are saved.
+            This includes detector info (e.g. binning, platescale)
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The object that sets the instrument used to take the
             observations. Used to set :attr:`spectrograph`.
@@ -264,10 +273,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         qa_path (:obj:`str`, optional):
             Directory for QA output. If None, no QA plots are
             provided.
-        img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`, optional):
-            Two-dimensional image used to trace slit edges. If a
-            :class:`pypeit.traceimage.TraceImage` is provided, the
-            raw files used to construct the image are saved.
         bpm (`numpy.ndarray`_, optional):
             Bad-pixel boolean mask for the trace image. Must have the
             same shape as `img`. If None, all pixels are assumed to
@@ -275,12 +280,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         det (:obj:`int`, optional):
             The 1-indexed detector number that provided the trace
             image.  Cannot be `None`.
-        binning (`str`, optional):
-            Comma-separated binning along the spectral and spatial
-            directions following the PypeIt convention (e.g., '2,1').
-            This is used to set the pixel scale of the image in
-            arcsec per pixel, as needed for some assessments of the
-            edge traces.
         auto (:obj:`bool`, optional):
             If a trace image is provided (`img`), run
             :func:`auto_trace` instead of :func:`initial_trace`.
@@ -295,8 +294,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
         load (:obj:`bool`, optional):
             Attempt to load existing output. If True and the file
             does not exist, an error is raised.
+        files (:obj:`list`, optional):
+            List of the raw files used to construct the TraceImage
+            Only used to update the header of the output file
 
     Attributes:
+        trace_img
+            (:class:`pypeit.images.buildcalibration.TraceImage`):
+            See argument list.
         spectrograph
             (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             See argument list.
@@ -306,9 +311,10 @@ class EdgeTraceSet(masterframe.MasterFrame):
             The list of raw files used to construct the trace image
             (:attr:`img`). Only defined if argument `img` in
             :func:`initial_trace` or :func:`auto_trace` is a
-            :class:`pypeit.traceimage.TraceImage` object.
+            :class:`pypeit.images.buildcalibration.TraceImage` object.
+        # TODO -- Remove img and just use trace_img
         img (`numpy.ndarray`_):
-            See argument list.
+            Convenience for now.
         bpm (`numpy.ndarray`_):
             See argument list.
         det (:obj:`int`):
@@ -330,10 +336,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         nspat (:obj:`int`):
             Number of spatial pixels (columns) in the trace image
             (`axis=1`).
-        binning (:obj:`str`, optional):
-            On-detector binning of the data ordered spectral then
-            spatial with format, e.g., `2,1`. Ignored if `img` is
-            an instance of :class:`pypeit.traceimage.TraceImage`.
         traceid (`numpy.ndarray`_):
             The list of unique trace IDs.
         spat_img (`numpy.ndarray`_):
@@ -384,26 +386,26 @@ class EdgeTraceSet(masterframe.MasterFrame):
             when tracing.
     """
     master_type = 'Edges'
+    version = '1.0.0'
+    file_format = 'fits.gz'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
 
-    # TODO: Discuss having this operate on a set of files
-    def __init__(self, spectrograph, par, master_key=None, master_dir=None, qa_path=None,
-                 img=None, bpm=None, det=1, binning=None, auto=False, debug=False,
-                 show_stages=False, save=False, load=False):
-
-        # TODO: It's possible for the master key and the detector
-        # number to be inconsistent...
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format='fits.gz')
+    def __init__(self, trace_img, spectrograph, par, bpm=None, det=None, qa_path=None,
+                 auto=False, debug=False, show_stages=False, save=False, load=False,
+                 files=None):
 
         # TODO: Should make file_format a class attribute
 
         # TODO: Add type-checking for spectrograph and par
+        if not isinstance(trace_img, TraceImage):
+            msgs.error("Bad input for img.  Must be a TraceImage object")
+        self.trace_img = trace_img      # Input  TraceImage
+        self.img = trace_img.image      # The image used to find the slit edges
         self.spectrograph = spectrograph    # Spectrograph used to take the data
+        self.PYP_SPEC = spectrograph.spectrograph  # For the Header.  Will be in datamodel
         self.par = par                      # Parameters used for slit edge tracing
 
         self.files = None               # Files used to construct the trace image
-        self.img = None                 # The image used to find the slit edges
         self.bpm = None                 # Mask for the trace image
         self.det = None                 # Detector used for the trace image
         self.sobel_sig = None           # Sobel filtered image used to detect edges
@@ -412,7 +414,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # TODO: Need a separate mask for the sobel image?
         self.nspec = None               # The shape of the trace image is (nspec,nspat)
         self.nspat = None
-        self.binning = None             # Detector ordered spectral then spatial
+        self.binning = None             # Detector ordered:  spec, spat
 
         self.traceid = None             # The ID numbers for each trace
         self.spat_img = None            # (Integer) Pixel nearest the slit edge for each trace
@@ -432,25 +434,23 @@ class EdgeTraceSet(masterframe.MasterFrame):
         self.objects = None             # Table that collates object information, if available
                                         # in the slit-mask design, matched to the `design` table.
 
-        self.qa_path = qa_path          # Directory for QA output
-
         self.log = None                 # Log of methods applied
 
-        if img is not None and load:
+        if self.img is not None and load:
             msgs.error('Arguments img and load are mutually exclusive.  Choose to either trace '
                        'a new image or load a previous trace.')
 
         if load:
             # Attempt to load an existing master frame
             self.load()
-        elif img is not None:
-            # Provided a trace image so instantiate the object.
-            if auto:
-                self.auto_trace(img, bpm=bpm, det=det, binning=binning, save=save, debug=debug,
-                                show_stages=show_stages)
-            else:
-                # JFH Is this option every used?
-                self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=save)
+        #elif self.img is not None:
+        #    # Provided a trace image so instantiate the object.
+        if auto:
+            self.auto_trace(bpm=bpm, det=det, binning=self.trace_img.detector.binning,
+                            save=save, debug=debug, show_stages=show_stages)
+        #    else:
+        #        # JFH Is this option every used?
+        #        self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=save)
 
     def _reinit_trace_data(self):
         """
@@ -623,8 +623,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
                                       max_ocol=self.nspat-1, extract_width=extract_width,
                                       mask_threshold=mask_threshold)
 
-    def auto_trace(self, img, bpm=None, det=1, binning=None, save=False, debug=False,
-                   show_stages=False):
+    def auto_trace(self, bpm=None, det=1, binning=None, save=False, debug=False, show_stages=False):
         r"""
         Execute a fixed series of methods to automatically identify
         and trace slit edges.
@@ -657,19 +656,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             - Use :func:`add_user_traces` and :func:`rm_user_traces`
               to add and remove traces as defined by the
               user-provided lists in the :attr:`par`.
-            - If :attr:`qa_path` is not None, the QA plots are
-              constructed and written; see :func:`qa_plot`.
             - Use :func:`save` to save the results, if requested.
 
         Args:
-            img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`):
-                2D image used to trace slit edges. If a
-                :class:`pypeit.traceimage.TraceImage` is provided,
-                the raw files used to construct the image and on-chip
-                binning are saved; the latter overrides any directly
-                provided `binning`. The array should have shape
-                :math:`(N_{\rm spec},N_{\rm spat})`; i.e., spectra
-                are ordered along columns.
             bpm (`numpy.ndarray`_, optional):
                 Bad-pixel mask for the trace image. Must have the
                 same shape as `img`. If None, all pixels are assumed
@@ -679,8 +668,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 image.  Cannot be `None`.
             binning (:obj:`str`, optional):
                 On-detector binning of the data ordered spectral then
-                spatial with format, e.g., `2,1`. Ignored if `img` is
-                an instance of :class:`pypeit.traceimage.TraceImage`.
+                spatial with format, e.g., `2,1`.
+                This over-rides the binning provided by the input TraceImage.
+                NOT recommended
             save (:obj:`bool`, optional):
                 Save the result to the master frame.
             debug (:obj:`bool`, optional):
@@ -694,7 +684,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         """
         # Perform the initial edge detection and trace identification
-        self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=False)
+        self.initial_trace(bpm=bpm, det=det, binning=binning, save=False)
         if show_stages:
             self.show(thin=10, include_img=True, idlabel=True)
 
@@ -792,19 +782,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             
         # TODO: Add mask_refine() when it's ready
 
-        # Write the qa plots
-        # TODO: Should maybe have a keyword argument that will allow
-        # this to be skipped, even if the path is not None.
-        if self.qa_path is not None:
-            self.qa_plot(fileroot=self.file_name.split('.')[0])
-
         # Add this to the log
         self.log += [inspect.stack()[0][3]]
         if save:
             # Save the object to a file
             self.save()
 
-    def initial_trace(self, img, bpm=None, det=1, binning='1,1', save=False):
+    def initial_trace(self, bpm=None, det=1, binning=None, save=False):
         r"""
         Initialize the object for tracing a new image.
 
@@ -837,14 +821,6 @@ class EdgeTraceSet(masterframe.MasterFrame):
         frame; see `save` argument and :func:`save`.
 
         Args:
-            img (`numpy.ndarray`_, :class:`pypeit.traceimage.TraceImage`):
-                2D image used to trace slit edges. If a
-                :class:`pypeit.traceimage.TraceImage` is provided,
-                the raw files used to construct the image and on-chip
-                binning are saved; the latter overrides any directly
-                provided `binning`. The array should have shape
-                :math:`(N_{\rm spec},N_{\rm spat})`; i.e., spectra
-                are ordered along columns.
             bpm (`numpy.ndarray`_, optional):
                 Bad-pixel mask for the trace image. Must have the
                 same shape as `img`. If None, all pixels are assumed
@@ -852,10 +828,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
             det (:obj:`int`, optional):
                 The 1-indexed detector number that provided the trace
                 image.  Cannot be `None`.
-            binning (:obj:`str`, optional):
-                On-detector binning of the data ordered spectral then
-                spatial with format, e.g., `2,1`. Ignored if `img` is
-                an instance of :class:`pypeit.traceimage.TraceImage`.
+            binning (str):
+                Over-ride binning provided by DetectorContainer in input image
+                NOT recommended
             save (:obj:`bool`, optional):
                 Save the result to the master frame.
         """
@@ -865,22 +840,24 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # TODO: Add debugging argument and hooks
         # Parse the input based on its type
-        if isinstance(img, TraceImage):
-            self.files = img.file_list
-            _img = img.pypeitImage.image
-            self.binning = img.pypeitImage.binning
-            # TODO: does TraceImage have a mask?
-        else:
-            _img = img
+        #if isinstance(img, TraceImage):
+        #    _img = img.image
+        #    self.binning = img.detector.binning
+        #    # TODO: does TraceImage have a mask?  Yes, it does
+        #else:
+        #    _img = img
+        if binning is not None:
             self.binning = binning
+        else:
+            self.binning = self.trace_img.detector.binning
 
         # TODO: keep the TraceImage object instead of deconstructing
         # it?  For direct input, use a base PypeItImage object
 
         # Check the input
-        if _img.ndim != 2:
-            msgs.error('Trace image must be 2D.')
-        self.img = _img
+        #if _img.ndim != 2:
+        #    msgs.error('Trace image must be 2D.')
+        #self.img = _img
         self.nspec, self.nspat = self.img.shape
         self.bpm = np.zeros((self.nspec, self.nspat), dtype=bool) if bpm is None else bpm
         if self.bpm.shape != self.img.shape:
@@ -1029,12 +1006,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
         if save:
             self.save()
 
-    def save(self, outfile=None, overwrite=True, checksum=True, float_dtype='float32'):
+    def save(self, outfile, overwrite=True, checksum=True, float_dtype='float32',
+             master_dir=None, master_key=None):
         """
         Save the trace object for later re-instantiation.
 
         Args:
-            outfile (:obj:`str`, optional):
+            outfile (:obj:`str`):
                 Name for the output file.  Defaults to
                 :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
@@ -1047,20 +1025,26 @@ class EdgeTraceSet(masterframe.MasterFrame):
                 writing.  Default is 32-bit precision.
         """
 
-        _outfile = self.master_file_path if outfile is None else outfile
+        #_outfile = self.master_file_path if outfile is None else outfile
         # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.error('Master file exists: {0}'.format(_outfile) + msgs.newline()
+        if os.path.exists(outfile) and not overwrite:
+            msgs.error('Master file exists: {0}'.format(outfile) + msgs.newline()
                        + 'Set overwrite=True to overwrite it.')
 
         # Report name before starting to write it
-        msgs.info('Writing master frame to {0}'.format(_outfile))
+        msgs.info('Writing master frame to {0}'.format(outfile))
 
         # Build the primary header
         #   - Initialize with basic metadata
-        prihdr = self.build_master_header()
+        #prihdr = self.build_master_header()
+        # Header
+        if master_key is not None:
+            prihdr = masterframe.build_master_header(self, master_key, master_dir,
+                                              raw_files=self.files)
+        else:
+            prihdr = io.initialize_header()
         #   - Add the qa path
-        prihdr['QADIR'] = (self.qa_path, 'PypeIt: QA directory')
+        #prihdr['QADIR'] = (self.qa_path, 'PypeIt: QA directory')
         #   - Add metadata specific to this class -- This is added as PYP_SPEC in the build_master_header() call
         #prihdr['SPECT'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph Name')
         #   - List the processed raw files, if available
@@ -1112,8 +1096,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
 
         # Determine if the file should be compressed
         compress = False
-        if _outfile.split('.')[-1] == 'gz':
-            _outfile = _outfile[:_outfile.rfind('.')] 
+        if outfile.split('.')[-1] == 'gz':
+            outfile = outfile[:outfile.rfind('.')]
             compress = True
 
         # First check if a trace is available
@@ -1139,6 +1123,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
                             fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
                             fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
                                           name='CENTER_FIT')])
+        # Add detector
+        hdu += self.trace_img.detector.to_hdu()
         if self.pca is not None:
             if self.par['left_right_pca']:
                 hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
@@ -1151,14 +1137,14 @@ class EdgeTraceSet(masterframe.MasterFrame):
             hdu += [fits.BinTableHDU(data=self.objects, name='OBJECTS')]
         # Write the fits file; note not everything is written. Some
         # arrays are reconstruced by the load function.
-        hdu.writeto(_outfile, overwrite=True, checksum=checksum)
+        hdu.writeto(outfile, overwrite=True, checksum=checksum)
 
         # Compress the file if the output filename has a '.gz'
         # extension; this is slow but still faster than if you have
         # astropy.io.fits do it directly
         if compress:
-            msgs.info('Compressing file to: {0}.gz'.format(_outfile))
-            io.compress_file(_outfile, overwrite=overwrite)
+            msgs.info('Compressing file to: {0}.gz'.format(outfile))
+            io.compress_file(outfile, overwrite=overwrite)
 
     def load(self, validate=True, rebuild_pca=False):
         """
@@ -1235,10 +1221,13 @@ class EdgeTraceSet(masterframe.MasterFrame):
             msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
-            this = cls(load_spectrograph(hdu[0].header['PYP_SPEC']),
-                       EdgeTracePar.from_header(hdu[0].header),
-                       master_key=hdu[0].header['MSTRKEY'], master_dir=hdu[0].header['MSTRDIR'],
-                       qa_path=hdu[0].header['QADIR'])
+            # THIS IS A HACK UNTIL WE MAKE THIS A DataContainer
+            img = hdu['TRACEIMG'].data.astype(float)
+            detector = detector_container.DetectorContainer.from_hdu(hdu['DETECTOR'])
+            traceImage = TraceImage(img, detector=detector)
+            #
+            this = cls(traceImage, load_spectrograph(hdu[0].header['PYP_SPEC']),
+                       EdgeTracePar.from_header(hdu[0].header))
 
             # Re-initialize and validate
             this._reinit(hdu, rebuild_pca=rebuild_pca)
@@ -2314,7 +2303,7 @@ class EdgeTraceSet(masterframe.MasterFrame):
         length_rtol = self.par['length_range']
         if self.par['minimum_slit_length'] is not None or self.par['minimum_slit_gap'] is not None:
             platescale = parse.parse_binning(self.binning)[1] \
-                            * self.spectrograph.detector[self.det-1]['platescale']
+                            * self.trace_img.detector['platescale']
             msgs.info('Binning: {0}'.format(self.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
             if self.par['minimum_slit_length'] is not None:
@@ -3969,7 +3958,8 @@ class EdgeTraceSet(masterframe.MasterFrame):
         # in arcsec/mm divided by the detector platescale in
         # arcsec/pixel
         pix_per_mm = self.spectrograph.telescope.platescale() \
-                        / self.spectrograph.detector[self.det-1]['platescale']
+                        / self.trace_img.detector['platescale']
+                        #/ self.spectrograph.detector[self.det - 1]['platescale']
 
         # If the traces are synchronized, use the estimated scale to
         # first mask edges that yeild slits that are too small relative
@@ -4293,6 +4283,12 @@ class EdgeTraceSet(masterframe.MasterFrame):
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
 
+        # TODO -- Have Kyle help me keep the short slits
+        #short_flag = ['SHORTSLIT']
+        #short_exclude = self.bitmask.bad_flags.remove('SHORTSLIT')
+        #gd_short = np.invert(self.fully_masked_traces(flag=short_flag,
+        #                                         exclude=short_exclude))
+
         # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
@@ -4301,9 +4297,9 @@ class EdgeTraceSet(masterframe.MasterFrame):
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return
-        return slittrace.SlitTraceSet(left=left, right=right, nspat=self.nspat,
-                                      spectrograph=self.spectrograph.spectrograph, specmin=specmin,
+        return slittrace.SlitTraceSet(left_init=left, right_init=right, nspat=self.nspat,
+                                      PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
-                                      pad=self.par['pad'], master_key=self.master_key,
-                                      master_dir=self.master_dir, reuse=self.reuse_masters)
+                                      pad=self.par['pad'])#, master_key=self.master_key,
+                                      #master_dir=self.master_dir, reuse=self.reuse_masters)
 
