@@ -221,6 +221,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
     pixmsk = moment1d(ivar*mask == 0.0, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     # If every pixel is masked then mask the boxcar extraction
     mask_box = (pixmsk != pixtot) & np.isfinite(wave_box) & (wave_box > 0.0)
+    numpix = moment1d(mask_box, spec.TRACE_SPAT, 2*box_radius, row=spec.trace_spec)[0]
     bad_box = (wave_box <= 0.0) | np.invert(np.isfinite(wave_box)) | (box_denom == 0.0)
     # interpolate bad wavelengths over masked pixels
     if bad_box.any():
@@ -240,7 +241,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_RN = rn_box
     spec.BOX_RADIUS = box_radius
-    spec.BOX_NBOX = (box_denom + (box_denom == 0.0))
+    spec.BOX_NPIX = numpix
 
 
 def findfwhm(model, sig_x):
