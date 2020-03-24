@@ -231,14 +231,15 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
     nivar_box = 1.0/(nvar_box + (nvar_box == 0.0))
 
     # Fill em up!
+    pix_count = (box_denom + (box_denom == 0.0))
     spec.BOX_WAVE = wave_box
-    spec.BOX_COUNTS = flux_box*mask_box
-    spec.BOX_COUNTS_IVAR = ivar_box*mask_box
-    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box))
-    spec.BOX_COUNTS_NIVAR = nivar_box*mask_box
+    spec.BOX_COUNTS = flux_box*mask_box / pix_count
+    spec.BOX_COUNTS_IVAR = ivar_box*mask_box / pix_count
+    spec.BOX_COUNTS_SIG = np.sqrt(utils.inverse(ivar_box*mask_box / pix_count))
+    spec.BOX_COUNTS_NIVAR = nivar_box*mask_box / pix_count
     spec.BOX_MASK = mask_box
-    spec.BOX_COUNTS_SKY = sky_box
-    spec.BOX_COUNTS_RN = rn_box
+    spec.BOX_COUNTS_SKY = sky_box / pix_count
+    spec.BOX_COUNTS_RN = rn_box / pix_count
     spec.BOX_RADIUS = box_radius
 
 
