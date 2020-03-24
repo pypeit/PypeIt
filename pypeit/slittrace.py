@@ -296,8 +296,8 @@ class SlitTraceSet(datamodel.DataContainer):
             self.nspat = np.amax(np.append(self.left_init, self.right_init))
         #if self.id is None:
         #    self._set_slitids()
-        if self.spectrograph is None:
-            self.spectrograph = 'unknown'
+        if self.PYP_SPEC is None:
+            self.PYP_SPEC = 'unknown'
         if self.mask is None:
             self.mask = np.zeros(self.nslits, dtype=bool)
         if self.specmin is None:

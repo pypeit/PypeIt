@@ -262,7 +262,7 @@ class ProcessRawImage(object):
 
         # Generate a PypeItImage
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
-                                              bpm=bpm, detector=self.detector,
+                                              bpm=bpm, detector=self.rawimage.detector,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.spectrograph)
         pypeitImage.rawheadlist = self.headarr
