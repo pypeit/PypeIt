@@ -19,6 +19,7 @@ from pypeit import msgs
 from pypeit.core import coadd
 from pypeit import datamodel
 
+
 class OneSpec(datamodel.DataContainer):
     version = '1.0.0'
 
@@ -27,18 +28,19 @@ class OneSpec(datamodel.DataContainer):
         'flux': dict(otype=np.ndarray, atype=np.floating, desc='Flux/counts array'),
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array'),
-        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric'),
-        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model'),
+        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model?'),
+        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model?'),
         'fluxmode': dict(otype=str, desc='Fluxing mode (options: counts, flam)'),
     }
 
-    def __init__(self, wave, flux, ivar, mask=None, telluric=None,
+    def __init__(self, wave, flux, ivar=None, mask=None, telluric=None,
                  obj_model=None, fluxmode=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
+
 
 class CoAdd1D(object):
 
@@ -59,13 +61,13 @@ class CoAdd1D(object):
                List of strings which are the spec1dfiles
             objids (list):
                List of strings which are the objids for the object in each spec1d file that you want to coadd
-            par (parset):
-               Pypeit parameter set object
-            sensfile (str): optional
+            par (:class:`pypeit.par.pypeitpar.Coadd1DPar`, optional):
+               Pypeit parameter set object for Coadd1D
+            sensfile (str, optional):
                File holding the sensitivity function. This is required for echelle coadds only.
-            debug (bool): optional
+            debug (bool, optional)
                Debug. Default = False
-            show (bool):
+            show (bool, optional):
                Debug. Default = True
         """
         # Instantiate attributes
@@ -90,11 +92,11 @@ class CoAdd1D(object):
         """
 
         # Load the data
-        self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
+        self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load_arrays()
         # Coadd the data
         self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
 
-    def load(self):
+    def load_arrays(self):
         """
         Load the arrays we need for performing coadds.
 
@@ -137,7 +139,26 @@ class CoAdd1D(object):
                Overwrite existing file?
 
         """
+        self.coaddfile = coaddfile
+        wave_mask = self.wave_coadd > 1.0
+        # Generate the DataContainer
+        onespec = OneSpec(self.wave_coadd[wave_mask],
+                          self.flux_coadd[wave_mask],
+                          ivar=self.ivar_coadd[wave_mask],
+                          mask=self.mask_coadd[wave_mask],
+                          fluxmode=self.par['ex_value'])
+        # Add on others
+        if telluric is not None:
+            onespec.telluric  = telluric[wave_mask]
+        if obj_model is not None:
+            onespec.obj_model = obj_model[wave_mask]
+        # Write
+        # TODO -- Is it ok that I removed the append option?
+        #   With overwrite=True and not accessed by the script, it wasn't being used
+        #   And how about the HDU name?
+        onespec.to_file(coaddfile, overwrite=overwrite)
 
+        '''
         self.coaddfile = coaddfile
         ex_value = self.par['ex_value']
         # Estimate sigma from ivar
@@ -178,6 +199,7 @@ class CoAdd1D(object):
         else:
             hdulist.writeto(self.coaddfile, overwrite=overwrite)
             msgs.info("Wrote 1D spectra to {:s}".format(self.coaddfile))
+        '''
 
 
 
