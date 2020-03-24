@@ -767,6 +767,7 @@ class Spectrograph(object):
     def pypeline(self):
         return 'MultiSlit'
 
+#    JXP says -- LEAVE THIS HERE FOR NOW. WE MAY NEED IT
 #    def mm_per_pix(self, det=1):
 #        """
 #        Return the spatial scale at the telescope focal plane in mm per

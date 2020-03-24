@@ -445,8 +445,6 @@ class Calibrations(object):
             # Store the alignment frame
             self._update_cache('align', 'align', self.msalign)
 
-        # JXP STOPPED HERE
-
         # Check if the alignment dictionary exists
         if self._cached('align_dict', self.master_key_dict['align']) \
                 and self._cached('wtmask', self.master_key_dict['align']):
@@ -602,14 +600,14 @@ class Calibrations(object):
                       'flatfielding your data!!!')
             # TODO: Why does this not return unity arrays, like what's
             # done below?
-            return flatfield.FlatImages(None, None, None, None)
+            return flatfield.FlatImages(None)
 
         # Slit and tilt traces are required to flat-field the data
         if not self._chk_objs(['slits', 'wavetilts']):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            return flatfield.FlatImages(None, None, None, None)
+            return flatfield.FlatImages(None)
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -657,7 +655,7 @@ class Calibrations(object):
                                                     bias=self.msbias, bpm=self.msbpm)
             # Normalize and illumination
             flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
-                det=self.det, slits=self.slits, wavetilts=self.wavetilts)
+                self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show) #, debug=True)
 

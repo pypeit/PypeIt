@@ -640,14 +640,6 @@ class DataContainer:
                 else:
                     setattr(self, key, d[key])
 
-            # Validate the object
-            # TODO: _validate isn't the greatest name for this
-            # method...
-            #self._validate()
-
-            # TODO: Confirm elements have otype and atypes consistent
-            # with the data model?
-
         # Validate the object
         self._validate()
 
@@ -671,8 +663,8 @@ class DataContainer:
         #
         full_datamodel = {}
         for key in cls.datamodel.keys():
-            if inspect.isclass(cls.datamodel[key]['otype']) and (
-                    DataContainer in cls.datamodel[key]['otype'].__bases__):
+            # Data container?
+            if obj_is_data_container(cls.datamodel[key]['otype']):
                 if include_parent:
                     full_datamodel[key] = cls.datamodel[key]
                 # Now run through the others
@@ -862,12 +854,15 @@ class DataContainer:
             hdu_prefix (:obj:`str`, optional):
                 Decorate the HDUs with this prefix
                 Note, this over-rides any internally set hdu_prefix value
+            debug (:obj:`bool`, optional):
+                Perform debuggin
 
         Returns:
-            tuple:
-                :obj:`dict`: Dictionary used to instantiate the object.
-                :obj:`bool`: Describes datamodel version checking passed
-                :obj:`bool`: Describes datamodel type checking passed
+            :obj:`tuple`: Return three objects
+
+                - :obj:`dict`: Dictionary used to instantiate the object.
+                - :obj:`bool`: Describes datamodel version checking passed
+                - :obj:`bool`: Describes datamodel type checking passed
 
         Raises:
             TypeError:
@@ -1011,9 +1006,8 @@ class DataContainer:
         # Array?
         if 'atype' in self.datamodel[item].keys():
             if not isinstance(value.flat[0], self.datamodel[item]['atype']):
-                print("Wrong data type for array: {}".format(item))
-                print("Allowed type(s) for the array are: {}".format(self.datamodel[item]['atype']))
-                raise IOError("Try again")
+                raise IOError('Wrong data type for array: {}\n'.format(item)
+                              + 'Allowed type(s) for the array are: {}'.format(self.datamodel[item]['atype']))
         # Set
         self.__dict__[item] = value
 
@@ -1124,6 +1118,8 @@ class DataContainer:
                 The HDU(s) with the data to use for instantiation.
             hdu_prefix (:obj:`str`, optional):
                 Passed to _parse()
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or type check failed
         """
         # NOTE: We can't use `cls(cls._parse(hdu))` here because this
         # will call the `__init__` method of the derived class and we
@@ -1133,7 +1129,6 @@ class DataContainer:
         # result. The call to `DataContainer.__init__` is explicit to
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
-        self = super().__new__(cls)
         d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if chk_version:
@@ -1142,6 +1137,7 @@ class DataContainer:
             if not dm_type_passed:
                 raise IOError("Bad datamodel type in your hdu's")
         # Finish
+        self = super().__new__(cls)
         DataContainer.__init__(self, d)
         return self
 
@@ -1171,6 +1167,8 @@ class DataContainer:
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
+            limit_hdus (:obj:`list`, optional):
+                Passed to :func:`to_hdu`; see usage there
         """
         io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
                                      limit_hdus=limit_hdus),
@@ -1272,5 +1270,6 @@ def obj_is_data_container(obj):
         bool:  True if it is
 
     """
-    answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
+    answer = True if inspect.isclass(obj) and issubclass(obj, DataContainer) else False
+    #answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
     return answer

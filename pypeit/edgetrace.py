@@ -2304,7 +2304,6 @@ class EdgeTraceSet(object):
         if self.par['minimum_slit_length'] is not None or self.par['minimum_slit_gap'] is not None:
             platescale = parse.parse_binning(self.binning)[1] \
                             * self.trace_img.detector['platescale']
-                            #*self.spectrograph.detector[self.det - 1]['platescale']
             msgs.info('Binning: {0}'.format(self.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
             if self.par['minimum_slit_length'] is not None:

@@ -86,6 +86,19 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
+    def show(self, slits=None, wcs_match=True):
+        """
+        Simple wrapper to show_flats()
+
+        Args:
+            slits:
+            wcs_match:
+
+        Returns:
+
+        """
+        show_flats(self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model,
+                   wcs_match=wcs_match, slits=slits)
 
 class FlatField(object):
     """
@@ -102,18 +115,13 @@ class FlatField(object):
             :class:`pypeit.processimages.ProcessImages` base class.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the flat frames.
-        files (:obj:`list`, optional):
-            The list of files to process.  Can be an empty list.
-        det (:obj:`int`):
-            The 1-indexed detector number to process.
         slits (:class:`pypeit.edgetrace.SlitTraceSet`):
             The current slit traces.
-        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`, optional):
+        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`):
             User-level parameters for constructing the flat-field
             corrections.  If None, the default parameters are used.
-        wavetilts (:obj:`dict`, optional):
+        wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
             The current wavelength tilt traces; see
-            :class:`pypeit.wavetilts.WaveTilts`.
 
     Attributes:
         rawflatimg (PypeItImage):
@@ -130,13 +138,12 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, det, slits, wavetilts=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts):
 
         # Defatuls
         self.spectrograph = spectrograph
-        self.det = det
         # FieldFlattening parameters
-        self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
+        self.flatpar = flatpar
 
         # Input data
         self.slits = slits
