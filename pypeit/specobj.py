@@ -86,6 +86,7 @@ class SpecObj(object):
                              desc='Fraction of pixels in the object profile subimage used for this extraction'),
         'OPT_CHI2': dict(otype=np.ndarray, atype=float,
                          desc='Reduced chi2 of the model fit for this spectral pixel'),
+        'BOX_NBOX': dict(otype=np.ndarray, atype=float, desc='Number of pixels used for the boxcar extraction'),
         'BOX_WAVE': dict(otype=np.ndarray, atype=float, desc='Boxcar Wavelengths (Angstroms)'),
         'BOX_FLAM': dict(otype=np.ndarray, atype=float, desc='Boxcar flux (erg/s/cm^2/Ang)'),
         'BOX_FLAM_SIG': dict(otype=np.ndarray, atype=float, desc='Boxcar flux uncertainty (erg/s/cm^2/Ang)'),

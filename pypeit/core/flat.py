@@ -285,7 +285,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
 # TODO: See pypeit/deprecated/flat.py for the previous version. We need
 # to continue to vet this algorithm to make sure there are no
 # unforeseen corner cases that cause errors.
-def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1):
+def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1, debug=False):
     r"""
     Adjust slit edges based on the normalized slit illumination profile.
 
@@ -314,6 +314,10 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
             this means the maximum change in the slit width (either
             narrowing or broadening) is 20% (i.e., 10% for either
             edge).
+        debug (:obj:`bool`, optional):
+            Show flow interrupting plots that show illumination
+            profile in the case of a failure and the placement of the
+            tweaked edge for each side of the slit regardless.
 
     Returns:
         tuple: Returns six objects:
@@ -364,10 +368,24 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
         # Find the last index of the first contiguous region
         contiguous_region = np.ma.flatnotmasked_contiguous(masked_flat)[0]
         if contiguous_region.stop is None:
+            if debug:
+                plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
+                            s=10, color='C3', lw=0)
+                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
+                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
+                            lw=0)
+                plt.show()
             msgs.error('Tweak left edge has failed!  Bad continuous region.')
         i = contiguous_region.stop-1
         if i >= 0 and norm_flat[i-1] > norm_flat[i]:
-            msgs.error('Tweak left edge has failed!  Unexpected illumination profile structure.')
+            msgs.warn('When adjusting left edge, found noisy illumination profile structure.')
+        if debug:
+            plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
+                        color='C3', lw=0)
+            plt.scatter(spat_coo[np.invert(masked_flat.mask)],
+                        norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
+            plt.scatter(spat_coo[i], norm_flat[i], marker='o', facecolor='none', s=50, color='C1')
+            plt.show()
         if norm_flat[i+1] < left_thresh:
             msgs.warn('Left slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
                         100*maxfrac))
@@ -404,10 +422,24 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1)
         # Find the first index of the last contiguous region
         contiguous_region = np.ma.flatnotmasked_contiguous(masked_flat)[-1]
         if contiguous_region.start is None:
+            if debug:
+                plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.',
+                            s=10, color='C3', lw=0)
+                plt.scatter(spat_coo[np.invert(masked_flat.mask)],
+                            norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k',
+                            lw=0)
+                plt.show()
             msgs.error('Tweak right edge has failed!  Bad continuous region.')
         i = contiguous_region.start
         if i < norm_flat.size-1 and norm_flat[i+1] > norm_flat[i]:
-            msgs.error('Tweak left edge has failed!  Unexpected illumination profile structure.')
+            msgs.warn('When adjusting right edge, found noisy illumination profile structure.')
+        if debug:
+            plt.scatter(spat_coo[masked_flat.mask], norm_flat[masked_flat.mask], marker='.', s=10,
+                        color='C3', lw=0)
+            plt.scatter(spat_coo[np.invert(masked_flat.mask)],
+                        norm_flat[np.invert(masked_flat.mask)], marker='.', s=10, color='k', lw=0)
+            plt.scatter(spat_coo[i], norm_flat[i], marker='o', facecolor='none', s=50, color='C1')
+            plt.show()
         if norm_flat[i-1] < right_thresh:
             msgs.warn('Right slit boundary tweak limited by maximum allowed shift: {:.1f}%'.format(
                         100*maxfrac))
