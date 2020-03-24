@@ -199,6 +199,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
 
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
+    if spec.trace_spec is None:
+        spec.trace_spec = spec_vec
+
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 

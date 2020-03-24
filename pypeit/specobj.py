@@ -189,6 +189,7 @@ class SpecObj(object):
             self.max_spat = None
 
             # Trace
+            # TODO :: The comment below is not true... this variable is used in extract.py
             self.trace_spec = None  # Only for debuggin, internal plotting
 
             # Echelle

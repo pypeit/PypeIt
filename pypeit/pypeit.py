@@ -317,6 +317,8 @@ class PypeIt(object):
                 # as a background image. The syntax below would require that we could somehow list multiple
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
+                import pdb
+                pdb.set_trace()
                 if not self.outfile_exists(frames[0]) or self.overwrite:
                     sci_dict = self.reduce_exposure(frames, bg_frames=bg_frames,
                                                     std_outfile=std_outfile)

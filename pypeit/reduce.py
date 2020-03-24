@@ -9,7 +9,7 @@ from abc import ABCMeta
 
 from linetools import utils as ltu
 
-from pypeit import specobjs
+from pypeit import specobj, specobjs
 from pypeit import ginga, msgs, masterframe
 from pypeit.core import skysub, extract, pixels, wave
 from pypeit.images import buildimage
@@ -434,9 +434,7 @@ class Reduce(object):
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
-            import pdb
-            pdb.set_trace()
-            wavenorm = self.caliBrate.waveImage.image / np.max(self.caliBrate.waveImage.image)
+            wavenorm = self.caliBrate.mswave.image / np.max(self.caliBrate.mswave.image)
             # Find sky
             self.global_sky[thismask] \
                 = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, wavenorm,
@@ -1103,7 +1101,7 @@ class IFUReduce(Reduce):
             float:
 
         """
-        plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
+        plate_scale = self.sciImg.detector.platescale
         return plate_scale
 
     def resample_cube(self):
@@ -1136,7 +1134,8 @@ class IFUReduce(Reduce):
         return skymask_init
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
-            std_trace=None, manual_extract_dict=None, show_peaks=False):
+            std_trace=None, manual_extract_dict=None, show_peaks=False,
+            ref_slit=None):
         """
         Primary code flow for PypeIt reductions
 
@@ -1154,14 +1153,49 @@ class IFUReduce(Reduce):
             manual_extract_dict (dict, optional):
             show_peaks (bool, optional):
                 Show peaks in find_objects methods
+            ref_slit (int, optional):
+                Slit index to be used as reference for relative transmission calibration
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
                outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
 
         """
+        # Check ref_slit is not None
+        if ref_slit is None:
+            ref_slit = 0
+
+        # Get the plate scale
+        plate_scale = self.get_platescale(None)
+
+        # If this is a slit-based IFU, perform a relative scaling of the IFU slits
+        if self.par['reduce']['cube']['slit_spec']:
+            # Get the relative scaling (use standard star profile, if available)
+            flat_modl = self.caliBrate.flatimages.flat_model
+            flat_ivar = np.ones_like(flat_modl)
+            glob_skym = np.zeros_like(flat_modl)
+            rn2img = self.sciImg.rn2img  # This is an approximation, probably fine
+            specobj_dict = dict(setup=None, slitid=999, det=self.det, objtype=self.objtype, pypeline='IFU', orderindx=999)
+            if self.objtype == 'standard':
+                # Initialise a SpecObj
+                relspec = specobj.SpecObj("IFU", self.det, specobj_dict=specobj_dict)
+                relspec.TRACE_SPAT = 0.5*(self.slits.left[:, ref_slit]+self.slits.right[:, ref_slit])
+                # Do a boxcar extraction - assume standard is in the middle of the slit
+                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask==0,
+                                       self.caliBrate.mswave.image, glob_skym, rn2img,
+                                       self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                       relspec)
+            elif self.objtype in ['science', 'science_coadd2d']:
+                pass
+
         # Check if the user has a pre-defined sky regions file
         skymask_init = self.load_skyregions()
+
+        import pdb
+        from matplotlib import pyplot as plt
+        plt.plot(relspec.trace_spec, relspec.BOX_COUNTS, 'k-')
+        plt.show()
+        pdb.set_trace()
 
         # Global sky subtract
         self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
@@ -1170,6 +1204,7 @@ class IFUReduce(Reduce):
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
         write_to_fits(self.global_sky, "initial_sky.fits", overwrite=True)
         write_to_fits(self.sciImg.image-self.global_sky, "skysub_science.fits", overwrite=True)
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
         msgs.error("SUCCESSFUL -- UP TO HERE!")
 
         # Resample data onto desired grid
