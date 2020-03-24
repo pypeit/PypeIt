@@ -70,10 +70,11 @@ def test_io(kast_blue_bias_files):
     msbias = buildimage.buildimage_fromlist(shane_kast_blue, 1, frame_par,
                                             kast_blue_bias_files)
     # Save as a master frame
-    msbias.to_master_file(master_dir, master_key,  # Naming
-                               shane_kast_blue.spectrograph,  # Header
-                               steps=msbias.process_steps,
-                               raw_files=kast_blue_bias_files)
+    master_filename = masterframe.construct_file_name(msbias, master_key, master_dir=master_dir)
+    msbias.to_master_file(master_filename)#master_dir, master_key,  # Naming
+                               #shane_kast_blue.spectrograph,  # Header
+                               #steps=msbias.process_steps,
+                               #raw_files=kast_blue_bias_files)
 
     assert os.path.isfile(outfile), 'Error writing MasterBias'
     # Load master frame
