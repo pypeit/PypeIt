@@ -33,7 +33,7 @@ class OneSpec(datamodel.DataContainer):
     }
 
     def __init__(self, wave, flux, ivar, mask=None, telluric=None,
-                 obj_model=None):
+                 obj_model=None, fluxmode=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
