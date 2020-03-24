@@ -1187,8 +1187,6 @@ class DataContainer:
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
     def to_master_file(self, master_filename, **kwargs):
-        #spectrograph, steps=None,
-                       #raw_files=None, **kwargs):
         """
         Wrapper on to_file() that deals with masterframe naming and header
 

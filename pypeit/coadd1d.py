@@ -30,16 +30,21 @@ class OneSpec(datamodel.DataContainer):
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array'),
         'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model?'),
         'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model?'),
-        'fluxmode': dict(otype=str, desc='Fluxing mode (options: counts, flam)'),
+        'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
+        'fluxed': dict(otype=bool, desc='Fluxed?'),
     }
 
     def __init__(self, wave, flux, ivar=None, mask=None, telluric=None,
-                 obj_model=None, fluxmode=None):
+                 obj_model=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
+#
+#    def _bundle(self, ext=None, **kwargs):
+#        _d = super(OneSpec, self)._bundle(ext=ext, **kwargs)
+#        import pdb; pdb.set_trace()
 
 
 class CoAdd1D(object):
@@ -145,8 +150,9 @@ class CoAdd1D(object):
         onespec = OneSpec(self.wave_coadd[wave_mask],
                           self.flux_coadd[wave_mask],
                           ivar=self.ivar_coadd[wave_mask],
-                          mask=self.mask_coadd[wave_mask],
-                          fluxmode=self.par['ex_value'])
+                          mask=self.mask_coadd[wave_mask].astype(int),
+                          ext_mode=self.par['ex_value'],
+                          fluxed=self.par['flux_value'])
         # Add on others
         if telluric is not None:
             onespec.telluric  = telluric[wave_mask]

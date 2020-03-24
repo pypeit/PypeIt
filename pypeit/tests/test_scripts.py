@@ -109,7 +109,6 @@ def test_quicklook():
                                '--user_pixflat={0}'.format(
                                    os.path.join(calib_dir,
                                         'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
-'''
 
 @dev_suite_required
 def test_trace_edges():
@@ -144,7 +143,6 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
-'''
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
@@ -181,7 +179,7 @@ def test_chk_flat():
     #
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
-
+'''
 
 
 def test_coadd1d_1():
@@ -200,15 +198,17 @@ def test_coadd1d_1():
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
-    assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
-    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
-    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+    #assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
+    #assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
+    #assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+    assert hdu[1].header['EXT_MODE'] == 'OPT'
+    assert hdu[1].header['FLUXED'] is False
 
     # Clean up
     os.remove(parfile)
     os.remove(coadd_ofile)
 
-
+'''
 def test_coadd1d_2():
     """
     Test combining Echelle
