@@ -241,6 +241,7 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
     spec.BOX_COUNTS_SKY = sky_box
     spec.BOX_COUNTS_RN = rn_box
     spec.BOX_RADIUS = box_radius
+    spec.BOX_NPIX = pixtot-pixmsk
 
 
 def findfwhm(model, sig_x):
