@@ -106,14 +106,10 @@ spectrum to a chosen value (typically a photometric
 measurement) in one of many filter curves.
 
 To do so, you need to add the *filter* and *magnitude*
-to the [coadd1d] block of the
+to the [coadd1d] block of the `coadd 1dfile`_.
 
 Here is an example::
 
-    'a':
-        'object': ['SPAT0119-SLIT0000-DET01', 'SPAT0159-SLIT0000-DET01', 'SPAT0079-SLIT0000-DET01']
-        'outfile': 'FRB181112_fors2.fits'
-        'scale': {'filter': 'DES_r', 'mag': 21.73, 'mag_type': 'AB', 'masks': [[0., 6000.]]}
 
 The call here will convolve the coadded spectrum with the DES r-band filter,
 and then scale the flux to give an AB magnitude of 21.73.  Furthermore,
