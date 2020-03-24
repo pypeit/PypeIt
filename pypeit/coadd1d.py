@@ -16,7 +16,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
 from pypeit import specobjs
 from pypeit import msgs
-from pypeit.core import coadd
+from pypeit.core import coadd, flux_calib
 from pypeit import datamodel
 
 
@@ -100,6 +100,11 @@ class CoAdd1D(object):
         self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load_arrays()
         # Coadd the data
         self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
+        # Scale to a filter magnitude?
+        if self.par['filter'] != 'none':
+            scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.mask_coadd, self.par)
+            self.flux_coadd *= scale
+            self.ivar_coadd = self.ivar_coadd / scale**2
 
     def load_arrays(self):
         """
@@ -214,6 +219,11 @@ class CoAdd1D(object):
         Dummy method overloaded by sub-classes
 
         Returns:
+            :obj:`tuple`:  four items
+              - wave
+              - flux
+              - ivar
+              - mask
 
         """
         return (None,)*4

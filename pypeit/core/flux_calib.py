@@ -1108,6 +1108,7 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
     flux = flux[gpm]
 
     # Grab the instrument response function
+    msgs.info("Integrating spectrum in filter: {}".format(scale_dict['filter']))
     fwave, trans = load_filter_file(scale_dict['filter'])
     tfunc = interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
 
