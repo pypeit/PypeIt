@@ -167,10 +167,7 @@ class Calibrations(object):
         image_files = self.fitstbl.frame_paths(rows)
         # Update the internal dict
         #   Kludge for flats
-        if ctype == 'pixelflat':
-            _ctype = 'flat'
-        else:
-            _ctype = ctype
+        _ctype = 'flat' if ctype == 'pixelflat' else ctype
         self.master_key_dict[_ctype] \
             = self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
         # Return
@@ -328,9 +325,7 @@ class Calibrations(object):
                                                         bias=self.msbias, bpm=self.msbpm)
             # Save
             if self.save_masters:
-                self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
-                                          self.spectrograph.spectrograph,  # Header
-                                          steps=self.msarc.process_steps, raw_files=arc_files)
+                self.msarc.to_master_file(masterframe_name)
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
         # Return
@@ -373,10 +368,7 @@ class Calibrations(object):
 
             # Save to Masters
             if self.save_masters:
-                self.mstilt.to_master_file(self.master_dir, self.master_key_dict['tilt'],  # Naming
-                                      self.spectrograph.spectrograph,  # Header
-                                      steps=self.mstilt.process_steps,
-                                      raw_files=tilt_files)
+                self.mstilt.to_master_file(masterframe_name)
 
         # Cache
         self._update_cache('tilt', 'tiltimg', self.mstilt)
@@ -452,8 +444,6 @@ class Calibrations(object):
 
             # Store the alignment frame
             self._update_cache('align', 'align', self.msalign)
-
-        # JXP STOPPED HERE
 
         # Check if the alignment dictionary exists
         if self._cached('align_dict', self.master_key_dict['align']) \
@@ -531,10 +521,11 @@ class Calibrations(object):
                                                 self.par['biasframe'], bias_files)
                 # Save it?
                 if self.save_masters:
-                    self.msbias.to_master_file(self.master_dir, self.master_key_dict['bias'],  # Naming
-                                          self.spectrograph.spectrograph,  # Header
-                                          steps=self.msbias.process_steps,
-                                          raw_files=bias_files)
+                    self.msbias.to_master_file(masterframe_name)
+                        #self.master_dir, self.master_key_dict['bias'],  # Naming
+                        #                  self.spectrograph.spectrograph,  # Header
+                        #                  steps=self.msbias.process_steps,
+                        #                  raw_files=bias_files)
         # Save & return
         self._update_cache('bias', 'bias', self.msbias)
         return self.msbias
@@ -609,14 +600,14 @@ class Calibrations(object):
                       'flatfielding your data!!!')
             # TODO: Why does this not return unity arrays, like what's
             # done below?
-            return flatfield.FlatImages(None, None, None, None)
+            return flatfield.FlatImages(None)
 
         # Slit and tilt traces are required to flat-field the data
         if not self._chk_objs(['slits', 'wavetilts']):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            return flatfield.FlatImages(None, None, None, None)
+            return flatfield.FlatImages(None)
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -629,7 +620,7 @@ class Calibrations(object):
             self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
             return self.flatimages
 
-        masterframe_name = masterframe.construct_file_name(flatfield.FlatImages,
+        masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
                                                            self.master_key_dict['flat'], master_dir=self.master_dir)
         # The following if-elif-else does:
         #   1.  First try to load a user-supplied image
@@ -653,9 +644,9 @@ class Calibrations(object):
                 pixelflat = hdu[self.det].data
             # Build
             self.flatimages = flatfield.FlatImages(None, pixelflat, None, None)
-        elif os.path.isfile(masterframe_name) and self.reuse_masters:
+        elif os.path.isfile(masterframe_filename) and self.reuse_masters:
             # Load MasterFrame
-            self.flatimages = flatfield.FlatImages.from_file(masterframe_name)
+            self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
         elif len(pixflat_image_files) > 0:
             # Process/combine the input pixelflat frames
             stacked_pixflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -664,23 +655,25 @@ class Calibrations(object):
                                                     bias=self.msbias, bpm=self.msbpm)
             # Normalize and illumination
             flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
-                det=self.det, slits=self.slits, wavetilts=self.wavetilts)
+                self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show) #, debug=True)
 
             # Save to Masters
             if self.save_masters:
-                self.flatimages.to_master_file(self.master_dir, self.master_key_dict['flat'],  # Naming
-                                           self.spectrograph.spectrograph,  # Header
-                                           steps=flatField.steps)
+                self.flatimages.to_master_file(masterframe_filename)#self.master_dir, self.master_key_dict['flat'],  # Naming
+                                           #self.spectrograph.spectrograph,  # Header
+                                           #steps=flatField.steps)
 
                 # If slits were tweaked by the slit illumination
                 # profile, re-write them so that the tweaked slits are
                 # included.
                 if self.par['flatfield']['tweak_slits']:
                     # Update the SlitTraceSet master
-                    self.slits.to_master_file(self.master_dir, self.master_key_dict['trace'],  # Naming
-                                              self.spectrograph.spectrograph)
+                    slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
+                                                                            self.master_key_dict['trace'],
+                                                                            master_dir=self.master_dir)
+                    self.slits.to_master_file(slit_masterframe_name)
                     #self.slits.to_master()
                     # TODO: The waveTilts datamodel needs to be improved
                     # Objects should point to the same data
@@ -689,8 +682,10 @@ class Calibrations(object):
                     # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
                     # Update the WaveTilts master
                     self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
-                    self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
-                                                  self.spectrograph.spectrograph)
+                    tilts_masterframe_name = masterframe.construct_file_name(wavetilts.WaveTilts,
+                                                                       self.master_key_dict['tilt'],
+                                                                       master_dir=self.master_dir)
+                    self.wavetilts.to_master_file(tilts_masterframe_name)
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
@@ -785,9 +780,7 @@ class Calibrations(object):
             self.slits = self.edges.get_slits()
             self.edges = None
             if self.save_masters:
-                self.slits.to_master_file(self.master_dir, self.master_key_dict['trace'],  # Naming
-                                          self.spectrograph.spectrograph,  # Header
-                                          raw_files=trace_image_files)
+                self.slits.to_master_file(slit_masterframe_name)
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)
@@ -801,7 +794,7 @@ class Calibrations(object):
            wavetilts, slits, wv_calib, det, par, master_key
 
         Returns:
-            ndarray: :attr:`mswave` wavelength image
+            `np.ndarray`_: :attr:`mswave` wavelength image
 
         """
         # Check for existing data
@@ -837,9 +830,10 @@ class Calibrations(object):
             self.mswave = buildwaveImage.build_wave()
             # Save to hard-drive
             if self.save_masters:
-                self.mswave.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
-                                          self.spectrograph.spectrograph,  # Header
-                                          steps=buildwaveImage.steps)
+                self.mswave.to_master_file(masterframe_name)
+                    #self.master_dir, self.master_key_dict['arc'],  # Naming
+                    #                      self.spectrograph.spectrograph,  # Header
+                    #                      steps=buildwaveImage.steps)
 
         # Cache & return
         self._update_cache('arc', 'wave', self.mswave)
@@ -970,8 +964,8 @@ class Calibrations(object):
                     = buildwaveTilts.run(maskslits=self.slits.mask, doqa=self.write_qa, show=self.show)
             # Save?
             if self.save_masters:
-                self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
-                    self.spectrograph.spectrograph, steps=buildwaveTilts.steps)
+                self.wavetilts.to_master_file(masterframe_name) #self.master_dir, self.master_key_dict['tilt'],
+                    #self.spectrograph.spectrograph, steps=buildwaveTilts.steps)
 
         # Save & return
         self._update_cache('tilt', ('wavetilts','wtmask'), (self.wavetilts, self.wt_maskslits))

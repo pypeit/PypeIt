@@ -1,4 +1,8 @@
-""" Object to process a single raw image """
+""" Object to process a single raw image
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+"""
 
 import inspect
 from copy import deepcopy
@@ -31,10 +35,11 @@ class ProcessRawImage(object):
     Attributes:
         steps (dict):
             Dict describing the steps performed on the image
-        datasec_img (np.ndarray):
+        datasec_img (`np.ndarray`_):
             Holds the datasec_img which specifies the amp for each pixel in the
             current self.image image.  This is modified as the image is, i.e.
             orientation and trimming.
+        image (`np.ndarray`_):
     """
     def __init__(self, rawImage, par, bpm=None):
 
@@ -48,20 +53,13 @@ class ProcessRawImage(object):
 
         # Grab items from rawImage (for convenience and for processing)
         #   Could just keep rawImage in the object, if preferred
-        self.spectrograph = rawImage.spectrograph
-        self.det = rawImage.det
-        self.filename = rawImage.filename
-        self.datasec_img = rawImage.rawdatasec_img.copy()
-        self.oscansec_img = rawImage.oscansec_img
-        self.image = rawImage.raw_image.copy()
+        self.rawimage = rawImage
+        self.spectrograph = rawImage.spectrograph  # One for convenience
         self.headarr = deepcopy(self.spectrograph.get_headarr(rawImage.hdu))
-        self.orig_shape = rawImage.raw_image.shape
-        self.exptime = rawImage.exptime
-        self.detector = rawImage.detector
 
-        # Binning of the processed image
-        self.binning = self.detector['binning']
-        #self.binning = self.spectrograph.get_meta_value(self.filename, 'binning')
+        # Key attributes
+        self.image = rawImage.raw_image.copy()
+        self.datasec_img = rawImage.rawdatasec_img.copy()
 
         # Attributes
         self.ivar = None
@@ -90,8 +88,8 @@ class ProcessRawImage(object):
         """
         if self._bpm is None:
             self._bpm = self.spectrograph.bpm(shape=self.image.shape,
-                                    filename=self.filename,
-                                    det=self.det)
+                                    filename=self.rawimage.filename,
+                                    det=self.rawimage.det)
         return self._bpm
 
     def apply_gain(self, force=False):
@@ -111,7 +109,7 @@ class ProcessRawImage(object):
             msgs.warn("Gain was already applied. Returning")
             return self.image.copy()
 
-        gain = np.atleast_1d(self.detector['gain']).tolist()
+        gain = np.atleast_1d(self.rawimage.detector['gain']).tolist()
         # Apply
         self.image *= procimg.gain_frame(self.datasec_img, gain) #, trim=self.steps['trim'])
         self.steps[step] = True
@@ -133,9 +131,9 @@ class ProcessRawImage(object):
         #detector = self.spectrograph.detector[self.det-1]
         # Generate
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
-                                             self.detector['gain'], self.detector['ronoise'],
-                                             darkcurr=self.detector['darkcurr'],
-                                             exptime=self.exptime,
+                                             self.rawimage.detector['gain'], self.rawimage.detector['ronoise'],
+                                             darkcurr=self.rawimage.detector['darkcurr'],
+                                             exptime=self.rawimage.exptime,
                                              rnoise=self.rn2img)
         # Ivar
         self.ivar = utils.inverse(rawvarframe)
@@ -160,8 +158,8 @@ class ProcessRawImage(object):
         #detector = self.spectrograph.detector[self.det-1]
         # Build it
         self.rn2img = procimg.rn_frame(self.datasec_img,
-                                       self.detector['gain'],
-                                       self.detector['ronoise'])
+                                       self.rawimage.detector['gain'],
+                                       self.rawimage.detector['ronoise'])
         # Return
         return self.rn2img.copy()
 
@@ -226,17 +224,15 @@ class ProcessRawImage(object):
             steps_copy.remove('flatten')
 
         # Fresh BPM
-        bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
+        bpm = self.spectrograph.bpm(self.rawimage.filename, self.rawimage.det, shape=self.image.shape)
 
         # Extras
         self.build_rn2img()
         self.build_ivar()
 
         # Generate a PypeItImage
-        #pypeitImage = pypeitimage.PypeItImage(self.image, binning=self.binning, rawheadlst=self.headarr,
-        #                                      ivar=self.ivar, rn2img=self.rn2img, bpm=bpm)
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img, bpm=bpm,
-                                              detector=self.detector)
+                                              detector=self.rawimage.detector, PYP_SPEC=self.spectrograph.spectrograph)
         pypeitImage.rawheadlist = self.headarr
 
         # Mask(s)
@@ -244,12 +240,12 @@ class ProcessRawImage(object):
             pypeitImage.build_crmask(self.par)
             steps_copy.remove('crmask')
         #
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawimage.detector,
                                                               apply_gain='apply_gain' in process_steps)
         pypeitImage.build_mask(saturation=nonlinear_counts)
         # Error checking
         if len(steps_copy) != 0:
-            msgs.error("Processing steps did not complete...")
+            msgs.error('Coding issue: Processing steps not completed: {0}'.format(','.join(steps_copy)))
 
         # Return
         return pypeitImage
@@ -300,8 +296,8 @@ class ProcessRawImage(object):
             msgs.warn("Image was already oriented.  Returning current image")
             return self.image.copy()
         # Orient me
-        self.image = self.spectrograph.orient_image(self.detector, self.image)#, self.det)
-        self.datasec_img = self.spectrograph.orient_image(self.detector, self.datasec_img)#, self.det)
+        self.image = self.spectrograph.orient_image(self.rawimage.detector, self.image)#, self.det)
+        self.datasec_img = self.spectrograph.orient_image(self.rawimage.detector, self.datasec_img)#, self.det)
         #
         self.steps[step] = True
 
@@ -338,7 +334,7 @@ class ProcessRawImage(object):
         if self.steps[step] and (not force):
             msgs.warn("Image was already overscan subtracted!")
 
-        temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
+        temp = procimg.subtract_overscan(self.image, self.datasec_img, self.rawimage.oscansec_img,
                                          method=self.par['overscan'],
                                          params=self.par['overscan_par'])
         # Fill
@@ -356,8 +352,8 @@ class ProcessRawImage(object):
         """
         step = inspect.stack()[0][3]
         # Check input image matches the original
-        if self.orig_shape is not None:
-            if self.image.shape != self.orig_shape:
+        if self.rawimage.raw_image.shape is not None:
+            if self.image.shape != self.rawimage.raw_image.shape:
                 msgs.warn("Image shape does not match original.  Returning current image")
                 return self.image.copy()
         # Check if already trimmed
@@ -372,7 +368,7 @@ class ProcessRawImage(object):
 
     def __repr__(self):
         return ('<{:s}: file={}, steps={}>'.format(
-            self.__class__.__name__, self.filename, self.steps))
+            self.__class__.__name__, self.rawimage.filename, self.steps))
 
 
 def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,

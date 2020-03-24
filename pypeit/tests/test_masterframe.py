@@ -18,13 +18,20 @@ def test_masterframe_methods():
     master_dir = data_root()
 
     # Filename
-    filename = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
+    Aimg = buildimage.ArcImage(None)
+    Aimg.PYP_SPEC = 'shane_kast_blue'
+    filename = masterframe.construct_file_name(Aimg, master_key, master_dir=master_dir)
     assert isinstance(filename, str)
+    assert filename == os.path.join(
+        master_dir, 'Master'+Aimg.master_type+'_'+master_key+'.'+Aimg.file_format)
 
     # Header
-    hdr = masterframe.build_master_header(buildimage.ArcImage, master_key, master_dir, 'shane_kast_blue')
+    hdr = masterframe.build_master_header(Aimg, master_key, master_dir)
     assert isinstance(hdr, fits.Header)
 
     # Get those keys!
     _master_key, _master_dir = masterframe.grab_key_mdir(hdr)
     assert _master_key == master_key
+
+    _master_key2, _master_dir2 = masterframe.grab_key_mdir(filename, from_filename=True)
+    assert _master_key2 == master_key

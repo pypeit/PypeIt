@@ -115,84 +115,34 @@ def test_bpm(multi_caliBrate):
 
 
 @dev_suite_required
-def test_slits(multi_caliBrate):
+def test_it_all(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
     multi_caliBrate.get_bpm()
-    # Run
+    multi_caliBrate.get_arc()
+    multi_caliBrate.get_tiltimg()
     slits = multi_caliBrate.get_slits()
-    assert slits.spectrograph == 'shane_kast_blue', 'Wrong spectrograph'
+    assert slits.PYP_SPEC == 'shane_kast_blue', 'Wrong spectrograph'
     assert (slits.nspec, slits.nspat) == multi_caliBrate.shape, 'Wrong image shape'
     assert slits.nslits == 1, 'Incorrect number of slits'
     assert slits.left.shape == (2048,1), 'Incorrect shape for left'
     assert slits.left_tweak is None, 'Tweaks should not exist'
 
-
-@dev_suite_required
-def test_wv_calib(multi_caliBrate):
-    # Setup
-    multi_caliBrate.shape = (2048,350)
-    #multi_caliBrate.get_pixlocn()
-    multi_caliBrate.get_bpm()
-    multi_caliBrate.get_arc()
-    multi_caliBrate.get_slits()
-    # Run
     wv_calib = multi_caliBrate.get_wv_calib()
     assert isinstance(wv_calib, dict)
     assert wv_calib['0'] is not None
     assert wv_calib['0']['rms'] < 0.2
-    # TODO: Is this test useful?
-    assert isinstance(multi_caliBrate.slits.mask, np.ndarray)
 
-
-@dev_suite_required
-def test_tilts(multi_caliBrate):
-    # Setup
-    multi_caliBrate.shape = (2048,350)
-    #multi_caliBrate.get_pixlocn()
-    multi_caliBrate.get_bpm()
-    multi_caliBrate.get_arc()
-    multi_caliBrate.get_tiltimg()
-    multi_caliBrate.get_slits()
-    multi_caliBrate.get_wv_calib()
-    # Run
     wavetilts = multi_caliBrate.get_tilts()
-    assert wavetilts['tilts'].shape == (2048,350)
-    # TODO: Is this test useful?
-    assert isinstance(multi_caliBrate.slits.mask, np.ndarray)
+    assert wavetilts.nslit == 1
 
-
-@dev_suite_required
-def test_flat(multi_caliBrate):
-    # Setup
-    multi_caliBrate.shape = (2048,350)
-    #multi_caliBrate.get_pixlocn()
-    multi_caliBrate.get_bpm()
-    multi_caliBrate.get_arc()
-    multi_caliBrate.get_tiltimg()
-    multi_caliBrate.get_slits()
-    multi_caliBrate.get_wv_calib()
-    multi_caliBrate.get_tilts()
-    # Run
+    multi_caliBrate.get_flats()
     flatImages = multi_caliBrate.get_flats()
     assert flatImages.pixelflat.shape == (2048,350)
     assert flatImages.illumflat.shape == (2048,350)
 
-
-@dev_suite_required
-def test_waveimg(multi_caliBrate):
-    # Setup
-    multi_caliBrate.shape = (2048,350)
-    #multi_caliBrate.get_pixlocn()
-    multi_caliBrate.get_bpm()
-    multi_caliBrate.get_arc()
-    multi_caliBrate.get_tiltimg()
-    multi_caliBrate.get_slits()
-    multi_caliBrate.get_wv_calib()
-    multi_caliBrate.get_tilts()
-    multi_caliBrate.get_flats()
-    # Run
+    #
     mswave = multi_caliBrate.get_wave()
     assert mswave.image.shape == (2048,350)
 

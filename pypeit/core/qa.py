@@ -355,7 +355,7 @@ def gen_mf_html(pypeit_file, qa_path):
         #    dets.append(int(key))
         else:
             cbsets.append(key)
-    # Fake out dets
+    # TODO -- Read in spectograph from .pypeit file and then use spectrograph.ndet
     dets = (1+np.arange(99)).tolist()
     # Generate MF file
     MF_filename = os.path.join('{:s}'.format(qa_path), 'MF_{:s}.html'.format(setup))

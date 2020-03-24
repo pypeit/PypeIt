@@ -285,8 +285,6 @@ def test_basic():
         data.meta1 = 4.
 
     # Write to a file
-    # TODO -- This is failing in pypeit.io when attempting to generate the fits.Column
-    #   Surely a fault of JXP but he can't figure out how to fix it...
     data.to_file(ofile)
 
     # Test written data against input

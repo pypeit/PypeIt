@@ -79,7 +79,7 @@ def test_run():
     hdul = fits.HDUList([])
     rawflatimg.detector = spectrograph.get_detector_par(hdul, 1)
     flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
-                                    det=1, wavetilts=waveTilts, slits=edges.get_slits())
+                                    wavetilts=waveTilts, slits=edges.get_slits())
 
     # Use the trace image
     flatImages = flatField.run()

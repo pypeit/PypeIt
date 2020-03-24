@@ -16,6 +16,10 @@ from astropy.io import fits
 
 # TODO -- Move this module to core/
 
+# DEFINE HERE AS THE DATAMODEL
+sep1 = '_'  # Separation between master type and key
+sep2 = '.'  # Separation between master key and extension
+
 
 def construct_file_name(master_obj, master_key, master_dir=None):
     """
@@ -33,36 +37,48 @@ def construct_file_name(master_obj, master_key, master_dir=None):
         str:
 
     """
-    basefile = 'Master{0}_{1}.{2}'.format(master_obj.master_type, master_key,
-                                          master_obj.file_format)
+    basefile = 'Master{0}{1}{2}{3}{4}'.format(master_obj.master_type, sep1,
+                                              master_key, sep2,
+                                              master_obj.file_format)
     filename = os.path.join(master_dir, basefile) if master_dir is not None else basefile
     # Return
     return filename
 
 
-def grab_key_mdir(inp):
+def grab_key_mdir(inp, from_filename=False):
     """
-    Grab master_key and master_dir from a file or header
+    Grab master_key and master_dir by parsing a filename or inspecting a header
 
     Args:
         inp (:obj:`str` or astropy.io.fits.Header):
+            Either a filename or a Header of a FITS file
+        from_filename (bool, optional):
+            If true, parse the input filename using the naming model
 
     Returns:
         tuple:  str, str of master_key and master_dir
 
     """
-    if isinstance(inp, str):
-        head0 = fits.getheader(inp)
-    elif isinstance(inp, fits.Header):
-        head0 = inp
-    # Grab it
-    master_key = head0['MSTRKEY']
-    master_dir = head0['MSTRDIR']
+    if from_filename:
+        master_dir = os.path.dirname(inp)
+        # Parse
+        base = os.path.basename(inp)
+        pos1 = base.find(sep1)
+        pos2 = base.find(sep2)
+        master_key = base[pos1+1:pos2]
+    else:
+        if isinstance(inp, str):
+            head0 = fits.getheader(inp)
+        elif isinstance(inp, fits.Header):
+            head0 = inp
+        # Grab it
+        master_key = head0['MSTRKEY']
+        master_dir = head0['MSTRDIR']
     # Return
     return master_key, master_dir
 
 
-def build_master_header(master_obj, master_key, master_dir, spectrograph,
+def build_master_header(master_obj, master_key, master_dir,
                         hdr=None, steps=None, raw_files=None):
     """
     Initialize the master frame header.
@@ -106,8 +122,10 @@ def build_master_header(master_obj, master_key, master_dir, spectrograph,
     _hdr['MSTRVER'] = (master_obj.version, 'PypeIt: Master datamodel version')
     #_hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
 
-    # Other info, pulled from the Child
-    _hdr['PYP_SPEC'] = (spectrograph, 'PypeIt: Spectrograph name')
+    # Spectrograph
+    if master_obj.PYP_SPEC is None:
+        msgs.error("The object needs to include PYP_SPEC this so that it was written to the Header")
+    _hdr['PYP_SPEC'] = (master_obj.PYP_SPEC, 'PypeIt: Spectrograph name')  # This may be over-written by itself
 
     #   - List the completed steps
     if steps is not None:
