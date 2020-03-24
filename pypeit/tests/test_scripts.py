@@ -35,7 +35,6 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
-'''
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -179,7 +178,6 @@ def test_chk_flat():
     #
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
-'''
 
 
 def test_coadd1d_1():
@@ -208,7 +206,6 @@ def test_coadd1d_1():
     os.remove(parfile)
     os.remove(coadd_ofile)
 
-'''
 def test_coadd1d_2():
     """
     Test combining Echelle
@@ -234,4 +231,3 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
-'''
