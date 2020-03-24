@@ -16,7 +16,7 @@ from pypeit import utils
 from pypeit.images import pypeitimage
 from pypeit.images import processrawimage
 from pypeit.images import rawimage
-from pypeit.images import maskimage
+from pypeit.images import imagebitmask
 
 from IPython import embed
 
@@ -134,7 +134,7 @@ class CombineImage(object):
                 rn2img_stack = np.zeros(shape)
                 crmask_stack = np.zeros(shape, dtype=bool)
                 # Mask
-                bitmask = maskimage.ImageBitMask()
+                bitmask = imagebitmask.ImageBitMask()
                 mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
             # Grab the lamp status
             lampstat += [self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)]

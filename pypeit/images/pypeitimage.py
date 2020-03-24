@@ -12,7 +12,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import ginga
 
-from pypeit.images import detector_container, maskimage
+from pypeit.images import detector_container, imagebitmask
 from pypeit.core import procimg
 from pypeit import datamodel
 from pypeit import utils
@@ -66,7 +66,7 @@ class PypeItImage(datamodel.DataContainer):
     datamodel = datamodel_v100.copy()
 
     # For masking
-    bitmask = maskimage.ImageBitMask()
+    bitmask = imagebitmask.ImageBitMask()
 
     hdu_prefix = None
 

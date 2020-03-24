@@ -114,9 +114,9 @@ def save_obj_info(all_specobjs, spectrograph, outfile, sci_dict, binning='None')
     slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
     #binspectral, binspatial = parse.parse_binning(binning)
     for specobj in all_specobjs.specobjs:
-        det = specobj.DET
         if specobj is None:
             continue
+        det = specobj.DET
         # Detector items
         binspectral, binspatial = parse.parse_binning(sci_dict[det]['detector'].binning)
         platescale = sci_dict[det]['detector'].platescale

@@ -167,10 +167,7 @@ class Calibrations(object):
         image_files = self.fitstbl.frame_paths(rows)
         # Update the internal dict
         #   Kludge for flats
-        if ctype == 'pixelflat':
-            _ctype = 'flat'
-        else:
-            _ctype = ctype
+        _ctype = 'flat' if ctype == 'pixelflat' else ctype
         self.master_key_dict[_ctype] \
             = self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
         # Return
