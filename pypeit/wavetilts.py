@@ -56,7 +56,7 @@ class WaveTilts(datamodel.DataContainer):
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'spat_flexure': dict(otype=float, desc='Flexure shift from the input TiltImage'),
     }
-    def __init__(self, tilts, coeffs, slitcen, nslit, spat_order, spec_order, func2d, spat_flexure,
+    def __init__(self, coeffs, slitcen, nslit, spat_order, spec_order, func2d, spat_flexure,
                  PYP_SPEC=None):
 
         # Parse

@@ -96,6 +96,9 @@ class Reduce(object):
         if objtype == 'science':
             if self.par['scienceframe']['process']['spat_flexure_correct']:
                 self.spat_flexure_shift = self.sciImg.spat_flexure
+        elif objtype == 'standard':
+            if self.par['calibrations']['standardframe']['process']['spat_flexure_correct']:
+                self.spat_flexure_shift = self.sciImg.spat_flexure
         else:
             embed(header='100 of reduce')  # Think through standard without spatial flexure correction
 
