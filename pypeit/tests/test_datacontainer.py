@@ -7,6 +7,8 @@ import os
 import shutil
 import inspect
 
+from IPython import embed
+
 import pytest
 
 import numpy as np
@@ -172,17 +174,15 @@ class DubiousInitContainer(DataContainer):
         self.func = func
         super(DubiousInitContainer, self).__init__({'inp1': inp1, 'inp2':inp2})
 
-    def _validate(self):
+    def _init_internals(self):
         # Because func isn't part of the data model, it won't be part of
         # self if the object is instantiated from a file.  So I have to
         # add it here.  But I don't know what the value of the attribute
-        # was for the original object that was written to disk.  This is
-        # why you likely always want anything that's critical to setting
-        # up the object to be part of the datamodel so that it gets
-        # written to disk.  See the testing examples for when this will
-        # go haywire.
+        # was for the original object that was written to disk.
         if not hasattr(self, 'func'):
             self.func = None
+
+    def _validate(self):
         if self.func not in [None, 'add', 'sub']:
             raise ValueError('Function must be either \'add\' or \'sub\'.')
 
@@ -285,8 +285,6 @@ def test_basic():
         data.meta1 = 4.
 
     # Write to a file
-    # TODO -- This is failing in pypeit.io when attempting to generate the fits.Column
-    #   Surely a fault of JXP but he can't figure out how to fix it...
     data.to_file(ofile)
 
     # Test written data against input

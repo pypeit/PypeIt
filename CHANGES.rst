@@ -29,10 +29,6 @@
   previous classes.  Exception is WaveCalib (this needsd a fit DataContainer first)
 - Substantial refactoring of Calibrations
 
-
-
-- Added `bspline_qa` for generic QA of a bspline fit.
-
 0.13.2 (17 Mar 2020)
 --------------------
 

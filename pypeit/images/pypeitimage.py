@@ -12,7 +12,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import ginga
 
-from pypeit.images import detector_container, maskimage
+from pypeit.images import detector_container, imagebitmask
 from pypeit.core import procimg
 from pypeit import datamodel
 from pypeit import utils
@@ -38,6 +38,7 @@ class PypeItImage(datamodel.DataContainer):
         crmask (`np.ndarray`_, optional):
         fullmask (`np.ndarray`_, optional):
         detector (:class:`pypeit.images.data_container.DataContainer`):
+        spat_flexure (:obj:`float`, optional):
 
     Attributes:
         hdu_prefix (str, optional):
@@ -52,7 +53,8 @@ class PypeItImage(datamodel.DataContainer):
 
     """
     # Set the version of this class
-    version = '1.0.0'
+    minimum_useful_version = '1.0.0'
+    version = '1.0.1'
     #
     datamodel_v100 = {
         'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
@@ -62,11 +64,13 @@ class PypeItImage(datamodel.DataContainer):
         'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
         'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+        'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
     }
     datamodel = datamodel_v100.copy()
 
     # For masking
-    bitmask = maskimage.ImageBitMask()
+    bitmask = imagebitmask.ImageBitMask()
 
     hdu_prefix = None
 
@@ -85,11 +89,11 @@ class PypeItImage(datamodel.DataContainer):
                 Loaded up PypeItImage with the primary Header attached
 
         """
-        slf = super(PypeItImage, cls).from_file(ifile)
-
-        # Header
-        slf.head0 = fits.getheader(ifile)
-
+        # Open
+        hdu = fits.open(ifile)
+        # Instantiate
+        slf = super(PypeItImage, cls).from_hdu(hdu)
+        slf.head0 = hdu[0].header
         # Return
         return slf
 
@@ -119,7 +123,8 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,  # This should contain all datamodel items
-                 crmask=None, fullmask=None, detector=None):
+                 crmask=None, fullmask=None, detector=None, spat_flexure=None,
+                 PYP_SPEC=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -229,52 +234,47 @@ class PypeItImage(datamodel.DataContainer):
                 Slit mask image;  Pixels not in a slit are masked
             mincounts (float, optional):
                 Defaults to self.detector['mincounts']
-
-        Returns:
-            `np.ndarray`_: Copy of the bit value mask for the science image.
         """
         _mincounts = self.detector['mincounts'] if mincounts is None else mincounts
         _saturation = self.detector['saturation'] if saturation is None else saturation
         # Instatiate the mask
-        mask = np.zeros_like(self.image, dtype=self.bitmask.minimum_dtype(asuint=True))
+        self.fullmask = np.zeros_like(self.image, dtype=self.bitmask.minimum_dtype(asuint=True))
 
         # Bad pixel mask
         if self.bpm is not None:
             indx = self.bpm.astype(bool)
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'BPM')
+            self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'BPM')
 
         # Cosmic rays
         if self.crmask is not None:
             indx = self.crmask.astype(bool)
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'CR')
+            self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'CR')
 
         # Saturated pixels
         indx = self.image >= _saturation
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'SATURATION')
+        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'SATURATION')
 
         # Minimum counts
         indx = self.image <= _mincounts
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'MINCOUNTS')
+        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'MINCOUNTS')
 
         # Undefined counts
         indx = np.invert(np.isfinite(self.image))
-        mask[indx] = self.bitmask.turn_on(mask[indx], 'IS_NAN')
+        self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'IS_NAN')
 
         if self.ivar is not None:
             # Bad inverse variance values
             indx = np.invert(self.ivar > 0.0)
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR0')
+            self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'IVAR0')
 
             # Undefined inverse variances
             indx = np.invert(np.isfinite(self.ivar))
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'IVAR_NAN')
+            self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'IVAR_NAN')
 
         if slitmask is not None:
             indx = slitmask == -1
-            mask[indx] = self.bitmask.turn_on(mask[indx], 'OFFSLITS')
+            self.fullmask[indx] = self.bitmask.turn_on(self.fullmask[indx], 'OFFSLITS')
 
-        self.fullmask = mask
-        return self.fullmask.copy()
 
     def update_mask_slitmask(self, slitmask):
         """
@@ -334,18 +334,17 @@ class PypeItImage(datamodel.DataContainer):
             new_ivar = None
 
         # RN2
-        if self.rn2img is not None:
+        if self.rn2img is not None and other.rn2img is not None:
             new_rn2 = self.rn2img + other.rn2img
         else:
             new_rn2 = None
 
-        # Files
-        new_files = self.files + other.files
-
         # Instantiate
         new_sciImg = PypeItImage(image=newimg, ivar=new_ivar, bpm=self.bpm, rn2img=new_rn2,
                                  detector=self.detector)
-        new_sciImg.files = new_files
+        # Files
+        new_sciImg.files = self.files + other.files
+
         #TODO: KW properly handle adding the bits
         crmask_diff = new_sciImg.build_crmask(par)
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images

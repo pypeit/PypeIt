@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+"""
+Check that the installation of python is C enabled.
+"""
+
+# Try to load the bspline C utils
+try:
+    from pypeit.bspline import utilc
+except:
+    pass
+else:
+    print('Successfully imported bspline C utilities.')
+

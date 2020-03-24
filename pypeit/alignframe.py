@@ -11,6 +11,10 @@ from IPython import embed
 
 from pypeit import ginga, msgs
 from pypeit import masterframe
+from pypeit.par import pypeitpar
+from pypeit.images import pypeitimage
+from pypeit.core import procimg, extract, arc, pixels, load
+
 from pypeit import io
 from pypeit.core import extract, arc, save, load
 
@@ -85,6 +89,7 @@ class Alignment():
             self.shape_science = self.slitmask_science.shape
             self.shape_align = self.msalign.image.shape
             self.nslits = self.slits.nslits
+            # TODO -- Use self.slits.select_edges()
             self.slit_left = arc.resize_slits2arc(self.shape_align, self.shape_science,
                                                   self.slits.left)
             self.slit_righ = arc.resize_slits2arc(self.shape_align, self.shape_science,

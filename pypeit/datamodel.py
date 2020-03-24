@@ -640,14 +640,6 @@ class DataContainer:
                 else:
                     setattr(self, key, d[key])
 
-            # Validate the object
-            # TODO: _validate isn't the greatest name for this
-            # method...
-            #self._validate()
-
-            # TODO: Confirm elements have otype and atypes consistent
-            # with the data model?
-
         # Validate the object
         self._validate()
 
@@ -671,8 +663,8 @@ class DataContainer:
         #
         full_datamodel = {}
         for key in cls.datamodel.keys():
-            if inspect.isclass(cls.datamodel[key]['otype']) and (
-                    DataContainer in cls.datamodel[key]['otype'].__bases__):
+            # Data container?
+            if obj_is_data_container(cls.datamodel[key]['otype']):
                 if include_parent:
                     full_datamodel[key] = cls.datamodel[key]
                 # Now run through the others
@@ -862,12 +854,15 @@ class DataContainer:
             hdu_prefix (:obj:`str`, optional):
                 Decorate the HDUs with this prefix
                 Note, this over-rides any internally set hdu_prefix value
+            debug (:obj:`bool`, optional):
+                Perform debuggin
 
         Returns:
-            tuple:
-                :obj:`dict`: Dictionary used to instantiate the object.
-                :obj:`bool`: Describes datamodel version checking passed
-                :obj:`bool`: Describes datamodel type checking passed
+            :obj:`tuple`: Return three objects
+
+                - :obj:`dict`: Dictionary used to instantiate the object.
+                - :obj:`bool`: Describes datamodel version checking passed
+                - :obj:`bool`: Describes datamodel type checking passed
 
         Raises:
             TypeError:
@@ -936,10 +931,12 @@ class DataContainer:
 
 
         for e in _ext:
-            # Check for header elements
+            # Check for header elements, but do not over-ride existing items
             indx = np.isin([key.upper() for key in keys], list(_hdu[e].header.keys()))
             if np.any(indx):
                 for key in keys[indx]:
+                    if key in d.keys() and d[key] is not None:
+                        continue
                     d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
                                 else eval(_hdu[e].header[key.upper()])
             # Parse BinTableHDUs
@@ -953,6 +950,12 @@ class DataContainer:
                         d[key] = _hdu[e].data[key][0] if (single_row and _hdu[e].data[key].ndim > 1) else _hdu[e].data[key]
                         if transpose_table_arrays:
                             d[key] = d[key].T
+
+        # Hack to expunge charray which are basically deprecated and cause trouble..
+        for key in d:
+            if isinstance(d[key], np.chararray):
+                d[key] = np.asarray(d[key])
+        # Return
         return d, dm_version_passed, dm_type_passed
 
     def __getattr__(self, item):
@@ -1011,9 +1014,8 @@ class DataContainer:
         # Array?
         if 'atype' in self.datamodel[item].keys():
             if not isinstance(value.flat[0], self.datamodel[item]['atype']):
-                print("Wrong data type for array: {}".format(item))
-                print("Allowed type(s) for the array are: {}".format(self.datamodel[item]['atype']))
-                raise IOError("Try again")
+                raise IOError('Wrong data type for array: {}\n'.format(item)
+                              + 'Allowed type(s) for the array are: {}'.format(self.datamodel[item]['atype']))
         # Set
         self.__dict__[item] = value
 
@@ -1032,7 +1034,8 @@ class DataContainer:
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
+               limit_hdus=None, force_dict_bintbl=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1069,6 +1072,8 @@ class DataContainer:
                 Header to add to the primary if add_primary=True
             limit_hdus (list, optional):
                 Limit the HDUs that can be written to the items in this list
+            force_dict_bintbl (bool, optional):
+                Force any dict into a BinTableHDU (e.g. for SpecObj)
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -1094,9 +1099,10 @@ class DataContainer:
                 if isinstance(d[ext], DataContainer):
                     hdu += d[ext].to_hdu()
                 else:
-                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
+                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
+                                            force_dict_bintbl=force_dict_bintbl)]
             else:
-                hdu += [io.write_to_hdu(d, hdr=_hdr)]
+                hdu += [io.write_to_hdu(d, hdr=_hdr, force_dict_bintbl=force_dict_bintbl)]
         # Prefixes
         if self.hdu_prefix is not None:
             for ihdu in hdu:
@@ -1124,6 +1130,8 @@ class DataContainer:
                 The HDU(s) with the data to use for instantiation.
             hdu_prefix (:obj:`str`, optional):
                 Passed to _parse()
+            chk_version (:obj:`bool`, optional):
+                If True, raise an error if the datamodel version or type check failed
         """
         # NOTE: We can't use `cls(cls._parse(hdu))` here because this
         # will call the `__init__` method of the derived class and we
@@ -1133,7 +1141,6 @@ class DataContainer:
         # result. The call to `DataContainer.__init__` is explicit to
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
-        self = super().__new__(cls)
         d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if chk_version:
@@ -1142,6 +1149,7 @@ class DataContainer:
             if not dm_type_passed:
                 raise IOError("Bad datamodel type in your hdu's")
         # Finish
+        self = super().__new__(cls)
         DataContainer.__init__(self, d)
         return self
 
@@ -1171,13 +1179,16 @@ class DataContainer:
             checksum (:obj:`bool`, optional):
                 Passed to `astropy.io.fits.HDUList.writeto`_ to add
                 the DATASUM and CHECKSUM keywords fits header(s).
+            limit_hdus (:obj:`list`, optional):
+                Passed to :func:`to_hdu`; see usage there
         """
         io.write_to_fits(self.to_hdu(add_primary=True, primary_hdr=primary_hdr,
                                      limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
-    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
-                       raw_files=None, **kwargs):
+    def to_master_file(self, master_filename, **kwargs):
+        #spectrograph, steps=None,
+                       #raw_files=None, **kwargs):
         """
         Wrapper on to_file() that deals with masterframe naming and header
 
@@ -1197,13 +1208,21 @@ class DataContainer:
             **kwargs: passed to to_file()
         """
         # Output file
-        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        #ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        master_key, master_dir = masterframe.grab_key_mdir(master_filename, from_filename=True)
         # Header
-        hdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              spectrograph, steps=steps,
+        if hasattr(self, 'process_steps'):
+            steps = self.process_steps
+        else:
+            steps = None
+        if hasattr(self, 'files'):
+            raw_files = self.files
+        else:
+            raw_files = None
+        hdr = masterframe.build_master_header(self, master_key, master_dir, steps=steps,
                                               raw_files=raw_files)
         # Finish
-        self.to_file(ofile, primary_hdr=hdr,
+        self.to_file(master_filename, primary_hdr=hdr,
                      limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
 
     # TODO: Add options to compare the checksum and/or check the package versions
@@ -1263,5 +1282,6 @@ def obj_is_data_container(obj):
         bool:  True if it is
 
     """
-    answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
+    answer = True if inspect.isclass(obj) and issubclass(obj, DataContainer) else False
+    #answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
     return answer

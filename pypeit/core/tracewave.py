@@ -319,7 +319,7 @@ def trace_tilts_work(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=
                               bpm=np.invert(sub_inmask.astype(bool)),
                               trace_bpm=np.invert(tilts_sub_mask_box), fwhm=fwhm,
                               maxdev=maxdev, niter=6, idx=str(iline), debug=show_tracefits,
-                              xmin=0.0, xmax=float(nsub - 1))
+                              xmin=0.0, xmax=float(nsub - 1), flavor='tilts')
 
         # Update the spatial positions to include based on the fitted
         # line trace positions
@@ -537,6 +537,8 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
     -------
 
     """
+    #show_tracefits = True
+    #debug_pca = True
     # TODO: Explain procedure in docstring
 
     # TODO: Document where these come from.
@@ -791,7 +793,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # msgs.info("RMS/FWHM: {}".format(rms_real/fwhm))
 
 
-def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
+def fit2tilts(shape, coeff2, func2d, spat_shift=None):
     """
     Evaluate the wavelength tilt model over the full image.
 
@@ -803,9 +805,10 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
         result of griddata tilt fit
     func2d: str
         the 2d function used to fit the tilts
-    spat_shift : float
+    spat_shift : float, optional
         Spatial shift to be added to image pixels before evaluation
-        to deal with flexure compensation.
+        If you are accounting for flexure, then you probably wish to
+        input -1*flexure_shift into this parameter.
 
     Returns
     -------
@@ -814,12 +817,14 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=0.0):
         image. This output is used in the pipeline.
 
     """
+    # Init
+    _spat_shift = 0. if spat_shift is None else spat_shift
     # Compute the tilts image
     nspec, nspat = shape
     xnspecmin1 = float(nspec - 1)
     xnspatmin1 = float(nspat - 1)
     spec_vec = np.arange(nspec)
-    spat_vec = np.arange(nspat) + spat_shift
+    spat_vec = np.arange(nspat) - _spat_shift
     spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
     tilts = utils.func_val(coeff2, spec_img / xnspecmin1, func2d, x2=spat_img / xnspatmin1,
                            minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)

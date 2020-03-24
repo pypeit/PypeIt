@@ -9,6 +9,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 from pypeit import debugger
 
@@ -23,30 +24,46 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'tng_dolores'
         self.telescope = telescopes.TNGTelescopePar()
         self.camera = 'DOLORES'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.252,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 0.97,
-                            ronoise         = 9.0,
-                            datasec         = '[51:,1:2045]',
-                            oscansec        = '[51:,2054:]',
-                            suffix          = '_lrr'
-                            )]
-        self.numhead = 1
-        # Uses default primary_hdrext
         self.timeunit = 'isot'
-        # self.sky_file = ?
+
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning='1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            xgap            = 0.,
+            ygap            = 0.,
+            ysize           = 1.,
+            platescale      = 0.252,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.76,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(0.97),
+            ronoise         = np.atleast_1d(9.0),
+            datasec         = np.atleast_1d('[51:,1:2045]'),
+            oscansec        = np.atleast_1d('[51:,2054:]'),
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
     @staticmethod
     def default_pypeit_par():

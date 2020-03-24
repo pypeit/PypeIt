@@ -1,34 +1,32 @@
 """ Module for fluxing routines
 """
-import glob
-import numpy as np
 import os
-import scipy
-
+import glob
 from pkg_resources import resource_filename
+
+from IPython import embed
+
+import numpy as np
+
+from scipy import interpolate
+
+from matplotlib import pyplot as plt
 
 from astropy import units
 from astropy import constants
 from astropy import coordinates
-from astropy.table import Table, Column
-from astropy.io import ascii
-from astropy.io import fits
-
-from matplotlib import pyplot as plt
+from astropy import table
+from astropy.io import ascii, fits
 
 from linetools.spectra.xspectrum1d import XSpectrum1D
-from astropy import table
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import debugger
+from pypeit import bspline
 from pypeit.wavemodel import conv2res
-from pypeit.core import pydl, load, save, coadd
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit import specobjs
+from pypeit.core import pydl
 
-from IPython import embed
-
+# TODO: Put these in the relevant functions
 TINY = 1e-15
 MAGFUNC_MAX = 25.0
 MAGFUNC_MIN = -25.0
@@ -82,7 +80,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             msgs.warn('File does not exist!: {0}'.format(star_file))
             continue
 
-        star_tbl = Table.read(star_file, comment='#', format='ascii')
+        star_tbl = table.Table.read(star_file, comment='#', format='ascii')
         star_coords = coordinates.SkyCoord(star_tbl['RA_2000'], star_tbl['DEC_2000'],
                                            unit=(units.hourangle, units.deg))
         idx, d2d, d3d = coordinates.match_coordinates_sky(obj_coord, star_coords, nthneighbor=1)
@@ -115,7 +113,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
             # TODO: Put this stuf in a method, like `read_standard`
             if sset == 'xshooter':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = Table.read(fil, format='ascii')
+                std_spec = table.Table.read(fil, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = std_spec['col2'] / PYPEIT_FLUX_SCALE * \
@@ -128,7 +126,7 @@ def find_standard_file(ra, dec, toler=20.*units.arcmin, check=False):
                                    * units.erg / units.s / units.cm ** 2 / units.AA
             elif sset == 'esofil':
                 # TODO let's add the star_mag here and get a uniform set of tags in the std_dict
-                std_spec = Table.read(fil, format='ascii')
+                std_spec = table.Table.read(fil, format='ascii')
                 std_dict['std_source'] = sset
                 std_dict['wave'] = std_spec['col1'] * units.AA
                 std_dict['flux'] = std_spec['col2']*1e-16/PYPEIT_FLUX_SCALE * \
@@ -233,7 +231,7 @@ def stellar_model(V, sptype):
 
     # Grab Kurucz filename
     std_file = resource_filename('pypeit', '/data/standards/kurucz93/kp00/kp00_{:d}.fits.gz'.format(int(Tk[indT])))
-    std = Table.read(std_file)
+    std = table.Table.read(std_file)
 
     # Grab specific spectrum
     loglam = np.array(np.log10(std['WAVELENGTH']))
@@ -285,7 +283,7 @@ def get_standard_spectrum(star_type=None, star_mag=None, ra=None, dec=None):
             msgs.info('Getting vega spectrum')
             ## Vega model from TSPECTOOL
             vega_file = resource_filename('pypeit', '/data/standards/vega_tspectool_vacuum.dat')
-            vega_data = Table.read(vega_file, comment='#', format='ascii')
+            vega_data = table.Table.read(vega_file, comment='#', format='ascii')
             std_dict = dict(cal_file='vega_tspectool_vacuum', name=star_type, Vmag=star_mag, std_ra=ra, std_dec=dec)
             std_dict['std_source'] = 'VEGA'
             std_dict['wave'] = vega_data['col1'] * units.AA
@@ -327,7 +325,7 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
     # Read list
     extinct_path = resource_filename('pypeit', '/data/extinction/')
     extinct_summ = extinct_path + 'README'
-    extinct_files = Table.read(extinct_summ, comment='#', format='ascii')
+    extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
     # Coords
     ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
                                      unit=units.deg)
@@ -341,9 +339,9 @@ def load_extinction_data(longitude, latitude, toler=5. * units.deg):
         msgs.warn("You should generate a site-specific file")
         return None
     # Read
-    extinct = Table.read(extinct_path + extinct_file, comment='#', format='ascii',
-                         names=('iwave', 'mag_ext'))
-    wave = Column(np.array(extinct['iwave']) * units.AA, name='wave')
+    extinct = table.Table.read(extinct_path + extinct_file, comment='#', format='ascii',
+                               names=('iwave', 'mag_ext'))
+    wave = table.Column(np.array(extinct['iwave']) * units.AA, name='wave')
     extinct.add_column(wave)
     # Return
     return extinct[['wave', 'mag_ext']]
@@ -372,7 +370,8 @@ def extinction_correction(wave, airmass, extinct):
     if airmass < 1.:
         msgs.error("Bad airmass value in extinction_correction")
     # Interpolate
-    f_mag_ext = scipy.interpolate.interp1d(extinct['wave'],extinct['mag_ext'], bounds_error=False, fill_value=0.)
+    f_mag_ext = interpolate.interp1d(extinct['wave'], extinct['mag_ext'], bounds_error=False,
+                                     fill_value=0.)
     mag_ext = f_mag_ext(wave)#.to('AA').value)
 
     # Deal with outside wavelengths
@@ -420,7 +419,7 @@ def find_standard(specobj_list):
     try:
         mxix = np.argmax(np.array(medfx))
     except:
-        debugger.set_trace()
+        embed()
     msgs.info("Putative standard star {} has a median boxcar count of {}".format(specobj_list[mxix],
                                                                                  np.max(medfx)))
     # Return
@@ -637,7 +636,8 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
     mask_star = counts_mask
 
     # Interpolate the standard star onto the current set of observed wavelengths
-    flux_true = scipy.interpolate.interp1d(std_dict['wave'], std_dict['flux'],bounds_error=False, fill_value='extrapolate')(wave_star)
+    flux_true = interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error=False,
+                                     fill_value='extrapolate')(wave_star)
     # Do we need to extrapolate? TODO Replace with a model or a grey body?
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
@@ -800,8 +800,9 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
             resolution = np.median(wave_star) / np.median(wave_star - np.roll(wave_star, 1)) / 3
             trans_convolved, px_sigma, px_bin = conv2res(wave_trans[trans_use], trans[trans_use], resolution,
                                                          central_wl='midpt', debug=False)
-            trans_final = scipy.interpolate.interp1d(wave_trans[trans_use], trans_convolved,bounds_error=False,
-                                                     fill_value='extrapolate')(wave_star)
+            trans_final = interpolate.interp1d(wave_trans[trans_use], trans_convolved,
+                                               bounds_error=False,
+                                               fill_value='extrapolate')(wave_star)
             tell_nir = (trans_final<trans_thresh) & (wave_star>9100.0)
             mask_tell[tell_nir] = False
         else:
@@ -939,14 +940,16 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
         kwargs_bspline = {'bkspace': std_res * nresln}
         kwargs_reject = {'maxrej': 5}
         msgs.info("Initialize bspline for flux calibration")
-        init_bspline = pydl.bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
+#        init_bspline = pydl.bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
+        init_bspline = bspline.bspline(wave_obs, bkspace=kwargs_bspline['bkspace'])
         fullbkpt = init_bspline.breakpoints
 
         # TESTING turning off masking for now
         # remove masked regions from breakpoints
         msk_obs = np.ones_like(wave_obs).astype(bool)
         msk_obs[np.invert(masktot)] = False
-        msk_bkpt = scipy.interpolate.interp1d(wave_obs, msk_obs, kind='nearest', fill_value='extrapolate')(fullbkpt)
+        msk_bkpt = interpolate.interp1d(wave_obs, msk_obs, kind='nearest',
+                                        fill_value='extrapolate')(fullbkpt)
         init_breakpoints = fullbkpt[msk_bkpt > 0.999]
 
         # init_breakpoints = fullbkpt
@@ -1044,7 +1047,7 @@ def load_filter_file(filter):
                       + VISTA_filters + TMASS_filters + GAIA_filters + GALEX_filters + WISE_filters
     '''
     filter_file = resource_filename('pypeit', os.path.join('data', 'filters', 'filter_list.ascii'))
-    tbl = Table.read(filter_file, format='ascii')
+    tbl = table.Table.read(filter_file, format='ascii')
 
     allowed_options = tbl['filter'].data
 
@@ -1106,7 +1109,7 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
 
     # Grab the instrument response function
     fwave, trans = load_filter_file(scale_dict['filter'])
-    tfunc = scipy.interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
+    tfunc = interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
 
     # Convolve
     allt = tfunc(wave)
@@ -1128,4 +1131,162 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
         msgs.error("Bad magnitude type")
 
     return scale
+
+
+def generate_sensfunc_old(wave, counts, counts_ivar, airmass, exptime, longitude, latitude, telluric=True, star_type=None,
+                      star_mag=None, ra=None, dec=None, std_file = None, poly_norder=4, BALM_MASK_WID=5., nresln=20.,
+                      resolution=3000.,trans_thresh=0.9,polycorrect=True, debug=False):
+    """
+    Function to generate the sensitivity function.
+
+    This can work in different regimes:
+
+        - If telluric=False and RA=None and Dec=None the code creates
+          a synthetic standard star spectrum (or VEGA spectrum if
+          type=A0) using the Kurucz models, and from this it
+          generates a sens func using nresln=20.0 and masking out
+          telluric regions.
+
+        - If telluric=False and RA and Dec are assigned the standard
+          star spectrum is extracted from the archive, and a sens
+          func is generated using nresln=20.0 and masking out
+          telluric regions.
+
+        - If telluric=True the code creates a sintetic standard star
+          spectrum (or VEGA spectrum if type=A0) using the Kurucz
+          models, the sens func is a pixelized sensfunc (not smooth)
+          for correcting both throughput and telluric lines. if you
+          set polycorrect=True, the sensfunc in the Hydrogen
+          recombination line region (often seen in star spectra) will
+          be replaced by a smoothed polynomial function.
+
+    Parameters
+    ----------
+    wave : array
+        Wavelength of the star [no longer with units]
+    counts : array
+        Flux (in counts) of the star
+    counts_ivar : array
+        Inverse variance of the star
+    airmass : float
+        Airmass
+    exptime : float
+        Exposure time in seconds
+    spectrograph : dict
+        Instrument specific dict
+        Used for extinction correction
+    telluric : bool
+        if True performs a telluric correction
+    star_type : str
+        Spectral type of the telluric star (used if telluric=True)
+    star_mag : float
+        Apparent magnitude of telluric star (used if telluric=True)
+    RA : float
+        deg, RA of the telluric star
+        if assigned, the standard star spectrum will be extracted from
+        the archive
+    DEC : float
+        deg, DEC of the telluric star
+        if assigned, the standard star spectrum will be extracted from
+        the archive
+    BALM_MASK_WID : float
+        Mask parameter for Balmer absorption. A region equal to
+        BALM_MASK_WID*resln is masked where resln is the estimate
+        for the spectral resolution.
+    polycorrect: bool
+        Whether you want to correct the sensfunc with polynomial in the Balmer absortion line regions
+    poly_norder: int
+        Order number of polynomial fit.
+
+    Returns
+    -------
+    sens_dict : dict
+        sensitivity function described by a dict
+    """
+    # Create copy of the arrays to avoid modification and convert to
+    # electrons / s
+    wave_star = wave.copy()
+    flux_star = counts.copy() / exptime
+    ivar_star = counts_ivar.copy() * exptime ** 2
+
+    # Units
+    if not isinstance(wave_star, units.Quantity):
+        wave_star = wave_star * units.AA
+
+    # Extinction correction
+    msgs.info("Applying extinction correction")
+    extinct = load_extinction_data(longitude,latitude)
+    ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
+    # Correct for extinction
+    flux_star = flux_star * ext_corr
+    ivar_star = ivar_star / ext_corr ** 2
+
+    std_dict = get_standard_spectrum(star_type=star_type, star_mag=star_mag, ra=ra, dec=dec)
+
+    # Interpolate the standard star onto the current set of observed wavelengths
+    flux_true = interpolate.interp1d(std_dict['wave'], std_dict['flux'], bounds_error=False,
+                                     fill_value='extrapolate')(wave_star)
+    # Do we need to extrapolate? TODO Replace with a model or a grey body?
+    if np.min(flux_true) <= 0.:
+        msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
+        mask_model = flux_true <= 0
+        msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
+                                                    invvar=None, guesses=None, maxiter=50, inmask=None, \
+                                                    lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
+                                                    groupsize=None,groupbadpix=False, grow=0, sticky=True, use_mad=True)
+        star_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
+        #flux_true[mask_model] = star_poly[mask_model]
+        flux_true = star_poly.copy()
+        if debug:
+            plt.plot(std_dict['wave'], std_dict['flux'],'bo',label='Raw Star Model')
+            plt.plot(std_dict['wave'],  utils.func_val(poly_coeff, std_dict['wave'].value, 'polynomial'), 'k-',label='robust_poly_fit')
+            plt.plot(wave_star,flux_true,'r-',label='Your Final Star Model used for sensfunc')
+            plt.show()
+
+    # Get masks from observed star spectrum. True = Good pixels
+    msk_bad, msk_star, msk_tell = get_mask(wave_star.value, flux_star, ivar_star, mask_balmer=True, mask_tell=True,
+                                           BALM_MASK_WID=BALM_MASK_WID, trans_thresh=0.9)
+
+    # Get sensfunc
+    LBLRTM = False
+    if LBLRTM:
+        # sensfunc = lblrtm_sensfunc() ???
+        msgs.develop('fluxing and telluric correction based on LBLRTM model is under developing.')
+    else:
+        sensfunc, mask_sens = standard_sensfunc(wave_star.value, flux_star, ivar_star, flux_true, msk_bad=msk_bad, msk_star=msk_star,
+                                msk_tell=msk_tell, maxiter=35,upper=3.0, lower=3.0, poly_norder=poly_norder,
+                                BALM_MASK_WID=BALM_MASK_WID,nresln=nresln,telluric=telluric, resolution=resolution,
+                                polycorrect= polycorrect, debug=debug, show_QA=False)
+
+    if debug:
+        plt.plot(wave_star.value[mask_sens], flux_true[mask_sens], color='k',lw=2,label='Reference Star')
+        plt.plot(wave_star.value[mask_sens], flux_star[mask_sens]*sensfunc[mask_sens], color='r',label='Fluxed Observed Star')
+        plt.xlabel(r'Wavelength [$\AA$]')
+        plt.ylabel('Flux [erg/s/cm2/Ang.]')
+        plt.legend(fancybox=True, shadow=True)
+        plt.show()
+
+
+    # Add in wavemin,wavemax
+    sens_dict = {}
+    sens_dict['wave'] = wave_star.value
+    sens_dict['sensfunc'] = sensfunc
+    sens_dict['wave_min'] = np.min(wave_star)
+    sens_dict['wave_max'] = np.max(wave_star)
+    sens_dict['exptime']= exptime
+    sens_dict['airmass']= airmass
+    sens_dict['std_file']= std_file
+    # Get other keys from standard dict
+    sens_dict['std_ra'] = std_dict['std_ra']
+    sens_dict['std_dec'] = std_dict['std_dec']
+    sens_dict['std_name'] = std_dict['name']
+    sens_dict['cal_file'] = std_dict['cal_file']
+    sens_dict['flux_true'] = flux_true
+    sens_dict['mask_sens'] = mask_sens
+    #sens_dict['std_dict'] = std_dict
+    #sens_dict['msk_star'] = msk_star
+    #sens_dict['mag_set'] = mag_set
+
+    return sens_dict
+
 
