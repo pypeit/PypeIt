@@ -1176,8 +1176,9 @@ class DataContainer:
                                      limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
-    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
-                       raw_files=None, **kwargs):
+    def to_master_file(self, master_filename, **kwargs):
+        #spectrograph, steps=None,
+                       #raw_files=None, **kwargs):
         """
         Wrapper on to_file() that deals with masterframe naming and header
 
@@ -1197,10 +1198,18 @@ class DataContainer:
             **kwargs: passed to to_file()
         """
         # Output file
-        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        #ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
         # Header
+        if hasattr(self, 'process_steps'):
+            steps = self.process_steps
+        else:
+            steps = None
+        if hasattr(self, 'files'):
+            raw_files = self.files
+        else:
+            raw_files = None
         hdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              spectrograph, steps=steps,
+                                              self.spectrograph, steps=steps,
                                               raw_files=raw_files)
         # Finish
         self.to_file(ofile, primary_hdr=hdr,

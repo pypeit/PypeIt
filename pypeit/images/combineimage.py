@@ -194,6 +194,7 @@ class CombineImage(object):
                                                     detector=pypeitImage.detector)
         # Internals
         final_pypeitImage.rawheadlist = pypeitImage.rawheadlist
+        final_pypeitImage.PYP_SPEC = self.spectrograph.spectrograph
 
         nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
                                                               apply_gain='apply_gain' in process_steps)

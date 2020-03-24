@@ -62,6 +62,7 @@ class PypeItImage(datamodel.DataContainer):
         'crmask': dict(otype=np.ndarray, atype=np.bool_, desc='CR mask image'),
         'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
     }
     datamodel = datamodel_v100.copy()
 
@@ -119,7 +120,7 @@ class PypeItImage(datamodel.DataContainer):
         return slf
 
     def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,  # This should contain all datamodel items
-                 crmask=None, fullmask=None, detector=None):
+                 crmask=None, fullmask=None, detector=None, PYP_SPEC=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())

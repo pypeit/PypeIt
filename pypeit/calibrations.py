@@ -325,9 +325,11 @@ class Calibrations(object):
                                                         bias=self.msbias, bpm=self.msbpm)
             # Save
             if self.save_masters:
-                self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
-                                          self.spectrograph.spectrograph,  # Header
-                                          steps=self.msarc.process_steps, raw_files=arc_files)
+                self.msarc.to_master_file(masterframe_name)#, steps=self.msarc.process_steps,
+                                          #raw_files=arc_files)
+                #self.msarc.to_master_file(self.master_dir, self.master_key_dict['arc'],  # Naming
+                #                          self.spectrograph.spectrograph,  # Header
+                #                          steps=self.msarc.process_steps, raw_files=arc_files)
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
         # Return
