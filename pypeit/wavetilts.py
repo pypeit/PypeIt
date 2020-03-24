@@ -56,8 +56,9 @@ class WaveTilts(datamodel.DataContainer):
         'spec_order': dict(otype=np.ndarray, atype=np.integer,
                            desc='Order for spectral fit'),
         'func2d': dict(otype=str,desc='Function used for the 2D fit'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
     }
-    def __init__(self, tilts, coeffs, slitcen, nslit, spat_order, spec_order, func2d):
+    def __init__(self, tilts, coeffs, slitcen, nslit, spat_order, spec_order, func2d, PYP_SPEC=None):
 
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -74,7 +75,7 @@ class BuildWaveTilts(object):
         mstilt (:class:`pypeit.tilitimage.TiltImage`): Tilt image
         slits (:class:`pypeit.edgetrace.SlitTraceSet`, None):
             Slit edges
-        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         par (:class:`pypeit.par.pypeitpar.WaveTiltsPar` or None):
             The parameters used to fuss with the tilts
@@ -90,6 +91,7 @@ class BuildWaveTilts(object):
 
 
     Attributes:
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
         tilts_dict (dict):
             Holds the tilts data
         steps : list
@@ -635,7 +637,8 @@ class BuildWaveTilts(object):
         # Build and return DataContainer
         tilts_dict = {'tilts':self.final_tilts, 'coeffs':self.coeffs, 'slitcen':self.slitcen,
                       'func2d':self.par['func2d'], 'nslit':self.nslits,
-                      'spat_order':self.spat_order, 'spec_order':self.spec_order}
+                      'spat_order':self.spat_order, 'spec_order':self.spec_order,
+                      'PYP_SPEC': self.spectrograph.spectrograph}
         return WaveTilts(**tilts_dict), maskslits
 
 #    def save(self, outfile, master_dir, overwrite=True):

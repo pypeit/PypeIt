@@ -78,7 +78,7 @@ def grab_key_mdir(inp, from_filename=False):
     return master_key, master_dir
 
 
-def build_master_header(master_obj, master_key, master_dir, spectrograph,
+def build_master_header(master_obj, master_key, master_dir,
                         hdr=None, steps=None, raw_files=None):
     """
     Initialize the master frame header.
@@ -122,10 +122,10 @@ def build_master_header(master_obj, master_key, master_dir, spectrograph,
     _hdr['MSTRVER'] = (master_obj.version, 'PypeIt: Master datamodel version')
     #_hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
 
-    # Check on Spectrograph
+    # Spectrograph
     if master_obj.PYP_SPEC is None:
-        msgs.error("The object needs to include this so that it was written to the Header")
-    #_hdr['PYP_SPEC'] = (spectrograph, 'PypeIt: Spectrograph name')
+        msgs.error("The object needs to include PYP_SPEC this so that it was written to the Header")
+    _hdr['PYP_SPEC'] = (master_obj.PYP_SPEC, 'PypeIt: Spectrograph name')  # This may be over-written by itself
 
     #   - List the completed steps
     if steps is not None:

@@ -8,7 +8,7 @@ import os
 import inspect
 import numpy as np
 
-from scipy import interpolate, ndimage
+from scipy import interpolate
 
 from matplotlib import pyplot as plt
 
@@ -17,9 +17,6 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
-from pypeit import masterframe
-# NOTE: only used by the FlatField.show method
-from pypeit import slittrace
 
 from pypeit.par import pypeitpar
 from pypeit import datamodel
@@ -51,9 +48,10 @@ class FlatImages(datamodel.DataContainer):
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'illumflat': dict(otype=np.ndarray, atype=np.floating, desc='Illumination flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
     }
 
-    def __init__(self, procflat, pixelflat, illumflat, flat_model):
+    def __init__(self, procflat, pixelflat=None, illumflat=None, flat_model=None, PYP_SPEC=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -244,8 +242,9 @@ class FlatField(object):
             self.show(wcs_match=True)
 
         # Return
-        return FlatImages(self.rawflatimg.image, self.mspixelflat,
-                          self.msillumflat, self.flat_model)
+        return FlatImages(self.rawflatimg.image, pixelflat=self.mspixelflat,
+                          illumflat=self.msillumflat, flat_model=self.flat_model,
+                          PYP_SPEC=self.spectrograph.spectrograph)
 
     def show(self, wcs_match=True):
         """

@@ -232,7 +232,7 @@ class ProcessRawImage(object):
 
         # Generate a PypeItImage
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img, bpm=bpm,
-                                              detector=self.rawimage.detector)
+                                              detector=self.rawimage.detector, PYP_SPEC=self.spectrograph.spectrograph)
         pypeitImage.rawheadlist = self.headarr
 
         # Mask(s)

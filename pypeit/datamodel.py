@@ -1199,6 +1199,7 @@ class DataContainer:
         """
         # Output file
         #ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
+        master_key, master_dir = masterframe.grab_key_mdir(master_filename, from_filename=True)
         # Header
         if hasattr(self, 'process_steps'):
             steps = self.process_steps
@@ -1208,11 +1209,10 @@ class DataContainer:
             raw_files = self.files
         else:
             raw_files = None
-        hdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              self.spectrograph, steps=steps,
+        hdr = masterframe.build_master_header(self, master_key, master_dir, steps=steps,
                                               raw_files=raw_files)
         # Finish
-        self.to_file(ofile, primary_hdr=hdr,
+        self.to_file(master_filename, primary_hdr=hdr,
                      limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
 
     # TODO: Add options to compare the checksum and/or check the package versions
