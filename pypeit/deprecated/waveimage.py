@@ -29,9 +29,10 @@ class WaveImage(datamodel.DataContainer):
 
     datamodel = {
         'image':  dict(otype=np.ndarray, atype=np.floating, desc='2D Wavelength image'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
     }
 
-    def __init__(self, image):
+    def __init__(self, image, PYP_SPEC=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -169,7 +170,7 @@ class BuildWaveImage(object):
 
         # Return
         self.steps.append(inspect.stack()[0][3])
-        return WaveImage(self.image)
+        return WaveImage(self.image, PYP_SPEC=self.spectrograph.spectrograph)
 
     def __repr__(self):
         # Generate sets string

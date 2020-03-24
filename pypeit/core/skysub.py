@@ -15,9 +15,9 @@ from matplotlib import pyplot as plt
 
 from IPython import embed
 
+from pypeit.images import imagebitmask
+from pypeit.core import pixels, extract, pydl
 from pypeit import msgs, utils, ginga, bspline
-from pypeit.images import maskimage
-from pypeit.core import pixels, extract, basis
 from pypeit.core.moment import moment1d
 
 def skysub_npoly(thismask):
@@ -988,7 +988,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
     """
 
-    bitmask = maskimage.ImageBitMask()
+    bitmask = imagebitmask.ImageBitMask()
 
     # Allocate the images that are needed
     # Initialize to mask in case no objects were found

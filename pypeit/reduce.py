@@ -486,8 +486,10 @@ class Reduce(object):
                 self.maskslits[slit] = True
 
         if update_crmask:
+            # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                    subtract_img=self.global_sky)
+            # Update the fullmask
             self.sciImg.update_mask_cr(self.sciImg.crmask)
 
         # Step
@@ -724,12 +726,12 @@ class MultiSlitReduce(Reduce):
         Args:
             dummy:
                 ignored
+                Keeps argument lists the same amongst the children
 
         Returns:
             float:
 
         """
-        #plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
         plate_scale = self.sciImg.detector.platescale
         return plate_scale
 

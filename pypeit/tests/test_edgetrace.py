@@ -43,6 +43,10 @@ def test_addrm_slit():
 @cooked_required
 def test_chk_kast_slits():
     """ This tests finding the longslit for Kast blue """
+    # (valuable) and that it didn't change between when we run the dev
+    # suite and when we run the unit tests (not so valuable).  We should be
+    # doing the more difficult thing of checking that the tracing is
+    # providing consistent results...
     # Red, blue
     for root in ['MasterEdges_ShaneKastred_600_7500_d55_ret.fits.gz',
                  'MasterEdges_ShaneKastblue_600_4310_d55.fits.gz']:

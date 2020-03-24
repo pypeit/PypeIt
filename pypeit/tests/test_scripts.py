@@ -35,6 +35,7 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
+'''
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -108,6 +109,7 @@ def test_quicklook():
                                '--user_pixflat={0}'.format(
                                    os.path.join(calib_dir,
                                         'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
+'''
 
 @dev_suite_required
 def test_trace_edges():
@@ -142,6 +144,7 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
+'''
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
@@ -231,4 +234,4 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
-
+'''
