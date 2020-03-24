@@ -163,9 +163,6 @@ def test_pypeit_file():
     assert p['calibrations']['traceframe']['process']['combine'] == 'mean'
     assert p['scienceframe']['process']['n_lohi'] == [8, 8]
 
-def test_detector():
-    pypeitpar.DetectorPar()
-
 def test_telescope():
     pypeitpar.TelescopePar()
 

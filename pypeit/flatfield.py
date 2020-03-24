@@ -8,7 +8,7 @@ import os
 import inspect
 import numpy as np
 
-from scipy import interpolate, ndimage
+from scipy import interpolate
 
 from matplotlib import pyplot as plt
 
@@ -51,9 +51,10 @@ class FlatImages(datamodel.DataContainer):
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'illumflat': dict(otype=np.ndarray, atype=np.floating, desc='Illumination flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
     }
 
-    def __init__(self, procflat, pixelflat, illumflat, flat_model):
+    def __init__(self, procflat, pixelflat=None, illumflat=None, flat_model=None, PYP_SPEC=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -88,6 +89,19 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
+    def show(self, slits=None, wcs_match=True):
+        """
+        Simple wrapper to show_flats()
+
+        Args:
+            slits:
+            wcs_match:
+
+        Returns:
+
+        """
+        show_flats(self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model,
+                   wcs_match=wcs_match, slits=slits)
 
 class FlatField(object):
     """
@@ -104,18 +118,13 @@ class FlatField(object):
             :class:`pypeit.processimages.ProcessImages` base class.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the flat frames.
-        files (:obj:`list`, optional):
-            The list of files to process.  Can be an empty list.
-        det (:obj:`int`):
-            The 1-indexed detector number to process.
         slits (:class:`pypeit.edgetrace.SlitTraceSet`):
             The current slit traces.
-        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`, optional):
+        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`):
             User-level parameters for constructing the flat-field
             corrections.  If None, the default parameters are used.
-        wavetilts (:obj:`dict`, optional):
+        wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
             The current wavelength tilt traces; see
-            :class:`pypeit.wavetilts.WaveTilts`.
 
     Attributes:
         rawflatimg (PypeItImage):
@@ -132,13 +141,12 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, det, slits, wavetilts=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts):
 
         # Defatuls
         self.spectrograph = spectrograph
-        self.det = det
         # FieldFlattening parameters
-        self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
+        self.flatpar = flatpar
 
         # Input data
         self.slits = slits
@@ -244,8 +252,9 @@ class FlatField(object):
             self.show(wcs_match=True)
 
         # Return
-        return FlatImages(self.rawflatimg.image, self.mspixelflat,
-                          self.msillumflat, self.flat_model)
+        return FlatImages(self.rawflatimg.image, pixelflat=self.mspixelflat,
+                          illumflat=self.msillumflat, flat_model=self.flat_model,
+                          PYP_SPEC=self.spectrograph.spectrograph)
 
     def show(self, wcs_match=True):
         """

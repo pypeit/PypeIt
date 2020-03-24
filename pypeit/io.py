@@ -566,7 +566,7 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     # it directly
     # TODO: use pypmsgs?
     if _ofile is not ofile:
-        print('Compressing file: {0}'.format(_ofile))
+        pypeit.msgs.info('Compressing file: {0}'.format(_ofile))
         compress_file(_ofile, overwrite=True)
     pypeit.msgs.info('File written to: {0}'.format(ofile))
 

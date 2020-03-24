@@ -581,7 +581,7 @@ class PypeItMetaData:
                         {'disperser': {'name': dispname, 'angle':dispangle},
                          'dichroic': dichroic,
                          'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
-                         'binning': binning,
+                         'binning': binning,  # PypeIt orientation binning of a science image
                          }
                      }
                  }

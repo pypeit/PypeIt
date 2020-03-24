@@ -35,7 +35,6 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
-
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
