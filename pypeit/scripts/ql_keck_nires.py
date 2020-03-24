@@ -69,7 +69,7 @@ def main(pargs):
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    caldir = {0}'.format(master_dir)]
     cfg_lines += ['[scienceframe]']
-    cfg_lines += ['    processing_steps = orient,trim,apply_gain,flatten']
+    cfg_lines += ['    processing_steps = orient, trim, apply_gain, flatten']
     #cfg_lines += ['        cr_reject = False']
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']

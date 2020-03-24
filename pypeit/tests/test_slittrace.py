@@ -19,7 +19,7 @@ def data_path(filename):
 def test_init():
 
     slits = SlitTraceSet(left_init=np.full((1000,3), 2, dtype=float),
-                         right_init=np.full((1000,3), 8, dtype=float), nspat=10, spectrograph='dummy')
+                         right_init=np.full((1000,3), 8, dtype=float), nspat=10, PYP_SPEC='dummy')
 
     left, right = slits.select_edges()
     center = (left+right)/2
@@ -29,7 +29,7 @@ def test_io():
 
 
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
-                         nspat=10, spectrograph='dummy')
+                         nspat=10, PYP_SPEC='dummy')
     master_file = masterframe.construct_file_name(slits, master_key, master_dir=master_dir)
 
     # Remove any existing file from previous runs that were interrupted
@@ -37,7 +37,7 @@ def test_io():
         os.remove(master_file)
 
     # Try to save it
-    slits.to_master_file(master_dir, master_key,  'dummy_spectrograph_name')
+    slits.to_master_file(master_file) #master_dir, master_key,  'dummy_spectrograph_name')
     assert os.path.isfile(master_file), 'File not written'
 
     # Instantiate an empty SlitTraceSet with the same master file, and
@@ -71,7 +71,7 @@ def test_io():
 
 def test_io_single():
     slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
-                         nspat=10, spectrograph='dummy')
+                         nspat=10, PYP_SPEC='dummy')
 
     # Remove any existing file from previous runs that were interrupted
     tst_file = data_path('tst_slittrace.fits')

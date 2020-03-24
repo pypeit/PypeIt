@@ -402,6 +402,7 @@ class EdgeTraceSet(object):
         self.trace_img = trace_img      # Input  TraceImage
         self.img = trace_img.image      # The image used to find the slit edges
         self.spectrograph = spectrograph    # Spectrograph used to take the data
+        self.PYP_SPEC = spectrograph.spectrograph  # For the Header.  Will be in datamodel
         self.par = par                      # Parameters used for slit edge tracing
 
         self.files = None               # Files used to construct the trace image
@@ -1039,7 +1040,6 @@ class EdgeTraceSet(object):
         # Header
         if master_key is not None:
             prihdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              self.spectrograph.spectrograph, #steps=steps,
                                               raw_files=self.files)
         else:
             prihdr = io.initialize_header()
@@ -2304,7 +2304,6 @@ class EdgeTraceSet(object):
         if self.par['minimum_slit_length'] is not None or self.par['minimum_slit_gap'] is not None:
             platescale = parse.parse_binning(self.binning)[1] \
                             * self.trace_img.detector['platescale']
-                            #*self.spectrograph.detector[self.det - 1]['platescale']
             msgs.info('Binning: {0}'.format(self.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
             if self.par['minimum_slit_length'] is not None:
@@ -4299,7 +4298,7 @@ class EdgeTraceSet(object):
 
         # Instantiate and return
         return slittrace.SlitTraceSet(left_init=left, right_init=right, nspat=self.nspat,
-                                      spectrograph=self.spectrograph.spectrograph, specmin=specmin,
+                                      PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'])#, master_key=self.master_key,
                                       #master_dir=self.master_dir, reuse=self.reuse_masters)
