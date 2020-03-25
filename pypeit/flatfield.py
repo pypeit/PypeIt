@@ -913,20 +913,21 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
     """
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
+    left, right = slits.select_edges()
     # TODO: Add an option that shows the relevant stuff in a
     # matplotlib window.
     viewer, ch = ginga.show_image(mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match, clear=True)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(msillumflat, chname='illumflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(procflat, chname='flat', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(flat_model, chname='flat_model', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
 
