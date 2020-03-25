@@ -479,7 +479,7 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None, debug=True):
+    def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
