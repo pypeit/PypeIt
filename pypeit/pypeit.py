@@ -607,6 +607,7 @@ class PypeIt(object):
                                            self.par, self.caliBrate.slits,
                                            self.caliBrate.wavetilts,
                                            self.caliBrate.wv_calib,
+                                           self.caliBrate,
                                            self.objtype,
                                            maskslits=self.caliBrate.slits.mask.copy(),
                                            ir_redux=self.ir_redux,

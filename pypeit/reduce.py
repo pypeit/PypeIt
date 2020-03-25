@@ -35,6 +35,7 @@ class Reduce(object):
         par (pypeit.par.pyepeitpar.PypeItPar):
         slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
         waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+        flats (:class:`pypeit.flatfield.FlatImages`):
         objtype (str):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
         det (int, optional):
@@ -79,7 +80,7 @@ class Reduce(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
-                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
+                 caliBrate, objtype, ir_redux=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None, maskslits=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
@@ -131,6 +132,10 @@ class Reduce(object):
         # Wavelengths
         self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
                                                wv_calib, spat_flexure=self.spat_flexure_shift)
+
+        # Generic caliBrate class
+        # TODO :: Need to fix this once it has been decided how the caliBrate information should be passed to reduce...
+        self.caliBrate = caliBrate
 
         #viewer, ch = ginga.show_image(self.tilts)#, chname=ch_name, clear=clear, wcs_match=True)
         #viewer, ch = ginga.show_image(self.slitmask)#, chname=ch_name, clear=clear, wcs_match=True)
@@ -759,8 +764,8 @@ class MultiSlitReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
-        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, caliBrate, objtype, **kwargs):
+        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, caliBrate, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """
@@ -962,8 +967,8 @@ class EchelleReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
-        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, caliBrate, objtype, **kwargs):
+        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, caliBrate, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
@@ -1149,8 +1154,8 @@ class IFUReduce(Reduce):
 
     """
     # TODO -- Replace calibrate with the bits and pieces
-    def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
-        super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, caliBrate, objtype, **kwargs):
+        super(IFUReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, caliBrate, objtype, **kwargs)
 
     def build_scaleimg(self, ref_slit):
         """
@@ -1167,7 +1172,7 @@ class IFUReduce(Reduce):
         # Get the plate scale
         plate_scale = self.get_platescale(None)
         # Find the slits with the minimum and maximum wavelength
-        mawave = np.ma.masked_array(self.caliBrate.mswave.image, mask=self.caliBrate.mswave.image == 0)
+        mawave = np.ma.masked_array(self.waveImg, mask=self.waveImg == 0)
         ypixmn, minidx = np.unravel_index(np.ma.argmin(mawave), mawave.shape)
         ypixmx, maxidx = np.unravel_index(np.ma.argmax(mawave), mawave.shape)
         wmin = np.where((self.slits_left[ypixmn, :] <= minidx) & (minidx <= self.slits_right[ypixmn, :]))[0]
@@ -1201,7 +1206,7 @@ class IFUReduce(Reduce):
                 relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit] + self.slits_right[:, slit])
                 # Do a boxcar extraction - assume standard is in the middle of the slit
                 extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                       self.caliBrate.mswave.image, glob_skym, rn2img,
+                                       self.waveImg, glob_skym, rn2img,
                                        self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
                                        relspec)
                 scale_dict['scale'][:, ss] = relspec.BOX_COUNTS.copy() / relspec.BOX_NBOX.copy()
@@ -1323,7 +1328,7 @@ class IFUReduce(Reduce):
 
 
 # TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
-def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
+def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, caliBrate, objtype, **kwargs):
     """
     Instantiate the Reduce subclass appropriate for the provided
     spectrograph.
@@ -1349,4 +1354,4 @@ def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, ob
         msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
     return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
                                                          par, slitTrace,
-                                                         waveTilts, wv_calib, objtype, **kwargs)
+                                                         waveTilts, wv_calib, caliBrate, objtype, **kwargs)
