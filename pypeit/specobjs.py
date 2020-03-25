@@ -479,7 +479,7 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None, debug=False):
+    def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None, debug=True):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
@@ -502,12 +502,16 @@ class SpecObjs(object):
         if os.path.isfile(outfile) and (update_det is not None):
             _specobjs = SpecObjs.from_fitsfile(outfile)
             # Pop out those with this detector
+            mask = np.ones(_specobjs.nobj, dtype=bool)
             for kk,sobj in enumerate(_specobjs):
                 if sobj.DET in np.atleast_1d(update_det):
-                    _specobjs.remove_sobj(kk)
+                    mask[kk] = False
+            _specobjs = _specobjs[mask]
             # Add in the new
             for sobj in self.specobjs:
                 _specobjs.add_sobj(sobj)
+            if debug:
+                embed(header='512 of specobjs')
         else:
             _specobjs = self.specobjs
 
