@@ -9,14 +9,12 @@ import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit import ginga, msgs
-from pypeit import masterframe
-from pypeit.par import pypeitpar
-from pypeit.images import pypeitimage
-from pypeit.core import procimg, extract, arc, pixels, load
+import astropy.io.fits as fits
 
-from pypeit import io
-from pypeit.core import extract, arc, save, load
+from pypeit import masterframe, io
+from pypeit import ginga, msgs
+from pypeit.core import extract, arc, load
+from pypeit.par.pypeitpar import AlignPar
 
 
 class Alignment():
@@ -70,6 +68,7 @@ class Alignment():
         self.det = det
 
         # Attributes
+        self._alignprof = None
         self.viewer, self.channel = None, None
         self.steps = []  # steps executed
 
@@ -159,42 +158,50 @@ class Alignment():
         Args:
             align_prof (:obj:`dict`):
                 Dictionary of SpecObjs classes (one for each slit)
-
-        Returns:
-            dict:  align_dict
         """
         nbars = len(self.par['locations'])
         nspec, nslits = self.slit_left.shape
         # Generate an array containing the centroid of all bars
-        alignprof = np.zeros((nspec, nbars, nslits))
+        self._alignprof = np.zeros((nspec, nbars, nslits))
         for sl in range(nslits):
             sls = '{0:d}'.format(sl)
             for bar in range(nbars):
                 if align_prof[sls][bar].SLITID != sl:
                     msgs.error("Alignment profiling failed to generate dictionary")
-                    alignprof[:, bar, sl] = align_prof[sls][bar].TRACE_SPAT
+                    self._alignprof[:, bar, sl] = align_prof[sls][bar].TRACE_SPAT
         # Return the profile information as a single dictionary
-        return dict(alignments=alignprof)
+        return
 
-    def save(self, master_key, master_dir, outfile=None, overwrite=True):
+    def save(self, outfile, overwrite=True, checksum=True, float_dtype='float32',
+             master_dir=None, master_key=None):
         """
         Save the alignment traces to a master frame.
 
         Args:
-            outfile (:obj:`str`, optional):
-                Name of the output file.  Defaults to :attr:`master_file_path`.
+            outfile (:obj:`str`):
+                Name for the output file.  Defaults to
+                :attr:`master_file_path`.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
+            checksum (:obj:`bool`, optional):
+                Passed to `astropy.io.fits.HDUList.writeto`_ to add
+                the DATASUM and CHECKSUM keywords fits header(s).
+            float_dtype (:obj:`str`, optional):
+                Convert floating-point data to this data type before
+                writing.  Default is 32-bit precision.
         """
-        _outfile = outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
 
-        # Report and save
-        # First do the header
+        # Check if it exists
+        if os.path.exists(outfile) and not overwrite:
+            msgs.error('Master file exists: {0}'.format(outfile) + msgs.newline()
+                       + 'Set overwrite=True to overwrite it.')
+
+        # Report name before starting to write it
+        msgs.info('Writing master frame to {0}'.format(outfile))
+
+        # Build the primary header
+        #   - Initialize with basic metadata
+        # Header
         if master_key is not None:
             prihdr = masterframe.build_master_header(self, master_key, master_dir)
         else:
@@ -203,15 +210,33 @@ class Alignment():
         prihdr['BINNING'] = (self.binning, 'PypeIt: Binning')
         #   - Add the detector number
         prihdr['DET'] = (self.det, 'PypeIt: Detector')
-        #   - Add the tracing parameters
+        #   - Add the alignment parameters
         self.par.to_header(prihdr)
 
-        # Set the data and extension names
-        data = [self.align_dict['alignments']]
-        extnames = ['ALIGNMENTS']
-        # Write the output to a fits file
-        save.write_fits(prihdr, data, _outfile, extnames=extnames)
-        msgs.info('Master frame written to {0}'.format(_outfile))
+        # Determine if the file should be compressed
+        compress = False
+        if outfile.split('.')[-1] == 'gz':
+            outfile = outfile[:outfile.rfind('.')]
+            compress = True
+
+        # First check if a trace is available
+        if self._alignprof is None:
+            msgs.error("No alignment information available")
+        # Build the list of extensions to write
+        hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr),
+                            fits.ImageHDU(data=self._alignprof.astype(float_dtype), name='ALIGNMENTS')])
+        # Add detector
+        hdu += self.msalign.detector.to_hdu()
+
+        # Write the fits file; note not everything is written.
+        hdu.writeto(outfile, overwrite=True, checksum=checksum)
+
+        # Compress the file if the output filename has a '.gz'
+        # extension; this is slow but still faster than if you have
+        # astropy.io.fits do it directly
+        if compress:
+            msgs.info('Compressing file to: {0}.gz'.format(outfile))
+            io.compress_file(outfile, overwrite=overwrite)
 
     def load(self, ifile=None):
         """
@@ -230,16 +255,17 @@ class Alignment():
         extnames = ['ALIGNMENTS']
         *data, head0 = load.load_multiext_fits(ifile, extnames)
 
-        # Fill the dict
-        self.align_dict = {}
-        keys = []
-        for k in keys:
-            self.align_dict[k] = head0[k.upper()]
-        # Data
-        for ii, ext in enumerate(extnames):
-            self.align_dict[ext.lower()] = data[ii]
-        # Return
-        return self.align_dict
+        # Set the data
+        self._alignprof = data[0]
+
+        # Check the parset agrees with the one on file
+        par = AlignPar.from_header(head0)
+        if self.par.data != par.data:
+            # TODO: The above inequality works for non-nested ParSets,
+            # but will need to be more careful for nested ones, or just
+            # avoid writing nested ParSets to headers...
+            msgs.error('This master frame was generated using different parameter values!')
+        return self._alignprof
 
     def run(self, show_trace=False):
         """
@@ -255,14 +281,9 @@ class Alignment():
         """
         ###############
         # Fill up the calibrations and generate QA
-        self.align_dict = self.build_traces(show_trace=show_trace)
+        self.build_traces(show_trace=show_trace)
 
-        # Pack up
-        self.align_dict['steps'] = self.steps
-        sv_par = self.par.data.copy()
-        self.align_dict['par'] = sv_par
-
-        return self.align_dict
+        return self._alignprof
 
     def show(self, attr, image=None, align_traces=None,
              chname=None, slits=False, clear=False):

@@ -467,8 +467,7 @@ class Calibrations(object):
                 self.align_dict = self.alignment.run(self.show)
                 # Save to Masters
                 if self.save_masters:
-                    self.alignment.save(master_key=self.master_key_dict['align'], master_dir=self.master_dir,
-                                        outfile=masterframe_name)
+                    self.alignment.save(outfile=masterframe_name)
 
             # Save & return
             self._update_cache('align', 'align_dict', self.align_dict)
