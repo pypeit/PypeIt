@@ -86,12 +86,12 @@ def define_core_meta():
     # Instrument related
     core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
     core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-    core_meta['binning'] = dict(dtype=str, comment='"spatial,spectral" binning')
+    core_meta['binning'] = dict(dtype=str, comment='"spectral,spatial" binning')
 
     # Obs
     core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
     core_meta['airmass'] = dict(dtype=float, comment='Airmass')
-    core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+    core_meta['exptime'] = dict(dtype=float, comment='Exposure time (s)')
 
     # Test me
     # TODO: Do we need this?

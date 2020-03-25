@@ -668,7 +668,7 @@ class PypeIt(object):
         # TODO: Need some checks here that the exposure has been reduced?
 
         # Determine the headers
-        head1d = self.fitstbl[frame]
+        row_fitstbl = self.fitstbl[frame]
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
@@ -681,9 +681,8 @@ class PypeIt(object):
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
-            header = all_specobjs.build_header(head1d, head2d, self.spectrograph)
-            # TODO -- Need to check this is working ok before merging
-            all_specobjs.write_to_fits(header, outfile1d, update_det=self.par['rdx']['detnum'])
+            subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
+            all_specobjs.write_to_fits(subheader, outfile1d, update_det=self.par['rdx']['detnum'])
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
