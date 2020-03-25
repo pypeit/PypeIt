@@ -913,7 +913,8 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
     """
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
-    left, right = slits.select_edges()
+    if slits is not None:
+        left, right = slits.select_edges()
     # TODO: Add an option that shows the relevant stuff in a
     # matplotlib window.
     viewer, ch = ginga.show_image(mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
