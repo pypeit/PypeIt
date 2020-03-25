@@ -1152,9 +1152,6 @@ class IFUReduce(Reduce):
     def __init__(self, sciImg, spectrograph, par, caliBrate, **kwargs):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, **kwargs)
 
-        # Make sure the full slit is used
-        self.slitmask = self.slits.slit_img(original=True)
-
     def build_scaleimg(self, ref_slit):
         """
         Generate a relative scaling image for slit-based IFU.
@@ -1169,13 +1166,12 @@ class IFUReduce(Reduce):
         """
         # Get the plate scale
         plate_scale = self.get_platescale(None)
-
         # Find the slits with the minimum and maximum wavelength
         mawave = np.ma.masked_array(self.caliBrate.mswave.image, mask=self.caliBrate.mswave.image == 0)
         ypixmn, minidx = np.unravel_index(np.ma.argmin(mawave), mawave.shape)
         ypixmx, maxidx = np.unravel_index(np.ma.argmax(mawave), mawave.shape)
-        wmin = np.where((self.slits.left[ypixmn, :] <= minidx) & (minidx <= self.slits.right[ypixmn, :]))[0]
-        wmax = np.where((self.slits.left[ypixmx, :] <= maxidx) & (maxidx <= self.slits.right[ypixmx, :]))[0]
+        wmin = np.where((self.slits_left[ypixmn, :] <= minidx) & (minidx <= self.slits_right[ypixmn, :]))[0]
+        wmax = np.where((self.slits_left[ypixmx, :] <= maxidx) & (maxidx <= self.slits_right[ypixmx, :]))[0]
         # Check that only one slit satisfies these conditions
         if wmin.size != 1:
             msgs.warn("Multiple slits satisfying minimum condition - taking only the first!")
@@ -1190,30 +1186,28 @@ class IFUReduce(Reduce):
             ref_slits = np.append(ref_slits, wmin)
         if wmax not in ref_slits:
             ref_slits = np.append(ref_slits, wmax)
-        ref_slits = np.sort(ref_slits)
-
-        import pdb
-        pdb.set_trace()
 
         # Get the relative scaling (use standard star profile, if available)
         flat_modl = self.caliBrate.flatimages.flat_model
         flat_ivar = np.ones_like(flat_modl)
         glob_skym = np.zeros_like(flat_modl)
         rn2img = self.sciImg.rn2img  # This is an approximation, probably fine
-        specobj_dict = dict(setup=None, slitid=999, det=self.det, objtype=self.objtype, pypeline='IFU', orderindx=999)
-        if self.objtype == 'standard':
-            # Initialise a SpecObj
-            relspec = specobj.SpecObj("IFU", self.det, specobj_dict=specobj_dict)
-            relspec.TRACE_SPAT = 0.5 * (self.slits.left[:, ref_slit] + self.slits.right[:, ref_slit])
-            # Do a boxcar extraction - assume standard is in the middle of the slit
-            extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                   self.caliBrate.mswave.image, glob_skym, rn2img,
-                                   self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
-                                   relspec)
-            scale_dict['scale'][:, ss] = relspec.BOX_COUNTS.copy() / relspec.BOX_NBOX.copy()
-            scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
-        elif self.objtype in ['science', 'science_coadd2d']:
-            pass
+
+        for slit in ref_slits:
+            specobj_dict = dict(setup=None, slitid=999, det=self.det, objtype=self.objtype, pypeline='IFU', orderindx=999)
+            if self.objtype == 'standard':
+                # Initialise a SpecObj
+                relspec = specobj.SpecObj("IFU", self.det, specobj_dict=specobj_dict)
+                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit] + self.slits_right[:, slit])
+                # Do a boxcar extraction - assume standard is in the middle of the slit
+                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+                                       self.caliBrate.mswave.image, glob_skym, rn2img,
+                                       self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                       relspec)
+                scale_dict['scale'][:, ss] = relspec.BOX_COUNTS.copy() / relspec.BOX_NBOX.copy()
+                scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
+            elif self.objtype in ['science', 'science_coadd2d']:
+                pass
 
     def get_platescale(self, dummy):
         """
@@ -1305,9 +1299,6 @@ class IFUReduce(Reduce):
         skymask_init = self.load_skyregions()
 
         import pdb
-        from matplotlib import pyplot as plt
-        plt.plot(relspec.trace_spec, relspec.BOX_COUNTS, 'k-')
-        plt.show()
         pdb.set_trace()
 
         # Global sky subtract
@@ -1317,7 +1308,6 @@ class IFUReduce(Reduce):
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
         write_to_fits(self.global_sky, "initial_sky.fits", overwrite=True)
         write_to_fits(self.sciImg.image-self.global_sky, "skysub_science.fits", overwrite=True)
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
         msgs.error("SUCCESSFUL -- UP TO HERE!")
 
         # Resample data onto desired grid
