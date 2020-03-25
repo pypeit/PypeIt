@@ -1280,6 +1280,4 @@ def obj_is_data_container(obj):
         bool:  True if it is
 
     """
-    answer = True if inspect.isclass(obj) and issubclass(obj, DataContainer) else False
-    #answer = True if inspect.isclass(obj) and DataContainer in obj.__bases__ else False
-    return answer
+    return inspect.isclass(obj) and issubclass(obj, DataContainer)

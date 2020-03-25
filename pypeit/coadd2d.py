@@ -306,7 +306,7 @@ class CoAdd2D(object):
 
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, nspat=nspat_pseudo,
-                                         spectrograph=self.spectrograph.spectrograph,
+                                         PYP_SPEC=self.spectrograph.spectrograph,
                                          specmin=spec_min1, specmax=spec_max1)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
@@ -423,15 +423,13 @@ class CoAdd2D(object):
 
         # TODO: These saving operations are a temporary kludge
         # spectrograph is needed for header
-        waveImage = WaveImage(self.pseudo_dict['waveimg'])
-        waveImage.to_master_file(self.master_dir, master_key_dict['arc'],
-                                 self.spectrograph.spectrograph)
-        #None, None, None, self.spectrograph, None,
-        #                      master_key=master_key_dict['arc'], master_dir=self.master_dir)
+        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
+        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
+        waveImage.to_master_file(wave_filename)
 
         # TODO: Assumes overwrite=True
-        self.pseudo_dict['slits'].to_master_file(self.master_dir, master_key_dict['trace'],
-            self.spectrograph.spectrograph)
+        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
+        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
 
     def snr_report(self, snr_bar, slitid=None):
 
@@ -615,7 +613,7 @@ class CoAdd2D(object):
                 slits = slittrace.SlitTraceSet.from_file(tracefiles[ifile])
                 # Check the spectrograph names
                 # TODO: Should this be done here?
-                if slits.spectrograph != self.spectrograph.spectrograph:
+                if slits.PYP_SPEC != self.spectrograph.spectrograph:
                     msgs.error('Spectrograph read from {0} is not correct.  Expected {1}.'.format(
                                 tracefiles[ifile], self.spectrograph.spectrograph))
             tracefile = tracefiles[ifile]

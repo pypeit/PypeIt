@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 from IPython import embed
 
 from pypeit.images import imagebitmask
-from pypeit.core import pixels, extract, basis
+from pypeit.core import basis, pixels, extract, pydl
 from pypeit import msgs, utils, ginga, bspline
 from pypeit.core.moment import moment1d
 

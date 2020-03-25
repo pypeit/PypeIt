@@ -36,7 +36,7 @@ def test_master_io():
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
     # Write
-    master_filename = masterframe.construct_file_name(arcImage, 'A_1_22', master_dir=data_path(''))
+    master_filename = masterframe.construct_file_name(arcImage, 'A_01_22', master_dir=data_path(''))
     arcImage.to_master_file(master_filename)
     # Read
     _arcImage = buildimage.ArcImage.from_file(data_path('MasterArc_A_01_22.fits'))
