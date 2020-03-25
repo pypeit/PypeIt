@@ -600,6 +600,9 @@ class PypeIt(object):
         # For QA on crash
         msgs.sciexp = self.sciImg
 
+        # TODO :: need the standard star information, so do this for now
+        self.caliBrate.std_outfile = std_outfile
+
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified

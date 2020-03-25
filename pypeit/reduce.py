@@ -1198,21 +1198,46 @@ class IFUReduce(Reduce):
         glob_skym = np.zeros_like(flat_modl)
         rn2img = self.sciImg.rn2img  # This is an approximation, probably fine
 
-        for slit in ref_slits:
-            specobj_dict = dict(setup=None, slitid=999, det=self.det, objtype=self.objtype, pypeline='IFU', orderindx=999)
-            if self.objtype == 'standard':
-                # Initialise a SpecObj
-                relspec = specobj.SpecObj("IFU", self.det, specobj_dict=specobj_dict)
+        import pdb
+        pdb.set_trace()
+
+        msgs.info("Building relative scale image")
+        nspec = self.slits_left.shape[0]
+        scale_dict = dict(scale=np.zeros((nspec, ref_slits.size)), wavescl=np.zeros((nspec, ref_slits.size)))
+        if self.objtype == 'standard' or self.caliBrate.std_outfile is None:  # Standard star trace is not available
+            # Initialise a SpecObj
+            for slit in ref_slits:
+                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit)
                 relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit] + self.slits_right[:, slit])
                 # Do a boxcar extraction - assume standard is in the middle of the slit
                 extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
                                        self.waveImg, glob_skym, rn2img,
                                        self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
                                        relspec)
-                scale_dict['scale'][:, ss] = relspec.BOX_COUNTS.copy() / relspec.BOX_NBOX.copy()
-                scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
-            elif self.objtype in ['science', 'science_coadd2d']:
-                pass
+                scale_dict['scale'][:, slit] = relspec.BOX_COUNTS.copy() / relspec.BOX_NPIX.copy()
+                scale_dict['wavescl'][:, slit] = relspec.BOX_WAVE.copy()
+        elif self.objtype in ['science', 'science_coadd2d']:
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.caliBrate.std_outfile)
+            # Does the detector match?
+            this_det = sobjs.DET == self.det
+            if np.any(this_det):
+                sobjs_det = sobjs[this_det]
+                relspec = sobjs_det.get_std()
+                for slit in ref_slits:
+                    # Do optimal extraction
+                    extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+                                           self.waveImg, glob_skym, rn2img,
+                                           self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                           relspec)
+                    scale_dict['scale'][:, slit] = relspec.OPT_COUNTS.copy()
+                    scale_dict['wavescl'][:, slit] = relspec.OPT_WAVE.copy()
+
+        # Now generate an interpolation polynomial for the relative scaling
+
+        # Finally, apply this to the wavelength map, to generate the relative scaling for all slits
+        scaleImg = 0.0
+
+        return scaleImg
 
     def get_platescale(self, dummy):
         """
