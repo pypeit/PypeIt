@@ -497,54 +497,6 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def build_header(self, row_fitstbl, head2d, spectrograph):
-        """
-        Builds the spec1d file header from the fitstbl meta data and meta data from spectrograph
-        and meta data from original header
-
-        Args:
-            row_fitstbl (:class:`astropy.table.Row`):
-               Row from fitstbl
-            head2d (:class:`astropy.io.fits.Header`):
-               Header from the Raw file
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-               Spectrograph object
-
-        Returns:
-            :class:`astropy.io.fits.Header`:
-
-        """
-        header = initialize_header(primary=True)
-
-
-        # Try to pull a few from the original header
-        header['MJD-OBS'] = row_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
-
-        # Original Header -- What else do we want??
-        #for key in ['INSTRUME']:
-        #    if key in head2d.keys():
-        #        header[key] = head2d[key]  # Self-assigned instrument name
-
-        core_keys = spectrograph.subheader_for_spec()
-        embed(header='522 of specobjs')
-        for key in core_keys:
-            # Try FITSTBL first
-            # Allow for fitstbl vs. header
-            try:
-                header[key.upper()] = row_fitstbl[key.upper()]
-            except KeyError:
-                header[key.upper()] = row_fitstbl[key]
-        # Specify which pipeline created this file
-        header['PYPELINE'] = spectrograph.pypeline
-        header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
-        # Observatory and Header supplied Instrument
-        telescope = spectrograph.telescope
-        header['LON-OBS'] = telescope['longitude']
-        header['LAT-OBS'] = telescope['latitude']
-        header['ALT-OBS'] = telescope['elevation']
-        # Return
-        return header
-
     def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
@@ -561,7 +513,6 @@ class SpecObjs(object):
         if os.path.isfile(outfile) and (not overwrite):
             msgs.warn("Outfile exists.  Set overwrite=True to clobber it")
             return
-
 
         # If the file exists and update_det is provided, use the existing header
         #   and load up all the other hdus so that we only over-write the ones
