@@ -387,7 +387,7 @@ class EdgeTraceSet(object):
     """
     master_type = 'Edges'
     version = '1.0.0'
-    file_format = 'fits.gz'
+    master_file_format = 'fits.gz'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
 
     def __init__(self, trace_img, spectrograph, par, bpm=None, det=None, qa_path=None,

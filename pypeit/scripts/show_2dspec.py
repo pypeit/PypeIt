@@ -130,6 +130,7 @@ def main(args):
     slits_key = '{0}_{1:02d}'.format(spec2DObj.head0['TRACMKEY'], args.det)
     slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
     slits = slittrace.SlitTraceSet.from_file(slit_file)
+    left, right = slits.select_edges()
 
     # Wavelengths
     #wave_key = '{0}_{1:02d}'.format(spec2DObj.head0['ARCMKEY'], args.det)

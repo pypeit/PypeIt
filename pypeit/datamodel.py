@@ -603,7 +603,10 @@ class DataContainer:
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
 
-        # Initialize internals
+        # Initialize internals for all DataContainer objects
+        self.filename = None
+
+        # Initialize other internals
         self._init_internals()
 
         # Finalize the instantiation.
@@ -1206,7 +1209,6 @@ class DataContainer:
             **kwargs: passed to to_file()
         """
         # Output file
-        #ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
         master_key, master_dir = masterframe.grab_key_mdir(master_filename, from_filename=True)
         # Header
         if hasattr(self, 'process_steps'):
@@ -1241,6 +1243,7 @@ class DataContainer:
         """
         if not os.path.isfile(ifile):
             raise FileNotFoundError('{0} does not exist!'.format(ifile))
+
         # Master frame check?
         if hasattr(cls, 'master_type'):
             hdr = fits.getheader(ifile)
@@ -1252,8 +1255,12 @@ class DataContainer:
                 msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
         if verbose:
             msgs.info("Loading {} from {}".format(cls.__name__, ifile))
+
         with fits.open(ifile) as hdu:
-            return cls.from_hdu(hdu)
+            obj = cls.from_hdu(hdu)
+            # Tack on filename
+            obj.filename = ifile
+        return obj
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)

@@ -16,6 +16,7 @@ from pypeit.images import detector_container, imagebitmask
 from pypeit.core import procimg
 from pypeit import datamodel
 from pypeit import utils
+from pypeit import masterframe
 
 from IPython import embed
 
@@ -50,6 +51,10 @@ class PypeItImage(datamodel.DataContainer):
         files (list):
         rawheadlst (list):
             List containing headers of the raw image file
+        master_key (str):
+            Master key, only for Master frames
+        master_dir (str):
+            Master key, only for Master frames
 
     """
     # Set the version of this class
@@ -93,7 +98,10 @@ class PypeItImage(datamodel.DataContainer):
         hdu = fits.open(ifile)
         # Instantiate
         slf = super(PypeItImage, cls).from_hdu(hdu)
+        slf.filename = ifile
         slf.head0 = hdu[0].header
+        # Try to parse masters
+        slf.master_key, slf.master_dir = masterframe.grab_key_mdir(ifile)
         # Return
         return slf
 
@@ -118,7 +126,9 @@ class PypeItImage(datamodel.DataContainer):
             _d[key] = pypeitImage[key]
         # Instantiate
         slf = cls(**_d)
-        # Internals are lost!
+        # Internals
+        slf.master_dir = pypeitImage.master_dir
+        slf.master_key = pypeitImage.master_key
         # Return
         return slf
 
@@ -137,6 +147,9 @@ class PypeItImage(datamodel.DataContainer):
         self.process_steps = None
         self.files = None
         self.rawheadlist = None
+        # Master stuff
+        self.master_key = None
+        self.master_dir = None
 
 
     def _bundle(self):

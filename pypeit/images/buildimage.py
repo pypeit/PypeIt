@@ -29,8 +29,7 @@ class ArcImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Arc'
-    file_format = 'fits'
-
+    master_file_format = 'fits'
 
 class AlignImage(pypeitimage.PypeItImage):
     """
@@ -45,7 +44,7 @@ class AlignImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Align'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
 
 class BiasImage(pypeitimage.PypeItImage):
@@ -59,7 +58,7 @@ class BiasImage(pypeitimage.PypeItImage):
     output_to_disk = ('BIAS_IMAGE', 'BIAS_DETECTOR')
     hdu_prefix = 'BIAS_'
     master_type = 'Bias'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
 
 class TiltImage(pypeitimage.PypeItImage):
@@ -76,7 +75,7 @@ class TiltImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Tiltimg'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
 
 class TraceImage(pypeitimage.PypeItImage):
@@ -90,9 +89,6 @@ class TraceImage(pypeitimage.PypeItImage):
     # I/O
     output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
     hdu_prefix = 'TRACE_'
-
-    # Master fun
-    master_type = 'Trace'
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,

@@ -87,7 +87,7 @@ class WaveCalib(object):
     # Frametype is a class attribute
     frametype = 'wv_calib'
     master_type = 'WaveCalib'
-    file_format = 'json'
+    master_file_format = 'json'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
