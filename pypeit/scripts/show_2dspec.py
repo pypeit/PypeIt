@@ -23,7 +23,7 @@ from pypeit import slittrace
 from pypeit import specobjs
 
 from pypeit.core.parse import get_dnum
-from pypeit.images.maskimage import ImageBitMask
+from pypeit.images.imagebitmask import ImageBitMask
 from pypeit import masterframe
 from pypeit import waveimage
 
