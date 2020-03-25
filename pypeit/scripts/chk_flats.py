@@ -23,16 +23,5 @@ def parser(options=None):
 
 def main(pargs):
     # Load
-    flatField = flatfield.FlatImages.from_file(pargs.master_file)
-    master_key, master_dir = masterframe.grab_key_mdir(pargs.master_file)
-    try:
-        slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
-                                                                master_dir=master_dir)
-        slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
-    except:
-        msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
-        slits = None
-    # Show
-    # TODO: Add wcs_match as command-line argument?
-    flatfield.show_flats(flatField.pixelflat, flatField.illumflat, flatField.procflat, flatField.flat_model,
-                         slits=slits)
+    flatImages = flatfield.FlatImages.from_file(pargs.master_file)
+    flatImages.show()

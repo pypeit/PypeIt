@@ -28,7 +28,7 @@ class WaveImage(datamodel.DataContainer):
 
     # Master fun
     master_type = 'Wave'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
     datamodel = {
         'image':  dict(otype=np.ndarray, atype=np.floating, desc='2D Wavelength image'),

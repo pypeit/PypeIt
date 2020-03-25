@@ -42,7 +42,7 @@ class WaveTilts(datamodel.DataContainer):
 
     # MasterFrame fun
     master_type = 'Tilts'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
     datamodel = {
         'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
@@ -84,9 +84,6 @@ class BuildWaveTilts(object):
         det (int): Detector index
         qa_path (:obj:`str`, optional):
             Directory for QA output.
-        msbpm (`numpy.ndarray`_, optional):
-            Bad pixel mask.  If not provided, a dummy array with no
-            masking is generated.
         master_key (:obj:`str`, optional):  For naming QA only
 
 
@@ -138,7 +135,7 @@ class BuildWaveTilts(object):
 #        return slf
 
     # TODO This needs to be modified to take an inmask
-    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None, msbpm=None,
+    def __init__(self, mstilt, slits, spectrograph, par, wavepar, det=1, qa_path=None,
                  master_key=None):
 
         # TODO: Perform type checking
@@ -148,7 +145,6 @@ class BuildWaveTilts(object):
 
         self.mstilt = mstilt
         self.slits = slits
-        self.msbpm = msbpm
         self.det = det
         self.qa_path = qa_path
         self.master_key = master_key
