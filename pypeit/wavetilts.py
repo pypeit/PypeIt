@@ -164,7 +164,7 @@ class BuildWaveTilts(object):
         if self.slits is not None and self.mstilt is not None:
             # NOTE: This uses the interneral definition of `pad`
             self.slitmask_science = self.slits.slit_img()
-            gpm = (self.msbpm == 0) if self.msbpm is not None \
+            gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.mstilt.image.shape
