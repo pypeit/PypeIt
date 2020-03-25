@@ -59,6 +59,7 @@ class Alignment():
         self.msalign = msalign
         self.slits = slits
         self.spectrograph = spectrograph
+        self.PYP_SPEC = spectrograph.spectrograph
         self.par = par
         self.master_key = master_key
         self.binning = binning
@@ -89,13 +90,8 @@ class Alignment():
             self.shape_science = self.slitmask_science.shape
             self.shape_align = self.msalign.image.shape
             self.nslits = self.slits.nslits
-            # TODO -- Use self.slits.select_edges()
-            self.slit_left = arc.resize_slits2arc(self.shape_align, self.shape_science,
-                                                  self.slits.left)
-            self.slit_righ = arc.resize_slits2arc(self.shape_align, self.shape_science,
-                                                  self.slits.right)
-            self.slitcen = arc.resize_slits2arc(self.shape_align, self.shape_science,
-                                                self.slits.center)
+            self.slit_left, self.slit_right = self.slits.select_edges()
+            self.slitcen = 0.5 * (self.slit_left + self.slit_right)
             self.slitmask = arc.resize_mask2arc(self.shape_align, self.slitmask_science)
             self.gpm = (arc.resize_mask2arc(self.shape_align, gpm)) & (self.msalign.image < self.nonlinear_counts)
         else:
@@ -104,7 +100,7 @@ class Alignment():
             self.shape_align = None
             self.nslits = 0
             self.slit_left = None
-            self.slit_righ = None
+            self.slit_right = None
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
@@ -129,12 +125,12 @@ class Alignment():
             self.show('image', image=self.msalign.image, chname='align_traces', slits=True)
         # Go through the slits
         for sl in range(self.nslits):
-            specobj_dict = {'setup': "unknown", 'slitid': sl,
-                            'det': self.det, 'objtype': "align_profile", 'pypeline': self.spectrograph.pypeline}
+            specobj_dict = {'SLITID': sl, 'DET': self.det, 'OBJTYPE': "align_profile",
+                            'PYPELINE': self.spectrograph.pypeline}
             msgs.info("Fitting alignment traces in slit {0:d}".format(sl))
             align_traces, _ = extract.objfind(
                 self.msalign.image, self.slitmask == sl,
-                self.slit_left[:, sl], self.slit_righ[:, sl],
+                self.slit_left[:, sl], self.slit_right[:, sl],
                 ir_redux=False, ncoeff=self.par['trace_npoly'],
                 specobj_dict=specobj_dict, sig_thresh=self.par['sig_thresh'],
                 show_peaks=show_peaks, show_fits=False,
@@ -200,8 +196,7 @@ class Alignment():
         # Report and save
         # First do the header
         if master_key is not None:
-            prihdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              self.spectrograph.spectrograph)
+            prihdr = masterframe.build_master_header(self, master_key, master_dir)
         else:
             prihdr = io.initialize_header()
         #   - Add the binning
@@ -308,7 +303,7 @@ class Alignment():
 
         if slits:
             if self.slits is not None and self.viewer is not None:
-                ginga.show_slits(self.viewer, self.channel, self.slit_left, self.slit_righ)
+                ginga.show_slits(self.viewer, self.channel, self.slit_left, self.slit_right)
         return
 
     def __repr__(self):

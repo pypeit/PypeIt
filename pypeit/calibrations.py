@@ -438,11 +438,7 @@ class Calibrations(object):
             #        self.alignFrame.save()
             # Save to Masters
             if self.save_masters:
-                # TODO -- Use masterframe_name below
-                self.msalign.to_master_file(self.master_dir, self.master_key_dict['align'],  # Naming
-                                            self.spectrograph.spectrograph,  # Header
-                                            steps=self.msalign.process_steps,
-                                            raw_files=align_files)
+                self.msalign.to_master_file(masterframe_name)
 
             # Store the alignment frame
             self._update_cache('align', 'align', self.msalign)
@@ -471,7 +467,7 @@ class Calibrations(object):
                 self.align_dict = self.alignment.run(self.show)
                 # Save to Masters
                 if self.save_masters:
-                    self.alignment.save(master_dir=self.master_dir, master_key=self.master_key_dict['trace'],
+                    self.alignment.save(master_key=self.master_key_dict['align'], master_dir=self.master_dir,
                                         outfile=masterframe_name)
 
             # Save & return
