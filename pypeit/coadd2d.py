@@ -534,6 +534,8 @@ class CoAdd2D(object):
                 master_dir = os.path.basename(head['PYPMFDIR'])
                 master_path = os.path.join(os.path.split(os.path.split(f)[0])[0], master_dir)
 
+            # TODO JFH These master keys are a complete mess and need to be abandoned? Do the tilts have their own
+            # key? Hwo
             trace_key = '{0}_{1:02d}'.format(head['TRACMKEY'], self.det)
             wave_key = '{0}_{1:02d}'.format(head['ARCMKEY'], self.det)
 
@@ -542,7 +544,7 @@ class CoAdd2D(object):
             tracefiles.append(masterframe.construct_file_name(
                     slittrace.SlitTraceSet, trace_key, master_dir=master_path))
             waveimgfiles.append(masterframe.construct_file_name(
-                WaveImage, trace_key, master_dir=master_path))
+                WaveImage, wave_key, master_dir=master_path))
             tiltfiles.append(masterframe.construct_file_name(
                 WaveTilts, wave_key, master_dir=master_path))
 
