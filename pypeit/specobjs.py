@@ -140,8 +140,7 @@ class SpecObjs(object):
         """
         return len(self.specobjs)
 
-    # TODO -- This should return a simple DataContainer not a long stream of variables
-    def unpack_object(self, ret_flam=False):
+    def unpack_object(self, ret_flam=False, extract_type='OPT'):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -168,15 +167,13 @@ class SpecObjs(object):
                   spectrograph.header_cards_from_spec()
                 - header (astropy.io.header object): header from
                   spec1d file
-    """
-
-        # Read in the spec1d file
+        """
+        # Prep
         norddet = self.nobj
-        if ret_flam:
-            # TODO Should nspec be an attribute of specobj?
-            nspec = self[0].OPT_FLAM.size
-        else:
-            nspec = self[0].OPT_COUNTS.size
+        flux_attr = 'FLAM' if ret_flam else 'COUNTS'
+        flux_key = '{}_{}'.format(extract_type, flux_attr)
+        wave_key = '{}_WAVE'.format(extract_type)
+        nspec = getattr(self, flux_key)[0].size
         # Allocate arrays and unpack spectrum
         wave = np.zeros((nspec, norddet))
         flux = np.zeros((nspec, norddet))
@@ -184,41 +181,27 @@ class SpecObjs(object):
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
         detector = np.zeros(norddet, dtype=int)
         ech_orders = np.zeros(norddet, dtype=int)
-        # TODO make the extraction that is desired OPT vs BOX and optional input variable.
+
+        # TODO make the extraction that is desired OPT vs BOX an optional input variable.
         for iorddet in range(norddet):
-            wave[:, iorddet] = self[iorddet].OPT_WAVE
-            flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
+            wave[:, iorddet] = getattr(self, wave_key)[iorddet]
+            flux_gpm[:, iorddet] = getattr(self, '{}_MASK'.format(extract_type))[iorddet]
             detector[iorddet] = self[iorddet].DET
             if self[0].PYPELINE == 'Echelle':
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
-            if ret_flam:
-                flux[:, iorddet] = self[iorddet].OPT_FLAM
-                flux_ivar[:, iorddet] = self[iorddet].OPT_FLAM_IVAR
-            else:
-                flux[:, iorddet] = self[iorddet].OPT_COUNTS
-                flux_ivar[:, iorddet] = self[iorddet].OPT_COUNTS_IVAR
+            flux[:, iorddet] = getattr(self, flux_key)[iorddet]
+            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet] #OPT_FLAM_IVAR
 
         # Populate meta data
-        # TODO Remove this hack is it needed? If PYP_SPEC is always written then it is not.
-        try:
-            spectrograph = load_spectrograph(self.header['PYP_SPEC'])
-        except:
-            # TODO JFH  This is a hack until a generic spectrograph is implemented.
-            spectrograph = load_spectrograph('shane_kast_blue')
+        spectrograph = load_spectrograph(self.header['PYP_SPEC'])
 
-        meta_spec = {}
-        core_keys = spectrograph.header_cards_for_spec()
-        for key in core_keys:
-            try:
-                meta_spec[key.upper()] = self.header[key.upper()]
-            except KeyError:
-                msgs.warn('Core meta data is missing from the specobjs header ')
-                pass
+        meta_spec = spectrograph.parse_spec_header(self.header)
         # Add the pyp spec.
         # TODO JFH: Make this an atribute of the specobj by default.
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
         meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
+        # Return
         if self[0].PYPELINE == 'MultiSlit' and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
@@ -226,7 +209,6 @@ class SpecObjs(object):
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
             return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
-
 
     def get_std(self, multi_spec_det=None):
         """

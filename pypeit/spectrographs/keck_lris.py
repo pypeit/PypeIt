@@ -66,7 +66,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [29, None]
         return par
 
-
     def config_specific_par(self, scifile, inp_par=None):
         """
         Modify the PypeIt parameters to hard-wired values used for
@@ -101,7 +100,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
         return par
-
 
     def init_meta(self):
         """
@@ -350,6 +348,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Return
         return self.get_detector_par(hdu, det if det is None else 1), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+
+    def subheader_for_spec(self, row_fitstbl, raw_header):
+        """
+        See :func:`pypeit.spectrograph.spectrograph.Spectrograph.subheader_for_spec`
+        for doc string
+
+        Args:
+            row_fitstbl (:class:`astropy.table.Row` or :class:`astropy.io.fits.Header`):
+            raw_header (:class:`astropy.io.fits.Header`):
+
+        Returns:
+            :obj:`dict`: -- Used to generate a Header or table downstream
+
+        """
+        return super(KeckLRISSpectrograph, self).subheader_for_spec(
+            row_fitstbl, raw_header, extra_header_cards=['GRANAME', 'GRISNAME', 'SLITNAME'])
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):

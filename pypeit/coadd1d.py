@@ -13,11 +13,11 @@ from IPython import embed
 import numpy as np
 from astropy.io import fits
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit import utils
 from pypeit import specobjs
 from pypeit import msgs
 from pypeit.core import coadd, flux_calib
 from pypeit import datamodel
+from pypeit import io
 
 
 class OneSpec(datamodel.DataContainer):
@@ -36,7 +36,7 @@ class OneSpec(datamodel.DataContainer):
     }
 
     def __init__(self, wave, flux, ivar=None, mask=None, telluric=None,
-                 obj_model=None, ext_mode=None, fluxed=None):
+                 obj_model=None, PYP_SPEC=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -47,25 +47,41 @@ class OneSpec(datamodel.DataContainer):
 #        _d = super(OneSpec, self)._bundle(ext=ext, **kwargs)
 #        import pdb; pdb.set_trace()
 
-    # TODO Add some header info, e.g. INSTR, RA, DEC, AIRMASS?
-    # header = fits.getheader(spec1dfiles[0])
+    def _init_internals(self):
+        self.head0 = None
 
+    def to_file(self, ofile, overwrite=True, primary_hdr=None, **kwargs):
+        if primary_hdr is None:
+            primary_hdr = io.initialize_header(primary=True)
+        # Build the header
+        if self.head0 is not None and self.PYP_SPEC is not None:
+            spectrograph = load_spectrograph(self.PYP_SPEC)
+            subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
+        else:
+            subheader = {}
+        # Add em in
+        for key in subheader:
+            primary_hdr[key] = subheader[key]
+        # Do it
+        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr, overwrite=overwrite,
+                                     **kwargs)
 
 class CoAdd1D(object):
 
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spectrograph, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
         """
         Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+            spectrograph, spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
-    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spectrograph, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
         """
 
         Args:
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             spec1dfiles (list):
                List of strings which are the spec1dfiles
             objids (list):
@@ -80,6 +96,7 @@ class CoAdd1D(object):
                Debug. Default = True
         """
         # Instantiate attributes
+        self.spectrograph = spectrograph
         self.spec1dfiles = spec1dfiles
         self.objids = objids
         self.sensfile = sensfile
@@ -160,62 +177,18 @@ class CoAdd1D(object):
                           self.flux_coadd[wave_mask],
                           ivar=self.ivar_coadd[wave_mask],
                           mask=self.mask_coadd[wave_mask].astype(int),
+                          PYP_SPEC=self.spectrograph.spectrograph,
                           ext_mode=self.par['ex_value'],
                           fluxed=self.par['flux_value'])
+        onespec.head0 = fits.getheader(self.spec1dfiles[0])
+
         # Add on others
         if telluric is not None:
             onespec.telluric  = telluric[wave_mask]
         if obj_model is not None:
             onespec.obj_model = obj_model[wave_mask]
         # Write
-        # TODO -- Is it ok that I removed the append option?
-        #   With overwrite=True and not accessed by the script, it wasn't being used
-        #   And how about the HDU name?
         onespec.to_file(coaddfile, overwrite=overwrite)
-
-        '''
-        self.coaddfile = coaddfile
-        ex_value = self.par['ex_value']
-        # Estimate sigma from ivar
-        sig = np.sqrt(utils.inverse(self.ivar_coadd))
-        if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
-            hdulist = fits.open(self.coaddfile)
-            msgs.info("Reading primary HDU from existing file: {:s}".format(self.coaddfile))
-        else:
-            msgs.info("Creating a new primary HDU.")
-            prihdu = fits.PrimaryHDU()
-            if self.header is None:
-                msgs.warn('The primary header is none')
-            else:
-                prihdu.header = self.header
-            hdulist = fits.HDUList([prihdu])
-
-        wave_mask = self.wave_coadd > 1.0
-        # Add Spectrum Table
-        cols = []
-        cols += [fits.Column(array=self.wave_coadd[wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
-        cols += [fits.Column(array=self.flux_coadd[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
-        cols += [fits.Column(array=self.ivar_coadd[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
-        cols += [fits.Column(array=sig[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
-        cols += [fits.Column(array=self.mask_coadd[wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
-        if telluric is not None:
-            cols += [fits.Column(array=telluric[wave_mask], name='TELLURIC', format='D')]
-        if obj_model is not None:
-            cols += [fits.Column(array=obj_model[wave_mask], name='OBJ_MODEL', format='D')]
-
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
-        hdulist.append(tbhdu)
-
-        if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
-            hdulist.writeto(self.coaddfile, overwrite=True)
-            msgs.info("Appending 1D spectra to existing file {:s}".format(self.coaddfile))
-        else:
-            hdulist.writeto(self.coaddfile, overwrite=overwrite)
-            msgs.info("Wrote 1D spectra to {:s}".format(self.coaddfile))
-        '''
-
 
 
     def coadd(self):
@@ -238,10 +211,11 @@ class MultiSlitCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spectrograph, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
         """
 
             Args:
+                spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
                 spec1dfiles (list):
                    List of strings which are the spec1dfiles
                 objids (list):
@@ -255,8 +229,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 show (bool):
                    Debug. Default = True
         """
-
-        super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+        super().__init__(spectrograph, spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
 
     def coadd(self):
@@ -291,6 +264,7 @@ class EchelleCoAdd1D(CoAdd1D):
         """
 
             Args:
+                spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
                 spec1dfiles (list):
                    List of strings which are the spec1dfiles
                 objids (list):

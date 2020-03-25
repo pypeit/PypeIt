@@ -122,7 +122,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
 
         coaddfile = outroot+'-SPAT{:04d}-DET{:02d}'.format(key, det)+'.fits'
 
-        coAdd1d = coadd1d.CoAdd1D.get_instance(sync_dict[key]['files'],
+        coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, sync_dict[key]['files'],
                                              sync_dict[key]['names'],
                                              sensfile=sensfile, par=par['coadd1d'],
                                              debug=debug, show=show)
@@ -223,7 +223,7 @@ def main(args):
     # text files, whereas there are things like yaml and json that do this well already.
 
     # Instantiate
-    coAdd1d = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
+    coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
                                        debug=args.debug, show=args.show)
     # Run
     coAdd1d.run()
