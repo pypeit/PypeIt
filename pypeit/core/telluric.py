@@ -593,13 +593,9 @@ def general_spec_reader(specfile, ret_flam=False):
         # This is a hack until a generic spectrograph is implemented.
         spectrograph = load_spectrograph('shane_kast_blue')
 
-    meta_spec = dict(core={}, bonus=bonus)
-    core_keys = spectrograph.header_cards_for_spec()
-    for key in core_keys:
-        try:
-            meta_spec['core'][key.upper()] = head[key.upper()]
-        except KeyError:
-            pass
+    meta_spec = dict(bonus=bonus)
+    spect_dict = spectrograph.parse_spec_header(head)
+    meta_spec['core'] = spect_dict
 
     return wave, counts, counts_ivar, counts_mask, meta_spec, head
 
