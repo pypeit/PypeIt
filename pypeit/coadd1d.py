@@ -28,8 +28,9 @@ class OneSpec(datamodel.DataContainer):
         'flux': dict(otype=np.ndarray, atype=np.floating, desc='Flux/counts array'),
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array'),
-        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model?'),
-        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model?'),
+        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model'),
+        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt: Spectrograph name'),
         'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
         'fluxed': dict(otype=bool, desc='Fluxed?'),
     }
@@ -45,6 +46,9 @@ class OneSpec(datamodel.DataContainer):
 #    def _bundle(self, ext=None, **kwargs):
 #        _d = super(OneSpec, self)._bundle(ext=ext, **kwargs)
 #        import pdb; pdb.set_trace()
+
+    # TODO Add some header info, e.g. INSTR, RA, DEC, AIRMASS?
+    # header = fits.getheader(spec1dfiles[0])
 
 
 class CoAdd1D(object):
