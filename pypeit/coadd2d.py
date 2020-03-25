@@ -615,7 +615,7 @@ class CoAdd2D(object):
                 slits = slittrace.SlitTraceSet.from_file(tracefiles[ifile])
                 # Check the spectrograph names
                 # TODO: Should this be done here?
-                if slits.spectrograph != self.spectrograph.spectrograph:
+                if slits.PYP_SPEC != self.spectrograph.spectrograph:
                     msgs.error('Spectrograph read from {0} is not correct.  Expected {1}.'.format(
                                 tracefiles[ifile], self.spectrograph.spectrograph))
             tracefile = tracefiles[ifile]
