@@ -1127,7 +1127,6 @@ class IFUReduce(Reduce):
 
         import pdb
         pdb.set_trace()
-        np.argmin(self.caliBrate.mswave.image)
 
         # Get the relative scaling (use standard star profile, if available)
         flat_modl = self.caliBrate.flatimages.flat_model
