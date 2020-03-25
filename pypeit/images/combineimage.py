@@ -16,7 +16,7 @@ from pypeit import utils
 from pypeit.images import pypeitimage
 from pypeit.images import processrawimage
 from pypeit.images import rawimage
-from pypeit.images import maskimage
+from pypeit.images import imagebitmask
 
 from IPython import embed
 
@@ -51,7 +51,10 @@ class CombineImage(object):
         if self.nfiles == 0:
             msgs.error('Combineimage requires a list of files to instantiate')
 
-    def process_one(self, filename, process_steps, bias, pixel_flat=None, illum_flat=None, bpm=None):
+    def process_one(self, filename, process_steps, bias,
+                    flatimages=None,
+                    #pixel_flat=None, illum_flat_fit=None,
+                    bpm=None, slits=None):
         """
         Process a single image
 
@@ -77,13 +80,18 @@ class CombineImage(object):
         rawImage = rawimage.RawImage(filename, self.spectrograph, self.det)
         # Process
         processrawImage = processrawimage.ProcessRawImage(rawImage, self.par, bpm=bpm)
-        processedImage = processrawImage.process(process_steps, bias=bias, pixel_flat=pixel_flat,
-                                                 illum_flat=illum_flat)
+        processedImage = processrawImage.process(process_steps, bias=bias,
+                                                 #pixel_flat=pixel_flat, illum_flat_fit=illum_flat_fit,
+                                                 flatimages=flatimages,
+                                                 slits=slits)
         # Return
         return processedImage
 
-    def run(self, process_steps, bias, pixel_flat=None, illum_flat=None,
-            ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5):
+    def run(self, process_steps, bias,
+            flatimages=None,
+            #pixel_flat=None, illum_flat_fit=None,
+            ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5,
+            slits=None):
         """
         Generate a PypeItImage from a list of images
 
@@ -121,8 +129,10 @@ class CombineImage(object):
         lampstat = []
         for kk, ifile in enumerate(self.files):
             # Process a single image
-            pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat=pixel_flat,
-                                           illum_flat=illum_flat, bpm=bpm)
+            pypeitImage = self.process_one(ifile, process_steps, bias,
+                                           #pixel_flat=pixel_flat, illum_flat_fit=illum_flat_fit,
+                                           flatimages=flatimages,
+                                           bpm=bpm, slits=slits)
             # Are we all done?
             if nimages == 1:
                 return pypeitImage
@@ -134,7 +144,7 @@ class CombineImage(object):
                 rn2img_stack = np.zeros(shape)
                 crmask_stack = np.zeros(shape, dtype=bool)
                 # Mask
-                bitmask = maskimage.ImageBitMask()
+                bitmask = imagebitmask.ImageBitMask()
                 mask_stack = np.zeros(shape, bitmask.minimum_dtype(asuint=True))
             # Grab the lamp status
             lampstat += [self.spectrograph.get_lamps_status(pypeitImage.rawheadlist)]
@@ -191,7 +201,8 @@ class CombineImage(object):
                                                     bpm=pypeitImage.bpm,
                                                     rn2img=var_list_out[1],
                                                     crmask=np.invert(outmask),
-                                                    detector=pypeitImage.detector)
+                                                    detector=pypeitImage.detector,
+                                                    PYP_SPEC=pypeitImage.PYP_SPEC)
         # Internals
         final_pypeitImage.rawheadlist = pypeitImage.rawheadlist
 

@@ -124,11 +124,6 @@ class FrameGroupPar(ParSet):
         dtypes['useframe'] = str
         descr['useframe'] = 'A master calibrations file to use if it exists.'
 
-        #defaults['number'] = 0
-        #dtypes['number'] = int
-        #descr['number'] = 'Used in matching calibration frames to science frames.  This sets ' \
-        #                  'the number of frames to use of this type'
-
         defaults['exprng'] = [None, None]
         dtypes['exprng'] = list
         descr['exprng'] = 'Used in identifying frames of this type.  This sets the minimum ' \
@@ -213,7 +208,9 @@ class ProcessImagesPar(ParSet):
     """
     def __init__(self, overscan=None, overscan_par=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
+                 spat_flexure_correct=None, illumflatten=None,
+                 ):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -264,11 +261,6 @@ class ProcessImagesPar(ParSet):
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
 
-        # Moved to processing_steps
-        #defaults['cr_reject'] = False
-        #dtypes['cr_reject'] = bool
-        #descr['cr_reject'] = 'Perform cosmic ray rejection'
-
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
         descr['sigrej'] = 'Sigma level to reject cosmic rays (<= 0.0 means no CR removal)'
@@ -314,6 +306,14 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
+        defaults['spat_flexure_correct'] = False
+        dtypes['spat_flexure_correct'] = bool
+        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
+
+        defaults['illumflatten'] = False
+        dtypes['illumflatten'] = bool
+        descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
+
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
                                                values=list(pars.values()),
@@ -331,7 +331,9 @@ class ProcessImagesPar(ParSet):
         parkeys = ['bias', 'overscan', 'overscan_par',
                    'combine', 'satpix', 'sigrej', 'n_lohi',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim',
+                   'spat_flexure_correct', 'illumflatten',
+                   ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -458,7 +460,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None,
+    def __init__(self, method=None, frame=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None):
@@ -492,9 +494,6 @@ class FlatFieldPar(ParSet):
         descr['frame'] = 'Frame to use for field flattening.  Options are: "pixelflat", ' \
                          'or a specified calibration filename.'
 
-        defaults['illumflatten'] = True
-        dtypes['illumflatten'] = bool
-        descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
 
         defaults['spec_samp_fine'] = 1.2
         dtypes['spec_samp_fine'] = [int, float]
@@ -583,7 +582,7 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse',
+        parkeys = ['method', 'frame', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
                    'twod_fit_npoly']
@@ -636,20 +635,22 @@ class FlatFieldPar(ParSet):
                                 self.data['frame']))
 
         # Check that if tweak slits is true that illumflatten is alwo true
-        if self.data['tweak_slits'] and not self.data['illumflatten']:
-            raise ValueError('In order to tweak slits illumflatten must be set to True')
+        # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
+        #if self.data['tweak_slits'] and not self.data['illumflatten']:
+        #    raise ValueError('In order to tweak slits illumflatten must be set to True')
 
 
 
 class FlexurePar(ParSet):
     """
-    A parameter set holding the arguments for how to perform the flexure
-    correction.
+    A parameter set holding the arguments for how to perform flexure
+    corrections, both spatial and spectral
 
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, method=None, maxshift=None, spectrum=None):
+    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None):
+#                 spat_frametypes=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -665,17 +666,25 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['method'] = 'skip'
-        options['method'] = FlexurePar.valid_methods()
-        dtypes['method'] = str
-        descr['method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
+
+#        defaults['spat_frametypes'] = []
+#        options['spat_frametypes'] = FlexurePar.valid_frametypes()
+#        dtypes['spat_frametypes'] = list
+#        descr['spat_frametypes'] = 'Frametypes for spatial flexure corrections'
+#
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+        defaults['spec_method'] = 'skip'
+        options['spec_method'] = FlexurePar.valid_methods()
+        dtypes['spec_method'] = str
+        descr['spec_method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
                           'slitcen is used, the flexure correction is performed before the ' \
                           'extraction of objects (not recommended).  ' \
-                          'Options are: None, {0}'.format(', '.join(options['method']))
+                          'Options are: None, {0}'.format(', '.join(options['spec_method']))
 
-        defaults['maxshift'] = 20
-        dtypes['maxshift'] = [int, float]
-        descr['maxshift'] = 'Maximum allowed flexure shift in pixels.'
+        defaults['spec_maxshift'] = 20
+        dtypes['spec_maxshift'] = [int, float]
+        descr['spec_maxshift'] = 'Maximum allowed spectral flexure shift in pixels.'
 
         defaults['spectrum'] = os.path.join(resource_filename('pypeit', 'data/sky_spec/'),
                                             'paranal_sky.fits')
@@ -694,7 +703,8 @@ class FlexurePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = [ 'method', 'maxshift', 'spectrum' ]
+        parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
+#                   'spat_frametypes']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -705,12 +715,13 @@ class FlexurePar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_frames():
-        """
-        Return the valid frame types.
-        """
-        return ['pixelflat', 'pinhole']
+#    @staticmethod
+#    def valid_frametypes():
+#        """
+#        Return the valid frame types for spatial flexure corrections
+#        """
+#        # TODO -- Get Kyle to help me deal with one-element lists.  The following is a hack
+#        return ['scienceframe', 'tiltframe', '']  # tiltframe is experimental!
 
     @staticmethod
     def valid_methods():
@@ -3220,6 +3231,8 @@ class CalibrationsPar(ParSet):
         defaults['standardframe'] = FrameGroupPar(frametype='standard',
                                                   processing_steps = ['trim', 'orient', 'apply_gain',
                                                                       'flatten', 'crmask'])
+        # TODO -- Is there a way to do this more transparently??
+        defaults['standardframe']['process']['illumflatten'] = True
         dtypes['standardframe'] = [ ParSet, dict ]
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
@@ -3383,7 +3396,10 @@ class PypeItPar(ParSet):
         defaults['scienceframe'] = FrameGroupPar(frametype='science',
                                                  processing_steps = ['trim', 'orient', 'apply_gain',
                                                                      'flatten', 'crmask'])
+        # TODO -- Is there a way to do this more transparently?
+        defaults['scienceframe']['process']['illumflatten'] = True
         dtypes['scienceframe'] = [ ParSet, dict ]
+
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
         defaults['reduce'] = ReducePar()
@@ -3749,189 +3765,189 @@ class PypeItPar(ParSet):
 # Instrument parameters
 
 # TODO: This should probably get moved to spectrograph.py
-class DetectorPar(ParSet):
-    """
-    The parameters used to define the salient properties of an
-    instrument detector.
-
-    These parameters should be *independent* of any specific use of the
-    detector, and are used in the definition of the instruments served
-    by PypeIt.
-
-    To see the list of instruments served, a table with the the current
-    keywords, defaults, and descriptions for the :class:`DetectorPar`
-    class, and an explanation of how to define a new instrument, see
-    :ref:`instruments`.
-    """
-    def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip=None, xgap=None,
-                 ygap=None, ysize=None, platescale=None, darkcurr=None, saturation=None,
-                 mincounts=None, nonlinear=None, numamplifiers=None, gain=None, ronoise=None,
-                 datasec=None, oscansec=None, suffix=None, det=None):
-
-        # Grab the parameter names and values from the function
-        # arguments
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        pars = OrderedDict([(k,values[k]) for k in args[1:]])
-
-        # Initialize the other used specifications for this parameter
-        # set
-        defaults = OrderedDict.fromkeys(pars.keys())
-        options = OrderedDict.fromkeys(pars.keys())
-        dtypes = OrderedDict.fromkeys(pars.keys())
-        descr = OrderedDict.fromkeys(pars.keys())
-
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
-        defaults['dataext'] = 0
-        dtypes['dataext'] = int
-        descr['dataext'] = 'Index of fits extension containing data'
-
-        # TODO: Should this be detector-specific, or camera-specific?
-        defaults['specaxis'] = 0
-        options['specaxis'] = [ 0, 1]
-        dtypes['specaxis'] = int
-        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
-                            '(first dimension for a numpy array shape) or 1 (second dimension ' \
-                            'for numpy array shape)'
-
-
-        defaults['specflip'] = False
-        dtypes['specflip'] = bool
-        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by ' \
-                            'the specaxis) will be flipped.  PypeIt expects wavelengths to ' \
-                            'increase with increasing pixel number.  If this is not the case ' \
-                            'for this instrument, set specflip to True.'
-
-        defaults['spatflip'] = False
-        dtypes['spatflip'] = bool
-        descr['spatflip'] = 'If this is True then the spatial dimension will be flipped.  ' \
-                            'PypeIt expects echelle orders to increase with increasing pixel ' \
-                            'number.  I.e., setting spatflip=True can reorder images so that ' \
-                            'blue orders appear on the left and red orders on the right.'
-
-        defaults['xgap'] = 0.0
-        dtypes['xgap'] = [int, float]
-        descr['xgap'] = 'Gap between the square detector pixels (expressed as a fraction of the ' \
-                        'x pixel size -- x is predominantly the dispersion axis)'
-
-        defaults['ygap'] = 0.0
-        dtypes['ygap'] = [int, float]
-        descr['ygap'] = 'Gap between the square detector pixels (expressed as a fraction of the ' \
-                        'y pixel size -- x is predominantly the dispersion axis)'
-
-        defaults['ysize'] = 1.0
-        dtypes['ysize'] = [int, float]
-        descr['ysize'] = 'The size of a pixel in the y-direction as a multiple of the x pixel ' \
-                         'size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)'
-
-        defaults['platescale'] = 0.135
-        dtypes['platescale'] = [int, float]
-        descr['platescale'] = 'arcsec per pixel in the spatial dimension for an unbinned pixel'
-
-        defaults['darkcurr'] = 0.0
-        dtypes['darkcurr'] = [int, float]
-        descr['darkcurr'] = 'Dark current (e-/hour)'
-
-        defaults['saturation'] = 65535.0
-        dtypes['saturation'] = [ int, float ]
-        descr['saturation'] = 'The detector saturation level'
-
-        defaults['mincounts'] = -1000.0
-        dtypes['mincounts'] = [ int, float ]
-        descr['mincounts'] = 'Counts in a pixel below this value will be ignored as being unphysical'
-
-
-        defaults['nonlinear'] = 0.86
-        dtypes['nonlinear'] = [ int, float ]
-        descr['nonlinear'] = 'Percentage of detector range which is linear (i.e. everything ' \
-                             'above nonlinear*saturation will be flagged as saturated)'
-
-        # gain, ronoise, datasec, and oscansec must be lists if there is
-        # more than one amplifier
-        defaults['numamplifiers'] = 1
-        dtypes['numamplifiers'] = int
-        descr['numamplifiers'] = 'Number of amplifiers'
-
-        defaults['gain'] = 1.0 if pars['numamplifiers'] is None else [1.0]*pars['numamplifiers']
-        dtypes['gain'] = [ int, float, list ]
-        descr['gain'] = 'Inverse gain (e-/ADU). A list should be provided if a detector ' \
-                        'contains more than one amplifier.'
-
-        defaults['ronoise'] = 4.0 if pars['numamplifiers'] is None else [4.0]*pars['numamplifiers']
-        dtypes['ronoise'] = [ int, float, list ]
-        descr['ronoise'] = 'Read-out noise (e-). A list should be provided if a detector ' \
-                           'contains more than one amplifier.'
-
-        # TODO: Allow for None, such that the entire image is the data
-        # section
-        defaults['datasec'] = 'DATASEC' if pars['numamplifiers'] is None \
-                                        else ['DATASEC']*pars['numamplifiers']
-        dtypes['datasec'] = [str, list]
-        descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
-                           'data sections can be obtained, one per amplifier. If defined ' \
-                           'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'
-
-        # TODO: Allow for None, such that there is no overscan region
-        defaults['oscansec'] = 'BIASSEC' if pars['numamplifiers'] is None \
-                                        else ['BIASSEC']*pars['numamplifiers']
-        dtypes['oscansec'] = [str, list, type(None)]
-        descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
-                            'data sections can be obtained, one per amplifier. If defined ' \
-                            'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'
-
-        # TODO: Allow this to be None?
-        defaults['suffix'] = ''
-        dtypes['suffix'] = str
-        descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
-
-        defaults['det'] = 1
-        dtypes['det'] = int
-        descr['det'] = 'PypeIt designation for detector number.  1 based indexing'
-
-        # Instantiate the parameter set
-        super(DetectorPar, self).__init__(list(pars.keys()),
-                                          values=list(pars.values()),
-                                          defaults=list(defaults.values()),
-                                          options=list(options.values()),
-                                          dtypes=list(dtypes.values()),
-                                          descr=list(descr.values()))
-        self.validate()
-
-    @classmethod
-    def from_dict(cls, cfg):
-        k = numpy.array([*cfg.keys()])
-        parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
-                   'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
-                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix',
-                   'det']
-
-        badkeys = numpy.array([pk not in parkeys for pk in k])
-        if numpy.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for DetectorPar.'.format(k[badkeys]))
-
-        kwargs = {}
-        for pk in parkeys:
-            kwargs[pk] = cfg[pk] if pk in k else None
-        return cls(**kwargs)
-
-    def validate(self):
-        """
-        Check the parameters are valid for the provided method.
-        """
-        if self.data['numamplifiers'] > 1:
-            keys = [ 'gain', 'ronoise', 'datasec', 'oscansec' ]
-            dtype = [ (int, float), (int, float), str, (str, None) ]
-            for i in range(len(keys)):
-                if self.data[keys[i]] is None:
-                    continue
-                if not isinstance(self.data[keys[i]], list) \
-                        or len(self.data[keys[i]]) != self.data['numamplifiers']:
-                    raise ValueError('Provided {0} does not match amplifiers.'.format(keys[i]))
-
-            for j in range(self.data['numamplifiers']):
-                if self.data[keys[i]] is not None \
-                        and not isinstance(self.data[keys[i]][j], dtype[i]):
-                    TypeError('Incorrect type for {0}; should be {1}'.format(keys[i], dtype[i]))
+#class DetectorPar(ParSet):
+#    """
+#    The parameters used to define the salient properties of an
+#    instrument detector.
+#
+#    These parameters should be *independent* of any specific use of the
+#    detector, and are used in the definition of the instruments served
+#    by PypeIt.
+#
+#    To see the list of instruments served, a table with the the current
+#    keywords, defaults, and descriptions for the :class:`DetectorPar`
+#    class, and an explanation of how to define a new instrument, see
+#    :ref:`instruments`.
+#    """
+#    def __init__(self, dataext=None, specaxis=None, specflip=None, spatflip=None, xgap=None,
+#                 ygap=None, ysize=None, platescale=None, darkcurr=None, saturation=None,
+#                 mincounts=None, nonlinear=None, numamplifiers=None, gain=None, ronoise=None,
+#                 datasec=None, oscansec=None, suffix=None, det=None):
+#
+#        # Grab the parameter names and values from the function
+#        # arguments
+#        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+#        pars = OrderedDict([(k,values[k]) for k in args[1:]])
+#
+#        # Initialize the other used specifications for this parameter
+#        # set
+#        defaults = OrderedDict.fromkeys(pars.keys())
+#        options = OrderedDict.fromkeys(pars.keys())
+#        dtypes = OrderedDict.fromkeys(pars.keys())
+#        descr = OrderedDict.fromkeys(pars.keys())
+#
+#        # Fill out parameter specifications.  Only the values that are
+#        # *not* None (i.e., the ones that are defined) need to be set
+#        defaults['dataext'] = 0
+#        dtypes['dataext'] = int
+#        descr['dataext'] = 'Index of fits extension containing data'
+#
+#        # TODO: Should this be detector-specific, or camera-specific?
+#        defaults['specaxis'] = 0
+#        options['specaxis'] = [ 0, 1]
+#        dtypes['specaxis'] = int
+#        descr['specaxis'] = 'Spectra are dispersed along this axis. Allowed values are 0 ' \
+#                            '(first dimension for a numpy array shape) or 1 (second dimension ' \
+#                            'for numpy array shape)'
+#
+#
+#        defaults['specflip'] = False
+#        dtypes['specflip'] = bool
+#        descr['specflip'] = 'If this is True then the dispersion dimension (specificed by ' \
+#                            'the specaxis) will be flipped.  PypeIt expects wavelengths to ' \
+#                            'increase with increasing pixel number.  If this is not the case ' \
+#                            'for this instrument, set specflip to True.'
+#
+#        defaults['spatflip'] = False
+#        dtypes['spatflip'] = bool
+#        descr['spatflip'] = 'If this is True then the spatial dimension will be flipped.  ' \
+#                            'PypeIt expects echelle orders to increase with increasing pixel ' \
+#                            'number.  I.e., setting spatflip=True can reorder images so that ' \
+#                            'blue orders appear on the left and red orders on the right.'
+#
+#        defaults['xgap'] = 0.0
+#        dtypes['xgap'] = [int, float]
+#        descr['xgap'] = 'Gap between the square detector pixels (expressed as a fraction of the ' \
+#                        'x pixel size -- x is predominantly the dispersion axis)'
+#
+#        defaults['ygap'] = 0.0
+#        dtypes['ygap'] = [int, float]
+#        descr['ygap'] = 'Gap between the square detector pixels (expressed as a fraction of the ' \
+#                        'y pixel size -- x is predominantly the dispersion axis)'
+#
+#        defaults['ysize'] = 1.0
+#        dtypes['ysize'] = [int, float]
+#        descr['ysize'] = 'The size of a pixel in the y-direction as a multiple of the x pixel ' \
+#                         'size (i.e. xsize = 1.0 -- x is predominantly the dispersion axis)'
+#
+#        defaults['platescale'] = 0.135
+#        dtypes['platescale'] = [int, float]
+#        descr['platescale'] = 'arcsec per pixel in the spatial dimension for an unbinned pixel'
+#
+#        defaults['darkcurr'] = 0.0
+#        dtypes['darkcurr'] = [int, float]
+#        descr['darkcurr'] = 'Dark current (e-/hour)'
+#
+#        defaults['saturation'] = 65535.0
+#        dtypes['saturation'] = [ int, float ]
+#        descr['saturation'] = 'The detector saturation level'
+#
+#        defaults['mincounts'] = -1000.0
+#        dtypes['mincounts'] = [ int, float ]
+#        descr['mincounts'] = 'Counts in a pixel below this value will be ignored as being unphysical'
+#
+#
+#        defaults['nonlinear'] = 0.86
+#        dtypes['nonlinear'] = [ int, float ]
+#        descr['nonlinear'] = 'Percentage of detector range which is linear (i.e. everything ' \
+#                             'above nonlinear*saturation will be flagged as saturated)'
+#
+#        # gain, ronoise, datasec, and oscansec must be lists if there is
+#        # more than one amplifier
+#        defaults['numamplifiers'] = 1
+#        dtypes['numamplifiers'] = int
+#        descr['numamplifiers'] = 'Number of amplifiers'
+#
+#        defaults['gain'] = 1.0 if pars['numamplifiers'] is None else [1.0]*pars['numamplifiers']
+#        dtypes['gain'] = [ int, float, list ]
+#        descr['gain'] = 'Inverse gain (e-/ADU). A list should be provided if a detector ' \
+#                        'contains more than one amplifier.'
+#
+#        defaults['ronoise'] = 4.0 if pars['numamplifiers'] is None else [4.0]*pars['numamplifiers']
+#        dtypes['ronoise'] = [ int, float, list ]
+#        descr['ronoise'] = 'Read-out noise (e-). A list should be provided if a detector ' \
+#                           'contains more than one amplifier.'
+#
+#        # TODO: Allow for None, such that the entire image is the data
+#        # section
+#        defaults['datasec'] = 'DATASEC' if pars['numamplifiers'] is None \
+#                                        else ['DATASEC']*pars['numamplifiers']
+#        dtypes['datasec'] = [str, list]
+#        descr['datasec'] = 'Either the data sections or the header keyword where the valid ' \
+#                           'data sections can be obtained, one per amplifier. If defined ' \
+#                           'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'
+#
+#        # TODO: Allow for None, such that there is no overscan region
+#        defaults['oscansec'] = 'BIASSEC' if pars['numamplifiers'] is None \
+#                                        else ['BIASSEC']*pars['numamplifiers']
+#        dtypes['oscansec'] = [str, list, type(None)]
+#        descr['oscansec'] = 'Either the overscan section or the header keyword where the valid ' \
+#                            'data sections can be obtained, one per amplifier. If defined ' \
+#                            'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'
+#
+#        # TODO: Allow this to be None?
+#        defaults['suffix'] = ''
+#        dtypes['suffix'] = str
+#        descr['suffix'] = 'Suffix to be appended to all saved calibration and extraction frames.'
+#
+#        defaults['det'] = 1
+#        dtypes['det'] = int
+#        descr['det'] = 'PypeIt designation for detector number.  1 based indexing'
+#
+#        # Instantiate the parameter set
+#        super(DetectorPar, self).__init__(list(pars.keys()),
+#                                          values=list(pars.values()),
+#                                          defaults=list(defaults.values()),
+#                                          options=list(options.values()),
+#                                          dtypes=list(dtypes.values()),
+#                                          descr=list(descr.values()))
+#        self.validate()
+#
+#    @classmethod
+#    def from_dict(cls, cfg):
+#        k = numpy.array([*cfg.keys()])
+#        parkeys = ['dataext', 'specaxis', 'specflip', 'spatflip','xgap', 'ygap', 'ysize',
+#                   'platescale', 'darkcurr', 'saturation', 'mincounts','nonlinear',
+#                   'numamplifiers', 'gain', 'ronoise', 'datasec', 'oscansec', 'suffix',
+#                   'det']
+#
+#        badkeys = numpy.array([pk not in parkeys for pk in k])
+#        if numpy.any(badkeys):
+#            raise ValueError('{0} not recognized key(s) for DetectorPar.'.format(k[badkeys]))
+#
+#        kwargs = {}
+#        for pk in parkeys:
+#            kwargs[pk] = cfg[pk] if pk in k else None
+#        return cls(**kwargs)
+#
+#    def validate(self):
+#        """
+#        Check the parameters are valid for the provided method.
+#        """
+#        if self.data['numamplifiers'] > 1:
+#            keys = [ 'gain', 'ronoise', 'datasec', 'oscansec' ]
+#            dtype = [ (int, float), (int, float), str, (str, None) ]
+#            for i in range(len(keys)):
+#                if self.data[keys[i]] is None:
+#                    continue
+#                if not isinstance(self.data[keys[i]], list) \
+#                        or len(self.data[keys[i]]) != self.data['numamplifiers']:
+#                    raise ValueError('Provided {0} does not match amplifiers.'.format(keys[i]))
+#
+#            for j in range(self.data['numamplifiers']):
+#                if self.data[keys[i]] is not None \
+#                        and not isinstance(self.data[keys[i]][j], dtype[i]):
+#                    TypeError('Incorrect type for {0}; should be {1}'.format(keys[i], dtype[i]))
 
 # TODO: This should get moved to telescopes.py
 class TelescopePar(ParSet):

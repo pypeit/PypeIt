@@ -155,17 +155,13 @@ def test_pypeit_file():
     p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
     # Test everything was merged correctly
     # This is a PypeItPar default that's not changed
-    assert p['calibrations']['pinholeframe']['number'] == 0
+    #assert p['calibrations']['pinholeframe']['number'] == 0
     # These are spectrograph specific defaults
     assert p['fluxcalib'] is not None
     # These are user-level changes
-    assert p['calibrations']['arcframe']['number'] == 1
     assert p['calibrations']['biasframe']['process']['sig_lohi'] == [10, 10]
     assert p['calibrations']['traceframe']['process']['combine'] == 'mean'
     assert p['scienceframe']['process']['n_lohi'] == [8, 8]
-
-def test_detector():
-    pypeitpar.DetectorPar()
 
 def test_telescope():
     pypeitpar.TelescopePar()

@@ -826,7 +826,8 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
 # NOTE: keck_run_july changes: maxdev changed from 5.0 to 2.0
 def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weighting='uniform',
               fwhm=3.0, maxshift=None, maxerror=None, function='legendre', maxdev=2.0, maxiter=25,
-              niter=9, bitmask=None, debug=False, idx=None, xmin=None, xmax=None):
+              niter=9, bitmask=None, debug=False, idx=None, xmin=None, xmax=None,
+              flavor='trace'):
     """
     Iteratively fit the trace of a feature in the provided image.
 
@@ -991,7 +992,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # measurements that hit boundaries are treated. This replaces
         # any measurement that is outside the integration window,
         # within a buffer of the detector edge, above a maximum shift,
-        # or is above the maximum error. In these cases, the output is
+
         # the same as the input and bad_trace has the relevant bit or
         # boolean.
         cen, err, msk = masked_centroid(flux, trace_fit, width[i], ivar=ivar, bpm=bpm, fwgt=fwgt,
@@ -1117,8 +1118,12 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
 
             plt.title(title_text + ' Centroid fit for trace {0}.'.format(idx[i]))
             plt.ylim((0.995*np.amin(trace_fit[:,i]), 1.005*np.amax(trace_fit[:,i])))
-            plt.xlabel('Spectral Pixel')
-            plt.ylabel('Spatial Pixel')
+            if flavor in ['tilts']:
+                plt.xlabel('Spatial Pixel')
+                plt.ylabel('Spectral Pixel')
+            else:
+                plt.xlabel('Spectral Pixel')
+                plt.ylabel('Spatial Pixel')
             plt.legend()
             plt.show()
 

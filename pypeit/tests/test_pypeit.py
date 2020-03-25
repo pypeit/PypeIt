@@ -31,7 +31,6 @@ def test_initialization():
     # Test
     assert spectrograph.spectrograph == 'shane_kast_blue'
     assert len(fitstbl) == 2
-    assert par['calibrations']['arcframe']['number'] == 1
 
     # Clean-up
     os.remove(data_path('test.calib'))

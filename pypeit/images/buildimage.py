@@ -31,6 +31,7 @@ class ArcImage(pypeitimage.PypeItImage):
     master_type = 'Arc'
     file_format = 'fits'
 
+
 class AlignImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Arc Image
@@ -46,6 +47,7 @@ class AlignImage(pypeitimage.PypeItImage):
     master_type = 'Align'
     file_format = 'fits'
 
+
 class BiasImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Tilt Image
@@ -54,7 +56,7 @@ class BiasImage(pypeitimage.PypeItImage):
     version = pypeitimage.PypeItImage.version
 
     # Output to disk
-    output_to_disk = ('BIAS_IMAGE',)
+    output_to_disk = ('BIAS_IMAGE', 'BIAS_DETECTOR')
     hdu_prefix = 'BIAS_'
     master_type = 'Bias'
     file_format = 'fits'
@@ -106,9 +108,11 @@ class SkyRegions(pypeitimage.PypeItImage):
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
-                        bias=None, bpm=None, pixel_flat=None,
-                        illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5,
-                        ignore_saturation=True):
+                        bias=None, bpm=None,
+                        flatimages=None,
+                        #pixel_flat=None, illum_flat_fit=None,
+                        sigma_clip=False, sigrej=None, maxiters=5,
+                        ignore_saturation=True, slits=None):
     """
     Build a PypeItImage from a list of files (and instructions)
 
@@ -130,9 +134,9 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
         pixel_flat (np.ndarray, optional):
             Flat image. If None, pixel-to-pixel response is not
             removed.
-        illum_flat (np.ndarray, optional):
-            Illumination image. If None, slit illumination profile is
-            not removed.
+        illum_flat_fit (:class:`pypeit.bspline.bspline`, optional):
+            if provided, use this bspline fit to construct an illumination flat
+            If None, slit illumination profile is not removed.
         sigrej (int or float, optional): Rejection threshold for sigma clipping.
              Code defaults to determining this automatically based on the numberr of images provided.
         maxiters (int, optional):
@@ -149,10 +153,12 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     process_steps = procimg.set_process_steps(bias, frame_par)
     #
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
-                                   illum_flat=illum_flat, sigma_clip=sigma_clip,
+    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm,
+                                   #pixel_flat=pixel_flat, illum_flat_fit=illum_flat_fit,
+                                   flatimages=flatimages,
+                                   sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
-                                   ignore_saturation=ignore_saturation)
+                                   ignore_saturation=ignore_saturation, slits=slits)
     #
     # Decorate according to the type of calibration
     #   Primarily for handling MasterFrames
