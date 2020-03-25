@@ -857,6 +857,7 @@ def lris_read_amp(inp, ext):
         hdu = fits.open(inp)
     else:
         hdu = inp
+    n_ext = len(hdu) - 1  # Number of extensions (usually 4)
 
     # Get the pre and post pix values
     # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
@@ -894,7 +895,7 @@ def lris_read_amp(inp, ext):
     #data = temp[xdata1:xdata2+1, :]
     if (xdata1-1) != precol:
         msgs.error("Something wrong in LRIS datasec or precol")
-    xshape = 1024 // xbin
+    xshape = 1024 // xbin * (4//n_ext)  # Allow for single amp
     if (xshape+precol+postpix) != temp.shape[0]:
         msgs.warn("Unexpected size for LRIS detector.  We expect you did some windowing...")
         xshape = temp.shape[0] - precol - postpix

@@ -509,7 +509,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
             the slit/order from objfind or ech_objfind
         fullmask: ndarray, int, (nspec, nspat)
             Input mask with any non-zero item flagged using
-            :class:`pypeit.images.maskimage.ImageBitMask`
+            :class:`pypeit.images.imagebitmask.ImageBitMask`
         spat_pix: float ndarray, shape (nspec, nspat), default = None
             Image containing the spatial location of pixels. If not
             input, it will be computed from ``spat_img =
@@ -612,7 +612,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         :obj:`tuple`:  Returns (skyimage[thismask], objimage[thismask],
         modelivar[thismask], outmask[thismask])
     """
-    bitmask = maskimage.ImageBitMask()
+    bitmask = imagebitmask.ImageBitMask()
     # TODO Force traces near edges to always be extracted with a Gaussian profile.
     #if inmask is None:
     #    inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar)
@@ -666,8 +666,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     # Masks
     inmask = (fullmask == 0) & thismask
     outmask = np.copy(inmask)  # True is good
-    full_outmask = np.copy(fullmask)
-    extractmask = (fullmask == 0)
     #varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     # TODO Add a line of code here that updates the modelivar using the global sky if nobj = 0 and simply returns
