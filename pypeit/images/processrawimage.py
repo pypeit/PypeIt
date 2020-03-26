@@ -29,17 +29,17 @@ class ProcessRawImage(object):
             Parameters that dictate the processing of the images.  See
             :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
             defaults.
-        bpm (np.ndarray, optional):
+        bpm (`numpy.ndarray`_, optional):
             Bad pixel mask
 
     Attributes:
         steps (dict):
             Dict describing the steps performed on the image
-        datasec_img (`np.ndarray`_):
+        datasec_img (`numpy.ndarray`_):
             Holds the datasec_img which specifies the amp for each pixel in the
             current self.image image.  This is modified as the image is, i.e.
             orientation and trimming.
-        image (`np.ndarray`_):
+        image (`numpy.ndarray`_):
     """
     def __init__(self, rawImage, par, bpm=None):
 
@@ -83,7 +83,7 @@ class ProcessRawImage(object):
         Warning:  BPM masks are for processed (e.g. trimmed, rotated) images only!
 
         Returns:
-            np.ndarray:  Bad pixel mask with a bad pixel = 1
+            `numpy.ndarray`_:  Bad pixel mask with a bad pixel = 1
 
         """
         if self._bpm is None:
@@ -100,7 +100,7 @@ class ProcessRawImage(object):
             force (bool, optional):
 
         Returns:
-            np.ndarray:  copy of self.image
+            `numpy.ndarray`:  copy of self.image
 
         """
         step = inspect.stack()[0][3]
@@ -123,7 +123,7 @@ class ProcessRawImage(object):
         Uses procimg.variance_frame
 
         Returns:
-            np.ndarray: Copy of self.ivar
+            `numpy.ndarray`_: Copy of self.ivar
 
         """
         #msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
@@ -150,7 +150,7 @@ class ProcessRawImage(object):
         Wrapper to procimg.rn_frame
 
         Returns:
-            np.ndarray: Copy of the read noise squared image
+            `numpy.ndarray`_: Copy of the read noise squared image
 
         """
         #msgs.info("Generating read noise image from detector properties and amplifier layout)")
@@ -183,9 +183,9 @@ class ProcessRawImage(object):
         Args:
             process_steps (list):
                 List of processing steps
-            pixel_flat (np.ndarray, optional):
+            pixel_flat (`numpy.ndarray`_, optional):
                 Pixel flat image
-            illum_flat (np.ndarray, optional):
+            illum_flat (`numpy.ndarray`_, optional):
                 Illumination flat
             bias (np.ndarray, optional):
                 Bias image
@@ -388,7 +388,7 @@ def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,
             The 1-indexed detector number to process.
         process_steps (list, optional):
             Processing steps.
-        bias (str or np.ndarray or None):
+        bias (str or `numpy.ndarray`_ or None):
             Bias image or command
 
     Returns:

@@ -200,6 +200,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS1RSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods1r'
         self.camera = 'MODS1R'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -220,6 +221,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
                             #oscansec        = '[:, 8240:]',
                             suffix          = '_mods1r'
                             )]
+        '''
         self.numhead = 1
 
 
@@ -328,6 +330,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS1BSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods1b'
         self.camera = 'MODS1B'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -346,6 +349,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
                             ronoise         = [3.41,2.93,2.92,2.76],
                             suffix          = '_mods1b'
                             )]
+        '''
         self.numhead = 1
 
 
@@ -446,6 +450,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS2RSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods2r'
         self.camera = 'MODS2R'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -464,6 +469,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
                             ronoise         = [2.95,2.65,2.78,2.87],
                             suffix          = '_mods2r'
                             )]
+        '''
         self.numhead = 1
 
 
@@ -571,6 +577,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS2BSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods2b'
         self.camera = 'MODS2B'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -589,6 +596,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
                             ronoise         = [3.66,3.62,3.72,3.64],
                             suffix          = '_mods2b'
                             )]
+        '''
         self.numhead = 1
 
 

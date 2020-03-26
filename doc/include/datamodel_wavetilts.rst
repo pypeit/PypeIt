@@ -4,6 +4,7 @@ Version 1.0.0
 ==============  ========  ==========  =============================================================
 HDU Name        Obj Type  Array Type  Description                                                  
 ==============  ========  ==========  =============================================================
+``PYP_SPEC``    str                   PypeIt spectrograph name                                     
 ``COEFFS``      ndarray   floating    2D coefficents for the fit.One set per slit/order (3D array).
 ``FUNC2D``      str                   Function used for the 2D fit                                 
 ``NSLIT``       int                   Number of slits                                              

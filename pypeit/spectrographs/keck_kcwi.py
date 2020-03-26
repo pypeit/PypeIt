@@ -18,6 +18,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/KCWI specific code
     """
+    ndet = 1
 
     def __init__(self):
         # Get it started
@@ -25,6 +26,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_kcwi'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'KCWI'
+        '''
         self.detector = [pypeitpar.DetectorPar(
                             dataext         = 0,
                             specaxis        = 0,
@@ -43,6 +45,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                             oscansec        = ['']*4,     # <-- This is provided in the header
                             suffix          = '_01'
                             )]
+        '''
         self.numhead = 1
         # Uses default timeunit
         # Uses default primary_hdrext
