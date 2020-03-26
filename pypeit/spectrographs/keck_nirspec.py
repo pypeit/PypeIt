@@ -81,7 +81,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
-        par['calibrations']['flatfield']['illumflatten'] = True
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8

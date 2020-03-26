@@ -67,7 +67,6 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 

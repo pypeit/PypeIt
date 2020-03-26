@@ -133,9 +133,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 6
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
-
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0

@@ -29,19 +29,19 @@ from IPython import embed
 #tilts_file = os.path.join(lris_path, 'Masters', 'MasterTilts_A_1_01.fits')
 #spec2dfile = os.path.join(lris_path, 'Science', 'spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits')
 
-dpath = '/scratch/REDUX/Keck/LRIS/2020jan28/keck_lris_red_C'
-spec2dfile = os.path.join(dpath, 'Science', 'spec2d_LR.20200128.57449-frb1907B_LRISr_2020Jan28T155729.779.fits')
-tilts_file = os.path.join(dpath, 'Masters', 'MasterTilts_C_1_01.fits')
-slits_file = os.path.join(dpath, 'Masters', 'MasterSlits_C_1_01.fits.gz')
-# Load
-hdul = fits.open(spec2dfile)
-sciimg = hdul[1].data
-slits = slittrace.SlitTraceSet.from_file(slits_file)
-tilts = wavetilts.WaveTilts.from_file(tilts_file)
+#def test_flex_lris():
+#    dpath = '/scratch/REDUX/Keck/LRIS/2020jan28/keck_lris_red_C'
+#    spec2dfile = os.path.join(dpath, 'Science', 'spec2d_LR.20200128.57449-frb1907B_LRISr_2020Jan28T155729.779.fits')
+#    tilts_file = os.path.join(dpath, 'Masters', 'MasterTilts_C_1_01.fits')
+#    slits_file = os.path.join(dpath, 'Masters', 'MasterSlits_C_1_01.fits.gz')
+#    # Load
+#    hdul = fits.open(spec2dfile)
+#    sciimg = hdul[1].data
+#    slits = slittrace.SlitTraceSet.from_file(slits_file)
+#    tilts = wavetilts.WaveTilts.from_file(tilts_file)
+#
+#    flexure.spat_flexure_shift(sciimg, slits)
 
-flexure.spat_flexure_shift(sciimg, slits)
-
-embed(header='34')
 
 def test_flex_shift():
     # Dummy slf

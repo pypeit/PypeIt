@@ -287,9 +287,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 300.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
-
         # Extraction
         # Model full slit currently turned on
         par['reduce']['extraction']['model_full_slit'] = False
@@ -404,10 +401,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 300
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['fit_order'] = 8
-
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
-        # par['calibration']['flatfield']['tweak_slits'] = False
 
         # Extraction
         # Model full slit currently turned on

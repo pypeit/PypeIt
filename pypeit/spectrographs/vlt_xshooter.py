@@ -224,7 +224,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['standardframe']['process']['illumflatten'] = False
+        par['scienceframe']['process']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
@@ -515,7 +516,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
