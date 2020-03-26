@@ -193,6 +193,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10., 10.]
+        par['calibrations']['flatfield']['spec_samp_fine'] = 30.0
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
