@@ -87,7 +87,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
@@ -141,9 +141,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     #     """
     #     par = pypeitpar.PypeItPar()
     #     # Do not flux calibrate
-    #     # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
-    #     par['flexure'] = pypeitpar.FlexurePar()
-    #     par['flexure']['method'] = 'skip'
     #     # Set the default exposure time ranges for the frame typing
     #     par['calibrations']['arcframe']['exprng'] = [1, None]
     #     par['calibrations']['biasframe']['exprng'] = [None, 2]

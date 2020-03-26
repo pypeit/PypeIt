@@ -101,7 +101,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
 
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure']['spec_method'] = 'skip'
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
         par['calibrations']['traceframe']['exprng'] = [None, 30]

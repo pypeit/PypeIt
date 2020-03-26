@@ -41,7 +41,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
 
         # Always correct for flexure, starting with default parameters
-        par['flexure']['method'] = 'boxcar'
+        par['flexure']['spec_method'] = 'boxcar'
 
         # Median overscan
         #   IF YOU CHANGE THIS, YOU WILL NEED TO DEAL WITH THE OVERSCAN GOING ALONG ROWS

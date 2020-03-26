@@ -145,7 +145,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_kcwi'
-        # par['flexure']['method'] = 'boxcar'
         # Set wave tilts order
 
         # Set the slit edge parameters

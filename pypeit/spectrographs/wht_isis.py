@@ -170,8 +170,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -296,8 +294,6 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
