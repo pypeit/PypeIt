@@ -640,12 +640,12 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         to zero to disable rejection.
     nord : :obj:`int`, optional
         Order of B-spline fit
-    bkpt : `numpy.ndarray`_, optinoal
+    bkpt : `numpy.ndarray`_, optional
         Array of breakpoints to be used for the b-spline
-    fullbkpt : `numpy.ndarray`_, optinoal
+    fullbkpt : `numpy.ndarray`_, optional
         Full array of breakpoints to be used for the b-spline,
         without letting the b-spline class append on any extra bkpts
-    relative : `numpy.ndarray`_, optinoal
+    relative : `numpy.ndarray`_, optional
         Array of integer indices to be used for computing the reduced
         chi^2 of the fits, which then is used as a scale factor for
         the upper,lower rejection thresholds
