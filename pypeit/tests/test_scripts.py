@@ -36,6 +36,7 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
+
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -225,6 +226,7 @@ def test_coadd1d_1():
     os.remove(parfile)
     os.remove(coadd_ofile)
 
+
 def test_coadd1d_2():
     """
     Test combining Echelle
@@ -241,9 +243,10 @@ def test_coadd1d_2():
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
-    assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
-    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
-    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+    #assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
+    #assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
+    assert hdu[1].header['EXT_MODE'] == 'OPT'
+    assert hdu[1].header['FLUXED'] is False
 
     # Clean up
     os.remove(parfile)

@@ -684,7 +684,8 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
         msgs.error('Invalid size for wave_new')
 
 
-def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False, ivar_weights=False, verbose=False):
+def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
+               ivar_weights=False, verbose=False):
 
     """
     Calculate the S/N of each input spectrum and create an array of
@@ -900,7 +901,8 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
 
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,
-                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0):
+                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0,
+                        verbose=False):
     """
     Robustly determine the ratio between input spectrum flux and reference spectrum flux_ref. The code will perform
     best if the reference spectrum is chosen to be the higher S/N ratio spectrum, i.e. a preliminary stack that you want
@@ -977,7 +979,8 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
             msgs.warn('Negative median flux found. Not rescaling')
             ratio = 1.0
         else:
-            msgs.info('Used {:} good pixels for computing median flux ratio'.format(np.sum(new_mask)))
+            if verbose:
+                msgs.info('Used {:} good pixels for computing median flux ratio'.format(np.sum(new_mask)))
             ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
         if (np.sum(calc_mask) <= min_good*nspec):
@@ -1756,8 +1759,8 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
 
 
 def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30.0, lower=3.0, upper=3.0,
-                     maxrej=None, maxiter_reject=5, title='', debug=False):
-    '''
+                     maxrej=None, maxiter_reject=5, title='', debug=False, verbose=False):
+    """
     Routine for executing the iterative combine and rejection of a set of spectra to compute a final stacked spectrum.
 
     Args:
@@ -1828,7 +1831,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
               irregularly gridded input wavelength array waves will land
               in one bin versus another depending on the sampling.
 
-    '''
+    """
     thismask = np.copy(masks)
     iter = 0
     qdone = False
@@ -1854,9 +1857,10 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
     nrej = np.sum(np.invert(outmask) & masks, axis=0)
     norig = np.sum((waves > 1.0) & np.invert(masks), axis=0)
 
-    for iexp in range(nexp):
-        # nrej = pixels that are now masked that were previously good
-        msgs.info("Rejected {:d} pixels in exposure {:d}/{:d}".format(nrej[iexp], iexp, nexp))
+    if verbose:
+        for iexp in range(nexp):
+            # nrej = pixels that are now masked that were previously good
+            msgs.info("Rejected {:d} pixels in exposure {:d}/{:d}".format(nrej[iexp], iexp, nexp))
 
     # Compute the final stack using this outmask
     wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, outmask, weights)
@@ -2027,7 +2031,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
              ref_percentile=70.0, maxiter_scale=5,
              sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
-             maxrej=None, qafile=None, title='', debug=False, debug_scale=False, show_scale=False, show=False):
+             maxrej=None, qafile=None, title='', debug=False,
+             debug_scale=False, show_scale=False, show=False,
+             verbose=False):
 
     '''
     Driver routine for coadding longslit/multi-slit spectra.
@@ -2130,7 +2136,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
                                     wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=True)
+    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
 
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
         wave_grid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
@@ -2286,8 +2292,8 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
-                 show_exp=False, show=False):
-    '''
+                 show_exp=False, show=False, verbose=False):
+    """
     Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
     three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
     (straight combine of stacked individual orders), spec1d_stack_XX.fits (a giant stack of all exposures and all orders).
@@ -2407,7 +2413,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
               propagated according to weighting and masking.
             - mask_giant_stack: ndarray, bool, (ngrid,): Mask for
               stacked spectrum on wave_stack wavelength grid. True=Good.
-    '''
+    """
 
     # output filenams for fits and QA plots
     #outfile_order = outfile.replace('.fits', '_order.fits') if outfile is not None else None
@@ -2443,7 +2449,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
                                     dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=True)
+    rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
     # Isolate the nbest best orders, and then use the average S/N of these to determine the per exposure relative weights.
     mean_sn_ord = np.mean(rms_sn, axis=1)
     best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]

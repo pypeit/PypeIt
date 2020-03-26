@@ -260,7 +260,7 @@ class EchelleCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Echelle reductions
     """
 
-    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spectrograph, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
         """
 
             Args:
@@ -279,7 +279,7 @@ class EchelleCoAdd1D(CoAdd1D):
                    Debug. Default = True
         """
 
-        super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+        super().__init__(spectrograph, spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
         """

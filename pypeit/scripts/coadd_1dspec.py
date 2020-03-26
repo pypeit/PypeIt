@@ -207,6 +207,7 @@ def main(args):
     par.to_config(args.par_outfile)
     sensfile = par['coadd1d']['sensfuncfile']
     coaddfile = par['coadd1d']['coaddfile']
+
     # Testing?
     if args.test_spec_path is not None:
         if sensfile is not None:
@@ -216,14 +217,10 @@ def main(args):
     if spectrograph.pypeline is 'Echelle' and sensfile is None:
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
 
-    # TODO JFH I really dislike that the parsets are used to hold actually run time specific information and not
-    # i.e. parameter defaults, or values of parameters. The problem is there is no other easy way to pass this information
-    # in via a .coadd1d file, since the parsets parse in a simply way. Otherwise I have to waste time trying to parse
-    # text files, whereas there are things like yaml and json that do this well already.
-
     # Instantiate
-    coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
-                                       debug=args.debug, show=args.show)
+    coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, spec1dfiles, objids,
+                                           sensfile=sensfile, par=par['coadd1d'],
+                                           debug=args.debug, show=args.show)
     # Run
     coAdd1d.run()
     # Save to file
