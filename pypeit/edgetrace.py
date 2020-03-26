@@ -4275,6 +4275,9 @@ class EdgeTraceSet(object):
         the same :attr:`master_key`, :attr:`master_dir`, and
         :attr:`reuse_masters` as this parent :class:`EdgeTraceSet`
         object.
+
+        Returns:
+            :class:`pypeit.slittrace.SlitTraceSet`:
         """
         if not self.is_synced:
             msgs.error('Edges must be synced to construct SlitTraceSet object.')

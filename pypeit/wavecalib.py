@@ -526,8 +526,17 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     """
     Main algorithm to build the wavelength image
 
+    Args:
+        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Spectrograph object
+        tilts (`np.ndarray`_):
+            Image holding tilts
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
+        wv_calib (dict):
+        spat_flexure (float, optional):
+
     Returns:
-        `numpy.ndarray`_: The wavelength image.
+        `np.ndarray`_: The wavelength image.
     """
     # Setup
     ok_slits = np.where(np.invert(slits.mask))[0]

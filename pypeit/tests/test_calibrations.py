@@ -13,6 +13,7 @@ import numpy as np
 from pypeit import calibrations
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import wavecalib
 from IPython import embed
 
 from pypeit.tests.tstutils import dev_suite_required, dummy_fitstbl
@@ -126,7 +127,7 @@ def test_it_all(multi_caliBrate):
     assert slits.PYP_SPEC == 'shane_kast_blue', 'Wrong spectrograph'
     assert (slits.nspec, slits.nspat) == multi_caliBrate.shape, 'Wrong image shape'
     assert slits.nslits == 1, 'Incorrect number of slits'
-    assert slits.left.shape == (2048,1), 'Incorrect shape for left'
+    assert slits.left_init.shape == (2048,1), 'Incorrect shape for left'
     assert slits.left_tweak is None, 'Tweaks should not exist'
 
     wv_calib = multi_caliBrate.get_wv_calib()
@@ -134,17 +135,21 @@ def test_it_all(multi_caliBrate):
     assert wv_calib['0'] is not None
     assert wv_calib['0']['rms'] < 0.2
 
-    wavetilts = multi_caliBrate.get_tilts()
-    assert wavetilts.nslit == 1
+    waveTilts = multi_caliBrate.get_tilts()
+    assert waveTilts.nslit == 1
 
     multi_caliBrate.get_flats()
     flatImages = multi_caliBrate.get_flats()
     assert flatImages.pixelflat.shape == (2048,350)
     assert flatImages.illumflat.shape == (2048,350)
 
+    # Wave image
+    slitmask = slits.slit_img()
+    tilts = waveTilts.fit2tiltimg(slitmask)
+
     #
-    mswave = multi_caliBrate.get_wave()
-    assert mswave.image.shape == (2048,350)
+    mswave = wavecalib.build_waveimg(multi_caliBrate.spectrograph, tilts, slits, wv_calib)
+    assert mswave.shape == (2048,350)
 
 @dev_suite_required
 def test_reuse(multi_caliBrate_reuse):
@@ -186,12 +191,12 @@ def test_reuse(multi_caliBrate_reuse):
                 == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'wavetilts', 'wtmask',
                     'flatimages'], \
                 'Incorrect list of master types in memory'
-    mswave = multi_caliBrate_reuse.get_wave()
-    assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'wavetilts', 'wtmask',
-                    'flatimages', 'wave'], \
-                'Incorrect list of master types in memory'
-    assert mswave.image.shape == (2048,350)
+    #mswave = multi_caliBrate_reuse.get_wave()
+    #assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
+    #            == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'wavetilts', 'wtmask',
+    #                'flatimages', 'wave'], \
+    #            'Incorrect list of master types in memory'
+    #assert mswave.image.shape == (2048,350)
 
     # Reset
     reset_calib(multi_caliBrate_reuse)
@@ -223,7 +228,6 @@ def test_reuse(multi_caliBrate_reuse):
     multi_caliBrate_reuse.get_wv_calib()
     multi_caliBrate_reuse.get_tilts()
     multi_caliBrate_reuse.get_flats()
-    mswave = multi_caliBrate_reuse.get_wave()
 
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)

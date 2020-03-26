@@ -29,8 +29,7 @@ def master_dir():
 # Test WaveTilts
 def test_wavetilts():
     #
-    instant_dict = dict(tilts=np.ones((2048,350)),
-                        coeffs=np.ones((6,4,1)),
+    instant_dict = dict(coeffs=np.ones((6,4,1)),
                         slitcen=np.ones((2048,1)),
                         nslit=1,
                         spat_order=np.array([3]),
@@ -48,14 +47,21 @@ def test_wavetilts():
             assert np.array_equal(wvtilts[key],_wvtilts[key])
         else:
             assert wvtilts[key] == _wvtilts[key]
+    # Write again
+    wvtilts.to_file(outfile, overwrite=True)
+    os.remove(outfile)
 
 
 @cooked_required
 def test_instantiate_from_master(master_dir):
     master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
                                'MasterTilts_A_1_01.fits')
+    slit_master_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
+                               'MasterSlits_A_1_01.fits.gz')
+    slits = slittrace.SlitTraceSet.from_file(slit_master_file)
     waveTilts = wavetilts.WaveTilts.from_file(master_file)
-    assert isinstance(waveTilts.tilts, np.ndarray)
+    tilts = waveTilts.fit2tiltimg(slits.slit_img())
+    assert isinstance(tilts, np.ndarray)
 
 
 # Test rebuild tilts with a flexure offset
@@ -74,7 +80,7 @@ def test_flexure(master_dir):
     slits = slittrace.SlitTraceSet.from_file(slit_file)
     slitmask = slits.slit_img(flexure=flexure)
     # Do it
-    new_tilts = waveTilts.fit2tiltimg(slitmask, spat_shift=flexure)
+    new_tilts = waveTilts.fit2tiltimg(slitmask, flexure=flexure)
     # Test?
 
 
@@ -121,8 +127,9 @@ def test_run(master_dir):
     #spectrograph.detector[0]['nonlinear'] = 0.9
     par = pypeitpar.WaveTiltsPar()
     wavepar = pypeitpar.WavelengthSolutionPar()
-    buildwaveTilts = wavetilts.BuildWaveTilts(mstilt, edges.get_slits(), spectrograph, par, wavepar, det=1)
+    slits = edges.get_slits()
+    buildwaveTilts = wavetilts.BuildWaveTilts(mstilt, slits, spectrograph, par, wavepar, det=1)
     # Run
     waveTilts, mask = buildwaveTilts.run(doqa=False)
-    assert isinstance(waveTilts['tilts'], np.ndarray)
+    assert isinstance(waveTilts.fit2tiltimg(slits.slit_img()), np.ndarray)
 
