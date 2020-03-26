@@ -44,7 +44,7 @@ for the *shane_kast_blue* instrument::
 The opening block sets parameters for the process, including
 the output file name.  See `Parameters`_ for common choices.
 
-The data block provides a list of :doc:`out_spec1D.rst` files
+The data block provides a list of :doc:`out_spec1D` files
 and the object name in each to be coadded.
 See :doc:`specobj` for a discussion of the naming.
 

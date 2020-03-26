@@ -7,7 +7,7 @@ Overview
 
 This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
-And you might want to begin with See :doc:`installing`.
+And you might want to begin with :doc:`installing`.
 
 The following outlines the standard steps for running
 PypeIt on a batch of data.  There are alternate ways to
@@ -59,12 +59,11 @@ Organize your Raw data
 
 While PypeIt can handle one or more nights of data with a mix of gratings, tilts, and masks, you will probably find it easier to isolate one set of files at a time.
 This includes mask by mask for multi-slit observations.
+Here is what we recommend:
 
-Place the science + calibrations in one folder.
-Copy bias (and dark) frames into each folder as needed.
-
-Or, put them all in one folder and proceed carefully.
-We will refer to that folder as RAWDIR
+ - Place the science + calibrations in one folder.
+ - Copy bias (and dark) frames into each folder as needed.
+ - We will refer to that folder as RAWDIR
 
 The raw images can be gzip-compressed although the Python FITS reader
 works much more slowly on gzipped files.

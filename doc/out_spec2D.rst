@@ -10,25 +10,13 @@ Overview
 During the data reduction proceess, PypeIt creates a series
 of 2D spectral images prior to extraction of 1D spectra.
 And, of course, several of these 2D images may have greater
-value for analysis than the 1D spectra.  For each on-source
-exposure, PypeIt outputs a series of these images, with the
-number set by the :ref:`outputs-reduction-mode`.
+value for analysis than the 1D spectra.
 
-The following table describes the standard products:
+For each on-source
+exposure, PypeIt outputs a series of these images in a
+single, multi-extension FITS file, separated by detector.
+See the `Current Spec2DObj Data Model`_ for details.
 
-============  ====================================
-2D Spec Type  Description
-============  ====================================
-PROCESSED     Bias-subtracted, flat-fielded image
-IVARRAW       Inverse variance image; sky+detector
-SKY           Sky-subtracted, processed image
-OBJ           Model of the object(s) flux
-IVARMODEL     Model of the inverse variance image; sky+detector
-MASK          Mask image
-============  ====================================
-
-There will be a set of these images for each detector
-processed.
 
 Naming
 ======

@@ -58,7 +58,7 @@ The general approach is to compare the sky model
 from the observation with an archived sky model. Generally, by default, the
 Paranal sky spectrum is used, as derived from the SDSS codes. The default is 
 different for Kast blue and LRIS blue where sky_kastb_600.fits and sky_LRISb_600.fits
-are respectively used (see :ref:`sky-models` for all sky models).
+are respectively used (see `Alternate sky models`_ for all sky models).
 
 
 Algorithm

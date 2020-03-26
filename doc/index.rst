@@ -28,7 +28,7 @@ in this section take you.
    installing
    cookbook
 
-Most of the docs that follow on this page
+Most of the docs that follow on this main page
 are for expert users or developers.
 
 Running PypeIt
@@ -108,7 +108,6 @@ Object Algorithms
 
    object_finding
    object_tracing
-   coadding
 
 Documentation
 +++++++++++++
