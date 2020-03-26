@@ -14,7 +14,6 @@ from pypeit.par import pypeitpar
 from pypeit import utils
 
 from pypeit.images import pypeitimage
-from pypeit.images import processrawimage
 from pypeit.images import rawimage
 from pypeit.images import imagebitmask
 
@@ -93,9 +92,8 @@ class CombineImage(object):
         lampstat = []
         for kk, ifile in enumerate(self.files):
             # Load raw image
-            #rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
+            rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
             # Process
-            rawImage = processrawimage.RawImage(ifile, self.spectrograph, self.det)
             pypeitImage = rawImage.process(process_steps, self.par, bias=bias, bpm=bpm,
                                                   flatimages=flatimages, slits=slits)
             # Are we all done?
