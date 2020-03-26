@@ -430,6 +430,8 @@ class PypeIt(object):
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
+            # TODO -- Save SlitTraceSet here!!
+            msgs.warn("REMOVE THIS WARNING AFTER DOING THE TODO ABOVE")
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
@@ -571,7 +573,6 @@ class PypeIt(object):
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
             flatimages=self.caliBrate.flatimages,
-            #pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
 
@@ -583,17 +584,8 @@ class PypeIt(object):
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
                 flatimages=self.caliBrate.flatimages,
-                #pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
-
-        # Update mask for slitmask; uses pad in EdgeTraceSetPar; and flexure
-        # Do this in Reduce where flexure is dealt with
-        #self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure))
-
-        #embed(header='600 of pypeit')
-        #self.caliBrate.slits.mask[:] = True
-        #self.caliBrate.slits.mask[6] = False
 
         # For QA on crash
         msgs.sciexp = self.sciImg

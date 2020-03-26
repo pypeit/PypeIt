@@ -150,50 +150,6 @@ def rec_to_bintable(arr, name=None, hdr=None):
                                             for n in arr.dtype.names], name=name, header=hdr)
 
 
-'''
-def init_hdus(update_det, outfile):
-    """
-    Load up existing header and HDUList
-
-    ..todo:: Confirm this works when you are modifying an inner HDU
-
-    Args:
-        update_det (int or list):
-        outfile (str):
-
-    Returns:
-        fits.HDUList, fits.PrimaryHDU
-
-    """
-    #
-    hdus = fits.open(outfile)
-    pypeit.msgs.info("Using existing output file, including the Header")
-    pypeit.msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
-    prihdu = hdus[0]
-    # Names
-    hdu_names = [hdu.name for hdu in hdus]
-    # Remove the detector(s) being updated
-    _update_det = numpy.atleast_1d(update_det)
-    popme = []
-
-    # Find em
-    for ss,hdu_name in enumerate(hdu_names):
-        for det in _update_det:
-            sdet = pypeit.get_dnum(det, prefix=False)
-            idx = '{:s}{:s}'.format(pypeit.specobj.naming_model['det'], sdet)
-            if idx in hdu_name:
-                popme.append(ss)
-    # Remove em (and the bit in the Header too)
-    for popthis in reversed(popme):
-        hdus.pop(popthis)
-        keywd = 'EXT{:04d}'.format(popthis)
-        # Not always used (e.g. DETECTOR)
-        if keywd in prihdu.header:
-            prihdu.header.remove(keywd)
-    # Return
-    return hdus, prihdu
-'''
-
 def compress_file(ifile, overwrite=False, rm_original=True):
     """
     Compress a file using gzip package.

@@ -129,12 +129,6 @@ class Reduce(object):
         self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
                                                wv_calib, spat_flexure=self.spat_flexure_shift)
 
-        #viewer, ch = ginga.show_image(self.tilts)#, chname=ch_name, clear=clear, wcs_match=True)
-        #viewer, ch = ginga.show_image(self.slitmask)#, chname=ch_name, clear=clear, wcs_match=True)
-        #viewer, ch = ginga.show_image(self.sciImg.fullmask)#, chname=ch_name, clear=clear, wcs_match=True)
-        #ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)  # , self.slits.id)
-        #embed(header='112 of reduce')
-
         # Load up other input items
         self.ir_redux = ir_redux
         self.std_redux = std_redux

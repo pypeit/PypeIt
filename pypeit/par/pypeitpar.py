@@ -666,14 +666,6 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-
-#        defaults['spat_frametypes'] = []
-#        options['spat_frametypes'] = FlexurePar.valid_frametypes()
-#        dtypes['spat_frametypes'] = list
-#        descr['spat_frametypes'] = 'Frametypes for spatial flexure corrections'
-#
-        # Fill out parameter specifications.  Only the values that are
-        # *not* None (i.e., the ones that are defined) need to be set
         defaults['spec_method'] = 'skip'
         options['spec_method'] = FlexurePar.valid_methods()
         dtypes['spec_method'] = str
@@ -714,14 +706,6 @@ class FlexurePar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
-
-#    @staticmethod
-#    def valid_frametypes():
-#        """
-#        Return the valid frame types for spatial flexure corrections
-#        """
-#        # TODO -- Get Kyle to help me deal with one-element lists.  The following is a hack
-#        return ['scienceframe', 'tiltframe', '']  # tiltframe is experimental!
 
     @staticmethod
     def valid_methods():
