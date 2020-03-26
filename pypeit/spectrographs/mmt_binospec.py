@@ -27,6 +27,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.MMTTelescopePar()
         self.camera = 'BINOSPEC'
         self.numhead = 11
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -62,6 +63,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
                             ronoise         = [3.2]*4,
                             suffix          = '_02'
                 )]
+        '''
 
     def init_meta(self):
         """

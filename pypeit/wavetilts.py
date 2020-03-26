@@ -537,9 +537,9 @@ class BuildWaveTilts(object):
             show (bool):
 
         Returns:
-            tuple:
-                :class:`WaveTilts`_
-                `np.ndarray`_
+            tuple: 2 objects
+                - :class:`WaveTilts`_
+                - `numpy.ndarray`_
 
         """
 

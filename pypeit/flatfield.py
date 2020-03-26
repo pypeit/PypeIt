@@ -1073,10 +1073,10 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
     Interface to ginga to show a set of flat images
 
     Args:
-        mspixelflat (`np.ndarray`_):
-        msillumflat (`np.ndarray`_):
-        procflat (`np.ndarray`_):
-        flat_model (`np.ndarray`_):
+        mspixelflat (`numpy.ndarray`_):
+        msillumflat (`numpy.ndarray`_):
+        procflat (`numpy.ndarray`_):
+        flat_model (`numpy.ndarray`_):
         wcs_match (bool, optional):
         slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
 

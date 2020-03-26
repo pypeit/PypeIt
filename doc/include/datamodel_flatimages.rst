@@ -4,6 +4,7 @@ Version 1.0.0
 ==============  ========  ==========  =========================
 HDU Name        Obj Type  Array Type  Description              
 ==============  ========  ==========  =========================
+``PYP_SPEC``    str                   PypeIt spectrograph name 
 ``FLAT_MODEL``  ndarray   floating    Model flat               
 ``ILLUMFLAT``   ndarray   floating    Illumination flat        
 ``PIXELFLAT``   ndarray   floating    Pixel normalized flat    
