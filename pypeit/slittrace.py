@@ -51,7 +51,7 @@ class SlitTraceSet(datamodel.DataContainer):
     frametype = 'slits'
     master_type = 'Slits'
     """Name for type of master frame."""
-    file_format = 'fits.gz'
+    master_file_format = 'fits.gz'
     """File format for the master frame file."""
     # Set the version of this class
     version = '1.0.0'

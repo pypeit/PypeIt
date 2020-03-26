@@ -159,19 +159,16 @@ class Calibrations(object):
                 Calibration type, e.g. 'flat', 'arc', 'bias'
 
         Returns:
-            list:  List of image files matching input type
+            tuple:  2 objects
+               - list:  List of image files matching input type
+               - str:  master_key
 
         """
         # Grab rows and files
         rows = self.fitstbl.find_frames(ctype, calib_ID=self.calib_ID, index=True)
         image_files = self.fitstbl.frame_paths(rows)
-        # Update the internal dict
-        #   Kludge for flats
-        _ctype = 'flat' if ctype == 'pixelflat' else ctype
-        self.master_key_dict[_ctype] \
-            = self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
         # Return
-        return image_files
+        return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
 
     def _reset_internals(self):
         """
@@ -222,7 +219,8 @@ class Calibrations(object):
         _data = data if isinstance(data, tuple) else (data,)
         # Save the data
         # TODO: Allow for copy option?  Do we now whether or not this is
-        # actually being done correctly as it is?
+        #  actually being done correctly as it is?
+        #  We should *not* copy.
         for key, d in zip(_master_type, _data):
             self.calib_dict[self.master_key_dict[master_key]][key] = d
 
@@ -306,7 +304,7 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        arc_files = self._prep_calibrations('arc')
+        arc_files, self.master_key_dict['arc'] = self._prep_calibrations('arc')
         masterframe_name = masterframe.construct_file_name(
             buildimage.ArcImage, self.master_key_dict['arc'], master_dir=self.master_dir)
 
@@ -348,7 +346,7 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        tilt_files = self._prep_calibrations('tilt')
+        tilt_files, self.master_key_dict['tilt'] = self._prep_calibrations('tilt')
         masterframe_name = masterframe.construct_file_name(
             buildimage.TiltImage, self.master_key_dict['tilt'], master_dir=self.master_dir)
 
@@ -490,7 +488,7 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        bias_files = self._prep_calibrations('bias')
+        bias_files, self.master_key_dict['bias'] = self._prep_calibrations('bias')
         # Construct the name, in case we need it
         masterframe_name = masterframe.construct_file_name(buildimage.BiasImage,
                                                            self.master_key_dict['bias'],
@@ -613,7 +611,7 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        pixflat_image_files = self._prep_calibrations('pixelflat')
+        pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
 
         # Return cached images
         if self._cached('flatimages', self.master_key_dict['flat']):
@@ -729,7 +727,7 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        trace_image_files = self._prep_calibrations('trace')
+        trace_image_files, self.master_key_dict['trace'] = self._prep_calibrations('trace')
 
         # Previously calculated?  If so, reuse
         if self._cached('trace', self.master_key_dict['trace']) and not redo:
@@ -767,7 +765,7 @@ class Calibrations(object):
                     msgs.error('Crashed out of finding the slits. Have saved the work done to '
                                'disk but it needs fixing.')
                     return None
-                else:  # This is not elegant..
+                else:
                     self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
                                     master_key=self.master_key_dict['trace'])
 
@@ -957,7 +955,7 @@ class Calibrations(object):
             buildwaveTilts = wavetilts.BuildWaveTilts(
                 self.mstilt, self.slits, self.spectrograph, self.par['tilts'],
                 self.par['wavelengths'], det=self.det, qa_path=self.qa_path,
-                msbpm=self.msbpm, master_key=self.master_key_dict['tilt'])
+                master_key=self.master_key_dict['tilt'])
 
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.wavetilts, self.wt_maskslits \

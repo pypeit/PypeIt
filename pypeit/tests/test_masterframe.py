@@ -23,7 +23,7 @@ def test_masterframe_methods():
     filename = masterframe.construct_file_name(Aimg, master_key, master_dir=master_dir)
     assert isinstance(filename, str)
     assert filename == os.path.join(
-        master_dir, 'Master'+Aimg.master_type+'_'+master_key+'.'+Aimg.file_format)
+        master_dir, 'Master'+Aimg.master_type+'_'+master_key+'.'+Aimg.master_file_format)
 
     # Header
     hdr = masterframe.build_master_header(Aimg, master_key, master_dir)

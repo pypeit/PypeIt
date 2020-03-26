@@ -20,8 +20,10 @@ from pypeit import ginga
 
 from pypeit.par import pypeitpar
 from pypeit import datamodel
+from pypeit import masterframe
 from pypeit.core import flat
 from pypeit.core import tracewave
+from pypeit import slittrace
 from pypeit.core import pydl
 
 
@@ -41,7 +43,7 @@ class FlatImages(datamodel.DataContainer):
 
     # Master fun
     master_type = 'Flat'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
     datamodel = {
         'procflat':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined flats'),
@@ -97,7 +99,17 @@ class FlatImages(datamodel.DataContainer):
         Returns:
 
         """
-        show_flats(self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model,
+        # Try to grab the slits
+        master_key, master_dir = masterframe.grab_key_mdir(self.filename)
+        try:
+            slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
+                                                                    master_dir=master_dir)
+            slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+        except:
+            msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
+            slits = None
+        # Show
+        show_flats(self.pixelflat, self.illumflat, self.procflat, self.flat_model,
                    wcs_match=wcs_match, slits=slits)
 
 class FlatField(object):
@@ -901,20 +913,22 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
     """
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
+    if slits is not None:
+        left, right = slits.select_edges()
     # TODO: Add an option that shows the relevant stuff in a
     # matplotlib window.
     viewer, ch = ginga.show_image(mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match, clear=True)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(msillumflat, chname='illumflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(procflat, chname='flat', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(flat_model, chname='flat_model', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
 
