@@ -16,6 +16,7 @@ part of the data reduction process.
 The current defaults use the Optimal extraction
 and fluxed data.
 
+See below for the `Current Coadd1D Data Model`_.
 
 pypeit_coadd_1dspec
 ===================
@@ -114,60 +115,29 @@ to the [coadd1d] block of the `coadd 1dfile`_.
 
 Here is an example::
 
+    [coadd1d]
+       coaddfile = 'J121555.09-130116.0_LRISr_A.fits'
+       filter = PS1-R
+       filter_mag = 20.85
+       filter_mask = 7187:7376
 
-The call here will convolve the coadded spectrum with the DES r-band filter,
-and then scale the flux to give an AB magnitude of 21.73.  Furthermore,
-the spectral wavelengths less than 6000 Ang are masked in the analysis.
+
+The call here will convolve the coadded spectrum with the
+PS1 r-band filter,
+and then scale the flux to give an AB magnitude of 20.85.
+Furthermore, the spectral wavelengths from 7187-7376A
+are masked in the analysis.
 
 Filters
--------
++++++++
 
-Here is the set of ingested filters:
-
-DES_g, DES_r, DES_i DES_z, DES_Y
+The list of filters is provided in
+`this file <https://github.com/pypeit/PypeIt/blob/master/pypeit/data/filters/filter_list.ascii>`_.
 
 Cosmic Ray Cleaning
-+++++++++++++++++++
-
-By default, the script will attempt to identify additional,
-lingering cosmic rays in the spectrum.  The algorithm
-employed depends on the number of input spectra.
-Note that most of the challenges associated with the coadding
-are related to CR identification, especially for cases
-of only two input spectra.
-
-The main parameters driving the CR algorithms are
-described in :ref:`cosmic_ray_keys`.
-
-Two Spectra
------------
-
-While it is possible to clean a significant fraction of
-any lingering CR's given 2 exposures, results are mixed
-and depend on the S/N ratio of the data and the presence
-of strong emission lines.  We have now implemented
-three approaches, described below.
-
-The default is `bspline` which is likely best for low S/N data.
-The algorithm may be modified with the cr_two_alg parameter.
+-------------------
 
 
-Wavelength Rebinning
---------------------
-
-==================   =======================  ==================================================
-Parameter            Option                   Description
-==================   =======================  ==================================================
-wave_grid_method     default: concatenate     create a new wavelength grid onto which multiple
-                                              exposures are rebinned after first concatenating
-                                              all wavelength grids
---                   velocity                 create a new wavelength grid of constant km/s.
-                                              Default is to use the median velocity width of the
-                                              input spectrum pixels but a value 'v_pix' can be
-                                              provided
---                   pixel                    create a new wavelength grid of constant Angstrom
-                                              specified by the input parameter 'A_pix'
-==================   =======================  ==================================================
 
 Scaling
 -------
@@ -189,35 +159,6 @@ scale_method         default: auto            scale the flux arrays based on the
                                               of each spectra
 ==================   =======================  ==================================================
 
-.. _cosmic_ray_keys:
-
-Cosmic Ray
-----------
-
-==================   =======================  ===================================================
-Parameter            Option                   Description
-==================   =======================  ===================================================
-cr_everyn            int; default=6           For CR cleaning of 2 spectra, this sets the
-                                              spacing of the b-spline break points.  Use a lower
-                                              number to avoid clipping narrow emission/absorption
-                                              lines, e.g. 4
-cr_nsig              float; default=7.        Number of sigma which defines a CR
-cr_two_alg           str; default=bspline     Algorithm to adopt for cleaning only 2 spectra
-==================   =======================  ===================================================
-
-.. _more_coadd_keys:
-
-More Keywords
--------------
-
-Here are other keywords that one may wish to set
-for individual objects:
-
-============= =============================== ==== =============================================
-Keyword        Method                         Type Description
-============= =============================== ==== =============================================
-otol          arspecobj.mtch_obj_to_objects() int  Tolerance for matching object ID number
-============= =============================== ==== =============================================
 
 Current Coadd1D Data Model
 ==========================

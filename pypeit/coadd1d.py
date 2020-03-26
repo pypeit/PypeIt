@@ -27,7 +27,7 @@ class OneSpec(datamodel.DataContainer):
         'wave': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength array'),
         'flux': dict(otype=np.ndarray, atype=np.floating, desc='Flux/counts array'),
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
-        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array'),
+        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array (0=Good???)'),
         'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model'),
         'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt: Spectrograph name'),
