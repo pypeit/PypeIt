@@ -17,6 +17,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(LBTMODSSpectrograph, self).__init__()
@@ -30,12 +32,6 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Shane Kast reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 1
-        par['calibrations']['biasframe']['number'] = 1
-        par['calibrations']['pixelflatframe']['number'] = 1
-        par['calibrations']['traceframe']['number'] = 1
-        par['calibrations']['arcframe']['number'] = 1
 
         # Scienceimage default parameters
         # Set the default exposure time ranges for the frame typing
@@ -204,6 +200,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS1RSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods1r'
         self.camera = 'MODS1R'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -224,6 +221,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
                             #oscansec        = '[:, 8240:]',
                             suffix          = '_mods1r'
                             )]
+        '''
         self.numhead = 1
 
 
@@ -241,7 +239,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
@@ -332,6 +330,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS1BSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods1b'
         self.camera = 'MODS1B'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -350,6 +349,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
                             ronoise         = [3.41,2.93,2.92,2.76],
                             suffix          = '_mods1b'
                             )]
+        '''
         self.numhead = 1
 
 
@@ -364,7 +364,7 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
@@ -450,6 +450,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS2RSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods2r'
         self.camera = 'MODS2R'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -468,6 +469,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
                             ronoise         = [2.95,2.65,2.78,2.87],
                             suffix          = '_mods2r'
                             )]
+        '''
         self.numhead = 1
 
 
@@ -485,7 +487,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
@@ -575,6 +577,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS2BSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods2b'
         self.camera = 'MODS2B'
+        '''
         self.detector = [
                 # Detector 1
                 pypeitpar.DetectorPar(
@@ -593,6 +596,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
                             ronoise         = [3.66,3.62,3.72,3.64],
                             suffix          = '_mods2b'
                             )]
+        '''
         self.numhead = 1
 
 
@@ -607,7 +611,7 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit

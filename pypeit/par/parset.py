@@ -241,8 +241,18 @@ class ParSet(object):
                 warnings.warn('List includes a mix of ParSet and dicts with other types.  '
                               'Displaying and writing the ParSet will not be correct!')
 
-        if self.options[key] is not None and value not in self.options[key]:
-            raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
+        if self.options[key] is not None:
+            if isinstance(value, list):
+                # `value` can be a list of items, all of which must be
+                # one of the valid options.
+                indx = numpy.isin(value, self.options[key], invert=True)
+                if numpy.any(indx):
+                    raise ValueError('Input value for {0} invalid'.format(key)
+                                     + '; {0}'.format(numpy.atleast_1d(value)[indx]) 
+                                     + ' are not valid options.\n'
+                                     + 'Options are: {0}'.format(self.options[key]))
+            elif value not in self.options[key]:
+                raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
                                                                     key, value, self.options[key]))
         if self.dtype[key] is not None \
                 and not any([ isinstance(value, d) for d in self.dtype[key]]):

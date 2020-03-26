@@ -8,21 +8,10 @@
 [baseprocess]
     combine = mean
     sigrej = 30
-
 [calibrations]
-    [[arcframe]]
-        number = 1
     [[biasframe]]
-        number = 0
         [[[process]]]
             sig_lohi = 10, 10
-    [[pixelflatframe]]
-        number = 0
-    [[traceframe]]
-        number = 0
-    [[standardframe]]
-        number = 0
-
 [scienceframe]
     [[process]]
         n_lohi = 8, 8

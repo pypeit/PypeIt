@@ -458,9 +458,10 @@ def dict_to_hdu(d, name=None, hdr=None):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
-        cols += [fits.Column(name=key, format=rec_to_fits_type(d[key], single_row=single_row),
+        cols += [fits.Column(name=key, format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
                              dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                             array=numpy.expand_dims(d[key], 0) if single_row else d[key])]
+                             #dim=rec_to_fits_col_dim(numpy.asarray(d[key]), single_row=single_row),
+                             array=numpy.expand_dims(d[key], 0) if single_row else numpy.asarray(d[key]))]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
@@ -565,7 +566,8 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     # it directly
     # TODO: use pypmsgs?
     if _ofile is not ofile:
-        print('Compressing file: {0}'.format(_ofile))
+        pypeit.msgs.info('Compressing file: {0}'.format(_ofile))
         compress_file(_ofile, overwrite=True)
-    print('File written to: {0}'.format(ofile))
+    pypeit.msgs.info('File written to: {0}'.format(ofile))
+
 

@@ -16,17 +16,18 @@ from matplotlib import pyplot as plt
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit.masterframe import MasterFrame
+from pypeit import masterframe
 from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
 from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import reduce
+from pypeit.images import pypeitimage
 from pypeit.core import extract
 from pypeit.core import coadd, pixels
 from pypeit.core import parse
-from pypeit.images import scienceimage
 from pypeit.spectrographs import util
+from pypeit.tests import tstutils
 from pypeit import calibrations
 
 
@@ -250,7 +251,7 @@ class CoAdd2D(object):
         # Determine the size of the pseudo image
         nspat_pad = 10
         nspec_pseudo = nspec_vec.max()
-        nspat_pseudo = np.sum(nspat_vec) + (self.nslits + 1)*nspat_pad
+        nspat_pseudo = int(np.sum(nspat_vec) + (self.nslits + 1)*nspat_pad)  # Cast for SlitTraceSet
         spec_vec_pseudo = np.arange(nspec_pseudo)
         shape_pseudo = (nspec_pseudo, nspat_pseudo)
         imgminsky_pseudo = np.zeros(shape_pseudo)
@@ -305,10 +306,10 @@ class CoAdd2D(object):
 
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, nspat=nspat_pseudo,
-                                         spectrograph=self.spectrograph.spectrograph,
-                                         specmin=spec_min1, specmax=spec_max1,
-                                         master_key=self.stack_dict['master_key_dict']['trace'],
-                                         master_dir=self.master_dir)
+                                         PYP_SPEC=self.spectrograph.spectrograph,
+                                         specmin=spec_min1, specmax=spec_max1)
+                                         #master_key=self.stack_dict['master_key_dict']['trace'],
+                                         #master_dir=self.master_dir)
         slitmask_pseudo = slits_pseudo.slit_img()
         # This is a kludge to deal with cases where bad wavelengths result in large regions where the slit is poorly sampled,
         # which wreaks havoc on the local sky-subtraction
@@ -343,13 +344,24 @@ class CoAdd2D(object):
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
 
         # Generate a ScienceImage
-        sciImage = scienceimage.ScienceImage(self.spectrograph, self.det,
-                                                      self.par['scienceframe']['process'],
-                                                      pseudo_dict['imgminsky'],
-                                                      pseudo_dict['sciivar'],
-                                                      np.zeros_like(pseudo_dict['inmask']),  # Dummy bpm
-                                                      rn2img=np.zeros_like(pseudo_dict['inmask']),  # Dummy rn2img
-                                                      crmask=np.invert(pseudo_dict['inmask']))
+#        sciImage = pypeitimage.PypeItImage(self.spectrograph, self.det,
+#                                                      self.par['scienceframe']['process'],
+##                                                      pseudo_dict['imgminsky'],
+##                                                      pseudo_dict['sciivar'],
+#                                                      np.zeros_like(pseudo_dict['inmask']),  # Dummy bpm
+#                                                      rn2img=np.zeros_like(pseudo_dict['inmask']),  # Dummy rn2img
+#                                                      crmask=np.invert(pseudo_dict['inmask']))
+        sciImage = pypeitimage.PypeItImage(image=pseudo_dict['imgminsky'],
+                                           ivar=pseudo_dict['sciivar'],
+                                           bpm=np.zeros_like(pseudo_dict['inmask'].astype(int)),  # Dummy bpm
+                                           rn2img=np.zeros_like(pseudo_dict['inmask']).astype(float),  # Dummy rn2img
+                                           crmask=np.invert(pseudo_dict['inmask'].astype(bool)))
+        # TODO -- This is an ugly hack until we have a datamodel for spec2d (coming soon)
+        #   which includes the detector
+        detector = tstutils.get_kastb_detector()
+        detector.binning = '{},{}'.format(self.binning[0], self.binning[1])
+        sciImage.detector = detector
+        #
         slitmask_pseudo = pseudo_dict['slits'].slit_img()
         sciImage.build_mask(slitmask=slitmask_pseudo)
 
@@ -358,15 +370,16 @@ class CoAdd2D(object):
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
         # Instantiate Calibrations class
-        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph)
+        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph, save_masters=False)
         caliBrate.slits = pseudo_dict['slits']
-        caliBrate.tilts_dict = dict(tilts=pseudo_dict['tilts'])
+        caliBrate.wavetilts = WaveTilts(pseudo_dict['tilts'], None, None, None, None, None, None)
+        #    tilts_dict = dict(tilts=pseudo_dict['tilts'])
         caliBrate.mswave = pseudo_dict['waveimg']
         #
         # redux = reduce.instantiate_me(sciImage, self.spectrograph, pseudo_dict['tslits_dict'], parcopy, pseudo_dict['tilts'],
         redux=reduce.instantiate_me(sciImage, self.spectrograph, parcopy, caliBrate,
                                     ir_redux=self.ir_redux, objtype='science_coadd2d',
-                                    det=self.det, binning=self.binning, show=show)
+                                    det=self.det, show=show)
 
         if show:
             redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
@@ -399,7 +412,8 @@ class CoAdd2D(object):
         pseudo_dict['sobjs'] = sobjs
         self.pseudo_dict=pseudo_dict
 
-        return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs
+        return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, \
+               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector
 
 
     def save_masters(self):
@@ -409,12 +423,13 @@ class CoAdd2D(object):
 
         # TODO: These saving operations are a temporary kludge
         # spectrograph is needed for header
-        waveImage = WaveImage(None, None, None, self.spectrograph, None,
-                              master_key=master_key_dict['arc'], master_dir=self.master_dir)
-        waveImage.save(image=self.pseudo_dict['waveimg'])
+        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
+        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
+        waveImage.to_master_file(wave_filename)
 
         # TODO: Assumes overwrite=True
-        self.pseudo_dict['slits'].to_master()
+        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
+        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
 
     def snr_report(self, snr_bar, slitid=None):
 
@@ -519,18 +534,19 @@ class CoAdd2D(object):
                 master_dir = os.path.basename(head['PYPMFDIR'])
                 master_path = os.path.join(os.path.split(os.path.split(f)[0])[0], master_dir)
 
+            # TODO JFH These master keys are a complete mess and need to be abandoned? Do the tilts have their own
+            # key? Hwo
             trace_key = '{0}_{1:02d}'.format(head['TRACMKEY'], self.det)
             wave_key = '{0}_{1:02d}'.format(head['ARCMKEY'], self.det)
 
             head2d_list.append(head)
             spec1d_files.append(f.replace('spec2d', 'spec1d'))
-            tracefiles.append(os.path.join(master_path,
-                            '{0}.gz'.format(MasterFrame.construct_file_name('Slits', trace_key))))
-#                                           MasterFrame.construct_file_name('Trace', trace_key)))
-            waveimgfiles.append(os.path.join(master_path,
-                                             MasterFrame.construct_file_name('Wave', wave_key)))
-            tiltfiles.append(os.path.join(master_path,
-                                          MasterFrame.construct_file_name('Tilts', wave_key)))
+            tracefiles.append(masterframe.construct_file_name(
+                    slittrace.SlitTraceSet, trace_key, master_dir=master_path))
+            waveimgfiles.append(masterframe.construct_file_name(
+                WaveImage, wave_key, master_dir=master_path))
+            tiltfiles.append(masterframe.construct_file_name(
+                WaveTilts, wave_key, master_dir=master_path))
 
         nfiles = len(spec2d_files)
 
@@ -543,9 +559,9 @@ class CoAdd2D(object):
         for ifile in range(nfiles):
             # Load up the calibs, if needed
             if waveimgfiles[ifile] != waveimgfile:
-                waveimg = WaveImage.from_master_file(waveimgfiles[ifile]).image
+                waveimg = WaveImage.from_file(waveimgfiles[ifile]).image
             if tiltfile != tiltfiles[ifile]:
-                tilts = WaveTilts.from_master_file(tiltfiles[ifile]).tilts_dict
+                tilts = WaveTilts.from_file(tiltfiles[ifile]) #.tilts_dict
             # Save
             waveimgfile = waveimgfiles[ifile]
             tiltfile = tiltfiles[ifile]
@@ -599,7 +615,7 @@ class CoAdd2D(object):
                 slits = slittrace.SlitTraceSet.from_file(tracefiles[ifile])
                 # Check the spectrograph names
                 # TODO: Should this be done here?
-                if slits.spectrograph != self.spectrograph.spectrograph:
+                if slits.PYP_SPEC != self.spectrograph.spectrograph:
                     msgs.error('Spectrograph read from {0} is not correct.  Expected {1}.'.format(
                                 tracefiles[ifile], self.spectrograph.spectrograph))
             tracefile = tracefiles[ifile]
