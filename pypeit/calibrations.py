@@ -794,7 +794,7 @@ class Calibrations(object):
            wavetilts, slits, wv_calib, det, par, master_key
 
         Returns:
-            `np.ndarray`_: :attr:`mswave` wavelength image
+            `numpy.ndarray`_: :attr:`mswave` wavelength image
 
         """
         # Check for existing data

@@ -30,13 +30,13 @@ class PypeItImage(datamodel.DataContainer):
     The intent is to keep this object as light-weight as possible.
 
     Args:
-        image (`np.ndarray`_ or None):
+        image (`numpy.ndarray`_ or None):
             See datamodel for description
-        ivar (`np.ndarray`_, optional):
-        rn2img (`np.ndarray`_, optional):
-        bpm (`np.ndarray`_, optional):
-        crmask (`np.ndarray`_, optional):
-        fullmask (`np.ndarray`_, optional):
+        ivar (`numpy.ndarray`_, optional):
+        rn2img (`numpy.ndarray`_, optional):
+        bpm (`numpy.ndarray`_, optional):
+        crmask (`numpy.ndarray`_, optional):
+        fullmask (`numpy.ndarray`_, optional):
         detector (:class:`pypeit.images.data_container.DataContainer`):
 
     Attributes:
@@ -191,11 +191,11 @@ class PypeItImage(datamodel.DataContainer):
                 Parameters that dictate the processing of the images.  See
                 :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
                 defaults.
-            subtract_img (np.ndarray, optional):
+            subtract_img (`numpy.ndarray`_, optional):
                 If provided, subtract this from the image prior to CR detection
 
         Returns:
-            np.ndarray: Copy of self.crmask (boolean)
+            `numpy.ndarray`_: Copy of self.crmask (boolean)
 
         """
         var = utils.inverse(self.ivar)
@@ -233,7 +233,7 @@ class PypeItImage(datamodel.DataContainer):
             saturation (float, optional):
                 Saturation limit in counts or ADU (needs to match the input image)
                 Defaults to self.detector['saturation']
-            slitmask (np.ndarray, optional):
+            slitmask (`numpy.ndarray`_, optional):
                 Slit mask image;  Pixels not in a slit are masked
             mincounts (float, optional):
                 Defaults to self.detector['mincounts']
@@ -284,7 +284,7 @@ class PypeItImage(datamodel.DataContainer):
         Update a mask using the slitmask
 
         Args:
-            slitmask (`np.ndarray`_):
+            slitmask (`numpy.ndarray`_):
                 Slitmask with -1 values pixels *not* in a slit
 
         """
@@ -301,7 +301,7 @@ class PypeItImage(datamodel.DataContainer):
         ones are turned on.
 
         Args:
-            crmask_new (`np.ndarray`_):
+            crmask_new (`numpy.ndarray`_):
                 New CR mask
         """
         self.fullmask = self.bitmask.turn_off(self.fullmask, 'CR')
