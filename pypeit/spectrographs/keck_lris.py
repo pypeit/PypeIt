@@ -60,8 +60,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Always correct for spatial flexure on science images
         # TODO -- Decide whether to make the following defaults
         #   May not want to do them for LongSlit
-        #par['scienceframe']['process']['spat_flexure_correct'] = True
-        #par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
         par['scienceframe']['exprng'] = [29, None]
         return par

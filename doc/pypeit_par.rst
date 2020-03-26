@@ -840,6 +840,7 @@ Alterations to the default parameters are::
       [[standardframe]]
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
+              spat_flexure_correct = True
               illumflatten = True
       [[wavelengths]]
           method = full_template
@@ -859,6 +860,7 @@ Alterations to the default parameters are::
       exprng = 29, None
       processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
+          spat_flexure_correct = True
           illumflatten = True
   [flexure]
       spec_method = boxcar
@@ -900,6 +902,7 @@ Alterations to the default parameters are::
       [[standardframe]]
           processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
+              spat_flexure_correct = True
               illumflatten = True
       [[wavelengths]]
           lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
@@ -922,6 +925,7 @@ Alterations to the default parameters are::
       [[process]]
           sigclip = 5.0
           objlim = 5.0
+          spat_flexure_correct = True
           illumflatten = True
   [reduce]
       [[skysub]]

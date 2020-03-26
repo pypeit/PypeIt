@@ -51,13 +51,12 @@ class FlatImages(datamodel.DataContainer):
     datamodel = {
         'procflat':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined flats'),
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
-        'illumflat': dict(otype=np.ndarray, atype=np.floating, desc='Illumination flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='B-spline models for Illumination flat'),
     }
 
-    def __init__(self, procflat=None, pixelflat=None, illumflat=None,
+    def __init__(self, procflat=None, pixelflat=None,
                  flat_model=None, spat_bsplines=None, PYP_SPEC=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -107,7 +106,7 @@ class FlatImages(datamodel.DataContainer):
         Returns:
 
         """
-        msillumflat = np.ones_like(self.procflat)
+        illumflat = np.ones_like(self.procflat)
         # Loop
         for slit in range(slits.nslits):
             _slitid_img = slits.slit_img(slitids=slit, flexure=flexure_shift)
@@ -116,9 +115,9 @@ class FlatImages(datamodel.DataContainer):
                                                            slitid_img=_slitid_img,
                                                            flexure_shift=flexure_shift)
 
-            msillumflat[onslit] = self.spat_bsplines[slit].value(spat_coo[onslit])[0]
+            illumflat[onslit] = self.spat_bsplines[slit].value(spat_coo[onslit])[0]
         # TODO -- Update the internal one?  Or remove it altogether??
-        return msillumflat
+        return illumflat
 
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
@@ -214,7 +213,7 @@ class FlatField(object):
         # Attributes unique to this Object
         self.rawflatimg = rawflatimg      # Un-normalized pixel flat as a PypeItImage
         self.mspixelflat = None     # Normalized pixel flat
-        self.msillumflat = None     # Slit illumination flat
+        self.msillumflat = None     # Illuminatino flat
         self.flat_model = None      # Model flat
         self.list_of_spat_bsplines = None
 
@@ -314,7 +313,6 @@ class FlatField(object):
         # Return
         return FlatImages(procflat=self.rawflatimg.image,
                           pixelflat=self.mspixelflat,
-                          illumflat=self.msillumflat,
                           flat_model=self.flat_model,
                           spat_bsplines=np.asarray(self.list_of_spat_bsplines),
                           PYP_SPEC=self.spectrograph.spectrograph)
@@ -526,17 +524,14 @@ class FlatField(object):
 
         # TODO -- CONFIRM THIS SHOULD BE ON INIT
         median_slit_width = np.median(self.slits.right_init - self.slits.left_init, axis=0)
-        #median_slit_width = np.median(self.slits.right - self.slits.left, axis=0)
 
         if tweak_slits:
             # NOTE: This copies the input slit edges to a set that can
-            # be tweaked. Because these are copied immediately before
-            # the calls to slit_img below, all the slit images use the
-            # original slit edges, not any pre-existing tweaked ones.
+            # be tweaked.
             self.slits.init_tweaked()
-            tweaked_tilts = np.zeros((nspec,nspat), dtype=float)
-        else:
-            tweaked_tilts = None
+            #tweaked_tilts = np.zeros((nspec,nspat), dtype=float)
+        #else:
+            #tweaked_tilts = None
 
         # TODO: This needs to include a padding check
 
@@ -575,12 +570,12 @@ class FlatField(object):
                         slit+1, self.slits.nslits))
 
             # Find the pixels on the initial slit
-            onslit = slitid_img_init == slit
+            onslit_init = slitid_img_init == slit
 
             # Check for saturation of the flat. If there are not enough
             # pixels do not attempt a fit, and continue to the next
             # slit.  TODO: set the threshold to a parameter?
-            good_frac = np.sum(onslit & (rawflat < nonlinear_counts))/np.sum(onslit)
+            good_frac = np.sum(onslit_init & (rawflat < nonlinear_counts))/np.sum(onslit_init)
             if good_frac < 0.5:
                 # TODO: Used slit ID in these print statments instead of slit index
                 msgs.warn('Only {:4.2f}'.format(100*good_frac)
@@ -596,7 +591,7 @@ class FlatField(object):
             if npoly is None:
                 # Approximate number of pixels sampling each spatial pixel
                 # for this (original) slit.
-                npercol = np.fmax(np.floor(np.sum(onslit)/nspec),1.0)
+                npercol = np.fmax(np.floor(np.sum(onslit_init)/nspec),1.0)
                 npoly  = np.clip(7, 1, int(np.ceil(npercol/10.)))
             
             # TODO: Always calculate the optimized `npoly` and warn the
@@ -625,7 +620,7 @@ class FlatField(object):
             # fit along the spectral direction.
             spec_gpm = onslit_trimmed & gpm_log  # & (rawflat < nonlinear_counts)
             spec_nfit = np.sum(spec_gpm)
-            spec_ntot = np.sum(onslit)
+            spec_ntot = np.sum(onslit_init)
             msgs.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
                       + ' pixels in the slit.')
             # Set this to a parameter?
@@ -790,7 +785,7 @@ class FlatField(object):
 
                 # Update the onslit mask
                 _slitid_img = self.slits.slit_img(slitids=slit)
-                onslit = _slitid_img == slit
+                onslit_tweak = _slitid_img == slit
                 spat_coo_tweak = self.slits.spatial_coordinate_image(slitids=slit,
                                                                slitid_img=_slitid_img)
                 # TODO -- We need to refit the illum flat here!
@@ -837,6 +832,7 @@ class FlatField(object):
             else:
                 _slitid_img = slitid_img_init
                 spat_coo_final = spat_coo_init
+                onslit_tweak = onslit_init
 
             # Add an approximate pixel axis at the top
             if debug:
@@ -876,7 +872,7 @@ class FlatField(object):
             # of the slit
             if exit_status <= 1:
                 # TODO -- Fix this for flexure!!
-                self.msillumflat[onslit] = spat_bspl.value(spat_coo_final[onslit])[0]
+                self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.list_of_spat_bsplines.append(spat_bspl)
             else:
                 # Save the nada
@@ -888,13 +884,13 @@ class FlatField(object):
 
             # Construct the spectrally and spatially normalized flat
             norm_spec_spat[...] = 1.
-            norm_spec_spat[onslit] = rawflat[onslit] / np.fmax(spec_model[onslit], 1.0) \
-                                                    / np.fmax(self.msillumflat[onslit], 0.01)
+            norm_spec_spat[onslit_tweak] = rawflat[onslit_tweak] / np.fmax(spec_model[onslit_tweak], 1.0) \
+                                                    / np.fmax(self.msillumflat[onslit_tweak], 0.01)
 
             # Sort the pixels by their spectral coordinate. The mask
             # uses the nominal padding defined by the slits object.
             twod_gpm, twod_srt, twod_spec_coo_data, twod_flat_data \
-                    = flat.sorted_flat_data(norm_spec_spat, spec_coo, gpm=onslit)
+                    = flat.sorted_flat_data(norm_spec_spat, spec_coo, gpm=onslit_tweak)
             # Also apply the sorting to the spatial coordinates
             twod_spat_coo_data = spat_coo_final[twod_gpm].ravel()[twod_srt]
             # TODO: Reset back to origin gpm if sticky is true?
@@ -1001,23 +997,17 @@ class FlatField(object):
 
             # Construct the full flat-field model
             # TODO: Why is the 0.05 here for the illumflat compared to the 0.01 above?
-            self.flat_model[onslit] = twod_model[onslit] \
-                                        * np.fmax(self.msillumflat[onslit], 0.05) \
-                                        * np.fmax(spec_model[onslit], 1.0)
+            self.flat_model[onslit_tweak] = twod_model[onslit_tweak] \
+                                        * np.fmax(self.msillumflat[onslit_tweak], 0.05) \
+                                        * np.fmax(spec_model[onslit_tweak], 1.0)
 
             # Construct the pixel flat
             # TODO -- Are we ok with this change??
             #self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
-            self.mspixelflat[onslit] = 1.
+            self.mspixelflat[onslit_tweak] = 1.
             self.mspixelflat[onslit_trimmed] = rawflat[onslit_trimmed]/self.flat_model[onslit_trimmed]
             # TODO: Add some code here to treat the edges and places where fits
             # go bad?
-
-        # Update the tilts dictionary if the slit edges were tweaked
-        if tweak_slits:
-            pass
-            # Removed as we should make this on-the-spot
-            #self.wavetilts['tilts'] = tweaked_tilts
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
@@ -1029,6 +1019,35 @@ class FlatField(object):
 
     def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, spat_samp,
                     illum_rej, sticky, gpm, illum_iter, debug=False):
+        """
+        Perform the spatial fit
+
+        Args:
+            norm_spec (`numpy.ndarray`_):
+            spat_coo (`numpy.ndarray`_):
+                Spatial coordinate array
+            median_slit_width (`numpy.ndarray`_):
+            spat_gpm (`numpy.ndarray`_):
+            spat_samp (`numpy.ndarray`_):
+            illum_rej (float):
+                See :class:`pypeit.par.PypeItPar.FlatFieldPar`
+            sticky (bool):
+                See rej_sticky in :class:`pypeit.par.PypeItPar.FlatFieldPar`
+            gpm (`numpy.ndarray`_):
+            illum_iter (int):
+                See :class:`pypeit.par.PypeItPar.FlatFieldPar`
+            debug (bool, optional):
+
+        Returns:
+            tuple: 7 objects
+                 - exit_status (int):
+                 - spat_coo_data
+                 - spat_flat_data
+                 - spat_bspl (:class:`pypeit.bspline.bspline.bspline`) : Bspline model of the spatial fit.  Used for illumflat
+                 - spat_gpm_fit
+                 - spat_flat_fit
+                 - spat_flat_data_raw
+        """
 
         # Construct the empirical illumination profile
         _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \

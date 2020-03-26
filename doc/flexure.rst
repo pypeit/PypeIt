@@ -17,32 +17,58 @@ Spatial
 The code has a simple yet relatively robust method to cross-correlate
 the slits against any input image to determine a rigid, spatial offset.
 This algorithm is performed for any frametype with
-**spat_flexure** included in the `processing_steps` of
-:ref:`pypeit_par:FrameGroupPar Keywords`.
+**spat_flexure_correct** set to *True* in the `process` block
+of :ref:`pypeit_par:ProcessImagesPar Keywords`.
 
 We have made our own determinations for which instruments
 to enable this as the default. Inspect the
 :ref:`pypeit_par:Instrument-Specific Default Configuration`
 list to see if your instrument is included.
 
-At the time these docs were recorded, the only *frametype*'s
-that can be corrected are the *standard* and *scienceframe*.
-If you wished to turn on this correction for the scienceframe,
+Depending on what frametypes you choose to correct, the
+code will behave somewhat differently.  Here we describe
+the options in increasing complexity.
+
+Science/Standard Only
+---------------------
+
+Most users may wish to only correct for flexure when
+processing the
+*standard* and *scienceframe* images.
+If you wish to turn on this correction
 add this to your PypeIt file::
 
-    COMING SOON
+    [scienceframe]
+      [[process]]
+         spat_flexure_correct = True
+    [calibrations]
+      [[standardframe]]
+         [[[process]]]
+            spat_flexure_correct = True
+
 
 This will:
 
- - Calculate a spatial offset for each science frame from the slits
- - Apply this correction for the illumination flat (COMING)
- - Apply this correction prior to sky subtrction and extraction
+ - Calculate a spatial offset for each science/standard frame from the slits
+ - Apply this correction for the illumination flat
+ - Apply this correction prior to sky subtraction and extraction
 
-Future work
------------
+Tilts only
+----------
 
- - Allow for spatial offset in the arc
- - Handle insturments where the scienceframe doubles as the *tilt* image
+Here the modification to your :doc:`pypeit_file` is like::
+
+    [calibrations]
+      [[tiltframe]]
+         [[[process]]]
+            spat_flexure_correct = True
+
+This will:
+
+ - Calculate a spatial offset between the trace flats and the tilt image
+ - Construct the tilt solution in that frame
+ - Apply an offset to generate tilts and wavelegths for the science/standard image
+
 
 Spectral
 ========

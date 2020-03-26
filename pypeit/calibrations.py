@@ -581,13 +581,7 @@ class Calibrations(object):
         :attr:`par`.
 
         Returns:
-            `numpy.ndarray`_: Two arrays are returned, the normalized
-            pixel flat image (:attr:`mspixelflat`) and the slit
-            illumination flat (:attr:`msillumflat`).  If the user
-            requested the field flattening be skipped
-            (`FlatFieldPar['method'] == 'skip'`) or if the slit and tilt
-            traces are not provided, the function returns two None
-            objects instead.
+            :class:`pypeit.flatfield.FlatImages`:
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
@@ -691,8 +685,8 @@ class Calibrations(object):
         # everywhere and print out a warning
         if self.flatimages.pixelflat is None:
             msgs.warn('You are not pixel flat fielding your data!!!')
-        if self.flatimages.illumflat is None:# or not self.par['flatfield']['illumflatten']:
-            msgs.warn('You are not illumination flat fielding your data!')
+        #if self.flatimages.illumflat is None:# or not self.par['flatfield']['illumflatten']:
+        #    msgs.warn('You are not illumination flat fielding your data!')
 
         # Cache & return
         self._update_cache('flat', 'flatimages', self.flatimages)
@@ -965,8 +959,7 @@ class Calibrations(object):
                     = buildwaveTilts.run(maskslits=self.slits.mask, doqa=self.write_qa, show=self.show)
             # Save?
             if self.save_masters:
-                self.wavetilts.to_master_file(masterframe_name) #self.master_dir, self.master_key_dict['tilt'],
-                    #self.spectrograph.spectrograph, steps=buildwaveTilts.steps)
+                self.wavetilts.to_master_file(masterframe_name)
 
         # Save & return
         self._update_cache('tilt', ('wavetilts','wtmask'), (self.wavetilts, self.wt_maskslits))

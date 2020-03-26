@@ -11,7 +11,9 @@ import os
 from IPython import embed
 
 import numpy as np
+
 from astropy.io import fits
+
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import specobjs
 from pypeit import msgs
@@ -21,6 +23,19 @@ from pypeit import io
 
 
 class OneSpec(datamodel.DataContainer):
+    """
+    DataContainer to hold the products from :class:`pypeit.coadd1d.CoAdd1D`
+
+    Args:
+        See the datamodel
+
+    Attributes:
+        head0 (`astropy.io.fits.Header`):  Primary header
+        spect_meta (:obj:`dict`): Parsed meta from the header
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Build from PYP_SPEC
+
+    """
     version = '1.0.0'
 
     datamodel = {
@@ -34,6 +49,17 @@ class OneSpec(datamodel.DataContainer):
         'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
         'fluxed': dict(otype=bool, desc='Fluxed?'),
     }
+    @classmethod
+    def from_file(cls, ifile, verbose=True):
+        hdul = fits.open(ifile)
+        slf = super(OneSpec, cls).from_hdu(hdul)
+
+        # Internals
+        slf.filename = ifile
+        slf.head0 = hdul[0].header
+        #
+        slf.spect_meta = spectrograph.parse_spec_header(head)
+
 
     def __init__(self, wave, flux, ivar=None, mask=None, telluric=None,
                  obj_model=None, PYP_SPEC=None, ext_mode=None, fluxed=None):
@@ -49,8 +75,20 @@ class OneSpec(datamodel.DataContainer):
 
     def _init_internals(self):
         self.head0 = None
+        self.spec_meta = None
+        self.spectrograph = None
 
-    def to_file(self, ofile, overwrite=True, primary_hdr=None, **kwargs):
+    def to_file(self, ofile, primary_hdr=None, **kwargs):
+        """
+        Over-load :func:`pypeit.datamodel.DataContainer.to_file`
+        to deal with the header
+
+        Args:
+            ofile (:obj:`str`): Filename
+            primary_hdr (`astropy.io.fits.Header`_, optional):
+            **kwargs:  Passed to super.to_file()
+
+        """
         if primary_hdr is None:
             primary_hdr = io.initialize_header(primary=True)
         # Build the header
@@ -63,7 +101,7 @@ class OneSpec(datamodel.DataContainer):
         for key in subheader:
             primary_hdr[key] = subheader[key]
         # Do it
-        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr, overwrite=overwrite,
+        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr,
                                      **kwargs)
 
 class CoAdd1D(object):

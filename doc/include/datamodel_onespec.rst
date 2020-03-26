@@ -10,7 +10,7 @@ Obj            Obj Type  Array Type  Description
 ``flux``       ndarray   floating    Flux/counts array                  
 ``fluxed``     bool                  Fluxed?                            
 ``ivar``       ndarray   floating    Inverse variance array             
-``mask``       ndarray   integer     Mask array                         
+``mask``       ndarray   integer     Mask array (0=Good???)             
 ``obj_model``  ndarray   floating    Object model for tellurics         
 ``telluric``   ndarray   floating    Telluric model                     
 ``wave``       ndarray   floating    Wavelength array                   
