@@ -94,7 +94,6 @@ class TraceImage(pypeitimage.PypeItImage):
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                         bias=None, bpm=None,
                         flatimages=None,
-                        #pixel_flat=None, illum_flat_fit=None,
                         sigma_clip=False, sigrej=None, maxiters=5,
                         ignore_saturation=True, slits=None):
     """
@@ -115,12 +114,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
             Bad pixel mask.  Held in ImageMask
         bias (np.ndarray, optional):
             Bias image
-        pixel_flat (np.ndarray, optional):
-            Flat image. If None, pixel-to-pixel response is not
-            removed.
-        illum_flat_fit (:class:`pypeit.bspline.bspline`, optional):
-            if provided, use this bspline fit to construct an illumination flat
-            If None, slit illumination profile is not removed.
+        flatimages (:class:`pypeit.flatfield.FlatImages`, optional):  For flat fielding
         sigrej (int or float, optional): Rejection threshold for sigma clipping.
              Code defaults to determining this automatically based on the numberr of images provided.
         maxiters (int, optional):

@@ -3022,7 +3022,26 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
 
 
-def spec_to_arc(spec, maxspat, det, extract='OPT', sigma=2.):
+def spectra_to_peaks(spec, maxspat, det, extract='OPT', sigma=2.):
+    """
+    From a set of spectra in a :class:`pypeit.specobjs.Specobjs`
+    generate an array of peaks for cross-correlation
+
+    These are Gaussians with amplitude proportional to the S/N
+    of the spectrum
+
+    Args:
+        spec (:class:`pypeit.specobjs.Specobjs`):
+        maxspat (int):
+            Size of the array generated
+        det (int):
+        extract (str, optional):  Type of extraction performed
+        sigma (float, optional):  sigma of the Gaussian peaks generated
+
+    Returns:
+        `numpy.ndarray`_:
+
+    """
     # Generate "arc spectra"
     arc_spec = np.zeros(maxspat)
     xval = np.arange(maxspat)
@@ -3041,6 +3060,22 @@ def spec_to_arc(spec, maxspat, det, extract='OPT', sigma=2.):
     return arc_spec
 
 def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
+    """
+    Perform glorious book-keeping on the dict used to sync up
+    spectra from multiple exposures.
+
+    The input sync_dict is modified in place.
+
+    Args:
+        sync_dict (dict):
+        in_indx (int):  Index to sync against.  This is related to SPAT_POS
+        in_files (list):
+            List of filenames to append when we have match
+        in_names:
+            List of names to match to
+        sync_toler (int, optional):
+            A match occurs if SPAT_POS is within sync_toler
+    """
     #
     assert len(in_files) == len(in_names)
     # Check for indx
@@ -3076,6 +3111,25 @@ def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
     sync_dict[indx]['names'] += names[keep].tolist()
 
 def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=False):
+    """
+    Routine to sync up spectra in a pair of :class:`pypeit.specobjs.Specobjs`
+    objects.
+
+    Args:
+        spec1_file (str):
+        spec2_file (str):
+        det (int):
+        sync_dict (dict):
+        sync_toler (int):
+        debug:
+
+    Returns:
+        dict:  The dict with the book-keeping
+           - Each key is considered a unique source
+           - It contains a list of the files where it was found
+           - And the PypeIt name for each source, e.g. SPAT0132-SLIT0020-DET01
+
+    """
 
     if sync_dict is None:
         sync_dict = {}
@@ -3090,11 +3144,11 @@ def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=F
     #spec2.SPAT_PIXPOS = spec2.SPAT_PIXPOS - 5.
 
     # Arcs
-    arc1 = spec_to_arc(spec1, maxspat, det)
-    arc2 = spec_to_arc(spec2, maxspat, det)
+    peaks1 = spectra_to_peaks(spec1, maxspat, det)
+    peaks2 = spectra_to_peaks(spec2, maxspat, det)
 
     # Cross-correlate
-    shift, cross_corr = wvutils.xcorr_shift(arc1, arc2, debug=debug)
+    shift, cross_corr = wvutils.xcorr_shift(peaks1, peaks2, debug=debug)
 
     # Loop me now
     done2 = np.ones(spec2.nobj).astype(bool)

@@ -6,7 +6,7 @@ import numpy as np
 from IPython import embed
 
 # TODO -- Turn this into a DataContainer??
-class RawImage(object):
+class OldRawImage(object):
     """
     Class to load and hold a raw image
 

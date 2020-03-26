@@ -14,26 +14,21 @@ from pypeit.core import flat
 from pypeit.core import flexure
 from pypeit.par import pypeitpar
 from pypeit.images import pypeitimage
-from pypeit.images import rawimage
 from pypeit import utils
 
 from IPython import embed
 
-
-class ProcessRawImage(object):
+class RawImage(object):
     """
-    Class to process a raw image
+    Class to load and process a raw image
 
     Args:
-        rawImage (:class:`pypeit.images.rawimage.RawImage`):
-        par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-            Parameters that dictate the processing of the images.  See
-            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-            defaults.
+        ifile (:obj:`str`):
         bpm (`numpy.ndarray`_, optional):
             Bad pixel mask
 
     Attributes:
+        rawimage (`numpy.ndarray`_):
         steps (dict):
             Dict describing the steps performed on the image
         datasec_img (`numpy.ndarray`_):
@@ -44,27 +39,28 @@ class ProcessRawImage(object):
             Holds the spatial flexure shift, if calculated
         image (`numpy.ndarray`_):
     """
-    def __init__(self, rawImage, par, bpm=None):
+    def __init__(self, ifile, spectrograph, det):
 
         # Required parameters
-        if not isinstance(rawImage, rawimage.RawImage):
-            msgs.error("Bad rawImage input")
-        if not isinstance(par, pypeitpar.ProcessImagesPar):
-            msgs.error("Bad par input")
-        self.par = par  # ProcessImagesPar
-        self._bpm = bpm
+        self.filename = ifile
+        self.spectrograph = spectrograph  # One for convenience
+        self.det = det
+
+        # Load
+        # Load the raw image and the other items of interest
+        self.detector, self.rawimage, self.hdu, self.exptime, self.rawdatasec_img, \
+            self.oscansec_img = self.spectrograph.get_rawimage(self.filename, self.det)
 
         # Grab items from rawImage (for convenience and for processing)
         #   Could just keep rawImage in the object, if preferred
-        self.rawimage = rawImage
-        self.spectrograph = rawImage.spectrograph  # One for convenience
-        self.headarr = deepcopy(self.spectrograph.get_headarr(rawImage.hdu))
+        self.headarr = deepcopy(self.spectrograph.get_headarr(self.hdu))
 
         # Key attributes
-        self.image = rawImage.raw_image.copy()
-        self.datasec_img = rawImage.rawdatasec_img.copy()
+        self.image = self.rawimage.copy()
+        self.datasec_img = self.rawdatasec_img.copy()
 
         # Attributes
+        self.par = None
         self.ivar = None
         self.rn2img = None
         self.spat_flexure_shift = None
@@ -92,8 +88,8 @@ class ProcessRawImage(object):
         """
         if self._bpm is None:
             self._bpm = self.spectrograph.bpm(shape=self.image.shape,
-                                    filename=self.rawimage.filename,
-                                    det=self.rawimage.det)
+                                    filename=self.filename,
+                                    det=self.det)
         return self._bpm
 
     def apply_gain(self, force=False):
@@ -113,7 +109,7 @@ class ProcessRawImage(object):
             msgs.warn("Gain was already applied. Returning")
             return self.image.copy()
 
-        gain = np.atleast_1d(self.rawimage.detector['gain']).tolist()
+        gain = np.atleast_1d(self.detector['gain']).tolist()
         # Apply
         self.image *= procimg.gain_frame(self.datasec_img, gain) #, trim=self.steps['trim'])
         self.steps[step] = True
@@ -130,14 +126,11 @@ class ProcessRawImage(object):
             `numpy.ndarray`_: Copy of self.ivar
 
         """
-        #msgs.info("Generating raw variance frame (from detected counts [flat fielded])")
-        # Convenience
-        #detector = self.spectrograph.detector[self.det-1]
         # Generate
         rawvarframe = procimg.variance_frame(self.datasec_img, self.image,
-                                             self.rawimage.detector['gain'], self.rawimage.detector['ronoise'],
-                                             darkcurr=self.rawimage.detector['darkcurr'],
-                                             exptime=self.rawimage.exptime,
+                                             self.detector['gain'], self.detector['ronoise'],
+                                             darkcurr=self.detector['darkcurr'],
+                                             exptime=self.exptime,
                                              rnoise=self.rn2img)
         # Ivar
         self.ivar = utils.inverse(rawvarframe)
@@ -157,17 +150,14 @@ class ProcessRawImage(object):
             `numpy.ndarray`_: Copy of the read noise squared image
 
         """
-        #msgs.info("Generating read noise image from detector properties and amplifier layout)")
-        # Convenience
-        #detector = self.spectrograph.detector[self.det-1]
         # Build it
         self.rn2img = procimg.rn_frame(self.datasec_img,
-                                       self.rawimage.detector['gain'],
-                                       self.rawimage.detector['ronoise'])
+                                       self.detector['gain'],
+                                       self.detector['ronoise'])
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps, flatimages=None, bias=None,
+    def process(self, process_steps, par, bpm=bpm, flatimages=None, bias=None,
                 slits=None, debug=False):
         """
         Process the image
@@ -188,6 +178,11 @@ class ProcessRawImage(object):
         Args:
             process_steps (list):
                 List of processing steps
+            par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+                Parameters that dictate the processing of the images.  See
+                :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+                defaults.
+            bpm (`numpy.ndarray`_, optional):
             flatimages (:class:`pypeit.flatfield.FlatImages`):
             bias (`numpy.ndarray`_, optional):
                 Bias image
@@ -198,6 +193,9 @@ class ProcessRawImage(object):
             :class:`pypeit.images.pypeitimage.PypeItImage`:
 
         """
+        self.par = par
+        self._bpm = bpm
+
         # For error checking
         steps_copy = process_steps.copy()
         # Get started
@@ -254,7 +252,7 @@ class ProcessRawImage(object):
             embed(header='258 of processrawimage')
 
         # Fresh BPM
-        bpm = self.spectrograph.bpm(self.rawimage.filename, self.rawimage.det, shape=self.image.shape)
+        bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
 
         # Extras
         self.build_rn2img()
@@ -262,7 +260,7 @@ class ProcessRawImage(object):
 
         # Generate a PypeItImage
         pypeitImage = pypeitimage.PypeItImage(self.image, ivar=self.ivar, rn2img=self.rn2img,
-                                              bpm=bpm, detector=self.rawimage.detector,
+                                              bpm=bpm, detector=self.detector,
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.spectrograph)
         pypeitImage.rawheadlist = self.headarr
@@ -272,7 +270,7 @@ class ProcessRawImage(object):
             pypeitImage.build_crmask(self.par)
             steps_copy.remove('crmask')
         #
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawimage.detector,
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
                                                               apply_gain='apply_gain' in process_steps)
         pypeitImage.build_mask(saturation=nonlinear_counts)
         # Error checking
@@ -331,8 +329,8 @@ class ProcessRawImage(object):
             msgs.warn("Image was already oriented.  Returning current image")
             return self.image.copy()
         # Orient me
-        self.image = self.spectrograph.orient_image(self.rawimage.detector, self.image)#, self.det)
-        self.datasec_img = self.spectrograph.orient_image(self.rawimage.detector, self.datasec_img)#, self.det)
+        self.image = self.spectrograph.orient_image(self.detector, self.image)#, self.det)
+        self.datasec_img = self.spectrograph.orient_image(self.detector, self.datasec_img)#, self.det)
         #
         self.steps[step] = True
 
@@ -369,7 +367,7 @@ class ProcessRawImage(object):
         if self.steps[step] and (not force):
             msgs.warn("Image was already overscan subtracted!")
 
-        temp = procimg.subtract_overscan(self.image, self.datasec_img, self.rawimage.oscansec_img,
+        temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
                                          method=self.par['overscan'],
                                          params=self.par['overscan_par'])
         # Fill
@@ -387,8 +385,8 @@ class ProcessRawImage(object):
         """
         step = inspect.stack()[0][3]
         # Check input image matches the original
-        if self.rawimage.raw_image.shape is not None:
-            if self.image.shape != self.rawimage.raw_image.shape:
+        if self.rawimage.shape is not None:
+            if self.image.shape != self.rawimage.shape:
                 msgs.warn("Image shape does not match original.  Returning current image")
                 return self.image.copy()
         # Check if already trimmed
@@ -403,7 +401,7 @@ class ProcessRawImage(object):
 
     def __repr__(self):
         return ('<{:s}: file={}, steps={}>'.format(
-            self.__class__.__name__, self.rawimage.filename, self.steps))
+            self.__class__.__name__, self.filename, self.steps))
 
 '''
 def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,

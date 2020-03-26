@@ -26,8 +26,12 @@ class OneSpec(datamodel.DataContainer):
     """
     DataContainer to hold the products from :class:`pypeit.coadd1d.CoAdd1D`
 
+    See the datamodel for argument descriptions
+
     Args:
-        See the datamodel
+        wave:
+        flux:
+        PYP_SPEC:
 
     Attributes:
         head0 (`astropy.io.fits.Header`):  Primary header
@@ -44,34 +48,44 @@ class OneSpec(datamodel.DataContainer):
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array (0=Good???)'),
         'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model'),
-        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt: Spectrograph name'),
+        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
         'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
         'fluxed': dict(otype=bool, desc='Fluxed?'),
     }
     @classmethod
-    def from_file(cls, ifile, verbose=True):
+    def from_file(cls, ifile):
+        """
+        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
+        to deal with the header
+
+        Args:
+            ifile (str):  Filename holding the object
+
+        Returns:
+            `OneSpec`_:
+
+        """
         hdul = fits.open(ifile)
         slf = super(OneSpec, cls).from_hdu(hdul)
 
         # Internals
         slf.filename = ifile
         slf.head0 = hdul[0].header
+        # Meta
+        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
+        slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
         #
-        slf.spect_meta = spectrograph.parse_spec_header(head)
+        return slf
 
 
-    def __init__(self, wave, flux, ivar=None, mask=None, telluric=None,
-                 obj_model=None, PYP_SPEC=None, ext_mode=None, fluxed=None):
+    def __init__(self, wave, flux, PYP_SPEC, ivar=None, mask=None, telluric=None,
+                 obj_model=None, ext_mode=None, fluxed=None):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
-#
-#    def _bundle(self, ext=None, **kwargs):
-#        _d = super(OneSpec, self)._bundle(ext=ext, **kwargs)
-#        import pdb; pdb.set_trace()
 
     def _init_internals(self):
         self.head0 = None
@@ -195,27 +209,24 @@ class CoAdd1D(object):
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
-        Routine to save 1d coadds to a fits file. This replaces save.save_coadd1d_to_fits
+        Generate a `OneSpec`_ object and write it to disk
 
         Args:
             coaddfile (str):
-               File to outuput coadded spectrum to.
-            telluric (str):
-               This is vestigial and should probably be removed.
+               File to output coadded spectrum to.
+            telluric (`numpy.ndarray`_):
             obj_model (str):
-               This is vestigial and should probably be removed
             overwrite (bool):
                Overwrite existing file?
-
         """
         self.coaddfile = coaddfile
         wave_mask = self.wave_coadd > 1.0
         # Generate the DataContainer
         onespec = OneSpec(self.wave_coadd[wave_mask],
                           self.flux_coadd[wave_mask],
+                          PYP_SPEC=self.spectrograph.spectrograph,
                           ivar=self.ivar_coadd[wave_mask],
                           mask=self.mask_coadd[wave_mask].astype(int),
-                          PYP_SPEC=self.spectrograph.spectrograph,
                           ext_mode=self.par['ex_value'],
                           fluxed=self.par['flux_value'])
         onespec.head0 = fits.getheader(self.spec1dfiles[0])
@@ -227,7 +238,6 @@ class CoAdd1D(object):
             onespec.obj_model = obj_model[wave_mask]
         # Write
         onespec.to_file(coaddfile, overwrite=overwrite)
-
 
     def coadd(self):
         """
