@@ -219,6 +219,8 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         super(KECKHIRESRSpectrograph, self).__init__()
         self.spectrograph = 'keck_hires_red'
         self.camera = 'HIRES_R'
+        # Replace with DataContainer
+        '''
         self.detector = [
             # Detector 1 B
             pypeitpar.DetectorPar(dataext         = 1,
@@ -267,6 +269,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
                         ),
         ]
         self.numhead = 4
+        '''
 
     def default_pypeit_par(self):
         """

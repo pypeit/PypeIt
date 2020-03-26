@@ -144,14 +144,20 @@ and science frame, located in the *Science/* folder.
   - Examine the 2D spectral images :doc:`out_spec2D`
   - Examine the extracted 1D spectra :doc:`out_spec1D`
 
-6. BLEEDING EDGE
-================
+6. Fluxing
+==========
 
-The stuff below needs proper documenting.
+PypeIt provides routines for :doc:`fluxing` your spectra.
+These are run separately from and after the main run.
 
-9.  Flux
+7. Coadding
+===========
 
-10. Coadd (see :doc:`coadding`)
+There are scripts for coadding both the 2D spectra
+(undocumented) and to :doc:`coadd1d`.
+These are run separately from and after the main run.
+
+
 
 
 

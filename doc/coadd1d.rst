@@ -66,7 +66,11 @@ Then run the script::
 
 A substantial set of output are printed to the screen, and
 if successful the final spectrum is written to disk.
-And the parameters that guide the coadd process are written
+See below for the `Current Coadd1D Data Model`_.
+
+
+
+The parameters that guide the coadd process are also written
 to disk for your records. The default location is *coadd1d.par*.
 You can choose another location with the `--par_outfile`_
 option.
@@ -214,4 +218,14 @@ Keyword        Method                         Type Description
 ============= =============================== ==== =============================================
 otol          arspecobj.mtch_obj_to_objects() int  Tolerance for matching object ID number
 ============= =============================== ==== =============================================
+
+Current Coadd1D Data Model
+==========================
+
+Internally, the data are held in
+:class:`pypeit.coadd1d.OneSpec`.
+
+The data model is:
+
+.. include:: include/datamodel_onespec.rst
 
