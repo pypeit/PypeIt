@@ -89,7 +89,7 @@ class SlitTraceSet(datamodel.DataContainer):
                              descr='Integer number of pixels to consider beyond the slit edges.'),
                  'spat_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                  descr='Slit ID number from SPAT measured at half way point.'),
-                 'slitmask_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number slitmask'),
+                 'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number slitmask'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number echelle order'),
                  'nslits': dict(otype=int, descr='Total number of slits, derived from shape of left_init.'),
                  'left_init': dict(otype=np.ndarray, atype=np.floating,
@@ -232,6 +232,10 @@ class SlitTraceSet(datamodel.DataContainer):
         self.left_tweak = None
         self.right_tweak = None
 
+    def spatid_to_zero(self, spat_id):
+        mtch = self.spat_id == spat_id
+        return np.where(mtch)[0][0]
+
     def select_edges(self, initial=False, flexure=None):
         """
         Select between the initial or tweaked slit edges and allow for
@@ -270,7 +274,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None):
+    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None,
+                 use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -315,6 +320,9 @@ class SlitTraceSet(datamodel.DataContainer):
             exclude_flag (:obj:`str`, optional):
                 Bitmask flag to ignore when masking
                 Warning -- This could conflict with input slitids, i.e. avoid using both
+            use_spatial (bool, optional):
+                If True, use self.spat_id value instead of 0-based indices
+
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
@@ -352,10 +360,12 @@ class SlitTraceSet(datamodel.DataContainer):
         # maximum spectral position.
         slitid_img = np.full((self.nspec,self.nspat), -1, dtype=int)
         for i in slitidx:
+            slit_id = self.spat_id[i] if use_spatial else i
             indx = (spat[None,:] > left[:,i,None] - _pad[0]) \
                         & (spat[None,:] < right[:,i,None] + _pad[1]) \
                         & (spec > self.specmin[i])[:,None] & (spec < self.specmax[i])[:,None]
-            slitid_img[indx] = i
+            slitid_img[indx] = slit_id
+        # Return
         return slitid_img
 
     def spatial_coordinate_image(self, slitidx=None, full=False, slitid_img=None, pad=None,

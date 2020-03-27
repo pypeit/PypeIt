@@ -70,7 +70,7 @@ class WaveCalib(object):
             List of the processing steps performed
         wv_calib : dict
             Primary output.  Keys 0, 1, 2, 3 are solution for individual
-            slit steps
+            previously slit steps
         arccen (ndarray):
             (nwave, nslit) Extracted arc(s) down the center of the slit(s)
         maskslits : ndarray (nslit); bool
@@ -83,6 +83,7 @@ class WaveCalib(object):
             require that we write it to disk with self.msarc.image
         nonlinear_counts (float):
             Specifies saturation level for the arc lines
+        wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
     """
     # Frametype is a class attribute
     frametype = 'wv_calib'
@@ -135,24 +136,19 @@ class WaveCalib(object):
             # Load up slits
             # TODO -- Allow for flexure
             all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
-            # Analyze only fully unmasked  --
-            # TODO -- Allow for an option to re-attempt those flagged as BADWVCALIB
-            gpm_slits = mask == 0
-            left = all_left[:,gpm_slits]
-            right = all_right[:,gpm_slits]
-            self.slit_spat_id = self.slits.spat_id[gpm_slits]
-            self.slit_idx = np.where(gpm_slits)[0]
+            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
-            self.wvc_bpm = np.array([False]*len(self.slit_idx))
-            # Slitmask
-            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)  # Grabs all unmasked, tweaked slits
-            #self.nslits = self.slits.nslits
+            # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
+            self.wvc_bpm = np.invert(mask == 0)
+            # Slitmask, spat_coo
+            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)  # Grabs only unmasked, initial slits
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
-            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (left+right)/2)
+            #self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
+            #self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
+            # slitcen is padded to include slits that may be masked, for convenience in coding downstream
+            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (all_left+all_right)/2)
             self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
             # Mask
             gpm = self.bpm == 0 if self.bpm is not None \
@@ -162,15 +158,14 @@ class WaveCalib(object):
             #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
                 self.gpm &= self.msarc.image < self.nonlinear_counts
-            self.spat_coo = self.slits.spatial_coordinates()
 
         else:
             self.slitmask_science = None
             self.shape_science = None
             self.shape_arc = None
             self.nslits = 0
-            self.slit_left = None
-            self.slit_righ = None
+            #self.slit_left = None
+            #self.slit_righ = None
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
@@ -219,7 +214,7 @@ class WaveCalib(object):
 #                    self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask, nonlinear_counts=self.nonlinear_counts)
+            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'identify':
             final_fit = {}
@@ -261,10 +256,10 @@ class WaveCalib(object):
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
-        # Reset keys!
+        # Reset keys to spatial system
         self.wv_calib = final_fit.copy()
         for idx in ok_mask_idx:
-            self.wv_calib[str(self.slit_spat_id[idx])] = self.wv_calib.pop(str(idx))
+            self.wv_calib[str(self.slits.spat_id[idx])] = self.wv_calib.pop(str(idx))
 
         # Update mask
         self.update_wvmask()
@@ -273,10 +268,11 @@ class WaveCalib(object):
         if not skip_QA:
             ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
-                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slit_spat_id[slit_idx],
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.spat_id[slit_idx],
                                              out_dir=self.qa_path)
-                autoid.arc_fit_qa(self.wv_calib[str(self.slit_spat_id[slit_idx])], outfile=outfile)
+                autoid.arc_fit_qa(self.wv_calib[str(self.slits.spat_id[slit_idx])], outfile=outfile)
 
+        embed(header='275 of wvcalib')
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
@@ -301,12 +297,13 @@ class WaveCalib(object):
         all_order = np.array([],dtype=float)
 
         # Obtain a list of good slits
-        ok_mask = np.where(np.invert(self.maskslits))[0]
+        ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+        ok_mask_spat = self.slit_spat_id[ok_mask_idx]
         nspec = self.msarc.image.shape[0]
-        for islit in wv_calib.keys():
-            if int(islit) not in ok_mask:
+        for islit in wv_calib.keys():  # Spatial based
+            if int(islit) not in ok_mask_spat:
                 continue
-            iorder, iindx = self.spectrograph.slit2order(self.spat_coo[int(islit)])
+            iorder, iindx = self.spectrograph.slit2order(self.spat_coo[self.slits.spatid_to_zero(int(isilt))])
             mask_now = wv_calib[islit]['mask']
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
@@ -351,13 +348,13 @@ class WaveCalib(object):
                   True = masked (bad)
 
         """
-        # Do it
+        # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm)
-        #, nonlinear_counts=nonlinear) -- Non-linear counts are already part of the gpm
+            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
+        # Update the mask
         self.wvc_bpm |= arc_maskslit
 
         return arccen, self.wvc_bpm
@@ -437,7 +434,7 @@ class WaveCalib(object):
         Main driver for wavelength calibration
 
         Code flow:
-          1. Extract 1D arc spectra down the center of each slit/order
+          1. Extract 1D arc spectra down the center of each unmasked slit/order
           2. Load the parameters guiding wavelength calibration
           3. Generate the 1D wavelength fits
           4. Generate a mask
@@ -466,7 +463,7 @@ class WaveCalib(object):
 
         if np.any(self.wvc_bpm):
             wv_masked = np.where(self.wvc_bpm)[0]
-            slitidx_masked = self.slit_idx[wv_masked]
+            slitidx_masked = self.slits.spatid_to_zero(self.slit_spat_id[wv_masked])
             self.slits.mask[slitidx_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[slitidx_masked], 'BADWVCALIB')
 
@@ -541,7 +538,7 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
         `np.ndarray`_: The wavelength image.
     """
     # Setup
-    ok_slits = np.where(slits.mask == 0)[0] #np.invert(slits.mask))[0]
+    ok_slits = slits.mask == 0
     image = np.zeros_like(tilts)
     slitmask = slits.slit_img(flexure=spat_flexure)
 
@@ -551,16 +548,16 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     # If this is echelle print out a status message and do some error checking
     if par['echelle']:
         msgs.info('Evaluating 2-d wavelength solution for echelle....')
-        if len(wv_calib['fit2d']['orders']) != len(ok_slits):
+        if len(wv_calib['fit2d']['orders']) != np.sum(ok_slits):
             msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
 
     # Unpack some 2-d fit parameters if this is echelle
-    for slit in ok_slits:
-        thismask = (slitmask == slit)
+    for slit_spat in slits.spat_id[ok_slits]:
+        thismask = (slitmask == slit_spat)
         if par['echelle']:
             embed(header='205 this may be broken..')
             # TODO: Put this in `SlitTraceSet`?
-            order, indx = spectrograph.slit2order(slit_spat_pos[slit])
+            order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
             # evaluate solution
             image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
                                              tilts[thismask],
