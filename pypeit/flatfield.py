@@ -542,7 +542,7 @@ class FlatField(object):
                 if saturated_slits == 'crash':
                     msgs.error('Only {:4.2f}'.format(100*good_frac)
                                + '% of the pixels on slit {0} are not saturated.  '.format(slit)
-                               + 'Selected behavior was to crash if this occurred.'
+                               + 'Selected behavior was to crash if this occurred.  '
                                + common_message)
                 elif saturated_slits == 'mask':
                     self.slits.mask[slit] = True
@@ -550,7 +550,7 @@ class FlatField(object):
                               + '% of the pixels on slit {0} are not saturated.  '.format(slit)
                               + 'Selected behavior was to mask this slit and continue with the '
                               + 'remainder of the reduction, meaning no science data will be '
-                              + 'extracted from this slit.' + common_message)
+                              + 'extracted from this slit.  ' + common_message)
                 elif saturated_slits == 'continue':
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
                               + '% of the pixels on slit {0} are not saturated.  '.format(slit)
