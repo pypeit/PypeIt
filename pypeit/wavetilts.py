@@ -45,19 +45,19 @@ class WaveTilts(datamodel.DataContainer):
         #'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
         'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit.' \
                        'One set per slit/order (3D array).'),
-        'slitcen': dict(otype=np.ndarray, atype=np.floating,
-                        desc='Location of the slit center.  2D array (nspec, nslit)'),
-        'nslit': dict(otype=int, desc='Number of slits.  This can include masked slits'),
+        #'slitcen': dict(otype=np.ndarray, atype=np.floating,
+        #                desc='Location of the slit center.  2D array (nspec, nslit)'),
+        'nslit': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id'),
         'spat_order': dict(otype=np.ndarray, atype=np.integer,
-                           desc='Order for spatial fit'),
+                           desc='Order for spatial fit (nslit)'),
         'spec_order': dict(otype=np.ndarray, atype=np.integer,
-                           desc='Order for spectral fit'),
+                           desc='Order for spectral fit (nslit)'),
         'func2d': dict(otype=str,desc='Function used for the 2D fit'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'spat_flexure': dict(otype=float, desc='Flexure shift from the input TiltImage'),
     }
-    def __init__(self, coeffs, slitcen, nslit, spat_id, spat_order, spec_order, func2d, spat_flexure=None,
+    def __init__(self, coeffs, nslit, spat_id, spat_order, spec_order, func2d, spat_flexure=None,
                  PYP_SPEC=None):
 
         # Parse
@@ -628,7 +628,7 @@ class BuildWaveTilts(object):
             self.spec_order[islit] = self._parse_param(self.par, 'spec_order', islit)
             # 2D model of the tilts, includes construction of QA
             # NOTE: This also fills in self.all_fit_dict and self.all_trace_dict
-            coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,islit],
+            coeff_out = self.fit_tilts(self.trace_dict, thismask, self.slitcen[:,ss],
                                        self.spat_order[islit], self.spec_order[islit], islit,
                                        doqa=doqa, show_QA=show, debug=show)
             self.coeffs[:self.spec_order[islit]+1,:self.spat_order[islit]+1,islit] = coeff_out
@@ -667,7 +667,7 @@ class BuildWaveTilts(object):
             plt.show()
 
         # Build and return DataContainer
-        tilts_dict = {'coeffs':self.coeffs, 'slitcen':self.slitcen, #'tilts':self.final_tilts,
+        tilts_dict = {'coeffs':self.coeffs, #'slitcen':self.slitcen, #'tilts':self.final_tilts,
                       'func2d':self.par['func2d'], 'nslit':self.slits.nslits,
                       'spat_order':self.spat_order, 'spec_order':self.spec_order,
                       'spat_id':self.slits.spat_id, 'spec_order':self.spec_order,
