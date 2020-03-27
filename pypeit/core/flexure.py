@@ -89,9 +89,10 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     #slitmask_shift = slits.slit_img(flexure=lag_max[0])
     if debug:
         # Now translate the slits in the tslits_dict
-        _, _ = slits.select_edges(flexure=lag_max[0])
+        all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
+        gpm = mask == 0
         viewer, ch = ginga.show_image(sciimg)
-        ginga.show_slits(viewer, ch, slits.left_flexure, slits.right_flexure)#, slits.id) #, args.det)
+        ginga.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         embed(header='83 of flexure.py')
     #ginga.show_slits(viewer, ch, tslits_shift['slit_left'], tslits_shift['slit_righ'])
     #ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'])

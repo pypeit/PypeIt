@@ -51,6 +51,13 @@ class SlitTraceSet(datamodel.DataContainer):
             Only the arguments relevant to the
             :class:`pypeit.masterframe.MasterFrame` components of
             :class:`SlitTraceSet` are used.
+
+    Attributes:
+        left_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected left
+        right_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected right
+        master_key (:obj:`str`):
+        master_dir (:obj:`str`):
+
     """
     frametype = 'slits'
     master_type = 'Slits'
@@ -79,10 +86,11 @@ class SlitTraceSet(datamodel.DataContainer):
                                  descr='Number of pixels binned in the spatial direction.'),
                  'pad': dict(otype=int,
                              descr='Integer number of pixels to consider beyond the slit edges.'),
-                 #'nslits': dict(otype=int, descr='Number of slits.'),
-                 'spat_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number from SPAT'),
+                 'spat_id': dict(otype=np.ndarray, atype=(int,np.integer),
+                                 descr='Slit ID number from SPAT measured at half way point.'),
                  'slitmask_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number slitmask'),
                  'ech_order': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number echelle order'),
+                 'nslits': dict(otype=int, descr='Total number of slits, derived from shape of left_init.'),
                  'left_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
                                     'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
@@ -98,8 +106,8 @@ class SlitTraceSet(datamodel.DataContainer):
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
                  'center': dict(otype=np.ndarray, atype=np.floating,
-                               descr='Spatial coordinates of the slit centers from left_init, right_init.  Shape is Nspec '
-                                     'by Nslits.'),
+                               descr='Spatial coordinates of the slit centers from left_init, right_init.  '
+                                     'Shape is Nspec by Nslits.'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape is Nslits.'),
                  'specmin': dict(otype=np.ndarray, atype=np.floating,
@@ -167,7 +175,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # never be useful.
             self.nspat = np.amax(np.append(self.left_init, self.right_init))
         if self.spat_id is None:
-            self._set_spatids()
+            self.spat_id = np.round(self.center[int(np.round(0.5 * self.nspec)), :]).astype(int)
         if self.PYP_SPEC is None:
             self.PYP_SPEC = 'unknown'
         if self.mask is None:
@@ -209,44 +217,6 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True, debug=True)
 
-    def _set_spatids(self, specfrac=0.5):
-        """
-        Assign the slit ID numbers.
-
-        CURRENT:
-        Slit IDs are set based on the spatial location on the detector
-
-            self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:])
-
-        ORIGINAL/OUTDATED: IDs are based on the provided fractional location
-        along the spectral direction, and it is computed as follows::
-
-            self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
-                                / self.nspat * 1e4).astype(int)
-
-        I.e., if the slit center is 1024 for an image with 2048
-        spatial pixels, the slit ID is 5000. The slit ID numbers are
-        assigned to :attr:`id`.
-
-        Args:
-            specfrac (:obj:`float`, optional):
-                The fractional spectral position of the slit center
-                to use for the ID calculation.
-
-        Raises:
-            ValueError:
-                Raised if :attr:`center`, :attr:`nspat`, or
-                :attr:`nspec` is not defined (None).
-        """
-        # TODO: This doesn't need to be a separate private function. It
-        # could just be a line in _validate().
-        if self.center is None or self.nspec is None or self.nspat is None:
-            raise ValueError('Object does not have center, nspec, or nspat; '
-                             'cannot assign slit IDs.')
-        self.spat_id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]).astype(int)
-        #self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
-        #                        / self.nspat * 1e4).astype(int)
-
     def init_tweaked(self):
         """
         Initialize the tweaked slits.
@@ -263,7 +233,8 @@ class SlitTraceSet(datamodel.DataContainer):
 
     def select_edges(self, initial=False, flexure=None):
         """
-        Select between the original or tweaked slit edges.
+        Select between the initial or tweaked slit edges and allow for
+        flexure correction.
 
         By default, the method will return the tweaked slits if they
         have been defined. If they haven't been defined the nominal
@@ -275,11 +246,13 @@ class SlitTraceSet(datamodel.DataContainer):
             initial (:obj:`bool`, optional):
                 To use the initial edges regardless of the presence of
                 the tweaked edges, set this to True.
+            flexure (:obj:`float`, optional):
+                If provided, offset each slit by this amount
 
         Returns:
-            tuple: Returns the arrays containing the left and right
-            edge coordinates, respectively. These are returned as
-            pointers to the internal attributes, **not** copies.
+            tuple: Returns the full arrays containing the left and right
+            edge coordinates and the mask, respectively.
+            These are returned as copies.
         """
         # TODO: Add a copy argument?
         if self.left_tweak is not None and self.right_tweak is not None and not initial:
@@ -294,10 +267,9 @@ class SlitTraceSet(datamodel.DataContainer):
             left, right = self.left_flexure, self.right_flexure
 
         # Return
-        return left, right
+        return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitids=None, initial=False, flexure=None,
-                 short_slits=False):
+    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -329,9 +301,9 @@ class SlitTraceSet(datamodel.DataContainer):
                 not None, this overrides the value in :attr:`par`.
                 The value can be negative, which means that the
                 widths are **trimmed** instead of padded.
-            slitids (:obj:`int`, array_like, optional):
-                List of slit IDs to include in the image. If None,
-                all slits are included.
+            slitidx (:obj:`int`, array_like, optional):
+                List of indexes (zero-based) to include in the image.
+                If None, all slits not flagged are included.
             initial (:obj:`bool`, optional):
                 By default, the method will use the tweaked slit
                 edges if they have been defined. If they haven't
@@ -339,11 +311,17 @@ class SlitTraceSet(datamodel.DataContainer):
                 :attr:`right_init`) are used. To use the nominal edges
                 regardless of the presence of the tweaked edges, set
                 this to True. See :func:`select_edges`.
+            exclude_flag (:obj:`str`, optional):
+                Bitmask flag to ignore when masking
+                Warning -- This could conflict with input slitids, i.e. avoid using both
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
             identified for each pixel.
         """
+        #
+        if slitidx is not None and exclude_flag is not None:
+            msgs.error("Cannot pass in both slitidx and exclude_flag!")
         # Check the input
         if pad is None:
             pad = self.pad
@@ -351,15 +329,20 @@ class SlitTraceSet(datamodel.DataContainer):
         if len(_pad) != 2:
             msgs.error('Padding for both left and right edges should be provided as a 2-tuple!')
 
-        # Slit IDs to include in the image
-        slitids = np.arange(self.nslits) if slitids is None else np.atleast_1d(slitids).ravel()
-
         # Pixel coordinates
         spat = np.arange(self.nspat)
         spec = np.arange(self.nspec)
 
-        # Choose the slit edges to use
-        left, right = self.select_edges(initial=initial, flexure=flexure)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+
+        # Choose the slits to use
+        if slitidx is not None:
+            slitidx = np.atleast_1d(slitidx).ravel()
+        else:
+            bpm = self.mask.astype(bool)
+            if exclude_flag:
+                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
+            slitidx = np.where(np.invert(bpm))[0]
 
         # TODO: When specific slits are chosen, need to check that the
         # padding doesn't lead to slit overlap.
@@ -367,22 +350,22 @@ class SlitTraceSet(datamodel.DataContainer):
         # Find the pixels in each slit, limited by the minimum and
         # maximum spectral position.
         slitid_img = np.full((self.nspec,self.nspat), -1, dtype=int)
-        for i in slitids:
+        for i in slitidx:
             indx = (spat[None,:] > left[:,i,None] - _pad[0]) \
                         & (spat[None,:] < right[:,i,None] + _pad[1]) \
                         & (spec > self.specmin[i])[:,None] & (spec < self.specmax[i])[:,None]
             slitid_img[indx] = i
         return slitid_img
 
-    def spatial_coordinate_image(self, slitids=None, full=False, slitid_img=None, pad=None,
+    def spatial_coordinate_image(self, slitidx=None, full=False, slitid_img=None, pad=None,
                                  initial=False, flexure_shift=None):
         r"""
         Generate an image with the normalized spatial coordinate
         within each slit.
 
         Args:
-            slitids (:obj:`int`, array_like, optional):
-                List of slit IDs to include in the image. If None,
+            slitidx (:obj:`int`, array_like, optional):
+                List of indices to include in the image. If None,
                 all slits are included.
             full (:obj:`bool`, optional):
                 If True, return a full image with the coordinates
@@ -420,20 +403,20 @@ class SlitTraceSet(datamodel.DataContainer):
             relative to the left edge for the provided slit over the
             full image.
         """
-        # Slit IDs to include
-        _slitids = np.arange(self.nslits) if slitids is None else np.atleast_1d(slitids).ravel()
-        if full and len(_slitids) > 1:
+        # Slit indices to include
+        _slitidx = np.arange(self.nslits) if slitidx is None else np.atleast_1d(slitidx).ravel()
+        if full and len(_slitidx) > 1:
             msgs.error('For a full image with the slit coordinates, must select a single slit.')
 
         # Generate the slit ID image if it wasn't provided
         if not full:
             if slitid_img is None:
-                slitid_img = self.slit_img(pad=pad, slitids=_slitids, initial=initial)
+                slitid_img = self.slit_img(pad=pad, slitidx=_slitidx, initial=initial)
             if slitid_img.shape != (self.nspec,self.nspat):
                 msgs.error('Provided slit ID image does not have the correct shape!')
 
         # Choose the slit edges to use
-        left, right = self.select_edges(initial=initial, flexure=flexure_shift)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure_shift)
 
         # Slit width
         slitwidth = right - left
@@ -442,7 +425,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # checked when instantiating the object.
         # Slit widths have to be larger than 0
         indx = slitwidth <= 0.
-        if np.any(indx[:,_slitids]):
+        if np.any(indx[:,_slitidx]):
             bad_slits = np.where(np.any(indx, axis=0))[0]
             # TODO: Shouldn't this fault?
             msgs.warn('Slits {0} have negative (or 0) slit width!'.format(bad_slits))
@@ -450,7 +433,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # Output image
         coo_img = np.zeros((self.nspec,self.nspat), dtype=float)
         spat = np.arange(self.nspat)
-        for i in _slitids:
+        for i in _slitidx:
             coo = (spat[None,:] - left[:,i,None])/slitwidth[:,i,None]
             if not full:
                 indx = slitid_img == i
@@ -480,7 +463,7 @@ class SlitTraceSet(datamodel.DataContainer):
             spatial coordinates.
         """
         # TODO -- Confirm it makes sense to pass in flexure
-        left, right = self.select_edges(initial=initial, flexure=flexure)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
         return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
     @staticmethod

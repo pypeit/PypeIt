@@ -1464,7 +1464,7 @@ class EdgeTraceSet(object):
             _include_error = False
             if include_error:
                 msgs.warn('SlitTraceSet object has no errors.')
-            left, right = slits.select_edges(original=original)
+            left, right, _ = slits.select_edges(original=original)
             cen = np.hstack((left,right))
             fit = cen
             msk = None

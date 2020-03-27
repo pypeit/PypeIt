@@ -105,7 +105,8 @@ def main(args):
                                                mdir)
 
     # Object traces
-    left, right = slits.select_edges()
+    left, right, mask = slits.select_edges()
+    msgs.error("You need to choose which slits you care about here")
 
     # Get object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')
