@@ -446,7 +446,7 @@ class Reduce(object):
         Wrapper to skysub.global_skysub
 
         Args:
-            scaleImg (np.ndarray, None):
+            scaleImg (np.ndarray, float, None):
                 A 2D image that scales the science frame to provide
                 uniform relative sky response across multiple slits
             skymask (np.ndarray, None):
@@ -491,17 +491,19 @@ class Reduce(object):
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
-            wavenorm = self.caliBrate.mswave.image / np.max(self.caliBrate.mswave.image)
+            wavenorm = self.waveImg / np.max(self.waveImg)
             # Find sky
             # TODO :: JXP removed the left and right (non trimmed) edges (see above). This might not allow the whole slit to be used
-            # TODO :: Need to check if scaleImg should multiplied or divided...
+            scalefact = scaleImg + (scaleImg == 0)
             self.global_sky[thismask] \
-                = skysub.global_skysub(self.sciImg.image*scaleImg, self.sciImg.ivar, wavenorm,
+                = skysub.global_skysub(self.sciImg.image/scalefact, self.sciImg.ivar, wavenorm,
                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
-                                       pos_mask=(not self.ir_redux), show_fit=show_fit)
+                                       pos_mask=(not self.ir_redux), show_fit=True)#show_fit)
+            # Apply the scaling factor to the sky image
+            self.global_sky *= scaleImg
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 msgs.error("Cannot perform joint global sky fit")
@@ -1336,13 +1338,10 @@ class IFUReduce(Reduce):
             scaleImg = self.build_scaleimg(ref_slit)
 
         # Check if the user has a pre-defined sky regions file
-        skymask_init = self.load_skyregions()
-
-        import pdb
-        pdb.set_trace()
+        skymask_init = None#self.load_skyregions()
 
         # Global sky subtract
-        self.global_sky = self.global_skysub(skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
+        self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
 
         from pypeit.io import write_to_fits
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
