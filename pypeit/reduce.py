@@ -1342,7 +1342,14 @@ class IFUReduce(Reduce):
         # Check if the user has a pre-defined sky regions file
         skymask_init = self.load_skyregions()
 
-        # Global sky subtract
+        # Global sky subtract based on flatfield model
+        self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
+
+        # Recalculate the scaling based on the sky spectra
+        skyfactor = 1.0  # TODO :: Need to calculate a constant (or low order polynomial) scaling factor using the sky for all slits relative to the reference slit
+        scaleImg *= skyfactor
+
+        # Recalculate the global sky subtract based on flatfield model
         self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
 
         from pypeit.io import write_to_fits
