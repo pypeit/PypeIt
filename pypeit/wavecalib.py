@@ -133,18 +133,19 @@ class WaveCalib(object):
         # the slits
         if self.slits is not None and self.msarc is not None:
             # Load up slits
-            all_left, all_right, mask = self.slits.select_edges(flexure=None)  # Grabs all, tweaked slits
+            # TODO -- Allow for flexure
+            all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
             # Analyze only fully unmasked  --
             # TODO -- Allow for an option to re-attempt those flagged as BADWVCALIB
-            gpm = mask == 0
-            left = all_left[:,gpm]
-            right = all_right[:,gpm]
-            self.slit_spat_id = self.slits.spat_id[gpm]
-            self.slit_idx = np.where(gpm)[0]
+            gpm_slits = mask == 0
+            left = all_left[:,gpm_slits]
+            right = all_right[:,gpm_slits]
+            self.slit_spat_id = self.slits.spat_id[gpm_slits]
+            self.slit_idx = np.where(gpm_slits)[0]
             # Internal mask for failed wv_calib analysis
             self.wvc_bpm = np.array([False]*len(self.slit_idx))
             # Slitmask
-            self.slitmask_science = self.slits.slit_img(flexure=None)  # Grabs all unmasked, tweaked slits
+            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)  # Grabs all unmasked, tweaked slits
             #self.nslits = self.slits.nslits
             # Resize
             self.shape_science = self.slitmask_science.shape
@@ -445,7 +446,7 @@ class WaveCalib(object):
             skip_QA : bool, optional
 
         Returns:
-            dict, ndarray:  wv_calib dict and maskslits bool array
+            dict:  wv_calib dict
 
         """
         ###############

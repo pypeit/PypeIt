@@ -850,26 +850,17 @@ class Calibrations(object):
             msgs.error('Arc master key not set.  First run get_arc.')
 
         # Return existing data
-        if self._cached('wavecalib', self.master_key_dict['arc']) \
-                and self._cached('wvmask', self.master_key_dict['arc']):
+        if self._cached('wavecalib', self.master_key_dict['arc']):
             self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
-            self.wv_maskslits = self.calib_dict[self.master_key_dict['arc']]['wvmask']
-            self.slits.mask |= self.wv_maskslits
             return self.wv_calib
 
         # No wavelength calibration requested
         if self.par['wavelengths']['reference'] == 'pixel':
             msgs.info("A wavelength calibration will not be performed")
             self.wv_calib = None
-            self.wv_maskslits = np.zeros_like(self.slits.mask, dtype=bool)
-            self.slits.mask |= self.wv_maskslits
             return self.wv_calib
 
         # Grab arc binning (may be different from science!)
-        #arc_rows = self.fitstbl.find_frames('arc', calib_ID=self.calib_ID, index=True)
-        #self.arc_files = self.fitstbl.frame_paths(arc_rows)
-        #binspec, binspat = parse.parse_binning(self.spectrograph.get_meta_value(self.arc_files[0],
-        #                                                                        'binning'))
         # TODO : Do this internally when we have a wv_calib DataContainer
         binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
 
@@ -885,16 +876,15 @@ class Calibrations(object):
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.wv_calib = self.waveCalib.load(masterframe_name)
         else:
-            self.wv_calib, _ = self.waveCalib.run(skip_QA=(not self.write_qa))
+            self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             if self.save_masters:
                 self.waveCalib.save(outfile=masterframe_name)
-            # Slit mask may have been updated, write to disk
-            if self.save_masters:
+                # Slit mask may have been updated, write to disk
                 self.slits.to_master_file()
 
         # Save & return
-        self._update_cache('arc', ('wavecalib','wvmask'), (self.wv_calib,self.wv_maskslits))
+        self._update_cache('arc', 'wavecalib', self.wv_calib)
         # Return
         return self.wv_calib
 
@@ -915,10 +905,6 @@ class Calibrations(object):
         #TODO add mstilt_inmask to this list when it gets implemented.
         if not self._chk_objs(['mstilt', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('dont have all the objects')
-            self.wavetilts = None
-            self.wt_maskslits = np.zeros_like(self.maskslits, dtype=bool)
-            self.slits.mask |= self.wt_maskslits
-            return self.wavetilts
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -926,11 +912,9 @@ class Calibrations(object):
             msgs.error('Tilt master key not set.  First run get_tiltimage.')
 
         # Return existing data
-        if self._cached('wavetilts', self.master_key_dict['tilt']) \
-                and self._cached('wtmask', self.master_key_dict['tilt']):
+        if self._cached('wavetilts', self.master_key_dict['tilt']):
             self.wavetilts = self.calib_dict[self.master_key_dict['tilt']]['wavetilts']
-            self.wt_maskslits = self.calib_dict[self.master_key_dict['tilt']]['wtmask']
-            self.slits.mask |= self.wt_maskslits
+            self.wavetilts.is_synced(self.slits)
             return self.wavetilts
 
         # Load up?
@@ -938,7 +922,7 @@ class Calibrations(object):
                                                            master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.wavetilts = wavetilts.WaveTilts.from_file(masterframe_name)
-            self.wt_maskslits = np.zeros(self.slits.nslits, dtype=bool)
+            self.wavetilts.is_synced(self.slits)
         else: # Build
             # Flexure
             _spat_flexure = self.mstilt.spat_flexure \
@@ -950,15 +934,16 @@ class Calibrations(object):
                 master_key=self.master_key_dict['tilt'], spat_flexure=_spat_flexure)
 
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
-            self.wavetilts, self.wt_maskslits \
-                    = buildwaveTilts.run(maskslits=self.slits.mask, doqa=self.write_qa, show=self.show)
+            self.wavetilts = buildwaveTilts.run(doqa=self.write_qa, show=self.show)
             # Save?
             if self.save_masters:
                 self.wavetilts.to_master_file(masterframe_name)
+                self.slits.to_master_file()
 
         # Save & return
-        self._update_cache('tilt', ('wavetilts','wtmask'), (self.wavetilts, self.wt_maskslits))
-        self.slits.mask |= self.wt_maskslits
+        self._update_cache('tilt', 'wavetilts', self.wavetilts)
+        #self._update_cache('tilt', ('wavetilts','wtmask'), (self.wavetilts, self.wt_maskslits))
+        #self.slits.mask |= self.wt_maskslits
         return self.wavetilts
 
     def run_the_steps(self):

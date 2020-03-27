@@ -2521,7 +2521,7 @@ class WaveTiltsPar(ParSet):
         defaults['tracethresh'] = 20.
         dtypes['tracethresh'] = [int, float, list, numpy.ndarray]
         descr['tracethresh'] = 'Significance threshold for arcs to be used in tracing wavelength tilts. ' \
-                               'This can be a single number or a list/array providing the value for each slit'
+                               'This can be a single number or a list/array providing the value for each slit/order.'
 
 
         defaults['sig_neigh'] = 10.

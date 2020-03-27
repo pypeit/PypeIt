@@ -24,6 +24,7 @@ class SlitTraceBitMask(BitMask):
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
+            ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
