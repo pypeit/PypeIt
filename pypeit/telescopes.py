@@ -78,16 +78,16 @@ class LBTTelescopePar(TelescopePar):
                                                latitude=32.701308,
                                                elevation=3221.0)
 
-class MDMTelescopePar(TelescopePar):
-    def __init__(self):
-        super(MDMTelescopePar, self).__init__(name='MDM',
-                                              longitude=111.616111,
-                                              latitude=31.9516666,
-                                              elevation=2098.)                # Used KPNO not MDM
-
 class KPNOTelescopePar(TelescopePar):
     def __init__(self):
         super(KPNOTelescopePar, self).__init__(name='KPNO',
+                                              longitude=111.616111,
+                                              latitude=31.9516666,
+                                              elevation=2098.)                
+
+class MMTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(MMTTelescopePar, self).__init__(name='MMT',
                                                longitude=110.885,
                                                latitude=31.6883,
                                                elevation=2616.0)
