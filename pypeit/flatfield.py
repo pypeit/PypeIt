@@ -537,33 +537,33 @@ class FlatField(object):
                 if saturated_slits == 'crash':
                     msgs.error('Only {:4.2f}'.format(100*good_frac)
                                + '% of the pixels on slit {0} are not saturated.'.format(slit)
-                               + msgs.newline() + 'Selected behavior was to crash if this '
-                               + 'occurred.  To change the behavior, use the \'saturated_slits\''
-                               + 'parameter in the flatfield parameter group; see here:'
-                               + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html .'
-                               + 'You could also choose to use a different flat-field image for '
-                               + 'this calibration group.')
+                               + 'Selected behavior was to crash if this occurred.  To change '
+                               + 'the behavior, use the \'saturated_slits\' parameter in the '
+                               + 'flatfield parameter group; see here:\n'
+                               + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n'
+                               + 'You could also choose to use a different flat-field image '
+                               + 'for this calibration group.')
                 elif saturated_slits == 'mask':
                     self.slits.mask[slit] = True
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
                               + '% of the pixels on slit {0} are not saturated.'.format(slit)
-                              + msgs.newline() + 'Selected behavior was to mask this slit and '
-                              + 'continue with the remainder of the reduction, meaning no '
-                              + 'science data will be extracted from this slit.  To change the '
-                              + 'behavior, use the \'saturated_slits\' parameter in the '
-                              + 'flatfield parameter group; see here:'
-                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html .'
+                              + 'Selected behavior was to mask this slit and continue with the '
+                              + 'remainder of the reduction, meaning no science data will be '
+                              + 'extracted from this slit.  To change the behavior, use the '
+                              + '\'saturated_slits\' parameter in the flatfield parameter group; '
+                              + 'see here:\n'
+                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n'
                               + 'You could also choose to use a different flat-field image for '
                               + 'this calibration group.')
                 elif saturated_slits == 'continue':
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
                               + '% of the pixels on slit {0} are not saturated.'.format(slit)
-                              + msgs.newline() + 'Selected behavior was to simply continue, '
-                              + 'meaning no field-flatting correction will be applied to this '
-                              + 'slit but pypeit will attempt to extract any objects found on '
-                              + 'this slit.  To change the behavior, use the \'saturated_slits\' '
-                              + 'parameter in the flatfield parameter group; see here:'
-                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html .'
+                              + 'Selected behavior was to simply continue, meaning no '
+                              + 'field-flatting correction will be applied to this slit but '
+                              + 'pypeit will attempt to extract any objects found on this slit.  '
+                              + 'To change the behavior, use the \'saturated_slits\' parameter '
+                              + 'in the flatfield parameter group; see here:\n'
+                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n'
                               + 'You could also choose to use a different flat-field image for '
                               + 'this calibration group.')
                 else:
