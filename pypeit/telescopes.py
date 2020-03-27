@@ -83,7 +83,7 @@ class KPNOTelescopePar(TelescopePar):
         super(KPNOTelescopePar, self).__init__(name='KPNO',
                                               longitude=111.616111,
                                               latitude=31.9516666,
-                                              elevation=2098.)                
+                                              elevation=2098.)
 
 class MMTTelescopePar(TelescopePar):
     def __init__(self):
