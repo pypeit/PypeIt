@@ -3899,7 +3899,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'MDM']
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO']
 
     def validate(self):
         pass

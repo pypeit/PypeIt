@@ -26,7 +26,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(MDMOSMOSMDM4KSpectrograph, self).__init__()
         self.spectrograph = 'mdm_osmos_mdm4k'
-        self.telescope = telescopes.MDMTelescopePar()
+        self.telescope = telescopes.KPNOTelescopePar()
         self.camera = 'MDM4K'
 
     def get_detector_par(self, hdu, det):
