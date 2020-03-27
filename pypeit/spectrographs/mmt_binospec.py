@@ -24,7 +24,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(MMTBINOSPECSpectrograph, self).__init__()
         self.spectrograph = 'mmt_binospec'
-        self.telescope = telescopes.MMTTelescopePar()
+        self.telescope = telescopes.KPNOTelescopePar()
         self.camera = 'BINOSPEC'
         self.numhead = 11
         '''
