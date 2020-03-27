@@ -768,6 +768,7 @@ class Calibrations(object):
             # Get the slits from the result of the edge tracing, delete
             # the edges object, and save the slits, if requested
             self.slits = self.edges.get_slits()
+            embed(header='771 of callibrataoins')
             self.edges = None
             if self.save_masters:
                 self.slits.to_master_file(slit_masterframe_name)

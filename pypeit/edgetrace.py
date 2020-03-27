@@ -142,7 +142,7 @@ class EdgeTraceBitMask(BitMask):
     # TODO: Create a script that will dynamically write the used bits
     # to a doc for readthedocs.
     def __init__(self):
-        # TODO: This needs to be an OrderedDict for now to ensure that
+        # TODO: This needs to be an Omsgs.error("Not ready for this objtype in Reducedd")rderedDict for now to ensure that
         # the bit assigned to each key is always the same. As of python
         # 3.7, normal dict types are guaranteed to preserve insertion
         # order as part of its data model. When/if we require python
@@ -169,8 +169,9 @@ class EdgeTraceBitMask(BitMask):
                    ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations'),
                  ('ORPHANINSERT', 'Trace was inserted to match an orphaned edge'),
                     ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
-                 ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length')
-                           ])
+                 ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length'),
+                   ('USERRMSLIT', 'Slit removed by user'),
+        ])
         super(EdgeTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
@@ -192,7 +193,7 @@ class EdgeTraceBitMask(BitMask):
     def exclude_flags(self):
         # We will not exclude SYNCINSERT slits edges from the masking
         #   These can easily crop up for star boxes and at the edge of the detector
-        return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT']
+        return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT', 'SHORTSLIT']
 
 
 # TODO -- Make a DataContainer
@@ -2396,7 +2397,8 @@ class EdgeTraceSet(object):
 
         if self.par['sync_clip']:
             # Remove traces that have been fully flagged as bad
-            rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags)
+            rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                               exclude=self.bitmask.exclude_flags)
             self.remove_traces(rmtrace, rebuild_pca=rebuild_pca, sync_rm='both')
             if self.is_empty:
                 msgs.warn('Assuming a single long-slit and continuing.')
@@ -2439,8 +2441,10 @@ class EdgeTraceSet(object):
                 idx = np.where(bad_slit)[0][0]
                 indx[2*idx:2*idx+2] = True
                 msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
+                # Mask
+                self.bitmask.turn_on(self.spat_msk[:,indx], 'USERRMSLIT')
         # Remove
-        self.remove_traces(indx, sync_rm='both')
+        #self.remove_traces(indx, sync_rm='both')
 
     def remove_traces(self, indx, resort=True, rebuild_pca=False, sync_rm='ignore'):
         r"""
@@ -4286,11 +4290,18 @@ class EdgeTraceSet(object):
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
 
-        # TODO -- Have Kyle help me keep the short slits
-        #short_flag = ['SHORTSLIT']
-        #short_exclude = self.bitmask.bad_flags.remove('SHORTSLIT')
-        #gd_short = np.invert(self.fully_masked_traces(flag=short_flag,
-        #                                         exclude=short_exclude))
+        # Initialize SlitTrace mask
+        slit_bitmask = slittrace.SlitTraceBitMask()
+        nslit = int(np.sum(gpm)) // 2
+        slit_msk = np.zeros(nslit, dtype=slit_bitmask.minimum_dtype())
+        # TODO -- Kyle might be able to avoid this for loops
+        # Loop on left edges
+        for sidx, eidx in enumerate(np.where(gpm & self.is_left)[0]):
+            # Loop on SlitTrace mask keys
+            for key in slit_bitmask.keys():
+                if key in self.bitmask.keys() and np.all(self.bitmask.flagged(
+                        self.spat_msk[:, eidx], flag=key)):
+                    slit_msk[sidx] = slit_bitmask.turn_on(slit_msk[sidx], key)
 
         # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
@@ -4303,6 +4314,6 @@ class EdgeTraceSet(object):
         return slittrace.SlitTraceSet(left_init=left, right_init=right, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
-                                      pad=self.par['pad'])#, master_key=self.master_key,
-                                      #master_dir=self.master_dir, reuse=self.reuse_masters)
+                                      pad=self.par['pad'], mask=slit_msk)
+
 

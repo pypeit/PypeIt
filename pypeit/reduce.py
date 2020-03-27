@@ -45,30 +45,30 @@ class Reduce(object):
            Show plots along the way?
 
     Attributes:
-        ivarmodel (np.ndarray):
+        ivarmodel (`numpy.ndarray`_):
             Model of inverse variance
-        objimage (np.ndarray):
+        objimage `numpy.ndarray`_):
             Model of object
-        skyimage (np.ndarray):
+        skyimage `numpy.ndarray`_):
             Final model of sky
-        initial_sky (np.ndarray):
+        initial_sky `numpy.ndarray`_):
             Initial sky model after first pass with global_skysub()
-        global_sky (np.ndarray):
+        global_sky `numpy.ndarray`_):
             Fit to global sky
-        skymask (np.ndarray):
+        skymask `numpy.ndarray`_):
             Mask of the sky fit
-        outmask (np.ndarray):
+        outmask `numpy.ndarray`_):
             Final output mask
-        extractmask (np.ndarray):
+        extractmask `numpy.ndarray`_):
             Extraction mask
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
         sobjs (SpecObsj):
             Final extracted object list with trace corrections applied
         spat_flexure_shift (float):
-        tilts (`np.ndarray`_):
+        tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
-        waveImg (`np.ndarray`_):
+        waveImg (`numpy.ndarray`_):
             WaveImage image generated on-the-spot
 
     """
@@ -100,7 +100,7 @@ class Reduce(object):
             if self.par['calibrations']['standardframe']['process']['spat_flexure_correct']:
                 self.spat_flexure_shift = self.sciImg.spat_flexure
         else:
-            embed(header='100 of reduce')  # Think through standard without spatial flexure correction
+            msgs.error("Not ready for this objtype in Reduce")
 
         self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.spat_flexure_shift)
         self.slits_specmin = slitTrace.specmin
@@ -230,7 +230,7 @@ class Reduce(object):
                 inmask = (self.sciImg.fullmask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                               inmask, self.wave_img,
+                                               inmask, self.waveImg,
                                                global_sky, self.sciImg.rn2img,
                                                self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)

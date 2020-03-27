@@ -12,6 +12,19 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import datamodel
+from pypeit.bitmask import BitMask
+
+
+class SlitTraceBitMask(BitMask):
+    """
+    Mask bits used during slit tracing.
+    """
+    def __init__(self):
+
+        mask = dict([
+                    ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
+        ])
+        super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 
 class SlitTraceSet(datamodel.DataContainer):
@@ -43,12 +56,15 @@ class SlitTraceSet(datamodel.DataContainer):
     """Name for type of master frame."""
     master_file_format = 'fits.gz'
     """File format for the master frame file."""
-    # Set the version of this class
     minimum_version = '1.1.0'
     version = '1.1.0'
+    """SlitTraceSet data model version."""
+
     hdu_prefix = None
     output_to_disk = None
-    """SlitTraceSet data model version."""
+
+    bitmask = SlitTraceBitMask()
+
     # Define the data model
     datamodel = {
                  'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
@@ -63,7 +79,7 @@ class SlitTraceSet(datamodel.DataContainer):
                  'pad': dict(otype=int,
                              descr='Integer number of pixels to consider beyond the slit edges.'),
                  'nslits': dict(otype=int, descr='Number of slits.'),
-                 #'id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number'),
+                 'id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number (either mask design or SPAT)'),
                  'left_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
                                     'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
@@ -78,11 +94,11 @@ class SlitTraceSet(datamodel.DataContainer):
                                      descr='Spatial coordinates (pixel indices) of all right '
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
-                 #'center': dict(otype=np.ndarray, atype=np.floating,
-                 #              descr='Spatial coordinates of the slit centers.  Shape is Nspec '
-                 #                    'by Nslits.'),
-                 'mask': dict(otype=np.ndarray, atype=np.bool_,
-                              descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
+                 'center': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Spatial coordinates of the slit centers from left_init, right_init.  Shape is Nspec '
+                                     'by Nslits.'),
+                 'mask': dict(otype=np.ndarray, atype=np.integer,
+                              descr='Bit mask for slits (fully good slits have 0 value).  Shape is Nslits.'),
                  'specmin': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Minimum spectral position allowed for each slit/order.  '
                                        'Shape is Nslits.'),
@@ -138,23 +154,21 @@ class SlitTraceSet(datamodel.DataContainer):
         self.nspec, self.nslits = self.left_init.shape
 
         # Center is always defined by the original traces, not the
-        # tweaked ones. TODO: Is that the behavior we want? An argument
-        # in favor is that this means that the slit IDs are always tied
+        # tweaked ones. This means that the slit IDs are always tied
         # to the original traces, not the tweaked ones.
-        # We want the tweaked, or even the flexure corrected centers for that
-        #self.center = (self.left_init+self.right_init)/2
+        self.center = (self.left_init+self.right_init)/2
 
         if self.nspat is None:
             # TODO: May want nspat to be a required argument given the
             # only other option is this kludge, which should basically
             # never be useful.
             self.nspat = np.amax(np.append(self.left_init, self.right_init))
-        #if self.id is None:
-        #    self._set_slitids()
+        if self.id is None:
+            self._set_slitids()
         if self.PYP_SPEC is None:
             self.PYP_SPEC = 'unknown'
         if self.mask is None:
-            self.mask = np.zeros(self.nslits, dtype=bool)
+            self.mask = np.zeros(self.nslits, dtype=self.bitmask.minimum_dtype())
         if self.specmin is None:
             self.specmin = np.full(self.nslits, -1, dtype=float)
         if self.specmax is None:
@@ -193,9 +207,12 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         Assign the slit ID numbers.
 
-        Slit IDs are set based on the fractional location of the slit
-        center at the provided fractional location along the spectral
-        direction, and it is computed as follows::
+        Slit IDs are set based on the spatial location on the detector
+
+            self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:])
+
+        ORIGINAL/OUTDATED: IDs are based on the provided fractional location
+        along the spectral direction, and it is computed as follows::
 
             self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
                                 / self.nspat * 1e4).astype(int)
@@ -219,8 +236,9 @@ class SlitTraceSet(datamodel.DataContainer):
         if self.center is None or self.nspec is None or self.nspat is None:
             raise ValueError('Object does not have center, nspec, or nspat; '
                              'cannot assign slit IDs.')
-        self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
-                                / self.nspat * 1e4).astype(int)
+        self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]).astype(int)
+        #self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
+        #                        / self.nspat * 1e4).astype(int)
 
     def init_tweaked(self):
         """
