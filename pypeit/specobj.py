@@ -226,12 +226,14 @@ class SpecObj(datamodel.DataContainer):
 
             Each object is named by its:
              - spatial position (pixel number) on the reduced image [SPAT]
-             - the slit number, zero-indexed [SLIT]
+             - the slit number based on SPAT center of the slit or SlitMask ID [SLIT]
              - the detector number [DET]
 
             For example::
 
-                SPAT0176-SLIT0000-DET01
+                SPAT0176-SLIT0185-DET01
+
+        Echelle
 
         Returns:
             str:

@@ -768,7 +768,6 @@ class Calibrations(object):
             # Get the slits from the result of the edge tracing, delete
             # the edges object, and save the slits, if requested
             self.slits = self.edges.get_slits()
-            embed(header='771 of callibrataoins')
             self.edges = None
             if self.save_masters:
                 self.slits.to_master_file(slit_masterframe_name)
@@ -862,7 +861,7 @@ class Calibrations(object):
         if self.par['wavelengths']['reference'] == 'pixel':
             msgs.info("A wavelength calibration will not be performed")
             self.wv_calib = None
-            self.wv_maskslits = np.zeros_like(self.maskslits, dtype=bool)
+            self.wv_maskslits = np.zeros_like(self.slits.mask, dtype=bool)
             self.slits.mask |= self.wv_maskslits
             return self.wv_calib
 
@@ -890,14 +889,9 @@ class Calibrations(object):
             # Save to Masters
             if self.save_masters:
                 self.waveCalib.save(outfile=masterframe_name)
-
-        # Create the mask (needs to be done here in case wv_calib was loaded from Masters)
-        # TODO: This should either be done here or save as part of the
-        # master frame file.  As it is, if not loaded from the master
-        # frame file, mask_maskslits is run twice, once in run above and
-        # once here...
-        self.wv_maskslits = self.waveCalib.make_maskslits(self.slits.nslits)
-        self.slits.mask |= self.wv_maskslits
+            # Slit mask may have been updated, write to disk
+            if self.save_masters:
+                self.slits.to_master_file()
 
         # Save & return
         self._update_cache('arc', ('wavecalib','wvmask'), (self.wv_calib,self.wv_maskslits))

@@ -22,7 +22,8 @@ class SlitTraceBitMask(BitMask):
     def __init__(self):
 
         mask = dict([
-                    ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
+            ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
+            ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
@@ -78,8 +79,10 @@ class SlitTraceSet(datamodel.DataContainer):
                                  descr='Number of pixels binned in the spatial direction.'),
                  'pad': dict(otype=int,
                              descr='Integer number of pixels to consider beyond the slit edges.'),
-                 'nslits': dict(otype=int, descr='Number of slits.'),
-                 'id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number (either mask design or SPAT)'),
+                 #'nslits': dict(otype=int, descr='Number of slits.'),
+                 'spat_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number from SPAT'),
+                 'slitmask_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number slitmask'),
+                 'ech_order': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number echelle order'),
                  'left_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
                                     'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
@@ -163,8 +166,8 @@ class SlitTraceSet(datamodel.DataContainer):
             # only other option is this kludge, which should basically
             # never be useful.
             self.nspat = np.amax(np.append(self.left_init, self.right_init))
-        if self.id is None:
-            self._set_slitids()
+        if self.spat_id is None:
+            self._set_spatids()
         if self.PYP_SPEC is None:
             self.PYP_SPEC = 'unknown'
         if self.mask is None:
@@ -183,6 +186,9 @@ class SlitTraceSet(datamodel.DataContainer):
     def _init_internals(self):
         self.left_flexure = None
         self.right_flexure = None
+        # Master stuff
+        self.master_key = None
+        self.master_dir = None
 
     def _bundle(self):
         """
@@ -203,10 +209,11 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True, debug=True)
 
-    def _set_slitids(self, specfrac=0.5):
+    def _set_spatids(self, specfrac=0.5):
         """
         Assign the slit ID numbers.
 
+        CURRENT:
         Slit IDs are set based on the spatial location on the detector
 
             self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:])
@@ -236,7 +243,7 @@ class SlitTraceSet(datamodel.DataContainer):
         if self.center is None or self.nspec is None or self.nspat is None:
             raise ValueError('Object does not have center, nspec, or nspat; '
                              'cannot assign slit IDs.')
-        self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]).astype(int)
+        self.spat_id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]).astype(int)
         #self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
         #                        / self.nspat * 1e4).astype(int)
 

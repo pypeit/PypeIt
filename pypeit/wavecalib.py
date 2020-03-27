@@ -135,16 +135,18 @@ class WaveCalib(object):
             # NOTE: This uses the interneral definition of `pad` in
             # EdgeTraceParSet
             self.slitmask_science = self.slits.slit_img()
-            gpm = self.bpm == 0 if self.bpm is not None \
-                                    else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
             self.nslits = self.slits.nslits
             left, right = self.slits.select_edges()
+            # Resize
             self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
             self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
             self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (left+right)/2)
-            self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
+            self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
+            # Mask
+            gpm = self.bpm == 0 if self.bpm is not None \
+                else np.ones_like(self.slitmask_science, dtype=bool)
             self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
             # We want even the saturated lines in full_template for the cross-correlation
             #   They will be excised in the detect_lines() method on the extracted arc
@@ -460,18 +462,24 @@ class WaveCalib(object):
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
-        # Return
+        # Fit 2D?
         if self.par['echelle'] is True:
             fit2d_dict = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             self.wv_calib['fit2d'] = fit2d_dict
 
         # Build mask
         self.make_maskslits(self.nslits)
+        # Update slits
+        if np.any(self.maskslits):
+            wv_masked = np.where(self.maskslits)[0]
+            self.slits.mask[wv_masked] = self.slits.bitmask.turn_on(
+                self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
         self.wv_calib['steps'] = self.steps
         sv_par = self.par.data.copy()
         self.wv_calib['par'] = sv_par
+
 
         return self.wv_calib, self.maskslits
 

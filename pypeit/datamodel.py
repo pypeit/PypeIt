@@ -1189,27 +1189,28 @@ class DataContainer:
                                      limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
-    def to_master_file(self, master_filename, **kwargs):
+    def to_master_file(self, master_filename=None, **kwargs):
         """
         Wrapper on to_file() that deals with masterframe naming and header
+
+        This also sets master_key and master_dir internally if
+        when master_filename is provided
 
         self.hdu_prefix and self.output_to_disk must be set (or None)
 
         Args:
-            master_dir (str):
-                path to Masters folder
-            master_key (str):
-                Master key, e.g. A_1_01
-            spectrograph (str):
-                Name of the spectrograph
-            steps (list, optional):
-                List of steps taken to build this DataContainer
-            raw_files (list):
-                List of raw data files used to build this DataContainer
+            master_filename (str, optional):
+                Name of masterfile;  if provided, parsed for master_key, master_dir
+                If not provided, constructed from internal master_key, master_dir
             **kwargs: passed to to_file()
         """
         # Output file
-        master_key, master_dir = masterframe.grab_key_mdir(master_filename, from_filename=True)
+        if master_filename is None:
+            master_filename = masterframe.construct_file_name(self, self.master_key,
+                                                              master_dir=self.master_dir)
+        else:
+            self.master_key, self.master_dir = masterframe.grab_key_mdir(
+                master_filename, from_filename=True)
         # Header
         if hasattr(self, 'process_steps'):
             steps = self.process_steps
@@ -1219,8 +1220,8 @@ class DataContainer:
             raw_files = self.files
         else:
             raw_files = None
-        hdr = masterframe.build_master_header(self, master_key, master_dir, steps=steps,
-                                              raw_files=raw_files)
+        hdr = masterframe.build_master_header(self, self.master_key, self.master_dir,
+                                              steps=steps, raw_files=raw_files)
         # Finish
         self.to_file(master_filename, primary_hdr=hdr,
                      limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
