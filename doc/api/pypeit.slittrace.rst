@@ -1,7 +1,7 @@
-pypeit.tiltimage module
+pypeit.slittrace module
 =======================
 
-.. automodule:: pypeit.tiltimage
+.. automodule:: pypeit.slittrace
    :members:
    :private-members:
    :undoc-members:

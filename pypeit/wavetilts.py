@@ -487,14 +487,15 @@ class BuildWaveTilts(object):
         Main driver for tracing arc lines
 
         Code flow:
-            1. Extract an arc spectrum down the center of each slit/order
-            2. Loop on slits/orders
-                i. Trace and fit the arc lines (This is done twice, once
+
+            #. Extract an arc spectrum down the center of each slit/order
+            #. Loop on slits/orders
+                #. Trace and fit the arc lines (This is done twice, once
                    with trace_crude as the tracing crutch, then again
                    with a PCA model fit as the crutch).
-                ii. Repeat trace.
-                iii.  2D Fit to the offset from slitcen
-                iv. Save
+                #. Repeat trace.
+                #.  2D Fit to the offset from slitcen
+                #. Save
 
         Args:
             maskslits (`numpy.ndarray`_, optional):
@@ -505,7 +506,7 @@ class BuildWaveTilts(object):
 
         Returns:
             tuple: 2 objects
-                - :class:`WaveTilts`_
+                - :class:`WaveTilts`
                 - `numpy.ndarray`_
 
         """

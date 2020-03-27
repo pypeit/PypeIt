@@ -200,28 +200,26 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS1RSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods1r'
         self.camera = 'MODS1R'
-        '''
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.123,
-                            darkcurr        = 0.4,
-                            saturation      = 65535.,
-                            nonlinear       = 0.99,
-                            numamplifiers   = 4,
-                            gain            = [2.38,2.50,2.46,2.81],
-                            ronoise         = [3.78,4.04,4.74,4.14],
-                            #datasec         = '[:, 49:8240]',
-                            #oscansec        = '[:, 8240:]',
-                            suffix          = '_mods1r'
-                            )]
-        '''
+#        self.detector = [
+#                # Detector 1
+#                pypeitpar.DetectorPar(
+#                            dataext         = 0,
+#                            specaxis        = 0,
+#                            specflip        = False,
+#                            xgap            = 0.,
+#                            ygap            = 0.,
+#                            ysize           = 1.,
+#                            platescale      = 0.123,
+#                            darkcurr        = 0.4,
+#                            saturation      = 65535.,
+#                            nonlinear       = 0.99,
+#                            numamplifiers   = 4,
+#                            gain            = [2.38,2.50,2.46,2.81],
+#                            ronoise         = [3.78,4.04,4.74,4.14],
+#                            #datasec         = '[:, 49:8240]',
+#                            #oscansec        = '[:, 8240:]',
+#                            suffix          = '_mods1r'
+#                            )]
         self.numhead = 1
 
 
@@ -330,26 +328,24 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS1BSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods1b'
         self.camera = 'MODS1B'
-        '''
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.120,
-                            darkcurr        = 0.5,
-                            saturation      = 65535.,
-                            nonlinear       = 0.99,
-                            numamplifiers   = 4,
-                            gain            = [2.55,1.91,2.09,2.02],
-                            ronoise         = [3.41,2.93,2.92,2.76],
-                            suffix          = '_mods1b'
-                            )]
-        '''
+#        self.detector = [
+#                # Detector 1
+#                pypeitpar.DetectorPar(
+#                            dataext         = 0,
+#                            specaxis        = 0,
+#                            specflip        = False,
+#                            xgap            = 0.,
+#                            ygap            = 0.,
+#                            ysize           = 1.,
+#                            platescale      = 0.120,
+#                            darkcurr        = 0.5,
+#                            saturation      = 65535.,
+#                            nonlinear       = 0.99,
+#                            numamplifiers   = 4,
+#                            gain            = [2.55,1.91,2.09,2.02],
+#                            ronoise         = [3.41,2.93,2.92,2.76],
+#                            suffix          = '_mods1b'
+#                            )]
         self.numhead = 1
 
 
@@ -450,26 +446,24 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS2RSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods2r'
         self.camera = 'MODS2R'
-        '''
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.123,
-                            darkcurr        = 0.4,
-                            saturation      = 65535.,
-                            nonlinear       = 0.99,
-                            numamplifiers   = 4,
-                            gain            = [1.70,1.67,1.66,1.66],
-                            ronoise         = [2.95,2.65,2.78,2.87],
-                            suffix          = '_mods2r'
-                            )]
-        '''
+#        self.detector = [
+#                # Detector 1
+#                pypeitpar.DetectorPar(
+#                            dataext         = 0,
+#                            specaxis        = 0,
+#                            specflip        = False,
+#                            xgap            = 0.,
+#                            ygap            = 0.,
+#                            ysize           = 1.,
+#                            platescale      = 0.123,
+#                            darkcurr        = 0.4,
+#                            saturation      = 65535.,
+#                            nonlinear       = 0.99,
+#                            numamplifiers   = 4,
+#                            gain            = [1.70,1.67,1.66,1.66],
+#                            ronoise         = [2.95,2.65,2.78,2.87],
+#                            suffix          = '_mods2r'
+#                            )]
         self.numhead = 1
 
 
@@ -577,26 +571,24 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         super(LBTMODS2BSpectrograph, self).__init__()
         self.spectrograph = 'lbt_mods2b'
         self.camera = 'MODS2B'
-        '''
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.120,
-                            darkcurr        = 0.5,
-                            saturation      = 65535.,
-                            nonlinear       = 0.99,
-                            numamplifiers   = 4,
-                            gain            = [1.99,2.06,1.96,2.01],
-                            ronoise         = [3.66,3.62,3.72,3.64],
-                            suffix          = '_mods2b'
-                            )]
-        '''
+#        self.detector = [
+#                # Detector 1
+#                pypeitpar.DetectorPar(
+#                            dataext         = 0,
+#                            specaxis        = 0,
+#                            specflip        = False,
+#                            xgap            = 0.,
+#                            ygap            = 0.,
+#                            ysize           = 1.,
+#                            platescale      = 0.120,
+#                            darkcurr        = 0.5,
+#                            saturation      = 65535.,
+#                            nonlinear       = 0.99,
+#                            numamplifiers   = 4,
+#                            gain            = [1.99,2.06,1.96,2.01],
+#                            ronoise         = [3.66,3.62,3.72,3.64],
+#                            suffix          = '_mods2b'
+#                            )]
         self.numhead = 1
 
 

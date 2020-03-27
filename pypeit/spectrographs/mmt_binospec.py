@@ -27,43 +27,41 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.MMTTelescopePar()
         self.camera = 'BINOSPEC'
         self.numhead = 11
-        '''
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.24,
-                            darkcurr        = 3.0, ##ToDO: To Be update
-                            saturation      = 65535.,
-                            nonlinear       = 0.95,  #ToDO: To Be update
-                            numamplifiers   = 4,
-                            gain            = [1.085,1.046,1.042,0.975],
-                            ronoise         = [3.2]*4,
-                            suffix          = '_01'
-                            ),
-                # Detector 2
-                pypeitpar.DetectorPar(
-                            dataext         = 2,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.24,
-                            darkcurr        = 3.0, ##ToDO: To Be update
-                            saturation      = 65535.,
-                            nonlinear       = 0.95, #ToDO: To Be update
-                            numamplifiers   = 4,
-                            gain            = [1.028,1.163,1.047,1.045],
-                            ronoise         = [3.2]*4,
-                            suffix          = '_02'
-                )]
-        '''
+#        self.detector = [
+#                # Detector 1
+#                pypeitpar.DetectorPar(
+#                            dataext         = 1,
+#                            specaxis        = 0,
+#                            specflip        = False,
+#                            xgap            = 0.,
+#                            ygap            = 0.,
+#                            ysize           = 1.,
+#                            platescale      = 0.24,
+#                            darkcurr        = 3.0, ##ToDO: To Be update
+#                            saturation      = 65535.,
+#                            nonlinear       = 0.95,  #ToDO: To Be update
+#                            numamplifiers   = 4,
+#                            gain            = [1.085,1.046,1.042,0.975],
+#                            ronoise         = [3.2]*4,
+#                            suffix          = '_01'
+#                            ),
+#                # Detector 2
+#                pypeitpar.DetectorPar(
+#                            dataext         = 2,
+#                            specaxis        = 0,
+#                            specflip        = False,
+#                            xgap            = 0.,
+#                            ygap            = 0.,
+#                            ysize           = 1.,
+#                            platescale      = 0.24,
+#                            darkcurr        = 3.0, ##ToDO: To Be update
+#                            saturation      = 65535.,
+#                            nonlinear       = 0.95, #ToDO: To Be update
+#                            numamplifiers   = 4,
+#                            gain            = [1.028,1.163,1.047,1.045],
+#                            ronoise         = [3.2]*4,
+#                            suffix          = '_02'
+#                )]
 
     def init_meta(self):
         """
@@ -353,28 +351,24 @@ def binospec_read_amp(inp, ext):
     return data, overscan, datasec, biassec
 
 
-'''
-    # Subtract overscan along y-axis
-    if ydata2<nyt-2:
-        oscany = np.median(temp[:, ydata2:nyt],axis=1)
-        #from scipy import signal
-        #ossub = signal.savgol_filter(oscany, 65, 5)
-        ossub = oscany.copy()
-        temp = temp - ossub[:, None]
-    # grab the components...
-    data = temp[xdata1 - 1:xdata2, ydata1 -1 : ydata2]
-
-    # Overscan
-    biassec = '[0:{:},{:}:{:}]'.format(xdata1-1, ydata1-1, ydata2)
-    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
-    from IPython import embed
-    embed()
-    ## ToDO: Figure out the real overscan along x-axis
-    overscan = temp[xdata1:xdata2, ydata1:ydata2]
-    #overscan =np.zeros_like(temp[xdata1:xdata2, ydata1:ydata2]) + np.median(temp[xdata1:xdata2,:np.max([nyt-ydata2,50])])
-
-    # Return
-    return data, overscan, datasec, biassec
-
-
-'''
+#    # Subtract overscan along y-axis
+#    if ydata2<nyt-2:
+#        oscany = np.median(temp[:, ydata2:nyt],axis=1)
+#        #from scipy import signal
+#        #ossub = signal.savgol_filter(oscany, 65, 5)
+#        ossub = oscany.copy()
+#        temp = temp - ossub[:, None]
+#    # grab the components...
+#    data = temp[xdata1 - 1:xdata2, ydata1 -1 : ydata2]
+#
+#    # Overscan
+#    biassec = '[0:{:},{:}:{:}]'.format(xdata1-1, ydata1-1, ydata2)
+#    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
+#    from IPython import embed
+#    embed()
+#    ## ToDO: Figure out the real overscan along x-axis
+#    overscan = temp[xdata1:xdata2, ydata1:ydata2]
+#    #overscan =np.zeros_like(temp[xdata1:xdata2, ydata1:ydata2]) + np.median(temp[xdata1:xdata2,:np.max([nyt-ydata2,50])])
+#
+#    # Return
+#    return data, overscan, datasec, biassec

@@ -2,6 +2,8 @@
 Implements support methods for
 :class:`pypeit.bspline.bspline.bspline`. This module specifically
 imports and wrap C functions to improve efficiency.
+
+.. include:: ../links.rst
 """
 
 import os

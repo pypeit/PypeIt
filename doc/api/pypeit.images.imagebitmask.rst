@@ -1,7 +1,7 @@
-pypeit.images.scienceimage module
+pypeit.images.imagebitmask module
 =================================
 
-.. automodule:: pypeit.images.scienceimage
+.. automodule:: pypeit.images.imagebitmask
    :members:
    :private-members:
    :undoc-members:
