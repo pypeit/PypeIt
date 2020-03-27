@@ -8,26 +8,26 @@ import os
 import pickle
 import warnings
 import itertools
-import matplotlib
+from collections import deque
+from bisect import insort, bisect_left
+
+from IPython import embed
 
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 
 from scipy.optimize import curve_fit
 from scipy import interpolate, ndimage
 
-from astropy import units
-from astropy import stats
+import matplotlib
 from matplotlib import pyplot as plt
 
-# Imports for fast_running_median
-from collections import deque
-from itertools import islice
-from bisect import insort, bisect_left
+from astropy import units
+from astropy import stats
+
 from pypeit.core import pydl
 from pypeit import bspline
 from pypeit import msgs
-from IPython import embed
-from numpy.lib.stride_tricks import as_strided
 
 def spec_atleast_2d(wave, flux, ivar, mask):
     """
@@ -464,7 +464,7 @@ def fast_running_median(seq, window_size):
     d = deque()
     s = []
     result = []
-    for item in islice(seq_pad, window_size):
+    for item in itertools.islice(seq_pad, window_size):
         d.append(item)
         insort(s, item)
         result.append(s[len(d)//2])

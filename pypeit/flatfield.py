@@ -532,6 +532,11 @@ class FlatField(object):
                           + '% of the pixels on this slit are not saturated.' + msgs.newline()
                           + 'Consider raising nonlinear_counts={:5.3f}'.format(nonlinear_counts) +
                           msgs.newline() + 'Not attempting to flat field slit {:d}'.format(slit))
+                # TODO: We need to mask this slit because the returned
+                # tilts image does not have the tilts for this slit
+                # filled in if the loop restarts after this point. This
+                # causes problems later on.
+                self.slits.mask[slit] = True
                 continue
 
             # Demand at least 10 pixels per row (on average) per degree

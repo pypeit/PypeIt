@@ -652,8 +652,8 @@ class Calibrations(object):
                                                     pixflat_image_files,
                                                     bias=self.msbias, bpm=self.msbpm)
             # Normalize and illumination
-            flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
-                self.slits, self.wavetilts)
+            flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph,
+                                            self.par['flatfield'], self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show) #, debug=True)
 
@@ -823,8 +823,8 @@ class Calibrations(object):
         else:  # Build
             # Instantiate
             # TODO we are regenerating this mask a lot in this module. Could reduce that
-            buildwaveImage = waveimage.BuildWaveImage(self.slits, self.wavetilts['tilts'], self.wv_calib,
-                                             self.spectrograph, self.det)
+            buildwaveImage = waveimage.BuildWaveImage(self.slits, self.wavetilts['tilts'],
+                                                      self.wv_calib, self.spectrograph, self.det)
             self.mswave = buildwaveImage.build_wave()
             # Save to hard-drive
             if self.save_masters:
