@@ -18,10 +18,11 @@ matplotlib.use('agg')  # For Travis
 from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos
+from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
+import subprocess
 
 
 def data_path(filename):
@@ -150,6 +151,24 @@ def test_show_1dspec():
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs)
 
+@dev_suite_required
+def test_show_2dspec():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'REDUX_OUT/shane_kast_blue/600_4310_d55/shane_kast_blue_A')
+    spec2d_file = os.path.join(droot, 'Science',
+                             'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    # Ginga needs to be open in RC mode
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    # Save
+    cdir = os.getcwd()
+    os.chdir(droot)
+    # List
+    pargs = show_2dspec.parser([spec2d_file, '--list'])
+    show_2dspec.main(pargs)
+    # Show
+    pargs = show_2dspec.parser([spec2d_file])
+    show_2dspec.main(pargs)
+    # Go back
+    os.chdir(cdir)
 
 @cooked_required
 def test_chk_edges():
@@ -231,4 +250,3 @@ def test_coadd1d_2():
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
-

@@ -6,6 +6,7 @@ Implements the master frame base class.
 """
 import os
 from IPython import embed
+from abc import ABCMeta
 
 import numpy as np
 
@@ -14,11 +15,13 @@ from pypeit.io import initialize_header
 
 from astropy.io import fits
 
+# DEFINE HERE AS THE DATAMODEL
+sep1 = '_'  # Separation between master type and key
+sep2 = '.'  # Separation between master key and extension
 
 def construct_file_name(master_obj, master_key, master_dir=None):
     """
     Generate a MasterFrame filename
-
     Args:
         master_obj (object):
             MasterFrame object to be named.  This provides the master_type and file_format
@@ -26,48 +29,53 @@ def construct_file_name(master_obj, master_key, master_dir=None):
             Designation
         master_dir (str, optional):
             Path to the master frame folder
-
     Returns:
         str:
-
     """
-    basefile = 'Master{0}_{1}.{2}'.format(master_obj.master_type, master_key,
-                                          master_obj.file_format)
+    basefile = 'Master{0}{1}{2}{3}{4}'.format(master_obj.master_type, sep1,
+                                              master_key, sep2,
+                                              master_obj.master_file_format)
     filename = os.path.join(master_dir, basefile) if master_dir is not None else basefile
     # Return
     return filename
 
 
-def grab_key_mdir(inp):
+def grab_key_mdir(inp, from_filename=False):
     """
-    Grab master_key and master_dir from a file or header
-
+    Grab master_key and master_dir by parsing a filename or inspecting a header
     Args:
         inp (:obj:`str` or astropy.io.fits.Header):
-
+            Either a filename or a Header of a FITS file
+        from_filename (bool, optional):
+            If true, parse the input filename using the naming model
     Returns:
         tuple:  str, str of master_key and master_dir
-
     """
-    if isinstance(inp, str):
-        head0 = fits.getheader(inp)
-    elif isinstance(inp, fits.Header):
-        head0 = inp
-    # Grab it
-    master_key = head0['MSTRKEY']
-    master_dir = head0['MSTRDIR']
+    if from_filename:
+        master_dir = os.path.dirname(inp)
+        # Parse
+        base = os.path.basename(inp)
+        pos1 = base.find(sep1)
+        pos2 = base.find(sep2)
+        master_key = base[pos1+1:pos2]
+    else:
+        if isinstance(inp, str):
+            head0 = fits.getheader(inp)
+        elif isinstance(inp, fits.Header):
+            head0 = inp
+        # Grab it
+        master_key = head0['MSTRKEY'] if 'MSTRKEY' in head0.keys() else None
+        master_dir = head0['MSTRDIR'] if 'MSTRDIR' in head0.keys() else None
     # Return
     return master_key, master_dir
 
 
-def build_master_header(master_obj, master_key, master_dir, spectrograph,
+def build_master_header(master_obj, master_key, master_dir,
                         hdr=None, steps=None, raw_files=None):
     """
     Initialize the master frame header.
-
     The function writes information generic to all PypeIt master
     frame headers with basic information.
-
     Args:
         master_obj (object):
             MasterFrame object to be named.  This provides the master_type and file_format
@@ -88,7 +96,6 @@ def build_master_header(master_obj, master_key, master_dir, spectrograph,
         raw_files (:obj:`list`, optional):
             List of processed raw files used to construct the master
             frame.
-
     Returns:
         `astropy.io.fits.Header`: The initialized (or edited)
         fits header.
@@ -104,8 +111,10 @@ def build_master_header(master_obj, master_key, master_dir, spectrograph,
     _hdr['MSTRVER'] = (master_obj.version, 'PypeIt: Master datamodel version')
     #_hdr['MSTRREU'] = (self.reuse_masters, 'PypeIt: Reuse existing masters')
 
-    # Other info, pulled from the Child
-    _hdr['PYP_SPEC'] = (spectrograph, 'PypeIt: Spectrograph name')
+    # Spectrograph
+    if master_obj.PYP_SPEC is None:
+        msgs.error("The object needs to include PYP_SPEC this so that it was written to the Header")
+    _hdr['PYP_SPEC'] = (master_obj.PYP_SPEC, 'PypeIt: Spectrograph name')  # This may be over-written by itself
 
     #   - List the completed steps
     if steps is not None:
@@ -118,3 +127,4 @@ def build_master_header(master_obj, master_key, master_dir, spectrograph,
             _hdr['F{0}'.format(i + 1).zfill(ndig)] = (raw_files[i], 'PypeIt: Processed raw file')
     # Return
     return _hdr
+

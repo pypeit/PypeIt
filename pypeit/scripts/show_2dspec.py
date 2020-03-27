@@ -23,7 +23,7 @@ from pypeit import slittrace
 from pypeit import specobjs
 
 from pypeit.core.parse import get_dnum
-from pypeit.images.maskimage import ImageBitMask
+from pypeit.images.imagebitmask import ImageBitMask
 from pypeit import masterframe
 from pypeit import waveimage
 
@@ -125,6 +125,7 @@ def main(args):
     slits_key = '{0}_{1:02d}'.format(head0['TRACMKEY'], args.det)
     slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
     slits = slittrace.SlitTraceSet.from_file(slit_file)
+    left, right = slits.select_edges()
 
     wave_key = '{0}_{1:02d}'.format(head0['ARCMKEY'], args.det)
     waveimg_file = os.path.join(mdir, masterframe.construct_file_name(waveimage.WaveImage, wave_key))
@@ -163,7 +164,7 @@ def main(args):
     viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=waveimg_file, clear=True)
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id) #, args.det)
+    ginga.show_slits(viewer, ch, left, right, slits.id) #, args.det)
 
     # SKYSUB
     image = (sciimg - skymodel) * (mask == 0)  # sky subtracted image
@@ -177,7 +178,7 @@ def main(args):
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right, slits.id)
 
 
     # SKRESIDS
@@ -187,7 +188,7 @@ def main(args):
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right, slits.id)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
@@ -197,7 +198,7 @@ def main(args):
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+    ginga.show_slits(viewer, ch, left, right, slits.id)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

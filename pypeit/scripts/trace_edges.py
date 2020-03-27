@@ -54,6 +54,7 @@ def main(args):
     import numpy as np
     from pypeit.spectrographs.util import load_spectrograph
     from pypeit import edgetrace
+    from pypeit import slittrace
     from pypeit.pypeit import PypeIt
     from pypeit.images import buildimage
     from pypeit import masterframe
@@ -155,8 +156,10 @@ def main(args):
                                                                 master_dir=master_dir)
         edges.save(edge_masterframe_name, master_dir=master_dir, master_key=master_key)
         # Write the MasterSlits file
-        edges.get_slits().to_master_file(master_dir, master_key,  # Naming
-                              spec.spectrograph)  # Header
+        slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
+                                                                master_key, master_dir=master_dir)
+        edges.get_slits().to_master_file(slit_masterframe_name) #master_dir, master_key,  # Naming
+                              #spec.spectrograph)  # Header
 
     return 0
 

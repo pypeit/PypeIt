@@ -51,7 +51,7 @@ class SlitTraceSet(datamodel.DataContainer):
     frametype = 'slits'
     master_type = 'Slits'
     """Name for type of master frame."""
-    file_format = 'fits.gz'
+    master_file_format = 'fits.gz'
     """File format for the master frame file."""
     # Set the version of this class
     version = '1.0.0'
@@ -59,7 +59,8 @@ class SlitTraceSet(datamodel.DataContainer):
     output_to_disk = None
     """SlitTraceSet data model version."""
     # Define the data model
-    datamodel = {'spectrograph': dict(otype=str, descr='Spectrograph used to take the data.'),
+    datamodel = {
+                 'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'nspat': dict(otype=int,
@@ -96,13 +97,14 @@ class SlitTraceSet(datamodel.DataContainer):
                                        'Shape is Nslits.'),
                  'specmax': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Maximum spectral position allowed for each slit/order.  '
-                                       'Shape is Nslits.')}
+                                       'Shape is Nslits.'),
+                 }
     """Provides the class data model."""
     # NOTE: The docstring above is for the ``datamodel`` attribute.
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
-    def __init__(self, left, right, nspat=None, spectrograph=None, mask=None,
+    def __init__(self, left, right, nspat=None, PYP_SPEC=None, mask=None,
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
 
         # Instantiate the DataContainer
@@ -111,7 +113,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # contain self or the MasterFrame arguments.
         # TODO: Does it matter if the calling function passes the
         # keyword arguments in a different order?
-        datamodel.DataContainer.__init__(self, d=dict(left=left, right=right, nspat=nspat, spectrograph=spectrograph,
+        datamodel.DataContainer.__init__(self, d=dict(left=left, right=right, nspat=nspat, PYP_SPEC=PYP_SPEC,
                                                       mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
                                                       binspat=binspat, pad=pad))
 
@@ -292,8 +294,8 @@ class SlitTraceSet(datamodel.DataContainer):
             self.nspat = np.amax(np.append(self.left, self.right))
         if self.id is None:
             self._set_slitids()
-        if self.spectrograph is None:
-            self.spectrograph = 'unknown'
+        if self.PYP_SPEC is None:  # This should only be for testing...
+            self.PYP_SPEC = 'unknown'
         if self.mask is None:
             self.mask = np.zeros(self.nslits, dtype=bool)
         if self.specmin is None:

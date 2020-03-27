@@ -8,7 +8,6 @@ from astropy.io import fits
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
-from ..par.pypeitpar import DetectorPar
 from .. import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse

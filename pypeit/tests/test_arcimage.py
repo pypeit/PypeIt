@@ -12,7 +12,7 @@ from astropy.io import fits
 
 from pypeit.images import pypeitimage
 from pypeit.images import buildimage
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit import masterframe
 from pypeit.tests import test_detector
 
 def data_path(filename):
@@ -32,10 +32,12 @@ def test_master_io():
     pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
     pypeitImage.fullmask = np.zeros((1000, 1000), dtype=np.int64)
     pypeitImage.detector = test_detector.detector_container.DetectorContainer(**test_detector.def_det)
+    pypeitImage.PYP_SPEC = 'shane_kast_blue'
     # Now the arcimage
     arcImage = buildimage.ArcImage.from_pypeitimage(pypeitImage)
     # Write
-    arcImage.to_master_file(data_path(''), 'A_01_22', 'shane_kast_blue')
+    master_filename = masterframe.construct_file_name(arcImage, 'A_01_22', master_dir=data_path(''))
+    arcImage.to_master_file(master_filename)
     # Read
     _arcImage = buildimage.ArcImage.from_file(data_path('MasterArc_A_01_22.fits'))
     assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)

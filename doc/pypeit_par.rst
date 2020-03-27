@@ -143,6 +143,12 @@ Current PypeItPar Parameter Hierarchy
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
 
+        ``[[alignframe]]``: `FrameGroupPar Keywords`_
+
+            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+
+        ``[[alignment]]``: `AlignPar Keywords`_
+
         ``[[traceframe]]``: `FrameGroupPar Keywords`_
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
@@ -201,7 +207,7 @@ Key               Type                                            Options  Defau
 ``coadd2d``       :class:`pypeit.par.pypeitpar.Coadd2DPar`        ..       `Coadd2DPar Keywords`_        Par set to control 2D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
 ``flexure``       :class:`pypeit.par.pypeitpar.FlexurePar`        ..       `FlexurePar Keywords`_        Parameters used by the flexure-correction procedure.  Flexure corrections are not performed by default.  To turn on, either set the parameters in the 'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group to use the default flexure-correction parameters.
 ``fluxcalib``     :class:`pypeit.par.pypeitpar.FluxCalibratePar`  ..       `FluxCalibratePar Keywords`_  Parameters used by the flux-calibration procedure.  Flux calibration is not performed by default.  To turn on, either set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' in the 'rdx' parameter group to use the default flux-calibration parameters.    
-``rdx``           :class:`pypeit.par.pypeitpar.ReduxPar`          ..       `ReduxPar Keywords`_          PypIt reduction rules.                                                                                                                                                                                                                                                                
+``rdx``           :class:`pypeit.par.pypeitpar.ReduxPar`          ..       `ReduxPar Keywords`_          PypeIt reduction rules.                                                                                                                                                                                                                                                               
 ``reduce``        :class:`pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
 ``scienceframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`     ..       `FrameGroupPar Keywords`_     The frames and combination rules for the science observations                                                                                                                                                                                                                         
 ``sensfunc``      :class:`pypeit.par.pypeitpar.SensFuncPar`       ..       `SensFuncPar Keywords`_       Par set to control sensitivity function computation.  Only used in the after-burner script.                                                                                                                                                                                           
@@ -218,6 +224,8 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.CalibrationsPar`
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
 Key                 Type                                                 Options  Default                            Description                                                                                                                                                                              
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
+``alignframe``      :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                    
+``alignment``       :class:`pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                         
 ``arcframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
 ``biasframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
 ``bpm_usebias``     bool                                                 ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                    
@@ -235,6 +243,23 @@ Key                 Type                                                 Options
 ``trim``            bool                                                 ..       True                               Trim the frame to isolate the data                                                                                                                                                       
 ``wavelengths``     :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
+
+
+----
+
+AlignPar Keywords
+-----------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.AlignPar`
+
+===============  =============  =======  =============  ================================================================================================================================================================================================================================================================================
+Key              Type           Options  Default        Description                                                                                                                                                                                                                                                                     
+===============  =============  =======  =============  ================================================================================================================================================================================================================================================================================
+``locations``    list, ndarray  ..       0.0, 0.5, 1.0  Locations of the bars, in a list, specified as a fraction of the slit width                                                                                                                                                                                                     
+``sig_thresh``   int, float     ..       1.0            Significance threshold for finding an alignment trace. This should be a lownumber to ensure that the algorithm finds all bars. The algorithm willthen only use the N most significant detections, where N is the numberof elements specified in the "locations" keyword argument
+``trace_npoly``  int            ..       8              Order of the polynomial to use when fitting the trace of a single bar                                                                                                                                                                                                           
+``trim_edge``    list           ..       1, 1           Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                        
+===============  =============  =======  =============  ================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -460,13 +485,13 @@ FlexurePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 
-============  ==========  =================================  ======================================================================  ======================================================================================================================================================================================================================
-Key           Type        Options                            Default                                                                 Description                                                                                                                                                                                                           
-============  ==========  =================================  ======================================================================  ======================================================================================================================================================================================================================
-``maxshift``  int, float  ..                                 20                                                                      Maximum allowed flexure shift in pixels.                                                                                                                                                                              
-``method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
-``spectrum``  str         ..                                 ``/data/Projects/Python/PypeIt/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
-============  ==========  =================================  ======================================================================  ======================================================================================================================================================================================================================
+============  ==========  =================================  ==========================================================================  ======================================================================================================================================================================================================================
+Key           Type        Options                            Default                                                                     Description                                                                                                                                                                                                           
+============  ==========  =================================  ==========================================================================  ======================================================================================================================================================================================================================
+``maxshift``  int, float  ..                                 20                                                                          Maximum allowed flexure shift in pixels.                                                                                                                                                                              
+``method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                    Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
+``spectrum``  str         ..                                 ``/home/xavier/local/Python/PypeIt/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
+============  ==========  =================================  ==========================================================================  ======================================================================================================================================================================================================================
 
 
 ----
@@ -490,18 +515,18 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==========  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ====================================  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    Default                               Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
-======================  ==========  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ====================================  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         0                                     The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ..                                    Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         False                                 Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
-``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ``QA``                                Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ``/data/Projects/Python/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
-``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ``Science``                           Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
-``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         ..                                    A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                
-``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``wht_isis_red``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``  ..                                    Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec
-======================  ==========  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ====================================  ======================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  ========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ========================================  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   Default                                   Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+======================  ==========  ========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ========================================  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        0                                         The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ..                                        Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        False                                     Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ``QA``                                    Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ``/home/xavier/local/Python/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ``Science``                               Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        ..                                        A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``keck_kcwi``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``wht_isis_red``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``  ..                                        Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, keck_kcwi, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec
+======================  ==========  ========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ========================================  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -589,15 +614,15 @@ FrameGroupPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 
-====================  ==============================================  =======================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                   Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-====================  ==============================================  =======================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``exprng``            list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].                                                                                                                                                                                                                    
-``frametype``         str                                             ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``science``, ``standard``, ``trace``, ``tilt``  ``science``                   Frame type.  Options are: arc, bias, dark, pinhole, pixelflat, science, standard, trace, tilt                                                                                                                                                                                                                                                                                                                                                                                      
-``process``           :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                       `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                                                                                                                                                                                                                                               
-``processing_steps``  list                                            ``orient``, ``trim``, ``apply_gain``, ``flatten``, ``crmask``                                            []                            Steps to be applied during processing.  Modify these at your own risk!! Bias and overscan subtraction depend on whether bias frames were included and also the settings in ["process"]. orient: Orient the image in the PypeIt frame (required!)trim: Trim the image (Code will probably break if not set)apply_gain: Convert ADU to electronsflatten:  Apply the flat field image(s), if providedcrmask: Generate a cosmic ray mask (recommended only for standard/science frames)
-``useframe``          str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                                                                                                                                                                                                                                    
-====================  ==============================================  =======================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+====================  ==============================================  ==================================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                   Type                                            Options                                                                                                             Default                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+====================  ==============================================  ==================================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``exprng``            list                                            ..                                                                                                                  None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].                                                                                                                                                                                                                    
+``frametype``         str                                             ``align``, ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``science``, ``standard``, ``trace``, ``tilt``  ``science``                   Frame type.  Options are: align, arc, bias, dark, pinhole, pixelflat, science, standard, trace, tilt                                                                                                                                                                                                                                                                                                                                                                               
+``process``           :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                                  `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                                                                                                                                                                                                                                               
+``processing_steps``  list                                            ``orient``, ``trim``, ``apply_gain``, ``flatten``, ``crmask``                                                       []                            Steps to be applied during processing.  Modify these at your own risk!! Bias and overscan subtraction depend on whether bias frames were included and also the settings in ["process"]. orient: Orient the image in the PypeIt frame (required!)trim: Trim the image (Code will probably break if not set)apply_gain: Convert ADU to electronsflatten:  Apply the flat field image(s), if providedcrmask: Generate a cosmic ray mask (recommended only for standard/science frames)
+``useframe``          str                                             ..                                                                                                                  ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                                                                                                                                                                                                                                    
+====================  ==============================================  ==================================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -664,7 +689,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.TelluricPar`
 =====================  ==========  =======  =========  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                    Type        Options  Default    Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 =====================  ==========  =======  =========  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``disp``               bool        ..       True       Argument for scipy.optimize.differential_evolution which will  display status messages to the screen indicating the status of the optimization. See documentation for telluric.Telluric for a description of the output and how to know if things are working well.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``disp``               bool        ..       False      Argument for scipy.optimize.differential_evolution which will  display status messages to the screen indicating the status of the optimization. See documentation for telluric.Telluric for a description of the output and how to know if things are working well.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``lower``              int, float  ..       3.0        Lower rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and sigma_corr is an empirically determined correction to the formal error. The distribution of input chi (defined by chi = (data - model)/sigma) values is analyzed, and a correction factor to the formal error sigma_corr is returned which is multiplied into the formal errors. In this way, a rejection threshold of i.e. 3-sigma, will always correspond to roughly the same percentile.  This renormalization is performed with coadd1d.renormalize_errors function, and guarantees that rejection is not too agressive in cases where the empirical errors determined from the chi-distribution differ significantly from the formal noise which is used to determine chi.                                                                                                                     
 ``maxiter``            int         ..       3          Maximum number of iterations for the telluric + object model fitting. The code performs multiple iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels. For this reason if you run with the disp=True option, you will see that the f(x) loss function gets progressively better during the iterations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``pix_shift_bounds``   tuple       ..       -5.0, 5.0   Bounds for the pixel shift optimization in telluric model fit in units of pixels. The atmosphere will be allowed to shift within this range during the fit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -747,6 +772,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
@@ -799,6 +826,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = None, 30
@@ -853,6 +882,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = None, 30
@@ -915,6 +946,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
@@ -953,7 +986,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRSPEC (``keck_nirspec_low``)
 -----------------------------------
@@ -994,6 +1027,10 @@ Alterations to the default parameters are::
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1029,7 +1066,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK MOSFIRE (``keck_mosfire``)
 -------------------------------
@@ -1068,6 +1105,10 @@ Alterations to the default parameters are::
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1100,7 +1141,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK HIRES_R (``keck_hires_red``)
 ---------------------------------
@@ -1127,6 +1168,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
@@ -1147,6 +1190,58 @@ Alterations to the default parameters are::
       [[process]]
           satpix = nothing
           sigclip = 20.0
+
+KECK KCWI (``keck_kcwi``)
+-------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = keck_kcwi
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.01
+          processing_steps = trim, orient
+      [[darkframe]]
+          exprng = 0.01, None
+          processing_steps = trim, orient
+      [[arcframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          exprng = None, 30
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              sig_lohi = 10.0, 10.0
+      [[pinholeframe]]
+          exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignment]]
+          locations = 0.1, 0.3, 0.5, 0.7, 0.9
+      [[traceframe]]
+          exprng = None, 30
+          processing_steps = trim, orient, apply_gain
+      [[standardframe]]
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[slitedges]]
+          fit_order = 4
+  [scienceframe]
+      exprng = 30, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          sigclip = 4.0
+          objlim = 1.5
+  [reduce]
+      [[extraction]]
+          skip_optimal = True
 
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
@@ -1178,6 +1273,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
@@ -1201,7 +1298,7 @@ Alterations to the default parameters are::
       processing_steps = trim, orient, apply_gain, flatten, crmask
   [flexure]
       method = boxcar
-      spectrum = /data/Projects/Python/PypeIt/pypeit/data/sky_spec/sky_kastb_600.fits
+      spectrum = /home/xavier/local/Python/PypeIt/pypeit/data/sky_spec/sky_kastb_600.fits
 
 SHANE KASTr (``shane_kast_red``)
 --------------------------------
@@ -1232,6 +1329,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = 0, None
@@ -1279,6 +1378,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
@@ -1320,6 +1421,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -1367,6 +1470,10 @@ Alterations to the default parameters are::
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -1436,6 +1543,10 @@ Alterations to the default parameters are::
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1486,6 +1597,8 @@ Alterations to the default parameters are::
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -1539,6 +1652,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1585,7 +1700,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
 VLT XShooter_NIR (``vlt_xshooter_nir``)
 ---------------------------------------
@@ -1614,6 +1729,8 @@ Alterations to the default parameters are::
               satpix = nothing
               bias = force
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -1672,7 +1789,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
 
 VLT FORS2 (``vlt_fors2``)
 -------------------------
@@ -1705,6 +1822,10 @@ Alterations to the default parameters are::
               overscan = median
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = median
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
@@ -1770,6 +1891,10 @@ Alterations to the default parameters are::
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
       [[traceframe]]
           exprng = None, 30
           processing_steps = trim, orient, apply_gain
@@ -1802,7 +1927,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 GEMINI-S FLAMINGOS (``gemini_flamingos1``)
 ------------------------------------------
@@ -1837,6 +1962,10 @@ Alterations to the default parameters are::
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -1908,6 +2037,10 @@ Alterations to the default parameters are::
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -1966,6 +2099,8 @@ Alterations to the default parameters are::
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
       [[standardframe]]
@@ -1986,7 +2121,7 @@ Alterations to the default parameters are::
   [sensfunc]
       multi_spec_det = 1, 2, 3
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
 -------------------------------------------
@@ -2012,6 +2147,8 @@ Alterations to the default parameters are::
               satpix = nothing
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -2057,6 +2194,8 @@ Alterations to the default parameters are::
               satpix = nothing
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -2114,6 +2253,10 @@ Alterations to the default parameters are::
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
@@ -2154,7 +2297,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /data/Projects/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/local/Python/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 MAGELLAN FIRE (``magellan_fire_long``)
 --------------------------------------
@@ -2189,6 +2332,10 @@ Alterations to the default parameters are::
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
@@ -2248,6 +2395,8 @@ Alterations to the default parameters are::
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -2309,6 +2458,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
@@ -2362,6 +2513,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
@@ -2411,6 +2564,8 @@ Alterations to the default parameters are::
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = 0, None
@@ -2464,6 +2619,8 @@ Alterations to the default parameters are::
       [[pinholeframe]]
           exprng = 999999, None
           processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
           exprng = 0, None
           processing_steps = trim, orient, apply_gain
@@ -2509,6 +2666,8 @@ Alterations to the default parameters are::
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -2557,6 +2716,8 @@ Alterations to the default parameters are::
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain
@@ -2610,6 +2771,8 @@ Alterations to the default parameters are::
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
           processing_steps = trim, orient, apply_gain
       [[traceframe]]
           processing_steps = trim, orient, apply_gain

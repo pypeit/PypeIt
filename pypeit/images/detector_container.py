@@ -1,15 +1,8 @@
 """ Simple object to hold + process a single image.
 """
 import numpy as np
-import os
 import inspect
-import json
 
-from astropy.io import fits
-
-from linetools import utils as ltu
-
-from pypeit import msgs
 from pypeit import datamodel
 
 from IPython import embed

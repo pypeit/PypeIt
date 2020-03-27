@@ -86,7 +86,7 @@ class WaveCalib(object):
     # Frametype is a class attribute
     frametype = 'wv_calib'
     master_type = 'WaveCalib'
-    file_format = 'json'
+    master_file_format = 'json'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
@@ -103,7 +103,10 @@ class WaveCalib(object):
         self.par = par
 
         # Optional parameters
-        self.bpm = msarc.mask if msbpm is None else msbpm
+        self.bpm = msbpm
+        if self.bpm is None:
+            if msarc is not None:  # Can be None for load;  will remove this for DataContainer
+                self.bpm = msarc.mask 
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det

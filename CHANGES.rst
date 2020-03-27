@@ -81,7 +81,6 @@
 - Refactor of ScienceImage Par into pieces
 - Finally dealt with 'random' windowing of Shane_kast_red
 - Dynamic namp setting for LRISr when instantiating Spectrograph
-- Introduce MDM OSMOS
 
 0.12.1 (07 Jan 2020)
 --------------------

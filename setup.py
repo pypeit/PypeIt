@@ -70,6 +70,7 @@ def run_setup(data_files, scripts, packages, install_requires):
           url='https://github.com/pypeit/PypeIt',
           packages=packages,
           package_data={'pypeit': data_files, '': ['*.rst', '*.txt']},
+          python_requires='>=3.7',
           include_package_data=True,
           scripts=scripts,
           install_requires=install_requires,

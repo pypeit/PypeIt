@@ -8,7 +8,7 @@ import os
 import inspect
 import numpy as np
 
-from scipy import interpolate, ndimage
+from scipy import interpolate
 
 from matplotlib import pyplot as plt
 
@@ -17,14 +17,13 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
-from pypeit import masterframe
-# NOTE: only used by the FlatField.show method
-from pypeit import slittrace
 
 from pypeit.par import pypeitpar
 from pypeit import datamodel
+from pypeit import masterframe
 from pypeit.core import flat
 from pypeit.core import tracewave
+from pypeit import slittrace
 from pypeit.core import pydl
 
 
@@ -44,16 +43,17 @@ class FlatImages(datamodel.DataContainer):
 
     # Master fun
     master_type = 'Flat'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
     datamodel = {
         'procflat':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined flats'),
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'illumflat': dict(otype=np.ndarray, atype=np.floating, desc='Illumination flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
     }
 
-    def __init__(self, procflat, pixelflat, illumflat, flat_model):
+    def __init__(self, procflat, pixelflat=None, illumflat=None, flat_model=None, PYP_SPEC=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -88,6 +88,29 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
+    def show(self, slits=None, wcs_match=True):
+        """
+        Simple wrapper to show_flats()
+
+        Args:
+            slits:
+            wcs_match:
+
+        Returns:
+
+        """
+        # Try to grab the slits
+        master_key, master_dir = masterframe.grab_key_mdir(self.filename)
+        try:
+            slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
+                                                                    master_dir=master_dir)
+            slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+        except:
+            msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
+            slits = None
+        # Show
+        show_flats(self.pixelflat, self.illumflat, self.procflat, self.flat_model,
+                   wcs_match=wcs_match, slits=slits)
 
 class FlatField(object):
     """
@@ -104,18 +127,13 @@ class FlatField(object):
             :class:`pypeit.processimages.ProcessImages` base class.
         par (:class:`pypeit.par.pypeitpar.FrameGroupPar`):
             The parameters used to type and process the flat frames.
-        files (:obj:`list`, optional):
-            The list of files to process.  Can be an empty list.
-        det (:obj:`int`):
-            The 1-indexed detector number to process.
         slits (:class:`pypeit.edgetrace.SlitTraceSet`):
             The current slit traces.
-        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`, optional):
+        flatpar (:class:`pypeit.par.pypeitpar.FlatFieldPar`):
             User-level parameters for constructing the flat-field
             corrections.  If None, the default parameters are used.
-        wavetilts (:obj:`dict`, optional):
+        wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
             The current wavelength tilt traces; see
-            :class:`pypeit.wavetilts.WaveTilts`.
 
     Attributes:
         rawflatimg (PypeItImage):
@@ -132,13 +150,12 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, det, slits, wavetilts=None):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts):
 
         # Defatuls
         self.spectrograph = spectrograph
-        self.det = det
         # FieldFlattening parameters
-        self.flatpar = pypeitpar.FlatFieldPar() if flatpar is None else flatpar
+        self.flatpar = flatpar
 
         # Input data
         self.slits = slits
@@ -244,8 +261,9 @@ class FlatField(object):
             self.show(wcs_match=True)
 
         # Return
-        return FlatImages(self.rawflatimg.image, self.mspixelflat,
-                          self.msillumflat, self.flat_model)
+        return FlatImages(self.rawflatimg.image, pixelflat=self.mspixelflat,
+                          illumflat=self.msillumflat, flat_model=self.flat_model,
+                          PYP_SPEC=self.spectrograph.spectrograph)
 
     def show(self, wcs_match=True):
         """
@@ -691,7 +709,7 @@ class FlatField(object):
                         = flat.tweak_slit_edges(self.slits.left[:,slit], self.slits.right[:,slit],
                                                 spat_coo_data, spat_flat_data,
                                                 thresh=tweak_slits_thresh,
-                                                maxfrac=tweak_slits_maxfrac)
+                                                maxfrac=tweak_slits_maxfrac, debug=debug)
                 # TODO: Because the padding doesn't consider adjacent
                 # slits, calling slit_img for individual slits can be
                 # different from the result when you construct the
@@ -883,10 +901,10 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
     Interface to ginga to show a set of flat images
 
     Args:
-        mspixelflat (`np.ndarray`_):
-        msillumflat (`np.ndarray`_):
-        procflat (`np.ndarray`_):
-        flat_model (`np.ndarray`_):
+        mspixelflat (`numpy.ndarray`_):
+        msillumflat (`numpy.ndarray`_):
+        procflat (`numpy.ndarray`_):
+        flat_model (`numpy.ndarray`_):
         wcs_match (bool, optional):
         slits (:class:`pypeit.slittrace.SlitTrace`, optional):
 
@@ -895,20 +913,22 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
     """
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
+    if slits is not None:
+        left, right = slits.select_edges()
     # TODO: Add an option that shows the relevant stuff in a
     # matplotlib window.
     viewer, ch = ginga.show_image(mspixelflat, chname='pixeflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match, clear=True)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(msillumflat, chname='illumflat', cuts=(0.9, 1.1),
                                   wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(procflat, chname='flat', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
     viewer, ch = ginga.show_image(flat_model, chname='flat_model', wcs_match=wcs_match)
     if slits is not None:
-        ginga.show_slits(viewer, ch, slits.left, slits.right, slits.id)
+        ginga.show_slits(viewer, ch, left, right, slits.id)
 

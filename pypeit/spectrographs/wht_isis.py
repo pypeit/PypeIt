@@ -240,30 +240,43 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         super(WHTISISRedSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis_red'
         self.camera = 'ISISr'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.22,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 0.98,
-                            ronoise         = 4.0,
-                            datasec         = '[:,:]',
-                            oscansec        = None,
-                            suffix          = '_red'
-                            )]
-        self.numhead = 2
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning=binning,
+            det=1,
+            dataext=1,
+            specaxis=0,
+            specflip=False,
+            spatflip=False,
+            platescale=0.22,
+            darkcurr=0.0,
+            saturation=65535.,
+            nonlinear=0.76,
+            mincounts=-1e10,
+            numamplifiers=1,
+            gain=np.atleast_1d(0.98),
+            ronoise=np.atleast_1d(4.0),
+            datasec=np.atleast_1d('[:,:]'),
+        )
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
