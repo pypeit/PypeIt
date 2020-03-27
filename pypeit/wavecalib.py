@@ -541,7 +541,7 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
         `np.ndarray`_: The wavelength image.
     """
     # Setup
-    ok_slits = np.where(np.invert(slits.mask))[0]
+    ok_slits = np.where(slits.mask == 0)[0] #np.invert(slits.mask))[0]
     image = np.zeros_like(tilts)
     slitmask = slits.slit_img(flexure=spat_flexure)
 
@@ -572,7 +572,8 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
                                              maxx2=wv_calib['fit2d']['max_order'])
             image[thismask] /= order
         else:
-            iwv_calib = wv_calib[str(slit)]
+            #iwv_calib = wv_calib[str(slit)]
+            iwv_calib = wv_calib[str(slits.spat_id[slit])]
             image[thismask] = utils.func_val(iwv_calib['fitc'], tilts[thismask],
                                              iwv_calib['function'],
                                              minx=iwv_calib['fmin'],

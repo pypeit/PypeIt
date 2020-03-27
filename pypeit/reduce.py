@@ -102,20 +102,24 @@ class Reduce(object):
         else:
             msgs.error("Not ready for this objtype in Reduce")
 
-        self.slits_left, self.slits_right = slitTrace.select_edges(flexure=self.spat_flexure_shift)
+        # This is all of the slits
+        self.slits_left, self.slits_right, mask = slitTrace.select_edges(flexure=self.spat_flexure_shift)
         self.slits_specmin = slitTrace.specmin
         self.slits_specmax = slitTrace.specmax
+        self.slits_spat_id = slitTrace.spat_id
         self.nsilts = slitTrace.nslits
         # TODO: We keep creating this image...
-        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)
+        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)  # This is only unmasked
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
         self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
+        # TODO -- Just pull this from slitTrace
         self.maskslits = self._get_goodslits(maskslits)
 
         # Tilts
+        waveTilts.is_synced(slitTrace)
         #   Deal with Flexure
         if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
             _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
@@ -125,7 +129,7 @@ class Reduce(object):
             tilt_flexure_shift = self.spat_flexure_shift
         self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift) #self.spat_flexure_shift)
 
-        # Wavelengths
+        # Wavelengths (on unmasked slits)
         self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
                                                wv_calib, spat_flexure=self.spat_flexure_shift)
 
@@ -776,15 +780,15 @@ class MultiSlitReduce(Reduce):
         #left, right = self.slits.select_edges()
 
         # Loop on slits
-        for slit in gdslits:
-            qa_title ="Finding objects on slit # {:d}".format(slit)
+        for islit in gdslits:
+            qa_title ="Finding objects on slit # {:d}".format(islit)
             msgs.info(qa_title)
-            thismask = (self.slitmask == slit)
+            thismask = (self.slitmask == islit)
             inmask = (self.sciImg.fullmask == 0) & thismask
             # Find objects
             #specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
             #                'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
-            specobj_dict = {'SLITID': slit, #'orderindx': 999,
+            specobj_dict = {'SLITID': self.slits_spat_id[islit], #'orderindx': 999,
                             'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
@@ -792,7 +796,7 @@ class MultiSlitReduce(Reduce):
             # is. This will be a png file(s) per slit.
 
             sobjs_slit, skymask[thismask] = \
-                extract.objfind(image, thismask, self.slits_left[:,slit], self.slits_right[:,slit], inmask=inmask,
+                extract.objfind(image, thismask, self.slits_left[:,islit], self.slits_right[:,islit], inmask=inmask,
                                 ir_redux=self.ir_redux,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
@@ -870,11 +874,12 @@ class MultiSlitReduce(Reduce):
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
         # Loop on slits
-        for slit in gdslits:
-            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit))
-            thisobj = (self.sobjs.SLITID == slit) # indices of objects for this slit
+        for islit in gdslits:
+            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(islit))
+            spat_ID = self.slits_spat_id[islit]
+            thisobj = (self.sobjs.SLITID == spat_ID) # indices of objects for this slit
             if np.any(thisobj):
-                thismask = (self.slitmask == slit) # pixels for this slit
+                thismask = (self.slitmask == islit) # pixels for this slit
                 # True  = Good, False = Bad for inmask
                 #inmask = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
@@ -882,7 +887,7 @@ class MultiSlitReduce(Reduce):
                     self.extractmask[thismask] = skysub.local_skysub_extract(
                     self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveImg,
                     self.global_sky, self.sciImg.rn2img,
-                    thismask, self.slits_left[:,slit], self.slits_right[:, slit],
+                    thismask, self.slits_left[:,islit], self.slits_right[:, islit],
                     self.sobjs[thisobj], self.sciImg.fullmask,
                     spat_pix=spat_pix,
                     model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
