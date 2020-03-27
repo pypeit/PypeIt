@@ -18,7 +18,9 @@ from scipy.interpolate import interp1d
 
 from pypeit import specobjs, specobj
 from pypeit import ginga, msgs
+from pypeit import masterframe
 from pypeit.core import skysub, extract, wave, flexure
+from pypeit.images import buildimage
 from pypeit import wavecalib
 
 from IPython import embed
@@ -1338,7 +1340,7 @@ class IFUReduce(Reduce):
             scaleImg = self.build_scaleimg(ref_slit)
 
         # Check if the user has a pre-defined sky regions file
-        skymask_init = None#self.load_skyregions()
+        skymask_init = self.load_skyregions()
 
         # Global sky subtract
         self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
