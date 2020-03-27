@@ -534,38 +534,30 @@ class FlatField(object):
                     # doesn't remove any previous tilt data for this
                     # slit
                     tweaked_tilts[onslit] = tilts[onslit]
+                common_message = 'To change the behavior, use the \'saturated_slits\' parameter ' \
+                                 'in the \'flatfield\' parameter group; see here:\n\n' \
+                                 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n' \
+                                 'You could also choose to use a different flat-field image ' \
+                                 'for this calibration group.'
                 if saturated_slits == 'crash':
                     msgs.error('Only {:4.2f}'.format(100*good_frac)
-                               + '% of the pixels on slit {0} are not saturated.'.format(slit)
-                               + 'Selected behavior was to crash if this occurred.  To change '
-                               + 'the behavior, use the \'saturated_slits\' parameter in the '
-                               + 'flatfield parameter group; see here:\n\n'
-                               + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n'
-                               + 'You could also choose to use a different flat-field image '
-                               + 'for this calibration group.')
+                               + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                               + 'Selected behavior was to crash if this occurred.'
+                               + common_message)
                 elif saturated_slits == 'mask':
                     self.slits.mask[slit] = True
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                              + '% of the pixels on slit {0} are not saturated.'.format(slit)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
                               + 'Selected behavior was to mask this slit and continue with the '
                               + 'remainder of the reduction, meaning no science data will be '
-                              + 'extracted from this slit.  To change the behavior, use the '
-                              + '\'saturated_slits\' parameter in the flatfield parameter group; '
-                              + 'see here:\n\n'
-                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n'
-                              + 'You could also choose to use a different flat-field image for '
-                              + 'this calibration group.')
+                              + 'extracted from this slit.' + common_message)
                 elif saturated_slits == 'continue':
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                              + '% of the pixels on slit {0} are not saturated.'.format(slit)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
                               + 'Selected behavior was to simply continue, meaning no '
                               + 'field-flatting correction will be applied to this slit but '
                               + 'pypeit will attempt to extract any objects found on this slit.  '
-                              + 'To change the behavior, use the \'saturated_slits\' parameter '
-                              + 'in the flatfield parameter group; see here:\n\n'
-                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n'
-                              + 'You could also choose to use a different flat-field image for '
-                              + 'this calibration group.')
+                              + common_message)
                 else:
                     # Should never get here
                     raise NotImplementedError('Unknown behavior for saturated slits: {0}'.format(
