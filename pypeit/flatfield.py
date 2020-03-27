@@ -539,8 +539,8 @@ class FlatField(object):
                                + '% of the pixels on slit {0} are not saturated.'.format(slit)
                                + 'Selected behavior was to crash if this occurred.  To change '
                                + 'the behavior, use the \'saturated_slits\' parameter in the '
-                               + 'flatfield parameter group; see here:\n'
-                               + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n'
+                               + 'flatfield parameter group; see here:\n\n'
+                               + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n'
                                + 'You could also choose to use a different flat-field image '
                                + 'for this calibration group.')
                 elif saturated_slits == 'mask':
@@ -551,8 +551,8 @@ class FlatField(object):
                               + 'remainder of the reduction, meaning no science data will be '
                               + 'extracted from this slit.  To change the behavior, use the '
                               + '\'saturated_slits\' parameter in the flatfield parameter group; '
-                              + 'see here:\n'
-                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n'
+                              + 'see here:\n\n'
+                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n'
                               + 'You could also choose to use a different flat-field image for '
                               + 'this calibration group.')
                 elif saturated_slits == 'continue':
@@ -562,8 +562,8 @@ class FlatField(object):
                               + 'field-flatting correction will be applied to this slit but '
                               + 'pypeit will attempt to extract any objects found on this slit.  '
                               + 'To change the behavior, use the \'saturated_slits\' parameter '
-                              + 'in the flatfield parameter group; see here:\n'
-                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n'
+                              + 'in the flatfield parameter group; see here:\n\n'
+                              + 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n'
                               + 'You could also choose to use a different flat-field image for '
                               + 'this calibration group.')
                 else:
