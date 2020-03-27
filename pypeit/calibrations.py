@@ -650,33 +650,13 @@ class Calibrations(object):
             flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
                 self.slits, self.wavetilts)
             # Run
-            self.flatimages = flatField.run(show=self.show) #, debug=True)
+            self.flatimages = flatField.run(show=self.show)
 
             # Save to Masters
             if self.save_masters:
-                self.flatimages.to_master_file(masterframe_filename)#self.master_dir, self.master_key_dict['flat'],  # Naming
-                                           #self.spectrograph.spectrograph,  # Header
-                                           #steps=flatField.steps)
-
-                # If slits were tweaked by the slit illumination
-                # profile, re-write them so that the tweaked slits are
-                # included.
-                if self.par['flatfield']['tweak_slits']:
-                    # Update the SlitTraceSet master
-                    slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
-                                                                            self.master_key_dict['trace'],
-                                                                            master_dir=self.master_dir)
-                    self.slits.to_master_file(slit_masterframe_name)
-                    #self.slits.to_master()
-                    # TODO: The waveTilts datamodel needs to be improved
-                    # Objects should point to the same data
-                    # TODO: Remove this line once we're sure the coding
-                    # is correct so that they're not tripped.
-                    # assert self.waveTilts.tilts_dict is self.flatField.tilts_dict
-                    # Update the WaveTilts master
-                    # MADE ON-THE-SPOT
-                    #self.wavetilts['tilts'] = flatField.wavetilts['tilts'].copy()
-                    #self.wavetilts.to_master_file(self.master_dir, self.master_key_dict['tilt'],
+                self.flatimages.to_master_file(masterframe_filename)
+                # Slits may have been modified
+                self.slits.to_master_file()
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
@@ -942,8 +922,6 @@ class Calibrations(object):
 
         # Save & return
         self._update_cache('tilt', 'wavetilts', self.wavetilts)
-        #self._update_cache('tilt', ('wavetilts','wtmask'), (self.wavetilts, self.wt_maskslits))
-        #self.slits.mask |= self.wt_maskslits
         return self.wavetilts
 
     def run_the_steps(self):
