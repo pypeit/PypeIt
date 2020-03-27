@@ -88,12 +88,7 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'XeI']
         par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
-        # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        # Do not flux calibrate
-        #par['fluxcalib'] = None
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -151,9 +146,6 @@ class MDMOSMOSMDM4KSpectrograph(spectrograph.Spectrograph):
         meta['airmass'] = dict(ext=0, card='SECZ')
         # Extras for config and frametyping
         meta['dispname'] = dict(ext=0, card='DISPID')
-        #meta['dichroic'] = dict(ext=0, card='ISIDICHR')
-        #meta['dispangle'] = dict(ext=0, card='CENWAVE', rtol=1e-3)
-        #meta['slitwid'] = dict(ext=0, card='ISISLITW')
         meta['idname'] = dict(ext=0, card='IMAGETYP')
         # Lamps
         meta['lampstat01'] = dict(ext=0, card='LAMPS')
