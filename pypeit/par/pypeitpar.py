@@ -451,7 +451,7 @@ class FlatFieldPar(ParSet):
     def __init__(self, method=None, frame=None, illumflatten=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
-                 illum_iter=None, illum_rej=None, twod_fit_npoly=None):
+                 illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -559,6 +559,16 @@ class FlatFieldPar(ParSet):
                                   'the slit width, which is why the default is None. Alter ' \
                                   'this paramter at your own risk!'
 
+        defaults['saturated_slits'] = 'crash'
+        options['saturated_slits'] = FlatFieldPar.valid_saturated_slits_methods()
+        dtypes['saturated_slits'] = str
+        descr['saturated_slits'] = 'Behavior when a slit is encountered with a large fraction ' \
+                                   'of saturated pixels in the flat-field.  The options are: ' \
+                                   '\'crash\' - Raise an error and halt the data reduction; ' \
+                                   '\'mask\' - Mask the slit, meaning no science data will be ' \
+                                   'extracted from the slit; \'continue\' - ignore the ' \
+                                   'flat-field correction, but continue with the reduction.'
+
         # Instantiate the parameter set
         super(FlatFieldPar, self).__init__(list(pars.keys()),
                                            values=list(pars.values()),
@@ -576,7 +586,7 @@ class FlatFieldPar(ParSet):
         parkeys = ['method', 'frame', 'illumflatten', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
-                   'twod_fit_npoly']
+                   'twod_fit_npoly', 'saturated_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -602,6 +612,13 @@ class FlatFieldPar(ParSet):
         Return the valid flat-field methods
         """
         return ['bspline', 'skip'] # [ 'PolyScan', 'bspline' ]. Same here. Not sure what PolyScan is
+
+    @staticmethod
+    def valid_saturated_slits_methods():
+        """
+        Return the valid options for dealing with saturated slits.
+        """
+        return ['crash', 'mask', 'continue']
 
     def validate(self):
         """
