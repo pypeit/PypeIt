@@ -143,11 +143,10 @@ class FlatImages(datamodel.DataContainer):
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=flexure_shift)
 
-            try:
-                illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
-            except:
-                import pdb; pdb.set_trace()
-                embed(header='131 of flatfield')
+            illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+#            except:
+#                import pdb; pdb.set_trace()
+#                embed(header='131 of flatfield')
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
