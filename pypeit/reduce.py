@@ -104,6 +104,7 @@ class Reduce(object):
 
         # This is all of the slits
         self.slits_left, self.slits_right, mask = slitTrace.select_edges(flexure=self.spat_flexure_shift)
+        embed(header='Let through FLATWARN')
         self.slits_specmin = slitTrace.specmin
         self.slits_specmax = slitTrace.specmax
         self.slits_spat_id = slitTrace.spat_id

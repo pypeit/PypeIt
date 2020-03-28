@@ -113,18 +113,18 @@ class FlatImages(datamodel.DataContainer):
         """
         illumflat = np.ones_like(self.procflat)
         # Loop
-        for slit in range(slits.nslits):
+        for slit_idx in range(slits.nslits):
             # Skip masked
-            if slits.mask[slit] != 0:
+            if slits.mask[slit_idx] != 0:
                 continue
             # DO it
-            _slitid_img = slits.slit_img(slitidx=slit, flexure=flexure_shift)
-            onslit = _slitid_img == slit
-            spat_coo = slits.spatial_coordinate_image(slitidx=slit,
-                                                           slitid_img=_slitid_img,
-                                                           flexure_shift=flexure_shift)
+            _slitid_img = slits.slit_img(slitidx=slit_idx, flexure=flexure_shift)
+            onslit = _slitid_img == slits.spat_id[slit_idx]
+            spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx,
+                                                      slitid_img=_slitid_img,
+                                                      flexure_shift=flexure_shift)
 
-            illumflat[onslit] = self.spat_bsplines[slit].value(spat_coo[onslit])[0]
+            illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
@@ -157,16 +157,18 @@ class FlatImages(datamodel.DataContainer):
 
         """
         # Try to grab the slits
-        master_key, master_dir = masterframe.grab_key_mdir(self.filename)
-        try:
-            slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
-                                                                    master_dir=master_dir)
-            slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
-        except:
-            msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
-            slits = None
+        if slits is None:
+            master_key, master_dir = masterframe.grab_key_mdir(self.filename)
+            try:
+                slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
+                                                                        master_dir=master_dir)
+                slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+            except:
+                msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
+        if slits is not None:
+            illumflat = self.generate_illumflat(slits)
         # Show
-        show_flats(self.pixelflat, self.illumflat, self.procflat, self.flat_model,
+        show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model,
                    wcs_match=wcs_match, slits=slits)
 
 class FlatField(object):
@@ -479,12 +481,11 @@ class FlatField(object):
         median_slit_width = np.median(self.slits.right_init - self.slits.left_init, axis=0)
 
         if tweak_slits:
-            # NOTE: This copies the input slit edges to a set that can
-            # be tweaked.
+            # NOTE: This copies the input slit edges to a set that can be tweaked.
             self.slits.init_tweaked()
 
         # TODO: This needs to include a padding check
-        # Construct three versions of the slit ID image, all the unmasked slits!
+        # Construct three versions of the slit ID image, all of unmasked slits!
         #   - an image that uses the padding defined by self.slits
         slitid_img_init = self.slits.slit_img(initial=True)
         #   - an image that uses the extra padding defined by
@@ -509,17 +510,17 @@ class FlatField(object):
         twod_model = np.ones_like(rawflat)
 
         # Model each slit independently
-        for islit in range(self.slits.nslits):
+        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             # Is this a good slit??
-            if self.slits.mask[islit] != 0:
-                msgs.info('Skipping bad slit: {}'.format(islit))
+            if self.slits.mask[slit_idx] != 0:
+                msgs.info('Skipping bad slit: {}'.format(slit_spat))
                 continue
 
             msgs.info('Modeling the flat-field response for slit: {0}/{1}'.format(
-                        islit+1, self.slits.nslits))
+                        slit_idx+1, self.slits.nslits))
 
             # Find the pixels on the initial slit
-            onslit_init = slitid_img_init == islit
+            onslit_init = slitid_img_init == slit_spat
 
             # Check for saturation of the flat. If there are not enough
             # pixels do not attempt a fit, and continue to the next
@@ -530,7 +531,7 @@ class FlatField(object):
                 msgs.warn('Only {:4.2f}'.format(100*good_frac)
                           + '% of the pixels on this slit are not saturated.' + msgs.newline()
                           + 'Consider raising nonlinear_counts={:5.3f}'.format(nonlinear_counts) +
-                          msgs.newline() + 'Not attempting to flat field slit {:d}'.format(islit))
+                          msgs.newline() + 'Not attempting to flat field slit {:d}'.format(slit_spat))
                 continue
 
             # Demand at least 10 pixels per row (on average) per degree
@@ -548,18 +549,18 @@ class FlatField(object):
             # calculation?
 
             # Create an image with the spatial coordinates relative to the left edge of this slit
-            spat_coo_init = self.slits.spatial_coordinate_image(slitidx=islit, full=True, initial=True)
+            spat_coo_init = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True, initial=True)
 
             # Find pixels on the padded and trimmed slit coordinates
-            onslit_padded = padded_slitid_img == islit
-            onslit_trimmed = trimmed_slitid_img == islit
+            onslit_padded = padded_slitid_img == slit_spat
+            onslit_trimmed = trimmed_slitid_img == slit_spat
 
             # ----------------------------------------------------------
             # Collapse the slit spatially and fit the spectral function
 
             # Create the tilts image for this slit
             # TODO -- Confirm the sign of this shift is correct!
-            tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,islit],
+            tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
                                         self.wavetilts['func2d'])#,
                                         #spat_shift=self.wavetilts.spat_flexure)
             # Convert the tilt image to an image with the spectral pixel index
@@ -608,14 +609,15 @@ class FlatField(object):
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
             if exit_status > 1:
                 msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
-                          'slit {0} and continuing!'.format(islit))
+                          'slit {0} and continuing!'.format(slit_spat))
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 continue
 
             # Debugging/checking spectral fit
             if debug:
                 utils.bspline_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
                                  spec_flat_fit, xlabel='Spectral Pixel', ylabel='log(flat counts)',
-                                 title='Spectral Fit for slit={:d}'.format(islit))
+                                 title='Spectral Fit for slit={:d}'.format(slit_spat))
 
             if sticky:
                 # Add rejected pixels to gpm
@@ -668,7 +670,7 @@ class FlatField(object):
             # First fit -- With initial slits
             exit_status, spat_coo_data,  spat_flat_data, spat_bspl, spat_gpm_fit, \
                 spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
-                norm_spec, spat_coo_init, median_slit_width[islit], spat_gpm, spat_samp,
+                norm_spec, spat_coo_init, median_slit_width[slit_idx], spat_gpm, spat_samp,
                 illum_rej, sticky, gpm, illum_iter, debug=debug)
 
             #            # Construct the empirical illumination profile
@@ -707,7 +709,7 @@ class FlatField(object):
             # TODO -- Move this down
             if exit_status > 1:
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
-                          'included in flat-field model for slit {0}!'.format(islit))
+                          'included in flat-field model for slit {0}!'.format(slit_spat))
 
 
             # NOTE: The bspline fit is used to construct the
@@ -721,9 +723,10 @@ class FlatField(object):
             if tweak_slits:
                 # TODO: Should the tweak be based on the bspline fit?
                 # TODO: Will this break if
-                left_thresh, left_shift, self.slits.left_tweak[:,islit], right_thresh, \
-                    right_shift, self.slits.right_tweak[:,islit] \
-                        = flat.tweak_slit_edges(self.slits.left_init[:,islit], self.slits.right_init[:,islit],
+                left_thresh, left_shift, self.slits.left_tweak[:,slit_idx], right_thresh, \
+                    right_shift, self.slits.right_tweak[:,slit_idx] \
+                        = flat.tweak_slit_edges(self.slits.left_init[:,slit_idx],
+                                                self.slits.right_init[:,slit_idx],
                                                 spat_coo_data, spat_flat_data,
                                                 thresh=tweak_slits_thresh,
                                                 maxfrac=tweak_slits_maxfrac, debug=debug)
@@ -733,9 +736,9 @@ class FlatField(object):
                 # image for all slits. Fix this...
 
                 # Update the onslit mask
-                _slitid_img = self.slits.slit_img(slitidx=islit, initial=False)
-                onslit_tweak = _slitid_img == islit
-                spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=islit,
+                _slitid_img = self.slits.slit_img(slitidx=slit_idx, initial=False)
+                onslit_tweak = _slitid_img == slit_spat
+                spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                                slitid_img=_slitid_img)
                 # TODO -- We need to refit the illum flat here!
                 # Construct the empirical illumination profile
@@ -743,7 +746,7 @@ class FlatField(object):
                 # TODO -- How about median_slit_width? :: JXP says no
                 exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                     spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
-                    norm_spec, spat_coo_tweak, median_slit_width[islit], spat_gpm, spat_samp,
+                    norm_spec, spat_coo_tweak, median_slit_width[slit_idx], spat_gpm, spat_samp,
                     illum_rej, sticky, gpm, illum_iter, debug=False)
 
 #                    _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
@@ -813,7 +816,7 @@ class FlatField(object):
                 ax.legend()
                 ax.set_xlabel('Normalized Slit Position')
                 ax.set_ylabel('Normflat Spatial Profile')
-                ax.set_title('Illumination Function Fit for slit={:d}'.format(islit))
+                ax.set_title('Illumination Function Fit for slit={:d}'.format(slit_spat))
                 plt.show()
 
             # ----------------------------------------------------------
@@ -859,20 +862,6 @@ class FlatField(object):
 #            poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
             poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
-#            np.savez_compressed('rmtdict.npz', good_frac=good_frac, npoly=npoly, spat_coo=spat_coo,
-#                                spec_coo=spec_coo, spec_gpm=spec_gpm, spec_coo_data=spec_coo_data,
-#                                spec_flat_data=spec_flat_data, spec_ivar_data=spec_ivar_data,
-#                                spec_gpm_data=spec_gpm_data, spec_model=spec_model,
-#                                norm_spec=norm_spec, spat_gpm=spat_gpm,
-#                                spat_coo_data=spat_coo_data, spat_flat_data=spat_flat_data,
-#                                norm_spec_spat=norm_spec_spat, twod_gpm=twod_gpm,
-#                                twod_spat_coo_data=twod_spat_coo_data,
-#                                twod_spec_coo_data=twod_spec_coo_data,
-#                                twod_flat_data=twod_flat_data, twod_ivar_data=twod_ivar_data,
-#                                twod_gpm_data=twod_gpm_data, poly_basis=poly_basis, nord=4,
-#                                upper=twod_sigrej, lower=twod_sigrej, bkspace=spec_samp_coarse,
-#                                groupbadpix=True, maxrej=10)
-
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
@@ -913,7 +902,7 @@ class FlatField(object):
                 ax.legend()
                 ax.set_xlabel('Spectral Pixel')
                 ax.set_ylabel('Residuals from pixelflat 2-d fit')
-                ax.set_title('Spectral Residuals for slit={:d}'.format(islit))
+                ax.set_title('Spectral Residuals for slit={:d}'.format(slit_spat))
                 plt.show()
 
                 plt.clf()
@@ -933,14 +922,14 @@ class FlatField(object):
                 ax.legend()
                 ax.set_xlabel('Normalized Slit Position')
                 ax.set_ylabel('Residuals from pixelflat 2-d fit')
-                ax.set_title('Spatial Residuals for slit={:d}'.format(islit))
+                ax.set_title('Spatial Residuals for slit={:d}'.format(slit_spat))
                 plt.show()
 
             # Save the 2D residual model
             twod_model[...] = 1.
             if exit_status > 1:
                 msgs.warn('Two-dimensional fit to flat-field data failed!  No higher order '
-                          'flat-field corrections included in model of slit {0}!'.format(islit))
+                          'flat-field corrections included in model of slit {0}!'.format(slit_spat))
             else:
                 twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
 
@@ -1036,13 +1025,13 @@ class FlatField(object):
                spat_flat_fit, spat_flat_data_raw
 
 
-def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, slits=None):
+def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits=None):
     """
     Interface to ginga to show a set of flat images
 
     Args:
-        mspixelflat (`numpy.ndarray`_):
-        msillumflat (`numpy.ndarray`_):
+        pixelflat (`numpy.ndarray`_):
+        illumflat (`numpy.ndarray`_ or None):
         procflat (`numpy.ndarray`_):
         flat_model (`numpy.ndarray`_):
         wcs_match (bool, optional):
@@ -1052,23 +1041,21 @@ def show_flats(mspixelflat, msillumflat, procflat, flat_model, wcs_match=True, s
 
     """
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
-
     if slits is not None:
-        left, right = slits.select_edges()
-    # TODO: Add an option that shows the relevant stuff in a
-    # matplotlib window.
-    viewer, ch = ginga.show_image(mspixelflat, chname='pixelflat', cuts=(0.9, 1.1),
-                                  wcs_match=wcs_match, clear=True)
-    if slits is not None:
-        ginga.show_slits(viewer, ch, left, right)#,  slits.id)
-    viewer, ch = ginga.show_image(msillumflat, chname='illumflat', cuts=(0.9, 1.1),
-                                  wcs_match=wcs_match)
-    if slits is not None:
-        ginga.show_slits(viewer, ch, left, right)#, slits.id)
-    viewer, ch = ginga.show_image(procflat, chname='flat', wcs_match=wcs_match)
-    if slits is not None:
-        ginga.show_slits(viewer, ch, left, right)#, slits.id)
-    viewer, ch = ginga.show_image(flat_model, chname='flat_model', wcs_match=wcs_match)
-    if slits is not None:
-        ginga.show_slits(viewer, ch, left, right)#, slits.id)
+        left, right, _ = slits.select_edges()
+    # Loop me
+    clear = True
+    for img, name, cut in zip([pixelflat, illumflat, procflat, flat_model],
+                         ['pixelflat', 'illumflat', 'flat', 'flat_model'],
+                         [(0.9, 1.1), (0.9, 1.1), None, None]):
+        if img is None:
+            continue
+        # TODO: Add an option that shows the relevant stuff in a
+        # matplotlib window.
+        viewer, ch = ginga.show_image(img, chname=name, cuts=cut,
+                                  wcs_match=wcs_match, clear=clear)
+        if slits is not None:
+            ginga.show_slits(viewer, ch, left, right)#,  slits.id)
+        if clear:
+            clear = False
 

@@ -93,11 +93,6 @@ class WaveCalib(object):
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
 
-        # MasterFrame
-        #masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-        #                                 master_key=master_key, file_format='json',
-        #                                 reuse_masters=reuse_masters)
-
         # Required parameters (but can be None)
         self.msarc = msarc
         self.slits = slits
@@ -140,13 +135,12 @@ class WaveCalib(object):
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
             self.wvc_bpm = np.invert(mask == 0)
+            self.wvc_bpm_init = self.wvc_bpm.copy()
             # Slitmask -- Grabs only unmasked, initial slits
             self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
-            #self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science, left)
-            #self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science, right)
             # slitcen is padded to include slits that may be masked, for convenience in coding downstream
             self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (all_left+all_right)/2)
             self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
@@ -164,8 +158,6 @@ class WaveCalib(object):
             self.shape_science = None
             self.shape_arc = None
             self.nslits = 0
-            #self.slit_left = None
-            #self.slit_righ = None
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
@@ -461,11 +453,12 @@ class WaveCalib(object):
         # Deal with mask
         self.update_wvmask()
 
-        if np.any(self.wvc_bpm):
-            wv_masked = np.where((self.slits.mask == 0) & self.wvc_bpm)[0]
+        # Any masked during this analysis?
+        wv_masked = np.where(np.invert(self.wvc_bpm_init) & self.wvc_bpm)[0]
+        if len(wv_masked) > 0:
             slitidx_masked = self.slits.spatid_to_zero(self.slits.spat_id[wv_masked])
             self.slits.mask[slitidx_masked] = self.slits.bitmask.turn_on(
-                self.slits.mask[slitidx_masked], 'BADWVCALIB')
+                    self.slits.mask[slitidx_masked], 'BADWVCALIB')
 
         # Pack up
         self.wv_calib['steps'] = self.steps

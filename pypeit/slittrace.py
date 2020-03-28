@@ -25,6 +25,7 @@ class SlitTraceBitMask(BitMask):
             ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
+            ('BADFLATCALIB', 'Flat field generation failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
@@ -233,6 +234,15 @@ class SlitTraceSet(datamodel.DataContainer):
         self.right_tweak = None
 
     def spatid_to_zero(self, spat_id):
+        """
+
+        Args:
+            spat_id (int):
+
+        Returns:
+            int:
+
+        """
         mtch = self.spat_id == spat_id
         return np.where(mtch)[0][0]
 
@@ -368,8 +378,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return slitid_img
 
-    def spatial_coordinate_image(self, slitidx=None, full=False, slitid_img=None, pad=None,
-                                 initial=False, flexure_shift=None):
+    def spatial_coordinate_image(self, slitidx=None, full=False, slitid_img=None,
+                                 pad=None, initial=False, flexure_shift=None):
         r"""
         Generate an image with the normalized spatial coordinate
         within each slit.
@@ -447,7 +457,7 @@ class SlitTraceSet(datamodel.DataContainer):
         for i in _slitidx:
             coo = (spat[None,:] - left[:,i,None])/slitwidth[:,i,None]
             if not full:
-                indx = slitid_img == i
+                indx = slitid_img == self.spat_id[i]
                 coo_img[indx] = coo[indx]
             else:
                 coo_img = coo
