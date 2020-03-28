@@ -22,7 +22,6 @@ from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
-import subprocess
 
 
 def data_path(filename):
