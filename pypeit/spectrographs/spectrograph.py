@@ -209,6 +209,22 @@ class Spectrograph(object):
         """
         return detector_par['specaxis'] == 1
 
+    # TODO: THIS WILL PROBABLY NEED TO COME BACK
+#    def get_datasec_img(self, filename, det):
+#        """
+#        Generate and return the datasec image in the PypeIt reference
+#        frame, e.g. trimmed + oriented
+#
+#        Returns:
+#            np.ndarray
+#
+#        """
+#        rdimg = self.get_rawdatasec_img(filename=filename, det=det)
+#        # Fuss
+#        rdimg = procimg.trim_frame(rdimg, rdimg < 1)
+#        dimg = self.orient_image(rdimg, det)
+#        # Return
+#        return dimg
     def parse_spec_header(self, header):
         """
         Parses an input header for key spec items
@@ -488,19 +504,23 @@ class Spectrograph(object):
         Load up the raw image and generate a few other bits and pieces
         that are key for image processing
 
-        Args:
-            raw_file (str):
-            det (int):
+        Parameters
+        ----------
+        raw_file : :obj:`str`
+            File to read
+        det : :obj:`int`
+            Detector to read
 
-        Returns:
-            tuple:
-                detector_par (:class:`pypeit.par.pypeitpar.DetectorPar`)
-                raw_img (np.ndarray) -- Raw image for this detector
-                hdu (fits.HDUList)
-                    HDUList of the file
-                exptime (float)
-                rawdatasec_img (np.ndarray)
-                oscansec_img (np.ndarray)
+        Returns
+        -------
+        detector_par : :class:`pypeit.par.pypeitpar.DetectorPar`
+        raw_img : `numpy.ndarray`_
+            Raw image for this detector
+        hdu : `astropy.io.fits.HDUList`_
+            Opened fits file
+        exptime : :obj:`float`
+        rawdatasec_img : `numpy.ndarray`_
+        oscansec_img : `numpy.ndarray`_
 
         """
         # Open

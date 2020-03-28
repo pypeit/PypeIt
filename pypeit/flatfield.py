@@ -442,7 +442,7 @@ class FlatField(object):
         ``tweak_slits``, ``tweak_slits_thresh``,
         ``tweak_slits_maxfrac``, ``rej_sticky``, ``slit_trim``,
         ``slit_illum_pad``, ``illum_iter``, ``illum_rej``, and
-        ``twod_fit_npoly``.
+        ``twod_fit_npoly``, ``saturated_slits``.
 
         **Revision History**:
 
@@ -484,6 +484,7 @@ class FlatField(object):
         illum_iter = self.flatpar['illum_iter']
         illum_rej = self.flatpar['illum_rej']
         npoly = self.flatpar['twod_fit_npoly']
+        saturated_slits = self.flatpar['saturated_slits']
 
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
@@ -552,14 +553,46 @@ class FlatField(object):
 
             # Check for saturation of the flat. If there are not enough
             # pixels do not attempt a fit, and continue to the next
+            # slit.
+            good_frac = np.sum(onslit & (rawflat < nonlinear_counts))/np.sum(onslit)
+            # TODO: set the threshold to a parameter?
             # slit.  TODO: set the threshold to a parameter?
+            embed(header='DEAL WITH THIS MERGE!')
             good_frac = np.sum(onslit_init & (rawflat < nonlinear_counts))/np.sum(onslit_init)
             if good_frac < 0.5:
-                # TODO: Used slit ID in these print statments instead of slit index
-                msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                          + '% of the pixels on this slit are not saturated.' + msgs.newline()
-                          + 'Consider raising nonlinear_counts={:5.3f}'.format(nonlinear_counts) +
-                          msgs.newline() + 'Not attempting to flat field slit {:d}'.format(slit_spat))
+                if tweak_slits:
+                    # Make sure that continuing to the next slit
+                    # doesn't remove any previous tilt data for this
+                    # slit
+                    tweaked_tilts[onslit] = tilts[onslit]
+                common_message = 'To change the behavior, use the \'saturated_slits\' parameter ' \
+                                 'in the \'flatfield\' parameter group; see here:\n\n' \
+                                 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n' \
+                                 'You could also choose to use a different flat-field image ' \
+                                 'for this calibration group.'
+                if saturated_slits == 'crash':
+                    msgs.error('Only {:4.2f}'.format(100*good_frac)
+                               + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                               + 'Selected behavior was to crash if this occurred.  '
+                               + common_message)
+                elif saturated_slits == 'mask':
+                    self.slits.mask[slit] = True
+                    msgs.warn('Only {:4.2f}'.format(100*good_frac)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                              + 'Selected behavior was to mask this slit and continue with the '
+                              + 'remainder of the reduction, meaning no science data will be '
+                              + 'extracted from this slit.  ' + common_message)
+                elif saturated_slits == 'continue':
+                    msgs.warn('Only {:4.2f}'.format(100*good_frac)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                              + 'Selected behavior was to simply continue, meaning no '
+                              + 'field-flatting correction will be applied to this slit but '
+                              + 'pypeit will attempt to extract any objects found on this slit.  '
+                              + common_message)
+                else:
+                    # Should never get here
+                    raise NotImplementedError('Unknown behavior for saturated slits: {0}'.format(
+                                              saturated_slits))
                 continue
 
             # Demand at least 10 pixels per row (on average) per degree

@@ -1,6 +1,13 @@
 # Licensed under a 3-clause BSD style license - see PYDL_LICENSE.rst
 # -*- coding: utf-8 -*-
 # Also cite https://doi.org/10.5281/zenodo.1095150 when referencing PYDL
+
+"""
+Implements the bspline class
+
+.. include:: ../links.rst
+"""
+
 import copy
 import warnings
 

@@ -150,10 +150,11 @@ def test_show_1dspec():
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs)
 
-
-@dev_suite_required
+#@dev_suite_required
+@cooked_required
 def test_show_2dspec():
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'REDUX_OUT/shane_kast_blue/600_4310_d55/shane_kast_blue_A')
+#    droot = os.path.join(os.environ['PYPEIT_DEV'], 'REDUX_OUT/shane_kast_blue/600_4310_d55/shane_kast_blue_A')
+    droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
     spec2d_file = os.path.join(droot, 'Science',
                              'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Ginga needs to be open in RC mode

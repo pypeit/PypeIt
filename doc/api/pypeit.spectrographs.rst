@@ -11,6 +11,7 @@ Submodules
    pypeit.spectrographs.gemini_gnirs
    pypeit.spectrographs.keck_deimos
    pypeit.spectrographs.keck_hires
+   pypeit.spectrographs.keck_kcwi
    pypeit.spectrographs.keck_lris
    pypeit.spectrographs.keck_mosfire
    pypeit.spectrographs.keck_nires

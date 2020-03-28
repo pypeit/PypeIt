@@ -520,14 +520,15 @@ class BuildWaveTilts(object):
         Main driver for tracing arc lines
 
         Code flow:
-            1. Extract an arc spectrum down the center of each slit/order
-            2. Loop on slits/orders
-                i. Trace and fit the arc lines (This is done twice, once
+
+            #. Extract an arc spectrum down the center of each slit/order
+            #. Loop on slits/orders
+                #. Trace and fit the arc lines (This is done twice, once
                    with trace_crude as the tracing crutch, then again
                    with a PCA model fit as the crutch).
-                ii. Repeat trace.
-                iii.  2D Fit to the offset from slitcen
-                iv. Save
+                #. Repeat trace.
+                #.  2D Fit to the offset from slitcen
+                #. Save
 
         Args:
             doqa (bool):
@@ -535,9 +536,7 @@ class BuildWaveTilts(object):
             show (bool):
 
         Returns:
-            tuple: 2 objects
-                - :class:`WaveTilts`_
-                - `numpy.ndarray`_
+            :class:`WaveTilts`:
 
         """
         # Extract the arc spectra for all slits
@@ -625,6 +624,9 @@ class BuildWaveTilts(object):
                                        slit_idx,
                                        doqa=doqa, show_QA=show, debug=show)
             self.coeffs[:self.spec_order[slit_idx]+1,:self.spat_order[slit_idx]+1,slit_idx] = coeff_out
+
+            # TODO: Need a way to assess the success of fit_tilts and
+            # flag the slit if it fails
 
             # Tilts are created with the size of the original slitmask,
             # which corresonds to the same binning as the science

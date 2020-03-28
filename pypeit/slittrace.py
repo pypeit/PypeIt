@@ -324,9 +324,11 @@ class SlitTraceSet(datamodel.DataContainer):
 
         .. warning::
 
-            The function does not check that pixels end up in
-            multiple pixels or that the padding is sensible given the
-            separation between slit edges!
+            - The function does not check that pixels end up in
+              multiple pixels or that the padding is sensible given
+              the separation between slit edges!
+            - All slits are identified in the image, even if they are
+              masked with :attr:`mask`.
 
         Args:
             pad (:obj:`float`, :obj:`int`, :obj:`tuple`, optional):
