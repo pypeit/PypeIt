@@ -456,9 +456,8 @@ class WaveCalib(object):
         # Any masked during this analysis?
         wv_masked = np.where(np.invert(self.wvc_bpm_init) & self.wvc_bpm)[0]
         if len(wv_masked) > 0:
-            slitidx_masked = self.slits.spatid_to_zero(self.slits.spat_id[wv_masked])
-            self.slits.mask[slitidx_masked] = self.slits.bitmask.turn_on(
-                    self.slits.mask[slitidx_masked], 'BADWVCALIB')
+            self.slits.mask[wv_masked] = self.slits.bitmask.turn_on(
+                    self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
         self.wv_calib['steps'] = self.steps
@@ -563,7 +562,7 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
             image[thismask] /= order
         else:
             #iwv_calib = wv_calib[str(slit)]
-            iwv_calib = wv_calib[str(slits.spat_id[slit])]
+            iwv_calib = wv_calib[str(slit_spat)]
             image[thismask] = utils.func_val(iwv_calib['fitc'], tilts[thismask],
                                              iwv_calib['function'],
                                              minx=iwv_calib['fmin'],

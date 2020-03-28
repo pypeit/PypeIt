@@ -26,6 +26,7 @@ class SlitTraceBitMask(BitMask):
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
             ('BADFLATCALIB', 'Flat field generation failed for this slit'),
+            ('BADREDUCE', 'Skysub/extraction failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
@@ -284,8 +285,8 @@ class SlitTraceSet(datamodel.DataContainer):
         # Return
         return left.copy(), right.copy(), self.mask.copy()
 
-    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None, exclude_flag=None,
-                 use_spatial=True):
+    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None,
+                 exclude_flag=None, use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
         slit.

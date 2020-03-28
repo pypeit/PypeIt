@@ -598,7 +598,6 @@ class PypeIt(object):
                                            self.caliBrate.wavetilts,
                                            self.caliBrate.wv_calib,
                                            self.objtype,
-                                           maskslits=self.caliBrate.slits.mask.astype(bool).copy(),
                                            ir_redux=self.ir_redux,
                                            std_redux=self.std_redux,
                                            setup=self.setup,
@@ -612,7 +611,8 @@ class PypeIt(object):
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, waveImg = self.redux.run(
+        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
+          waveImg = self.redux.run(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)

@@ -102,25 +102,25 @@ class Reduce(object):
         else:
             msgs.error("Not ready for this objtype in Reduce")
 
-        # This is all of the slits
-        self.slits_left, self.slits_right, mask = slitTrace.select_edges(flexure=self.spat_flexure_shift)
-        embed(header='Let through FLATWARN')
-        self.slits_specmin = slitTrace.specmin
-        self.slits_specmax = slitTrace.specmax
-        self.slits_spat_id = slitTrace.spat_id
-        self.nsilts = slitTrace.nslits
+        # Slits
+        self.slits = slitTrace
+        self.slits_left, self.slits_right, _ = slitTrace.select_edges(
+            flexure=self.spat_flexure_shift)
+
         # TODO: We keep creating this image...
         self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)  # This is only unmasked
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
-        self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
-        # TODO -- Just pull this from slitTrace
-        self.maskslits = self._get_goodslits(maskslits)
+        #self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
+
+        # Internal bpm mask
+        self.reduce_bpm = (self.slits.mask > 0) & (self.slits.mask != 2**self.slits.bitmask.bits['BADFLATCALIB'])
+        self.reduce_bpm_init = self.reduce_bpm.copy()
 
         # Tilts
-        waveTilts.is_synced(slitTrace)
+        waveTilts.is_synced(self.slits)
         #   Deal with Flexure
         if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
             _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
@@ -131,7 +131,7 @@ class Reduce(object):
         self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift) #self.spat_flexure_shift)
 
         # Wavelengths (on unmasked slits)
-        self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, slitTrace,
+        self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
                                                wv_calib, spat_flexure=self.spat_flexure_shift)
 
         # Load up other input items
@@ -353,8 +353,15 @@ class Reduce(object):
             radec = ltu.radec_to_coord((ra, dec))
             self.helio_correct(self.sobjs, radec, obstime)
 
+        # Update the mask
+        reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
+        if len(reduce_masked) > 0:
+            self.slits.mask[reduce_masked] = self.slits.bitmask.turn_on(
+                self.slits.mask[reduce_masked], 'BADREDUCE')
+
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveImg
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
+               self.waveImg
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -458,8 +465,7 @@ class Reduce(object):
         else:
             sigrej = 3.0
 
-        #self.maskslits = self.maskslits if maskslits is None else maskslits
-        gdslits = np.where(np.invert(self.maskslits))[0]
+        gdslits = np.where(np.invert(self.reduce_bpm))[0]
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
@@ -471,21 +477,23 @@ class Reduce(object):
         #left, right = self.slits.select_edges()
 
         # Loop on slits
-        for slit in gdslits:
-            msgs.info("Global sky subtraction for slit: {:d}".format(slit))
-            thismask = (self.slitmask == slit)
+        for slit_idx in gdslits:
+            slit_spat = self.slits.spat_id[slit_idx]
+            msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
+            thismask = (self.slitmask == slit_spat)
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # Find sky
             self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                           thismask, self.slits_left[:,slit], self.slits_right[:,slit],
+                                           thismask, self.slits_left[:,slit_idx],
+                                           self.slits_right[:,slit_idx],
                                            inmask=inmask, sigrej=sigrej,
                                            bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                            no_poly=self.par['reduce']['skysub']['no_poly'],
                                            pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
-                self.maskslits[slit] = True
+                self.reduce_bpm[slit_idx] = True
 
         if update_crmask:
             # Find CRs with sky subtraction
@@ -533,11 +541,11 @@ class Reduce(object):
         """
 
         if self.par['flexure']['spec_method'] != 'skip':
-            flex_list = flexure.spec_flexure_obj(sobjs, self.maskslits, self.par['flexure']['spec_method'],
+            flex_list = flexure.spec_flexure_obj(sobjs, self.reduce_bpm, self.par['flexure']['spec_method'],
                                          self.par['flexure']['spectrum'],
                                          mxshft=self.par['flexure']['spec_maxshift'])
             # QA
-            flexure.spec_flexure_qa(sobjs, self.maskslits, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+            flexure.spec_flexure_qa(sobjs, self.reduce_bpm, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
         else:
             msgs.info('Skipping flexure correction.')
 
@@ -559,7 +567,7 @@ class Reduce(object):
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
             # TODO change this keyword to refframe instead of frame
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['frame']))
-            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, self.maskslits,
+            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, self.reduce_bpm,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
                                                    self.spectrograph.telescope['elevation'],
@@ -569,32 +577,6 @@ class Reduce(object):
             vel_corr = None
 
         return
-
-    def _get_goodslits(self, maskslits):
-        """
-        Return the slits to be reduce by going through the maskslits
-        logic below. If the input maskslits is None it uses previously
-        assigned maskslits
-
-        Args:
-            maskslits (np.ndarray or None):
-
-        Returns:
-            np.ndarray: slit numbers to be reduced
-        """
-
-        # Identify the slits that we want to consider.
-        if maskslits is not None:
-            # If maskslits was passed in use it, and update self
-            self.maskslits = maskslits
-            return self.maskslits
-        else:
-            try:
-                return self.maskslits
-            except AttributeError:
-                # If maskslits was not passed, and it does not exist in self, reduce all slits
-                self.maskslits = np.zeros(self.nslits, dtype=bool)
-                return self.maskslits
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
              chname=None, slits=False,clear=False):
@@ -767,7 +749,7 @@ class MultiSlitReduce(Reduce):
                     Boolean image indicating which pixels are useful for global sky subtraction
 
         """
-        gdslits = np.where(np.invert(self.maskslits))[0]
+        gdslits = np.where(np.invert(self.reduce_bpm))[0]
 
         # create the ouptut image for skymask
         skymask = np.zeros_like(image, dtype=bool)
@@ -781,24 +763,26 @@ class MultiSlitReduce(Reduce):
         #left, right = self.slits.select_edges()
 
         # Loop on slits
-        for islit in gdslits:
-            qa_title ="Finding objects on slit # {:d}".format(islit)
+        for slit_idx in gdslits:
+            slit_spat = self.slits.spat_id[slit_idx]
+            qa_title ="Finding objects on slit # {:d}".format(slit_spat)
             msgs.info(qa_title)
-            thismask = (self.slitmask == islit)
+            thismask = self.slitmask == slit_spat
             inmask = (self.sciImg.fullmask == 0) & thismask
             # Find objects
-            #specobj_dict = {'setup': self.setup, 'slitid': slit, #'orderindx': 999,
-            #                'det': self.det, 'objtype': self.objtype, 'pypeline': self.pypeline}
-            specobj_dict = {'SLITID': self.slits_spat_id[islit], #'orderindx': 999,
-                            'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
+            specobj_dict = {'SLITID': slit_spat,
+                            'DET': self.det, 'OBJTYPE': self.objtype,
+                            'PYPELINE': self.pypeline}
 
             # TODO we need to add QA paths and QA hooks. QA should be
             # done through objfind where all the relevant information
             # is. This will be a png file(s) per slit.
 
             sobjs_slit, skymask[thismask] = \
-                extract.objfind(image, thismask, self.slits_left[:,islit], self.slits_right[:,islit], inmask=inmask,
-                                ir_redux=self.ir_redux,
+                extract.objfind(image, thismask,
+                                self.slits_left[:,slit_idx],
+                                self.slits_right[:,slit_idx],
+                                inmask=inmask, ir_redux=self.ir_redux,
                                 ncoeff=self.par['reduce']['findobj']['trace_npoly'],
                                 std_trace=std_trace,
                                 sig_thresh=self.par['reduce']['findobj']['sig_thresh'],
@@ -850,14 +834,8 @@ class MultiSlitReduce(Reduce):
         """
         self.global_sky = global_sky
 
-        # get the good slits and assign self.maskslits
-        gdslits = np.where(np.invert(self.maskslits))[0]
-
-        # Select the edges to use: Selects the edges tweaked by the
-        # illumination profile if they're present; otherwise, it
-        # selects the original edges from EdgeTraceSet. To always
-        # select the latter, use the method with `original=True`.
-        #left, right = self.slits.select_edges()
+        # get the good slits
+        gdslits = np.where(np.invert(self.reduce_bpm))[0]
 
         # Allocate the images that are needed
         # Initialize to mask in case no objects were found
@@ -875,12 +853,12 @@ class MultiSlitReduce(Reduce):
         # overkill since nothing is extracted
         self.sobjs = sobjs.copy()  # WHY DO WE CREATE A COPY HERE?
         # Loop on slits
-        for islit in gdslits:
-            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(islit))
-            spat_ID = self.slits_spat_id[islit]
-            thisobj = (self.sobjs.SLITID == spat_ID) # indices of objects for this slit
+        for slit_idx in gdslits:
+            slit_spat = self.slits.spat_id[slit_idx]
+            msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit_spat))
+            thisobj = (self.sobjs.SLITID == slit_spat) # indices of objects for this slit
             if np.any(thisobj):
-                thismask = (self.slitmask == islit) # pixels for this slit
+                thismask = (self.slitmask == slit_spat) # pixels for this slit
                 # True  = Good, False = Bad for inmask
                 #inmask = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
@@ -888,7 +866,7 @@ class MultiSlitReduce(Reduce):
                     self.extractmask[thismask] = skysub.local_skysub_extract(
                     self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveImg,
                     self.global_sky, self.sciImg.rn2img,
-                    thismask, self.slits_left[:,islit], self.slits_right[:, islit],
+                    thismask, self.slits_left[:,slit_idx], self.slits_right[:, slit_idx],
                     self.sobjs[thisobj], self.sciImg.fullmask,
                     spat_pix=spat_pix,
                     model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
@@ -1009,8 +987,8 @@ class EchelleReduce(Reduce):
         # TODO This is a bad idea -- we want to find everything for standards
         #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
-            image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right, self.order_vec, self.maskslits,
-            spec_min_max=np.vstack((self.specmin, self.specmax)),
+            image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right, self.order_vec, self.reduce_bpm,
+            spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             #spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
@@ -1081,7 +1059,7 @@ class EchelleReduce(Reduce):
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.sciImg.fullmask, self.tilts, self.waveImg,
                                                   self.global_sky, self.sciImg.rn2img,
-                                                  self.nslits, self.slits_left, self.slits_right, self.slitmask,
+                                                  self.slits.nslits, self.slits_left, self.slits_right, self.slitmask,
                                                   sobjs, self.order_vec, spat_pix=spat_pix,
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,

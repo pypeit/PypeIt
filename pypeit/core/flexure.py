@@ -42,12 +42,10 @@ def spat_flexure_shift(sciimg, slits, debug=False):
         float:  The spatial flexure shift relative to the initial slits
 
     """
-    #slitmask = pixels.tslits2mask(tslits_dict)
-    # TODO -- Add in short slits too
-    slitmask = slits.slit_img(initial=True) #, short_slits=True
+    # Mask
+    slitmask = slits.slit_img(initial=True, exclude_flag='SHORTSLIT')
     onslits = (slitmask > -1)
     corr_slits = (onslits.astype(float)).flatten()
-    #corr_roll = np.roll(corr_slits, 10, axis=1).astype(float)
 
     # Compute
     (mean_sci, med_sci, stddev_sci) = stats.sigma_clipped_stats(sciimg[onslits])
