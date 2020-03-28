@@ -140,8 +140,8 @@ class WaveCalib(object):
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
             self.wvc_bpm = np.invert(mask == 0)
-            # Slitmask, spat_coo
-            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)  # Grabs only unmasked, initial slits
+            # Slitmask -- Grabs only unmasked, initial slits
+            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
             # Resize
             self.shape_science = self.slitmask_science.shape
             self.shape_arc = self.msarc.image.shape
@@ -258,8 +258,9 @@ class WaveCalib(object):
 
         # Reset keys to spatial system
         self.wv_calib = final_fit.copy()
-        for idx in ok_mask_idx:
-            self.wv_calib[str(self.slits.spat_id[idx])] = self.wv_calib.pop(str(idx))
+        for idx in range(self.slits.nslits):
+            if str(idx) in self.wv_calib.keys():
+                self.wv_calib[str(self.slits.spat_id[idx])] = self.wv_calib.pop(str(idx))
 
         # Update mask
         self.update_wvmask()
@@ -272,7 +273,6 @@ class WaveCalib(object):
                                              out_dir=self.qa_path)
                 autoid.arc_fit_qa(self.wv_calib[str(self.slits.spat_id[slit_idx])], outfile=outfile)
 
-        embed(header='275 of wvcalib')
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
@@ -426,7 +426,7 @@ class WaveCalib(object):
             if key in ['steps', 'par', 'fit2d']:
                 continue
             if (self.wv_calib[key] is None) or (len(self.wv_calib[key]) == 0):
-                idx = self.slit_spat_id.tolist().index(int(key))
+                idx = self.slits.spatid_to_zero(int(key))
                 self.wvc_bpm[idx] = True
 
     def run(self, skip_QA=False, debug=False):
@@ -462,8 +462,8 @@ class WaveCalib(object):
         self.update_wvmask()
 
         if np.any(self.wvc_bpm):
-            wv_masked = np.where(self.wvc_bpm)[0]
-            slitidx_masked = self.slits.spatid_to_zero(self.slit_spat_id[wv_masked])
+            wv_masked = np.where((self.slits.mask == 0) & self.wvc_bpm)[0]
+            slitidx_masked = self.slits.spatid_to_zero(self.slits.spat_id[wv_masked])
             self.slits.mask[slitidx_masked] = self.slits.bitmask.turn_on(
                 self.slits.mask[slitidx_masked], 'BADWVCALIB')
 
