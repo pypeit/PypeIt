@@ -58,7 +58,7 @@ class Spec2DObj(datamodel.DataContainer):
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='2D mask image'),
         'slit_info': dict(otype=np.ndarray, atype=np.integer,
-                          desc='1D spat_IDs, bitmask and (if defined) maskdef_ID from SlitTraceSet'),
+                          desc='2D array of spat_IDs, bitmask and maskdef_ID (may be zeros) from SlitTraceSet'),
         'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
@@ -341,4 +341,12 @@ class AllSpec2DObj(object):
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote: {:s}".format(outfile))
 
+    def __repr__(self):
+        # Generate sets string
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        txt += 'dets=('
+        for det in self.detectors:
+            txt += str(det)+','
+        txt += ') >'
+        return txt
 

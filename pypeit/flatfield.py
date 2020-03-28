@@ -70,6 +70,10 @@ class FlatImages(datamodel.DataContainer):
         self.master_key = None
         self.master_dir = None
 
+    def _validate(self):
+        if len(self.spat_id) != len(self.spat_bsplines):
+            msgs.error("Bsplines are out of sync with the slit IDs")
+
     def is_synced(self, slits):
         """
         Confirm the slits in WaveTilts are aligned to that in SlitTraceSet

@@ -246,8 +246,10 @@ class SlitTraceSet(datamodel.DataContainer):
         info = np.vstack([self.spat_id, self.mask])
         if self.maskdef_id is not None:
             info = np.vstack([info, self.maskdef_id])
+        else:
+            info = np.vstack([info, np.zeros_like(self.spat_id)])
         # Return
-        return info.T
+        return info.astype(int).T
 
 
 
