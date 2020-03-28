@@ -146,8 +146,7 @@ class FlatImages(datamodel.DataContainer):
             try:
                 illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
             except:
-                import pdb; pdb.set_trace()
-                embed(header='131 of flatfield')
+                embed(header='149 of flatfield')
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
