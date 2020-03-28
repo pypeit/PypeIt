@@ -17,7 +17,6 @@ from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import masterframe
-from pypeit.waveimage import WaveImage
 from pypeit.wavetilts import WaveTilts
 from pypeit import specobjs
 from pypeit import slittrace
@@ -543,8 +542,6 @@ class CoAdd2D(object):
             spec1d_files.append(f.replace('spec2d', 'spec1d'))
             tracefiles.append(masterframe.construct_file_name(
                     slittrace.SlitTraceSet, trace_key, master_dir=master_path))
-            waveimgfiles.append(masterframe.construct_file_name(
-                WaveImage, wave_key, master_dir=master_path))
             tiltfiles.append(masterframe.construct_file_name(
                 WaveTilts, wave_key, master_dir=master_path))
 
@@ -553,17 +550,18 @@ class CoAdd2D(object):
         specobjs_list = []
         head1d_list = []
         slits_list = []
+        tilts_list = []
         # TODO Sort this out with the correct detector extensions etc.
         # Read in the image stacks
         waveimgfile, tiltfile, tracefile = None, None, None
         for ifile in range(nfiles):
             # Load up the calibs, if needed
-            if waveimgfiles[ifile] != waveimgfile:
-                waveimg = WaveImage.from_file(waveimgfiles[ifile]).image
             if tiltfile != tiltfiles[ifile]:
-                tilts = WaveTilts.from_file(tiltfiles[ifile]) #.tilts_dict
+                waveTilts = WaveTilts.from_file(tiltfiles[ifile]) #.tilts_dict
+            #if waveimgfiles[ifile] != waveimgfile:
+            #    waveimg = WaveImage.from_file(waveimgfiles[ifile]).image
             # Save
-            waveimgfile = waveimgfiles[ifile]
+            #waveimgfile = waveimgfiles[ifile]
             tiltfile = tiltfiles[ifile]
             #
             hdu = fits.open(spec2d_files[ifile])
@@ -595,10 +593,10 @@ class CoAdd2D(object):
             mask = hdu[exten].data
             if ifile == 0:
                 # the two shapes accomodate the possibility that waveimg and tilts are binned differently
-                shape_wave = (nfiles, waveimg.shape[0], waveimg.shape[1])
+                #shape_wave = (nfiles, waveimg.shape[0], waveimg.shape[1])
                 shape_sci = (nfiles, sciimg.shape[0], sciimg.shape[1])
-                waveimg_stack = np.zeros(shape_wave, dtype=float)
-                tilts_stack = np.zeros(shape_wave, dtype=float)
+                #waveimg_stack = np.zeros(shape_wave, dtype=float)
+                #tilts_stack = np.zeros(shape_wave, dtype=float)
                 sciimg_stack = np.zeros(shape_sci, dtype=float)
                 skymodel_stack = np.zeros(shape_sci, dtype=float)
                 sciivar_stack = np.zeros(shape_sci, dtype=float)
@@ -621,9 +619,10 @@ class CoAdd2D(object):
             tracefile = tracefiles[ifile]
             #
             slits_list.append(slits)
+            tilts_list.append(waveTilts)
             slitmask_stack[ifile, :, :] = slits.slit_img()
-            waveimg_stack[ifile, :, :] = waveimg
-            tilts_stack[ifile, :, :] = tilts['tilts']
+            #waveimg_stack[ifile, :, :] = waveimg
+            #tilts_stack[ifile, :, :] = tilts['tilts']
             sciimg_stack[ifile, :, :] = sciimg
             sciivar_stack[ifile, :, :] = sciivar
             mask_stack[ifile, :, :] = mask
@@ -652,7 +651,7 @@ class CoAdd2D(object):
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
-                    tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
+                    tilts_list=tilts_list,# waveimg_stack=waveimg_stack,
                     head1d_list=head1d_list, head2d_list=head2d_list,
                     redux_path=redux_path,
                     master_key_dict=master_key_dict,
