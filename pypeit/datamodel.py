@@ -1261,6 +1261,9 @@ class DataContainer:
             obj = cls.from_hdu(hdu)
             # Tack on filename
             obj.filename = ifile
+            # Attempt to slurp the master_key and master_dir
+            if hasattr(cls, 'master_type'):
+                obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
         return obj
 
     def __repr__(self):

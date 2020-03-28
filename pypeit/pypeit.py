@@ -289,6 +289,7 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+                    # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
@@ -320,6 +321,7 @@ class PypeIt(object):
                 # numbers for the bkg_id which is impossible without a comma separated list
 #                bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+                    # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
                                                     std_outfile=std_outfile)
                     science_basename[j] = self.basename
@@ -397,6 +399,7 @@ class PypeIt(object):
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = self.ir_redux
 
+        # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
         all_specobjs = specobjs.SpecObjs()
 
@@ -617,6 +620,9 @@ class PypeIt(object):
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
+        # TODO -- Save the slits yet again?
+
+
         # TODO -- Do this upstream
         # Tack on detector
         for sobj in self.sobjs:
@@ -632,7 +638,8 @@ class PypeIt(object):
                                         waveimg=waveImg,
                                         mask=self.outmask,
                                         detector=self.sciImg.detector,
-                                        spat_flexure=self.sciImg.spat_flexure)
+                                        spat_flexure=self.sciImg.spat_flexure,
+                                        slit_info=self.caliBrate.slits.slit_info)
         # Return
         return spec2DObj, self.sobjs
 

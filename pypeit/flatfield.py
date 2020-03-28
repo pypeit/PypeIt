@@ -54,10 +54,11 @@ class FlatImages(datamodel.DataContainer):
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='B-spline models for Illumination flat'),
+        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
     }
 
     def __init__(self, procflat=None, pixelflat=None,
-                 flat_model=None, spat_bsplines=None, PYP_SPEC=None):
+                 flat_model=None, spat_bsplines=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -68,6 +69,19 @@ class FlatImages(datamodel.DataContainer):
         # Master stuff
         self.master_key = None
         self.master_dir = None
+
+    def is_synced(self, slits):
+        """
+        Confirm the slits in WaveTilts are aligned to that in SlitTraceSet
+
+        Barfs if not
+
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+
+        """
+        if not np.array_equal(self.spat_id, slits.spat_id):
+            msgs.error("Your flat solutions are out of sync with your slits.  Remove Masters and start from scratch")
 
     def _bundle(self):
         """
@@ -124,7 +138,10 @@ class FlatImages(datamodel.DataContainer):
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=flexure_shift)
 
-            illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+            try:
+                illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+            except:
+                embed(header='131 of flatfield')
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
@@ -327,7 +344,8 @@ class FlatField(object):
                           pixelflat=self.mspixelflat,
                           flat_model=self.flat_model,
                           spat_bsplines=np.asarray(self.list_of_spat_bsplines),
-                          PYP_SPEC=self.spectrograph.spectrograph)
+                          PYP_SPEC=self.spectrograph.spectrograph,
+                          spat_id=self.slits.spat_id)
 
     def show(self, wcs_match=True):
         """
@@ -509,11 +527,13 @@ class FlatField(object):
         norm_spec_spat = np.ones_like(rawflat)
         twod_model = np.ones_like(rawflat)
 
+        # #################################################
         # Model each slit independently
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             # Is this a good slit??
             if self.slits.mask[slit_idx] != 0:
                 msgs.info('Skipping bad slit: {}'.format(slit_spat))
+                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             msgs.info('Modeling the flat-field response for slit: {0}/{1}'.format(
@@ -706,11 +726,6 @@ class FlatField(object):
 #                                            np.ones_like(spat_flat_data),
 #                                            np.ones_like(spat_flat_data), nord=4, upper=5.0,
 #                                            lower=5.0, fullbkpt=spat_bspl.breakpoints)
-            # TODO -- Move this down
-            if exit_status > 1:
-                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
-                          'included in flat-field model for slit {0}!'.format(slit_spat))
-
 
             # NOTE: The bspline fit is used to construct the
             # illumination flat within the *tweaked* slit edges, after
@@ -823,6 +838,8 @@ class FlatField(object):
             # Construct the illumination profile with the tweaked edges
             # of the slit
             if exit_status <= 1:
+                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
+                          'included in flat-field model for slit {0}!'.format(slit_spat))
                 # TODO -- Fix this for flexure!!
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.list_of_spat_bsplines.append(spat_bspl)
@@ -1042,7 +1059,8 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits
     """
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
     if slits is not None:
-        left, right, _ = slits.select_edges()
+        left, right, mask = slits.select_edges()
+        gpm = mask == 0
     # Loop me
     clear = True
     for img, name, cut in zip([pixelflat, illumflat, procflat, flat_model],
@@ -1055,7 +1073,9 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits
         viewer, ch = ginga.show_image(img, chname=name, cuts=cut,
                                   wcs_match=wcs_match, clear=clear)
         if slits is not None:
-            ginga.show_slits(viewer, ch, left, right)#,  slits.id)
+            ginga.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
+                             slit_ids=slits.spat_id[gpm])
+        # Turn off clear
         if clear:
             clear = False
 

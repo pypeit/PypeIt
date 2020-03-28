@@ -57,6 +57,8 @@ class Spec2DObj(datamodel.DataContainer):
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
         'mask': dict(otype=np.ndarray, atype=np.integer, desc='2D mask image'),
+        'slit_info': dict(otype=np.ndarray, atype=np.integer,
+                          desc='1D spat_IDs, bitmask and (if defined) maskdef_ID from SlitTraceSet'),
         'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
@@ -70,7 +72,7 @@ class Spec2DObj(datamodel.DataContainer):
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 waveimg, mask, detector, spat_flexure):
+                 waveimg, mask, detector, spat_flexure, slit_info):
 
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])

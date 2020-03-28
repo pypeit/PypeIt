@@ -234,14 +234,32 @@ class SlitTraceSet(datamodel.DataContainer):
         self.left_tweak = None
         self.right_tweak = None
 
+    @property
+    def slit_info(self):
+        """
+
+        Returns:
+            `numpy.ndarray`_:
+
+        """
+        #
+        info = np.vstack([self.spat_id, self.mask])
+        if self.maskdef_id is not None:
+            info = np.vstack([info, self.maskdef_id])
+        # Return
+        return info.T
+
+
+
     def spatid_to_zero(self, spat_id):
         """
+        Convert input spat_id into a zero-based index
 
         Args:
             spat_id (int):
 
         Returns:
-            int:
+            int: zero-based index of the input spat_id
 
         """
         mtch = self.spat_id == spat_id

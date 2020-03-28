@@ -330,7 +330,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     # Label positions
     top = int(2*nspec/3.)
-    bot = int(nspec/5.)
+    bot = int(nspec/2.)
 
     # Plot lefts. Points need to be int or float. Use of .tolist() on
     # each array insures this
@@ -345,9 +345,9 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('green'),
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('blue'),
                        fontsize=20.)
-            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
+            #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
 
     # Plot rights. Points need to be int or float. Use of .tolist() on
     # each array insures this
@@ -376,10 +376,11 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         if rotate:
             xt, yt = yt, xt
             xb, yb = yb, xb
-        canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('green'),
+        canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
                    fontsize=20.)
-        canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
-                   fontsize=20.) 
+        # TODO -- Fix indices if you really want to show them
+        #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
+        #           fontsize=20.)
 
 
 def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,
