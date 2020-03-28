@@ -13,7 +13,6 @@ from pypeit.tests.tstutils import load_kast_blue_masters
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.images import buildimage
 from pypeit.images import rawimage
-from pypeit.images import processrawimage
 from pypeit.images import pypeitimage
 from pypeit.core import procimg
 from pypeit import flatfield
@@ -64,9 +63,8 @@ def test_instantiate_from_one(shane_kast_blue_sci_files):
     process_steps = procimg.set_process_steps(None, frame_par)
     # Load
     rawImage = rawimage.RawImage(shane_kast_blue_sci_files[0], kast_blue, det)
-    processRawImage = processrawimage.ProcessRawImage(rawImage, frame_par['process'])
     flatImages = flatfield.FlatImages(pixelflat=pixelflat)
-    pypeItImage = processRawImage.process(process_steps, flatimages=flatImages)
+    pypeItImage = rawImage.process(process_steps, frame_par['process'], flatimages=flatImages)
 
 
 @cooked_required

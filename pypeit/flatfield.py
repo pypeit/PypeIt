@@ -71,8 +71,9 @@ class FlatImages(datamodel.DataContainer):
         self.master_dir = None
 
     def _validate(self):
-        if len(self.spat_id) != len(self.spat_bsplines):
-            msgs.error("Bsplines are out of sync with the slit IDs")
+        if self.spat_bsplines is not None and len(self.spat_bsplines) > 0:
+            if len(self.spat_id) != len(self.spat_bsplines):
+                msgs.error("Bsplines are out of sync with the slit IDs")
 
     def is_synced(self, slits):
         """
@@ -145,6 +146,7 @@ class FlatImages(datamodel.DataContainer):
             try:
                 illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
             except:
+                import pdb; pdb.set_trace()
                 embed(header='131 of flatfield')
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
@@ -177,9 +179,11 @@ class FlatImages(datamodel.DataContainer):
         Returns:
 
         """
+        illumflat = None
         # Try to grab the slits
         if slits is None:
-            master_key, master_dir = masterframe.grab_key_mdir(self.filename)
+            # Warning: This parses the filename, not the Header!
+            master_key, master_dir = masterframe.grab_key_mdir(self.filename, from_filename=True)
             try:
                 slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
                                                                         master_dir=master_dir)

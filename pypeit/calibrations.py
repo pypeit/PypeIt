@@ -606,48 +606,39 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
+        #pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
+        trace_image_files, self.master_key_dict['flat'] = self._prep_calibrations('trace')
 
         # Return cached images
         if self._cached('flatimages', self.master_key_dict['flat']):
             self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
+            self.flatimages.is_synced(self.slits)
             return self.flatimages
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
                                                            self.master_key_dict['flat'], master_dir=self.master_dir)
         # The following if-elif-else does:
-        #   1.  First try to load a user-supplied image
-        #   2.  Try to load a MasterFrame (if reuse_masters is True)
-        #   3.  Build from scratch
-        # TODO: We need to document this format for the user!
-        if self.par['flatfield']['frame'] != 'pixelflat':
-            # - Name is explicitly correct?
-            if os.path.isfile(self.par['flatfield']['frame']):
-                flat_file = self.par['flatfield']['frame']
-            # - Or is it in the master directory?
-            elif os.path.isfile(os.path.join(self.flatField.master_dir,
-                                             self.par['flatfield']['frame'])):
-                flat_file = os.path.join(self.flatField.master_dir, self.par['flatfield']['frame'])
-            else:
-                msgs.error('Could not find user-defined flatfield file: {0}'.format(
-                    self.par['flatfield']['frame']))
-            # Load
-            msgs.info('Using user-defined file: {0}'.format(flat_file))
-            with fits.open(flat_file) as hdu:
-                pixelflat = hdu[self.det].data
-            # Build
-            self.flatimages = flatfield.FlatImages(None, pixelflat, None, None)
-        elif os.path.isfile(masterframe_filename) and self.reuse_masters:
+        #   1.  Try to load a MasterFrame (if reuse_masters is True)
+        #   2.  Build from scratch
+        #   3.  Replace the built pixel-flat with user supplied (e.g. LRISb)
+
+        if os.path.isfile(masterframe_filename) and self.reuse_masters:
             # Load MasterFrame
             self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
-        elif len(pixflat_image_files) > 0:
+            self.flatimages.is_synced(self.slits)
+        #elif len(pixflat_image_files) > 0:
+        elif len(trace_image_files) > 0:
             # Process/combine the input pixelflat frames
-            stacked_pixflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                    self.par['pixelflatframe'],
-                                                    pixflat_image_files,
+            #stacked_pixflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+            #                                                 self.par['pixelflatframe'],
+            #                                                 pixflat_image_files,
+            #                                                 bias=self.msbias, bpm=self.msbpm)
+            stacked_traceflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                    self.par['traceframe'],
+                                                    trace_image_files,
                                                     bias=self.msbias, bpm=self.msbpm)
             # Normalize and illumination
-            flatField = flatfield.FlatField(stacked_pixflat, self.spectrograph, self.par['flatfield'],
+            flatField = flatfield.FlatField(stacked_traceflat, self.spectrograph, self.par['flatfield'],
                 self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show)
@@ -660,6 +651,21 @@ class Calibrations(object):
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
+
+        # TODO: We need to document this format for the user!
+        # User supplied pixelf flat??
+        if self.par['flatfield']['frame'] != 'pixelflat':
+            # - Name is explicitly correct?
+            if os.path.isfile(self.par['flatfield']['frame']):
+                flat_file = self.par['flatfield']['frame']
+            else:
+                msgs.error('Could not find user-defined flatfield file: {0}'.format(
+                    self.par['flatfield']['frame']))
+            # Load
+            msgs.info('Using user-defined file: {0}'.format(flat_file))
+            with fits.open(flat_file) as hdu:
+                user_pixelflat = hdu[self.det].data
+            self.flatimages.pixelflat = user_pixelflat
 
         # 4) If either of the two flats are still None, use unity
         # everywhere and print out a warning

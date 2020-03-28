@@ -132,8 +132,8 @@ def test_it_all(multi_caliBrate):
 
     wv_calib = multi_caliBrate.get_wv_calib()
     assert isinstance(wv_calib, dict)
-    assert wv_calib['0'] is not None
-    assert wv_calib['0']['rms'] < 0.2
+    assert wv_calib['175'] is not None
+    assert wv_calib['175']['rms'] < 0.2
 
     waveTilts = multi_caliBrate.get_tilts()
     assert waveTilts.nslit == 1
@@ -141,7 +141,7 @@ def test_it_all(multi_caliBrate):
     multi_caliBrate.get_flats()
     flatImages = multi_caliBrate.get_flats()
     assert flatImages.pixelflat.shape == (2048,350)
-    assert flatImages.illumflat.shape == (2048,350)
+    assert flatImages.generate_illumflat(slits).shape == (2048,350)
 
     # Wave image
     slitmask = slits.slit_img()
@@ -180,15 +180,15 @@ def test_reuse(multi_caliBrate_reuse):
                 'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_wv_calib()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'tiltimg','trace', 'wavecalib', 'wvmask'], \
+                == ['bpm', 'arc', 'tiltimg','trace', 'wavecalib'], \
                 'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_tilts()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'wavetilts', 'wtmask'], \
+                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wavetilts'], \
                 'Incorrect list of master types in memory'
     multi_caliBrate_reuse.get_flats()
     assert list(multi_caliBrate_reuse.calib_dict['A_1_01'].keys()) \
-                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wvmask', 'wavetilts', 'wtmask',
+                == ['bpm', 'arc', 'tiltimg', 'trace', 'wavecalib', 'wavetilts',
                     'flatimages'], \
                 'Incorrect list of master types in memory'
     #mswave = multi_caliBrate_reuse.get_wave()

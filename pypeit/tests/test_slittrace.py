@@ -21,7 +21,7 @@ def test_init():
     slits = SlitTraceSet(left_init=np.full((1000,3), 2, dtype=float),
                          right_init=np.full((1000,3), 8, dtype=float), nspat=10, PYP_SPEC='dummy')
 
-    left, right = slits.select_edges()
+    left, right, _ = slits.select_edges()
     center = (left+right)/2
     assert np.all(center == 5), 'Bad center'
 

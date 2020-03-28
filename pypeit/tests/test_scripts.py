@@ -36,7 +36,6 @@ def data_path(filename):
 #    # Run
 #    arcid_plot.main(pargs)
 
-
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -151,6 +150,7 @@ def test_show_1dspec():
     # Just list
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs)
+
 
 @dev_suite_required
 def test_show_2dspec():

@@ -12,6 +12,7 @@ from astropy.io import fits
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
+from pypeit import slittrace
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.images import pypeitimage
 from pypeit import bspline
@@ -53,9 +54,9 @@ def test_flatimages():
     spat_bspline = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
     instant_dict = dict(procflat=tmp,
                         pixelflat=np.ones_like(tmp),
-                        illumflat=np.ones_like(tmp),
                         flat_model=None,
-                        spat_bsplines=np.asarray([spat_bspline, spat_bspline]))
+                        spat_bsplines=np.asarray([spat_bspline, spat_bspline]),
+                        spat_id=np.asarray([100, 200]))
 
     flatImages = flatfield.FlatImages(**instant_dict)
     assert flatImages.flat_model is None
@@ -74,6 +75,17 @@ def test_flatimages():
             assert np.array_equal(flatImages[key],_flatImages[key])
         else:
             assert flatImages[key] == _flatImages[key]
+
+    # Illumflat
+#    left = np.full((1000,2), 90, dtype=float)
+#    left[:,1] = 190.
+#    right = np.full((1000,2), 110, dtype=float)
+#    right[:,1] = 210
+#    slits = slittrace.SlitTraceSet(left_init=left, right_init=right,
+#                                   nspat=1000, PYP_SPEC='dummy')
+#    illumflat = flatImages.generate_illumflat(slits)
+#    pytest.set_trace()
+
 
 '''
 @cooked_required

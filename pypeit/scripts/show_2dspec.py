@@ -130,7 +130,6 @@ def main(args):
     slits_key = '{0}_{1:02d}'.format(spec2DObj.head0['TRACMKEY'], args.det)
     slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
     slits = slittrace.SlitTraceSet.from_file(slit_file)
-    left, right = slits.select_edges()
 
     # Wavelengths
     #wave_key = '{0}_{1:02d}'.format(spec2DObj.head0['ARCMKEY'], args.det)
@@ -139,7 +138,11 @@ def main(args):
     # Grab the slit edges
     if spec2DObj.spat_flexure is not None:
         msgs.info("Offseting slits by {}".format(spec2DObj.spat_flexure))
-    left, right = slits.select_edges(flexure=spec2DObj.spat_flexure)
+    all_left, all_right, mask = slits.select_edges(flexure=spec2DObj.spat_flexure)
+    # TODO -- This may be too restrictive, i.e. ignore BADFLTCALIB??
+    gpm = mask == 0
+    left = all_left[:, gpm]
+    right = all_right[:, gpm]
 
     # Grab the Object
 

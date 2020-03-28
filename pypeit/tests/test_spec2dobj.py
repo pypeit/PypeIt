@@ -29,10 +29,11 @@ def init_dict():
                  objmodel = np.ones_like(sciimg),
                  ivarmodel = 0.05 * np.ones_like(sciimg),
                  waveimg = 1000 * np.ones_like(sciimg),
-                 mask = np.ones_like(sciimg).astype(int),
-                 det = 1,
-                 detector = None,
+                 mask=np.ones_like(sciimg).astype(int),
+                 det=1,
+                 detector=None,
                  spat_flexure=3.5,
+                 slit_info=np.zeros((10,3)).astype(int)
                  )
     return sdict
 
