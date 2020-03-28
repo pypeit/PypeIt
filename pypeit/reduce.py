@@ -107,13 +107,14 @@ class Reduce(object):
         self.slits_left, self.slits_right, _ = slitTrace.select_edges(
             flexure=self.spat_flexure_shift)
 
-        # TODO: We keep creating this image...
-        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)  # This is only unmasked
+        # Slitmask
+        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
-        #self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
+        # For echelle
+        self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
 
         # Internal bpm mask
         self.reduce_bpm = (self.slits.mask > 0) & (self.slits.mask != 2**self.slits.bitmask.bits['BADFLATCALIB'])
@@ -858,14 +859,14 @@ class MultiSlitReduce(Reduce):
             if np.any(thisobj):
                 thismask = (self.slitmask == slit_spat) # pixels for this slit
                 # True  = Good, False = Bad for inmask
-                #inmask = (self.sciImg.fullmask == 0) & thismask
+                ingpm = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
                     self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveImg,
                     self.global_sky, self.sciImg.rn2img,
                     thismask, self.slits_left[:,slit_idx], self.slits_right[:, slit_idx],
-                    self.sobjs[thisobj], self.sciImg.fullmask,
+                    self.sobjs[thisobj], ingpm,
                     spat_pix=spat_pix,
                     model_full_slit=self.par['reduce']['extraction']['model_full_slit'],
                     box_rad=self.par['reduce']['extraction']['boxcar_radius']/self.get_platescale(None),
@@ -905,7 +906,6 @@ class EchelleReduce(Reduce):
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
                             else self.spectrograph.order_vec(self.spatial_coo)
-                            #else self.spectrograph.order_vec(self.slits.spatial_coordinates())
 
     def get_platescale(self, sobj):
         """
@@ -976,16 +976,9 @@ class EchelleReduce(Reduce):
         specobj_dict = {'SLITID': 999, #'orderindx': 999,
                         'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 
-        # Select the edges to use: Selects the edges tweaked by the
-        # illumination profile if they're present; otherwise, it
-        # selects the original edges from EdgeTraceSet. To always
-        # select the latter, use the method with `original=True`.
-        #left, right = self.slits.select_edges()
-
-        # TODO This is a bad idea -- we want to find everything for standards
-        #sig_thresh = 30.0 if std else self.redux_par['sig_thresh']
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
-            image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right, self.order_vec, self.reduce_bpm,
+            image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
+            self.order_vec, self.reduce_bpm,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             #spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
@@ -1057,7 +1050,8 @@ class EchelleReduce(Reduce):
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
                                                   self.sciImg.fullmask, self.tilts, self.waveImg,
                                                   self.global_sky, self.sciImg.rn2img,
-                                                  self.slits.nslits, self.slits_left, self.slits_right, self.slitmask,
+                                                  self.slits_left, self.slits_right,
+                                                  self.slitmask,
                                                   sobjs, self.order_vec, spat_pix=spat_pix,
                                                   std=self.std_redux, fit_fwhm=fit_fwhm,
                                                   min_snr=min_snr, bsp=bsp,

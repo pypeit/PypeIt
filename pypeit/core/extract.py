@@ -1212,9 +1212,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # Some information about this slit we need for later when we instantiate specobj objects
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
-    slit_spec_pos = nspec/2.0
+    #slit_spec_pos = nspec/2.0
 
-    slit_spat_pos = (np.interp(slit_spec_pos, spec_vec, slit_left), np.interp(slit_spec_pos, spec_vec, slit_righ))
+    #slit_spat_pos = (np.interp(slit_spec_pos, spec_vec, slit_left), np.interp(slit_spec_pos, spec_vec, slit_righ))
 
     ximg, edgmask = pixels.ximg_and_edgemask(slit_left, slit_righ, thismask, trim_edg=trim_edg)
 
@@ -1808,10 +1808,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     nspat = frameshape[1]
     norders = len(order_vec)
 
+    # Find the spat IDs
+    gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
+    if gdslit_spat.size != norders:
+        msgs.error("You have not dealt with masked orders properly")
+
     if spec_min_max is None:
         spec_min_max = np.zeros(2,norders)
         for iord in range(norders):
-            ispec, ispat = np.where(slitmask == iord)
+            ispec, ispat = np.where(slitmask == gdslit_spat[iord])
             spec_min_max[:,iord] = ispec.min(), ispec.max()
 
     if isinstance(plate_scale,(float, int)):
@@ -1842,7 +1847,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     gdorders = np.arange(norders)[np.invert(maskslits)]
     for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
-        thismask = slitmask == iord
+        thismask = slitmask == gdslit_spat[iord]
         inmask_iord = inmask & thismask
         specobj_dict['SLITID'] = iord
         specobj_dict['ECH_ORDERINDX'] = iord
@@ -2028,7 +2033,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             indx = sobjs_align.slitorder_objid_indices(iord, uni_obj_id[iobj])
             #indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
             #spec = sobjs_align[indx][0]
-            thismask = slitmask == iord
+            thismask = slitmask == gdslit_spat[iord]
             inmask_iord = inmask & thismask
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]

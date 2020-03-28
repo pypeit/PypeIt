@@ -478,7 +478,7 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
 
 
 def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
-                         thismask, slit_left, slit_righ, sobjs, fullmask,
+                         thismask, slit_left, slit_righ, sobjs, ingpm,
                          spat_pix=None, adderr=0.01, bsp=0.6, extract_maskwidth=4.0, trim_edg=(3,3),
                          std=False, prof_nsigma=None, niter=4, box_rad=7, sigrej=3.5, bkpts_optimal=True,
                          debug_bkpts=False,sn_gauss=4.0, model_full_slit=False, model_noise=True, show_profile=False,
@@ -507,8 +507,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         sobjs:   SpecoObjs object
             Object containing the information about the objects found on
             the slit/order from objfind or ech_objfind
-        fullmask: ndarray, int, (nspec, nspat)
-            Input mask with any non-zero item flagged using
+        ingpm: ndarray, bool, (nspec, nspat)
+            Input mask with any non-zero item flagged as False using
             :class:`pypeit.images.imagebitmask.ImageBitMask`
         spat_pix: float ndarray, shape (nspec, nspat), default = None
             Image containing the spatial location of pixels. If not
@@ -612,11 +612,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         :obj:`tuple`:  Returns (skyimage[thismask], objimage[thismask],
         modelivar[thismask], outmask[thismask])
     """
-    bitmask = imagebitmask.ImageBitMask()
     # TODO Force traces near edges to always be extracted with a Gaussian profile.
-    #if inmask is None:
-    #    inmask = (sciivar > 0.0) & thismask & np.isfinite(sciimg) & np.isfinite(sciivar)
-
     # Adjust maskwidths of the objects such that we will apply the local_skysub_extract to the entire slit
     if model_full_slit:
         max_slit_width = np.max(slit_righ - slit_left)
@@ -664,9 +660,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     objimage = np.zeros_like(sciimg)
     skyimage = np.copy(global_sky)
     # Masks
-    inmask = (fullmask == 0) & thismask
+    inmask = ingpm & thismask
     outmask = np.copy(inmask)  # True is good
-    #varnoobj = np.abs(skyimage - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
     # TODO Add a line of code here that updates the modelivar using the global sky if nobj = 0 and simply returns
     spat_img = np.outer(np.ones(nspec), np.arange(nspat))
@@ -857,7 +852,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
         if use_profile_mask:
             outmask_extract = outmask
         else:
-            outmask_extract = (fullmask == 0)
+            outmask_extract = inmask
 
         # Now that the iterations of profile fitting and sky subtraction are completed,
         # loop over the objwork objects in this grouping and perform the final extractions.
@@ -921,7 +916,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     return (skyimage[thismask], objimage[thismask], modelivar[thismask], outmask[thismask])
 
 
-def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, rn2img, norders,
+def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_sky, rn2img,
                              left, right, slitmask, sobjs, order_vec, spat_pix=None,
                              fit_fwhm=False, min_snr=2.0,bsp=0.6, extract_maskwidth=4.0,
                              trim_edg=(3,3), std=False, prof_nsigma=None, niter=4, box_rad_order=7,
@@ -934,13 +929,11 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
     Args:
         sciimg:
         sciivar:
-        mask:
+        fullmask: BPM mask from image
         tilts:
         waveimg:
         global_sky:
         rn2img:
-        norders (:obj:`int`):
-            Number of echelle orders
         left (`numpy.ndarray`_):
             Spatial-pixel coordinates for the left edges of each
             order.
@@ -983,8 +976,8 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
     # Allocate the images that are needed
     # Initialize to mask in case no objects were found
-    outmask = np.copy(mask)
-    extractmask = (mask == 0)
+    outmask = np.copy(fullmask)
+    extractmask = (fullmask == 0)
     # TODO case of no objects found should be properly dealt with by local_skysub_extract
     # Initialize to zero in case no objects were found
     objmodel = np.zeros_like(sciimg)
@@ -994,7 +987,13 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
     ivarmodel = np.copy(sciivar)
     sobjs = sobjs.copy()
 
+    norders = order_vec.size
     slit_vec = np.arange(norders)
+
+    # Find the spat IDs
+    gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
+    if gdslit_spat.size != norders:
+        msgs.error("You have not dealt with masked orders properly")
 
     if (np.sum(sobjs.sign > 0) % norders) == 0:
         nobjs = int((np.sum(sobjs.sign > 0)/norders))
@@ -1092,16 +1091,14 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
                     spec.FWHM = sobjs[indx_bri].FWHM
 
         thisobj = (sobjs.ECH_ORDERINDX == iord) # indices of objects for this slit
-        thismask = (slitmask == iord) # pixels for this slit
+        thismask = slitmask == gdslit_spat[iord] # pixels for this slit
         # True  = Good, False = Bad for inmask
-        inmask = (mask == 0) & thismask
+        inmask = (fullmask == 0) & thismask
         # Local sky subtraction and extraction
-        # TODO -- Modify inmask to be int not bool!!
-        embed(header='1108 of skysub')
         skymodel[thismask], objmodel[thismask], ivarmodel[thismask], extractmask[thismask] = local_skysub_extract(
             sciimg, sciivar, tilts, waveimg, global_sky,rn2img, thismask,
             left[:,iord], right[:,iord], sobjs[thisobj], spat_pix=spat_pix,
-            inmask=inmask,std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg,
+            ingpm=inmask,std = std, bsp=bsp, extract_maskwidth=extract_maskwidth, trim_edg=trim_edg,
             prof_nsigma=prof_nsigma, niter=niter, box_rad=box_rad_order[iord], sigrej=sigrej, bkpts_optimal=bkpts_optimal,
             sn_gauss=sn_gauss, model_full_slit=model_full_slit, model_noise=model_noise, debug_bkpts=debug_bkpts,
             show_resids=show_resids, show_profile=show_profile)
@@ -1116,8 +1113,7 @@ def ech_local_skysub_extract(sciimg, sciivar, mask, tilts, waveimg, global_sky, 
 
     # Set the bit for pixels which were masked by the extraction.
     # For extractmask, True = Good, False = Bad
-    # TODO -- This looks poorly coded.  Should not compare to False
-    iextract = (mask == 0) & (extractmask == False)
+    iextract = (fullmask == 0) & (extractmask == False)
     # Undefined inverse variances
     outmask[iextract] = bitmask.turn_on(outmask[iextract], 'EXTRACT')
 

@@ -554,17 +554,11 @@ class FlatField(object):
             # Check for saturation of the flat. If there are not enough
             # pixels do not attempt a fit, and continue to the next
             # slit.
-            good_frac = np.sum(onslit & (rawflat < nonlinear_counts))/np.sum(onslit)
+            #good_frac = np.sum(onslit & (rawflat < nonlinear_counts))/np.sum(onslit)
             # TODO: set the threshold to a parameter?
             # slit.  TODO: set the threshold to a parameter?
-            embed(header='DEAL WITH THIS MERGE!')
             good_frac = np.sum(onslit_init & (rawflat < nonlinear_counts))/np.sum(onslit_init)
             if good_frac < 0.5:
-                if tweak_slits:
-                    # Make sure that continuing to the next slit
-                    # doesn't remove any previous tilt data for this
-                    # slit
-                    tweaked_tilts[onslit] = tilts[onslit]
                 common_message = 'To change the behavior, use the \'saturated_slits\' parameter ' \
                                  'in the \'flatfield\' parameter group; see here:\n\n' \
                                  'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n' \
@@ -572,19 +566,19 @@ class FlatField(object):
                                  'for this calibration group.'
                 if saturated_slits == 'crash':
                     msgs.error('Only {:4.2f}'.format(100*good_frac)
-                               + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                               + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                                + 'Selected behavior was to crash if this occurred.  '
                                + common_message)
                 elif saturated_slits == 'mask':
-                    self.slits.mask[slit] = True
+                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to mask this slit and continue with the '
                               + 'remainder of the reduction, meaning no science data will be '
                               + 'extracted from this slit.  ' + common_message)
                 elif saturated_slits == 'continue':
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to simply continue, meaning no '
                               + 'field-flatting correction will be applied to this slit but '
                               + 'pypeit will attempt to extract any objects found on this slit.  '
@@ -593,6 +587,7 @@ class FlatField(object):
                     # Should never get here
                     raise NotImplementedError('Unknown behavior for saturated slits: {0}'.format(
                                               saturated_slits))
+                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # Demand at least 10 pixels per row (on average) per degree
@@ -672,6 +667,7 @@ class FlatField(object):
                 msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
                           'slit {0} and continuing!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # Debugging/checking spectral fit

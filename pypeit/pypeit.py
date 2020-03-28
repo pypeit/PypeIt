@@ -132,6 +132,7 @@ class PypeIt(object):
 
         # Set paths
         if self.par['calibrations']['caldir'] == 'default':
+            # TODO -- Should we just have this be Masters?
             self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')
         else:
             self.calibrations_path = self.par['calibrations']['caldir']

@@ -290,12 +290,13 @@ class WaveCalib(object):
 
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
-        ok_mask_spat = self.slit_spat_id[ok_mask_idx]
+        ok_mask_spat = self.slits.spat_id[ok_mask_idx]
         nspec = self.msarc.image.shape[0]
         for islit in wv_calib.keys():  # Spatial based
             if int(islit) not in ok_mask_spat:
                 continue
-            iorder, iindx = self.spectrograph.slit2order(self.spat_coo[self.slits.spatid_to_zero(int(isilt))])
+            iorder, iindx = self.spectrograph.slit2order(
+                self.spat_coo[self.slits.spatid_to_zero(int(islit))])
             mask_now = wv_calib[islit]['mask']
             all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
@@ -547,7 +548,6 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     for slit_spat in slits.spat_id[ok_slits]:
         thismask = (slitmask == slit_spat)
         if par['echelle']:
-            embed(header='205 this may be broken..')
             # TODO: Put this in `SlitTraceSet`?
             order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
             # evaluate solution
