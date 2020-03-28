@@ -182,7 +182,7 @@ def test_io():
     spec_bspl.to_file(ofile)
     # Read
     _spec_bspl = bspline.bspline.from_file(ofile)
-    # Evaluate
+    # Evaluate -- This is failing in the C code version only
     tmp = _spec_bspl.value(np.linspace(0., 1., 100))
     # Test
     assert np.array_equal(_spec_bspl.breakpoints, spec_bspl.breakpoints)
