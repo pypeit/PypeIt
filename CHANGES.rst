@@ -28,6 +28,7 @@
 - Every calibration output to disk is help within a DataContainer, separate from
   previous classes.  Exception is WaveCalib (this needsd a fit DataContainer first)
 - Substantial refactoring of Calibrations
+- Add MDM OSMOS spectrograph
 
 0.13.2 (17 Mar 2020)
 --------------------
