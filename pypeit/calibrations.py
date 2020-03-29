@@ -52,8 +52,6 @@ class Calibrations(object):
         qadir (:obj:`str`, optional):
             Path for quality assessment output.  If not provided, no QA
             plots are saved.
-        save_masters (:obj:`bool`, optional):
-            Save the calibration frames to disk.
         reuse_masters (:obj:`bool`, optional):
             Load calibration files from disk if they exist
         show (:obj:`bool`, optional):
@@ -83,11 +81,7 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    # TODO: I added back save_masters as a parameter because if you
-    # provide a caldir, you may just want to be reusing the masters.  I
-    # think the code won't save masters if they're reused, but allowing
-    # save_masters as an argument allows us to make this explicit.
-    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, save_masters=True,
+    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None,
                  reuse_masters=False, show=False):
 
         # Check the types
@@ -109,25 +103,12 @@ class Calibrations(object):
         # Masters
         self.reuse_masters = reuse_masters
         self.master_dir = caldir
-        self.save_masters = save_masters
+        self.save_masters = self.par['save_masters']
 
         # QA
         self.qa_path = qadir
         self.write_qa = qadir is not None
         self.show = show
-
-        # Check that the masters can be reused and/or saved
-        #if caldir is None:
-        #    if self.save_masters:
-        #        # TODO: Default to current directory instead?
-        #        msgs.warn('To save masters, must provide the directory (caldir).  '
-        #                  'Masters will not be saved!')
-        #        self.save_masters = False
-        #    if self.reuse_masters:
-        #        # TODO: Default to current directory instead?
-        #        msgs.warn('To reuse masters, must provide the directory (caldir).  '
-        #                  'Masters will not be reused!')
-        #        self.reuse_masters = False
 
         # Check the directories exist
         # TODO: This should be done when the masters are saved
@@ -745,7 +726,8 @@ class Calibrations(object):
                                'disk but it needs fixing.')
                     return None
                 else:
-                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                    if self.save_masters:
+                        self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
                                     master_key=self.master_key_dict['trace'])
 
                 # Show the result if requested
@@ -1002,11 +984,8 @@ class MultiSlitCalibrations(Calibrations):
 
     ..todo:: Rename this child or eliminate altogether
     """
-    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False, save_masters=True, **kwargs):
-        super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
-                                                    qadir=qadir, reuse_masters=reuse_masters,
-                                                    show=show, save_masters=save_masters, **kwargs)
+    def __init__(self, fitstbl, par, spectrograph, **kwargs):
+        super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, **kwargs)
         self.steps = MultiSlitCalibrations.default_steps()
 
     @staticmethod

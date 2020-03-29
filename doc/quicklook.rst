@@ -14,7 +14,7 @@ We describe each in turn.
 pypeit_ql_mos
 =============
 
-This script performs a boxcar extraction of a long
+This script performs a boxcar (only) extraction of a long
 or multi-slit observation taken with one of PypeIt's
 spectrographs
 
@@ -54,6 +54,34 @@ calibration (Masters), QA, and Science outputs.
 
 This script has been tested successfully on the following instruments:
 shane_kast_blue, shane_kast_red, keck_lris_blue, keck_deimos.
+
+Options
++++++++
+
+Here are a few of the standard options:
+
+--box_radius
+------------
+
+Specify the size of the extraction radius.
+
+--ignore_headers
+----------------
+
+If your telescope (e.g. Keck) has a tendency to write
+bad headers, you may wish to set it.  We recommend
+not doing so until you see it crash from a bad header.
+
+--det
+-----
+
+Specify the detector to be reduced. Only 1 is done at a time.
+
+--slit_spat
+-----------
+
+Specify the spatial position of the single slit to reduce.
+On the detector you chose.
 
 Examples
 ++++++++

@@ -3064,7 +3064,8 @@ class CalibrationsPar(ParSet):
     def __init__(self, caldir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
+                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
+                 save_masters=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3083,6 +3084,10 @@ class CalibrationsPar(ParSet):
         defaults['caldir'] = 'default'
         dtypes['caldir'] = str
         descr['caldir'] = 'If provided, it must be the full path to calling directory to write master files.'
+
+        defaults['save_masters'] = True
+        dtypes['save_masters'] = bool
+        descr['save_masters'] = 'Write Master calibration frames to disk'
 
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
@@ -3184,7 +3189,7 @@ class CalibrationsPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias' ]
+        parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias', 'save_masters']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',

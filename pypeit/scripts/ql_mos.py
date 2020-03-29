@@ -52,22 +52,25 @@ def main(pargs):
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
     cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
     cfg_lines += ['    detnum = {0}'.format(pargs.det)]
+    # Restrict on slit
     if pargs.slit_spat is not None:
         cfg_lines += ['    slitspatnum = {0}'.format(pargs.slit_spat)]
+    # Allow for bad headers
     if pargs.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[scienceframe]']
     cfg_lines += ['    processing_steps = orient,trim,apply_gain,flatten']
-    #cfg_lines += ['    [[process]]']
-    #cfg_lines += ['          cr_reject = False']
+    cfg_lines += ['[calibrations]']
+    # Input pixel flat?
     if pargs.user_pixflat is not None:
-        cfg_lines += ['[calibrations]']
         cfg_lines += ['    [[flatfield]]']
         cfg_lines += ['        frame = {0}'.format(pargs.user_pixflat)]
+    # Reduction restrictions
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['         skip_optimal = True']
-    if pargs.box_radius is not None: # Boxcar radius
+    # Set boxcar radius
+    if pargs.box_radius is not None:
         cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['         skip_second_find = True']

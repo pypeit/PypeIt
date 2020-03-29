@@ -367,9 +367,10 @@ class CoAdd2D(object):
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
+        parcopy['calibrations']['save_masters'] = False
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
         # Instantiate Calibrations class
-        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy['calibrations'], self.spectrograph, save_masters=False)
+        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy, self.spectrograph)
         caliBrate.slits = pseudo_dict['slits']
         caliBrate.wavetilts = WaveTilts(pseudo_dict['tilts'], None, None, None, None, None, None)
         #    tilts_dict = dict(tilts=pseudo_dict['tilts'])
