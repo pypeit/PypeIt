@@ -45,7 +45,7 @@ This generates a `shane_kast_blue_A` folder with the standard
 calibration (Masters), QA, and Science outputs.
 
 This script has been tested successfully on the following instruments:
-shane_kast_blue, shane_kast_red.
+shane_kast_blue, shane_kast_red, keck_lris_blue.
 
 Examples
 ++++++++
