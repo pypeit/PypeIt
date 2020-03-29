@@ -23,6 +23,7 @@ class SlitTraceBitMask(BitMask):
 
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
+            ('USERIGNORE', 'User has specified to ignore this slit'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
             ('BADFLATCALIB', 'Flat field generation failed for this slit'),

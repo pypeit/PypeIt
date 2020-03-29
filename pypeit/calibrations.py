@@ -43,9 +43,7 @@ class Calibrations(object):
             The class holding the metadata for all the frames in this
             PypeIt run.
         par (:class:`pypeit.par.pypeitpar.PypeItPar`):
-            Parameter set defining optional parameters of PypeIt's
-            low-level algorithms.  Needs to specifically be a
-            CalibrationsPar child.
+            Parameter set defining optional parameters of PypeIt's algorithms.
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         caldir (:obj:`str`, optional):
@@ -70,7 +68,8 @@ class Calibrations(object):
         write_qa
         show
         spectrograph
-        par
+        par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
+        full_par (:class:`pypeit.par.pypeitpar.PypeItPar`):
         redux_path
         master_dir
         calib_dict
@@ -96,14 +95,15 @@ class Calibrations(object):
         #  outputs and use them to feed Reduce instead of the Calibrations object
         if not isinstance(fitstbl, PypeItMetaData) and fitstbl is not None:
             msgs.error('fitstbl must be an PypeItMetaData object')
-        if not isinstance(par, pypeitpar.CalibrationsPar):
-            msgs.error('Input parameters must be a CalibrationsPar instance.')
+        if not isinstance(par, pypeitpar.PypeItPar):
+            msgs.error('Input parameters must be a PypeItPar instance.')
         if not isinstance(spectrograph, Spectrograph):
             msgs.error('Must provide Spectrograph instance to Calibrations.')
 
         # Required inputs
         self.fitstbl = fitstbl
-        self.par = par
+        self.par = par['calibrations']
+        self.full_par = par
         self.spectrograph = spectrograph
 
         # Masters
@@ -709,6 +709,7 @@ class Calibrations(object):
 
         # Previously calculated?  If so, reuse
         if self._cached('trace', self.master_key_dict['trace']) and not redo:
+            # TODO -- Reset and reapply mask here
             self.slits = self.calib_dict[self.master_key_dict['trace']]['trace']
             return self.slits
 
@@ -757,6 +758,15 @@ class Calibrations(object):
             self.edges = None
             if self.save_masters:
                 self.slits.to_master_file(slit_masterframe_name)
+
+        # User mask
+        if self.full_par['rdx']['slitspatnum'] is not None:
+            msk = np.ones(self.slits.nslits, dtype=bool)
+            for slit_spat in np.atleast_1d(self.full_par['rdx']['slitspatnum']):
+                idx = np.argmin(np.abs(self.slits.spat_id-slit_spat))
+                msk[idx] = False
+            self.slits.mask[msk] = self.slits.bitmask.turn_on(
+                self.slits.mask[msk], 'USERIGNORE')
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)

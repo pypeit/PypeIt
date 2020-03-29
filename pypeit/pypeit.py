@@ -151,7 +151,7 @@ class PypeIt(object):
         # Instantiate Calibrations class
         if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
             self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par,
                                                      self.spectrograph,
                                                      caldir=self.calibrations_path,
                                                      qadir=self.qa_path,
@@ -159,7 +159,7 @@ class PypeIt(object):
                                                      show=self.show)
         elif self.spectrograph.pypeline in ['IFU']:
             self.caliBrate \
-                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
+                = calibrations.IFUCalibrations(self.fitstbl, self.par,
                                                self.spectrograph,
                                                caldir=self.calibrations_path,
                                                qadir=self.qa_path,

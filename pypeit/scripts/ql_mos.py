@@ -25,6 +25,7 @@ def parser(options=None):
     parser.add_argument("--ignore_headers", default=False, action="store_true",
                         help="Ignore bad headers?")
     parser.add_argument("--user_pixflat", type=str, help="Use a user-supplied pixel flat (e.g. keck_lris_blue)")
+    parser.add_argument("--slit_spat", type=int, help="Reduce only this slit")
 
     if options is None:
         pargs = parser.parse_args()
@@ -51,6 +52,8 @@ def main(pargs):
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
     cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
     cfg_lines += ['    detnum = {0}'.format(pargs.det)]
+    if pargs.slit_spat is not None:
+        cfg_lines += ['    slitspatnum = {0}'.format(pargs.slit_spat)]
     if pargs.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[scienceframe]']

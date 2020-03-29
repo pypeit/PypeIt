@@ -1646,7 +1646,7 @@ class ReduxPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spectrograph=None, detnum=None, sortroot=None, calwin=None, scidir=None,
-                 qadir=None, redux_path=None, ignore_bad_headers=None):
+                 qadir=None, redux_path=None, ignore_bad_headers=None, slitspatnum=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1669,6 +1669,11 @@ class ReduxPar(ParSet):
 
         dtypes['detnum'] = [int, list]
         descr['detnum'] = 'Restrict reduction to a list of detector indices'
+
+        dtypes['slitspatnum'] = [int, list]
+        descr['slitspatnum'] = 'Restrict reduction to a list of slit SPAT values (closest is used). ' \
+                               'This should be used in conjunction with detnum if the instrument ' \
+                               'has more than one detector.'
 
         dtypes['sortroot'] = str
         descr['sortroot'] = 'A filename given to output the details of the sorted files.  If ' \
@@ -1715,7 +1720,7 @@ class ReduxPar(ParSet):
 
         # Basic keywords
         parkeys = [ 'spectrograph', 'detnum', 'sortroot', 'calwin', 'scidir', 'qadir',
-                    'redux_path', 'ignore_bad_headers']
+                    'redux_path', 'ignore_bad_headers', 'slitspatnum']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
