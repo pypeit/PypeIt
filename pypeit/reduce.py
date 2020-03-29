@@ -230,7 +230,7 @@ class Reduce(object):
 #                    sobj = self.sobjs[iord]
 #                    plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
                 # True  = Good, False = Bad for inmask
-                thismask = (self.slitmask == iobj)  # pixels for this slit
+                thismask = (self.slitmask == sobj.SLITID)  # pixels for this slit
                 inmask = (self.sciImg.fullmask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
