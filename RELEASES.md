@@ -14,6 +14,7 @@
   * Optimal (and boxcar) extractions
 * Documentation 
   * [Installation](https://pypeit.readthedocs.io/en/latest/installing.html)
+  * [Setup](https://pypeit.readthedocs.io/en/latest/setup.html)
   * [Standard reduction](https://pypeit.readthedocs.io/en/latest/cookbook.html)
   * Data Models for (nearly) all output files
   * [Fluxing](https://pypeit.readthedocs.io/en/latest/fluxing.html)
@@ -29,7 +30,7 @@
 
 * Documentation
   * Telluric corrections
-  * 2D Coadds
   * A-B image difference processing
+  * 2D Coadds
   * Data model for MasterWaveCalib or MasterEdgeTrace calibration files
 
