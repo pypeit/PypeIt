@@ -72,9 +72,9 @@ keck_lris_blue (longslit + archived pixel flat)::
 
 keck_deimos (multislit with one slit isolated)::
 
-    pypeit_ql_mos keck_deimos /scratch/REDUX/DEIMOS_QL/Raw b191228_1020.fits b191228_1066.fits b191228_1051.fits --det 7 --slit_spat 1132
+    pypeit_ql_mos keck_deimos /home/xavier/scratch/QL/2020-03-29-DEIMOS-TestData DE.20100913.56927.fits DE.20100913.57161.fits DE.20100913.22358.fits -d 7 --slit_spat 1132
 
-It is possible all of the MOS instruments will work.
+It is possible all of the MOS :doc:`spectrographs` will work.
 Give it a shot!
 
 pypeit_ql_keck_nires
