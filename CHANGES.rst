@@ -37,6 +37,7 @@
     - Added tests and pre-cooked data to ensure identical behavior
       between the pure python and C functions.
 - Moved some basis function builders to pypeit.core.basis
+- Add MDM OSMOS spectrograph
 
 0.13.2 (17 Mar 2020)
 --------------------
