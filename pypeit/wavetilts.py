@@ -206,11 +206,11 @@ class BuildWaveTilts(object):
 
         # TODO -- Tidy this up into one or two methods?
         # Load up all slits
-        all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
+        all_left, all_right, mask = self.slits.select_edges(flexure=self.spat_flexure)  # Grabs all, initial slits
         self.tilt_bpm = np.invert(mask == 0)
         self.tilt_bpm_init = self.tilt_bpm.copy()
         # Slitmask
-        self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure)  # All unmasked slits
+        self.slitmask_science = self.slits.slit_img(flexure=self.spat_flexure)  # All unmasked slits
         # Resize
         gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
             else np.ones_like(self.slitmask_science, dtype=bool)

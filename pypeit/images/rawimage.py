@@ -218,18 +218,17 @@ class RawImage(object):
 
         # This needs to come after trim, orient
         # Calculate flexure -- May not be used, but always calculated when slits are provided
-        if slits is not None:
+        if slits is not None and self.par['spat_flexure_correct']:
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
 
         # Generate the illumination flat
         if self.par['illumflatten']:
             if flatimages is None or slits is None:
                 msgs.error("Need to provide slits and flatimages to illumination flat")
-            shift = self.spat_flexure_shift if self.par['spat_flexure_correct'] else None
-            illum_flat = flatimages.generate_illumflat(slits, flexure_shift=shift)
+            illum_flat = flatimages.generate_illumflat(slits, flexure_shift=self.spat_flexure_shift)
             if debug:
                 from pypeit import ginga
-                left, right = slits.select_edges(flexure=shift)
+                left, right = slits.select_edges(flexure=self.spat_flexure_shift)
                 viewer, ch = ginga.show_image(illum_flat, chname='illum_flat')
                 ginga.show_slits(viewer, ch, left, right)  # , slits.id)
                 #

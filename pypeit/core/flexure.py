@@ -44,6 +44,8 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     """
     # Mask
     slitmask = slits.slit_img(initial=True, exclude_flag='SHORTSLIT')
+    if slitmask.shape != sciimg.shape:
+        msgs.error("Deal with this")
     onslits = (slitmask > -1)
     corr_slits = (onslits.astype(float)).flatten()
 
