@@ -638,6 +638,8 @@ class PypeIt(object):
                                         detector=sciImg.detector,
                                         spat_flexure=sciImg.spat_flexure,
                                         slits=copy.deepcopy(self.caliBrate.slits))
+        spec2DObj.process_steps = sciImg.process_steps
+
         # Return
         return spec2DObj, sobjs
 

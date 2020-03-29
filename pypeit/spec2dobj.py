@@ -92,6 +92,9 @@ class Spec2DObj(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
+    def _init_internals(self):
+        self.process_steps = None
+
     def _vaildate(self):
         """
         Assert that the detector has been set
@@ -267,15 +270,22 @@ class AllSpec2DObj(object):
         hdr['PYPELINE'] = spectrograph.pypeline
         hdr['SPECTROG'] = spectrograph.spectrograph
         hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+
         # MasterFrame info
         # TODO -- Should this be in the header of the individual HDUs ?
         if master_key_dict is not None:
-            hdr['FRAMMKEY'] = master_key_dict['frame'][:-3]
-            hdr['BPMMKEY'] = master_key_dict['bpm'][:-3]
+            #hdr['FRAMMKEY'] = master_key_dict['frame'][:-3]
+            #hdr['BPMMKEY'] = master_key_dict['bpm'][:-3]
             hdr['BIASMKEY'] = master_key_dict['bias'][:-3]
             hdr['ARCMKEY'] = master_key_dict['arc'][:-3]
             hdr['TRACMKEY'] = master_key_dict['trace'][:-3]
             hdr['FLATMKEY'] = master_key_dict['flat'][:-3]
+
+        # Processing steps
+        det = self.detectors[0]
+        if self[det].process_steps is not None:
+            hdr['PROCSTEP'] = (','.join(self[det].process_steps), 'Completed reduction steps')
+
         if master_dir is not None:
             hdr['PYPMFDIR'] = str(master_dir)
         # Sky sub mode
