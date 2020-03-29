@@ -7,6 +7,7 @@ Main driver class for PypeIt run
 import time
 import os
 import numpy as np
+import copy
 from collections import OrderedDict
 from astropy.io import fits
 from pypeit import msgs
@@ -573,7 +574,7 @@ class PypeIt(object):
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciImg = buildimage.buildimage_fromlist(
+        sciImg = buildimage.buildimage_fromlist(
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
             flatimages=self.caliBrate.flatimages,
@@ -583,7 +584,7 @@ class PypeIt(object):
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg.sub(
+            sciImg = sciImg.sub(
                 buildimage.buildimage_fromlist(
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
@@ -591,13 +592,10 @@ class PypeIt(object):
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
-        # For QA on crash
-        msgs.sciexp = self.sciImg
-
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
+        self.redux = reduce.instantiate_me(sciImg, self.spectrograph,
                                            self.par, self.caliBrate.slits,
                                            self.caliBrate.wavetilts,
                                            self.caliBrate.wv_calib,
@@ -609,14 +607,13 @@ class PypeIt(object):
                                            det=det, binning=self.binning)
         # Show?
         if self.show:
-            self.redux.show('image', image=self.sciImg.image, chname='processed',
+            self.redux.show('image', image=sciImg.image, chname='processed',
                             slits=True, clear=True)
 
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
-          waveImg = self.redux.run(
+        skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg = self.redux.run(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
@@ -626,23 +623,23 @@ class PypeIt(object):
 
         # TODO -- Do this upstream
         # Tack on detector
-        for sobj in self.sobjs:
-            sobj.DETECTOR = self.sciImg.detector
+        for sobj in sobjs:
+            sobj.DETECTOR = sciImg.detector
 
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(det=self.det,
-                                        sciimg=self.sciImg.image,
-                                        ivarraw=self.sciImg.ivar,
-                                        skymodel=self.skymodel,
-                                        objmodel=self.objmodel,
-                                        ivarmodel=self.ivarmodel,
+                                        sciimg=sciImg.image,
+                                        ivarraw=sciImg.ivar,
+                                        skymodel=skymodel,
+                                        objmodel=objmodel,
+                                        ivarmodel=ivarmodel,
                                         waveimg=waveImg,
-                                        mask=self.outmask,
-                                        detector=self.sciImg.detector,
-                                        spat_flexure=self.sciImg.spat_flexure,
-                                        slit_info=self.caliBrate.slits.slit_info)
+                                        bpmmask=outmask,
+                                        detector=sciImg.detector,
+                                        spat_flexure=sciImg.spat_flexure,
+                                        slits=copy.deepcopy(self.caliBrate.slits))
         # Return
-        return spec2DObj, self.sobjs
+        return spec2DObj, sobjs
 
 
     # TODO: Why not use self.frame?

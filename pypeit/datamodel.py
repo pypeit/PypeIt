@@ -528,6 +528,9 @@ class DataContainer:
             the object is instantiated with all of the relevant data
             model attributes but with all of those attributes set to
             None.
+    Attributes:
+        filename (:obj:`str): filename, if loaded from disk
+        head0 (`astropy.io.fits.Header`):  Primary header of the file (if loaded)
 
     """
 
@@ -605,6 +608,7 @@ class DataContainer:
 
         # Initialize internals for all DataContainer objects
         self.filename = None
+        self.head0 = None
 
         # Initialize other internals
         self._init_internals()
@@ -1245,25 +1249,25 @@ class DataContainer:
         if not os.path.isfile(ifile):
             raise FileNotFoundError('{0} does not exist!'.format(ifile))
 
-        # Master frame check?
-        if hasattr(cls, 'master_type'):
-            hdr = fits.getheader(ifile)
-            if 'MSTRTYP' in hdr.keys():
-                if hdr['MSTRTYP'] != cls.master_type:
-                    msgs.error('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
-                        hdr['MSTRTYP'], cls.master_type))
-            else:
-                msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
         if verbose:
             msgs.info("Loading {} from {}".format(cls.__name__, ifile))
 
+        # Do it
         with fits.open(ifile) as hdu:
             obj = cls.from_hdu(hdu)
+            obj.head0 = hdu[0].header
             # Tack on filename
             obj.filename = ifile
-            # Attempt to slurp the master_key and master_dir
+
+            # Master this and that
             if hasattr(cls, 'master_type'):
                 obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
+                if 'MSTRTYP' in obj.head0.keys():
+                    if obj.head0['MSTRTYP'] != cls.master_type:
+                        msgs.error('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
+                            obj.head0['MSTRTYP'], cls.master_type))
+                else:
+                    msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
         return obj
 
     def __repr__(self):

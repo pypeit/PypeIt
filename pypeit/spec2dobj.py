@@ -13,12 +13,12 @@ import numpy as np
 
 from scipy import interpolate
 
-from astropy import units
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
+from pypeit import slittrace
 from pypeit.images import detector_container
 
 
@@ -49,6 +49,8 @@ class Spec2DObj(datamodel.DataContainer):
     # tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
     #                 write these for each file as well. Alternatively we could just write the offsets to the header.
 
+    # TODO -- Hold, save the non-wavelength images as FLOAT32 ??
+    # By including nested DataContainers, be careful not to duplicate variable names!!
     datamodel = {
         'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
         'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image'),
@@ -56,9 +58,8 @@ class Spec2DObj(datamodel.DataContainer):
         'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
-        'mask': dict(otype=np.ndarray, atype=np.integer, desc='2D mask image'),
-        'slit_info': dict(otype=np.ndarray, atype=np.integer,
-                          desc='2D array of spat_IDs, bitmask and maskdef_ID (may be zeros) from SlitTraceSet'),
+        'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
+        'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
         'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
@@ -66,25 +67,30 @@ class Spec2DObj(datamodel.DataContainer):
 
     @classmethod
     def from_file(cls, file, det):
+        """
+        Overload :func:`pypeit.datamodel.DataContainer.from_file` to allow det
+        input and to slurp the header
+
+        Args:
+            file (:obj:`str`):
+            det (:obj:`int`):
+
+        Returns:
+            `Spec2DObj`:
+
+        """
         hdul = fits.open(file)
         slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
         slf.head0 = hdul[0].header
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 waveimg, mask, detector, spat_flexure, slit_info):
-
+                 waveimg, bpmmask, detector, spat_flexure, slits):
+        # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
-
-
-    def _init_internals(self):
-        """
-        All modifiable internals go here
-        """
-        self.head0 = None
 
     def _vaildate(self):
         """
@@ -116,9 +122,12 @@ class Spec2DObj(datamodel.DataContainer):
                 tmp = {}
                 tmp[key] = self[key]
                 d.append(tmp)
-            # Deal with the detector
+            # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
+            # SliTraceSet
+            elif key == 'slits':
+                d.append(dict(slits=self.slits))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return

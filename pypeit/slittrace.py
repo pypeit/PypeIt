@@ -125,18 +125,22 @@ class SlitTraceSet(datamodel.DataContainer):
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
-    def __init__(self, left_init, right_init, nspat=None, PYP_SPEC=None, mask=None,
-                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
+    # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
+    def __init__(self, left_init, right_init, nspec=None, nspat=None, PYP_SPEC=None, mask=None,
+                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
+                 spat_id=None, maskdef_id=None, ech_order=None, nslits=None,
+                 left_tweak=None, right_tweak=None, center=None):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
         # The dictionary passed to DataContainer.__init__ does not
         # contain self or the MasterFrame arguments.
         # TODO: Does it matter if the calling function passes the
         # keyword arguments in a different order?
-        datamodel.DataContainer.__init__(self, d=dict(left_init=left_init, right_init=right_init, nspat=nspat, PYP_SPEC=PYP_SPEC,
-                                                      mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
-                                                      binspat=binspat, pad=pad))
+        datamodel.DataContainer.__init__(self, d=_d)# dict(left_init=left_init, right_init=right_init, nspat=nspat, PYP_SPEC=PYP_SPEC,
+                                                    #  mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
+                                                    #  binspat=binspat, pad=pad))
 
     def _validate(self):
         """

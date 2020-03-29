@@ -78,32 +78,32 @@ class PypeItImage(datamodel.DataContainer):
     bitmask = imagebitmask.ImageBitMask()
 
     hdu_prefix = None
-
-    @classmethod
-    def from_file(cls, ifile):
-        """
-        Instantiate from a file on disk (FITS file)
-
-        Overloaded :func:`pypeit.datamodel.DataContainer.from_file` to grab Header
-
-        Args:
-            ifile (str):
-
-        Returns:
-            :class:`pypeit.images.pypeitimage.PypeItImage`:
-                Loaded up PypeItImage with the primary Header attached
-
-        """
-        # Open
-        hdu = fits.open(ifile)
-        # Instantiate
-        slf = super(PypeItImage, cls).from_hdu(hdu)
-        slf.filename = ifile
-        slf.head0 = hdu[0].header
-        # Try to parse masters
-        slf.master_key, slf.master_dir = masterframe.grab_key_mdir(ifile)
-        # Return
-        return slf
+#
+#    @classmethod
+#    def from_file(cls, ifile):
+#        """
+#        Instantiate from a file on disk (FITS file)
+#
+#        Overloaded :func:`pypeit.datamodel.DataContainer.from_file` to grab Header
+#
+#        Args:
+#            ifile (str):
+#
+#        Returns:
+#            :class:`pypeit.images.pypeitimage.PypeItImage`:
+#                Loaded up PypeItImage with the primary Header attached
+#
+#        """
+#        # Open
+#        hdu = fits.open(ifile)
+#        # Instantiate
+#        slf = super(PypeItImage, cls).from_hdu(hdu)
+#        slf.filename = ifile
+#        slf.head0 = hdu[0].header
+#        # Try to parse masters
+#        slf.master_key, slf.master_dir = masterframe.grab_key_mdir(ifile)
+#        # Return
+#        return slf
 
     @classmethod
     def from_pypeitimage(cls, pypeitImage):

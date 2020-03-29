@@ -26,15 +26,16 @@ def main(pargs):
         print("================ DET {:02d} ======================".format(det))
         spec2Dobj = allspec2D[det]
         print("SpatID  MaskID  Flags")
-        for slit_idx, slit_spat in enumerate(spec2Dobj.slit_info[:,0]):
-            line = '{:04d}    {:04d}'.format(slit_spat, spec2Dobj.slit_info[slit_idx,2])
+        for slit_idx, slit_spat in enumerate(spec2Dobj.slits.spat_id):
+            maskdefID = 0 if spec2Dobj.slits.maskdef_id is None else spec2Dobj.slits.maskdef_id[slit_idx]
+            line = '{:04d}    {:04d}'.format(slit_spat, maskdefID)
             # Flags
             flags = []
-            if spec2Dobj.slit_info[slit_idx, 1] == 0:
+            if spec2Dobj.slits.mask[slit_idx] == 0:
                 flags += ['None']
             else:
                 for key in bitmask.keys():
-                    if bitmask.flagged(spec2Dobj.slit_info[slit_idx, 1], key):
+                    if bitmask.flagged(spec2Dobj.slits.mask[slit_idx], key):
                         flags += [key]
             # Finish
             sflag = ', '

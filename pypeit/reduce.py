@@ -324,8 +324,8 @@ class Reduce(object):
                 self.global_sky = self.global_skysub(skymask=self.skymask,
                                                      show=self.reduce_show)
             # Extract + Return
-            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs = self.extract(self.global_sky,
-                                                                                                  self.sobjs_obj)
+            self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
+                = self.extract(self.global_sky, self.sobjs_obj)
         else:  # No objects, pass back what we have
             self.skymodel = self.initial_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
