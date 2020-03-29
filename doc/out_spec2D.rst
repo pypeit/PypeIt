@@ -29,8 +29,8 @@ The model is::
 
     Prefix_frame-objname_spectrograph_timestamp.fits
 
-Viewing
-=======
+Inspecting
+==========
 
 You can open this image in ds9 and play around.
 But we highly recommend using the `pypeit_show_2dspec`_ script
@@ -90,6 +90,13 @@ indicate object traces.
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
+pypeit_chk_2dslits
+------------------
+
+This script prints to the screen a short summary of the slit
+information, detector by detector.  Here is an example::
+
+    pypeit_chk_2dslits 
 
 .. _spec2dobj_datamodel:
 

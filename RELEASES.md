@@ -15,6 +15,7 @@
 * Documentation 
   * [Installation](https://pypeit.readthedocs.io/en/latest/installing.html)
   * [Setup](https://pypeit.readthedocs.io/en/latest/setup.html)
+  * [Parameters](https://pypeit.readthedocs.io/en/latest/pypeit_par.html)
   * [Standard reduction](https://pypeit.readthedocs.io/en/latest/cookbook.html)
   * Data Models for (nearly) all output files
   * [Fluxing](https://pypeit.readthedocs.io/en/latest/fluxing.html)
