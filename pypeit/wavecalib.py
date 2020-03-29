@@ -252,7 +252,7 @@ class WaveCalib(object):
         self.wv_calib = final_fit.copy()
         for idx in range(self.slits.nslits):
             if str(idx) in self.wv_calib.keys():
-                self.wv_calib[str(self.slits.spat_id[idx])] = self.wv_calib.pop(str(idx))
+                self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
 
         # Update mask
         self.update_wvmask()
@@ -263,7 +263,10 @@ class WaveCalib(object):
             for slit_idx in ok_mask_idx:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.spat_id[slit_idx],
                                              out_dir=self.qa_path)
-                autoid.arc_fit_qa(self.wv_calib[str(self.slits.spat_id[slit_idx])], outfile=outfile)
+                try:
+                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.spat_id[slit_idx])], outfile=outfile)
+                except:
+                    embed(header='269 of wavecalib')
 
         # Return
         self.steps.append(inspect.stack()[0][3])

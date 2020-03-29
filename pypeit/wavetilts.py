@@ -592,7 +592,8 @@ class BuildWaveTilts(object):
             # Identify lines for tracing tilts
             msgs.info('Finding lines for tilt analysis')
             self.lines_spec, self.lines_spat \
-                    = self.find_lines(self.arccen[:,slit_idx], self.slitcen[:,slit_idx], slit_spat,
+                    = self.find_lines(self.arccen[:,slit_idx], self.slitcen[:,slit_idx],
+                                      slit_idx,
                                       bpm=self.arccen_bpm[:,slit_idx], debug=False) #debug)
 
             if self.lines_spec is None:
