@@ -248,10 +248,10 @@ class WaveCalib(object):
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
-        # Reset keys to spatial system
-        self.wv_calib = final_fit.copy()
+        # Convert keys to spatial system
+        self.wv_calib = {}
         for idx in range(self.slits.nslits):
-            if str(idx) in self.wv_calib.keys():
+            if str(idx) in final_fit.keys():
                 self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
 
         # Update mask
@@ -422,7 +422,10 @@ class WaveCalib(object):
             if key in ['steps', 'par', 'fit2d']:
                 continue
             if (self.wv_calib[key] is None) or (len(self.wv_calib[key]) == 0):
-                idx = self.slits.spatid_to_zero(int(key))
+                try:
+                    idx = self.slits.spatid_to_zero(int(key))
+                except:
+                    embed(header='428 of wavecalib')
                 self.wvc_bpm[idx] = True
 
     def run(self, skip_QA=False, debug=False):

@@ -45,14 +45,16 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     # Mask
     slitmask = slits.slit_img(initial=True, exclude_flag='SHORTSLIT')
     if slitmask.shape != sciimg.shape:
-        msgs.error("Deal with this")
+        _sciimg = arc.resize_mask2arc(slitmask.shape, sciimg)
+    else:
+        _sciimg = sciimg
     onslits = (slitmask > -1)
     corr_slits = (onslits.astype(float)).flatten()
 
     # Compute
-    (mean_sci, med_sci, stddev_sci) = stats.sigma_clipped_stats(sciimg[onslits])
+    (mean_sci, med_sci, stddev_sci) = stats.sigma_clipped_stats(_sciimg[onslits])
     thresh =  med_sci + 5.0*stddev_sci
-    corr_sci = np.fmin(sciimg.flatten(), thresh)
+    corr_sci = np.fmin(_sciimg.flatten(), thresh)
 
 
     maxlag = 20
@@ -91,7 +93,7 @@ def spat_flexure_shift(sciimg, slits, debug=False):
         # Now translate the slits in the tslits_dict
         all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
         gpm = mask == 0
-        viewer, ch = ginga.show_image(sciimg)
+        viewer, ch = ginga.show_image(_sciimg)
         ginga.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         embed(header='83 of flexure.py')
     #ginga.show_slits(viewer, ch, tslits_shift['slit_left'], tslits_shift['slit_righ'])

@@ -218,6 +218,7 @@ class RawImage(object):
 
         # This needs to come after trim, orient
         # Calculate flexure -- May not be used, but always calculated when slits are provided
+        # TODO -- PUT THIS BACK!!
         if slits is not None and self.par['spat_flexure_correct']:
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
 
