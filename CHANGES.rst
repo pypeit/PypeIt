@@ -28,6 +28,7 @@
 - Every calibration output to disk is help within a DataContainer, separate from
   previous classes.  Exception is WaveCalib (this needsd a fit DataContainer first)
 - Substantial refactoring of Calibrations
+- Add MDM OSMOS spectrograph
 - Moved pypeit.core.pydl.bspline into its own module, `pypeit.bspline`
 - Introduced C backend functions to speed up bspline fitting
     - now require `extension_helpers` package to build pypeit and

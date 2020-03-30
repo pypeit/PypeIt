@@ -36,6 +36,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * Lick/Kast 
 * Magellan/MagE
 * Magellan/Fire
+* MDM/OSMOS
 * Keck/DEIMOS
 * Keck/LRIS 
 * Keck/MOSFIRE  (beta)

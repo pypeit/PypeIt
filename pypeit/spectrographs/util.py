@@ -29,7 +29,7 @@ def valid_spectrographs():
             'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
             'magellan_fire', 'magellan_fire_long', 'magellan_mage',
             'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'lbt_luci1', 'lbt_luci2',
-            'mmt_binospec']
+            'mmt_binospec', 'mdm_osmos_mdm4k']
     # There are no such spectrographs defined
             #'keck_hires_blue']
 
@@ -161,6 +161,9 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'mmt_binospec':
         return spectrographs.mmt_binospec.MMTBINOSPECSpectrograph()
+
+    if spectrograph == 'mdm_osmos_mdm4k':
+        return spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
 
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 
