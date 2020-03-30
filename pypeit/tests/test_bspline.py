@@ -239,7 +239,3 @@ def test_profile_twod():
                                   kwargs_reject={'groupbadpix': True, 'maxrej': 10}, quiet=True)
         assert np.allclose(d['twod_flat_fit'], twod_flat_fit), 'Bad 2D bspline result'
 
-
-if __name__ == '__main__':
-    test_io()
-
