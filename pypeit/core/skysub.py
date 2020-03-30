@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 from IPython import embed
 
 from pypeit.images import imagebitmask
-from pypeit.core import basis, pixels, extract, pydl
+from pypeit.core import basis, pixels, extract
 from pypeit import msgs, utils, ginga, bspline
 from pypeit.core.moment import moment1d
 
@@ -137,7 +137,6 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask = N
             lsky_ivar = inmask_fit[pos_sky].astype(float)/3.0**2  # set errors to just be 3.0 in the log
             #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
-            #tmp = pydl.bspline(wsky[pos_sky], nord=4, bkspace=bsp)
             lskyset, outmask, lsky_fit, red_chi, exit_status \
                     = utils.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
                                             ingpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
@@ -305,7 +304,6 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
         return np.zeros_like(wave), np.zeros_like(wave), outmask
 
     ncoeff = npoly + nobj
-#    skyset = pydl.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
     skyset = bspline.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord, npoly=npoly)
     # Set coefficients for the sky.
     # The rehshape below deals with the different sizes of the coeff for npoly = 1 vs npoly > 1
@@ -319,7 +317,6 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
     sky_bmodel, _ = skyset.value(wave, x2=spatial)
 
     obj_bmodel = np.zeros(sky_bmodel.shape)
-#    objset = pydl.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord)
     objset = bspline.bspline(None, fullbkpt=sset.breakpoints, nord=sset.nord)
     objset.mask = sset.mask
     for i in range(nobj):
@@ -367,7 +364,6 @@ def optimal_bkpts(bkpts_optimal, bsp_min, piximg, sampmask, samp_frac=0.80,
     pix = pix[isrt]
     piximg_min = pix.min()
     piximg_max = pix.max()
-#    bset0 = pydl.bspline(pix, nord=4, bkspace=bsp_min)
     bset0 = bspline.bspline(pix, nord=4, bkspace=bsp_min)
     fullbkpt_grid = bset0.breakpoints
     keep = (fullbkpt_grid >= piximg_min) & (fullbkpt_grid <= piximg_max)

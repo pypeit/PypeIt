@@ -735,8 +735,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         msgs.error('No valid data points in bspline_profile!.')
 
     # Init bspline class
-#    sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
-#                            funcname='Bspline longslit special', **kwargs_bspline)
     sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
                            funcname='Bspline longslit special', **kwargs_bspline)
     if maskwork.sum() < sset.nord:

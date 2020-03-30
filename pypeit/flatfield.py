@@ -28,7 +28,6 @@ from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
 from pypeit import slittrace
-from pypeit.core import pydl
 
 
 class FlatImages(datamodel.DataContainer):
@@ -714,9 +713,6 @@ class FlatField(object):
             # 1/10th of a pixel, but do not allow a bsp smaller than
             # the typical sampling. Use the bspline class to determine
             # the breakpoints:
-#            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
-#                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
-#                                                     1.2*np.median(np.diff(spat_coo_data))))
             spat_bspl = bspline.bspline(spat_coo_data, nord=4,
                                         bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
                                                      1.2*np.median(np.diff(spat_coo_data))))
@@ -831,7 +827,6 @@ class FlatField(object):
             twod_ivar_data = twod_gpm_data.astype(float)/(twod_sig**2)
             twod_sigrej = 4.0
 
-#            poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
             poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
 #            np.savez_compressed('rmtdict.npz', good_frac=good_frac, npoly=npoly, spat_coo=spat_coo,
