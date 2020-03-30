@@ -182,11 +182,15 @@ def test_io():
     spec_bspl.to_file(ofile)
     # Read
     _spec_bspl = bspline.bspline.from_file(ofile)
-    # Evaluate -- This is failing in the C code version only
-    tmp = _spec_bspl.value(np.linspace(0., 1., 100))
-    # Test
-    assert np.array_equal(_spec_bspl.breakpoints, spec_bspl.breakpoints)
-    # Write again
+    # Check that the data read in is the same
+    assert np.array_equal(_spec_bspl.breakpoints, spec_bspl.breakpoints), 'Bad read'
+    # Evaluate the bsplines and check that the written and read in data
+    # provide the same result
+    tmp = spec_bspl.value(np.linspace(0., 1., 100))[0]
+    _tmp = _spec_bspl.value(np.linspace(0., 1., 100))[0]
+    assert np.array_equal(tmp, _tmp), 'Bad bspline evaluate'
+
+    # Test overwrite
     _spec_bspl.to_file(ofile, overwrite=True)
 
     # None
@@ -235,4 +239,7 @@ def test_profile_twod():
                                   kwargs_reject={'groupbadpix': True, 'maxrej': 10}, quiet=True)
         assert np.allclose(d['twod_flat_fit'], twod_flat_fit), 'Bad 2D bspline result'
 
+
+if __name__ == '__main__':
+    test_io()
 

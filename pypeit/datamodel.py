@@ -958,10 +958,15 @@ class DataContainer:
                         if transpose_table_arrays:
                             d[key] = d[key].T
 
-        # Hack to expunge charray which are basically deprecated and cause trouble..
+        # Two annoying hacks:
+        #   - Hack to expunge charray which are basically deprecated and
+        #     cause trouble.
+        #   - Hack to force native byte ordering
         for key in d:
             if isinstance(d[key], np.chararray):
                 d[key] = np.asarray(d[key])
+            elif isinstance(d[key], np.ndarray) and d[key].dtype.byteorder not in ['=', '|']:
+                d[key] = d[key].astype(d[key].dtype.type)
         # Return
         return d, dm_version_passed, dm_type_passed
 
