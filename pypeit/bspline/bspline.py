@@ -27,12 +27,6 @@ except:
                   'meantime, falling back to pure python code.')
     from pypeit.bspline.utilpy import cholesky_band, cholesky_solve, solution_arrays, intrv, \
                                         bspline_model
-else:
-    msgs.warn('I need Kyle to help me deal with I/O of C-generated b-spline models!!')
-    msgs.warn('I need Kyle to help me deal with I/O of C-generated b-spline models!!')
-    msgs.warn('I need Kyle to help me deal with I/O of C-generated b-spline models!!')
-    msgs.warn('I need Kyle to help me deal with I/O of C-generated b-spline models!!')
-    msgs.warn('I need Kyle to help me deal with I/O of C-generated b-spline models!!')
 
 # TODO: Used for testing.  Keep around for now.
 #from pypeit.bspline.utilpy import bspline_model
