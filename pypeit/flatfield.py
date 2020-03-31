@@ -217,13 +217,14 @@ class FlatField(object):
 
     Attributes:
         rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
-        mspixelflat (`np.ndarray`_):
+        mspixelflat (`numpy.ndarray`_):
             Normalized flat
-        msillumflat (`np.ndarray`_):
+        msillumflat (`numpy.ndarray`_):
             Illumination flat
-        flat_model (`np.ndarray`_):
+        flat_model (`numpy.ndarray`_):
             Model of the flat
         list_of_spat_bsplines (list):
+
     """
 
     # Frame type is a class attribute

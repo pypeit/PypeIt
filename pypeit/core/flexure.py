@@ -35,7 +35,7 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     Otherwise, the WaveTilts could get out of sync with science images
 
     Args:
-        sciimg (`np.ndarray`_):
+        sciimg (`numpy.ndarray`_):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
     Returns:
@@ -299,7 +299,7 @@ def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
 
     Args:
         specobjs (:class:`pypeit.specobjs.Specobjs`):
-        maskslits (`np.ndarray`_):
+        maskslits (`numpy.ndarray`_):
             True = masked slit
         method (:obj:`str`)
           'boxcar' -- Recommneded
@@ -417,7 +417,7 @@ def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
 
     Args:
         specobjs:
-        maskslits (np.ndarray):
+        maskslits (`numpy.ndarray`_):
         basename (str):
         det (int):
         flex_list (list):

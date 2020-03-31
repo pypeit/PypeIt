@@ -111,7 +111,7 @@ spectrum to a chosen value (typically a photometric
 measurement) in one of many filter curves.
 
 To do so, you need to add the *filter* and *magnitude*
-to the [coadd1d] block of the `coadd 1dfile`_.
+to the [coadd1d] block of the `coadd1d file`_.
 
 Here is an example::
 

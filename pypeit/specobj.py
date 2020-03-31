@@ -291,7 +291,7 @@ class SpecObj(datamodel.DataContainer):
         Generate a copy of this object
 
         Returns:
-            `SpecObj`_:
+            :class:`SpecObj`:
 
         """
         # Return
@@ -459,7 +459,7 @@ class SpecObj(datamodel.DataContainer):
 
     def to_xspec1d(self, **kwargs):
         """
-        Push the data in SpecObj into an XSpectrum1D object
+        Push the data in :class:`SpecObj` into an XSpectrum1D object
 
 
         Returns:
@@ -469,7 +469,5 @@ class SpecObj(datamodel.DataContainer):
         wave, flux, ivar, _ = self.to_arrays(**kwargs)
         sig = np.sqrt(utils.inverse(ivar))
         # Create
-        xspec = xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
-        # Return
-        return xspec
+        return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 

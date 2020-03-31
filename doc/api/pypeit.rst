@@ -41,13 +41,13 @@ Submodules
    pypeit.sensfunc
    pypeit.setup_package
    pypeit.slittrace
+   pypeit.spec2dobj
    pypeit.specobj
    pypeit.specobjs
    pypeit.telescopes
    pypeit.tracepca
    pypeit.utils
    pypeit.wavecalib
-   pypeit.waveimage
    pypeit.wavemodel
    pypeit.wavetilts
 

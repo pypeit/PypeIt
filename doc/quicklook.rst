@@ -55,6 +55,8 @@ calibration (Masters), QA, and Science outputs.
 This script has been tested successfully on the following instruments:
 shane_kast_blue, shane_kast_red, keck_lris_blue, keck_deimos.
 
+.. _pypeit-ql-mos-options:
+
 Options
 +++++++
 
@@ -123,6 +125,8 @@ Before running this script, you will need to
 - You may place this folder anywhere.
 - Point the Environmental variable *NIRES_MASTERS* at this folder.
    - e.g. export NIRES_MASTERS=/data/Keck_NIRES/Masters_NIRES
+
+.. _nires-options:
 
 Options
 +++++++

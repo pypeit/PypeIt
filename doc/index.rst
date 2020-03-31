@@ -67,7 +67,6 @@ Calibrations
    :maxdepth: 2
 
    customize_calibs
-   bias_sub
    slit_tracing
    wave_calib
    wavetilts
@@ -107,7 +106,6 @@ Object Algorithms
    :maxdepth: 2
 
    object_finding
-   object_tracing
 
 Documentation
 +++++++++++++
@@ -140,6 +138,7 @@ Orphaned Docs
 .. toctree::
    :maxdepth: 1
 
+   coadd1d
    inst_settings
    gemini_gmos
    heliocorr
