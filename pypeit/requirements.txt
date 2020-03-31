@@ -2,6 +2,7 @@
 #
 # TODO: Make linetools and arclines pip installable so that they can be
 # added here, or add them as submodule dependencies in extern/ directory
+#  linetools is now pip installable but caused readthedocs to barf..
 #
 # Users
 packaging>=19.0
