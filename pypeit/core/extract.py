@@ -775,7 +775,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
 
         mode_shift_set = mode_shift_out[0]
-#        temp_set = pydl.bspline(None, fullbkpt = mode_shift_set.breakpoints,nord=mode_shift_set.nord)
         temp_set = bspline.bspline(None, fullbkpt=mode_shift_set.breakpoints,
                                    nord=mode_shift_set.nord)
         temp_set.coeff = mode_shift_set.coeff[0, :]
@@ -798,7 +797,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             return (profile_model, trace_in, fwhmfit, med_sn2)
 
         mode_stretch_set = mode_stretch_out[0]
-#        temp_set = pydl.bspline(None, fullbkpt = mode_stretch_set.breakpoints,nord=mode_stretch_set.nord)
         temp_set = bspline.bspline(None, fullbkpt=mode_stretch_set.breakpoints,
                                    nord=mode_stretch_set.nord)
         temp_set.coeff = mode_stretch_set.coeff[0, :]
