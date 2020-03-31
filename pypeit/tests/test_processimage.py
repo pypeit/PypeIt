@@ -64,11 +64,11 @@ def test_overscan_subtract(deimos_flat_files):
     rawImage.par = spectograph.default_pypeit_par()['scienceframe']['process']
     # Bias subtract
     pre_sub = rawImage.image.copy()
-    _ = rawImage.subtract_overscan()
+    rawImage.subtract_overscan()
     oscan = np.median(pre_sub-rawImage.image)
     assert np.isclose(oscan, 1001.2, rtol=0.01)
     # Trim
-    _ = rawImage.trim()
+    rawImage.trim()
     # Test
     assert rawImage.steps['subtract_overscan']
     assert rawImage.steps['trim']

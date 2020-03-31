@@ -3076,8 +3076,9 @@ def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
         sync_toler (int, optional):
             A match occurs if SPAT_POS is within sync_toler
     """
-    #
-    assert len(in_files) == len(in_names)
+    if len(in_files) != len(in_names):
+        raise ValueError('Number of files {0} and names {1} do not match.'.format(
+                            len(in_files),len(in_names)))
     # Check for indx
     if len(sync_dict) > 0:
         ikeys = np.array(list(sync_dict.keys()))

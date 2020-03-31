@@ -57,6 +57,8 @@ def parse_traces(hdulist_1d, det_nm):
 
 def main(args):
 
+    raise NotImplementedError('This script is currently out of date.')
+
     # List only?
     hdu = fits.open(args.file)
     head0 = hdu[0].header

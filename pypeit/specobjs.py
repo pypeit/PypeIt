@@ -573,7 +573,7 @@ class SpecObjs(object):
         prihdu.header['NSPEC'] = nspec
 
         # Code versions
-        _ = initialize_header(prihdu.header)
+        initialize_header(hdr=prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)

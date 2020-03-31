@@ -104,8 +104,9 @@ class Reduce(object):
 
         # Slits
         self.slits = slitTrace
-        self.slits_left, self.slits_right, _ = slitTrace.select_edges(
-            flexure=self.spat_flexure_shift)
+        # Select the edges to use
+        self.slits_left, self.slits_right, _ \
+                = slitTrace.select_edges(flexure=self.spat_flexure_shift)
 
         # Slitmask
         self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)
@@ -219,7 +220,7 @@ class Reduce(object):
                 sobj = self.sobjs[iobj]
                 plate_scale = self.get_platescale(sobj)
                 # True  = Good, False = Bad for inmask
-                thismask = (self.slitmask == sobj.SLITID)  # pixels for this slit
+                thismask = self.slitmask == sobj.SLITID  # pixels for this slit
                 inmask = (self.sciImg.fullmask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
@@ -458,17 +459,11 @@ class Reduce(object):
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
-        # Select the edges to use: Selects the edges tweaked by the
-        # illumination profile if they're present; otherwise, it
-        # selects the original edges from EdgeTraceSet. To always
-        # select the latter, use the method with `original=True`.
-        #left, right = self.slits.select_edges()
-
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
             msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
-            thismask = (self.slitmask == slit_spat)
+            thismask = self.slitmask == slit_spat
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # Find sky
             self.global_sky[thismask] \
@@ -660,13 +655,8 @@ class Reduce(object):
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
                 ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
-        if slits:
-            if self.slits_left is not None:
-                # TODO: IDs are always set by the original edge traces
-                # produced by EdgeTraceSet, not the tweaked ones
-                # produced by FlatField. Is that the desired behavior?
-                #left, right = self.slits.select_edges()
-                ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)#, self.slits.id)
+        if slits and self.slits_left is not None:
+            ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,
@@ -743,12 +733,6 @@ class MultiSlitReduce(Reduce):
         skymask = np.zeros_like(image, dtype=bool)
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
-
-        # Select the edges to use: Selects the edges tweaked by the
-        # illumination profile if they're present; otherwise, it
-        # selects the original edges from EdgeTraceSet. To always
-        # select the latter, use the method with `original=True`.
-        #left, right = self.slits.select_edges()
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -844,9 +828,9 @@ class MultiSlitReduce(Reduce):
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
             msgs.info("Local sky subtraction and extraction for slit: {:d}".format(slit_spat))
-            thisobj = (self.sobjs.SLITID == slit_spat) # indices of objects for this slit
+            thisobj = self.sobjs.SLITID == slit_spat    # indices of objects for this slit
             if np.any(thisobj):
-                thismask = (self.slitmask == slit_spat) # pixels for this slit
+                thismask = self.slitmask == slit_spat   # pixels for this slit
                 # True  = Good, False = Bad for inmask
                 ingpm = (self.sciImg.fullmask == 0) & thismask
                 # Local sky subtraction and extraction
@@ -1017,15 +1001,6 @@ class EchelleReduce(Reduce):
 
         """
         self.global_sky = global_sky
-
-        # TODO: Is this already available from the __init__ or could it have been overwritten?
-        #self.slitmask = self.slits.slit_img()
-
-        # Select the edges to use: Selects the edges tweaked by the
-        # illumination profile if they're present; otherwise, it
-        # selects the original edges from EdgeTraceSet. To always
-        # select the latter, use the method with `original=True`.
-        #left, right = self.slits.select_edges()
 
         # Pulled out some parameters to make the method all easier to read
         bsp = self.par['reduce']['skysub']['bspline_spacing']

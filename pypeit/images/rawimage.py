@@ -384,10 +384,9 @@ class RawImage(object):
         """
         step = inspect.stack()[0][3]
         # Check input image matches the original
-        if self.rawimage.shape is not None:
-            if self.image.shape != self.rawimage.shape:
-                msgs.warn("Image shape does not match original.  Returning current image")
-                return self.image.copy()
+        if self.rawimage.shape is not None and self.image.shape != self.rawimage.shape:
+            msgs.warn("Image shape does not match original.  Returning current image")
+            return self.image.copy()
         # Check if already trimmed
         if self.steps[step] and (not force):
             msgs.warn("Image was already trimmed.  Returning current image")
@@ -399,54 +398,51 @@ class RawImage(object):
         self.steps[step] = True
 
     def __repr__(self):
-        return ('<{:s}: file={}, steps={}>'.format(
-            self.__class__.__name__, self.filename, self.steps))
+        return ('<{:s}: file={}, steps={}>'.format(self.__class__.__name__, self.filename,
+                                                   self.steps))
 
-'''
-def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,
-                        process_steps=None, bias=None):
-    """
-    Process an input raw frame for JFH
-
-    Args:
-        filename (str):
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            Spectrograph used to take the data.
-        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-            Parameters that dictate the processing of the images.  See
-            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-            defaults.
-        det (:obj:`int`, optional):
-            The 1-indexed detector number to process.
-        process_steps (list, optional):
-            Processing steps.
-        bias (str or `numpy.ndarray`_ or None):
-            Bias image or command
-
-    Returns:
-        :class:`pypeit.images.pypeitimage.PypeItImage`:
-
-    """
-    # Setup
-    if proc_par is None:
-        par = spectrograph.default_pypeit_par()
-        msgs.warn("Using the Processing parameters from scienceframe")
-        proc_par = par['scienceframe']['process']
-    if process_steps is None:
-        process_steps = procimg.init_process_steps(bias, proc_par)
-        process_steps += ['trim']
-        process_steps += ['orient']
-        process_steps += ['apply_gain']
-
-    # Generate the rawImage
-    rawImage = rawimage.RawImage(filename, spectrograph, det)
-
-    # Now Process
-    processRawImage = ProcessRawImage(rawImage, proc_par)
-    pypeitImage = processRawImage.process(process_steps, bias=bias)
-
-    # Return
-    return pypeitImage
-'''
-
+#def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,
+#                        process_steps=None, bias=None):
+#    """
+#    Process an input raw frame for JFH
+#
+#    Args:
+#        filename (str):
+#        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+#            Spectrograph used to take the data.
+#        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
+#            Parameters that dictate the processing of the images.  See
+#            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
+#            defaults.
+#        det (:obj:`int`, optional):
+#            The 1-indexed detector number to process.
+#        process_steps (list, optional):
+#            Processing steps.
+#        bias (str or `numpy.ndarray`_ or None):
+#            Bias image or command
+#
+#    Returns:
+#        :class:`pypeit.images.pypeitimage.PypeItImage`:
+#
+#    """
+#    # Setup
+#    if proc_par is None:
+#        par = spectrograph.default_pypeit_par()
+#        msgs.warn("Using the Processing parameters from scienceframe")
+#        proc_par = par['scienceframe']['process']
+#    if process_steps is None:
+#        process_steps = procimg.init_process_steps(bias, proc_par)
+#        process_steps += ['trim']
+#        process_steps += ['orient']
+#        process_steps += ['apply_gain']
+#
+#    # Generate the rawImage
+#    rawImage = rawimage.RawImage(filename, spectrograph, det)
+#
+#    # Now Process
+#    processRawImage = ProcessRawImage(rawImage, proc_par)
+#    pypeitImage = processRawImage.process(process_steps, bias=bias)
+#
+#    # Return
+#    return pypeitImage
 

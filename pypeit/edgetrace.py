@@ -142,7 +142,7 @@ class EdgeTraceBitMask(BitMask):
     # TODO: Create a script that will dynamically write the used bits
     # to a doc for readthedocs.
     def __init__(self):
-        # TODO: This needs to be an Omsgs.error("Not ready for this objtype in Reducedd")rderedDict for now to ensure that
+        # TODO: This needs to be an OrderedDict for now to ensure that
         # the bit assigned to each key is always the same. As of python
         # 3.7, normal dict types are guaranteed to preserve insertion
         # order as part of its data model. When/if we require python
@@ -476,7 +476,6 @@ class EdgeTraceSet(object):
         """
         return 0 if self.traceid is None else self.traceid.size
 
-    # ADDED in rmtdict
     @property
     def nslits(self):
         if self.is_synced:
@@ -4281,7 +4280,8 @@ class EdgeTraceSet(object):
         object.
 
         Returns:
-            :class:`pypeit.slittrace.SlitTraceSet`:
+            :class:`~pypeit.slittrace.SlitTraceSet`: Object holding
+            the slit traces.
         """
         if not self.is_synced:
             msgs.error('Edges must be synced to construct SlitTraceSet object.')
@@ -4294,7 +4294,6 @@ class EdgeTraceSet(object):
         slit_bitmask = slittrace.SlitTraceBitMask()
         nslit = int(np.sum(gpm)) // 2
         slit_msk = np.zeros(nslit, dtype=slit_bitmask.minimum_dtype())
-        # TODO -- Kyle might be able to avoid this for loops
         # Loop on left edges
         for sidx, eidx in enumerate(np.where(gpm & self.is_left)[0]):
             # Loop on SlitTrace mask keys

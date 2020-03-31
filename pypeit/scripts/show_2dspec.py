@@ -125,7 +125,8 @@ def main(args):
 
     # SCIIMG
     image = spec2DObj.sciimg  # Processed science image
-    (mean, med, sigma) = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+    mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
+                                           sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
@@ -134,7 +135,7 @@ def main(args):
 
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)#, slits.id) #, args.det)
+    ginga.show_slits(viewer, ch, left, right)
 
     # SKYSUB
     if args.ignore_extract_mask:
@@ -144,7 +145,8 @@ def main(args):
         gpm = spec2DObj.bpmmask == 0
 
     image = (spec2DObj.sciimg - spec2DObj.skymodel) * gpm #(spec2DObj.mask == 0)  # sky subtracted image
-    (mean, med, sigma) = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0, sigma_upper=5.0)
+    mean, med, sigma = sigma_clipped_stats(image[spec2DObj.bpmmask == 0], sigma_lower=5.0,
+                                           sigma_upper=5.0)
     cut_min = mean - 1.0 * sigma
     cut_max = mean + 4.0 * sigma
     chname_skysub='skysub-det{:s}'.format(sdet)
@@ -154,7 +156,7 @@ def main(args):
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)#, slits.id)
+    ginga.show_slits(viewer, ch, left, right)
 
 
     # SKRESIDS
@@ -164,7 +166,7 @@ def main(args):
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)#, slits.id)
+    ginga.show_slits(viewer, ch, left, right)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
@@ -174,7 +176,7 @@ def main(args):
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)#, slits.id)
+    ginga.show_slits(viewer, ch, left, right)
 
 
     # After displaying all the images sync up the images with WCS_MATCH

@@ -845,10 +845,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                 # Just replace with the global sky
                 skyimage.flat[isub] = global_sky.flat[isub]
 
-        if use_profile_mask:
-            outmask_extract = outmask
-        else:
-            outmask_extract = inmask
+        outmask_extract = outmask if use_profile_mask else inmask
 
         # Now that the iterations of profile fitting and sky subtraction are completed,
         # loop over the objwork objects in this grouping and perform the final extractions.
@@ -973,7 +970,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     # Allocate the images that are needed
     # Initialize to mask in case no objects were found
     outmask = np.copy(fullmask)
-    extractmask = (fullmask == 0)
+    extractmask = fullmask == 0
     # TODO case of no objects found should be properly dealt with by local_skysub_extract
     # Initialize to zero in case no objects were found
     objmodel = np.zeros_like(sciimg)

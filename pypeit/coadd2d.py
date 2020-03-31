@@ -559,10 +559,7 @@ class CoAdd2D(object):
             # Load up the calibs, if needed
             if tiltfile != tiltfiles[ifile]:
                 waveTilts = WaveTilts.from_file(tiltfiles[ifile]) #.tilts_dict
-            #if waveimgfiles[ifile] != waveimgfile:
-            #    waveimg = WaveImage.from_file(waveimgfiles[ifile]).image
             # Save
-            #waveimgfile = waveimgfiles[ifile]
             tiltfile = tiltfiles[ifile]
             #
             hdu = fits.open(spec2d_files[ifile])
@@ -594,10 +591,7 @@ class CoAdd2D(object):
             mask = hdu[exten].data
             if ifile == 0:
                 # the two shapes accomodate the possibility that waveimg and tilts are binned differently
-                #shape_wave = (nfiles, waveimg.shape[0], waveimg.shape[1])
                 shape_sci = (nfiles, sciimg.shape[0], sciimg.shape[1])
-                #waveimg_stack = np.zeros(shape_wave, dtype=float)
-                #tilts_stack = np.zeros(shape_wave, dtype=float)
                 sciimg_stack = np.zeros(shape_sci, dtype=float)
                 skymodel_stack = np.zeros(shape_sci, dtype=float)
                 sciivar_stack = np.zeros(shape_sci, dtype=float)
@@ -622,8 +616,6 @@ class CoAdd2D(object):
             slits_list.append(slits)
             tilts_list.append(waveTilts)
             slitmask_stack[ifile, :, :] = slits.slit_img()
-            #waveimg_stack[ifile, :, :] = waveimg
-            #tilts_stack[ifile, :, :] = tilts['tilts']
             sciimg_stack[ifile, :, :] = sciimg
             sciivar_stack[ifile, :, :] = sciivar
             mask_stack[ifile, :, :] = mask
@@ -635,8 +627,6 @@ class CoAdd2D(object):
                 head1d_list.append(sobjs.header)
                 this_det = sobjs.DET == self.det
                 specobjs_list.append(sobjs[this_det])
-
-        # slitmask_stack = np.einsum('i,jk->ijk', np.ones(nfiles), slitmask)
 
         # Fill the master key dict
         head2d = head2d_list[0]
@@ -652,10 +642,8 @@ class CoAdd2D(object):
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
-                    tilts_list=tilts_list,# waveimg_stack=waveimg_stack,
-                    head1d_list=head1d_list, head2d_list=head2d_list,
-                    redux_path=redux_path,
-                    master_key_dict=master_key_dict,
+                    tilts_list=tilts_list, head1d_list=head1d_list, head2d_list=head2d_list,
+                    redux_path=redux_path, master_key_dict=master_key_dict,
                     spectrograph=self.spectrograph.spectrograph,
                     pypeline=self.spectrograph.pypeline)
 

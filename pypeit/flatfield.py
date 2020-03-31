@@ -249,7 +249,7 @@ class FlatField(object):
         # Attributes unique to this Object
         self.rawflatimg = rawflatimg      # Un-normalized pixel flat as a PypeItImage
         self.mspixelflat = None     # Normalized pixel flat
-        self.msillumflat = None     # Illuminatino flat
+        self.msillumflat = None     # Illumination flat
         self.flat_model = None      # Model flat
         self.list_of_spat_bsplines = None
 
@@ -553,9 +553,7 @@ class FlatField(object):
             # Check for saturation of the flat. If there are not enough
             # pixels do not attempt a fit, and continue to the next
             # slit.
-            #good_frac = np.sum(onslit & (rawflat < nonlinear_counts))/np.sum(onslit)
             # TODO: set the threshold to a parameter?
-            # slit.  TODO: set the threshold to a parameter?
             good_frac = np.sum(onslit_init & (rawflat < nonlinear_counts))/np.sum(onslit_init)
             if good_frac < 0.5:
                 common_message = 'To change the behavior, use the \'saturated_slits\' parameter ' \
@@ -612,6 +610,7 @@ class FlatField(object):
 
             # ----------------------------------------------------------
             # Collapse the slit spatially and fit the spectral function
+            # TODO: Put this stuff in a self.spectral_fit method?
 
             # Create the tilts image for this slit
             # TODO -- Confirm the sign of this shift is correct!
@@ -724,10 +723,12 @@ class FlatField(object):
                           'spectral shape is poor, or the illumination profile is very irregular.')
 
             # First fit -- With initial slits
+            # TODO: Anything that's in self.flatpar shouldn't be passed to this method
             exit_status, spat_coo_data,  spat_flat_data, spat_bspl, spat_gpm_fit, \
-                spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
-                norm_spec, spat_coo_init, median_slit_width[slit_idx], spat_gpm, spat_samp,
-                illum_rej, sticky, gpm, illum_iter, debug=debug)
+                spat_flat_fit, spat_flat_data_raw \
+                        = self.spatial_fit(norm_spec, spat_coo_init, median_slit_width[slit_idx],
+                                           spat_gpm, spat_samp, illum_rej, sticky, gpm,
+                                           illum_iter, debug=debug)
 
             #            # Construct the empirical illumination profile
 #            _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
@@ -921,16 +922,6 @@ class FlatField(object):
                                             upper=twod_sigrej, lower=twod_sigrej,
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
-
-# TODO: Used for testing bspline
-#            np.savez_compressed('slit{0}_twod.npz'.format(slit+1),
-#                                twod_spat_coo_data=twod_spat_coo_data,
-#                                twod_spec_coo_data=twod_spec_coo_data,
-#                                twod_flat_data=twod_flat_data,
-#                                twod_ivar_data=twod_ivar_data,
-#                                poly_basis=poly_basis,
-#                                twod_gpm_data=twod_gpm_data)
-
             if debug:
                 # TODO: Make a plot that shows the residuals in the 2D
                 # image
@@ -1033,7 +1024,7 @@ class FlatField(object):
                  - exit_status (int):
                  - spat_coo_data
                  - spat_flat_data
-                 - spat_bspl (:class:`pypeit.bspline.bspline.bspline`) : Bspline model of the spatial fit.  Used for illumflat
+                 - spat_bspl (:class:`pypeit.bspline.bspline.bspline`): Bspline model of the spatial fit.  Used for illumflat
                  - spat_gpm_fit
                  - spat_flat_fit
                  - spat_flat_data_raw
@@ -1059,9 +1050,6 @@ class FlatField(object):
         # 1/10th of a pixel, but do not allow a bsp smaller than
         # the typical sampling. Use the bspline class to determine
         # the breakpoints:
-        #            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
-        #                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
-        #                                                     1.2*np.median(np.diff(spat_coo_data))))
         spat_bspl = bspline.bspline(spat_coo_data, nord=4,
                                     bkspace=np.fmax(1.0 / median_slit_width / 10.0,
                                                     1.2 * np.median(np.diff(spat_coo_data))))

@@ -6,7 +6,7 @@ import pytest
 
 import numpy as np
 
-from pypeit.slittrace import SlitTraceSet
+from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
 from pypeit import masterframe
 
 master_key = 'dummy'
@@ -15,6 +15,12 @@ master_dir = os.getcwd()
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
+def test_bits():
+    # Make sure bits are correct
+    bm = SlitTraceBitMask()
+    assert bm.bits['USERIGNORE'] == 1, 'Bits changed'
+    assert bm.bits['BADFLATCALIB'] == 4, 'Bits changed'
 
 def test_init():
 

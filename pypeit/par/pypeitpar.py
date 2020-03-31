@@ -209,8 +209,7 @@ class ProcessImagesPar(ParSet):
     def __init__(self, overscan=None, overscan_par=None, combine=None, satpix=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
-                 spat_flexure_correct=None, illumflatten=None,
-                 ):
+                 spat_flexure_correct=None, illumflatten=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -332,8 +331,7 @@ class ProcessImagesPar(ParSet):
                    'combine', 'satpix', 'sigrej', 'n_lohi',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
                    'rmcompact', 'sigclip', 'sigfrac', 'objlim',
-                   'spat_flexure_correct', 'illumflatten',
-                   ]
+                   'spat_flexure_correct', 'illumflatten']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -667,7 +665,6 @@ class FlexurePar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None):
-#                 spat_frametypes=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3312,12 +3309,10 @@ class PypeItPar(ParSet):
         descr['calibrations'] = 'Parameters for the calibration algorithms'
 
         defaults['scienceframe'] = FrameGroupPar(frametype='science',
-                                                 processing_steps = ['trim', 'orient', 'apply_gain',
-                                                                     'flatten', 'crmask'])
-        # TODO -- Is there a way to do this more transparently?
-        defaults['scienceframe']['process']['illumflatten'] = True
+                                                 process=ProcessImagesPar(illumflatten=True),
+                                                 processing_steps=['trim', 'orient', 'apply_gain',
+                                                                   'flatten', 'crmask'])
         dtypes['scienceframe'] = [ ParSet, dict ]
-
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
         defaults['reduce'] = ReducePar()
