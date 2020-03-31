@@ -1,5 +1,7 @@
 """
 Module for guiding 1D Wavelength Calibration
+
+.. include:: ../links.rst
 """
 import os
 import copy
@@ -77,7 +79,7 @@ class WaveCalib(object):
             Slits to ignore because they were not extracted. WARNING:
             Outside of this Class, it is best to regenerate the mask
             using  make_maskslits()
-        gpm (np.ndarray):
+        gpm (`numpy.ndarray`_):
             Good pixel mask
             Eventually, we might attach this to self.msarc although that would then
             require that we write it to disk with self.msarc.image
@@ -527,14 +529,14 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     Args:
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
-        tilts (`np.ndarray`_):
+        tilts (`numpy.ndarray`_):
             Image holding tilts
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
         wv_calib (dict):
         spat_flexure (float, optional):
 
     Returns:
-        `np.ndarray`_: The wavelength image.
+        `numpy.ndarray`_: The wavelength image.
     """
     # Setup
     ok_slits = slits.mask == 0

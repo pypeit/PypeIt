@@ -26,26 +26,24 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_kcwi'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'KCWI'
-        '''
-        self.detector = [pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.147,  # arcsec/pixel
-                            darkcurr        = None,  # <-- TODO : Need to set this
-                            saturation      = 65535.,
-                            nonlinear       = 0.95,       # For lack of a better number!
-                            numamplifiers   = 4,          # <-- This is provided in the header
-                            gain            = [0]*4,  # <-- This is provided in the header
-                            ronoise         = [0]*4,  # <-- TODO : Need to set this for other setups
-                            datasec         = ['']*4,     # <-- This is provided in the header
-                            oscansec        = ['']*4,     # <-- This is provided in the header
-                            suffix          = '_01'
-                            )]
-        '''
+#        self.detector = [pypeitpar.DetectorPar(
+#                            dataext         = 0,
+#                            specaxis        = 0,
+#                            specflip        = False,
+#                            xgap            = 0.,
+#                            ygap            = 0.,
+#                            ysize           = 1.,
+#                            platescale      = 0.147,  # arcsec/pixel
+#                            darkcurr        = None,  # <-- TODO : Need to set this
+#                            saturation      = 65535.,
+#                            nonlinear       = 0.95,       # For lack of a better number!
+#                            numamplifiers   = 4,          # <-- This is provided in the header
+#                            gain            = [0]*4,  # <-- This is provided in the header
+#                            ronoise         = [0]*4,  # <-- TODO : Need to set this for other setups
+#                            datasec         = ['']*4,     # <-- This is provided in the header
+#                            oscansec        = ['']*4,     # <-- This is provided in the header
+#                            suffix          = '_01'
+#                            )]
         self.numhead = 1
         # Uses default timeunit
         # Uses default primary_hdrext

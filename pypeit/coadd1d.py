@@ -63,7 +63,7 @@ class OneSpec(datamodel.DataContainer):
             ifile (str):  Filename holding the object
 
         Returns:
-            `OneSpec`_:
+            :class:`OneSpec`:
 
         """
         hdul = fits.open(ifile)
@@ -209,7 +209,7 @@ class CoAdd1D(object):
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
-        Generate a `OneSpec`_ object and write it to disk
+        Generate a :class:`OneSpec` object and write it to disk.
 
         Args:
             coaddfile (str):

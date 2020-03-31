@@ -25,7 +25,7 @@ from IPython import embed
 
 class SpecObjs(object):
     """
-    Object to hold a set of SpecObj objects
+    Object to hold a set of :class:`~pypeit.specobj.SpecObj` objects
 
     Note that this class overloads:
 
@@ -36,7 +36,8 @@ class SpecObjs(object):
           specobjs.
 
     Args:
-        specobjs (ndarray or list, optional):  One or more SpecObj objects
+        specobjs (`numpy.ndarray`_, list, optional):
+            One or more :class:`~pypeit.specobj.SpecObj`  objects
 
     Attributes:
         summary (astropy.table.Table):
@@ -347,9 +348,8 @@ class SpecObjs(object):
             name (str): The name of the object
 
         Returns:
-            `np.ndarray`_: indx array-like, shape (nobj,)
-                 Array of indices with the corresponding name.
-
+            `numpy.ndarray`_: Array of indices with the corresponding
+            name. Shape is (nobj,).
         """
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_NAME == name
@@ -401,7 +401,7 @@ class SpecObjs(object):
         Remove one or more SpecObj by index
 
         Args:
-            index (int or `np.ndarray`_):
+            index (int, `numpy.ndarray`_):
         """
         msk = np.ones(self.specobjs.size, dtype=bool)
         msk[index] = False
@@ -413,7 +413,7 @@ class SpecObjs(object):
         Generate a copy of self
 
         Returns:
-            `SpecObjs`_:
+            :class:`SpecObjs`:
 
         """
         sobj_copy = SpecObjs(header=self.header)

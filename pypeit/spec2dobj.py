@@ -236,16 +236,16 @@ class AllSpec2DObj(object):
         Build the primary header for a spec2d file
 
         Args:
-            raw_header (:class:`astropy.io.fits.Header`):
+            raw_header (`astropy.io.fits.Header`_):
                 Header from the raw FITS file (i.e. original header)
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             master_key_dict (dict):
-                dict of master keys from :class:`pypeit.calibrations.Calibrations`
-            master_dir (:obj:`str):
-                Path to the Masters/ folder
+                dict of master keys from :class:`~pypeit.calibrations.Calibrations`
+            master_dir (:obj:`str`):
+                Path to the ``Masters`` folder
 
         Returns:
-            :class:`astropy.io.fits.Header`:
+            `astropy.io.fits.Header`_:
 
         """
         hdr = io.initialize_header(primary=True)

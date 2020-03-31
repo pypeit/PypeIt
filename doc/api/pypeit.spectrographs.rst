@@ -20,6 +20,7 @@ Submodules
    pypeit.spectrographs.lbt_mods
    pypeit.spectrographs.magellan_fire
    pypeit.spectrographs.magellan_mage
+   pypeit.spectrographs.mdm_osmos
    pypeit.spectrographs.mmt_binospec
    pypeit.spectrographs.opticalmodel
    pypeit.spectrographs.shane_kast

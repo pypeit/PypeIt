@@ -91,12 +91,12 @@ class WaveTilts(datamodel.DataContainer):
         Mainly to allow for flexure
 
         Args:
-            slitmask (`np.ndarray`_):
+            slitmask (`numpy.ndarray`_):
             flexure (float, optional):
                 Spatial shift of the tilt image onto the desired frame (typically a science image)
 
         Returns:
-            `np.ndarray`_:  New tilt image
+            `numpy.ndarray`_:  New tilt image
 
         """
         _flexure = 0. if flexure is None else flexure
@@ -169,7 +169,7 @@ class BuildWaveTilts(object):
           Tuple of tilts ndarray's
         final_tilts : ndarray
           Final tilts image
-        gpm (np.ndarray):
+        gpm (`numpy.ndarray`_):
             Good pixel mask
             Eventually, we might attach this to self.mstilt although that would then
             require that we write it to disk with self.mstilt.image
@@ -239,11 +239,8 @@ class BuildWaveTilts(object):
 
         Wrapper to arc.get_censpec()
 
-        Args:
-
         Returns:
-            np.ndarray, np.ndarray:  Extracted arcs
-
+            :obj:`tuple`: Extracted arcs in two `numpy.ndarray`_ objects
         """
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(self.slitcen, self.slitmask,
                                                            self.mstilt.image, gpm=self.gpm,

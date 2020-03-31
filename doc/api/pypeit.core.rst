@@ -20,6 +20,7 @@ Submodules
    pypeit.core.combine
    pypeit.core.extract
    pypeit.core.flat
+   pypeit.core.flexure
    pypeit.core.flux_calib
    pypeit.core.framematch
    pypeit.core.load
@@ -32,7 +33,6 @@ Submodules
    pypeit.core.procimg
    pypeit.core.pydl
    pypeit.core.qa
-   pypeit.core.save
    pypeit.core.skysub
    pypeit.core.telluric
    pypeit.core.trace

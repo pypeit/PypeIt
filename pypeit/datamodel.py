@@ -489,7 +489,7 @@ class DataContainer:
 
         - Define a datamodel
         - Provide an :func:`__init__` method that defines the
-          instantiation calling sequence and passes the relavant
+          instantiation calling sequence and passes the relevant
           dictionary to this base-class instantiation.
         - Provide a :func:`_validate` method, if necessary, that
           processes the data provided in the `__init__` into a
@@ -528,9 +528,12 @@ class DataContainer:
             the object is instantiated with all of the relevant data
             model attributes but with all of those attributes set to
             None.
+
     Attributes:
-        filename (:obj:`str): filename, if loaded from disk
-        head0 (`astropy.io.fits.Header`):  Primary header of the file (if loaded)
+        filename (:obj:`str`):
+            Filename, if loaded from disk
+        head0 (`astropy.io.fits.Header`):
+            Primary header of the file (if loaded)
 
     """
 

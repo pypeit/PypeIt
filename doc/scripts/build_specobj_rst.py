@@ -59,6 +59,9 @@ if __name__ == '__main__':
                 data_table[i+1,2] = data_model[k]['atype'].__name__
             else:
                 data_table[i+1,2] = ' '
+            if data_table[i+1,2][-1] == '_':
+                data_table[i+1,2] = data_table[i+1,2][:-1]
+
             # Description
             data_table[i+1,3] = ParSet._data_string(data_model[k]['desc'])
 

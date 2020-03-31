@@ -69,8 +69,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         meta['dispname'] = dict(ext=0, card='GRATNAME')
-
-
         self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
