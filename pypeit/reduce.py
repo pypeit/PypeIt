@@ -172,19 +172,6 @@ class Reduce(object):
             for iobj in range(self.sobjs.nobj):
                 sobj = self.sobjs[iobj]
                 plate_scale = self.get_platescale(sobj)
-                '''
-                if self.pypeline == 'Echelle':
-                    # Grab the positive object only
-                    thisobj = (self.sobjs.ech_orderindx == iord) & (
-                            self.sobjs.ech_objid > 0)  # pos indices of objects for this slit
-                    sobj = self.sobjs[np.where(thisobj)[0][0]]
-                    # Plate scale
-                    plate_scale = self.spectrograph.order_platescale(sobj.ECH_ORDER,
-                                                                 binning=self.binning)[0]
-                else:
-                    sobj = self.sobjs[iord]
-                    plate_scale = self.spectrograph.detector[self.det - 1]['platescale']
-                '''
                 # True  = Good, False = Bad for inmask
                 thismask = (self.slitmask == iobj)  # pixels for this slit
                 inmask = (self.sciImg.fullmask == 0) & thismask

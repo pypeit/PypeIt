@@ -74,11 +74,14 @@ def build_master_header(master_obj, master_key, master_dir,
                         hdr=None, steps=None, raw_files=None):
     """
     Initialize the master frame header.
-    The function writes information generic to all PypeIt master
-    frame headers with basic information.
+
+    This builds a generic header that is written to all PypeIt master
+    frames.
+
     Args:
         master_obj (object):
-            MasterFrame object to be named.  This provides the master_type and file_format
+            MasterFrame object to be named. This provides the
+            master_type and file_format
         master_key (str):
             Designation
         master_dir (str):

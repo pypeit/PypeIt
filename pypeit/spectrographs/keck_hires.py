@@ -219,55 +219,53 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         super(KECKHIRESRSpectrograph, self).__init__()
         self.spectrograph = 'keck_hires_red'
         self.camera = 'HIRES_R'
-        '''
-        self.detector = [
-            # Detector 1 B
-            pypeitpar.DetectorPar(dataext         = 1,
-                        specaxis        = 0,  # Device is fussed with by the image reader
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.191,
-                        darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
-                        numamplifiers   = 1,
-                        gain            = 0.78, # high gain, low gain 1.9
-                        ronoise         = 2.8,
-                        suffix          = '_01'
-                        ),
-            # Detector 2
-            pypeitpar.DetectorPar(dataext         = 2,
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.191,
-                        darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
-                        numamplifiers   = 1,
-                        gain            = 0.86, # high gain, low gain 2.2
-                        ronoise         = 3.1,
-                        suffix          = '_02'
-                        ),
-            # Detector 3
-            pypeitpar.DetectorPar(dataext         = 3,
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.191,
-                        darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
-                        numamplifiers   = 1,
-                        gain            = 0.84, # high gain, low gain 2.2
-                        ronoise         = 3.1,
-                        suffix          = '_03'
-                        ),
-        ]
-        '''
+#        self.detector = [
+#            # Detector 1 B
+#            pypeitpar.DetectorPar(dataext         = 1,
+#                        specaxis        = 0,  # Device is fussed with by the image reader
+#                        xgap            = 0.,
+#                        ygap            = 0.,
+#                        ysize           = 1.,
+#                        platescale      = 0.191,
+#                        darkcurr        = 0.0,
+#                        saturation      = 65535.,
+#                        nonlinear       = 0.86,
+#                        numamplifiers   = 1,
+#                        gain            = 0.78, # high gain, low gain 1.9
+#                        ronoise         = 2.8,
+#                        suffix          = '_01'
+#                        ),
+#            # Detector 2
+#            pypeitpar.DetectorPar(dataext         = 2,
+#                        specaxis        = 0,
+#                        xgap            = 0.,
+#                        ygap            = 0.,
+#                        ysize           = 1.,
+#                        platescale      = 0.191,
+#                        darkcurr        = 0.0,
+#                        saturation      = 65535.,
+#                        nonlinear       = 0.86,
+#                        numamplifiers   = 1,
+#                        gain            = 0.86, # high gain, low gain 2.2
+#                        ronoise         = 3.1,
+#                        suffix          = '_02'
+#                        ),
+#            # Detector 3
+#            pypeitpar.DetectorPar(dataext         = 3,
+#                        specaxis        = 0,
+#                        xgap            = 0.,
+#                        ygap            = 0.,
+#                        ysize           = 1.,
+#                        platescale      = 0.191,
+#                        darkcurr        = 0.0,
+#                        saturation      = 65535.,
+#                        nonlinear       = 0.86,
+#                        numamplifiers   = 1,
+#                        gain            = 0.84, # high gain, low gain 2.2
+#                        ronoise         = 3.1,
+#                        suffix          = '_03'
+#                        ),
+#        ]
         self.numhead = 4
 
     def default_pypeit_par(self):

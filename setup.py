@@ -9,6 +9,7 @@ import glob
 
 from setuptools import setup, find_packages
 
+from extension_helpers import get_extensions
 
 def get_data_files():
     """ Build the list of data files to include.  """
@@ -79,6 +80,7 @@ def run_setup(data_files, scripts, packages, install_requires):
           use_2to3=False,                                               # *
           setup_requires=[ 'pytest-runner' ],
           tests_require=[ 'pytest' ],
+          ext_modules=get_extensions(),
           classifiers=[
               'Development Status :: 4 - Beta',
               'Intended Audience :: Science/Research',
@@ -91,8 +93,7 @@ def run_setup(data_files, scripts, packages, install_requires):
               'Topic :: Scientific/Engineering :: Astronomy',
               'Topic :: Software Development :: Libraries :: Python Modules',
               'Topic :: Software Development :: User Interfaces'
-          ],
-          )
+          ])
 
 #-----------------------------------------------------------------------
 if __name__ == '__main__':

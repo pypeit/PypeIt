@@ -6,6 +6,7 @@ Subpackages
 
 .. toctree::
 
+   pypeit.bspline
    pypeit.core
    pypeit.images
    pypeit.par
@@ -16,7 +17,7 @@ Submodules
 
 .. toctree::
 
-   pypeit.arcimage
+   pypeit.alignframe
    pypeit.biasframe
    pypeit.bitmask
    pypeit.calibrations
@@ -43,8 +44,6 @@ Submodules
    pypeit.specobj
    pypeit.specobjs
    pypeit.telescopes
-   pypeit.tiltimage
-   pypeit.traceimage
    pypeit.tracepca
    pypeit.utils
    pypeit.wavecalib

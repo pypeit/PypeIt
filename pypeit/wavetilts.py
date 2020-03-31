@@ -162,7 +162,7 @@ class BuildWaveTilts(object):
         # have a different binning then the trace images used to defined
         # the slits
         if self.slits is not None and self.mstilt is not None:
-            # NOTE: This uses the interneral definition of `pad`
+            # NOTE: This uses the internal definition of `pad`
             self.slitmask_science = self.slits.slit_img()
             gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
                                         else np.ones_like(self.slitmask_science, dtype=bool)
@@ -487,14 +487,15 @@ class BuildWaveTilts(object):
         Main driver for tracing arc lines
 
         Code flow:
-            1. Extract an arc spectrum down the center of each slit/order
-            2. Loop on slits/orders
-                i. Trace and fit the arc lines (This is done twice, once
+
+            #. Extract an arc spectrum down the center of each slit/order
+            #. Loop on slits/orders
+                #. Trace and fit the arc lines (This is done twice, once
                    with trace_crude as the tracing crutch, then again
                    with a PCA model fit as the crutch).
-                ii. Repeat trace.
-                iii.  2D Fit to the offset from slitcen
-                iv. Save
+                #. Repeat trace.
+                #.  2D Fit to the offset from slitcen
+                #. Save
 
         Args:
             maskslits (`numpy.ndarray`_, optional):
@@ -505,7 +506,7 @@ class BuildWaveTilts(object):
 
         Returns:
             tuple: 2 objects
-                - :class:`WaveTilts`_
+                - :class:`WaveTilts`
                 - `numpy.ndarray`_
 
         """
@@ -596,6 +597,9 @@ class BuildWaveTilts(object):
                                        self.spat_order[slit], self.spec_order[slit], slit,
                                        doqa=doqa, show_QA=show, debug=show)
             self.coeffs[:self.spec_order[slit]+1,:self.spat_order[slit]+1,slit] = coeff_out
+
+            # TODO: Need a way to assess the success of fit_tilts and
+            # flag the slit if it fails
 
             # Tilts are created with the size of the original slitmask,
             # which corresonds to the same binning as the science

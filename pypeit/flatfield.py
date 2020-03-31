@@ -17,14 +17,17 @@ from IPython import embed
 from pypeit import msgs
 from pypeit import utils
 from pypeit import ginga
+from pypeit import masterframe
+from pypeit import bspline
+from pypeit import slittrace
 
 from pypeit.par import pypeitpar
 from pypeit import datamodel
 from pypeit import masterframe
 from pypeit.core import flat
 from pypeit.core import tracewave
+from pypeit.core import basis
 from pypeit import slittrace
-from pypeit.core import pydl
 
 
 class FlatImages(datamodel.DataContainer):
@@ -410,7 +413,7 @@ class FlatField(object):
         ``tweak_slits``, ``tweak_slits_thresh``,
         ``tweak_slits_maxfrac``, ``rej_sticky``, ``slit_trim``,
         ``slit_illum_pad``, ``illum_iter``, ``illum_rej``, and
-        ``twod_fit_npoly``.
+        ``twod_fit_npoly``, ``saturated_slits``.
 
         **Revision History**:
 
@@ -449,6 +452,7 @@ class FlatField(object):
         illum_iter = self.flatpar['illum_iter']
         illum_rej = self.flatpar['illum_rej']
         npoly = self.flatpar['twod_fit_npoly']
+        saturated_slits = self.flatpar['saturated_slits']
 
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
@@ -520,14 +524,43 @@ class FlatField(object):
 
             # Check for saturation of the flat. If there are not enough
             # pixels do not attempt a fit, and continue to the next
-            # slit.  TODO: set the threshold to a parameter?
+            # slit.
             good_frac = np.sum(onslit & (rawflat < nonlinear_counts))/np.sum(onslit)
+            # TODO: set the threshold to a parameter?
             if good_frac < 0.5:
-                # TODO: Used slit ID in these print statments instead of slit index
-                msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                          + '% of the pixels on this slit are not saturated.' + msgs.newline()
-                          + 'Consider raising nonlinear_counts={:5.3f}'.format(nonlinear_counts) +
-                          msgs.newline() + 'Not attempting to flat field slit {:d}'.format(slit))
+                if tweak_slits:
+                    # Make sure that continuing to the next slit
+                    # doesn't remove any previous tilt data for this
+                    # slit
+                    tweaked_tilts[onslit] = tilts[onslit]
+                common_message = 'To change the behavior, use the \'saturated_slits\' parameter ' \
+                                 'in the \'flatfield\' parameter group; see here:\n\n' \
+                                 'https://pypeit.readthedocs.io/en/latest/pypeit_par.html \n\n' \
+                                 'You could also choose to use a different flat-field image ' \
+                                 'for this calibration group.'
+                if saturated_slits == 'crash':
+                    msgs.error('Only {:4.2f}'.format(100*good_frac)
+                               + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                               + 'Selected behavior was to crash if this occurred.  '
+                               + common_message)
+                elif saturated_slits == 'mask':
+                    self.slits.mask[slit] = True
+                    msgs.warn('Only {:4.2f}'.format(100*good_frac)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                              + 'Selected behavior was to mask this slit and continue with the '
+                              + 'remainder of the reduction, meaning no science data will be '
+                              + 'extracted from this slit.  ' + common_message)
+                elif saturated_slits == 'continue':
+                    msgs.warn('Only {:4.2f}'.format(100*good_frac)
+                              + '% of the pixels on slit {0} are not saturated.  '.format(slit)
+                              + 'Selected behavior was to simply continue, meaning no '
+                              + 'field-flatting correction will be applied to this slit but '
+                              + 'pypeit will attempt to extract any objects found on this slit.  '
+                              + common_message)
+                else:
+                    # Should never get here
+                    raise NotImplementedError('Unknown behavior for saturated slits: {0}'.format(
+                                              saturated_slits))
                 continue
 
             # Demand at least 10 pixels per row (on average) per degree
@@ -597,7 +630,7 @@ class FlatField(object):
             # don't have to instantiate invvar and profile_basis
             spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
                     = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
-                                            np.ones_like(spec_coo_data), inmask=spec_gpm_data,
+                                            np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -680,8 +713,8 @@ class FlatField(object):
             # 1/10th of a pixel, but do not allow a bsp smaller than
             # the typical sampling. Use the bspline class to determine
             # the breakpoints:
-            spat_bspl = pydl.bspline(spat_coo_data, nord=4,
-                                     bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
+            spat_bspl = bspline.bspline(spat_coo_data, nord=4,
+                                        bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
                                                      1.2*np.median(np.diff(spat_coo_data))))
             # TODO: Can we add defaults to bspline_profile so that we
             # don't have to instantiate invvar and profile_basis
@@ -794,7 +827,7 @@ class FlatField(object):
             twod_ivar_data = twod_gpm_data.astype(float)/(twod_sig**2)
             twod_sigrej = 4.0
 
-            poly_basis = pydl.fpoly(2.0*twod_spat_coo_data - 1.0, npoly).T
+            poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
 #            np.savez_compressed('rmtdict.npz', good_frac=good_frac, npoly=npoly, spat_coo=spat_coo,
 #                                spec_coo=spec_coo, spec_gpm=spec_gpm, spec_coo_data=spec_coo_data,
@@ -813,10 +846,19 @@ class FlatField(object):
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
-                                            poly_basis, inmask=twod_gpm_data, nord=4,
+                                            poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
+
+# TODO: Used for testing bspline
+#            np.savez_compressed('slit{0}_twod.npz'.format(slit+1),
+#                                twod_spat_coo_data=twod_spat_coo_data,
+#                                twod_spec_coo_data=twod_spec_coo_data,
+#                                twod_flat_data=twod_flat_data,
+#                                twod_ivar_data=twod_ivar_data,
+#                                poly_basis=poly_basis,
+#                                twod_gpm_data=twod_gpm_data)
 
             if debug:
                 # TODO: Make a plot that shows the residuals in the 2D

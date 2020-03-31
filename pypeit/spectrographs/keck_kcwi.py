@@ -322,27 +322,29 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         NOTE: The amplifiers are arranged as follows:
 
-        (0,ny)	--------- (nx,ny)
-                | 3 | 4 |
-                ---------
-                | 1 | 2 |
-        (0,0)	--------- (nx, 0)
-
+        |   (0,ny)  --------- (nx,ny)
+        |           | 3 | 4 |
+        |           ---------
+        |           | 1 | 2 |
+        |     (0,0) --------- (nx, 0)
 
         Parameters
         ----------
         raw_file : str
-          Filename
+            Filename
         det (int or None):
-          Detector number
+            Detector number
+
         Returns
         -------
         array : ndarray
-          Combined image
+            Combined image
         hdu : HDUList
+            Opened fits file.
         sections : list
-          List of datasec, oscansec, ampsec sections
-          datasec, oscansec needs to be for an *unbinned* image as per standard convention
+            List of datasec, oscansec, ampsec sections. datasec,
+            oscansec needs to be for an *unbinned* image as per
+            standard convention
         """
         # Check for file; allow for extra .gz, etc. suffix
         fil = glob.glob(raw_file + '*')

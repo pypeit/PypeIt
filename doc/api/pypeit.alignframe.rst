@@ -1,7 +1,7 @@
-pypeit.traceimage module
+pypeit.alignframe module
 ========================
 
-.. automodule:: pypeit.traceimage
+.. automodule:: pypeit.alignframe
    :members:
    :private-members:
    :undoc-members:
