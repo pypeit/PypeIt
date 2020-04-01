@@ -131,7 +131,7 @@ class SlitTraceSet(datamodel.DataContainer):
     def __init__(self, left_init, right_init, nspec=None, nspat=None, PYP_SPEC=None, mask_init=None,
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
                  spat_id=None, maskdef_id=None, ech_order=None, nslits=None,
-                 left_tweak=None, right_tweak=None, center=None):
+                 left_tweak=None, right_tweak=None, center=None, mask=None):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())

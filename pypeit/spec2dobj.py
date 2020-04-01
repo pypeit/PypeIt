@@ -132,7 +132,7 @@ class Spec2DObj(datamodel.DataContainer):
                 d.append(dict(detector=self.detector))
             # WaveTilts
             elif key == 'tilts':
-                d.append(dict(slits=self.tilts))
+                d.append(dict(tilts=self.tilts))
             # SliTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))

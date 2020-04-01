@@ -91,9 +91,9 @@ def main(args):
 
     # Grab the slit edges
     slits = spec2DObj.slits
-    if spec2DObj.spat_flexure is not None:
-        msgs.info("Offseting slits by {}".format(spec2DObj.spat_flexure))
-    all_left, all_right, mask = slits.select_edges(flexure=spec2DObj.spat_flexure)
+    if spec2DObj.sci_spat_flexure is not None:
+        msgs.info("Offseting slits by {}".format(spec2DObj.sci_spat_flexure))
+    all_left, all_right, mask = slits.select_edges(flexure=spec2DObj.sci_spat_flexure)
     # TODO -- This may be too restrictive, i.e. ignore BADFLTCALIB??
     gpm = mask == 0
     left = all_left[:, gpm]
