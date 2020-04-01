@@ -610,10 +610,7 @@ class Calibrations(object):
         #elif len(pixflat_image_files) > 0:
         elif len(trace_image_files) > 0:
             # Process/combine the input pixelflat frames
-            #stacked_pixflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-            #                                                 self.par['pixelflatframe'],
-            #                                                 pixflat_image_files,
-            #                                                 bias=self.msbias, bpm=self.msbpm)
+            # TODO -- Include an illum frametype eventually
             stacked_traceflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'],
                                                     trace_image_files,
@@ -627,8 +624,6 @@ class Calibrations(object):
             # Save to Masters
             if self.save_masters:
                 self.flatimages.to_master_file(masterframe_filename)
-                # Slits may have been modified
-                self.slits.to_master_file()
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
@@ -858,8 +853,6 @@ class Calibrations(object):
             # Save to Masters
             if self.save_masters:
                 self.waveCalib.save(outfile=masterframe_name)
-                # Slit mask may have been updated, write to disk
-                self.slits.to_master_file()
 
         # Save & return
         self._update_cache('arc', 'wavecalib', self.wv_calib)
@@ -916,7 +909,6 @@ class Calibrations(object):
             # Save?
             if self.save_masters:
                 self.wavetilts.to_master_file(masterframe_name)
-                self.slits.to_master_file()
 
         # Save & return
         self._update_cache('tilt', 'wavetilts', self.wavetilts)

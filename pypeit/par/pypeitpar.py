@@ -3081,9 +3081,10 @@ class CalibrationsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['caldir'] = 'default'
+        defaults['caldir'] = 'Masters'
         dtypes['caldir'] = str
-        descr['caldir'] = 'If provided, it must be the full path to calling directory to write master files.'
+        descr['caldir'] = 'If provided, it must be the full path to calling directory to ' \
+                          'write master files.  Otherwise, it should just be Masters'
 
         defaults['save_masters'] = True
         dtypes['save_masters'] = bool

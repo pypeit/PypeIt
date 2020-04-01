@@ -19,6 +19,7 @@ from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
 from pypeit import slittrace
+from pypeit import wavetilts
 from pypeit.images import detector_container
 
 
@@ -59,8 +60,9 @@ class Spec2DObj(datamodel.DataContainer):
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
         'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
+        'tilts': dict(otype=wavetilts.WaveTilts, desc='Fits required to generate a Tilts image'),
         'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
-        'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
+        'sci_spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
     }
@@ -85,7 +87,7 @@ class Spec2DObj(datamodel.DataContainer):
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 waveimg, bpmmask, detector, spat_flexure, slits):
+                 waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -128,6 +130,9 @@ class Spec2DObj(datamodel.DataContainer):
             # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
+            # WaveTilts
+            elif key == 'tilts':
+                d.append(dict(slits=self.tilts))
             # SliTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))
@@ -231,7 +236,8 @@ class AllSpec2DObj(object):
         """Get an item directly from the internal dict."""
         return self.__dict__[item]
 
-    def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None):
+    def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None,
+                          redux_path=None):
         """
         Build the primary header for a spec2d file
 
@@ -243,6 +249,8 @@ class AllSpec2DObj(object):
                 dict of master keys from :class:`~pypeit.calibrations.Calibrations`
             master_dir (:obj:`str`):
                 Path to the ``Masters`` folder
+            redux_path (:obj:`str`, optional):
+                Full path to the location where the data were run
 
         Returns:
             `astropy.io.fits.Header`_:
@@ -286,8 +294,11 @@ class AllSpec2DObj(object):
         if self[det].process_steps is not None:
             hdr['PROCSTEP'] = (','.join(self[det].process_steps), 'Completed reduction steps')
 
+        # Some paths
         if master_dir is not None:
             hdr['PYPMFDIR'] = str(master_dir)
+        if redux_path is not None:
+            hdr['PYPRDXP'] = redux_path
         # Sky sub mode
         if self['meta']['ir_redux']:
             hdr['SKYSUB'] = 'DIFF'

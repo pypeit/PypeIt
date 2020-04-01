@@ -8,7 +8,6 @@ import time
 import os
 import numpy as np
 import copy
-from collections import OrderedDict
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
@@ -17,7 +16,6 @@ from pypeit import ginga
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit import io
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 
@@ -132,11 +130,7 @@ class PypeIt(object):
         self.show = show
 
         # Set paths
-        if self.par['calibrations']['caldir'] == 'default':
-            # TODO -- Should we just have this be Masters?
-            self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')
-        else:
-            self.calibrations_path = self.par['calibrations']['caldir']
+        self.calibrations_path = self.par['calibrations']['caldir']
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
@@ -636,7 +630,8 @@ class PypeIt(object):
                                         waveimg=waveImg,
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
-                                        spat_flexure=sciImg.spat_flexure,
+                                        sci_spat_flexure=sciImg.spat_flexure,
+                                        tilts=copy.deepcopy(self.caliBrate.wavetilts),
                                         slits=copy.deepcopy(self.caliBrate.slits))
         spec2DObj.process_steps = sciImg.process_steps
 
@@ -691,6 +686,7 @@ class PypeIt(object):
         update_det = self.par['rdx']['detnum']
         # Build header
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
+                                               redux_path=self.par['rdx']['redux_path'],
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir)
         # Write
