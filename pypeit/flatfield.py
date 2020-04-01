@@ -803,7 +803,7 @@ class FlatField(object):
             if exit_status <= 1:
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
                           'included in flat-field model for slit {0}!'.format(slit_spat))
-                # TODO -- Fix this for flexure!!
+                # TODO -- JFH -- Check this is ok for flexure!!
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.list_of_spat_bsplines.append(spat_bspl)
             else:
@@ -909,20 +909,18 @@ class FlatField(object):
                                         * np.fmax(spec_model[onslit_tweak], 1.0)
 
             # Construct the pixel flat
-            # TODO -- Are we ok with this change??
+            # TODO -- JFH :: Are we ok with this change??
             #self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
             self.mspixelflat[onslit_tweak] = 1.
             self.mspixelflat[onslit_trimmed] = rawflat[onslit_trimmed]/self.flat_model[onslit_trimmed]
             # TODO: Add some code here to treat the edges and places where fits
-            # go bad?
+            #  go bad?
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
         # Do not apply pixelflat field corrections that are greater than
         # 100% to avoid creating edge effects, etc.
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
-
-        # TODO: Should we do both of the above for illumflat?
 
     def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, gpm, debug=False):
         """
