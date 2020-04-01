@@ -685,8 +685,9 @@ class Calibrations(object):
 
         # Previously calculated?  If so, reuse
         if self._cached('trace', self.master_key_dict['trace']) and not redo:
-            # TODO -- Reset and reapply mask here
             self.slits = self.calib_dict[self.master_key_dict['trace']]['trace']
+            # Reset the bitmask
+            self.slits.mask = self.slits.mask_init.copy()
             return self.slits
 
         # Reuse master frame?

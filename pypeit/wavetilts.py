@@ -71,6 +71,15 @@ class WaveTilts(datamodel.DataContainer):
         self.master_key = None
         self.master_dir = None
 
+    def _bundle(self):
+        """
+        Bundle the data in preparation for writing to a fits file.
+
+        See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
+        always written to a 'SLITS' extension.
+        """
+        return super(WaveTilts, self)._bundle(ext='TILTS')
+
     def is_synced(self, slits):
         """
         Confirm the slits in WaveTilts are aligned to that in SlitTraceSet

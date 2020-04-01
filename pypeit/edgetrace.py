@@ -4314,6 +4314,6 @@ class EdgeTraceSet(object):
         return slittrace.SlitTraceSet(left_init=left, right_init=right, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
-                                      pad=self.par['pad'], mask=slit_msk)
+                                      pad=self.par['pad'], mask_init=slit_msk)
 
 

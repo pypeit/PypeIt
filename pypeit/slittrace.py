@@ -112,6 +112,8 @@ class SlitTraceSet(datamodel.DataContainer):
                  'center': dict(otype=np.ndarray, atype=np.floating,
                                descr='Spatial coordinates of the slit centers from left_init, right_init.  '
                                      'Shape is Nspec by Nslits.'),
+                 'mask_init': dict(otype=np.ndarray, atype=np.integer,
+                     descr='Bit mask for slits at instantiation.  Used to reset'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape is Nslits.'),
                  'specmin': dict(otype=np.ndarray, atype=np.floating,
@@ -127,7 +129,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
-    def __init__(self, left_init, right_init, nspec=None, nspat=None, PYP_SPEC=None, mask=None,
+    def __init__(self, left_init, right_init, nspec=None, nspat=None, PYP_SPEC=None, mask_init=None,
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
                  spat_id=None, maskdef_id=None, ech_order=None, nslits=None,
                  left_tweak=None, right_tweak=None, center=None):
@@ -186,8 +188,8 @@ class SlitTraceSet(datamodel.DataContainer):
             self.spat_id = np.round(self.center[int(np.round(0.5 * self.nspec)), :]).astype(int)
         if self.PYP_SPEC is None:
             self.PYP_SPEC = 'unknown'
-        if self.mask is None:
-            self.mask = np.zeros(self.nslits, dtype=self.bitmask.minimum_dtype())
+        if self.mask_init is None:
+            self.mask_init = np.zeros(self.nslits, dtype=self.bitmask.minimum_dtype())
         if self.specmin is None:
             self.specmin = np.full(self.nslits, -1, dtype=float)
         if self.specmax is None:
@@ -195,9 +197,12 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Make sure mask, specmin, and specmax are at least 1D arrays.
         # TODO: Is there a way around this?
-        self.mask = np.atleast_1d(self.mask)
+        self.mask_init = np.atleast_1d(self.mask_init)
         self.specmin = np.atleast_1d(self.specmin)
         self.specmax = np.atleast_1d(self.specmax)
+
+        # Init the mask that will be updated as Redux proceeds
+        self.mask = self.mask_init.copy()
 
     def _init_internals(self):
         self.left_flexure = None
