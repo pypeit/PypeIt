@@ -121,9 +121,9 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
 
         coaddfile = outroot+'-SPAT{:04d}-DET{:02d}'.format(key, det)+'.fits'
 
-        coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, sync_dict[key]['files'],
+        coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, par['coadd1d'], sync_dict[key]['files'],
                                              sync_dict[key]['names'],
-                                             sensfile=sensfile, par=par['coadd1d'],
+                                             sensfile=sensfile,
                                              debug=debug, show=show)
         # Run
         coAdd1d.run()
@@ -218,8 +218,8 @@ def main(args):
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
 
     # Instantiate
-    coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, spec1dfiles, objids,
-                                           sensfile=sensfile, par=par['coadd1d'],
+    coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, par, spec1dfiles, objids,
+                                           sensfile=sensfile,
                                            debug=args.debug, show=args.show)
     # Run
     coAdd1d.run()

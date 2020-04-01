@@ -107,13 +107,14 @@ class FlatImages(datamodel.DataContainer):
                 continue
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray and key != 'spat_bsplines':
-                tmp = {}
-                tmp[key] = self[key]
-                d.append(tmp)
+                d.append({key: self[key]})
             elif key == 'spat_bsplines':
-                # TODO -- Decide whether to name by slit ID. Bring back slitids?
-                for spat_bspl in self[key]:
-                    d.append(dict(bspline=spat_bspl))
+                for ss, spat_bspl in enumerate(self[key]):
+                    # Naming
+                    spat_bspl.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
+                    dkey = 'bspline-{}'.format(self.spat_id[ss])
+                    # Save
+                    d.append({dkey: spat_bspl})
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
@@ -156,12 +157,20 @@ class FlatImages(datamodel.DataContainer):
         _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
         # Now the bsplines
         list_of_bsplines = []
+        spat_ids = []
         for ihdu in hdu:
-            if ihdu.name == 'BSPLINE':
+            if 'BSPLINE' in ihdu.name:
                 ibspl = bspline.bspline.from_hdu(ihdu)
                 if ibspl.version != bspline.bspline.version:
                     msgs.warn("Your bspline is out of date!!")
                 list_of_bsplines.append(ibspl)
+                # Grab SPAT_ID for checking
+                i0 = ihdu.name.find('ID-')
+                i1 = ihdu.name.find('_BSP')
+                spat_ids.append(int(ihdu.name[i0+3:i1]))
+        # Check
+        if spat_ids != _d['spat_id'].tolist():
+            msgs.error("Bad parsing of the MasterFlat")
         # Finish
         _d['spat_bsplines'] = np.asarray(list_of_bsplines)
         return _d, dm_version_passed, dm_type_passed
@@ -396,23 +405,26 @@ class FlatField(object):
               in :attr:`flatpar`) and Gaussian filtered; see
               :func:`pypeit.core.flat.illum_filter`.  This creates an
               empirical, highly smoothed representation of the
-              illumination profile that is fit with a bspline.  The
+              illumination profile that is fit with a bspline using
+              the :func:`spatial_fit` method.  The
               construction of the empirical illumination profile (i.e.,
               before the bspline fitting) can be done iteratively, where
               each iteration sigma-clips outliers; see the
               ``illum_iter`` and ``illum_rej`` parameters in
               :attr:`flatpar` and
               :func:`pypeit.core.flat.construct_illum_profile`.
-            - Use the bspline fit to construct the 2D illumination image
-              (:attr:`msillumflat`) and normalize out the spatial
-              response.
             - If requested, the 1D illumination profile is used to
               "tweak" the slit edges by offsetting them to a threshold
               of the illumination peak to either side of the slit center
               (see ``tweak_slits_thresh`` in :attr:`flatpar`), up to a
               maximum allowed shift from the existing slit edge (see
               ``tweak_slits_maxfrac`` in :attr:`flatpar`).  See
-              :func:`pypeit.core.tweak_slit_edges`.
+              :func:`pypeit.core.tweak_slit_edges`.  If tweaked, the
+              :func:`spatial_fit` is repeated to place it on the tweaked
+              slits reference frame.
+            - Use the bspline fit to construct the 2D illumination image
+              (:attr:`msillumflat`) and normalize out the spatial
+              response.
             - Fit the residuals of the flat-field data that has been
               independently normalized for its spectral and spatial
               response with a 2D bspline-polynomial fit.  The order of
@@ -460,17 +472,12 @@ class FlatField(object):
         # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
         # TODO: JXP This definitely needs breaking up..
 
-        # TODO: The difference between run() and fit() is pretty minimal
-        # if we just built rawflatimg here...
-
         # Init
         self.list_of_spat_bsplines = []
 
         # Set parameters (for convenience;
-        # TODO get rid of this and just use  the parameter values directly
         spec_samp_fine = self.flatpar['spec_samp_fine']
         spec_samp_coarse = self.flatpar['spec_samp_coarse']
-        spat_samp = self.flatpar['spat_samp']
         tweak_slits = self.flatpar['tweak_slits']
         tweak_slits_thresh = self.flatpar['tweak_slits_thresh']
         tweak_slits_maxfrac = self.flatpar['tweak_slits_maxfrac']
@@ -480,14 +487,11 @@ class FlatField(object):
         trim = self.flatpar['slit_trim']
         pad = self.flatpar['slit_illum_pad']
         # Iteratively construct the illumination profile by rejecting outliers
-        illum_iter = self.flatpar['illum_iter']
-        illum_rej = self.flatpar['illum_rej']
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
 
         # Setup images
         nspec, nspat = self.rawflatimg.image.shape
-        # TODO: The above should be the same as self.slits.nspec, self.slits.nspat
         rawflat = self.rawflatimg.image
         # Good pixel mask
         gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
@@ -502,9 +506,9 @@ class FlatField(object):
         # Other setup
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
 
-        # TODO -- CONFIRM THIS SHOULD BE ON INIT
+        # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits
-        median_slit_width = np.median(self.slits.right_init - self.slits.left_init, axis=0)
+        median_slit_widths = np.median(self.slits.right_init - self.slits.left_init, axis=0)
 
         if tweak_slits:
             # NOTE: This copies the input slit edges to a set that can be tweaked.
@@ -598,8 +602,8 @@ class FlatField(object):
                 npoly  = np.clip(7, 1, int(np.ceil(npercol/10.)))
             
             # TODO: Always calculate the optimized `npoly` and warn the
-            # user if npoly is provided but higher than the nominal
-            # calculation?
+            #  user if npoly is provided but higher than the nominal
+            #  calculation?
 
             # Create an image with the spatial coordinates relative to the left edge of this slit
             spat_coo_init = self.slits.spatial_coordinate_image(slitidx=slit_idx, full=True, initial=True)
@@ -613,10 +617,10 @@ class FlatField(object):
             # TODO: Put this stuff in a self.spectral_fit method?
 
             # Create the tilts image for this slit
-            # TODO -- Confirm the sign of this shift is correct!
+            # TODO -- JFH Confirm the sign of this shift is correct!
+            _flexure = 0. if self.wavetilts.spat_flexure is None else self.wavetilts.spat_flexure
             tilts = tracewave.fit2tilts(rawflat.shape, self.wavetilts['coeffs'][:,:,slit_idx],
-                                        self.wavetilts['func2d'])#,
-                                        #spat_shift=self.wavetilts.spat_flexure)
+                                        self.wavetilts['func2d'], spat_shift=-1*_flexure)
             # Convert the tilt image to an image with the spectral pixel index
             spec_coo = tilts * (nspec-1)
 
@@ -652,9 +656,9 @@ class FlatField(object):
 
             # Fit the spectral direction of the blaze.
             # TODO: Figure out how to deal with the fits going crazy at
-            # the edges of the chip in spec direction
+            #  the edges of the chip in spec direction
             # TODO: Can we add defaults to bspline_profile so that we
-            # don't have to instantiate invvar and profile_basis
+            #  don't have to instantiate invvar and profile_basis
             spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
                     = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
                                             np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
@@ -723,55 +727,11 @@ class FlatField(object):
                           'spectral shape is poor, or the illumination profile is very irregular.')
 
             # First fit -- With initial slits
-            # TODO: Anything that's in self.flatpar shouldn't be passed to this method
             exit_status, spat_coo_data,  spat_flat_data, spat_bspl, spat_gpm_fit, \
                 spat_flat_fit, spat_flat_data_raw \
-                        = self.spatial_fit(norm_spec, spat_coo_init, median_slit_width[slit_idx],
-                                           spat_gpm, spat_samp, illum_rej, sticky, gpm,
-                                           illum_iter, debug=debug)
+                        = self.spatial_fit(norm_spec, spat_coo_init, median_slit_widths[slit_idx],
+                                           spat_gpm, gpm, debug=debug)
 
-            #            # Construct the empirical illumination profile
-#            _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
-#                    = flat.construct_illum_profile(norm_spec, spat_coo_init, median_slit_width[slit],
-#                                                   spat_gpm=spat_gpm, spat_samp=spat_samp,
-#                                                   illum_iter=illum_iter, illum_rej=illum_rej,
-#                                                   debug=debug)
-#
-#            if sticky:
-#                # Add rejected pixels to gpm
-#                gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
-#
-#            # Make sure that the normalized and filtered flat is finite!
-#            if np.any(np.invert(np.isfinite(spat_flat_data))):
-#                msgs.error('Inifinities in slit illumination function computation!')
-#
-#            # Determine the breakpoint spacing from the sampling of the
-#            # spatial coordinates. Use breakpoints at a spacing of a
-#            # 1/10th of a pixel, but do not allow a bsp smaller than
-#            # the typical sampling. Use the bspline class to determine
-#            # the breakpoints:
-#           # spat_bspl = pydl.bspline(spat_coo_data, nord=4,
-#           #                          bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
-#           #                                          1.2*np.median(np.diff(spat_coo_data))))
-#            spat_bspl = bspline.bspline(spat_coo_data, nord=4,
-#                                        bkspace=np.fmax(1.0/median_slit_width[slit]/10.0,
-#                                                     1.2*np.median(np.diff(spat_coo_data))))
-#            # TODO: Can we add defaults to bspline_profile so that we
-#            # don't have to instantiate invvar and profile_basis
-#            spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-#                    = utils.bspline_profile(spat_coo_data, spat_flat_data,
-#                                            np.ones_like(spat_flat_data),
-#                                            np.ones_like(spat_flat_data), nord=4, upper=5.0,
-#                                            lower=5.0, fullbkpt=spat_bspl.breakpoints)
-
-            # NOTE: The bspline fit is used to construct the
-            # illumination flat within the *tweaked* slit edges, after
-            # the edges are tweaked.
-            # ----------------------------------------------------------
-
-            # ----------------------------------------------------------
-            # Tweak the slit edges based on the empirical slit
-            # illumination profiles, if requested
             if tweak_slits:
                 # TODO: Should the tweak be based on the bspline fit?
                 # TODO: Will this break if
@@ -783,55 +743,21 @@ class FlatField(object):
                                                 thresh=tweak_slits_thresh,
                                                 maxfrac=tweak_slits_maxfrac, debug=debug)
                 # TODO: Because the padding doesn't consider adjacent
-                # slits, calling slit_img for individual slits can be
-                # different from the result when you construct the
-                # image for all slits. Fix this...
+                #  slits, calling slit_img for individual slits can be
+                #  different from the result when you construct the
+                #  image for all slits. Fix this...
 
                 # Update the onslit mask
                 _slitid_img = self.slits.slit_img(slitidx=slit_idx, initial=False)
                 onslit_tweak = _slitid_img == slit_spat
                 spat_coo_tweak = self.slits.spatial_coordinate_image(slitidx=slit_idx,
                                                                slitid_img=_slitid_img)
-                # TODO -- We need to refit the illum flat here!
+
                 # Construct the empirical illumination profile
-                # TODO -- Do we need to reconstruct spat_gpm :: JXP says no
-                # TODO -- How about median_slit_width? :: JXP says no
                 exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                     spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
-                    norm_spec, spat_coo_tweak, median_slit_width[slit_idx], spat_gpm, spat_samp,
-                    illum_rej, sticky, gpm, illum_iter, debug=False)
+                    norm_spec, spat_coo_tweak, median_slit_widths[slit_idx], spat_gpm, gpm, debug=False)
 
-#                    _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
-#                    = flat.construct_illum_profile(norm_spec, spat_coo_tweak,
-#                                                   median_slit_width[slit],
-#                                                   spat_gpm=spat_gpm,
-#                                                   spat_samp=spat_samp,
-#                                                   illum_iter=illum_iter,
-#                                                   illum_rej=illum_rej,
-#                                                   debug=debug)
-#                # TODO -- Include this??
-#                #if sticky:
-#                #    # Add rejected pixels to gpm
-#                #    gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
-#                # Re-fit
-#                spat_bspl = bspline.bspline(spat_coo_data, nord=4,
-#                                            bkspace=np.fmax(1.0 / median_slit_width[slit] / 10.0,
-#                                                            1.2 * np.median(np.diff(spat_coo_data))))
-#                # TODO: Can we add defaults to bspline_profile so that we
-#                # don't have to instantiate invvar and profile_basis
-#                spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-#                    = utils.bspline_profile(spat_coo_data, spat_flat_data,
-#                                            np.ones_like(spat_flat_data),
-#                                            np.ones_like(spat_flat_data), nord=4, upper=5.0,
-#                                            lower=5.0, fullbkpt=spat_bspl.breakpoints)
-#                if exit_status > 1:
-#                    msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
-#                              'included in flat-field model for slit {0}!'.format(slit))
-#                    # Save the nada
-#                    self.list_of_spat_bsplines.append(bspline.bspline(None))
-#
-#                # Add the relevant pixels into the new tilts image
-#                #tweaked_tilts[onslit] = tilts[onslit]
                 spat_coo_final = spat_coo_tweak
             else:
                 _slitid_img = slitid_img_init
@@ -998,8 +924,7 @@ class FlatField(object):
 
         # TODO: Should we do both of the above for illumflat?
 
-    def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, spat_samp,
-                    illum_rej, sticky, gpm, illum_iter, debug=False):
+    def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, gpm, debug=False):
         """
         Perform the spatial fit
 
@@ -1007,16 +932,9 @@ class FlatField(object):
             norm_spec (`numpy.ndarray`_):
             spat_coo (`numpy.ndarray`_):
                 Spatial coordinate array
-            median_slit_width (`numpy.ndarray`_):
+            median_slit_width (:obj:`float`):
             spat_gpm (`numpy.ndarray`_):
-            spat_samp (`numpy.ndarray`_):
-            illum_rej (float):
-                See :class:`pypeit.par.PypeItPar.FlatFieldPar`
-            sticky (bool):
-                See rej_sticky in :class:`pypeit.par.PypeItPar.FlatFieldPar`
             gpm (`numpy.ndarray`_):
-            illum_iter (int):
-                See :class:`pypeit.par.PypeItPar.FlatFieldPar`
             debug (bool, optional):
 
         Returns:
@@ -1033,11 +951,13 @@ class FlatField(object):
         # Construct the empirical illumination profile
         _spat_gpm, spat_srt, spat_coo_data, spat_flat_data_raw, spat_flat_data \
             = flat.construct_illum_profile(norm_spec, spat_coo, median_slit_width,
-                                           spat_gpm=spat_gpm, spat_samp=spat_samp,
-                                           illum_iter=illum_iter, illum_rej=illum_rej,
+                                           spat_gpm=spat_gpm,
+                                           spat_samp=self.flatpar['spat_samp'],
+                                           illum_iter=self.flatpar['illum_iter'],
+                                           illum_rej=self.flatpar['illum_rej'],
                                            debug=debug)
 
-        if sticky:
+        if self.flatpar['sticky']:
             # Add rejected pixels to gpm
             gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
 

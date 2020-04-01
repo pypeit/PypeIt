@@ -541,3 +541,17 @@ class SlitTraceSet(datamodel.DataContainer):
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
+    def user_mask(self, slitspat_num):
+        """
+        Mask all but the input slit
+
+        Args:
+            slitspat_num (:obj:`int` or :obj:`list`):
+        """
+        msk = np.ones(self.slits.nslits, dtype=bool)
+        for slit_spat in np.atleast_1d(slitspat_num):
+            #TODO -- Consider putting in a tolerance which if not met causes a crash
+            idx = np.argmin(np.abs(self.slits.spat_id - slit_spat))
+            msk[idx] = False
+        self.slits.mask[msk] = self.slits.bitmask.turn_on(
+            self.slits.mask[msk], 'USERIGNORE')

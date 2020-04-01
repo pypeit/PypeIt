@@ -12,6 +12,52 @@ oringinally for echelle spectroscopy and since expanded
 to low-resolution spectrometers.  This documentation details
 the code, how to run it, and what it produces.
 
+Release 1.0
+===========
+
+What this version provides
+++++++++++++++++++++++++++
+
+* Support for 10+ :doc:`spectrographs`
+* Default reduction algorithms
+
+  * Flatfielding with illumination pattern correction
+  * :doc:`flexure` (spatial and spectral)
+  * Full 2D wavelength solution (no rectification)
+  * A-B image differencing
+  * Global and local sky subtraction
+  * Optimal (and boxcar) extractions
+
+* Documentation
+
+  * :doc:`installing`
+  * :doc:`setup`
+  * :doc:`pypeit_par`
+  * :doc:`cookbook`
+  * Data Models for (nearly) all output files
+  * :doc:`fluxing`
+  * :doc:`coadd1d`
+
+* Scripts and Tools for Inspection
+
+  * Slit Edges -- :ref:`master_edges:pypeit_chk_edges`
+  * Flats -- :ref:`master_flat:pypeit_chk_flats`
+  * 1D Spectra-- :ref:`out_spec1D:pypeit_show_1dspec`
+  * 2D Spectra-- :ref:`out_spec2D:pypeit_show_2dspec`
+
+* :doc:`quicklook`
+
+What this version is missing (i.e. what we are working on)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+* Documentation
+
+  * Telluric corrections
+  * A-B image difference processing
+  * 2D Coadds
+  * Data model for MasterWaveCalib or MasterEdgeTrace calibration files
+
+
 Users
 =====
 
@@ -25,6 +71,7 @@ in this section take you.
    :maxdepth: 1
 
    codeconduct
+   release_notes
    installing
    cookbook
 

@@ -130,7 +130,7 @@ class Reduce(object):
             tilt_flexure_shift = _spat_flexure - waveTilts.spat_flexure
         else:
             tilt_flexure_shift = self.spat_flexure_shift
-        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift) #self.spat_flexure_shift)
+        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
 
         # Wavelengths (on unmasked slits)
         self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,

@@ -734,12 +734,7 @@ class Calibrations(object):
 
         # User mask
         if self.full_par['rdx']['slitspatnum'] is not None:
-            msk = np.ones(self.slits.nslits, dtype=bool)
-            for slit_spat in np.atleast_1d(self.full_par['rdx']['slitspatnum']):
-                idx = np.argmin(np.abs(self.slits.spat_id-slit_spat))
-                msk[idx] = False
-            self.slits.mask[msk] = self.slits.bitmask.turn_on(
-                self.slits.mask[msk], 'USERIGNORE')
+            self.slits.user_mask(self.full_par['rdx']['slitspatnum'])
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)

@@ -102,7 +102,8 @@ class WaveTilts(datamodel.DataContainer):
         Args:
             slitmask (`numpy.ndarray`_):
             flexure (float, optional):
-                Spatial shift of the tilt image onto the desired frame (typically a science image)
+                Spatial shift of the tilt image onto the desired frame
+                (typically a science image)
 
         Returns:
             `numpy.ndarray`_:  New tilt image

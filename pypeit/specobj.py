@@ -180,7 +180,7 @@ class SpecObj(datamodel.DataContainer):
 
 
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_dict_bintbl=False):
+               limit_hdus=None, force_to_bintbl=True):
         """
         Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
         a BinTableHDU
@@ -190,7 +190,7 @@ class SpecObj(datamodel.DataContainer):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # Force
-        _d['force_dict_bintbl'] = True
+        _d['force_to_bintbl'] = True
         # Do it
         return super(SpecObj, self).to_hdu(**_d)
 

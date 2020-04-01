@@ -483,6 +483,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
     for islit in range(nslits):
         if slit_bpm is not None and slit_bpm[islit]:
             msgs.info('Ignoring masked slit {}'.format(islit))
+            # TODO -- Avoid using NaNs
             arc_spec[:,islit] = np.nan
             continue
         msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit))

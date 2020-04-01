@@ -238,6 +238,9 @@ class bspline(datamodel.DataContainer):
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
 
+    def _init_internals(self):
+        self.hdu_prefix = None
+
     def _bundle(self):
         """
         Overload for the HDU name

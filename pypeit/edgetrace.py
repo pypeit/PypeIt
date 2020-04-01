@@ -2442,9 +2442,8 @@ class EdgeTraceSet(object):
                 msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
                 # Mask
                 self.bitmask.turn_on(self.spat_msk[:,indx], 'USERRMSLIT')
-        # Remove
-        #self.remove_traces(indx, sync_rm='both')
 
+    # TODO -- Add an option to distinguish between an actual remove and a flagging
     def remove_traces(self, indx, resort=True, rebuild_pca=False, sync_rm='ignore'):
         r"""
         Remove a set of traces.

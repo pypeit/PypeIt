@@ -923,6 +923,9 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         xmax (:obj:`float`, optional):
             Upper reference for robust_polyfit polynomial fitting.
             Default is to use the image size in nspec direction
+        flavor (:obj:`str:, optional):
+            Defines the type of fit performed.
+            Only used by QA
 
     Returns:
         tuple: Returns four `numpy.ndarray`_ objects all with the same

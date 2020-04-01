@@ -1,6 +1,6 @@
-*****************
+=================
 Installing PypeIt
-*****************
+=================
 
 This document describes how to install PypeIt.
 Both for users and developers.

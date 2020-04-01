@@ -1050,7 +1050,7 @@ class DataContainer:
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_dict_bintbl=False):
+               limit_hdus=None, force_to_bintbl=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1087,7 +1087,7 @@ class DataContainer:
                 Header to add to the primary if add_primary=True
             limit_hdus (list, optional):
                 Limit the HDUs that can be written to the items in this list
-            force_dict_bintbl (bool, optional):
+            force_to_bintbl (bool, optional):
                 Force any dict into a BinTableHDU (e.g. for SpecObj)
 
         Returns:
@@ -1115,9 +1115,9 @@ class DataContainer:
                     hdu += d[ext].to_hdu()
                 else:
                     hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
-                                            force_dict_bintbl=force_dict_bintbl)]
+                                            force_to_bintbl=force_to_bintbl)]
             else:
-                hdu += [io.write_to_hdu(d, hdr=_hdr, force_dict_bintbl=force_dict_bintbl)]
+                hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
         # Prefixes
         if self.hdu_prefix is not None:
             for ihdu in hdu:

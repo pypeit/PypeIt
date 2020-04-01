@@ -478,7 +478,7 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
-def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
+def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write the input to an astropy.io.fits HDU extension.
 
@@ -499,7 +499,7 @@ def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
             Name for the HDU extension.
         hdr (`astropy.io.fits.Header`_, optional):
             Header to include in the HDU.
-        force_dict_bintbl (bool, optional):
+        force_to_bintbl (bool, optional):
             Force dict into a BinTableHDU
 
     Returns:
@@ -513,7 +513,7 @@ def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
 
     """
     if isinstance(d, dict):
-        return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_dict_bintbl)
+        return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_to_bintbl)
     if isinstance(d, Table):
         return fits.BinTableHDU(data=d, name=name, header=hdr)
     if isinstance(d, (numpy.ndarray, list)):
