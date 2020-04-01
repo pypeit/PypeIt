@@ -2393,7 +2393,6 @@ class EdgeTraceSet(object):
                 self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'ABNORMALSLIT')
 
         # TODO: Check that slit edges meet a minimum slit gap?
-
         if self.par['sync_clip']:
             # Remove traces that have been fully flagged as bad
             rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
@@ -2442,6 +2441,8 @@ class EdgeTraceSet(object):
                 msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
                 # Mask
                 self.bitmask.turn_on(self.spat_msk[:,indx], 'USERRMSLIT')
+        # Remove
+        self.remove_traces(indx, sync_rm='both')
 
     # TODO -- Add an option to distinguish between an actual remove and a flagging
     def remove_traces(self, indx, resort=True, rebuild_pca=False, sync_rm='ignore'):
@@ -2547,7 +2548,7 @@ class EdgeTraceSet(object):
 
         # Traces to remove
         rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                           exclude=self.bitmask.insert_flags)
+                                           exclude=self.bitmask.insert_flags+self.bitmask.exclude_flags)
         if force_flag is not None:
             rmtrace |= self.fully_masked_traces(flag=force_flag)
 

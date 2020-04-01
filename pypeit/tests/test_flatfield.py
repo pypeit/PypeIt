@@ -51,11 +51,12 @@ def test_flatimages():
     tmp = np.ones((1000, 100)) * 10.
     x = np.random.rand(500)
     # Create bspline
-    spat_bspline = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
+    spat_bspline1 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
+    spat_bspline2 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
     instant_dict = dict(procflat=tmp,
                         pixelflat=np.ones_like(tmp),
                         flat_model=None,
-                        spat_bsplines=np.asarray([spat_bspline, spat_bspline]),
+                        spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
                         spat_id=np.asarray([100, 200]))
 
     flatImages = flatfield.FlatImages(**instant_dict)
@@ -75,6 +76,8 @@ def test_flatimages():
             assert np.array_equal(flatImages[key],_flatImages[key])
         else:
             assert flatImages[key] == _flatImages[key]
+
+    os.remove(outfile)
 
     # Illumflat
 #    left = np.full((1000,2), 90, dtype=float)

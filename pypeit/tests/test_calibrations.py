@@ -56,8 +56,9 @@ def multi_caliBrate(fitstbl):
     calib_par['bpm_usebias'] = False
     calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
+    calib_par['save_masters'] = False
 
-    multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph, save_masters=False)
+    multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph)
     return reset_calib(multi_caliBrate)
 
 
@@ -84,7 +85,8 @@ def multi_caliBrate_reuse(multi_caliBrate):
 def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
-    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph, save_masters=False)
+    par['calibrations']['save_masters'] = False
+    caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph)
 
 
 def test_bias(multi_caliBrate):
