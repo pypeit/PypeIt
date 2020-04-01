@@ -394,7 +394,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # Required
         self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
-        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P', rtol=2e-4)
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P', rtol=1e-3)
         # Additional (for config)
 
     def configuration_keys(self):
