@@ -28,6 +28,7 @@ from pypeit.core import parse
 from pypeit.spectrographs import util
 from pypeit.tests import tstutils
 from pypeit import calibrations
+from pypeit import spec2dobj
 
 
 class CoAdd2D(object):
@@ -521,129 +522,44 @@ class CoAdd2D(object):
         redux_path = os.getcwd()
 
         # Grab the files
-        head2d_list = []
-        tracefiles = []
-        waveimgfiles = []
-        tiltfiles = []
-        spec1d_files = []
-        for f in spec2d_files:
-            head = fits.getheader(f)
-            if os.path.exists(head['PYPMFDIR']):
-                master_path = head['PYPMFDIR']
-            else:
-                master_dir = os.path.basename(head['PYPMFDIR'])
-                master_path = os.path.join(os.path.split(os.path.split(f)[0])[0], master_dir)
-
-            # TODO JFH These master keys are a complete mess and need to be abandoned? Do the tilts have their own
-            # key? Hwo
-            trace_key = '{0}_{1:02d}'.format(head['TRACMKEY'], self.det)
-            wave_key = '{0}_{1:02d}'.format(head['ARCMKEY'], self.det)
-
-            head2d_list.append(head)
-            spec1d_files.append(f.replace('spec2d', 'spec1d'))
-            tracefiles.append(masterframe.construct_file_name(
-                    slittrace.SlitTraceSet, trace_key, master_dir=master_path))
-            tiltfiles.append(masterframe.construct_file_name(
-                WaveTilts, wave_key, master_dir=master_path))
-
-        nfiles = len(spec2d_files)
-
+        #head2d_list = []
         specobjs_list = []
-        head1d_list = []
         slits_list = []
-        tilts_list = []
-        # TODO Sort this out with the correct detector extensions etc.
-        # Read in the image stacks
-        waveimgfile, tiltfile, tracefile = None, None, None
-        for ifile in range(nfiles):
-            # Load up the calibs, if needed
-            if tiltfile != tiltfiles[ifile]:
-                waveTilts = WaveTilts.from_file(tiltfiles[ifile]) #.tilts_dict
-            # Save
-            tiltfile = tiltfiles[ifile]
-            #
-            hdu = fits.open(spec2d_files[ifile])
-            # One detector, sky sub for now
-            names = [hdu[i].name for i in range(len(hdu))]
-            # science image
-            try:
-                exten = names.index('DET{:s}-PROCESSED'.format(sdet))
-            except:  # Backwards compatability
-                coadd.det_error_msg(exten, sdet)
-            sciimg = hdu[exten].data
-            # skymodel
-            try:
-                exten = names.index('DET{:s}-SKY'.format(sdet))
-            except:  # Backwards compatability
-                coadd.det_error_msg(exten, sdet)
-            skymodel = hdu[exten].data
-            # Inverse variance model
-            try:
-                exten = names.index('DET{:s}-IVARMODEL'.format(sdet))
-            except ValueError:  # Backwards compatability
-                coadd.det_error_msg(exten, sdet)
-            sciivar = hdu[exten].data
-            # Mask
-            try:
-                exten = names.index('DET{:s}-MASK'.format(sdet))
-            except ValueError:  # Backwards compatability
-                coadd.det_error_msg(exten, sdet)
-            mask = hdu[exten].data
+        nfiles =len(spec2d_files)
+        for ifile, f in enumerate(spec2d_files):
+            # Spec2d
+            spec2DObj = spec2dobj.Spec2DObj.from_file(f, self.det)
+            # TODO the code should run without a spec1d file, but we need to implement that
+            slits_list.append(spec2DObj.slits)
             if ifile == 0:
-                # the two shapes accomodate the possibility that waveimg and tilts are binned differently
-                shape_sci = (nfiles, sciimg.shape[0], sciimg.shape[1])
-                sciimg_stack = np.zeros(shape_sci, dtype=float)
-                skymodel_stack = np.zeros(shape_sci, dtype=float)
-                sciivar_stack = np.zeros(shape_sci, dtype=float)
-                mask_stack = np.zeros(shape_sci, dtype=float)
-                slitmask_stack = np.zeros(shape_sci, dtype=float)
+                sciimg_stack = np.zeros((nfiles,) + spec2DObj.sciimg.shape, dtype=float)
+                waveimg_stack = np.zeros_like(sciimg_stack, dtype=float)
+                tilts_stack = np.zeros_like(sciimg_stack, dtype=float)
+                skymodel_stack = np.zeros_like(sciimg_stack, dtype=float)
+                sciivar_stack = np.zeros_like(sciimg_stack, dtype=float)
+                mask_stack = np.zeros_like(sciimg_stack, dtype=float)
+                slitmask_stack = np.zeros_like(sciimg_stack, dtype=float)
 
-            # Slit Traces and slitmask
-            # TODO: Don't understand this if statement
-            # Joe's response: I think the idea was something like if
-            # I'm co-adding the same mask or echelle data from
-            # different nights with different calibrations, then there
-            # could be more than one slit trace master file.
-            if tracefile != tracefiles[ifile]:
-                slits = slittrace.SlitTraceSet.from_file(tracefiles[ifile])
-                # Check the spectrograph names
-                # TODO: Should this be done here?
-                if slits.PYP_SPEC != self.spectrograph.spectrograph:
-                    msgs.error('Spectrograph read from {0} is not correct.  Expected {1}.'.format(
-                                tracefiles[ifile], self.spectrograph.spectrograph))
-            tracefile = tracefiles[ifile]
-            #
-            slits_list.append(slits)
-            tilts_list.append(waveTilts)
-            slitmask_stack[ifile, :, :] = slits.slit_img()
-            sciimg_stack[ifile, :, :] = sciimg
-            sciivar_stack[ifile, :, :] = sciivar
-            mask_stack[ifile, :, :] = mask
-            skymodel_stack[ifile, :, :] = skymodel
-
-            # Specobjs
-            if os.path.isfile(spec1d_files[ifile]):
-                sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_files[ifile])
-                head1d_list.append(sobjs.header)
+            sciimg_stack[ifile, :, :] = spec2DObj.sciimg
+            waveimg_stack[ifile, :, :] = spec2DObj.waveimg
+            skymodel_stack[ifile, :, :] = spec2DObj.skymodel
+            sciivar_stack[ifile, :, :] = spec2DObj.ivarmodel
+            mask_stack[ifile, :, :] = spec2DObj.bpmmask
+            slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
+            tilts_stack[ifile,:,:] = spec2DObj.tilts.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=(spec2DObj.sci_spat_flexure- spec2DObj.tilts.spat_flexure))
+            # Spec1d
+            spec1d_file = f.replace('spec2d', 'spec1d')
+            if os.path.isfile(spec1d_file):
+                sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
                 this_det = sobjs.DET == self.det
                 specobjs_list.append(sobjs[this_det])
-
-        # Fill the master key dict
-        head2d = head2d_list[0]
-        master_key_dict = {}
-        master_key_dict['frame'] = head2d['FRAMMKEY'] + '_{:02d}'.format(self.det)
-        master_key_dict['bpm'] = head2d['BPMMKEY'] + '_{:02d}'.format(self.det)
-        master_key_dict['bias'] = head2d['BIASMKEY'] + '_{:02d}'.format(self.det)
-        master_key_dict['arc'] = head2d['ARCMKEY'] + '_{:02d}'.format(self.det)
-        master_key_dict['trace'] = head2d['TRACMKEY'] + '_{:02d}'.format(self.det)
-        master_key_dict['flat'] = head2d['FLATMKEY'] + '_{:02d}'.format(self.det)
 
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
-                    tilts_list=tilts_list, head1d_list=head1d_list, head2d_list=head2d_list,
-                    redux_path=redux_path, master_key_dict=master_key_dict,
+                    tilts_stack=tilts_stack,
+                    redux_path=redux_path,
                     spectrograph=self.spectrograph.spectrograph,
                     pypeline=self.spectrograph.pypeline)
 
