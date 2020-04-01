@@ -26,15 +26,16 @@ def data_path(filename):
 def master_dir():
     return os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue')
 
+instant_dict = dict(coeffs=np.ones((6,4,1)),
+                    nslit=1,
+                    spat_order=np.array([3]),
+                    spec_order=np.array([5]),
+                    spat_id=np.array([150]),
+                    func2d='legendre2d')
+
 # Test WaveTilts
 def test_wavetilts():
     #
-    instant_dict = dict(coeffs=np.ones((6,4,1)),
-                        nslit=1,
-                        spat_order=np.array([3]),
-                        spec_order=np.array([5]),
-                        spat_id=np.array([150]),
-                        func2d='legendre2d')
     wvtilts = wavetilts.WaveTilts(**instant_dict)
     # I/O
     outfile = data_path('tst_wavetilts.fits')

@@ -121,13 +121,13 @@ class OneSpec(datamodel.DataContainer):
 class CoAdd1D(object):
 
     @classmethod
-    def get_instance(cls, spectrograph, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spectrograph, par, spec1dfiles, objids, sensfile=None, debug=False, show=False):
         """
         Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spectrograph, spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+            spectrograph, par, spec1dfiles, objids, sensfile=sensfile, debug=debug, show=show)
 
     def __init__(self, spectrograph, par, spec1dfiles, objids, sensfile=None, debug=False, show=False):
         """
@@ -189,7 +189,7 @@ class CoAdd1D(object):
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, mask_iexp, meta_spec, header = \
-                sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
+                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
             # Allocate arrays on first iteration
             if iexp == 0:
                 waves = np.zeros(wave_iexp.shape + (self.nexp,))
@@ -272,7 +272,7 @@ class MultiSlitCoAdd1D(CoAdd1D):
                 show (bool):
                    Debug. Default = True
         """
-        super().__init__(spectrograph, spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+        super().__init__(spectrograph, par, spec1dfiles, objids, sensfile=sensfile, debug=debug, show=show)
 
 
     def coadd(self):
@@ -322,7 +322,7 @@ class EchelleCoAdd1D(CoAdd1D):
                    Debug. Default = True
         """
 
-        super().__init__(spectrograph, spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+        super().__init__(spectrograph, par, spec1dfiles, objids, sensfile=sensfile, debug=debug, show=show)
 
     def coadd(self):
         """

@@ -28,7 +28,7 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
+'''
 @dev_suite_required
 def test_run_pypeit():
     # Get the directories
@@ -190,6 +190,7 @@ def test_chk_flat():
     #
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
+'''
 
 
 def test_coadd1d_1():

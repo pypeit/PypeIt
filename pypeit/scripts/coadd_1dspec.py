@@ -102,6 +102,18 @@ def read_coaddfile(ifile):
 
 
 def coadd1d_filelist(files, outroot, det, debug=False, show=False):
+    """
+
+    Args:
+        files:
+        outroot:
+        det:
+        debug:
+        show:
+
+    Returns:
+
+    """
     # Build sync_dict
     sync_dict = None
     for ifile in files[1:]:
@@ -110,8 +122,6 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
     header = fits.getheader(files[0])
     spectrograph = load_spectrograph(header['PYP_SPEC'])
     par = spectrograph.default_pypeit_par()
-    #par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(), merge_with=config_lines)
-    #par.to_config(args.par_outfile)
 
     par['coadd1d']['flux_value'] = False
 
@@ -218,7 +228,7 @@ def main(args):
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
 
     # Instantiate
-    coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, par, spec1dfiles, objids,
+    coAdd1d = coadd1d.CoAdd1D.get_instance(spectrograph, par['coadd1d'], spec1dfiles, objids,
                                            sensfile=sensfile,
                                            debug=args.debug, show=args.show)
     # Run

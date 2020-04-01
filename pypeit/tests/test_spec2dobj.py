@@ -15,6 +15,9 @@ from astropy.io import fits
 from pypeit import spec2dobj
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.tests import tstutils
+from pypeit.tests import test_wavetilts
+from pypeit import wavetilts
+from pypeit import slittrace
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -23,17 +26,20 @@ def data_path(filename):
 @pytest.fixture
 def init_dict():
     sciimg = np.ones((500,500)).astype(float)
+    slits = slittrace.SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
+                         nspat=10, PYP_SPEC='dummy')
     sdict = dict(sciimg = sciimg,
                  ivarraw = 0.1 * np.ones_like(sciimg),
                  skymodel = 0.95 * np.ones_like(sciimg),
                  objmodel = np.ones_like(sciimg),
                  ivarmodel = 0.05 * np.ones_like(sciimg),
                  waveimg = 1000 * np.ones_like(sciimg),
-                 mask=np.ones_like(sciimg).astype(int),
+                 bpmmask=np.ones_like(sciimg).astype(int),
                  det=1,
                  detector=None,
-                 spat_flexure=3.5,
-                 slit_info=np.zeros((10,3)).astype(int)
+                 slits=slits,
+                 tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),
+                 sci_spat_flexure=3.5,
                  )
     return sdict
 

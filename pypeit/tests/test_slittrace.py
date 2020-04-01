@@ -33,7 +33,6 @@ def test_init():
 
 def test_io():
 
-
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
                          nspat=10, PYP_SPEC='dummy')
     master_file = masterframe.construct_file_name(slits, master_key, master_dir=master_dir)
