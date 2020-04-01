@@ -136,6 +136,7 @@ class FlatImages(datamodel.DataContainer):
             # Skip masked
             if slits.mask[slit_idx] != 0:
                 continue
+            # Skip those without a bspline
             # DO it
             _slitid_img = slits.slit_img(slitidx=slit_idx, flexure=flexure_shift)
             onslit = _slitid_img == slits.spat_id[slit_idx]
@@ -144,9 +145,6 @@ class FlatImages(datamodel.DataContainer):
                                                       flexure_shift=flexure_shift)
 
             illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
-#            except:
-#                import pdb; pdb.set_trace()
-#                embed(header='131 of flatfield')
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
@@ -665,7 +663,9 @@ class FlatField(object):
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+
             if exit_status > 1:
+                # TODO -- MAKE A FUNCTION
                 msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
                           'slit {0} and continuing!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
@@ -808,6 +808,7 @@ class FlatField(object):
                 self.list_of_spat_bsplines.append(spat_bspl)
             else:
                 # Save the nada
+                self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 self.list_of_spat_bsplines.append(bspline.bspline(None))
 
             # ----------------------------------------------------------

@@ -44,6 +44,7 @@ class WaveTilts(datamodel.DataContainer):
     datamodel = {
         'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit on the initial slits.' \
                        'One set per slit/order (3D array).'),
+        'bpmtilts': dict(otype=np.ndarray, atype=np.bool_, desc='Bad pixel mask for tilt solutions (True=bad)'),
         'nslit': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
         'spat_order': dict(otype=np.ndarray, atype=np.integer,

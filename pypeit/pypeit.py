@@ -426,8 +426,6 @@ class PypeIt(object):
             #TODO Is the right behavior to just use the first frame?
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
-            # TODO -- Save SlitTraceSet here!!
-            msgs.warn("REMOVE THIS WARNING AFTER DOING THE TODO ABOVE")
             # Extract
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
