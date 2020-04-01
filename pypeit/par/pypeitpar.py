@@ -3058,7 +3058,7 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, caldir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
+    def __init__(self, master_dir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
                  standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
@@ -3078,10 +3078,10 @@ class CalibrationsPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['caldir'] = 'Masters'
-        dtypes['caldir'] = str
-        descr['caldir'] = 'If provided, it must be the full path to calling directory to ' \
-                          'write master files.  Otherwise, it should just be Masters'
+        defaults['master_dir'] = 'Masters'
+        dtypes['master_dir'] = str
+        descr['master_dir'] = 'If provided, it should be the name of the folder to ' \
+                          'write master files. NOT A PATH. '
 
         defaults['save_masters'] = True
         dtypes['save_masters'] = bool
@@ -3187,7 +3187,7 @@ class CalibrationsPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'caldir', 'setup', 'trim', 'bpm_usebias', 'save_masters']
+        parkeys = [ 'master_dir', 'setup', 'trim', 'bpm_usebias', 'save_masters']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',

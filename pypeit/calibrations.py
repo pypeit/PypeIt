@@ -42,8 +42,9 @@ class Calibrations(object):
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
             The class holding the metadata for all the frames in this
             PypeIt run.
-        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
-            Parameter set defining optional parameters of PypeIt's algorithms.
+        par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
+            Parameter set defining optional parameters of PypeIt's algorithms
+            for Calibrations
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         caldir (:obj:`str`, optional):
@@ -77,33 +78,38 @@ class Calibrations(object):
             :attr:`fitstbl`.
         calib_ID (:obj:`int`):
             calib group ID of the current frame
+        slitspat_num (:obj:`int` or :obj:`list, optional):
+            Identifies a slit or slits to restrict the analysis on
+            Used in :func:`get_slits` and propagated beyond
 
     """
     __metaclass__ = ABCMeta
 
     def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None,
-                 reuse_masters=False, show=False):
+                 reuse_masters=False, show=False, slitspat_num=None):
 
         # Check the types
         # TODO -- Remove this None option once we have data models for all the Calibrations
         #  outputs and use them to feed Reduce instead of the Calibrations object
         if not isinstance(fitstbl, PypeItMetaData) and fitstbl is not None:
             msgs.error('fitstbl must be an PypeItMetaData object')
-        if not isinstance(par, pypeitpar.PypeItPar):
-            msgs.error('Input parameters must be a PypeItPar instance.')
+        if not isinstance(par, pypeitpar.CalibrationsPar):
+            msgs.error('Input parameters must be a CalibrationsPar instance.')
         if not isinstance(spectrograph, Spectrograph):
             msgs.error('Must provide Spectrograph instance to Calibrations.')
 
         # Required inputs
         self.fitstbl = fitstbl
-        self.par = par['calibrations']
-        self.full_par = par
+        self.par = par
         self.spectrograph = spectrograph
 
         # Masters
         self.reuse_masters = reuse_masters
         self.master_dir = caldir
         self.save_masters = self.par['save_masters']
+
+        # Restrict on slits?
+        self.slitspat_num = slitspat_num
 
         # QA
         self.qa_path = qadir
@@ -622,6 +628,8 @@ class Calibrations(object):
             # Save to Masters
             if self.save_masters:
                 self.flatimages.to_master_file(masterframe_filename)
+                # Save slits too, in case they were tweaked
+                self.slits.to_master_file()
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
@@ -732,9 +740,9 @@ class Calibrations(object):
             if self.save_masters:
                 self.slits.to_master_file(slit_masterframe_name)
 
-        # User mask
-        if self.full_par['rdx']['slitspatnum'] is not None:
-            self.slits.user_mask(self.full_par['rdx']['slitspatnum'])
+        # User mask?
+        if self.slitspat_num is not None:
+            self.slits.user_mask(self.slitspat_num)
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)
@@ -908,6 +916,7 @@ class Calibrations(object):
     def run_the_steps(self):
         """
         Run full the full recipe of calibration steps
+
         """
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
@@ -991,11 +1000,8 @@ class IFUCalibrations(Calibrations):
 
     """
 
-    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None, reuse_masters=False,
-                 show=False):
-        super(IFUCalibrations, self).__init__(fitstbl, par, spectrograph, caldir=caldir,
-                                                    qadir=qadir, reuse_masters=reuse_masters,
-                                                    show=show)
+    def __init__(self, fitstbl, par, spectrograph, **kwargs):
+        super(IFUCalibrations, self).__init__(fitstbl, par, spectrograph, **kwargs)
         self.steps = IFUCalibrations.default_steps()
 
     @staticmethod

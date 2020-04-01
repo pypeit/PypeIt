@@ -955,7 +955,7 @@ class FlatField(object):
                                            illum_rej=self.flatpar['illum_rej'],
                                            debug=debug)
 
-        if self.flatpar['sticky']:
+        if self.flatpar['rej_sticky']:
             # Add rejected pixels to gpm
             gpm[spat_gpm] &= (spat_gpm & _spat_gpm)[spat_gpm]
 

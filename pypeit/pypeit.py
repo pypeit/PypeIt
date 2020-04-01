@@ -130,7 +130,7 @@ class PypeIt(object):
         self.show = show
 
         # Set paths
-        self.calibrations_path = self.par['calibrations']['caldir']
+        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['master_dir'])
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
@@ -145,15 +145,16 @@ class PypeIt(object):
         # Instantiate Calibrations class
         if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
             self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par,
+                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
                                                      self.spectrograph,
                                                      caldir=self.calibrations_path,
                                                      qadir=self.qa_path,
                                                      reuse_masters=self.reuse_masters,
-                                                     show=self.show)
+                                                     show=self.show,
+                                                     slitspat_num=self.par['rdx']['slitspatnum'])
         elif self.spectrograph.pypeline in ['IFU']:
             self.caliBrate \
-                = calibrations.IFUCalibrations(self.fitstbl, self.par,
+                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
                                                self.spectrograph,
                                                caldir=self.calibrations_path,
                                                qadir=self.qa_path,

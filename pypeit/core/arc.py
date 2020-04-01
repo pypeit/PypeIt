@@ -386,8 +386,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
         trace_orig: ndarray, float
             trace that you want to resize
     Returns:
-        trace: ndarray, float
-            trace corresponding to the binning of the arc
+        `numpy.ndarray`: trace corresponding to the binning of the arc
 
     """
     (nspec, nspat) = shape_arc

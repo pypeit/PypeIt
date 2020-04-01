@@ -583,7 +583,14 @@ class SpecObjs(object):
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
 
-    def write_info(self, outfile, pypeline, update_det=None):
+    def write_info(self, outfile, pypeline):
+        """
+        Write a summary of items to an ASCII file
+
+        Args:
+            outfile (:obj:`str`):  Output filename
+            pypeline (:obj:`str`): PypeIt pipeline mode
+        """
         # TODO -- Deal with update_det
         slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
         # binspectral, binspatial = parse.parse_binning(binning)

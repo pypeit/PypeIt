@@ -42,11 +42,8 @@ class WaveTilts(datamodel.DataContainer):
     master_file_format = 'fits'
 
     datamodel = {
-        #'tilts':  dict(otype=np.ndarray, atype=np.floating, desc='Image of the tilts (nspec, nspat)'),
-        'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit.' \
+        'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit on the initial slits.' \
                        'One set per slit/order (3D array).'),
-        #'slitcen': dict(otype=np.ndarray, atype=np.floating,
-        #                desc='Location of the slit center.  2D array (nspec, nslit)'),
         'nslit': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
         'spat_order': dict(otype=np.ndarray, atype=np.integer,
@@ -216,11 +213,13 @@ class BuildWaveTilts(object):
 
         # TODO -- Tidy this up into one or two methods?
         # Load up all slits
-        all_left, all_right, mask = self.slits.select_edges(flexure=self.spat_flexure)  # Grabs all, initial slits
+        # TODO -- Discuss further with JFH
+        all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=self.spat_flexure)  # Grabs all, initial slits
         self.tilt_bpm = np.invert(mask == 0)
         self.tilt_bpm_init = self.tilt_bpm.copy()
         # Slitmask
-        self.slitmask_science = self.slits.slit_img(flexure=self.spat_flexure)  # All unmasked slits
+        # TODO -- Discuss further with JFH
+        self.slitmask_science = self.slits.slit_img(initial=True, flexure=self.spat_flexure)  # All unmasked slits
         # Resize
         gpm = (self.mstilt.bpm == 0) if self.mstilt.bpm is not None \
             else np.ones_like(self.slitmask_science, dtype=bool)
