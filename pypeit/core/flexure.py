@@ -44,27 +44,23 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     """
     # Mask
     slitmask = slits.slit_img(initial=True, exclude_flag='SHORTSLIT')
-    if slitmask.shape != sciimg.shape:
-        _sciimg = arc.resize_mask2arc(slitmask.shape, sciimg)
-    else:
-        _sciimg = sciimg
-    onslits = (slitmask > -1)
-    corr_slits = (onslits.astype(float)).flatten()
+    _sciimg = sciimg if slitmask.shape == sciimg.shape \
+                else arc.resize_mask2arc(slitmask.shape, sciimg) 
+    onslits = slitmask > -1
+    corr_slits = onslits.astype(float).flatten()
 
     # Compute
-    (mean_sci, med_sci, stddev_sci) = stats.sigma_clipped_stats(_sciimg[onslits])
+    mean_sci, med_sci, stddev_sci = stats.sigma_clipped_stats(_sciimg[onslits])
     thresh =  med_sci + 5.0*stddev_sci
     corr_sci = np.fmin(_sciimg.flatten(), thresh)
-
 
     maxlag = 20
     lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
     xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
     xcorr_norm = xcorr / xcorr_denom
-    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig = arc.detect_lines(xcorr_norm, sigdetect=3.0,
-                                                                                     fit_frac_fwhm=1.5, fwhm=5.0,
-                                                                                     cont_frac_fwhm=1.0, cont_samp=30,
-                                                                                     nfind=1, debug=debug)
+    tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
+            = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
+                               cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none..')
@@ -114,8 +110,7 @@ def load_sky_spectrum(sky_file):
         sky_spec: XSpectrum1D
           spectrum
     """
-    sky_spec = xspectrum1d.XSpectrum1D.from_file(sky_file)
-    return sky_spec
+    return xspectrum1d.XSpectrum1D.from_file(sky_file)
 
 
 def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
@@ -138,8 +133,10 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
 
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
-    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig = arc.detect_lines(arx_skyspec.flux.value)
-    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj= arc.detect_lines(obj_skyspec.flux.value)
+    arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig \
+            = arc.detect_lines(arx_skyspec.flux.value)
+    obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj \
+            = arc.detect_lines(obj_skyspec.flux.value)
 
     # Keep only 5 brightest amplitude lines (xxx_keep is array of
     # indices within arx_w of the 5 brightest)
@@ -149,10 +146,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     # Calculate wavelength (Angstrom per pixel)
     arx_disp = np.append(arx_skyspec.wavelength.value[1]-arx_skyspec.wavelength.value[0],
                          arx_skyspec.wavelength.value[1:]-arx_skyspec.wavelength.value[:-1])
-    #arx_disp = (np.amax(arx_sky.wavelength.value)-np.amin(arx_sky.wavelength.value))/arx_sky.wavelength.size
     obj_disp = np.append(obj_skyspec.wavelength.value[1]-obj_skyspec.wavelength.value[0],
                          obj_skyspec.wavelength.value[1:]-obj_skyspec.wavelength.value[:-1])
-    #obj_disp = (np.amax(obj_sky.wavelength.value)-np.amin(obj_sky.wavelength.value))/obj_sky.wavelength.size
 
     # Calculate resolution (lambda/delta lambda_FWHM)..maybe don't need
     # this? can just use sigmas
@@ -162,8 +157,6 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     obj_idx = (obj_cent+0.5).astype(np.int)[obj_w][obj_keep]   # The +0.5 is for rounding
     obj_res = obj_skyspec.wavelength.value[obj_idx]/ \
               (obj_disp[obj_idx]*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
-    #obj_res = (obj_sky.wavelength.value[0]+(obj_disp*obj_cent[obj_w][obj_keep]))/(
-    #    obj_disp*(2*np.sqrt(2*np.log(2)))*obj_wid[obj_w][obj_keep])
 
     if not np.all(np.isfinite(obj_res)):
         msgs.warn('Failed to measure the resolution of the object spectrum, likely due to error '
@@ -211,29 +204,30 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     if len(keep_idx) <= 50:
         msgs.warn("Not enough overlap between sky spectra")
         return None
-    else: #rebin onto object ALWAYS
-        keep_wave = obj_skyspec.wavelength[keep_idx]
-        arx_skyspec = arx_skyspec.rebin(keep_wave)
-        obj_skyspec = obj_skyspec.rebin(keep_wave)
-        # Trim edges (rebinning is junk there)
-        arx_skyspec.data['flux'][0,:2] = 0.
-        arx_skyspec.data['flux'][0,-2:] = 0.
-        obj_skyspec.data['flux'][0,:2] = 0.
-        obj_skyspec.data['flux'][0,-2:] = 0.
+
+    # rebin onto object ALWAYS
+    keep_wave = obj_skyspec.wavelength[keep_idx]
+    arx_skyspec = arx_skyspec.rebin(keep_wave)
+    obj_skyspec = obj_skyspec.rebin(keep_wave)
+    # Trim edges (rebinning is junk there)
+    arx_skyspec.data['flux'][0,:2] = 0.
+    arx_skyspec.data['flux'][0,-2:] = 0.
+    obj_skyspec.data['flux'][0,:2] = 0.
+    obj_skyspec.data['flux'][0,-2:] = 0.
 
     # Normalize spectra to unit average sky count
     norm = np.sum(obj_skyspec.flux.value)/obj_skyspec.npix
     obj_skyspec.flux = obj_skyspec.flux / norm
     norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
     arx_skyspec.flux = arx_skyspec.flux / norm2
-    if (norm < 0.):
+    if norm < 0:
         msgs.warn("Bad normalization of object in flexure algorithm")
         msgs.warn("Will try the median")
         norm = np.median(obj_skyspec.flux.value)
-        if (norm < 0.):
+        if norm < 0:
             msgs.warn("Improper sky spectrum for flexure.  Is it too faint??")
             return None
-    if (norm2 < 0.):
+    if norm2 < 0:
         msgs.warn('Bad normalization of archive in flexure. You are probably using wavelengths '
                    'well beyond the archive.')
         return None
@@ -279,19 +273,14 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
         max_fit = 0.0
         msgs.warn('Flexure compensation failed for one of your objects')
 
-
     #Calculate and apply shift in wavelength
     shift = float(max_fit)-lag0
     msgs.info("Flexure correction of {:g} pixels".format(shift))
     #model = (fit[2]*(subpix_grid**2.))+(fit[1]*subpix_grid)+fit[0]
 
-    flex_dict = dict(polyfit=fit, shift=shift, subpix=subpix_grid,
-                     corr=corr[subpix_grid.astype(np.int)],
-                     sky_spec=obj_skyspec,
-                     arx_spec=arx_skyspec,
-                     corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
-    # Return
-    return flex_dict
+    return dict(polyfit=fit, shift=shift, subpix=subpix_grid,
+                corr=corr[subpix_grid.astype(np.int)], sky_spec=obj_skyspec, arx_spec=arx_skyspec,
+                corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
 
 
 def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
@@ -557,6 +546,4 @@ def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
         #plt.close()
 
     plt.rcdefaults()
-
-    return
 

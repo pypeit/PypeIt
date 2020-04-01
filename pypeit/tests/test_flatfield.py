@@ -87,23 +87,20 @@ def test_flatimages():
 #    pytest.set_trace()
 
 
-'''
-@cooked_required
-def test_run():
-    # Masters
-    spectrograph = load_spectrograph('shane_kast_blue')
-    edges, waveTilts = load_kast_blue_masters(edges=True, tilts=True)
-    # Instantiate
-    par = spectrograph.default_pypeit_par()
-    rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
-    # TODO -- We would want to save the detector if we ever planned to re-run from EdgeTrace
-    hdul = fits.HDUList([])
-    rawflatimg.detector = spectrograph.get_detector_par(hdul, 1)
-    flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
-                                    wavetilts=waveTilts, slits=edges.get_slits())
-
-    # Use the trace image
-    flatImages = flatField.run()
-    assert np.isclose(np.median(flatImages.pixelflat), 1.0)
-
-'''
+#@cooked_required
+#def test_run():
+#    # Masters
+#    spectrograph = load_spectrograph('shane_kast_blue')
+#    edges, waveTilts = load_kast_blue_masters(edges=True, tilts=True)
+#    # Instantiate
+#    par = spectrograph.default_pypeit_par()
+#    rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
+#    # TODO -- We would want to save the detector if we ever planned to re-run from EdgeTrace
+#    hdul = fits.HDUList([])
+#    rawflatimg.detector = spectrograph.get_detector_par(hdul, 1)
+#    flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
+#                                    wavetilts=waveTilts, slits=edges.get_slits())
+#
+#    # Use the trace image
+#    flatImages = flatField.run()
+#    assert np.isclose(np.median(flatImages.pixelflat), 1.0)

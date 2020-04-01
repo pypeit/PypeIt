@@ -20,7 +20,6 @@ class SlitTraceBitMask(BitMask):
     Mask bits used during slit tracing.
     """
     def __init__(self):
-
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
             ('USERIGNORE', 'User has specified to ignore this slit'),
@@ -141,9 +140,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # contain self or the MasterFrame arguments.
         # TODO: Does it matter if the calling function passes the
         # keyword arguments in a different order?
-        datamodel.DataContainer.__init__(self, d=_d)# dict(left_init=left_init, right_init=right_init, nspat=nspat, PYP_SPEC=PYP_SPEC,
-                                                    #  mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
-                                                    #  binspat=binspat, pad=pad))
+        datamodel.DataContainer.__init__(self, d=_d)
 
     def _validate(self):
         """
@@ -254,14 +251,9 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         #
         info = np.vstack([self.spat_id, self.mask])
-        if self.maskdef_id is not None:
-            info = np.vstack([info, self.maskdef_id])
-        else:
-            info = np.vstack([info, np.zeros_like(self.spat_id)])
-        # Return
+        info = np.vstack([info, np.zeros_like(self.spat_id)]) \
+                    if self.maskdef_id is None else np.vstack([info, self.maskdef_id])
         return info.astype(int).T
-
-
 
     def spatid_to_zero(self, spat_id):
         """
@@ -274,8 +266,7 @@ class SlitTraceSet(datamodel.DataContainer):
             int: zero-based index of the input spat_id
 
         """
-        mtch = self.spat_id == spat_id
-        return np.where(mtch)[0][0]
+        return np.where(self.spat_id == spat_id)[0][0]
 
     def select_edges(self, initial=False, flexure=None):
         """

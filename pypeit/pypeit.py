@@ -1,4 +1,4 @@
-""" of the tilt image onto the desired frame (typically a science image)
+"""
 Main driver class for PypeIt run
 
 .. include common links, assuming primary doc root is up one directory
@@ -255,10 +255,8 @@ class PypeIt(object):
 
         """
         # Validate the parameter set
-        required = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure']#, 'fluxcalib']
-        can_be_None = [] #'flexure', 'fluxcalib']
-        self.par.validate_keys(required=required, can_be_None=can_be_None)
-
+        self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
+                                         'flexure'])
         self.tstart = time.time()
 
         # Find the standard frames
@@ -289,7 +287,6 @@ class PypeIt(object):
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
-                    #self.save_exposure(frames[0], std_dict, self.basename)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -323,7 +320,6 @@ class PypeIt(object):
                     science_basename[j] = self.basename
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename)
-                    #self.save_exposure(frames[0], sci_dict, self.basename)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -435,14 +431,8 @@ class PypeIt(object):
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            #sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
-            #    sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
-            #    sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-            #    sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
-            #            = self.extract_one(frames, self.det, bg_frames,
-            #                               std_outfile=std_outfile)
-            all_spec2d[self.det], tmp_sobjs = self.extract_one(
-                frames, self.det, bg_frames, std_outfile=std_outfile)
+            all_spec2d[self.det], tmp_sobjs \
+                    = self.extract_one(frames, self.det, bg_frames, std_outfile=std_outfile)
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs.add_sobj(tmp_sobjs)

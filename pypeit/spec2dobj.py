@@ -97,7 +97,7 @@ class Spec2DObj(datamodel.DataContainer):
     def _init_internals(self):
         self.process_steps = None
 
-    def _vaildate(self):
+    def _validate(self):
         """
         Assert that the detector has been set
 

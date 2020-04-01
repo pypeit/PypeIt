@@ -587,7 +587,6 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        #pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
         trace_image_files, self.master_key_dict['flat'] = self._prep_calibrations('trace')
 
         # Return cached images
@@ -607,7 +606,6 @@ class Calibrations(object):
             # Load MasterFrame
             self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
             self.flatimages.is_synced(self.slits)
-        #elif len(pixflat_image_files) > 0:
         elif len(trace_image_files) > 0:
             # Process/combine the input pixelflat frames
             # TODO -- Include an illum frametype eventually
@@ -643,12 +641,9 @@ class Calibrations(object):
                 user_pixelflat = hdu[self.det].data
             self.flatimages.pixelflat = user_pixelflat
 
-        # 4) If either of the two flats are still None, use unity
-        # everywhere and print out a warning
+        # 4) If flat is still None, print out a warning
         if self.flatimages.pixelflat is None:
             msgs.warn('You are not pixel flat fielding your data!!!')
-        #if self.flatimages.illumflat is None:# or not self.par['flatfield']['illumflatten']:
-        #    msgs.warn('You are not illumination flat fielding your data!')
 
         # Cache & return
         self._update_cache('flat', 'flatimages', self.flatimages)
@@ -750,59 +745,59 @@ class Calibrations(object):
         self._update_cache('trace', 'trace', self.slits)
         return self.slits
 
-    def get_wave(self):
-        """
-        Load or generate a wavelength image
-
-        Requirements:
-           wavetilts, slits, wv_calib, det, par, master_key
-
-        Returns:
-            `numpy.ndarray`_: :attr:`mswave` wavelength image
-
-        """
-        msgs.error("NO LONGER USED.  GENERATE ON-THE-SPOT with code in pypeit.wavecalib")
-        # Check for existing data
-        if not self._chk_objs(['wavetilts', 'slits', 'wv_calib']):
-            self.mswave = None
-            return self.mswave
-
-        # Check internals
-        self._chk_set(['det', 'par'])
-
-        # Return existing data
-        if self._cached('wave', self.master_key_dict['arc']):
-            self.mswave = self.calib_dict[self.master_key_dict['arc']]['wave']
-            return self.mswave
-
-        # No wavelength calibration requested
-        if self.par['wavelengths']['reference'] == 'pixel':
-            msgs.warn('No wavelength calibration performed!')
-            self.mswave = waveimage.WaveImage(self.wavetilts['tilts'] * (self.wavetilts['tilts'].shape[0]-1.0))
-            self.calib_dict[self.master_key_dict['arc']]['wave'] = self.mswave
-            return self.mswave
-
-        # Load?
-        masterframe_name = masterframe.construct_file_name(
-            waveimage.WaveImage, self.master_key_dict['arc'], master_dir=self.master_dir)
-        if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.mswave = waveimage.WaveImage.from_file(masterframe_name)
-        else:  # Build
-            # Instantiate
-            # TODO we are regenerating this mask a lot in this module. Could reduce that
-            buildwaveImage = waveimage.BuildWaveImage(self.slits, self.wavetilts['tilts'], self.wv_calib,
-                                             self.spectrograph, self.det)
-            self.mswave = buildwaveImage.build_wave()
-            # Save to hard-drive
-            if self.save_masters:
-                self.mswave.to_master_file(masterframe_name)
-                    #self.master_dir, self.master_key_dict['arc'],  # Naming
-                    #                      self.spectrograph.spectrograph,  # Header
-                    #                      steps=buildwaveImage.steps)
-
-        # Cache & return
-        self._update_cache('arc', 'wave', self.mswave)
-        return self.mswave
+#    def get_wave(self):
+#        """
+#        Load or generate a wavelength image
+#
+#        Requirements:
+#           wavetilts, slits, wv_calib, det, par, master_key
+#
+#        Returns:
+#            `numpy.ndarray`_: :attr:`mswave` wavelength image
+#
+#        """
+#        msgs.error("NO LONGER USED.  GENERATE ON-THE-SPOT with code in pypeit.wavecalib")
+#        # Check for existing data
+#        if not self._chk_objs(['wavetilts', 'slits', 'wv_calib']):
+#            self.mswave = None
+#            return self.mswave
+#
+#        # Check internals
+#        self._chk_set(['det', 'par'])
+#
+#        # Return existing data
+#        if self._cached('wave', self.master_key_dict['arc']):
+#            self.mswave = self.calib_dict[self.master_key_dict['arc']]['wave']
+#            return self.mswave
+#
+#        # No wavelength calibration requested
+#        if self.par['wavelengths']['reference'] == 'pixel':
+#            msgs.warn('No wavelength calibration performed!')
+#            self.mswave = waveimage.WaveImage(self.wavetilts['tilts'] * (self.wavetilts['tilts'].shape[0]-1.0))
+#            self.calib_dict[self.master_key_dict['arc']]['wave'] = self.mswave
+#            return self.mswave
+#
+#        # Load?
+#        masterframe_name = masterframe.construct_file_name(
+#            waveimage.WaveImage, self.master_key_dict['arc'], master_dir=self.master_dir)
+#        if os.path.isfile(masterframe_name) and self.reuse_masters:
+#            self.mswave = waveimage.WaveImage.from_file(masterframe_name)
+#        else:  # Build
+#            # Instantiate
+#            # TODO we are regenerating this mask a lot in this module. Could reduce that
+#            buildwaveImage = waveimage.BuildWaveImage(self.slits, self.wavetilts['tilts'], self.wv_calib,
+#                                             self.spectrograph, self.det)
+#            self.mswave = buildwaveImage.build_wave()
+#            # Save to hard-drive
+#            if self.save_masters:
+#                self.mswave.to_master_file(masterframe_name)
+#                    #self.master_dir, self.master_key_dict['arc'],  # Naming
+#                    #                      self.spectrograph.spectrograph,  # Header
+#                    #                      steps=buildwaveImage.steps)
+#
+#        # Cache & return
+#        self._update_cache('arc', 'wave', self.mswave)
+#        return self.mswave
 
     def get_wv_calib(self):
         """
@@ -991,8 +986,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']#, 'wave']
-        #return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'flats', 'wave']
+        return ['bias', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
 
 
 class IFUCalibrations(Calibrations):
