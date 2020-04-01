@@ -77,7 +77,7 @@ class Reduce(object):
 
     def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, maskslits=None):
+                 binning=None, setup=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 

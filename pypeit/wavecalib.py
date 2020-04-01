@@ -421,7 +421,7 @@ class WaveCalib(object):
         """
         # Update mask based on wv_calib
         for key in self.wv_calib.keys():
-            if key in ['steps', 'par', 'fit2d']:
+            if key in ['steps', 'par', 'fit2d', 'bpm']:
                 continue
             if (self.wv_calib[key] is None) or (len(self.wv_calib[key]) == 0):
                 try:

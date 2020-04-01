@@ -52,11 +52,12 @@ class FlatImages(datamodel.DataContainer):
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+        'bpmflats': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask for flat solutions (True=bad)'),
         'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='B-spline models for Illumination flat'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
     }
 
-    def __init__(self, procflat=None, pixelflat=None,
+    def __init__(self, procflat=None, pixelflat=None, bpmflats=None,
                  flat_model=None, spat_bsplines=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -70,9 +71,17 @@ class FlatImages(datamodel.DataContainer):
         self.master_dir = None
 
     def _validate(self):
+        #
         if self.spat_bsplines is not None and len(self.spat_bsplines) > 0:
             if len(self.spat_id) != len(self.spat_bsplines):
                 msgs.error("Bsplines are out of sync with the slit IDs")
+        # Build mask
+        if self.spat_bsplines is not None and self.bpmflats is None:
+            bpmflats = np.zeros_like(self.spat_id, dtype=int)
+            for kk, spat_bspline in enumerate(self.spat_bsplines):
+                if spat_bspline.nord is None:
+                    bpmflats[kk] = 1
+            self.bpmflats = bpmflats
 
     def is_synced(self, slits):
         """
@@ -570,12 +579,14 @@ class FlatField(object):
                                + common_message)
                 elif saturated_slits == 'mask':
                     self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADREDUCE')
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                              + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
+                                                + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to mask this slit and continue with the '
                               + 'remainder of the reduction, meaning no science data will be '
                               + 'extracted from this slit.  ' + common_message)
                 elif saturated_slits == 'continue':
+                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
                               + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to simply continue, meaning no '
@@ -801,15 +812,16 @@ class FlatField(object):
             # Construct the illumination profile with the tweaked edges
             # of the slit
             if exit_status <= 1:
-                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
-                          'included in flat-field model for slit {0}!'.format(slit_spat))
                 # TODO -- JFH -- Check this is ok for flexure!!
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.list_of_spat_bsplines.append(spat_bspl)
             else:
                 # Save the nada
+                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
+                          'included in flat-field model for slit {0}!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 self.list_of_spat_bsplines.append(bspline.bspline(None))
+                continue
 
             # ----------------------------------------------------------
             # Fit the 2D residuals of the 1D spectral and spatial fits.

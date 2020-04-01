@@ -554,3 +554,39 @@ class SlitTraceSet(datamodel.DataContainer):
             idx = np.argmin(np.abs(self.spat_id - slit_spat))
             msk[idx] = False
         self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+
+    def mask_flats(self, flatImages):
+        """
+        Mask from a :class:`pypeit.flatfield.FlatImages` object
+
+        Args:
+            flatImages (:class:`pypeit.flatfield.FlatImages`):
+
+        """
+        bad_flats = flatImages.bpmflats > 0
+        if np.any(bad_flats):
+            self.mask[bad_flats] = self.bitmask.turn_on(self.mask[bad_flats], 'BADFLATCALIB')
+
+    def mask_wvcalib(self, wv_calib):
+        """
+        Mask from a WaveCalib object
+
+        Args:
+            wv_calib (:obj:`dict`):
+
+        """
+        for kk, spat_id in enumerate(self.spat_id):
+            if str(spat_id) not in wv_calib.keys():
+                self.slits.mask[kk] = self.slits.bitmask.turn_on(self.slits.mask[kk], 'BADWVCALIB')
+
+    def mask_wavetilts(self, waveTilts):
+        """
+        Mask from a :class:`pypeit.wavetilts.WaveTilts` object
+
+        Args:
+            waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+
+        """
+        bad_tilts = waveTilts.bpmtilts > 0
+        if np.any(bad_tilts):
+            self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
