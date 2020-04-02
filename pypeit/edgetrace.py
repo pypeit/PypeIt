@@ -1482,6 +1482,12 @@ class EdgeTraceSet(object):
                                   'right_ids': traceid[gpm & is_right]}
             _trc = cen if fit is None else fit
 
+            # spat_id
+            if synced:
+                half = fit.shape[0] // 2
+                scen = (_trc[half, gpm & is_left] + _trc[half, gpm & is_right]) / 2.
+                id_kwargs['slit_ids'] = scen.astype(int)
+
             # Connect to or instantiate ginga window
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
             # Clear the viewer and show the trace image

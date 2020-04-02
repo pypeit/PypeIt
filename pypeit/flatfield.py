@@ -52,8 +52,10 @@ class FlatImages(datamodel.DataContainer):
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'bpmflats': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask for flat solutions (True=bad)'),
-        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='B-spline models for Illumination flat'),
+        'bpmflats': dict(otype=np.ndarray, atype=np.integer,
+                         desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
+        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                              desc='B-spline models for Illumination flat'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
     }
 
@@ -75,13 +77,6 @@ class FlatImages(datamodel.DataContainer):
         if self.spat_bsplines is not None and len(self.spat_bsplines) > 0:
             if len(self.spat_id) != len(self.spat_bsplines):
                 msgs.error("Bsplines are out of sync with the slit IDs")
-        # Build mask
-        if self.spat_bsplines is not None and self.bpmflats is None:
-            bpmflats = np.zeros_like(self.spat_id, dtype=int)
-            for kk, spat_bspline in enumerate(self.spat_bsplines):
-                if spat_bspline.nord is None:
-                    bpmflats[kk] = 1
-            self.bpmflats = bpmflats
 
     def is_synced(self, slits):
         """
@@ -205,6 +200,7 @@ class FlatImages(datamodel.DataContainer):
             except:
                 msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
         if slits is not None:
+            slits.mask_flats(self)
             illumflat = self.generate_illumflat(slits)
         # Show
         show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model,
@@ -362,11 +358,19 @@ class FlatField(object):
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(wcs_match=True)
 
+        # Build the mask
+        bpmflats = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
+        for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
+            bpm = self.slits.bitmask.flagged(self.slits.mask, flag)
+            if np.any(bpm):
+                bpmflats[bpm] = self.slits.bitmask.turn_on(bpmflats[bpm], flag)
+
         # Return
         return FlatImages(procflat=self.rawflatimg.image,
                           pixelflat=self.mspixelflat,
                           flat_model=self.flat_model,
                           spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                          bpmflats=bpmflats,
                           PYP_SPEC=self.spectrograph.spectrograph,
                           spat_id=self.slits.spat_id)
 
@@ -579,14 +583,13 @@ class FlatField(object):
                                + common_message)
                 elif saturated_slits == 'mask':
                     self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
-                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADREDUCE')
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
                                                 + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to mask this slit and continue with the '
                               + 'remainder of the reduction, meaning no science data will be '
                               + 'extracted from this slit.  ' + common_message)
                 elif saturated_slits == 'continue':
-                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
+                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'SKIPFLATCALIB')
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
                               + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to simply continue, meaning no '

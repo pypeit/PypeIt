@@ -25,7 +25,8 @@ class SlitTraceBitMask(BitMask):
             ('USERIGNORE', 'User has specified to ignore this slit'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
-            ('BADFLATCALIB', 'Flat field generation failed for this slit'),
+            ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
+            ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
             ('BADREDUCE', 'Skysub/extraction failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
@@ -576,8 +577,8 @@ class SlitTraceSet(datamodel.DataContainer):
 
         """
         for kk, spat_id in enumerate(self.spat_id):
-            if str(spat_id) not in wv_calib.keys():
-                self.slits.mask[kk] = self.slits.bitmask.turn_on(self.slits.mask[kk], 'BADWVCALIB')
+            if wv_calib[str(spat_id)] is None:
+                self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):
         """

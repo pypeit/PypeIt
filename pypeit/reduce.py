@@ -109,7 +109,7 @@ class Reduce(object):
                 = slitTrace.select_edges(flexure=self.spat_flexure_shift)
 
         # Slitmask
-        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)
+        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift, exclude_flag='BADFLATCALIB')
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -751,7 +751,7 @@ class MultiSlitReduce(Reduce):
             # is. This will be a png file(s) per slit.
 
             sobjs_slit, skymask[thismask] = \
-                extract.objfind(image, thismask,
+                    extract.objfind(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
                                 inmask=inmask, ir_redux=self.ir_redux,

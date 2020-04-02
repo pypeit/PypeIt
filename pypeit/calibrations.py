@@ -599,6 +599,7 @@ class Calibrations(object):
         if self._cached('flatimages', self.master_key_dict['flat']):
             self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
             self.flatimages.is_synced(self.slits)
+            self.slits.mask_flats(self.flatimages)
             return self.flatimages
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
@@ -825,6 +826,7 @@ class Calibrations(object):
         # Return existing data
         if self._cached('wavecalib', self.master_key_dict['arc']):
             self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
+            self.slits.mask_wvcalib(self.wv_calib)
             return self.wv_calib
 
         # No wavelength calibration requested
@@ -888,6 +890,7 @@ class Calibrations(object):
         if self._cached('wavetilts', self.master_key_dict['tilt']):
             self.wavetilts = self.calib_dict[self.master_key_dict['tilt']]['wavetilts']
             self.wavetilts.is_synced(self.slits)
+            self.slits.mask_wavetilts(self.wavetilts)
             return self.wavetilts
 
         # Load up?
