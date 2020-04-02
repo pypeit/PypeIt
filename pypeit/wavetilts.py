@@ -44,7 +44,8 @@ class WaveTilts(datamodel.DataContainer):
     datamodel = {
         'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit on the initial slits.' \
                        'One set per slit/order (3D array).'),
-        'bpmtilts': dict(otype=np.ndarray, atype=np.integer, desc='Bad pixel mask for tilt solutions (True=bad)'),
+        'bpmtilts': dict(otype=np.ndarray, atype=np.integer,
+                         desc='Bad pixel mask for tilt solutions. Keys are taken from SlitTraceSetBitmask'),
         'nslit': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
         'spat_order': dict(otype=np.ndarray, atype=np.integer,
@@ -667,11 +668,18 @@ class BuildWaveTilts(object):
                     plt.plot(spat[l:r+1,t], spec_fit[l:r+1,t], color='k')
             plt.show()
 
+        # Record the Mask
+        bpmtilts = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
+        for flag in ['BADTILTCALIB']:
+            bpm = self.slits.bitmask.flagged(self.slits.mask, flag)
+            if np.any(bpm):
+                bpmtilts[bpm] = self.slits.bitmask.turn_on(bpmtilts[bpm], flag)
+
         # Build and return DataContainer
         tilts_dict = {'coeffs':self.coeffs,
                       'func2d':self.par['func2d'], 'nslit':self.slits.nslits,
                       'spat_order':self.spat_order, 'spec_order':self.spec_order,
-                      'spat_id':self.slits.spat_id, 'bpmtilts': self.tilt_bpm.astype(int),
+                      'spat_id':self.slits.spat_id, 'bpmtilts': bpmtilts,
                       'spat_flexure': self.spat_flexure,
                       'PYP_SPEC': self.spectrograph.spectrograph}
         return WaveTilts(**tilts_dict)

@@ -20,7 +20,7 @@ def test_bits():
     # Make sure bits are correct
     bm = SlitTraceBitMask()
     assert bm.bits['USERIGNORE'] == 1, 'Bits changed'
-    assert bm.bits['BADFLATCALIB'] == 4, 'Bits changed'
+    assert bm.bits['BADFLATCALIB'] == 5, 'Bits changed'
 
 def test_init():
 

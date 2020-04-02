@@ -614,7 +614,7 @@ class SpecObjs(object):
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
             # Boxcar width
-            if 'BOX_RADIUS' in specobj.keys():
+            if specobj.BOX_RADIUS is not None:
                 slit_pix = 2.0 * specobj.BOX_RADIUS
                 # Convert to arcsec
                 binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)

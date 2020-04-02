@@ -109,7 +109,7 @@ class Reduce(object):
                 = slitTrace.select_edges(flexure=self.spat_flexure_shift)
 
         # Slitmask
-        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift, exclude_flag='BADFLATCALIB')
+        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift, exclude_flag='SKIPFLATCALIB')
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -118,7 +118,7 @@ class Reduce(object):
         self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
 
         # Internal bpm mask
-        self.reduce_bpm = (self.slits.mask > 0) & (self.slits.mask != 2**self.slits.bitmask.bits['BADFLATCALIB'])
+        self.reduce_bpm = (self.slits.mask > 0) & (self.slits.mask != 2**self.slits.bitmask.bits['SKIPFLATCALIB'])
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
         # Tilts
