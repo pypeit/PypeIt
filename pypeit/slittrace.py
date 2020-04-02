@@ -19,13 +19,16 @@ class SlitTraceBitMask(BitMask):
     """
     Mask bits used during slit tracing.
     """
+    version = '1.0.0'
+
     def __init__(self):
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
             ('USERIGNORE', 'User has specified to ignore this slit'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
-            ('BADFLATCALIB', 'Flat field generation failed for this slit'),
+            ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
+            ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
             ('BADREDUCE', 'Skysub/extraction failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
@@ -115,10 +118,11 @@ class SlitTraceSet(datamodel.DataContainer):
                      descr='Bit mask for slits at instantiation.  Used to reset'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
                               descr='Bit mask for slits (fully good slits have 0 value).  Shape is Nslits.'),
-                 'specmin': dict(otype=np.ndarray, atype=np.floating,
+                'slitbitm': dict(otype=str, desc='List of BITMASK keys from SlitTraceBitMask'),
+                'specmin': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Minimum spectral position allowed for each slit/order.  '
                                        'Shape is Nslits.'),
-                 'specmax': dict(otype=np.ndarray, atype=np.floating,
+                'specmax': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Maximum spectral position allowed for each slit/order.  '
                                        'Shape is Nslits.'),
                  }
@@ -131,7 +135,8 @@ class SlitTraceSet(datamodel.DataContainer):
     def __init__(self, left_init, right_init, nspec=None, nspat=None, PYP_SPEC=None, mask_init=None,
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
                  spat_id=None, maskdef_id=None, ech_order=None, nslits=None,
-                 left_tweak=None, right_tweak=None, center=None, mask=None):
+                 left_tweak=None, right_tweak=None, center=None, mask=None,
+                 slitbitm=None):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -197,6 +202,12 @@ class SlitTraceSet(datamodel.DataContainer):
         self.mask_init = np.atleast_1d(self.mask_init)
         self.specmin = np.atleast_1d(self.specmin)
         self.specmax = np.atleast_1d(self.specmax)
+        if self.slitbitm is None:
+            self.slitbitm = ','.join(list(self.bitmask.keys()))
+        else:
+            # Validate
+            if self.slitbitm != ','.join(list(self.bitmask.keys())):
+                msgs.error("Input BITMASK keys differ from current data model!")
 
         # Init the mask that will be updated as Redux proceeds
         self.mask = self.mask_init.copy()
@@ -554,3 +565,42 @@ class SlitTraceSet(datamodel.DataContainer):
             idx = np.argmin(np.abs(self.spat_id - slit_spat))
             msk[idx] = False
         self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+
+    def mask_flats(self, flatImages):
+        """
+        Mask from a :class:`pypeit.flatfield.FlatImages` object
+
+        Args:
+            flatImages (:class:`pypeit.flatfield.FlatImages`):
+
+        """
+        # Loop on all the FLATFIELD BPM keys
+        for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
+            bad_flats = self.bitmask.flagged(flatImages.bpmflats, flag)
+            if np.any(bad_flats):
+                self.mask[bad_flats] = self.bitmask.turn_on(self.mask[bad_flats], flag)
+
+    def mask_wvcalib(self, wv_calib):
+        """
+        Mask from a WaveCalib object
+
+        Args:
+            wv_calib (:obj:`dict`):
+
+        """
+        for kk, spat_id in enumerate(self.spat_id):
+            if wv_calib[str(spat_id)] is None:
+                self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
+
+    def mask_wavetilts(self, waveTilts):
+        """
+        Mask from a :class:`pypeit.wavetilts.WaveTilts` object
+
+        Args:
+            waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+
+        """
+        # There is only one BPM for Tilts (so far)
+        bad_tilts = waveTilts.bpmtilts > 0
+        if np.any(bad_tilts):
+            self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')

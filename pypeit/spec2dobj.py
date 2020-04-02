@@ -21,6 +21,7 @@ from pypeit import datamodel
 from pypeit import slittrace
 from pypeit import wavetilts
 from pypeit.images import detector_container
+from pypeit.images import imagebitmask
 
 
 def spec2d_hdu_prefix(det):
@@ -60,6 +61,7 @@ class Spec2DObj(datamodel.DataContainer):
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
         'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
+        'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
         'tilts': dict(otype=wavetilts.WaveTilts, desc='Fits required to generate a Tilts image'),
         'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
         'sci_spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
@@ -104,7 +106,15 @@ class Spec2DObj(datamodel.DataContainer):
         Returns:
 
         """
+        bitmask = imagebitmask.ImageBitMask()
+
         assert self.det is not None, 'Must set det at instantiation!'
+        if self.imgbitm is None:
+            self.imgbitm = ','.join(list(bitmask.keys()))
+        else:
+            # Validate
+            if self.imgbitm != ','.join(list(bitmask.keys())):
+                msgs.error("Input BITMASK keys differ from current data model!")
 
     def _bundle(self):
         """

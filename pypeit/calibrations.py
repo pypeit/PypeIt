@@ -599,6 +599,7 @@ class Calibrations(object):
         if self._cached('flatimages', self.master_key_dict['flat']):
             self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
             self.flatimages.is_synced(self.slits)
+            self.slits.mask_flats(self.flatimages)
             return self.flatimages
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
@@ -612,6 +613,7 @@ class Calibrations(object):
             # Load MasterFrame
             self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
             self.flatimages.is_synced(self.slits)
+            self.slits.mask_flats(self.flatimages)
         elif len(trace_image_files) > 0:
             # Process/combine the input pixelflat frames
             # TODO -- Include an illum frametype eventually
@@ -824,6 +826,7 @@ class Calibrations(object):
         # Return existing data
         if self._cached('wavecalib', self.master_key_dict['arc']):
             self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
+            self.slits.mask_wvcalib(self.wv_calib)
             return self.wv_calib
 
         # No wavelength calibration requested
@@ -846,7 +849,9 @@ class Calibrations(object):
         masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, self.master_key_dict['arc'],
                                                            master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
+            # Load from disk
             self.wv_calib = self.waveCalib.load(masterframe_name)
+            self.slits.mask_wvcalib(self.wv_calib)
         else:
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
@@ -885,6 +890,7 @@ class Calibrations(object):
         if self._cached('wavetilts', self.master_key_dict['tilt']):
             self.wavetilts = self.calib_dict[self.master_key_dict['tilt']]['wavetilts']
             self.wavetilts.is_synced(self.slits)
+            self.slits.mask_wavetilts(self.wavetilts)
             return self.wavetilts
 
         # Load up?
@@ -893,6 +899,7 @@ class Calibrations(object):
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.wavetilts = wavetilts.WaveTilts.from_file(masterframe_name)
             self.wavetilts.is_synced(self.slits)
+            self.slits.mask_wavetilts(self.wavetilts)
         else: # Build
             # Flexure
             _spat_flexure = self.mstilt.spat_flexure \

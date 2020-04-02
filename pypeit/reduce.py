@@ -77,7 +77,7 @@ class Reduce(object):
 
     def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, maskslits=None):
+                 binning=None, setup=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -109,7 +109,7 @@ class Reduce(object):
                 = slitTrace.select_edges(flexure=self.spat_flexure_shift)
 
         # Slitmask
-        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift)
+        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift, exclude_flag='SKIPFLATCALIB')
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
@@ -118,7 +118,7 @@ class Reduce(object):
         self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
 
         # Internal bpm mask
-        self.reduce_bpm = (self.slits.mask > 0) & (self.slits.mask != 2**self.slits.bitmask.bits['BADFLATCALIB'])
+        self.reduce_bpm = (self.slits.mask > 0) & (self.slits.mask != 2**self.slits.bitmask.bits['SKIPFLATCALIB'])
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
         # Tilts
@@ -751,7 +751,7 @@ class MultiSlitReduce(Reduce):
             # is. This will be a png file(s) per slit.
 
             sobjs_slit, skymask[thismask] = \
-                extract.objfind(image, thismask,
+                    extract.objfind(image, thismask,
                                 self.slits_left[:,slit_idx],
                                 self.slits_right[:,slit_idx],
                                 inmask=inmask, ir_redux=self.ir_redux,

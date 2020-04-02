@@ -1219,6 +1219,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # If a mask was not passed in, create it
     if inmask is None:
         inmask = thismask
+
     # If spec_min_max was not passed in, determine it from the thismask
     if spec_min_max is None or np.any([s is None for s in spec_min_max]):
         if spec_min_max is None:

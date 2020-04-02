@@ -71,6 +71,7 @@ class PypeItImage(datamodel.DataContainer):
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
+        'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
     }
     datamodel = datamodel_v100.copy()
 
@@ -106,9 +107,10 @@ class PypeItImage(datamodel.DataContainer):
         # Return
         return slf
 
-    def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,  # This should contain all datamodel items
+    # This needs to contain all datamodel items
+    def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,
                  crmask=None, fullmask=None, detector=None, spat_flexure=None,
-                 PYP_SPEC=None):
+                 PYP_SPEC=None, imgbitm=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -124,6 +126,17 @@ class PypeItImage(datamodel.DataContainer):
         # Master stuff
         self.master_key = None
         self.master_dir = None
+
+    def _validate(self):
+        """
+        Validate the slit traces.
+        """
+        if self.imgbitm is None:
+            self.imgbitm = ','.join(list(self.bitmask.keys()))
+        else:
+            # Validate
+            if self.imgbitm != ','.join(list(self.bitmask.keys())):
+                msgs.error("Input BITMASK keys differ from current data model!")
 
 
     def _bundle(self):

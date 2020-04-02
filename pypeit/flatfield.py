@@ -52,11 +52,14 @@ class FlatImages(datamodel.DataContainer):
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='B-spline models for Illumination flat'),
+        'bpmflats': dict(otype=np.ndarray, atype=np.integer,
+                         desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
+        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                              desc='B-spline models for Illumination flat'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
     }
 
-    def __init__(self, procflat=None, pixelflat=None,
+    def __init__(self, procflat=None, pixelflat=None, bpmflats=None,
                  flat_model=None, spat_bsplines=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -70,6 +73,7 @@ class FlatImages(datamodel.DataContainer):
         self.master_dir = None
 
     def _validate(self):
+        #
         if self.spat_bsplines is not None and len(self.spat_bsplines) > 0:
             if len(self.spat_id) != len(self.spat_bsplines):
                 msgs.error("Bsplines are out of sync with the slit IDs")
@@ -196,6 +200,7 @@ class FlatImages(datamodel.DataContainer):
             except:
                 msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
         if slits is not None:
+            slits.mask_flats(self)
             illumflat = self.generate_illumflat(slits)
         # Show
         show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model,
@@ -353,11 +358,19 @@ class FlatField(object):
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(wcs_match=True)
 
+        # Build the mask
+        bpmflats = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
+        for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
+            bpm = self.slits.bitmask.flagged(self.slits.mask, flag)
+            if np.any(bpm):
+                bpmflats[bpm] = self.slits.bitmask.turn_on(bpmflats[bpm], flag)
+
         # Return
         return FlatImages(procflat=self.rawflatimg.image,
                           pixelflat=self.mspixelflat,
                           flat_model=self.flat_model,
                           spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                          bpmflats=bpmflats,
                           PYP_SPEC=self.spectrograph.spectrograph,
                           spat_id=self.slits.spat_id)
 
@@ -571,11 +584,12 @@ class FlatField(object):
                 elif saturated_slits == 'mask':
                     self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
-                              + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
+                                                + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to mask this slit and continue with the '
                               + 'remainder of the reduction, meaning no science data will be '
                               + 'extracted from this slit.  ' + common_message)
                 elif saturated_slits == 'continue':
+                    self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'SKIPFLATCALIB')
                     msgs.warn('Only {:4.2f}'.format(100*good_frac)
                               + '% of the pixels on slit {0} are not saturated.  '.format(slit_spat)
                               + 'Selected behavior was to simply continue, meaning no '
@@ -801,15 +815,16 @@ class FlatField(object):
             # Construct the illumination profile with the tweaked edges
             # of the slit
             if exit_status <= 1:
-                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
-                          'included in flat-field model for slit {0}!'.format(slit_spat))
                 # TODO -- JFH -- Check this is ok for flexure!!
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.list_of_spat_bsplines.append(spat_bspl)
             else:
                 # Save the nada
+                msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
+                          'included in flat-field model for slit {0}!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
                 self.list_of_spat_bsplines.append(bspline.bspline(None))
+                continue
 
             # ----------------------------------------------------------
             # Fit the 2D residuals of the 1D spectral and spatial fits.
