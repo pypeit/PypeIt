@@ -95,6 +95,8 @@ def main(args):
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
         bias_files = rdx.fitstbl.frame_paths(bias_rows)
         bias_par = rdx.caliBrate.par['biasframe']
+        if len(bias_files) == 0:
+            bias_files = None
 
         # Set the QA path
         qa_path = rdx.qa_path
@@ -141,7 +143,7 @@ def main(args):
         # Build the trace image
         #traceImage = traceimage.TraceImage(spec, files=files, det=det, par=proc_par, bias=msbias)
         #traceImage.build_image(bias=msbias, bpm=msbpm)
-        traceImage = buildimage.buildimage_fromlist(spec, det, proc_par, bias_files, bias=msbias,
+        traceImage = buildimage.buildimage_fromlist(spec, det, proc_par, files, bias=msbias,
                                                     bpm=msbpm)
 
         # Trace the slit edges
