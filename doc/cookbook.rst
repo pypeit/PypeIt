@@ -143,6 +143,9 @@ and science frame, located in the *Science/* folder.
   - Examine the 2D spectral images :doc:`out_spec2D`
   - Examine the extracted 1D spectra :doc:`out_spec1D`
 
+Here are some :doc:`reduction_tips` for tuning parameters
+related to extraction and sky subtraction for your spectra.
+
 6. Fluxing
 ==========
 

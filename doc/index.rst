@@ -146,12 +146,13 @@ Spectrographs
    mage
 
 
-Object Algorithms
-+++++++++++++++++
+Reduction Algorithms
+++++++++++++++++++++
 
 .. toctree::
    :maxdepth: 2
 
+   reduction_tips
    object_finding
 
 Documentation

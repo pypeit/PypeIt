@@ -1,8 +1,6 @@
-.. highlight:: rest
-
-**************
+==============
 Object Finding
-**************
+==============
 
 This document describes how the code identifies
 objects within the slits/orders.
@@ -13,11 +11,16 @@ Overview
 Object identification is a challenging process to
 code, especially to allow for a large dynamic range
 between bright continuum sources and faint emission
-line sources.   Our general philosophy has been to
-err on the faint side, i.e.
-detect sources aggressively with the side-effect of
-including false positives.
+line sources.
 
+Our general philosophy has been to err on the
+bright side, i.e. detect more probable sources.
+
+FindObj Parameters
+==================
+
+This reduction step is guided by the
+:ref:`pypeit_par:FindObjPar Keywords`.
 
 Algorithms
 ==========
@@ -25,13 +28,13 @@ Algorithms
 Each of the algorithms described below attempt to
 identify the peak location of objects in the slit
 and then defines a left and right edge for each source.
-The codes also define background regions for sky
-subtraction.
 
-.. _standard_object_finding:
+In a standard run, these are performed twice.
+Once before any sky subtraction and then again
+after the global sky subtraction has been performed.
 
-standard
---------
+automatic
+---------
 
 The standard algorithm performs the following steps:
 
@@ -43,34 +46,19 @@ The standard algorithm performs the following steps:
 
 4.  Smash the 2D image along the spectral dimension, to get a 1D array that represents the spatial profile of the exposure.
 
-5.  Perform an initial search for objects by fitting a low-order polynomial to the spatial profile and associate objects with pixels that are deviant with that fit.
+5. If **find_cont_fit** is True, fit a continuum to the profile and subtract it.
 
-6.  Estimate the scatter in the slit array and then define all 5 sigma, positive excursion as objects (with 3 sigma edges).
+6.  Estimate the RMS scatter in the profile array.
 
-7.  Eliminate any objects within a few percent of the slit edge. Parameterized by `trace object xedge`.
+7.  Find all objects with peak flux in excess of **sig_thresh** times the RMS.
 
-8.  Determine edges and background regions for each object.
+8.  Eliminate any objects within a few percent of the slit edge. Parameterized by `trace object xedge`.
 
-9.  Optional: Restrict to maximum number of input objects, ordered by flux.
+9.  Determine edges and background regions for each object.
 
-nminima
--------
+10.  Restrict to **maxnumber** of objects, ordered by flux.
 
-The image is rectified and smashed along the spectral dimension
-as in the steps above.  Then the following steps are performed:
-
-1. The 1D array is smoothed by a Gaussian kernel of width `trace object nsmooth` (default=3).
-
-2. Keep all objects satisfying the threshold criterion.  The default is to compare against the scatter in the sky background.  One can keep objects relative to the brightest object (NOT YET IMPLEMENTED).
-
-3.  Eliminate any objects within a few percent of the slit edge. Parameterized by `trace object xedge`.
-
-4.  By default, the code restricts to a maximum of 8 objects.
-
-5.  Determine edges and background regions for each object.
-
-
-By-hand
+by-hand
 -------
 
 Parameters

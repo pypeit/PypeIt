@@ -8,6 +8,7 @@ Obj                   Obj Type           Array Type  Description
 ``bpmmask``           ndarray            integer     2D bad-pixel mask for the image                           
 ``det``               int                            Detector index                                            
 ``detector``          DetectorContainer              Detector DataContainer                                    
+``imgbitm``           str                            List of BITMASK keys from ImageBitMask                    
 ``ivarmodel``         ndarray            floating    2D ivar model image                                       
 ``ivarraw``           ndarray            floating    2D processed inverse variance image                       
 ``objmodel``          ndarray            floating    2D object model image                                     
