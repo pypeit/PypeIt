@@ -254,19 +254,23 @@ class WaveCalib(object):
         self.wv_calib = {}
         for idx in range(self.slits.nslits):
             if str(idx) in final_fit.keys():
+                # TODO This should be changed to slitord_id but that requires remaking all the archives. Can do so
+                # when wv_calib gets a new data model since that will all get revamped.
                 self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
 
         # Update mask
         self.update_wvmask()
 
+        #TODO For generalized echelle (not hard wired) assign order number here before, i.e. slits.ech_order
+
         # QA
         if not skip_QA:
             ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
-                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.spat_id[slit_idx],
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 try:
-                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.spat_id[slit_idx])], outfile=outfile)
+                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
                 except:
                     embed(header='269 of wavecalib')
 

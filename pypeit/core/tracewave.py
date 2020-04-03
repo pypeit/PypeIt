@@ -587,7 +587,7 @@ def trace_tilts(arcimg, lines_spec, lines_spat, thismask, slit_cen, inmask=None,
 
 def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, maxdev=0.2,
               maxiter=100, sigrej=3.0, pad_spec=30, pad_spat=5, func2d='legendre2d',
-              doqa=True, master_key='test', slit_spat=0, show_QA=False, out_dir=None,
+              doqa=True, master_key='test', slitord_id=0, show_QA=False, out_dir=None,
               minmax_extrap=(150.,1000.), debug=False):
     """
 
@@ -595,7 +595,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     ----------
     trc_tilt_dict: dict
         Diciontary containing tilt info
-    slit_spat (int):  Slit ID, spatial; only used for QA
+    slitord_id (int):  Slit ID, spatial; only used for QA
     all_tilts:
     order:
     yorder:
@@ -758,12 +758,12 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # TODO: I think we should do the QA outside of core functions.
     if doqa:
         arc_tilts_2d_qa(tilts_dspat, tilts, tilts_2dfit, tot_mask, rej_mask, spat_order, spec_order,
-                     rms_fit, fwhm, slit_spat=slit_spat, setup=master_key, show_QA=show_QA, out_dir=out_dir)
+                     rms_fit, fwhm, slitord_id=slitord_id, setup=master_key, show_QA=show_QA, out_dir=out_dir)
         arc_tilts_spat_qa(tilts_dspat, tilts, tilts_2dfit, tilts_spec, tot_mask, rej_mask, spat_order,
-                       spec_order, rms_fit, fwhm, slit_spat=slit_spat, setup=master_key, show_QA=show_QA,
+                       spec_order, rms_fit, fwhm, slitord_id=slitord_id, setup=master_key, show_QA=show_QA,
                        out_dir=out_dir)
         arc_tilts_spec_qa(tilts_spec, tilts, tilts_2dfit, tot_mask, rej_mask, rms_fit, fwhm,
-                       slit_spat=slit_spat, setup=master_key, show_QA=show_QA, out_dir=out_dir)
+                       slitord_id=slitord_id, setup=master_key, show_QA=show_QA, out_dir=out_dir)
 
     return tilt_fit_dict, trc_tilt_dict_out
 
@@ -835,14 +835,14 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
 
 # This method needs to match the name in pypeit.core.qa.set_qa_filename()
 def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
-                 slit_spat=0, setup='A', outfile=None, show_QA=False, out_dir=None):
+                 slitord_id=0, setup='A', outfile=None, show_QA=False, out_dir=None):
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'Helvetica'
 
     # Outfile
     method = inspect.stack()[0][3]
     if (outfile is None):
-        outfile = qa.set_qa_filename(setup, method, slit=slit_spat, out_dir=out_dir)
+        outfile = qa.set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
 
     # Show the fit
     fig, ax = plt.subplots(figsize=(12, 18))
@@ -861,7 +861,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
     ax.set_ylabel('Spectral Pixel', fontsize=15)
     ax.legend()
     ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
-                 'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slit_spat, rms, rms / fwhm), fontsize=15)
+                 'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slitord_id, rms, rms / fwhm), fontsize=15)
 
     # Finish
     # plt.tight_layout(pad=1.0, h_pad=1.0, w_pad=1.0)
@@ -878,7 +878,7 @@ def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_or
 
 # This method needs to match the name in pypeit.core.qa.set_qa_filename()
 def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rms, fwhm,
-                   slit_spat=0, setup='A', outfile=None, show_QA=False, out_dir=None):
+                   slitord_id=0, setup='A', outfile=None, show_QA=False, out_dir=None):
     """ Generate a QA plot of the residuals for the fit to the tilts in the spectral direction one slit at a time
 
     Parameters
@@ -891,7 +891,7 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
     # Outfil
     method = inspect.stack()[0][3]
     if (outfile is None):
-        outfile = qa.set_qa_filename(setup, method, slit=slit_spat, out_dir=out_dir)
+        outfile = qa.set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
 
     # Setup
     plt.figure(figsize=(14, 6))
@@ -926,9 +926,9 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
             ax.plot(tilts_spec_fit[igd][0], good_rms, marker='^', linestyle=' ', color='orange', mfc='orange',
                     markersize=7.0)
 
-    ax.text(0.90, 0.90, 'Slit {:d}:  Residual (pixels) = {:0.5f}'.format(slit_spat, rms),
+    ax.text(0.90, 0.90, 'Slit {:d}:  Residual (pixels) = {:0.5f}'.format(slitord_id, rms),
             transform=ax.transAxes, size='large', ha='right', color='black', fontsize=16)
-    ax.text(0.90, 0.80, ' Slit {:d}:  RMS/FWHM = {:0.5f}'.format(slit_spat, rms / fwhm),
+    ax.text(0.90, 0.80, ' Slit {:d}:  RMS/FWHM = {:0.5f}'.format(slitord_id, rms / fwhm),
             transform=ax.transAxes, size='large', ha='right', color='black', fontsize=16)
     # Label
     ax.set_xlabel('Spectral Pixel')
@@ -962,14 +962,14 @@ def arc_tilts_spec_qa(tilts_spec_fit, tilts, tilts_model, tot_mask, rej_mask, rm
 
 def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask, rej_mask, spat_order, spec_order, rms,
                    fwhm,
-                   setup='A', slit_spat=0, outfile=None, show_QA=False, out_dir=None):
+                   setup='A', slitord_id=0, outfile=None, show_QA=False, out_dir=None):
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'Helvetica'
 
     # Outfil
     method = inspect.stack()[0][3]
     if (outfile is None):
-        outfile = qa.set_qa_filename(setup, method, slit=slit_spat, out_dir=out_dir)
+        outfile = qa.set_qa_filename(setup, method, slit=slitord_id, out_dir=out_dir)
 
     nspat, nuse = tilts_dspat.shape
     # Show the fit residuals as a function of spatial position
@@ -1006,7 +1006,7 @@ def arc_tilts_spat_qa(tilts_dspat, tilts, tilts_model, tilts_spec_fit, tot_mask,
                                     mfc='limegreen', markersize=7.0, label='rejected')]
     ax.legend(handles=legend_elements)
     ax.set_title('Tilts vs Fit (spat_order, spec_order)=({:d},{:d}) for slit={:d}: RMS = {:5.3f}, '
-                 'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slit_spat, rms, rms / fwhm), fontsize=15)
+                 'RMS/FWHM={:5.3f}'.format(spat_order, spec_order, slitord_id, rms, rms / fwhm), fontsize=15)
     cb = fig.colorbar(dummie_cax, ticks=lines_spec)
     cb.set_label('Spectral Pixel')
 
