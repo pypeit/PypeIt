@@ -78,7 +78,7 @@ class Calibrations(object):
             :attr:`fitstbl`.
         calib_ID (:obj:`int`):
             calib group ID of the current frame
-        slitspat_num (:obj:`int` or :obj:`list, optional):
+        slitspat_num (:obj:`str` or :obj:`list, optional):
             Identifies a slit or slits to restrict the analysis on
             Used in :func:`get_slits` and propagated beyond
 
@@ -744,7 +744,7 @@ class Calibrations(object):
 
         # User mask?
         if self.slitspat_num is not None:
-            self.slits.user_mask(self.slitspat_num)
+            self.slits.user_mask(self.det, self.slitspat_num)
 
         # Save, initialize maskslits, and return
         self._update_cache('trace', 'trace', self.slits)
