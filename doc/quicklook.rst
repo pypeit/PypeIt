@@ -57,8 +57,8 @@ shane_kast_blue, shane_kast_red, keck_lris_blue, keck_deimos.
 
 .. _pypeit-ql-mos-options:
 
-Options
-+++++++
+QL Options
+++++++++++
 
 Here are a few of the standard options:
 

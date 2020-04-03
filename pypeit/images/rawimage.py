@@ -226,10 +226,7 @@ class RawImage(object):
         if self.par['illumflatten']:
             if flatimages is None or slits is None:
                 msgs.error("Need to provide slits and flatimages to illumination flat")
-            try:
-                illum_flat = flatimages.generate_illumflat(slits, flexure_shift=self.spat_flexure_shift)
-            except:
-                embed(header='232 of rawimage')
+            illum_flat = flatimages.generate_illumflat(slits, flexure_shift=self.spat_flexure_shift)
             if debug:
                 from pypeit import ginga
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)

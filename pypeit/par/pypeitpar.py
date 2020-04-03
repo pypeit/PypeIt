@@ -70,6 +70,7 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
+from pypeit import msgs
 
 # Needs this to determine the valid spectrographs TODO: This causes a
 # circular import.  Spectrograph specific parameter sets and where they
@@ -1665,12 +1666,14 @@ class ReduxPar(ParSet):
                                 'Options are: {0}'.format(', '.join(options['spectrograph']))
 
         dtypes['detnum'] = [int, list]
-        descr['detnum'] = 'Restrict reduction to a list of detector indices'
+        descr['detnum'] = 'Restrict reduction to a list of detector indices.' \
+                          'This cannot (and should not) be used with slitspatnum. '
 
-        dtypes['slitspatnum'] = [int, list]
-        descr['slitspatnum'] = 'Restrict reduction to a list of slit SPAT values (closest is used). ' \
-                               'This should be used in conjunction with detnum if the instrument ' \
-                               'has more than one detector.'
+        dtypes['slitspatnum'] = [str, list]
+        descr['slitspatnum'] = 'Restrict reduction to a set of slit DET:SPAT values (closest slit is used). ' \
+                               'Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, ' \
+                               '(i.e. modifying one slit) you *must* have the precise SPAT_ID index.' \
+                               'This cannot (and should not) be used with detnum'
 
         dtypes['sortroot'] = str
         descr['sortroot'] = 'A filename given to output the details of the sorted files.  If ' \
@@ -1726,6 +1729,10 @@ class ReduxPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
+        # Check that detnum and slitspatnum are not both set
+        if kwargs['detnum'] is not None and kwargs['slitspatnum'] is not None:
+            msgs.error("You cannot set both detnum and slitspatnum!  Causes serious SpecObjs output challenges..")
+        # Finish
         return cls(**kwargs)
 
     @staticmethod

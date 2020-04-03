@@ -42,8 +42,9 @@ def spat_flexure_shift(sciimg, slits, debug=False):
         float:  The spatial flexure shift relative to the initial slits
 
     """
-    # Mask
-    slitmask = slits.slit_img(initial=True, exclude_flag='SHORTSLIT')
+    # Mask -- Includes short slits and those excluded by the user (e.g. ['rdx']['slitspatnum'])
+    slitmask = slits.slit_img(initial=True, exclude_flag=slits.bitmask.exclude_for_flexure)
+
     _sciimg = sciimg if slitmask.shape == sciimg.shape \
                 else arc.resize_mask2arc(slitmask.shape, sciimg) 
     onslits = slitmask > -1
@@ -64,6 +65,8 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     # No peak? -- e.g. data fills the entire detector
     if len(tampl) == 0:
         msgs.warn('No peak found in spatial flexure.  Assuming there is none..')
+        if debug:
+            embed(header='68 of flexure')
         return 0.
 
     # Find the peak

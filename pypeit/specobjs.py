@@ -19,6 +19,7 @@ from pypeit.io import initialize_header
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit import slittrace
 
 from IPython import embed
 
@@ -479,7 +480,8 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None, debug=False):
+    def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None,
+                      slitspatnum=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
@@ -487,6 +489,8 @@ class SpecObjs(object):
             outfile (str):
             subheader (:obj:`dict`):
             overwrite (bool, optional):
+            slitspatnum (:obj:`str` or :obj:`list`, optional):
+                Restricted set of slits for reduction
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update
               the indicated detectors.  Useful for re-running on a subset of detectors
@@ -496,22 +500,25 @@ class SpecObjs(object):
             msgs.warn("Outfile exists.  Set overwrite=True to clobber it")
             return
 
-        # If the file exists and update_det is provided, use the existing header
+        # If the file exists and update_det (and slit_spat_num) is provided, use the existing header
         #   and load up all the other hdus so that we only over-write the ones
         #   we are updating
-        if os.path.isfile(outfile) and (update_det is not None):
+        if os.path.isfile(outfile) and (update_det is not None or slitspatnum is not None):
             _specobjs = SpecObjs.from_fitsfile(outfile)
-            # Pop out those with this detector
             mask = np.ones(_specobjs.nobj, dtype=bool)
-            for kk,sobj in enumerate(_specobjs):
-                if sobj.DET in np.atleast_1d(update_det):
-                    mask[kk] = False
+            # Update_det
+            if update_det is not None:
+                # Pop out those with this detector (and slit if slit_spat_num is provided)
+                for det in np.atleast_1d(update_det):
+                    mask[_specobjs.DET == det] = False
+            elif slitspatnum is not None: # slitspatnum
+                dets, spat_ids = slittrace.parse_slitspatnum(slitspatnum)
+                for det, spat_id in zip(dets, spat_ids):
+                    mask[(_specobjs.DET == det) & (_specobjs.SLITID == spat_id)] = False
             _specobjs = _specobjs[mask]
             # Add in the new
             for sobj in self.specobjs:
                 _specobjs.add_sobj(sobj)
-            if debug:
-                embed(header='512 of specobjs')
         else:
             _specobjs = self.specobjs
 

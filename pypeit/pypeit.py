@@ -18,6 +18,7 @@ from pypeit import spec2dobj
 from pypeit.core import qa
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import slittrace
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -62,7 +63,7 @@ class PypeIt(object):
             Name of the pypeit file to read.  PypeIt files have a
             specific set of valid formats. A description can be found
             :ref:`pypeit_file`.
-        fitstbl (:obj:`pypit.metadata.PypeItMetaData`): holds the meta info
+        fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
 #    __metaclass__ = ABCMeta
@@ -167,7 +168,6 @@ class PypeIt(object):
         self.verbosity = verbosity
         # TODO: I don't think this ever used
 
-        self.frame = None
         self.det = None
 
         self.tstart = None
@@ -332,7 +332,7 @@ class PypeIt(object):
 
     # This is a static method to allow for use in coadding script 
     @staticmethod
-    def select_detectors(detnum=None, ndet=1):
+    def select_detectors(detnum=None, ndet=1, slitspatnum=None):
         """
         Return the 1-indexed list of detectors to reduce.
 
@@ -348,9 +348,14 @@ class PypeIt(object):
             list:  List of detectors to be reduced
 
         """
-        if detnum is None:
+        if detnum is not None and slitspatnum is not None:
+            msgs.error("You cannot specify both detnum and slitspatnum.  Too painful for over-writing SpecObjs")
+        if detnum is None and slitspatnum is None:
             return np.arange(1, ndet+1).tolist()
-        return [detnum] if isinstance(detnum, int) else detnum
+        elif detnum is not None:
+            return np.atleast_1d(detnum).tolist()
+        else:
+            return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
 
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
@@ -413,6 +418,7 @@ class PypeIt(object):
 
         # Find the detectors to reduce
         detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+                                            slitspatnum=self.par['rdx']['slitspatnum'],
                                             ndet=self.spectrograph.ndet)
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
@@ -628,7 +634,6 @@ class PypeIt(object):
         return spec2DObj, sobjs
 
 
-    # TODO: Why not use self.frame?
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
         """
         Save the outputs from extraction for a given exposure
@@ -665,21 +670,22 @@ class PypeIt(object):
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
             subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
-            all_specobjs.write_to_fits(subheader, outfile1d, update_det=self.par['rdx']['detnum'])
+            all_specobjs.write_to_fits(subheader, outfile1d,
+                                       update_det=self.par['rdx']['detnum'],
+                                       slitspatnum=self.par['rdx']['slitspatnum'])
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # 2D spectra
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
-        update_det = self.par['rdx']['detnum']
         # Build header
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                redux_path=self.par['rdx']['redux_path'],
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir)
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
 
 
     def msgs_reset(self):

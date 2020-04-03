@@ -23,8 +23,8 @@ class SlitTraceBitMask(BitMask):
 
     def __init__(self):
         mask = dict([
-            ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
-            ('USERIGNORE', 'User has specified to ignore this slit'),
+            ('SHORTSLIT', 'Slit formed by left and right edge is too short. Not ignored for flexure'),
+            ('USERIGNORE', 'User has specified to ignore this slit. Not ignored for flexure.'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
             ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
@@ -32,6 +32,14 @@ class SlitTraceBitMask(BitMask):
             ('BADREDUCE', 'Skysub/extraction failed for this slit'),
         ])
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+
+    @property
+    def exclude_for_flexure(self):
+        # We will not exclude these flags when performing a flexure calculation
+        #  Currently they are *all* of the flags..
+        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB',
+                'SKIPFLATCALIB', 'BADFLATCALIB', 'BADREDUCE']
+
 
 
 class SlitTraceSet(datamodel.DataContainer):
@@ -552,15 +560,24 @@ class SlitTraceSet(datamodel.DataContainer):
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
 
-    def user_mask(self, slitspat_num):
+    def user_mask(self, det, slitspatnum):
         """
         Mask all but the input slit
 
         Args:
-            slitspat_num (:obj:`int` or :obj:`list`):
+            det (:obj:`int`): Detector number
+            slitspatnum (:obj:`str` or :obj:`list`):
         """
+        # Parse
+        dets, spat_ids = parse_slitspatnum(slitspatnum)
+        if det not in dets:
+            return
+        # Cut down for convenience
+        indet = dets == det
+        spat_ids = spat_ids[indet]
+        #
         msk = np.ones(self.nslits, dtype=bool)
-        for slit_spat in np.atleast_1d(slitspat_num):
+        for slit_spat in spat_ids:
             #TODO -- Consider putting in a tolerance which if not met causes a crash
             idx = np.argmin(np.abs(self.spat_id - slit_spat))
             msk[idx] = False
@@ -604,3 +621,24 @@ class SlitTraceSet(datamodel.DataContainer):
         bad_tilts = waveTilts.bpmtilts > 0
         if np.any(bad_tilts):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
+
+def parse_slitspatnum(slitspatnum):
+    """
+    Parse the slitspatnum into a list of detectors and SPAT_IDs
+
+    Args:
+        slitspatnum (:obj:`str` or :obj:`list`:
+
+    Returns:
+        tuple:  dets, spat_ids  (each is an `numpy.ndarray`_ of int's)
+
+    """
+    dets = []
+    spat_ids = []
+    for item in slitspatnum.split(','):
+        spt = item.split(':')
+        dets.append(int(spt[0]))
+        spat_ids.append(int(spt[1]))
+    # Return
+    return np.array(dets).astype(int), np.array(spat_ids).astype(int)
+

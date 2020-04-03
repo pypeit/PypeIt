@@ -98,6 +98,7 @@ def main(args):
     gpm = mask == 0
     left = all_left[:, gpm]
     right = all_right[:, gpm]
+    slid_IDs = spec2DObj.slits.spat_id[gpm]
 
     bitMask = ImageBitMask()
 
@@ -135,7 +136,7 @@ def main(args):
 
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)
+    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
     # SKYSUB
     if args.ignore_extract_mask:
@@ -156,7 +157,7 @@ def main(args):
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)
+    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
 
     # SKRESIDS
@@ -166,7 +167,7 @@ def main(args):
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)
+    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
@@ -176,7 +177,7 @@ def main(args):
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right)
+    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
 
     # After displaying all the images sync up the images with WCS_MATCH
