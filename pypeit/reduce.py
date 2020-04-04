@@ -68,12 +68,45 @@ class Reduce(object):
         spat_flexure_shift (float):
         tilts (`numpy.ndarray`_):
             WaveTilts images generated on-the-spot
-        waveImg (`numpy.ndarray`_):
+        waveimg (`numpy.ndarray`_):
             WaveImage image generated on-the-spot
 
     """
 
     __metaclass__ = ABCMeta
+
+
+
+    # Superclass factory method generates the subclass instance
+    @classmethod
+    def get_instance(cls, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
+                 objtype, ir_redux=False, det=1, std_redux=False, show=False,
+                 binning=None, setup=None):
+        """
+        Instantiate the Reduce subclass appropriate for the provided
+        spectrograph.
+
+        The class must be subclassed from Reduce.  See :class:`Reduce` for
+        the description of the valid keyword arguments.
+
+        Args:
+            sciImg (pypeit.images.scienceimage.ScienceImage):
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            par (pypeit.par.pyepeitpar.PypeItPar):
+            slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
+            waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+
+            **kwargs
+                Passed to Parent init
+
+        Returns:
+            :class:`pypeit.reduce.Reduce`:
+        """
+        return next(c for c in cls.__subclasses__()
+                    if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
+            sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, ir_redux=ir_redux, det=det,
+            std_redux=std_redux, show=show,binning=binning, setup=setup)
+
 
     def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
@@ -99,6 +132,8 @@ class Reduce(object):
         elif objtype == 'standard':
             if self.par['calibrations']['standardframe']['process']['spat_flexure_correct']:
                 self.spat_flexure_shift = self.sciImg.spat_flexure
+        elif objtype == 'science_coadd2d':
+            self.spat_flexure_shift = None
         else:
             msgs.error("Not ready for this objtype in Reduce")
 
@@ -121,20 +156,9 @@ class Reduce(object):
         self.reduce_bpm = (self.slits.mask > 0) & (self.slits.mask != 2**self.slits.bitmask.bits['SKIPFLATCALIB'])
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
-        # Tilts
-        waveTilts.is_synced(self.slits)
-        #   Deal with Flexure
-        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
-            # If they both shifted the same, there will be no reason to shift the tilts
-            tilt_flexure_shift = _spat_flexure - waveTilts.spat_flexure
-        else:
-            tilt_flexure_shift = self.spat_flexure_shift
-        self.tilts = waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+        self.waveTilts = waveTilts
+        self.wv_calib = wv_calib
 
-        # Wavelengths (on unmasked slits)
-        self.waveImg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
-                                               wv_calib, spat_flexure=self.spat_flexure_shift)
 
         # Load up other input items
         self.ir_redux = ir_redux
@@ -159,6 +183,8 @@ class Reduce(object):
         # SpecObjs object
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
+
+
 
     def parse_manual_dict(self, manual_dict, neg=False):
         """
@@ -224,7 +250,7 @@ class Reduce(object):
                 inmask = (self.sciImg.fullmask == 0) & thismask
                 # Do it
                 extract.extract_boxcar(self.sciImg.image, self.sciImg.ivar,
-                                               inmask, self.waveImg,
+                                               inmask, self.waveimg,
                                                global_sky, self.sciImg.rn2img,
                                                self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)
@@ -282,6 +308,23 @@ class Reduce(object):
                outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
 
         """
+
+        # Deal with dynamic calibrations
+        # Tilts
+        self.waveTilts.is_synced(self.slits)
+        #   Deal with Flexure
+        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            # If they both shifted the same, there will be no reason to shift the tilts
+            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+        else:
+            tilt_flexure_shift = self.spat_flexure_shift
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+
+        # Wavelengths (on unmasked slits)
+        self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
+                                               self.wv_calib, spat_flexure=self.spat_flexure_shift)
+
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
@@ -349,8 +392,7 @@ class Reduce(object):
                 self.slits.mask[reduce_masked], 'BADREDUCE')
 
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
-               self.waveImg
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, waveimg
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -496,7 +538,7 @@ class Reduce(object):
         # Return
         return self.global_sky
 
-    def local_skysub_extract(self, waveImg, global_sky, sobjs,
+    def local_skysub_extract(self, global_sky, sobjs,
                              model_noise=True, spat_pix=None,
                              show_profile=False, show_resids=False, show=False):
         """
@@ -782,9 +824,7 @@ class MultiSlitReduce(Reduce):
 
     # JFH TODO Should we reduce the number of iterations for standards or near-IR redux where the noise model is not
     # being updated?
-    def local_skysub_extract(self, global_sky, sobjs,
-                             spat_pix=None, model_noise=True,
-                             show_resids=False,
+    def local_skysub_extract(self, global_sky, sobjs, spat_pix=None, model_noise=True, show_resids=False,
                              show_profile=False, show=False):
         """
         Perform local sky subtraction, profile fitting, and optimal extraction slit by slit
@@ -836,7 +876,7 @@ class MultiSlitReduce(Reduce):
                 # Local sky subtraction and extraction
                 self.skymodel[thismask], self.objmodel[thismask], self.ivarmodel[thismask], \
                     self.extractmask[thismask] = skysub.local_skysub_extract(
-                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveImg,
+                    self.sciImg.image, self.sciImg.ivar, self.tilts, self.waveimg,
                     self.global_sky, self.sciImg.rn2img,
                     thismask, self.slits_left[:,slit_idx], self.slits_right[:, slit_idx],
                     self.sobjs[thisobj], ingpm,
@@ -1012,7 +1052,7 @@ class EchelleReduce(Reduce):
 
         self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = skysub.ech_local_skysub_extract(self.sciImg.image, self.sciImg.ivar,
-                                                  self.sciImg.fullmask, self.tilts, self.waveImg,
+                                                  self.sciImg.fullmask, self.tilts, self.waveimg,
                                                   self.global_sky, self.sciImg.rn2img,
                                                   self.slits_left, self.slits_right,
                                                   self.slitmask,
@@ -1036,33 +1076,33 @@ class EchelleReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 # TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
-def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
-    """
-    Instantiate the Reduce subclass appropriate for the provided
-    spectrograph.
-
-    The class must be subclassed from Reduce.  See :class:`Reduce` for
-    the description of the valid keyword arguments.
-
-    Args:
-        sciImg (pypeit.images.scienceimage.ScienceImage):
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-        par (pypeit.par.pyepeitpar.PypeItPar):
-        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
-        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
-
-        **kwargs
-            Passed to Parent init
-
-    Returns:
-        :class:`pypeit.reduce.Reduce`:
-    """
-    indx = [c.__name__ == spectrograph.pypeline+'Reduce' for c in Reduce.__subclasses__()]
-    if not np.any(indx):
-        msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
-    return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
-                                                         par, slitTrace,
-                                                         waveTilts, wv_calib, objtype, **kwargs)
+#def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
+#    """
+#    Instantiate the Reduce subclass appropriate for the provided
+#    spectrograph.
+#
+#    The class must be subclassed from Reduce.  See :class:`Reduce` for
+#    the description of the valid keyword arguments.
+#
+#    Args:
+#        sciImg (pypeit.images.scienceimage.ScienceImage):
+#        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+#        par (pypeit.par.pyepeitpar.PypeItPar):
+#        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
+#        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+#
+#        **kwargs
+#            Passed to Parent init
+#
+#    Returns:
+#        :class:`pypeit.reduce.Reduce`:
+#    """
+#    indx = [c.__name__ == spectrograph.pypeline+'Reduce' for c in Reduce.__subclasses__()]
+#    if not np.any(indx):
+#        msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
+#    return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
+#                                                         par, slitTrace,
+#                                                         waveTilts, wv_calib, objtype, **kwargs)
 
 
 

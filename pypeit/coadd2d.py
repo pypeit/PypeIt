@@ -209,13 +209,14 @@ class CoAdd2D(object):
 
         only_slits = [only_slits] if (only_slits is not None and
                                       isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
+        # TODO We should be checking the bitmask for the reductions or something here??
         good_slits = np.arange(self.nslits) if only_slits is None else only_slits
 
         coadd_list = []
         for islit in good_slits:
             msgs.info('Performing 2d coadd for slit: {:d}/{:d}'.format(islit, self.nslits - 1))
             ref_trace_stack = self.reference_trace_stack(islit, offsets=self.offsets, objid=self.objid_bri)
-            thismask_stack = self.stack_dict['slitmask_stack'] == islit
+            thismask_stack = self.stack_dict['slitmask_stack'] == self.stack_dict['slits_list'][0].spat_id[islit]
             # TODO Can we get rid of this one line simply making the weights returned by parse_weights an
             # (nslit, nexp) array?
             # This one line deals with the different weighting strategies between MultiSlit echelle. Otherwise, we
@@ -305,7 +306,7 @@ class CoAdd2D(object):
             spat_left = spat_righ + nspat_pad
 
         slits_pseudo \
-                = slittrace.SlitTraceSet(slit_left, slit_righ, nspat=nspat_pseudo,
+                = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
                                          PYP_SPEC=self.spectrograph.spectrograph,
                                          specmin=spec_min1, specmax=spec_max1)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
@@ -317,9 +318,9 @@ class CoAdd2D(object):
         spec_min = np.zeros(self.nslits)
         spec_max = np.zeros(self.nslits)
         for islit in range(self.nslits):
-            slit_width = np.sum(inmask_pseudo*(slitmask_pseudo == islit),axis=1)
+            slit_width = np.sum(inmask_pseudo*(slitmask_pseudo == slits_pseudo.spat_id[islit]),axis=1)
             slit_width_img = np.outer(slit_width, np.ones(nspat_pseudo))
-            med_slit_width = np.median(slit_width_img[slitmask_pseudo == islit])
+            med_slit_width = np.median(slit_width_img[slitmask_pseudo == slits_pseudo.spat_id[islit]])
             nspec_eff = np.sum(slit_width > min_slit_frac*med_slit_width)
             nsmooth = int(np.fmax(np.ceil(nspec_eff*0.02),10))
             slit_width_sm = ndimage.filters.median_filter(slit_width, size=nsmooth, mode='reflect')
@@ -370,17 +371,13 @@ class CoAdd2D(object):
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
         parcopy['calibrations']['save_masters'] = False
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
-        # Instantiate Calibrations class
-        caliBrate = calibrations.MultiSlitCalibrations(None, parcopy, self.spectrograph)
-        caliBrate.slits = pseudo_dict['slits']
-        caliBrate.wavetilts = WaveTilts(pseudo_dict['tilts'], None, None, None, None, None, None)
-        #    tilts_dict = dict(tilts=pseudo_dict['tilts'])
-        caliBrate.mswave = pseudo_dict['waveimg']
-        #
-        # redux = reduce.instantiate_me(sciImage, self.spectrograph, pseudo_dict['tslits_dict'], parcopy, pseudo_dict['tilts'],
-        redux=reduce.instantiate_me(sciImage, self.spectrograph, parcopy, caliBrate,
-                                    ir_redux=self.ir_redux, objtype='science_coadd2d',
-                                    det=self.det, show=show)
+
+        redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
+                                         None, None, 'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
+        # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
+        # normally, but this is not possible for coadds
+        redux.tilts = pseudo_dict['tilts']
+        redux.waveimg = pseudo_dict['waveimg']
 
         if show:
             redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
@@ -389,7 +386,7 @@ class CoAdd2D(object):
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs = redux.local_skysub_extract(
-            caliBrate.mswave, global_sky_pseudo, sobjs_obj, spat_pix=pseudo_dict['spat_img'], model_noise=False,
+            global_sky_pseudo, sobjs_obj, spat_pix=pseudo_dict['spat_img'], model_noise=False,
             show_profile=show, show=show)
 
         if self.ir_redux:
@@ -546,7 +543,11 @@ class CoAdd2D(object):
             sciivar_stack[ifile, :, :] = spec2DObj.ivarmodel
             mask_stack[ifile, :, :] = spec2DObj.bpmmask
             slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
-            tilts_stack[ifile,:,:] = spec2DObj.tilts.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=(spec2DObj.sci_spat_flexure- spec2DObj.tilts.spat_flexure))
+            # TODO: This is an asinine morass. Just set the silly flexure shifts to zero and
+            #  indicate whether we measured it with a flag.
+            _spat_flexure = 0. if spec2DObj.sci_spat_flexure is None else spec2DObj.sci_spat_flexure
+            _tilt_flexure_shift = _spat_flexure - spec2DObj.tilts.spat_flexure if spec2DObj.tilts.spat_flexure is not None else _spat_flexure
+            tilts_stack[ifile,:,:] = spec2DObj.tilts.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=_tilt_flexure_shift)
             # Spec1d
             spec1d_file = f.replace('spec2d', 'spec1d')
             if os.path.isfile(spec1d_file):
@@ -558,7 +559,7 @@ class CoAdd2D(object):
                     slitmask_stack=slitmask_stack,
                     sciimg_stack=sciimg_stack, sciivar_stack=sciivar_stack,
                     skymodel_stack=skymodel_stack, mask_stack=mask_stack,
-                    tilts_stack=tilts_stack,
+                    tilts_stack=tilts_stack, waveimg_stack=waveimg_stack,
                     redux_path=redux_path,
                     spectrograph=self.spectrograph.spectrograph,
                     pypeline=self.spectrograph.pypeline)

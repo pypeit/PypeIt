@@ -93,8 +93,8 @@ class SlitTraceSet(datamodel.DataContainer):
     bitmask = SlitTraceBitMask()
 
     # Define the data model
-    datamodel = {
-                 'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+                 'pypeline': dict(otype=str, desc='PypeIt pypeline name'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'nspat': dict(otype=int,
@@ -145,7 +145,7 @@ class SlitTraceSet(datamodel.DataContainer):
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
-    def __init__(self, left_init, right_init, nspec=None, nspat=None, PYP_SPEC=None, mask_init=None,
+    def __init__(self, left_init, right_init, pypeline, nspec=None, nspat=None, PYP_SPEC=None, mask_init=None,
                  specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
                  spat_id=None, maskdef_id=None, ech_order=None, nslits=None,
                  left_tweak=None, right_tweak=None, center=None, mask=None,
@@ -275,6 +275,15 @@ class SlitTraceSet(datamodel.DataContainer):
         info = np.vstack([info, np.zeros_like(self.spat_id)]) \
                     if self.maskdef_id is None else np.vstack([info, self.maskdef_id])
         return info.astype(int).T
+
+    @property
+    def slitord_id(self):
+        if self.pypeline in ['MultiSlit', 'IFU']:
+            return self.spat_id
+        elif self.pypeline in ['Echelle']:
+            return self.ech_order
+        else:
+            msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
 
     def spatid_to_zero(self, spat_id):
         """
@@ -607,9 +616,12 @@ class SlitTraceSet(datamodel.DataContainer):
             wv_calib (:obj:`dict`):
 
         """
-        for kk, spat_id in enumerate(self.spat_id):
-            if wv_calib[str(spat_id)] is None:
-                self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
+        #for kk, spat_id in enumerate(self.spat_id):
+        #    if wv_calib[str(spat_id)] is None:
+        #        self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
+        for islit in range(self.nslits):
+            if wv_calib[str(self.slitord_id[islit])] is None:
+                self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):
         """

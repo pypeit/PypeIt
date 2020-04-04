@@ -4316,9 +4316,10 @@ class EdgeTraceSet(object):
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return
-        return slittrace.SlitTraceSet(left_init=left, right_init=right, nspat=self.nspat,
+        return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
-                                      pad=self.par['pad'], mask_init=slit_msk)
+                                      pad=self.par['pad'], mask_init=slit_msk,
+                                      ech_order=self.spectrograph.order_vec(slitspat) if self.spectrograph.pypeline in ['Echelle'] else None)
 
 

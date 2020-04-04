@@ -254,19 +254,24 @@ class WaveCalib(object):
         self.wv_calib = {}
         for idx in range(self.slits.nslits):
             if str(idx) in final_fit.keys():
-                self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
+                # TODO This should be changed to slitord_id but that requires remaking all the archives. Can do so
+                # when wv_calib gets a new data model since that will all get revamped.
+                self.wv_calib[str(self.slits.slitord_id[idx])] = final_fit.pop(str(idx))
+                #self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
 
         # Update mask
         self.update_wvmask()
+
+        #TODO For generalized echelle (not hard wired) assign order number here before, i.e. slits.ech_order
 
         # QA
         if not skip_QA:
             ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
             for slit_idx in ok_mask_idx:
-                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.spat_id[slit_idx],
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
                 try:
-                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.spat_id[slit_idx])], outfile=outfile)
+                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
                 except:
                     embed(header='269 of wavecalib')
 
@@ -295,17 +300,19 @@ class WaveCalib(object):
 
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
-        ok_mask_spat = self.slits.spat_id[ok_mask_idx]
+        ok_mask_order = self.slits.slitord_id[ok_mask_idx]
         nspec = self.msarc.image.shape[0]
-        for islit in wv_calib.keys():  # Spatial based
-            if int(islit) not in ok_mask_spat:
+        for iorder in wv_calib.keys():  # Spatial based
+            if int(iorder) not in ok_mask_order:
                 continue
-            iorder, iindx = self.spectrograph.slit2order(
-                self.spat_coo[self.slits.spatid_to_zero(int(islit))])
-            mask_now = wv_calib[islit]['mask']
-            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
-            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
-            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'][mask_now],
+            #try:
+            #    iorder, iindx = self.spectrograph.slit2order(self.spat_coo[self.slits.spatid_to_zero(int(islit))])
+            #except:
+            #    embed()
+            mask_now = wv_calib[iorder]['mask']
+            all_wave = np.append(all_wave, wv_calib[iorder]['wave_fit'][mask_now])
+            all_pixel = np.append(all_pixel, wv_calib[iorder]['pixel_fit'][mask_now])
+            all_order = np.append(all_order, np.full_like(wv_calib[iorder]['pixel_fit'][mask_now],
                                                           float(iorder)))
 
         # Fit
