@@ -575,8 +575,8 @@ class CoAdd2D(object):
             sciivar_stack[ifile, :, :] = spec2DObj.ivarmodel
             mask_stack[ifile, :, :] = spec2DObj.bpmmask
             # TODO -- Set back after done testing
-            #slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
-            slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=0.)
+            slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
+            #slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=0.)
             _spat_flexure = 0. if spec2DObj.sci_spat_flexure is None else spec2DObj.sci_spat_flexure
             _tilt_flexure_shift = _spat_flexure - spec2DObj.tilts.spat_flexure if spec2DObj.tilts.spat_flexure is not None else _spat_flexure
             tilts_stack[ifile,:,:] = spec2DObj.tilts.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=_tilt_flexure_shift)
