@@ -223,9 +223,10 @@ def main(args):
         # TODO -- This should mirror what is in pypeit.extract_one
         # TODO -- JFH :: This ought to return a Spec2DObj and SpecObjs which would be slurped into
         #  AllSpec2DObj and all_specobsj, as below.
+        # TODO -- JFH -- Check that the slits we are using are correct
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
-        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'] = coadd.reduce(
-            pseudo_dict, show = args.show, show_peaks = args.peaks)
+        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'], \
+            sci_dict[det]['slits']= coadd.reduce(pseudo_dict, show = args.show, show_peaks = args.peaks)
         # Save pseudo image master files
         #coadd.save_masters()
 
@@ -261,11 +262,11 @@ def main(args):
                                               ivarmodel=sci_dict[det]['ivarmodel'],
                                               bpmmask=sci_dict[det]['outmask'],
                                               detector=sci_dict[det]['detector'],
+                                              slits=sci_dict[det]['slits'],
                                         # TODO -- JFH :: Fill in all of these
                                         waveimg=None,
                                         sci_spat_flexure=None,
-                                        tilts=None,
-                                        slits=None)
+                                        tilts=None)
     # Build header
     outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
     pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
