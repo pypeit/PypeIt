@@ -34,8 +34,13 @@ class SlitTraceBitMask(BitMask):
         super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
+    def exclude_for_reducing(self):
+        # Ignore these flags when reducing or considering reduced slits
+        return ['SKIPFLATCALIB']
+
+    @property
     def exclude_for_flexure(self):
-        # We will not exclude these flags when performing a flexure calculation
+        # Ignore these flags when performing a flexure calculation
         #  Currently they are *all* of the flags..
         return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB',
                 'SKIPFLATCALIB', 'BADFLATCALIB', 'BADREDUCE']
@@ -216,9 +221,9 @@ class SlitTraceSet(datamodel.DataContainer):
             # Validate
             if self.slitbitm != ','.join(list(self.bitmask.keys())):
                 msgs.error("Input BITMASK keys differ from current data model!")
-
-        # Init the mask that will be updated as Redux proceeds
-        self.mask = self.mask_init.copy()
+        # Mask
+        if self.mask is None:
+            self.mask = self.mask_init.copy()
 
     def _init_internals(self):
         self.left_flexure = None

@@ -1196,7 +1196,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
     if specobj_dict is None:
         #specobj_dict = dict(setup=None, SLITID=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
-        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit', ORDERINDX=999)
+        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown',
+                            PYPELINE='MultiSlit')
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:

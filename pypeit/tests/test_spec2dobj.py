@@ -18,6 +18,7 @@ from pypeit.tests import tstutils
 from pypeit.tests import test_wavetilts
 from pypeit import wavetilts
 from pypeit import slittrace
+from pypeit import pypmsgs
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -25,9 +26,17 @@ def data_path(filename):
 
 @pytest.fixture
 def init_dict():
-    sciimg = np.ones((500,500)).astype(float)
-    slits = slittrace.SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
-                         nspat=10, PYP_SPEC='dummy')
+    sciimg = np.ones((1000,1000)).astype(float)
+    # Slits
+    left = np.full((1000, 3), 2, dtype=float)
+    right = np.full((1000, 3), 8, dtype=float)
+    left[:,1] = 15.
+    right[:,1] = 21.
+    left[:,2] = 25.
+    right[:,2] = 31.
+    slits = slittrace.SlitTraceSet(left, right, 'MultiSlit',
+                                   nspat=1000, PYP_SPEC='dummy')
+    #
     sdict = dict(sciimg = sciimg,
                  ivarraw = 0.1 * np.ones_like(sciimg),
                  skymodel = 0.95 * np.ones_like(sciimg),
@@ -43,10 +52,21 @@ def init_dict():
                  )
     return sdict
 
+'''
+from IPython import embed
+
+dpath = '/home/xavier/Projects/PypeIt-development-suite/REDUX_OUT/keck_lris_blue/multi_300_5000_d680'
+new_spec2dfile = os.path.join(dpath, 'Science', 'spec2d_b170816_0076-E570_LRISb_2017Aug16T071652.378.fits')
+orig_spec2dfile = os.path.join(dpath, 'Science', 'Orig', 'spec2d_b170816_0076-E570_LRISb_2017Aug16T071652.378.fits')
+new_spec2DObj = spec2dobj.Spec2DObj.from_file(new_spec2dfile, 1)
+orig_spec2DObj = spec2dobj.Spec2DObj.from_file(orig_spec2dfile, 1)
+
+orig_spec2DObj.update_slits(new_spec2DObj)
+'''
+
+
 ####################################################3
 # Testing of Spec2DObj
-
-
 def test_init(init_dict):
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     # Check
@@ -65,6 +85,22 @@ def test_spec2dobj_io(init_dict):
     _spec2DObj = spec2dobj.Spec2DObj.from_file(ofile, init_dict['det'])
     os.remove(ofile)
 
+def test_spec2dobj_update_slit(init_dict):
+    # Build two
+    spec2DObj1 = spec2dobj.Spec2DObj(**init_dict)
+    spec2DObj2 = spec2dobj.Spec2DObj(**init_dict)
+
+    # Checks
+    spec2DObj2.det = 2
+    with pytest.raises(pypmsgs.PypeItError):
+        spec2DObj1.update_slits(spec2DObj2)
+
+    # Update
+    spec2DObj2.det = 1
+    spec2DObj2.sciimg = spec2DObj1.sciimg.copy()*2.
+    spec2DObj2.slits.mask[1:] = 1
+
+    spec2DObj1.update_slits(spec2DObj2)
 
 ####################################################3
 # Testing of AllSpec2DObj
@@ -105,7 +141,7 @@ def test_all2dobj_write(init_dict):
 
     os.remove(ofile)
 
-def test_all2dobj_update(init_dict):
+def test_all2dobj_update_image(init_dict):
     # Build two
     spec2DObj1 = spec2dobj.Spec2DObj(**init_dict)
     spec2DObj2 = spec2dobj.Spec2DObj(**init_dict)
@@ -134,3 +170,4 @@ def test_all2dobj_update(init_dict):
     assert np.array_equal(allspec2D_2[1].sciimg, spec2DObj1.sciimg)
 
     os.remove(ofile)
+

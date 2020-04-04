@@ -552,6 +552,7 @@ class PypeIt(object):
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning \
                 = self.get_sci_metadata(frames[0], det)
+        msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
         if self.std_redux:
@@ -665,11 +666,11 @@ class PypeIt(object):
         if not os.path.isdir(self.science_path):
             os.makedirs(self.science_path)
 
+        subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
         # 1D spectra
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
-            subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
             all_specobjs.write_to_fits(subheader, outfile1d,
                                        update_det=self.par['rdx']['detnum'],
                                        slitspatnum=self.par['rdx']['slitspatnum'])
@@ -683,7 +684,8 @@ class PypeIt(object):
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                redux_path=self.par['rdx']['redux_path'],
                                                master_key_dict=self.caliBrate.master_key_dict,
-                                               master_dir=self.caliBrate.master_dir)
+                                               master_dir=self.caliBrate.master_dir,
+                                               subheader=subheader)
         # Write
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
 

@@ -2750,7 +2750,8 @@ def get_spat_bins(thismask_stack, trace_stack):
     return dspat_bins, dspat_stack
 
 
-def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack,
+def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
+                    inmask_stack, tilts_stack,
                     thismask_stack, waveimg_stack, wave_grid, weights='uniform'):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.

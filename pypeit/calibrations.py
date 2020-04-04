@@ -701,6 +701,8 @@ class Calibrations(object):
                                                            master_dir=self.master_dir)
         if os.path.isfile(slit_masterframe_name) and self.reuse_masters:
             self.slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+            # Reset the bitmask
+            self.slits.mask = self.slits.mask_init.copy()
         else:
             # Slits don't exist or we're not resusing them
             edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
@@ -928,6 +930,7 @@ class Calibrations(object):
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
         msgs.info("Calibration complete!")
+        msgs.info("#######################################################################")
 
     def _chk_set(self, items):
         """
