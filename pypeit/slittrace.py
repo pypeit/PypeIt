@@ -276,7 +276,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
     @property
     def slitord_id(self):
-        if self.pypeline in ['Multislit', 'IFU']:
+        if self.pypeline in ['MultiSlit', 'IFU']:
             return self.spat_id
         elif self.pypeline in ['Echelle']:
             return self.ech_order
@@ -614,9 +614,12 @@ class SlitTraceSet(datamodel.DataContainer):
             wv_calib (:obj:`dict`):
 
         """
-        for kk, spat_id in enumerate(self.spat_id):
-            if wv_calib[str(spat_id)] is None:
-                self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
+        #for kk, spat_id in enumerate(self.spat_id):
+        #    if wv_calib[str(spat_id)] is None:
+        #        self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
+        for islit in range(self.nslits):
+            if wv_calib[str(self.slitord_id[islit])] is None:
+                self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):
         """

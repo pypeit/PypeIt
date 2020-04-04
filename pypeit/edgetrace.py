@@ -4320,6 +4320,6 @@ class EdgeTraceSet(object):
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
                                       pad=self.par['pad'], mask_init=slit_msk,
-                                      ech_order=self.spectrograph.order_vec(slitspat) if self.pypeline in ['Echelle'] else None)
+                                      ech_order=self.spectrograph.order_vec(slitspat) if self.spectrograph.pypeline in ['Echelle'] else None)
 
 
