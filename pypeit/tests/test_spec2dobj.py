@@ -47,7 +47,8 @@ def init_dict():
                  det=1,
                  detector=None,
                  slits=slits,
-                 tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),
+                 tilts=np.ones_like(sciimg).astype(float),
+                 #tilts=wavetilts.WaveTilts(**test_wavetilts.instant_dict),
                  sci_spat_flexure=3.5,
                  )
     return sdict

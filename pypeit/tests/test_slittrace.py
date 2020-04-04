@@ -25,7 +25,9 @@ def test_bits():
 def test_init():
 
     slits = SlitTraceSet(left_init=np.full((1000,3), 2, dtype=float),
-                         right_init=np.full((1000,3), 8, dtype=float), nspat=10, PYP_SPEC='dummy')
+                         right_init=np.full((1000,3), 8, dtype=float),
+                         pypeline='MultiSlit',
+                         nspat=10, PYP_SPEC='dummy')
 
     left, right, _ = slits.select_edges()
     center = (left+right)/2
@@ -34,6 +36,7 @@ def test_init():
 def test_io():
 
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
+                         'MultiSlit',
                          nspat=10, PYP_SPEC='dummy')
     master_file = masterframe.construct_file_name(slits, master_key, master_dir=master_dir)
 
@@ -76,6 +79,7 @@ def test_io():
 
 def test_io_single():
     slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
+                         'MultiSlit',
                          nspat=10, PYP_SPEC='dummy')
 
     # Remove any existing file from previous runs that were interrupted
