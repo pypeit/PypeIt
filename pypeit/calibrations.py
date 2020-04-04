@@ -930,6 +930,7 @@ class Calibrations(object):
         for step in self.steps:
             getattr(self, 'get_{:s}'.format(step))()
         msgs.info("Calibration complete!")
+        msgs.info("#######################################################################")
 
     def _chk_set(self, items):
         """
