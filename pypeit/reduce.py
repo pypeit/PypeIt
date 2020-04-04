@@ -290,6 +290,8 @@ class Reduce(object):
         """
         Primary code flow for PypeIt reductions
 
+        *NOT* used by COADD2D
+
         Args:
             basename (str, optional):
                 Required if flexure correction is to be applied
@@ -307,7 +309,9 @@ class Reduce(object):
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
+               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.narray`_),
+               tilts (`numpy_ndarray`_).
+               See main doc string for description
 
         """
 
@@ -394,7 +398,8 @@ class Reduce(object):
                 self.slits.mask[reduce_masked], 'BADREDUCE')
 
         # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, self.waveimg
+        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
+               self.waveimg, self.tilts
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,

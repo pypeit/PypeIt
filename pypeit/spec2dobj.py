@@ -60,10 +60,10 @@ class Spec2DObj(datamodel.DataContainer):
         'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image'),
         'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
+        'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image'),
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
         'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
         'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
-        'tilts': dict(otype=wavetilts.WaveTilts, desc='Fits required to generate a Tilts image'),
         'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
         'sci_spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
@@ -141,9 +141,6 @@ class Spec2DObj(datamodel.DataContainer):
             # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
-            # WaveTilts
-            elif key == 'tilts':
-                d.append(dict(tilts=self.tilts))
             # SliTraceSet
             elif key == 'slits':
                 d.append(dict(slits=self.slits))

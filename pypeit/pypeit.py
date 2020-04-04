@@ -603,7 +603,7 @@ class PypeIt(object):
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg = self.redux.run(
+        skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.redux.run(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
@@ -627,7 +627,7 @@ class PypeIt(object):
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
                                         sci_spat_flexure=sciImg.spat_flexure,
-                                        tilts=copy.deepcopy(self.caliBrate.wavetilts),
+                                        tilts=tilts,
                                         slits=copy.deepcopy(self.caliBrate.slits))
         spec2DObj.process_steps = sciImg.process_steps
 
