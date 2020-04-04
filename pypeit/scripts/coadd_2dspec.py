@@ -221,6 +221,7 @@ def main(args):
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'] = coadd.reduce(
             pseudo_dict, show = args.show, show_peaks = args.peaks)
         # Save pseudo image master files
+        # TODO I think masters don't need to be saved anymore 
         coadd.save_masters()
 
     # Make the new Science dir
