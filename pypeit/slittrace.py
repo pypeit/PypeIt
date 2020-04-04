@@ -221,6 +221,9 @@ class SlitTraceSet(datamodel.DataContainer):
             # Validate
             if self.slitbitm != ','.join(list(self.bitmask.keys())):
                 msgs.error("Input BITMASK keys differ from current data model!")
+        # Mask
+        if self.mask is None:
+            self.mask = self.mask_init.copy()
 
     def _init_internals(self):
         self.left_flexure = None

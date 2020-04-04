@@ -182,11 +182,22 @@ class Spec2DObj(datamodel.DataContainer):
 
         # Find the good ones on the input object
         bpm = spec2DObj.slits.mask.astype(bool)
-        gdslits = np.invert(spec2DObj.slits.bitmask.flagged(
+        exc_reduce = np.invert(spec2DObj.slits.bitmask.flagged(
             spec2DObj.slits.mask, flag=spec2DObj.slits.bitmask.exclude_for_reducing))
-        embed(header='187 of spec2dobj')
+        gpm = np.invert(bpm & exc_reduce)
 
+        # Update slits.mask
+        self.slits.mask[gpm] = spec2DObj.slits.mask[gpm]
 
+        # Slitmask
+        slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
+                                                 exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
+        # Fill in the image
+        for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
+            inmask = slitmask == spat_id
+            # Get em all
+            for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
+                self[imgname][inmask] = spec2DObj[imgname][inmask]
 
 class AllSpec2DObj(object):
     """
@@ -401,7 +412,6 @@ class AllSpec2DObj(object):
 
         # Finish
         hdulist = fits.HDUList(hdus)
-        embed(header='404 of spec2dobj')
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote: {:s}".format(outfile))
 

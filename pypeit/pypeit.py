@@ -685,7 +685,6 @@ class PypeIt(object):
                                                master_key_dict=self.caliBrate.master_key_dict,
                                                master_dir=self.caliBrate.master_dir)
         # Write
-        embed(header='684 of pypeit')
         all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
 
 
