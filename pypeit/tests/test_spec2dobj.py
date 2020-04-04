@@ -43,10 +43,19 @@ def init_dict():
                  )
     return sdict
 
+from IPython import embed
+
+dpath = '/home/xavier/Projects/PypeIt-development-suite/REDUX_OUT/keck_lris_blue/multi_300_5000_d680'
+new_spec2dfile = os.path.join(dpath, 'Science', 'spec2d_b170816_0076-E570_LRISb_2017Aug16T071652.378.fits')
+orig_spec2dfile = os.path.join(dpath, 'Science', 'Orig', 'spec2d_b170816_0076-E570_LRISb_2017Aug16T071652.378.fits')
+new_spec2DObj = spec2dobj.Spec2DObj.from_file(new_spec2dfile, 1)
+orig_spec2DObj = spec2dobj.Spec2DObj.from_file(orig_spec2dfile, 1)
+
+embed(header='54 of test')
+
+
 ####################################################3
 # Testing of Spec2DObj
-
-
 def test_init(init_dict):
     spec2DObj = spec2dobj.Spec2DObj(**init_dict)
     # Check

@@ -164,6 +164,29 @@ class Spec2DObj(datamodel.DataContainer):
         """
         return spec2d_hdu_prefix(self.det)
 
+    def update_slits(self, spec2DObj):
+        """
+        Update the object at all good slits in the input object
+
+        Args:
+            spec2DObj:
+
+        Returns:
+
+        """
+        # Quick checks
+        if spec2DObj.det != self.det:
+            msgs.error("Objects are not even the same detector!!")
+        if not np.array_equal(spec2DObj.slits.spat_id, spec2DObj.slits.spat_id):
+            msgs.error("SPAT_IDs are not in sync!")
+
+        # Find the good ones on the input object
+        bpm = spec2DObj.slits.mask.astype(bool)
+        gdslits = np.invert(spec2DObj.slits.bitmask.flagged(
+            spec2DObj.slits.mask, flag=spec2DObj.slits.bitmask.exclude_for_reducing))
+        embed(header='187 of spec2dobj')
+
+
 
 class AllSpec2DObj(object):
     """
@@ -378,6 +401,7 @@ class AllSpec2DObj(object):
 
         # Finish
         hdulist = fits.HDUList(hdus)
+        embed(header='404 of spec2dobj')
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote: {:s}".format(outfile))
 
