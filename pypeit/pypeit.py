@@ -584,16 +584,16 @@ class PypeIt(object):
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        self.redux = reduce.instantiate_me(sciImg, self.spectrograph,
-                                           self.par, self.caliBrate.slits,
-                                           self.caliBrate.wavetilts,
-                                           self.caliBrate.wv_calib,
-                                           self.objtype,
-                                           ir_redux=self.ir_redux,
-                                           std_redux=self.std_redux,
-                                           setup=self.setup,
-                                           show=self.show,
-                                           det=det, binning=self.binning)
+        self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
+                                         self.par, self.caliBrate.slits,
+                                         self.caliBrate.wavetilts,
+                                         self.caliBrate.wv_calib,
+                                         self.objtype,
+                                         ir_redux=self.ir_redux,
+                                         std_redux=self.std_redux,
+                                         setup=self.setup,
+                                         show=self.show,
+                                         det=det, binning=self.binning)
         # Show?
         if self.show:
             self.redux.show('image', image=sciImg.image, chname='processed',
