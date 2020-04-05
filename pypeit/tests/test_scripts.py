@@ -190,7 +190,6 @@ def test_chk_flat():
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
 
-
 def test_coadd1d_1():
     """
     Test basic coadd using shane_kast_blue

@@ -121,25 +121,25 @@ class OneSpec(datamodel.DataContainer):
 class CoAdd1D(object):
 
     @classmethod
-    def get_instance(cls, spectrograph, par, spec1dfiles, objids, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
         Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spectrograph, par, spec1dfiles, objids, sensfile=sensfile, debug=debug, show=show)
+            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfile=sensfile, debug=debug, show=show)
 
-    def __init__(self, spectrograph, par, spec1dfiles, objids, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
 
         Args:
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            par (:class:`pypeit.par.pypeitpar.Coadd1DPar`):
-               Pypeit parameter set object for Coadd1D
             spec1dfiles (list):
                List of strings which are the spec1dfiles
             objids (list):
                List of strings which are the objids for the object in each spec1d file that you want to coadd
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+            par (:class:`pypeit.par.pypeitpar.Coadd1DPar`, optional):
+               Pypeit parameter set object for Coadd1D
             sensfile (str, optional):
                File holding the sensitivity function. This is required for echelle coadds only.
             debug (bool, optional)
@@ -148,10 +148,19 @@ class CoAdd1D(object):
                Debug. Default = True
         """
         # Instantiate attributes
-        self.spectrograph = spectrograph
-        self.par = par
         self.spec1dfiles = spec1dfiles
         self.objids = objids
+
+        # Optional
+        if spectrograph is not None:
+            self.spectrograph = spectrograph
+        else:
+            header = fits.getheader(spec1dfiles[0])
+            self.spectrograph = load_spectrograph(header['PYP_SPEC'])
+        if par is None:
+            self.par = spectrograph.default_pypeit_par()['coadd1d']
+        else:
+            self.par = par
         #
         self.sensfile = sensfile
         self.debug = debug
@@ -254,26 +263,12 @@ class MultiSlitCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Multislit and Longslit reductions
     """
 
-    def __init__(self, spectrograph, par, spec1dfiles, objids, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
-
-            Args:
-                spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                spec1dfiles (list):
-                   List of strings which are the spec1dfiles
-                objids (list):
-                   List of strings which are the objids for the object in each spec1d file that you want to coadd
-                par (parset):
-                   Pypeit parameter set object
-                sensfile (str): optional
-                   File holding the sensitivity function. This is required for echelle coadds only.
-                debug (bool): optional
-                   Debug. Default = False
-                show (bool):
-                   Debug. Default = True
+        See `CoAdd1D` doc string
         """
-        super().__init__(spectrograph, par, spec1dfiles, objids, sensfile=sensfile, debug=debug, show=show)
-
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
+                         debug = debug, show = show)
 
     def coadd(self):
         """
@@ -303,26 +298,13 @@ class EchelleCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Echelle reductions
     """
 
-    def __init__(self, spectrograph, par, spec1dfiles, objids, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
+        See `CoAdd1D` doc string
 
-            Args:
-                spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                spec1dfiles (list):
-                   List of strings which are the spec1dfiles
-                objids (list):
-                   List of strings which are the objids for the object in each spec1d file that you want to coadd
-                par (parset):
-                   Pypeit parameter set object
-                sensfile (str): optional
-                   File holding the sensitivity function. This is required for echelle coadds only.
-                debug (bool): optional
-                   Debug. Default = False
-                show (bool):
-                   Debug. Default = True
         """
-
-        super().__init__(spectrograph, par, spec1dfiles, objids, sensfile=sensfile, debug=debug, show=show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
+                         debug = debug, show = show)
 
     def coadd(self):
         """
