@@ -895,7 +895,7 @@ class MultiSlitReduce(Reduce):
                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
                     sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
                     show_profile=show_profile,
-                use_profile_mask=self.par['reduce']['extraction']['use_profile_mask'])
+                    use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'])
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
@@ -1000,7 +1000,6 @@ class EchelleReduce(Reduce):
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
             self.order_vec, self.reduce_bpm,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
-            #spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,
             std_trace=std_trace,
@@ -1081,35 +1080,4 @@ class EchelleReduce(Reduce):
             self.show('resid', sobjs = self.sobjs, slits= True, chname='ech_resid')
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
-
-# TODO make this a get_instance() factory method as was done for the CoAdd1D and CoAdd2D
-#def instantiate_me(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
-#    """
-#    Instantiate the Reduce subclass appropriate for the provided
-#    spectrograph.
-#
-#    The class must be subclassed from Reduce.  See :class:`Reduce` for
-#    the description of the valid keyword arguments.
-#
-#    Args:
-#        sciImg (pypeit.images.scienceimage.ScienceImage):
-#        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-#        par (pypeit.par.pyepeitpar.PypeItPar):
-#        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
-#        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
-#
-#        **kwargs
-#            Passed to Parent init
-#
-#    Returns:
-#        :class:`pypeit.reduce.Reduce`:
-#    """
-#    indx = [c.__name__ == spectrograph.pypeline+'Reduce' for c in Reduce.__subclasses__()]
-#    if not np.any(indx):
-#        msgs.error('PYPELINE: {0} is not defined!'.format(spectrograph.pypeline))
-#    return Reduce.__subclasses__()[np.where(indx)[0][0]](sciImg, spectrograph,
-#                                                         par, slitTrace,
-#                                                         waveTilts, wv_calib, objtype, **kwargs)
-
-
 

@@ -106,7 +106,6 @@ class Calibrations(object):
         # Masters
         self.reuse_masters = reuse_masters
         self.master_dir = caldir
-        self.save_masters = self.par['save_masters']
 
         # Restrict on slits?
         self.slitspat_num = slitspat_num
@@ -118,7 +117,7 @@ class Calibrations(object):
 
         # Check the directories exist
         # TODO: This should be done when the masters are saved
-        if self.save_masters and not os.path.isdir(self.master_dir):
+        if not os.path.isdir(self.master_dir):
             os.makedirs(self.master_dir)
         # TODO: This should be done when the qa plots are saved
         if self.write_qa and not os.path.isdir(os.path.join(self.qa_path, 'PNGs')):
@@ -309,8 +308,7 @@ class Calibrations(object):
                                                         self.par['arcframe'], arc_files,
                                                         bias=self.msbias, bpm=self.msbpm)
             # Save
-            if self.save_masters:
-                self.msarc.to_master_file(masterframe_name)
+            self.msarc.to_master_file(masterframe_name)
         # Cache
         self._update_cache('arc', 'arc', self.msarc)
         # Return
@@ -353,8 +351,7 @@ class Calibrations(object):
                                                          slits=self.slits)  # For flexure
 
             # Save to Masters
-            if self.save_masters:
-                self.mstilt.to_master_file(masterframe_name)
+            self.mstilt.to_master_file(masterframe_name)
 
         # Cache
         self._update_cache('tilt', 'tiltimg', self.mstilt)
@@ -419,11 +416,8 @@ class Calibrations(object):
             #    self.msalign.head0 = self.alignFrame.build_master_header(steps=self.alignFrame.process_steps,
             #                                                         raw_files=self.alignFrame.file_list)
             #   # Save to Masters
-            #    if self.save_masters:
-            #        self.alignFrame.save()
             # Save to Masters
-            if self.save_masters:
-                self.msalign.to_master_file(self.master_dir, self.master_key_dict['align'],  # Naming
+            self.msalign.to_master_file(self.master_dir, self.master_key_dict['align'],  # Naming
                                        self.spectrograph.spectrograph,  # Header
                                        steps=self.msalign.process_steps,
                                        raw_files=align_files)
@@ -452,8 +446,7 @@ class Calibrations(object):
             self.align_dict = self.alignment.load()
             if self.align_dict is None:
                 self.align_dict = self.alignment.run(self.show)
-                if self.save_masters:
-                    self.alignment.save()
+                self.alignment.save()
 
             # Save & return
             self._update_cache('align', 'align_dict', self.align_dict)
@@ -506,8 +499,7 @@ class Calibrations(object):
                 self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['biasframe'], bias_files)
                 # Save it?
-                if self.save_masters:
-                    self.msbias.to_master_file(masterframe_name)
+                self.msbias.to_master_file(masterframe_name)
                         #self.master_dir, self.master_key_dict['bias'],  # Naming
                         #                  self.spectrograph.spectrograph,  # Header
                         #                  steps=self.msbias.process_steps,
@@ -628,10 +620,9 @@ class Calibrations(object):
             self.flatimages = flatField.run(show=self.show)
 
             # Save to Masters
-            if self.save_masters:
-                self.flatimages.to_master_file(masterframe_filename)
-                # Save slits too, in case they were tweaked
-                self.slits.to_master_file()
+            self.flatimages.to_master_file(masterframe_filename)
+            # Save slits too, in case they were tweaked
+            self.slits.to_master_file()
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
@@ -729,8 +720,7 @@ class Calibrations(object):
                                'disk but it needs fixing.')
                     return None
                 else:
-                    if self.save_masters:
-                        self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
                                     master_key=self.master_key_dict['trace'])
 
                 # Show the result if requested
@@ -741,8 +731,7 @@ class Calibrations(object):
             # the edges object, and save the slits, if requested
             self.slits = self.edges.get_slits()
             self.edges = None
-            if self.save_masters:
-                self.slits.to_master_file(slit_masterframe_name)
+            self.slits.to_master_file(slit_masterframe_name)
 
         # User mask?
         if self.slitspat_num is not None:
@@ -796,8 +785,7 @@ class Calibrations(object):
 #                                             self.spectrograph, self.det)
 #            self.mswave = buildwaveImage.build_wave()
 #            # Save to hard-drive
-#            if self.save_masters:
-#                self.mswave.to_master_file(masterframe_name)
+#            self.mswave.to_master_file(masterframe_name)
 #                    #self.master_dir, self.master_key_dict['arc'],  # Naming
 #                    #                      self.spectrograph.spectrograph,  # Header
 #                    #                      steps=buildwaveImage.steps)
@@ -857,8 +845,7 @@ class Calibrations(object):
         else:
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
-            if self.save_masters:
-                self.waveCalib.save(outfile=masterframe_name)
+            self.waveCalib.save(outfile=masterframe_name)
 
         # Save & return
         self._update_cache('arc', 'wavecalib', self.wv_calib)
@@ -915,8 +902,7 @@ class Calibrations(object):
             # TODO still need to deal with syntax for LRIS ghosts. Maybe we don't need it
             self.wavetilts = buildwaveTilts.run(doqa=self.write_qa, show=self.show)
             # Save?
-            if self.save_masters:
-                self.wavetilts.to_master_file(masterframe_name)
+            self.wavetilts.to_master_file(masterframe_name)
 
         # Save & return
         self._update_cache('tilt', 'wavetilts', self.wavetilts)

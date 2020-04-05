@@ -602,7 +602,7 @@ class BuildWaveTilts(object):
             self.lines_spec, self.lines_spat \
                     = self.find_lines(self.arccen[:,slit_idx], self.slitcen[:,slit_idx],
                                       slit_idx,
-                                      bpm=self.arccen_bpm[:,slit_idx], debug=False) #debug)
+                                      bpm=self.arccen_bpm[:,slit_idx], debug=debug)
 
             if self.lines_spec is None:
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADTILTCALIB')

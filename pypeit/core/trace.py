@@ -996,7 +996,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # measurements that hit boundaries are treated. This replaces
         # any measurement that is outside the integration window,
         # within a buffer of the detector edge, above a maximum shift,
-
+        # or is above the maximum error. In these cases, the output is
         # the same as the input and bad_trace has the relevant bit or
         # boolean.
         cen, err, msk = masked_centroid(flux, trace_fit, width[i], ivar=ivar, bpm=bpm, fwgt=fwgt,

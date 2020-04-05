@@ -24,7 +24,7 @@ from pypeit.core import qa
 from IPython import embed
 
 
-def spat_flexure_shift(sciimg, slits, debug=False):
+def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
     """
     Calculate a rigid flexure shift in the spatial dimension
     between the slitmask and the science image.
@@ -37,6 +37,8 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     Args:
         sciimg (`numpy.ndarray`_):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
+        maxlag (:obj:`int`, optional):
+            Maximum flexure searched for
 
     Returns:
         float:  The spatial flexure shift relative to the initial slits
@@ -55,10 +57,10 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     thresh =  med_sci + 5.0*stddev_sci
     corr_sci = np.fmin(_sciimg.flatten(), thresh)
 
-    maxlag = 20
     lags, xcorr = utils.cross_correlate(corr_sci, corr_slits, maxlag)
     xcorr_denom = np.sqrt(np.sum(corr_sci*corr_sci)*np.sum(corr_slits*corr_slits))
     xcorr_norm = xcorr / xcorr_denom
+    # TODO -- Generate a QA plot
     tampl_true, tampl, pix_max, twid, centerr, ww, arc_cont, nsig \
             = arc.detect_lines(xcorr_norm, sigdetect=3.0, fit_frac_fwhm=1.5, fwhm=5.0,
                                cont_frac_fwhm=1.0, cont_samp=30, nfind=1, debug=debug)
@@ -75,7 +77,6 @@ def spat_flexure_shift(sciimg, slits, debug=False):
     msgs.info('Spatial flexure measured: {}'.format(lag_max[0]))
 
     if debug:
-        # Interpolate for bad lines since the fitting code often returns nan
         plt.figure(figsize=(14, 6))
         plt.plot(lags, xcorr_norm, color='black', drawstyle='steps-mid', lw=3, label='x-corr', linewidth=1.0)
         plt.plot(lag_max[0], xcorr_max[0], 'g+', markersize=6.0, label='peak')
@@ -105,6 +106,8 @@ def spat_flexure_shift(sciimg, slits, debug=False):
 def load_sky_spectrum(sky_file):
     """
     Load a sky spectrum into an XSpectrum1D object
+
+    ..todo -- Try to eliminate the XSpectrum1D dependancy
 
     Args:
         sky_file: str

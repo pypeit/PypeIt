@@ -124,7 +124,7 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
-    def generate_illumflat(self, slits, flexure_shift=None):
+    def fit2illumflat(self, slits, flexure_shift=None):
         """
 
         Args:
@@ -201,7 +201,7 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
         if slits is not None:
             slits.mask_flats(self)
-            illumflat = self.generate_illumflat(slits)
+            illumflat = self.fit2illumflat(slits)
         # Show
         show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model,
                    wcs_match=wcs_match, slits=slits)
@@ -559,8 +559,8 @@ class FlatField(object):
                 self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
-            msgs.info('Modeling the flat-field response for slit: {0}/{1}'.format(
-                        slit_idx+1, self.slits.nslits))
+            msgs.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
+                        slit_spat, slit_idx+1, self.slits.nslits))
 
             # Find the pixels on the initial slit
             onslit_init = slitid_img_init == slit_spat
@@ -928,7 +928,9 @@ class FlatField(object):
             # TODO -- JFH :: Are we ok with this change??
             #self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
             self.mspixelflat[onslit_tweak] = 1.
-            self.mspixelflat[onslit_trimmed] = rawflat[onslit_trimmed]/self.flat_model[onslit_trimmed]
+            trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim)
+            onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
+            self.mspixelflat[onslit_trimmed_anew] = rawflat[onslit_trimmed_anew]/self.flat_model[onslit_trimmed_anew]
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
 

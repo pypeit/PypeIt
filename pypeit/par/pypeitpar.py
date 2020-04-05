@@ -2965,7 +2965,7 @@ class ExtractionPar(ParSet):
 
     def __init__(self, boxcar_radius=None, std_prof_nsigma=None, sn_gauss=None,
                  model_full_slit=None, manual=None, skip_optimal=None,
-                 use_profile_mask=None):
+                 use_2dmodel_mask=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3014,9 +3014,9 @@ class ExtractionPar(ParSet):
                                    'be applied to only a restricted region around each object. This should be set to True for either multislit ' \
                                    'observations using narrow slits or echelle observations with narrow slits'
 
-        defaults['use_profile_mask'] = True
-        dtypes['use_profile_mask'] = bool
-        descr['use_profile_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
+        defaults['use_2dmodel_mask'] = True
+        dtypes['use_2dmodel_mask'] = bool
+        descr['use_2dmodel_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
                              'Turning this off may help with bright emission lines.'
 
 
@@ -3038,7 +3038,7 @@ class ExtractionPar(ParSet):
 
         # Basic keywords
         parkeys = ['boxcar_radius', 'std_prof_nsigma', 'sn_gauss', 'model_full_slit', 'manual',
-                   'skip_optimal', 'use_profile_mask']
+                   'skip_optimal', 'use_2dmodel_mask']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3068,8 +3068,8 @@ class CalibrationsPar(ParSet):
     def __init__(self, master_dir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
-                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
-                 save_masters=None):
+                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
+
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3089,10 +3089,6 @@ class CalibrationsPar(ParSet):
         dtypes['master_dir'] = str
         descr['master_dir'] = 'If provided, it should be the name of the folder to ' \
                           'write master files. NOT A PATH. '
-
-        defaults['save_masters'] = True
-        dtypes['save_masters'] = bool
-        descr['save_masters'] = 'Write Master calibration frames to disk'
 
         dtypes['setup'] = str
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
@@ -3194,7 +3190,7 @@ class CalibrationsPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'master_dir', 'setup', 'trim', 'bpm_usebias', 'save_masters']
+        parkeys = [ 'master_dir', 'setup', 'trim', 'bpm_usebias']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',

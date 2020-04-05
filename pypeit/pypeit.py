@@ -284,7 +284,6 @@ class PypeIt(object):
                 frames = np.where(self.fitstbl['comb_id'] == comb_id)[0]
                 bg_frames = np.where(self.fitstbl['bkg_id'] == comb_id)[0]
                 if not self.outfile_exists(frames[0]) or self.overwrite:
-                    # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
