@@ -1165,11 +1165,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             Order of polynomial fit to the illumination pattern across the slit when peak finding
         specobj_dict: dict, default = None
             Dictionary containing meta-data for the objects that will be
-            propgated into the SpecObj objects, i.e. setup, SLITID,
+            propgated into the SpecObj objects, i.e. SLITID,
             detector, object type, and pipeline. The default is None, in
             which case the following dictionary will be used::
             
-                specobj_dict = {'setup': None, 'SLITID': 999, 'det': 1,
+                specobj_dict = {'SLITID': 999, 'det': 1,
                                 'objtype': 'unknown', 'pypeline': 'unknown'}
 
     Returns:

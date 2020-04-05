@@ -254,8 +254,6 @@ class WaveCalib(object):
         self.wv_calib = {}
         for idx in range(self.slits.nslits):
             if str(idx) in final_fit.keys():
-                # TODO This should be changed to slitord_id but that requires remaking all the archives. Can do so
-                # when wv_calib gets a new data model since that will all get revamped.
                 self.wv_calib[str(self.slits.slitord_id[idx])] = final_fit.pop(str(idx))
                 #self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
 
