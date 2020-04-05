@@ -24,7 +24,8 @@ keck_nirspec_low        Keck        NIRSPEC spectrometer; low-dispersion
 keck_deimos             Keck        DEIMOS spectrometer
 lbt_luci1               LBT         LUCI-I spectrometer
 lbt_luci2               LBT         LUCI-II spectrometer
-magellan_fire_long      Magellan    FIRE spectrometer; longslit mode
+magellan_fire           Magellan    FIRE spectrometer; Echelle mode
+magellan_fire_long      Magellan    FIRE spectrometer; Longslit high throughput mode
 magellan_mage           Magellan    MagE spectrometer
 mdm_osmos               MDM         OSMOS spectrometer
 shane_kast_blue         Lick 3m     Kast dual spectrometer; blue camera
