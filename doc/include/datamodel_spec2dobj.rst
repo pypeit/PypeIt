@@ -16,6 +16,6 @@ Obj                   Obj Type           Array Type  Description
 ``sciimg``            ndarray            floating    2D processed science image                                
 ``skymodel``          ndarray            floating    2D sky model image                                        
 ``slits``             SlitTraceSet                   SlitTraceSet defining the slits                           
-``tilts``             WaveTilts                      Fits required to generate a Tilts image                   
+``tilts``             ndarray            floating    2D tilts image                                            
 ``waveimg``           ndarray            floating    2D wavelength image                                       
 ====================  =================  ==========  ==========================================================

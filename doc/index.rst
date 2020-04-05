@@ -71,7 +71,6 @@ in this section take you.
    :maxdepth: 1
 
    codeconduct
-   release_notes
    installing
    cookbook
 

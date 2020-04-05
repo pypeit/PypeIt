@@ -98,6 +98,23 @@ information, detector by detector.  Here is an example::
 
     pypeit_chk_2dslits 
 
+
+Identifying Slits
+=================
+
+If you need to generate an image describing the location of each
+slit/order for a given detector here is the recommended approach::
+
+    from pypeit import spec2dobj
+    spec2DObj = spec2dobj.Spec2DObj.from_file('spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits', det=2)
+    slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
+
+If no flexure correction was applied, it will be ignored.
+This generates an image with pixel values:
+
+ - -1 for a pixel not in any slit/order
+ - SPAT_ID for each pixel in the slit identified by SPAT_ID
+
 .. _spec2dobj_datamodel:
 
 Current Spec2DObj Data Model
