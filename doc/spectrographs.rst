@@ -18,10 +18,10 @@ gemini_gmos             Gemini      GMOS spectrometer
 gemini_gnirs            Gemini      GNIRS spectrometer
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
-keck_mosfire            Keck        MOSFIRE spectrometer; limited gratings tested
+keck_mosfire            Keck        MOSFIRE spectrometer; J and Y gratings tested
 keck_nires              Keck        NIRES spectrometer
 keck_nirspec_low        Keck        NIRSPEC spectrometer; low-dispersion
-keck_deimos             Keck        DEIMOS spectrometer
+keck_deimos             Keck        DEIMOS spectrometer (600ZD, 830G, 1200G)
 lbt_luci1               LBT         LUCI-I spectrometer
 lbt_luci2               LBT         LUCI-II spectrometer
 magellan_fire           Magellan    FIRE spectrometer; Echelle mode
