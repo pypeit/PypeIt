@@ -85,7 +85,7 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
-    def __init__(self, fitstbl, par, spectrograph, caldir=None, qadir=None,
+    def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
                  reuse_masters=False, show=False, slitspat_num=None):
 
         # Check the types
@@ -975,8 +975,8 @@ class MultiSlitCalibrations(Calibrations):
 
     ..todo:: Rename this child or eliminate altogether
     """
-    def __init__(self, fitstbl, par, spectrograph, **kwargs):
-        super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, **kwargs)
+    def __init__(self, fitstbl, par, spectrograph, caldir, **kwargs):
+        super(MultiSlitCalibrations, self).__init__(fitstbl, par, spectrograph, caldir, **kwargs)
         self.steps = MultiSlitCalibrations.default_steps()
 
     @staticmethod
@@ -999,8 +999,8 @@ class IFUCalibrations(Calibrations):
 
     """
 
-    def __init__(self, fitstbl, par, spectrograph, **kwargs):
-        super(IFUCalibrations, self).__init__(fitstbl, par, spectrograph, **kwargs)
+    def __init__(self, fitstbl, par, spectrograph, caldir, **kwargs):
+        super(IFUCalibrations, self).__init__(fitstbl, par, spectrograph, caldir, **kwargs)
         self.steps = IFUCalibrations.default_steps()
 
     @staticmethod

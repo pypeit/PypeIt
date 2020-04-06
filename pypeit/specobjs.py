@@ -366,7 +366,7 @@ class SpecObjs(object):
         Return the set of indices matching the input slit/order and the input objid
         """
         if self[0].PYPELINE == 'Echelle':
-            indx = (self.ECH_ORDERINDX == slitorder) & (self.ECH_OBJID == objid)
+            indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
