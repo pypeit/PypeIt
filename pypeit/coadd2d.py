@@ -391,7 +391,7 @@ class CoAdd2D(object):
         # Make changes to parset specific to 2d coadds
         parcopy = copy.deepcopy(self.par)
         parcopy['reduce']['findobj']['trace_npoly'] = 3        # Low order traces since we are rectified
-        parcopy['calibrations']['save_masters'] = False
+        #parcopy['calibrations']['save_masters'] = False
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
 
         redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
