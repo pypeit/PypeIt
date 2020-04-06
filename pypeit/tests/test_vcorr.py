@@ -53,7 +53,7 @@ def test_geocorrect(fitstbl):
 
     # Specobj (wrap in a list to mimic a slit)
     npix = 1000
-    sobj = specobj.SpecObj('MultiSlit', 1, slitid=0)
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     sobj.BOX_WAVE = np.linspace(4000., 6000., npix)
     sobj.BOX_COUNTS = 50.*(sobj.BOX_WAVE/5000.)**-1.
     sobj.BOX_COUNTS_IVAR = 1./sobj.BOX_COUNTS.copy()

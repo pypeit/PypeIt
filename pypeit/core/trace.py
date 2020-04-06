@@ -826,11 +826,13 @@ def masked_centroid(flux, cen, width, ivar=None, bpm=None, fwgt=None, row=None,
 # NOTE: keck_run_july changes: maxdev changed from 5.0 to 2.0
 def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weighting='uniform',
               fwhm=3.0, maxshift=None, maxerror=None, function='legendre', maxdev=2.0, maxiter=25,
-              niter=9, bitmask=None, debug=False, idx=None, xmin=None, xmax=None):
+              niter=9, bitmask=None, debug=False, idx=None, xmin=None, xmax=None,
+              flavor='trace'):
     """
     Iteratively fit the trace of a feature in the provided image.
 
     Each iteration performs two steps:
+
         - Remeasure the trace centroid using :func:`masked_centroid`.
           The size of the integration window (see the definition of
           the `width` parameter for
@@ -922,10 +924,13 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         xmax (:obj:`float`, optional):
             Upper reference for robust_polyfit polynomial fitting.
             Default is to use the image size in nspec direction
+        flavor (:obj:`str`, optional):
+            Defines the type of fit performed. Only used by QA
 
     Returns:
-        tuple: Returns four `numpy.ndarray`_ objects all with the same
-        shape as the input positions (`trace_cen`) and provide:
+        :obj:`tuple`: Returns four `numpy.ndarray`_ objects all with
+        the same shape as the input positions (`trace_cen`) and
+        provide:
 
             - The best-fitting positions of each trace determined by the
               polynomial fit.
@@ -933,7 +938,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
               Gaussian-weighting, to which the polynomial is fit.
             - The errors in the centroids.
             - Boolean flags for each centroid measurement (see
-              :func:`pypeit.core.moment.moment1d`).
+              :func:`~pypeit.core.moment.moment1d`).
 
     """
     # Ensure setup is correct
@@ -1117,8 +1122,12 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
 
             plt.title(title_text + ' Centroid fit for trace {0}.'.format(idx[i]))
             plt.ylim((0.995*np.amin(trace_fit[:,i]), 1.005*np.amax(trace_fit[:,i])))
-            plt.xlabel('Spectral Pixel')
-            plt.ylabel('Spatial Pixel')
+            if flavor in ['tilts']:
+                plt.xlabel('Spatial Pixel')
+                plt.ylabel('Spectral Pixel')
+            else:
+                plt.xlabel('Spectral Pixel')
+                plt.ylabel('Spatial Pixel')
             plt.legend()
             plt.show()
 

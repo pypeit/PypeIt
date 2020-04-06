@@ -42,7 +42,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Always correct for flexure, starting with default parameters
-        par['flexure']['method'] = 'boxcar'
+        par['flexure']['spec_method'] = 'boxcar'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -51,6 +51,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [0, None]
         par['calibrations']['arcframe']['exprng'] = [None, 61]
         par['calibrations']['standardframe']['exprng'] = [1, 61]
+        #
         par['scienceframe']['exprng'] = [61, None]
         return par
 
@@ -393,7 +394,7 @@ class ShaneKastRedSpectrograph(ShaneKastSpectrograph):
 
         # Required
         self.meta['dispname'] = dict(ext=0, card='GRATNG_N')
-        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P', rtol=2e-4)
+        self.meta['dispangle'] = dict(ext=0, card='GRTILT_P', rtol=1e-3)
         # Additional (for config)
 
     def configuration_keys(self):

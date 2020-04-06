@@ -1,7 +1,7 @@
-pypeit.waveimage module
+pypeit.spec2dobj module
 =======================
 
-.. automodule:: pypeit.waveimage
+.. automodule:: pypeit.spec2dobj
    :members:
    :private-members:
    :undoc-members:

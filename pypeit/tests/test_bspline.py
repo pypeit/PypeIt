@@ -1,5 +1,6 @@
 
 import time
+import os
 import pytest
 
 from IPython import embed
@@ -121,7 +122,6 @@ def test_cholesky_solve_versions():
     assert ctime < pytime, 'C is less efficient!'
     assert np.allclose(b, _b), 'Differences in cholesky_solve'
 
-
 # NOTE: Used to be in test_pydl.py.
 # TODO: Where is the to/from dict functionality used?
 def test_bsplinetodict():
@@ -157,6 +157,47 @@ def test_profile_spec():
                                   kwargs_bspline={'bkspace': spec_samp_fine},
                                   kwargs_reject={'groupbadpix': True, 'maxrej': 5}, quiet=True)
         assert np.allclose(d['spec_flat_fit'], spec_flat_fit), 'Bad spectral bspline result'
+
+def test_io():
+    """
+    Test that bspline_profile (1) is successful and (2) produces the
+    same result for a set of data fit spectrally.
+    """
+    # Files created using `rmtdict` branch (30 Jan 2020)
+    files = [data_path('gemini_gnirs_32_{0}_spec_fit.npz'.format(slit)) for slit in [0,1]]
+    logrej = 0.5
+    spec_samp_fine = 1.2
+    for f in files:
+        d = np.load(f)
+        spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
+            = bspline_profile(d['spec_coo_data'], d['spec_flat_data'], d['spec_ivar_data'],
+                              np.ones_like(d['spec_coo_data']), ingpm=d['spec_gpm_data'],
+                              nord=4, upper=logrej, lower=logrej,
+                              kwargs_bspline={'bkspace': spec_samp_fine},
+                              kwargs_reject={'groupbadpix': True, 'maxrej': 5}, quiet=True)
+    # Write
+    ofile = data_path('tst_bspline.fits')
+    if os.path.isfile(ofile):
+        os.remove(ofile)
+    spec_bspl.to_file(ofile)
+    # Read
+    _spec_bspl = bspline.bspline.from_file(ofile)
+    # Check that the data read in is the same
+    assert np.array_equal(_spec_bspl.breakpoints, spec_bspl.breakpoints), 'Bad read'
+    # Evaluate the bsplines and check that the written and read in data
+    # provide the same result
+    tmp = spec_bspl.value(np.linspace(0., 1., 100))[0]
+    _tmp = _spec_bspl.value(np.linspace(0., 1., 100))[0]
+    assert np.array_equal(tmp, _tmp), 'Bad bspline evaluate'
+
+    # Test overwrite
+    _spec_bspl.to_file(ofile, overwrite=True)
+
+    # None
+    bspl = bspline.bspline(None)
+    bspl.to_file(ofile, overwrite=True)
+
+    os.remove(ofile)
 
 
 def test_profile_spat():
@@ -197,5 +238,4 @@ def test_profile_twod():
                                   kwargs_bspline={'bkspace': spec_samp_coarse},
                                   kwargs_reject={'groupbadpix': True, 'maxrej': 10}, quiet=True)
         assert np.allclose(d['twod_flat_fit'], twod_flat_fit), 'Bad 2D bspline result'
-
 

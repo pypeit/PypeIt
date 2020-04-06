@@ -152,7 +152,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
-        par['flexure']['method'] = 'boxcar'
+        par['flexure']['spec_method'] = 'boxcar'
         # Set wave tilts order
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
@@ -437,82 +437,78 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         return self.get_detector_par(hdu, det if det is None else 1), \
                image, hdu, exptime, rawdatasec_img, oscansec_img
 
-    '''
-    def load_raw_frame(self, raw_file, det=None):
-        """
-        Wrapper to the raw image reader for DEIMOS
+#    def load_raw_frame(self, raw_file, det=None):
+#        """
+#        Wrapper to the raw image reader for DEIMOS
+#
+#        Args:
+#            raw_file:  str, filename
+#            det: int, REQUIRED
+#              Desired detector
+#            **null_kwargs:
+#              Captured and never used
+#
+#        Returns:
+#            raw_img: ndarray
+#              Raw image;  likely unsigned int
+#            head0: Header
+#        """
+#        raw_img, hdu, _ = read_deimos(raw_file, det=det)
+#
+#        return raw_img, hdu
 
-        Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
-            **null_kwargs:
-              Captured and never used
-
-        Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            head0: Header
-        """
-        raw_img, hdu, _ = read_deimos(raw_file, det=det)
-
-        return raw_img, hdu
-    '''
-
-    '''
-    def get_image_section(self, inp=None, det=1, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
-
-        Overwrites base class function
-
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-            section (:obj:`str`, optional):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
-
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Read the file
-        if inp is None:
-            msgs.error('Must provide Keck DEIMOS file or hdulist to get image section.')
-        # Read em
-        shape, datasec, oscansec, _ = deimos_image_sections(inp, det)
-        if section == 'datasec':
-            return datasec, False, False
-        elif section == 'oscansec':
-            return oscansec, False, False
-        else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
-
-    def get_raw_image_shape(self, hdulist, det=None, **null_kwargs):
-        """
-        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
-
-        Must always provide a file.
-        """
-        # Do it
-        self._check_detector()
-        shape, datasec, oscansec, _ = deimos_image_sections(hdulist, det)
-        self.naxis = shape
-        return self.naxis
-    '''
+#    def get_image_section(self, inp=None, det=1, section='datasec'):
+#        """
+#        Return a string representation of a slice defining a section of
+#        the detector image.
+#
+#        Overwrites base class function
+#
+#        Args:
+#            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+#                String providing the file name to read, or the relevant
+#                header object.  Default is None, meaning that the
+#                detector attribute must provide the image section
+#                itself, not the header keyword.
+#            det (:obj:`int`, optional):
+#                1-indexed detector number.
+#            section (:obj:`str`, optional):
+#                The section to return.  Should be either 'datasec' or
+#                'oscansec', according to the
+#                :class:`pypeitpar.DetectorPar` keywords.
+#
+#        Returns:
+#            tuple: Returns three objects: (1) A list of string
+#            representations for the image sections, one string per
+#            amplifier.  The sections are *always* returned in PypeIt
+#            order: spectral then spatial.  (2) Boolean indicating if the
+#            slices are one indexed.  (3) Boolean indicating if the
+#            slices should include the last pixel.  The latter two are
+#            always returned as True following the FITS convention.
+#        """
+#        # Read the file
+#        if inp is None:
+#            msgs.error('Must provide Keck DEIMOS file or hdulist to get image section.')
+#        # Read em
+#        shape, datasec, oscansec, _ = deimos_image_sections(inp, det)
+#        if section == 'datasec':
+#            return datasec, False, False
+#        elif section == 'oscansec':
+#            return oscansec, False, False
+#        else:
+#            raise ValueError('Unrecognized keyword: {0}'.format(section))
+#
+#    def get_raw_image_shape(self, hdulist, det=None, **null_kwargs):
+#        """
+#        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
+#
+#        Must always provide a file.
+#        """
+#        # Do it
+#        self._check_detector()
+#        shape, datasec, oscansec, _ = deimos_image_sections(hdulist, det)
+#        self.naxis = shape
+#        return self.naxis
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -946,86 +942,84 @@ class DEIMOSDetectorMap(DetectorMap):
 
         # ccd_geom.pro has offsets by sys.CN_XERR, but these are all 0.
 
-'''
-def deimos_image_sections(inp, det):
-    """
-    Parse the image for the raw image shape and data sections
-
-    Args:
-        inp (str or `astropy.io.fits.HDUList`_ object):
-        det (int):
-
-    Returns:
-        tuple:
-            shape, dsec, osec, ext_items
-            ext_items is a large tuple of bits and pieces for other methods
-                ext_items = hdu, chips, postpix, image
-    """
-    # Check for file; allow for extra .gz, etc. suffix
-    if isinstance(inp, str):
-        fil = glob.glob(inp + '*')
-        if len(fil) != 1:
-            msgs.error('Found {0} files matching {1}'.format(len(fil), inp + '*'))
-        # Read
-        try:
-            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
-        except AttributeError:
-            print("Reading DEIMOS file: {:s}".format(fil[0]))
-        # Open
-        hdu = fits.open(fil[0])
-    else:
-        hdu = inp
-    head0 = hdu[0].header
-
-    # Get post, pre-pix values
-    precol = head0['PRECOL']
-    postpix = head0['POSTPIX']
-    preline = head0['PRELINE']
-    postline = head0['POSTLINE']
-    detlsize = head0['DETLSIZE']
-    x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
-
-
-    # Setup for datasec, oscansec
-    dsec = []
-    osec = []
-
-    # get the x and y binning factors...
-    binning = head0['BINNING']
-    if binning != '1,1':
-        msgs.error("This binning for DEIMOS might not work.  But it might..")
-
-    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-
-    # DEIMOS detectors
-    nchip = 8
-    if det is None:
-        chips = range(nchip)
-    else:
-        chips = [det-1] # Indexing starts at 0 here
-
-    for tt in chips:
-        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
-        # Sections
-        idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
-        iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
-        dsec.append(idsec)
-        osec.append(iosec)
-
-    # Create final image (if the full image is requested)
-    if det is None:
-        image = np.zeros((x_npix,y_npix+4*postpix))
-        shape = image.shape
-    else:
-        image = None
-        head = hdu[chips[0]+1].header
-        shape = (head['NAXIS2'], head['NAXIS1']-precol)  # We don't load up the precol
-
-    # Pack up a few items for use elsewhere
-    ext_items = hdu, chips, postpix, image
-    # Return
-    return shape, dsec, osec, ext_items
-'''
+#def deimos_image_sections(inp, det):
+#    """
+#    Parse the image for the raw image shape and data sections
+#
+#    Args:
+#        inp (str or `astropy.io.fits.HDUList`_ object):
+#        det (int):
+#
+#    Returns:
+#        tuple:
+#            shape, dsec, osec, ext_items
+#            ext_items is a large tuple of bits and pieces for other methods
+#                ext_items = hdu, chips, postpix, image
+#    """
+#    # Check for file; allow for extra .gz, etc. suffix
+#    if isinstance(inp, str):
+#        fil = glob.glob(inp + '*')
+#        if len(fil) != 1:
+#            msgs.error('Found {0} files matching {1}'.format(len(fil), inp + '*'))
+#        # Read
+#        try:
+#            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
+#        except AttributeError:
+#            print("Reading DEIMOS file: {:s}".format(fil[0]))
+#        # Open
+#        hdu = fits.open(fil[0])
+#    else:
+#        hdu = inp
+#    head0 = hdu[0].header
+#
+#    # Get post, pre-pix values
+#    precol = head0['PRECOL']
+#    postpix = head0['POSTPIX']
+#    preline = head0['PRELINE']
+#    postline = head0['POSTLINE']
+#    detlsize = head0['DETLSIZE']
+#    x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
+#
+#
+#    # Setup for datasec, oscansec
+#    dsec = []
+#    osec = []
+#
+#    # get the x and y binning factors...
+#    binning = head0['BINNING']
+#    if binning != '1,1':
+#        msgs.error("This binning for DEIMOS might not work.  But it might..")
+#
+#    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+#
+#    # DEIMOS detectors
+#    nchip = 8
+#    if det is None:
+#        chips = range(nchip)
+#    else:
+#        chips = [det-1] # Indexing starts at 0 here
+#
+#    for tt in chips:
+#        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
+#        # Sections
+#        idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
+#        iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
+#        dsec.append(idsec)
+#        osec.append(iosec)
+#
+#    # Create final image (if the full image is requested)
+#    if det is None:
+#        image = np.zeros((x_npix,y_npix+4*postpix))
+#        shape = image.shape
+#    else:
+#        image = None
+#        head = hdu[chips[0]+1].header
+#        shape = (head['NAXIS2'], head['NAXIS1']-precol)  # We don't load up the precol
+#
+#    # Pack up a few items for use elsewhere
+#    ext_items = hdu, chips, postpix, image
+#    # Return
+#    return shape, dsec, osec, ext_items
 
 def indexing(itt, postpix, det=None):
     """

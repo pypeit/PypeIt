@@ -12,11 +12,11 @@ import pickle
 from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
-from pypeit.core import save
 from pypeit.core import coadd
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
+from pypeit import coadd1d
 from astropy.io import fits
 from sklearn import mixture
 
@@ -572,35 +572,25 @@ def general_spec_reader(specfile, ret_flam=False):
         bonus['ECH_ORDERINDX'] = (sobjs.ech_orderindx).astype(int)
         bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)
         bonus['NORDERS'] = wave.shape[1]
-    except:
-        # Read in the coadd 1d spectra file
-        hdu = fits.open(specfile)
-        head = hdu[0].header
-        data = hdu[1].data
-        wave_in, flux_in, flux_ivar_in, mask_in = data['OPT_WAVE'], data['OPT_FLAM'], data['OPT_FLAM_IVAR'], data[
-            'OPT_MASK']
-        wave = wave_in
-        counts = flux_in
-        counts_ivar = flux_ivar_in
-        counts_mask = mask_in.astype(bool)
-        #wave = np.reshape(wave_in,(wave_in.size,1))
-        #counts = np.reshape(flux_in,(wave_in.size,1))
-        #counts_ivar = np.reshape(flux_ivar_in,(wave_in.size,1))
-        #counts_mask = np.reshape(mask_in,(wave_in.size,1))
-
-    try:
-        spectrograph = load_spectrograph(head['INSTRUME'])
-    except:
-        # This is a hack until a generic spectrograph is implemented.
-        spectrograph = load_spectrograph('shane_kast_blue')
-
-    meta_spec = dict(core={}, bonus=bonus)
-    core_keys = spectrograph.header_cards_for_spec()
-    for key in core_keys:
         try:
-            meta_spec['core'][key.upper()] = head[key.upper()]
-        except KeyError:
-            pass
+            spectrograph = load_spectrograph(head['INSTRUME'])
+        except:
+            spectrograph = load_spectrograph('shane_kast_blue')
+        spect_dict = spectrograph.parse_spec_header(head)
+    except:
+        # Load
+        onespec = coadd1d.OneSpec.from_file(specfile)
+        # Unpack
+        wave = onespec.wave
+        counts = onespec.flux
+        counts_ivar = onespec.ivar
+        counts_mask = onespec.mask.astype(bool)
+        spect_dict = onespec.spec_meta
+        head = onespec.head0
+
+    # Build this
+    meta_spec = dict(bonus=bonus)
+    meta_spec['core'] = spect_dict
 
     return wave, counts, counts_ivar, counts_mask, meta_spec, head
 

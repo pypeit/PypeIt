@@ -8,7 +8,6 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit.images import processrawimage
 from pypeit.images import rawimage
 from pypeit.images import pypeitimage
 from pypeit.tests.tstutils import dev_suite_required
@@ -43,18 +42,16 @@ def test_instantiate(deimos_flat_files, kast_blue_bias_files):
     # DEIMOS
     det = 3
     rawImage = rawimage.RawImage(one_file, spectograph, det)
-    deimos_flat = processrawimage.ProcessRawImage(rawImage, par)
     # Test
-    assert isinstance(deimos_flat.image, np.ndarray)
-    assert deimos_flat.datasec_img.shape == (4096, 2128)
+    assert isinstance(rawImage.image, np.ndarray)
+    assert rawImage.datasec_img.shape == (4096, 2128)
 
     # Kast blue
     det2 = 1
     one_file = kast_blue_bias_files[0]
     spectograph2 = load_spectrograph('shane_kast_blue')
     rawImage2 = rawimage.RawImage(one_file, spectograph2, det2)
-    kastb_bias = processrawimage.ProcessRawImage(rawImage2, par)
-    assert isinstance(kastb_bias.image, np.ndarray)
+    assert isinstance(rawImage2.image, np.ndarray)
 
 
 @dev_suite_required
@@ -64,17 +61,17 @@ def test_overscan_subtract(deimos_flat_files):
     # DEIMOS
     det = 3
     rawImage = rawimage.RawImage(one_file, spectograph, det)
-    deimos_flat = processrawimage.ProcessRawImage(rawImage, par)
+    rawImage.par = spectograph.default_pypeit_par()['scienceframe']['process']
     # Bias subtract
-    pre_sub = deimos_flat.image.copy()
-    _ = deimos_flat.subtract_overscan()
-    oscan = np.median(pre_sub-deimos_flat.image)
+    pre_sub = rawImage.image.copy()
+    rawImage.subtract_overscan()
+    oscan = np.median(pre_sub-rawImage.image)
     assert np.isclose(oscan, 1001.2, rtol=0.01)
     # Trim
-    _ = deimos_flat.trim()
+    rawImage.trim()
     # Test
-    assert deimos_flat.steps['subtract_overscan']
-    assert deimos_flat.steps['trim']
-    assert deimos_flat.image.shape == (4096,2048)
+    assert rawImage.steps['subtract_overscan']
+    assert rawImage.steps['trim']
+    assert rawImage.image.shape == (4096,2048)
 
 

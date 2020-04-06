@@ -910,7 +910,7 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
     plt.show()
 
 
-def clip_ivar(flux, ivar, sn_clip, mask=None):
+def clip_ivar(flux, ivar, sn_clip, mask=None, verbose=False):
     """
 
     This adds an error floor to the ivar, preventing too much rejection
@@ -940,7 +940,8 @@ def clip_ivar(flux, ivar, sn_clip, mask=None):
         gmask = (ivar > 0) & mask
         ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
         ivar_out = np.minimum(ivar, ivar_cap)
-        msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+        if verbose:
+            msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
         return ivar_out
 
 
@@ -1734,6 +1735,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
                     lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                     groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=False,
+                    verbose=False,
                     **kwargs_optimizer):
     """
     A routine to perform robust optimization. It is completely analogous
@@ -1871,9 +1873,10 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
                                           use_mad=use_mad, sticky=sticky)
         nrej = np.sum(thismask_iter & np.invert(thismask))
         nrej_tot = np.sum(inmask & np.invert(thismask))
-        msgs.info(
-            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
-            'total pixels'.format(iter, nrej, nrej_tot, nin_good))
+        if verbose:
+            msgs.info(
+                'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
+                'total pixels'.format(iter, nrej, nrej_tot, nin_good))
         iter += 1
 
     if (iter == maxiter) & (maxiter != 0):

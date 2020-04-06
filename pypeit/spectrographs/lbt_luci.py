@@ -36,8 +36,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         par['reduce'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -71,8 +69,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         meta['dispname'] = dict(ext=0, card='GRATNAME')
-
-
         self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
@@ -287,9 +283,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['slitedges']['edge_thresh'] = 300.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
-
         # Extraction
         # Model full slit currently turned on
         par['reduce']['extraction']['model_full_slit'] = False
@@ -302,7 +295,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
@@ -405,10 +398,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['fit_order'] = 8
 
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
-        # par['calibration']['flatfield']['tweak_slits'] = False
-
         # Extraction
         # Model full slit currently turned on
         par['reduce']['extraction']['model_full_slit'] = True
@@ -420,7 +409,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'

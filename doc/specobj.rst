@@ -1,4 +1,4 @@
-.. _specobj:
+
 
 ====================
 SpecObj (1D spectra)
@@ -19,12 +19,12 @@ Naming
 
 Each object is named by its:
  - spatial position (pixel number) on the reduced image [SPAT]
- - the slit number, zero-indexed [SLIT]
+ - the slit position (pixel number) on the reduced image [SLIT]
  - the detector number [DET]
 
 For example::
 
-    SPAT0176-SLIT0000-DET01
+    SPAT0176-SLIT0185-DET01
 
 Extraction
 ==========
@@ -47,5 +47,22 @@ by the extraction mode.
 Therefore, the integrated counts for a boxcar extraction are given by the
 BOXCAR_COUNTS array with variance BOXCAR_VAR.
 
+Current Data Model
+==================
+
+Internally, the spectrum for a single object is held in
+:class:`pypeit.specobj.SpecObj`.  Here is its datamodel,
+which is written as a BinTblHDU n the FITS file with this `Naming`_.
+In addition, one :class:`pypeit.images.detector_container.DetectorContainer`
+is written to an HDU (e.g. DET01-DETECTOR) for each detector
+with at least one spectrum extracted.
+
+The :class:`pypeit.specobj.SpecObj` objects are held
+interally by a
+:class:`pypeit.specobjs.SpecObjs` object.
+
+
+
 .. include:: include/datamodel_specobj.rst
+
 

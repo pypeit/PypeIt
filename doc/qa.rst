@@ -56,38 +56,8 @@ See :doc:`master_tilts` for a discussion of this QA.
 Exposure QA
 ===========
 
-**EVERYTHING BELOW HERE IS OUT OF DATE**
-
 For each processed, science exposure there are a series of
 PNGs generated, per detector and (sometimes) per slit.
-
-
-.. _object-trace-qa:
-
-Object Trace QA
----------------
-
-An image of the sky-subtracted slit is displayed.  Overlayed are the
-left/right (red/cyan) edges of the extraction region for each object.
-These are also labeled by the object ID value where the 3-digit number
-is the trace position relative to the slit, ranging from 0-1000.
-Here is an example:
-
-.. figure:: qa/obj_trace_armlsd.jpg
-   :align: center
-
-
-Object Profile QA
------------------
-
-For all of the objects in a given slit
-where optimal extraction was performed the
-spatial profile and the fit are displayed.
-The x-axis is in units of pixels.
-Here is an example:
-
-.. figure:: qa/obj_profile_armlsd.jpg
-   :align: center
 
 
 Flexure QA

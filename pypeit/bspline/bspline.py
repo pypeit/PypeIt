@@ -16,6 +16,8 @@ from IPython import embed
 import numpy as np
 
 from pypeit.core import basis
+from pypeit import datamodel
+from pypeit import msgs
 
 try:
     from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays, intrv, \
@@ -38,7 +40,7 @@ except:
 # TODO: This whole module needs to be cleaned up.
 
 
-class bspline(object):
+class bspline(datamodel.DataContainer):
     """Bspline class.
 
     Functions in the bspline library are implemented as methods on this
@@ -84,6 +86,19 @@ class bspline(object):
         It is possible to instantiate a bspline from a dict without the x data:
         new_bspline = bspline(None, from_dict=dictionary)
     """
+    version = '1.0.0'
+
+    datamodel = {
+        'breakpoints':  dict(otype=np.ndarray, atype=np.floating, desc='Breakpoint locations'),
+        'nord': dict(otype=int, desc='Order of the bspline fit'),
+        'npoly': dict(otype=int, desc='Order of the bspline polynomial'),
+        'mask': dict(otype=np.ndarray, atype=np.bool_, desc='Mask'),
+        'coeff': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
+        'icoeff': dict(otype=np.ndarray, atype=np.floating, desc='??'),
+        'xmin': dict(otype=float, desc='Normalization for input data'),
+        'xmax': dict(otype=float, desc='Normalization for input data'),
+        'funcname': dict(otype=str, desc='Function of fit'),
+    }
 
     # ToDO Consider refactoring the argument list so that there are no kwargs
     def __init__(self, x, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0, verbose=False,
@@ -91,6 +106,9 @@ class bspline(object):
         """Init creates an object whose attributes are similar to the
         structure returned by the create_bspline function.
         """
+        # Setup the DataContainer with everything None
+        _d = {}
+        datamodel.DataContainer.__init__(self, d=_d)
         # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
         # as it goes
         fullbkpt1 = copy.copy(fullbkpt)
@@ -219,6 +237,20 @@ class bspline(object):
             self.xmin = 0.0
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
+
+    def _init_internals(self):
+        self.hdu_prefix = None
+
+    def _bundle(self):
+        """
+        Overload for the HDU name
+
+        Returns:
+            list:
+
+        """
+        return super(bspline, self)._bundle(ext='BSPLINE')
+
 
     def copy(self):
         """

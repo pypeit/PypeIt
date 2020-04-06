@@ -22,19 +22,11 @@ from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
-import subprocess
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
-
-
-#def test_arcid_plot():
-#    json_file = data_path('LRISb_600_WaveCalib_01.json')
-#    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
-#    # Run
-#    arcid_plot.main(pargs)
 
 @dev_suite_required
 def test_run_pypeit():
@@ -151,10 +143,8 @@ def test_show_1dspec():
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs)
 
-#@dev_suite_required
 @cooked_required
 def test_show_2dspec():
-#    droot = os.path.join(os.environ['PYPEIT_DEV'], 'REDUX_OUT/shane_kast_blue/600_4310_d55/shane_kast_blue_A')
     droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
     spec2d_file = os.path.join(droot, 'Science',
                              'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
@@ -200,8 +190,6 @@ def test_chk_flat():
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
 
-
-
 def test_coadd1d_1():
     """
     Test basic coadd using shane_kast_blue
@@ -218,9 +206,8 @@ def test_coadd1d_1():
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
-    assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
-    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
-    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+    assert hdu[1].header['EXT_MODE'] == 'OPT'
+    assert hdu[1].header['FLUXED'] is False
 
     # Clean up
     os.remove(parfile)
@@ -243,9 +230,8 @@ def test_coadd1d_2():
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
-    assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
-    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
-    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+    assert hdu[1].header['EXT_MODE'] == 'OPT'
+    assert hdu[1].header['FLUXED'] is False
 
     # Clean up
     os.remove(parfile)

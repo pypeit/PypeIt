@@ -7,7 +7,7 @@ Overview
 
 This document gives an overview on
 how to run PypeIt, i.e. minimal detail is provided.
-And you might want to begin with See :doc:`installing`.
+And you should have already dealt with :doc:`installing`.
 
 The following outlines the standard steps for running
 PypeIt on a batch of data.  There are alternate ways to
@@ -19,8 +19,8 @@ A few points to note before getting started:
   - If your spectrograph is an echelle, every place you read *slit* think *order*
   - We also tend to use spectrograph and instrument interchangeably
   - And `setup` and `configuration` too.
-  - Spectrograph specific advice is provided in their own doc page
-  - Invariably something will be out of date.  When you see an egregious example, holler on GitHub
+  - Specific advice on :doc:`spectrographs` is provided in their own doc page (for only a few)
+  - Invariably something will be out of date.  When you see an egregious example, holler on GitHub or Slack
 
 Grab a buff computer
 ====================
@@ -42,8 +42,8 @@ if you have taken data with a good set of calibrations, e.g.
 
   - Bias frames (optional)
   - Flats without saturation
-  - Arcs with most/all of the lines (without substantial saturation)
-  - Slitmasks without overlapping slits
+  - Arcs with most/all of the lamps on (and without substantial saturation)
+  - Slitmasks designed without overlapping slits
   - Sensible detector binning and windowing
 
 Data with poor calibration frames will *always* be hard to reduce.
@@ -51,7 +51,8 @@ Please take extra care to insure you are not trying to reduce data
 with bad calibrations.  This is the primary "failure mode" of PypeIt.
 
 And heaven help you if you mixed binning, grating tilt, etc. between your
-calibrations and science (although this is supported for some instruments by necessity).
+calibrations and science (although this is supported for some instruments,
+by necessity).
 
 
 Organize your Raw data
@@ -59,12 +60,11 @@ Organize your Raw data
 
 While PypeIt can handle one or more nights of data with a mix of gratings, tilts, and masks, you will probably find it easier to isolate one set of files at a time.
 This includes mask by mask for multi-slit observations.
+Here is what we recommend:
 
-Place the science + calibrations in one folder.
-Copy bias (and dark) frames into each folder as needed.
-
-Or, put them all in one folder and proceed carefully.
-We will refer to that folder as RAWDIR
+ - Place the science + calibrations in one folder.
+ - Copy bias (and dark) frames into each folder as needed.
+ - We will refer to that folder as RAWDIR
 
 The raw images can be gzip-compressed although the Python FITS reader
 works much more slowly on gzipped files.
@@ -72,7 +72,7 @@ works much more slowly on gzipped files.
 1. Setup
 ========
 
-The first script you will run with PypeIt is to :ref:`pypeit_setup` which
+The first script you will run with PypeIt is :ref:`pypeit_setup` which
 examines your raw files and generates a sorted list and (if instructed)
 one :doc:`pypeit_file` per instrument configuration.
 
@@ -115,8 +115,8 @@ We encourage you to inspect these calibration outputs
 as they come.
 
 The term :doc:`masters` refers to the output files for
-calibration data.  These appear in the Masters/ folder
-and see :ref:`master-naming` for details on the naming
+calibration data.  These appear in the Masters/ folder;
+see :ref:`master-naming` for details on the naming
 convention.
 
 Here is the order they tend to be created
@@ -124,9 +124,9 @@ with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
   - View the :doc:`master_bias` image (if you produced one)
+  - Check slit edges with the :doc:`master_edges` file
   - View the :doc:`master_arc` image
   - View the :doc:`master_tilt` image
-  - Check slit edges with the :doc:`master_edges` file
   - Check the 1D wavelength solution in the :doc:`master_wvcalib` output
   - Check the 2D wavelength solution in the :doc:`master_tilts` output
   - Check the :doc:`master_flat` images
@@ -137,21 +137,30 @@ It depends on your spectrograph and the calibration files input.
 5. Examine Spectra
 ==================
 
-Eventually (be patient), the code will hopefully start
+Eventually (be patient), the code will start
 generating 2D and 1D spectra outputs.  One per standard
 and science frame, located in the *Science/* folder.
 
   - Examine the 2D spectral images :doc:`out_spec2D`
   - Examine the extracted 1D spectra :doc:`out_spec1D`
 
-6. BLEEDING EDGE
-================
+Here are some :doc:`reduction_tips` for tuning parameters
+related to extraction and sky subtraction for your spectra.
 
-The stuff below needs proper documenting.
+6. Fluxing
+==========
 
-9.  Flux
+PypeIt provides routines for :doc:`fluxing` your spectra.
+These are run separately from and after the main run.
 
-10. Coadd (see :doc:`coadding`)
+7. Coadding
+===========
+
+There are scripts for coadding both the 2D spectra
+(undocumented) and to :doc:`coadd1d`.
+These are run separately from and after the main run.
+
+
 
 
 

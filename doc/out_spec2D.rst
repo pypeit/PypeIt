@@ -10,25 +10,13 @@ Overview
 During the data reduction proceess, PypeIt creates a series
 of 2D spectral images prior to extraction of 1D spectra.
 And, of course, several of these 2D images may have greater
-value for analysis than the 1D spectra.  For each on-source
-exposure, PypeIt outputs a series of these images, with the
-number set by the :ref:`outputs-reduction-mode`.
+value for analysis than the 1D spectra.
 
-The following table describes the standard products:
+For each on-source
+exposure, PypeIt outputs a series of these images in a
+single, multi-extension FITS file, separated by detector.
+See the `Current Spec2DObj Data Model`_ for details.
 
-============  ====================================
-2D Spec Type  Description
-============  ====================================
-PROCESSED     Bias-subtracted, flat-fielded image
-IVARRAW       Inverse variance image; sky+detector
-SKY           Sky-subtracted, processed image
-OBJ           Model of the object(s) flux
-IVARMODEL     Model of the inverse variance image; sky+detector
-MASK          Mask image
-============  ====================================
-
-There will be a set of these images for each detector
-processed.
 
 Naming
 ======
@@ -41,8 +29,8 @@ The model is::
 
     Prefix_frame-objname_spectrograph_timestamp.fits
 
-Viewing
-=======
+Inspecting
+==========
 
 You can open this image in ds9 and play around.
 But we highly recommend using the `pypeit_show_2dspec`_ script
@@ -102,7 +90,45 @@ indicate object traces.
 As you mouse around, the x-values shown at the bottom indicate
 the wavelength.
 
-Coming Soon
-===========
+pypeit_chk_2dslits
+------------------
 
-A better description of the data model.
+This script prints to the screen a short summary of the slit
+information, detector by detector.  Here is an example::
+
+    pypeit_chk_2dslits 
+
+
+Identifying Slits
+=================
+
+If you need to generate an image describing the location of each
+slit/order for a given detector here is the recommended approach::
+
+    from pypeit import spec2dobj
+    spec2DObj = spec2dobj.Spec2DObj.from_file('spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits', det=2)
+    slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
+
+If no flexure correction was applied, it will be ignored.
+This generates an image with pixel values:
+
+ - -1 for a pixel not in any slit/order
+ - SPAT_ID for each pixel in the slit identified by SPAT_ID
+
+.. _spec2dobj_datamodel:
+
+Current Spec2DObj Data Model
+============================
+
+Internally, the image is held in
+:class:`pypeit.spec2dobj.AllSpec2DObj` which holds
+the full set of
+:class:`pypeit.spec2dobj.Spec2DObj` objects.
+
+The data model for the latter is:
+
+.. include:: include/datamodel_spec2dobj.rst
+
+Each array and the :class:`pypeit.images.detector_container.DetectorContainer`
+is written as a separate HDU prefixed by the detector number,
+DET01-

@@ -169,8 +169,9 @@ class EdgeTraceBitMask(BitMask):
                    ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations'),
                  ('ORPHANINSERT', 'Trace was inserted to match an orphaned edge'),
                     ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
-                 ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length')
-                           ])
+                 ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length'),
+                   ('USERRMSLIT', 'Slit removed by user'),
+        ])
         super(EdgeTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
     @property
@@ -192,7 +193,7 @@ class EdgeTraceBitMask(BitMask):
     def exclude_flags(self):
         # We will not exclude SYNCINSERT slits edges from the masking
         #   These can easily crop up for star boxes and at the edge of the detector
-        return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT']
+        return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT', 'SHORTSLIT']
 
 
 # TODO -- Make a DataContainer
@@ -475,7 +476,6 @@ class EdgeTraceSet(object):
         """
         return 0 if self.traceid is None else self.traceid.size
 
-    # ADDED in rmtdict
     @property
     def nslits(self):
         if self.is_synced:
@@ -1463,7 +1463,7 @@ class EdgeTraceSet(object):
             _include_error = False
             if include_error:
                 msgs.warn('SlitTraceSet object has no errors.')
-            left, right = slits.select_edges(original=original)
+            left, right, _ = slits.select_edges(original=original)
             cen = np.hstack((left,right))
             fit = cen
             msk = None
@@ -1481,6 +1481,12 @@ class EdgeTraceSet(object):
                             else {'left_ids': traceid[gpm & is_left],
                                   'right_ids': traceid[gpm & is_right]}
             _trc = cen if fit is None else fit
+
+            # spat_id
+            if synced:
+                half = fit.shape[0] // 2
+                scen = (_trc[half, gpm & is_left] + _trc[half, gpm & is_right]) / 2.
+                id_kwargs['slit_ids'] = scen.astype(int)
 
             # Connect to or instantiate ginga window
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
@@ -2393,10 +2399,10 @@ class EdgeTraceSet(object):
                 self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'ABNORMALSLIT')
 
         # TODO: Check that slit edges meet a minimum slit gap?
-
         if self.par['sync_clip']:
             # Remove traces that have been fully flagged as bad
-            rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags)
+            rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
+                                               exclude=self.bitmask.exclude_flags)
             self.remove_traces(rmtrace, rebuild_pca=rebuild_pca, sync_rm='both')
             if self.is_empty:
                 msgs.warn('Assuming a single long-slit and continuing.')
@@ -2439,9 +2445,12 @@ class EdgeTraceSet(object):
                 idx = np.where(bad_slit)[0][0]
                 indx[2*idx:2*idx+2] = True
                 msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
+                # Mask
+                self.bitmask.turn_on(self.spat_msk[:,indx], 'USERRMSLIT')
         # Remove
         self.remove_traces(indx, sync_rm='both')
 
+    # TODO -- Add an option to distinguish between an actual remove and a flagging
     def remove_traces(self, indx, resort=True, rebuild_pca=False, sync_rm='ignore'):
         r"""
         Remove a set of traces.
@@ -2545,7 +2554,7 @@ class EdgeTraceSet(object):
 
         # Traces to remove
         rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                           exclude=self.bitmask.insert_flags)
+                                           exclude=self.bitmask.insert_flags+self.bitmask.exclude_flags)
         if force_flag is not None:
             rmtrace |= self.fully_masked_traces(flag=force_flag)
 
@@ -4275,6 +4284,10 @@ class EdgeTraceSet(object):
         the same :attr:`master_key`, :attr:`master_dir`, and
         :attr:`reuse_masters` as this parent :class:`EdgeTraceSet`
         object.
+
+        Returns:
+            :class:`~pypeit.slittrace.SlitTraceSet`: Object holding
+            the slit traces.
         """
         if not self.is_synced:
             msgs.error('Edges must be synced to construct SlitTraceSet object.')
@@ -4282,6 +4295,18 @@ class EdgeTraceSet(object):
         # Select the good traces
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
+
+        # Initialize SlitTrace mask
+        slit_bitmask = slittrace.SlitTraceBitMask()
+        nslit = int(np.sum(gpm)) // 2
+        slit_msk = np.zeros(nslit, dtype=slit_bitmask.minimum_dtype())
+        # Loop on left edges
+        for sidx, eidx in enumerate(np.where(gpm & self.is_left)[0]):
+            # Loop on SlitTrace mask keys
+            for key in slit_bitmask.keys():
+                if key in self.bitmask.keys() and np.all(self.bitmask.flagged(
+                        self.spat_msk[:, eidx], flag=key)):
+                    slit_msk[sidx] = slit_bitmask.turn_on(slit_msk[sidx], key)
 
         # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
@@ -4291,9 +4316,10 @@ class EdgeTraceSet(object):
         specmin, specmax = self.spectrograph.slit_minmax(slitspat, binspectral=binspec)
 
         # Instantiate and return
-        return slittrace.SlitTraceSet(left=left, right=right, nspat=self.nspat,
+        return slittrace.SlitTraceSet(left, right, self.spectrograph.pypeline, nspat=self.nspat,
                                       PYP_SPEC=self.spectrograph.spectrograph, specmin=specmin,
                                       specmax=specmax, binspec=binspec, binspat=binspat,
-                                      pad=self.par['pad'])#, master_key=self.master_key,
-                                      #master_dir=self.master_dir, reuse=self.reuse_masters)
+                                      pad=self.par['pad'], mask_init=slit_msk,
+                                      ech_order=self.spectrograph.order_vec(slitspat) if self.spectrograph.pypeline in ['Echelle'] else None)
+
 

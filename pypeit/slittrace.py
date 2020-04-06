@@ -9,21 +9,44 @@ import inspect
 from IPython import embed
 
 import numpy as np
-from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import masterframe
 from pypeit import datamodel
+from pypeit.bitmask import BitMask
 
-# NOTE: The main purpose behind having SlitTraceSet inherit from
-# MasterFrame is to maintain the file-name convention. This pairing of
-# base classes might now become common as we adopt DataContainer for
-# the main class objects. This means we need to be careful about the
-# uniqueness of the method names between DataContainer and MasterFrame;
-# in particular, I'm thinking of the to/from IO methods. We might want
-# to limit MasterFrame to essentially just be the class that maintains
-# our master-frame naming convention. Or make MasterFrame inherit from
-# DataContainer.
+
+class SlitTraceBitMask(BitMask):
+    """
+    Mask bits used during slit tracing.
+    """
+    version = '1.0.0'
+
+    def __init__(self):
+        mask = dict([
+            ('SHORTSLIT', 'Slit formed by left and right edge is too short. Not ignored for flexure'),
+            ('USERIGNORE', 'User has specified to ignore this slit. Not ignored for flexure.'),
+            ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
+            ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
+            ('SKIPFLATCALIB', 'Flat field generation failed for this slit. Skip flat fielding'),
+            ('BADFLATCALIB', 'Flat field generation failed for this slit. Ignore it fully.'),
+            ('BADREDUCE', 'Skysub/extraction failed for this slit'),
+        ])
+        super(SlitTraceBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+
+    @property
+    def exclude_for_reducing(self):
+        # Ignore these flags when reducing or considering reduced slits
+        return ['SKIPFLATCALIB']
+
+    @property
+    def exclude_for_flexure(self):
+        # Ignore these flags when performing a flexure calculation
+        #  Currently they are *all* of the flags..
+        return ['SHORTSLIT', 'USERIGNORE', 'BADWVCALIB', 'BADTILTCALIB',
+                'SKIPFLATCALIB', 'BADFLATCALIB', 'BADREDUCE']
+
+
+
 class SlitTraceSet(datamodel.DataContainer):
     """
     Defines a generic class for holding and manipulating image traces
@@ -47,20 +70,31 @@ class SlitTraceSet(datamodel.DataContainer):
             Only the arguments relevant to the
             :class:`pypeit.masterframe.MasterFrame` components of
             :class:`SlitTraceSet` are used.
+
+    Attributes:
+        left_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected left
+        right_flexure (`numpy.ndarray`_):  Convenient spot to hold flexure corrected right
+        master_key (:obj:`str`):
+        master_dir (:obj:`str`):
+
     """
     frametype = 'slits'
     master_type = 'Slits'
     """Name for type of master frame."""
     master_file_format = 'fits.gz'
     """File format for the master frame file."""
-    # Set the version of this class
-    version = '1.0.0'
+    minimum_version = '1.1.0'
+    version = '1.1.0'
+    """SlitTraceSet data model version."""
+
     hdu_prefix = None
     output_to_disk = None
-    """SlitTraceSet data model version."""
+
+    bitmask = SlitTraceBitMask()
+
     # Define the data model
-    datamodel = {
-                 'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+                 'pypeline': dict(otype=str, desc='PypeIt pypeline name'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'nspat': dict(otype=int,
@@ -71,14 +105,17 @@ class SlitTraceSet(datamodel.DataContainer):
                                  descr='Number of pixels binned in the spatial direction.'),
                  'pad': dict(otype=int,
                              descr='Integer number of pixels to consider beyond the slit edges.'),
-                 'nslits': dict(otype=int, descr='Number of slits.'),
-                 'id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number'),
-                 'left': dict(otype=np.ndarray, atype=np.floating,
+                 'spat_id': dict(otype=np.ndarray, atype=(int,np.integer),
+                                 descr='Slit ID number from SPAT measured at half way point.'),
+                 'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number slitmask'),
+                 'ech_order': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number echelle order'),
+                 'nslits': dict(otype=int, descr='Total number of slits, derived from shape of left_init.'),
+                 'left_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
-                                    'per slit.  Shape is Nspec by Nslits.'),
-                 'right': dict(otype=np.ndarray, atype=np.floating,
+                                    'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
+                 'right_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all right edges, one '
-                                    'per slit.  Shape is Nspec by Nslits.'),
+                                    'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
                  'left_tweak': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Spatial coordinates (pixel indices) of all left '
                                           'edges, one per slit.  These traces have been adjusted '
@@ -88,14 +125,17 @@ class SlitTraceSet(datamodel.DataContainer):
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
                  'center': dict(otype=np.ndarray, atype=np.floating,
-                               descr='Spatial coordinates of the slit centers.  Shape is Nspec '
-                                     'by Nslits.'),
-                 'mask': dict(otype=np.ndarray, atype=np.bool_,
-                              descr='Bad-slit mask (good slits are False).  Shape is Nslits.'),
-                 'specmin': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Spatial coordinates of the slit centers from left_init, right_init.  '
+                                     'Shape is Nspec by Nslits.'),
+                 'mask_init': dict(otype=np.ndarray, atype=np.integer,
+                     descr='Bit mask for slits at instantiation.  Used to reset'),
+                 'mask': dict(otype=np.ndarray, atype=np.integer,
+                              descr='Bit mask for slits (fully good slits have 0 value).  Shape is Nslits.'),
+                'slitbitm': dict(otype=str, desc='List of BITMASK keys from SlitTraceBitMask'),
+                'specmin': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Minimum spectral position allowed for each slit/order.  '
                                        'Shape is Nslits.'),
-                 'specmax': dict(otype=np.ndarray, atype=np.floating,
+                'specmax': dict(otype=np.ndarray, atype=np.floating,
                                  descr='Maximum spectral position allowed for each slit/order.  '
                                        'Shape is Nslits.'),
                  }
@@ -104,167 +144,35 @@ class SlitTraceSet(datamodel.DataContainer):
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
-    def __init__(self, left, right, nspat=None, PYP_SPEC=None, mask=None,
-                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0):
+    # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
+    def __init__(self, left_init, right_init, pypeline, nspec=None, nspat=None, PYP_SPEC=None, mask_init=None,
+                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
+                 spat_id=None, maskdef_id=None, ech_order=None, nslits=None,
+                 left_tweak=None, right_tweak=None, center=None, mask=None,
+                 slitbitm=None):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
         # The dictionary passed to DataContainer.__init__ does not
         # contain self or the MasterFrame arguments.
         # TODO: Does it matter if the calling function passes the
         # keyword arguments in a different order?
-        datamodel.DataContainer.__init__(self, d=dict(left=left, right=right, nspat=nspat, PYP_SPEC=PYP_SPEC,
-                                                      mask=mask, specmin=specmin, specmax=specmax, binspec=binspec,
-                                                      binspat=binspat, pad=pad))
-
-    ## TODO: Allow defaults for master_key and master_dir
-    ## TODO: Do we need reuse as an option, or should the calling
-    ## function just decide if the masters should be reused?
-    #@classmethod
-    #def from_master(cls, master_key, master_dir, reuse=True):
-        """
-        Attempt to load the :class:`SlitTraceSet` from an existing
-        master-frame file.
-
-        If the master-frame does not exist, or if ``reuse`` is False,
-        the method returns ``None``.
-
-        Args:
-            master_dir (:obj:`str`):
-                Name of the :class:`pypeit.masterframe.MasterFrame`
-                directory.
-            master_key (:obj:`str`):
-                Root of the :class:`pypeit.masterframe.MasterFrame`
-                name, e.g. 'A_1_01'.
-            reuse (:obj:`bool`, optional):
-                Reuse existing master frames from disk. If False,
-                this method returns ``None``.
-
-        Returns:
-            :class:`SlitTraceSet`, None: Returns the instantiated
-            object or ``None``; ``None`` is returned if ``reuse`` is
-            False or the master-frame was not found on disk.
-        """
-    #    if not reuse:
-    #        return None
-    #    # Use MasterFrame to get the name of the file
-    #    # TODO: This feels like over-kill
-    #    ifile = masterframe.MasterFrame(cls.master_type, master_dir=master_dir,
-    #                                    master_key=master_key, file_format=cls.master_format,
-    #                                    reuse_masters=reuse).chk_load_master(None)
-    #    if ifile is None:
-    #        return None
-    #    msgs.info('Loading SlitTraceSet from: {0}'.format(ifile))
-    #    return cls.from_file(ifile)
-
-    # NOTE: Don't need to overload the DataContainer.from_file method
-    # because it simply calls this from_hdu method.
-#    @classmethod
-#    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
-#        """
-#        Instantiate the object from an HDU extension.
-#
-#        This is primarily a wrapper for :func:`_parse`.
-#
-#        Args:
-#            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
-#                The HDU(s) with the data to use for instantiation.
-#        """
-#        # NOTE: We can't use `cls(cls._parse(hdu))` here because this
-#        # will call the `__init__` method of the derived class and we
-#        # need to use the `__init__` of the base class instead. So
-#        # below, I get an empty instance of the derived class using
-#        # `__new__`, instantiate the MasterFrame components, call the
-#        # parent `__init__`, and then return the result. The `__init__`
-#        # methods for both base classes are called explicitly to avoid
-#        # resolution-order issues with `super`.
-#        self = super().__new__(cls)
-#        # Instantiate the MasterFrame.
-#        hdr = hdu[0].header if isinstance(hdu, fits.HDUList) else hdu.header
-#        if hdr['MSTRTYP'] != self.master_type:
-#            msgs.warn('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
-#                        hdr['MSTRTYP'], self.master_type))
-#        # Instantiate the DataContainer
-#        datamodel.DataContainer.__init__(self, cls._parse(hdu)[0])
-#        return self
-
-#    # TODO: I think the default overwriting should be False everywhere.
-#    # Until that happens, it's changed to True here to match other
-#    # MasterFrames.
-#    def to_master_file(self, master_dir, master_key, spectrograph, steps=None,
-#                       raw_files=None, **kwargs):
-#        """
-#        Write the object to the master-frame file.
-#
-#        This is a simple wrapper for
-#        :func:`pypeit.datamodel.DataContainer.to_file` that writes
-#        the file to :attr:`master_file_path`.
-#
-#        Args:
-#            overwrite (:obj:`bool`, optional):
-#                Flag to overwrite any existing file.
-#        """
-#        # Output file
-#        ofile = masterframe.construct_file_name(self, master_key, master_dir=master_dir)
-#        # Header
-#        hdr = masterframe.build_master_header(self, master_key, master_dir,
-#                                              spectrograph, steps=steps,
-#                                              raw_files=raw_files)
-#        self.to_file(ofile, primary_hdr=hdr, hdu_prefix=self.hdu_prefix,
-#                                              limit_hdus=self.output_to_disk,
-#                                              overwrite=True,
-#                                              **kwargs)
-        #self.to_file(self.master_file_path, overwrite=overwrite, checksum=True)
-
-    # NOTE: No need to overwrite DataContainer.to_file, because it will call this function.
-#    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, hdu_prefix=None,
-#               limit_hdus=None):
-#        """
-#        Write the :class:`SlitTraceSet` data to an
-#        `astropy.io.fits.BinTableHDU`.
-#
-#        This is a basic wrapper for
-#        :func:`pypeit.datamodel.DataContainer.to_hdu` that includes
-#        the nominal :class:`pypeit.masterframe.MasterFrame` header
-#        data.
-#
-#        Args:
-#            hdr (`astropy.io.fits.Header`, optional):
-#                Baseline header to add to all returned HDUs. The
-#                relevant :class:`pypeit.masterframe.MasterFrame` and
-#                :class:`SlitTraceSet` keywords are always
-#                added/edited in this baseline header.
-#            add_primary (:obj:`bool`, optional):
-#                If False, the returned object is a simple :obj:`list`
-#                object with a single element, the
-#                `astropy.io.fits.BinTableHDU`_ with the
-#                :class:`SlitTraceSet` data. If True, the method
-#                constructs an `astropy.io.fits.HDUList` with a
-#                primary HDU. The nominal
-#                :func:`pypeit.masterframe.MasterFrame` header data is
-#                included in all returned HDUs.
-#
-#        Returns:
-#            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
-#            where the type depends on the value of ``add_primary``.
-#        """
-#        # TODO: Use super here?
-#        return datamodel.DataContainer.to_hdu(self, primary_hdr=self.build_master_header(hdr=hdr),
-#                                              add_primary=add_primary)
+        datamodel.DataContainer.__init__(self, d=_d)
 
     def _validate(self):
         """
         Validate the slit traces.
         """
         # Allow the object to be empty
-        if self.left is None or self.right is None:
+        if self.left_init is None or self.right_init is None:
             return
-        if self.left.shape != self.right.shape:
-            raise ValueError('Input left and right traces should have the same shape.')
-        if self.left.ndim == 1:
+        if self.left_init.shape != self.right_init.shape:
+            raise ValueError('Input left_init and right_init traces should have the same shape.')
+        if self.left_init.ndim == 1:
             # Object contains a single slit.  Expand the dimensions.
-            self.left = np.expand_dims(self.left, 1)
-            self.right = np.expand_dims(self.right, 1)
+            self.left_init = np.expand_dims(self.left_init, 1)
+            self.right_init = np.expand_dims(self.right_init, 1)
 
         # Do the same for the tweaked traces. NOTE: Tweaked traces will
         # only exist if they were read from an output file; i.e., the
@@ -279,25 +187,24 @@ class SlitTraceSet(datamodel.DataContainer):
                 self.left_tweak = np.expand_dims(self.left_tweak, 1)
                 self.right_tweak = np.expand_dims(self.right_tweak, 1)
 
-        self.nspec, self.nslits = self.left.shape
+        self.nspec, self.nslits = self.left_init.shape
 
         # Center is always defined by the original traces, not the
-        # tweaked ones. TODO: Is that the behavior we want? An argument
-        # in favor is that this means that the slit IDs are always tied
+        # tweaked ones. This means that the slit IDs are always tied
         # to the original traces, not the tweaked ones.
-        self.center = (self.left+self.right)/2
+        self.center = (self.left_init+self.right_init)/2
 
         if self.nspat is None:
             # TODO: May want nspat to be a required argument given the
             # only other option is this kludge, which should basically
             # never be useful.
-            self.nspat = np.amax(np.append(self.left, self.right))
-        if self.id is None:
-            self._set_slitids()
-        if self.PYP_SPEC is None:  # This should only be for testing...
+            self.nspat = np.amax(np.append(self.left_init, self.right_init))
+        if self.spat_id is None:
+            self.spat_id = np.round(self.center[int(np.round(0.5 * self.nspec)), :]).astype(int)
+        if self.PYP_SPEC is None:
             self.PYP_SPEC = 'unknown'
-        if self.mask is None:
-            self.mask = np.zeros(self.nslits, dtype=bool)
+        if self.mask_init is None:
+            self.mask_init = np.zeros(self.nslits, dtype=self.bitmask.minimum_dtype())
         if self.specmin is None:
             self.specmin = np.full(self.nslits, -1, dtype=float)
         if self.specmax is None:
@@ -305,9 +212,25 @@ class SlitTraceSet(datamodel.DataContainer):
 
         # Make sure mask, specmin, and specmax are at least 1D arrays.
         # TODO: Is there a way around this?
-        self.mask = np.atleast_1d(self.mask)
+        self.mask_init = np.atleast_1d(self.mask_init)
         self.specmin = np.atleast_1d(self.specmin)
         self.specmax = np.atleast_1d(self.specmax)
+        if self.slitbitm is None:
+            self.slitbitm = ','.join(list(self.bitmask.keys()))
+        else:
+            # Validate
+            if self.slitbitm != ','.join(list(self.bitmask.keys())):
+                msgs.error("Input BITMASK keys differ from current data model!")
+        # Mask
+        if self.mask is None:
+            self.mask = self.mask_init.copy()
+
+    def _init_internals(self):
+        self.left_flexure = None
+        self.right_flexure = None
+        # Master stuff
+        self.master_key = None
+        self.master_dir = None
 
     def _bundle(self):
         """
@@ -328,45 +251,12 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True, debug=True)
 
-    def _set_slitids(self, specfrac=0.5):
-        """
-        Assign the slit ID numbers.
-
-        Slit IDs are set based on the fractional location of the slit
-        center at the provided fractional location along the spectral
-        direction, and it is computed as follows::
-
-            self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
-                                / self.nspat * 1e4).astype(int)
-
-        I.e., if the slit center is 1024 for an image with 2048
-        spatial pixels, the slit ID is 5000. The slit ID numbers are
-        assigned to :attr:`id`.
-
-        Args:
-            specfrac (:obj:`float`, optional):
-                The fractional spectral position of the slit center
-                to use for the ID calculation.
-
-        Raises:
-            ValueError:
-                Raised if :attr:`center`, :attr:`nspat`, or
-                :attr:`nspec` is not defined (None).
-        """
-        # TODO: This doesn't need to be a separate private function. It
-        # could just be a line in _validate().
-        if self.center is None or self.nspec is None or self.nspat is None:
-            raise ValueError('Object does not have center, nspec, or nspat; '
-                             'cannot assign slit IDs.')
-        self.id = np.round(self.center[int(np.round(specfrac*self.nspec)),:]
-                                / self.nspat * 1e4).astype(int)
-
     def init_tweaked(self):
         """
         Initialize the tweaked slits.
         """
-        self.left_tweak = self.left.copy()
-        self.right_tweak = self.right.copy()
+        self.left_tweak = self.left_init.copy()
+        self.right_tweak = self.right_init.copy()
 
     def rm_tweaked(self):
         """
@@ -375,9 +265,46 @@ class SlitTraceSet(datamodel.DataContainer):
         self.left_tweak = None
         self.right_tweak = None
 
-    def select_edges(self, original=False):
+    @property
+    def slit_info(self):
         """
-        Select between the original or tweaked slit edges.
+
+        Returns:
+            `numpy.ndarray`_:
+
+        """
+        #
+        info = np.vstack([self.spat_id, self.mask])
+        info = np.vstack([info, np.zeros_like(self.spat_id)]) \
+                    if self.maskdef_id is None else np.vstack([info, self.maskdef_id])
+        return info.astype(int).T
+
+    @property
+    def slitord_id(self):
+        if self.pypeline in ['MultiSlit', 'IFU']:
+            return self.spat_id
+        elif self.pypeline in ['Echelle']:
+            return self.ech_order
+        else:
+            msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
+
+    def spatid_to_zero(self, spat_id):
+        """
+        Convert input spat_id into a zero-based index
+
+        Args:
+            spat_id (int):
+
+        Returns:
+            int: zero-based index of the input spat_id
+
+        """
+        return np.where(self.spat_id == spat_id)[0][0]
+
+    def select_edges(self, initial=False, flexure=None):
+        """
+        Select between the initial or tweaked slit edges and allow for
+        flexure correction.
 
         By default, the method will return the tweaked slits if they
         have been defined. If they haven't been defined the nominal
@@ -386,21 +313,34 @@ class SlitTraceSet(datamodel.DataContainer):
         the presence of the tweaked edges.
 
         Args:
-            original (:obj:`bool`, optional):
-                To use the nominal edges regardles of the presence of
+            initial (:obj:`bool`, optional):
+                To use the initial edges regardless of the presence of
                 the tweaked edges, set this to True.
+            flexure (:obj:`float`, optional):
+                If provided, offset each slit by this amount
 
         Returns:
-            tuple: Returns the arrays containing the left and right
-            edge coordinates, respectively. These are returned as
-            pointers to the internal attributes, **not** copies.
+            tuple: Returns the full arrays containing the left and right
+            edge coordinates and the mask, respectively.
+            These are returned as copies.
         """
         # TODO: Add a copy argument?
-        if self.left_tweak is not None and self.right_tweak is not None and not original:
-            return self.left_tweak, self.right_tweak
-        return self.left, self.right
+        if self.left_tweak is not None and self.right_tweak is not None and not initial:
+            left, right = self.left_tweak, self.right_tweak
+        else:
+            left, right = self.left_init, self.right_init
 
-    def slit_img(self, pad=None, slitids=None, original=False):
+        # Add in spatial flexure?
+        if flexure:
+            self.left_flexure = left + flexure
+            self.right_flexure = right + flexure
+            left, right = self.left_flexure, self.right_flexure
+
+        # Return
+        return left.copy(), right.copy(), self.mask.copy()
+
+    def slit_img(self, pad=None, slitidx=None, initial=False, flexure=None,
+                 exclude_flag=None, use_spatial=True):
         r"""
         Construct an image identifying each pixel with its associated
         slit.
@@ -434,21 +374,30 @@ class SlitTraceSet(datamodel.DataContainer):
                 not None, this overrides the value in :attr:`par`.
                 The value can be negative, which means that the
                 widths are **trimmed** instead of padded.
-            slitids (:obj:`int`, array_like, optional):
-                List of slit IDs to include in the image. If None,
-                all slits are included.
-            original (:obj:`bool`, optional):
+            slitidx (:obj:`int`, array_like, optional):
+                List of indexes (zero-based) to include in the image.
+                If None, all slits not flagged are included.
+            initial (:obj:`bool`, optional):
                 By default, the method will use the tweaked slit
                 edges if they have been defined. If they haven't
-                been, the nominal edges (:attr:`left` and
-                :attr:`right`) are used. To use the nominal edges
+                been, the initial edges (:attr:`left_init` and
+                :attr:`right_init`) are used. To use the nominal edges
                 regardless of the presence of the tweaked edges, set
                 this to True. See :func:`select_edges`.
+            exclude_flag (:obj:`str`, optional):
+                Bitmask flag to ignore when masking
+                Warning -- This could conflict with input slitids, i.e. avoid using both
+            use_spatial (bool, optional):
+                If True, use self.spat_id value instead of 0-based indices
+
 
         Returns:
             `numpy.ndarray`_: The image with the slit index
             identified for each pixel.
         """
+        #
+        if slitidx is not None and exclude_flag is not None:
+            msgs.error("Cannot pass in both slitidx and exclude_flag!")
         # Check the input
         if pad is None:
             pad = self.pad
@@ -456,15 +405,20 @@ class SlitTraceSet(datamodel.DataContainer):
         if len(_pad) != 2:
             msgs.error('Padding for both left and right edges should be provided as a 2-tuple!')
 
-        # Slit IDs to include in the image
-        slitids = np.arange(self.nslits) if slitids is None else np.atleast_1d(slitids).ravel()
-
         # Pixel coordinates
         spat = np.arange(self.nspat)
         spec = np.arange(self.nspec)
 
-        # Choose the slit edges to use
-        left, right = self.select_edges(original=original)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+
+        # Choose the slits to use
+        if slitidx is not None:
+            slitidx = np.atleast_1d(slitidx).ravel()
+        else:
+            bpm = self.mask.astype(bool)
+            if exclude_flag:
+                bpm &= np.invert(self.bitmask.flagged(self.mask, flag=exclude_flag))
+            slitidx = np.where(np.invert(bpm))[0]
 
         # TODO: When specific slits are chosen, need to check that the
         # padding doesn't lead to slit overlap.
@@ -472,22 +426,24 @@ class SlitTraceSet(datamodel.DataContainer):
         # Find the pixels in each slit, limited by the minimum and
         # maximum spectral position.
         slitid_img = np.full((self.nspec,self.nspat), -1, dtype=int)
-        for i in slitids:
+        for i in slitidx:
+            slit_id = self.spat_id[i] if use_spatial else i
             indx = (spat[None,:] > left[:,i,None] - _pad[0]) \
                         & (spat[None,:] < right[:,i,None] + _pad[1]) \
                         & (spec > self.specmin[i])[:,None] & (spec < self.specmax[i])[:,None]
-            slitid_img[indx] = i
+            slitid_img[indx] = slit_id
+        # Return
         return slitid_img
 
-    def spatial_coordinate_image(self, slitids=None, full=False, slitid_img=None, pad=None,
-                                 original=False):
+    def spatial_coordinate_image(self, slitidx=None, full=False, slitid_img=None,
+                                 pad=None, initial=False, flexure_shift=None):
         r"""
         Generate an image with the normalized spatial coordinate
         within each slit.
 
         Args:
-            slitids (:obj:`int`, array_like, optional):
-                List of slit IDs to include in the image. If None,
+            slitidx (:obj:`int`, array_like, optional):
+                List of indices to include in the image. If None,
                 all slits are included.
             full (:obj:`bool`, optional):
                 If True, return a full image with the coordinates
@@ -510,7 +466,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 to override the value of `pad` in :attr:`par`. Only
                 used if ``slitid_img`` is not provided directly and
                 ``full`` is False.
-            original (:obj:`bool`, optional):
+            initial (:obj:`bool`, optional):
                 By default, the method will use the tweaked slit
                 edges if they have been defined. If they haven't
                 been, the nominal edges (:attr:`left` and
@@ -525,20 +481,20 @@ class SlitTraceSet(datamodel.DataContainer):
             relative to the left edge for the provided slit over the
             full image.
         """
-        # Slit IDs to include
-        _slitids = np.arange(self.nslits) if slitids is None else np.atleast_1d(slitids).ravel()
-        if full and len(_slitids) > 1:
+        # Slit indices to include
+        _slitidx = np.arange(self.nslits) if slitidx is None else np.atleast_1d(slitidx).ravel()
+        if full and len(_slitidx) > 1:
             msgs.error('For a full image with the slit coordinates, must select a single slit.')
 
-        # Generate the slit ID if it wasn't provided
+        # Generate the slit ID image if it wasn't provided
         if not full:
             if slitid_img is None:
-                slitid_img = self.slit_img(pad=pad, slitids=_slitids, original=original)
+                slitid_img = self.slit_img(pad=pad, slitidx=_slitidx, initial=initial)
             if slitid_img.shape != (self.nspec,self.nspat):
                 msgs.error('Provided slit ID image does not have the correct shape!')
 
         # Choose the slit edges to use
-        left, right = self.select_edges(original=original)
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure_shift)
 
         # Slit width
         slitwidth = right - left
@@ -547,7 +503,7 @@ class SlitTraceSet(datamodel.DataContainer):
         # checked when instantiating the object.
         # Slit widths have to be larger than 0
         indx = slitwidth <= 0.
-        if np.any(indx[:,_slitids]):
+        if np.any(indx[:,_slitidx]):
             bad_slits = np.where(np.any(indx, axis=0))[0]
             # TODO: Shouldn't this fault?
             msgs.warn('Slits {0} have negative (or 0) slit width!'.format(bad_slits))
@@ -555,16 +511,16 @@ class SlitTraceSet(datamodel.DataContainer):
         # Output image
         coo_img = np.zeros((self.nspec,self.nspat), dtype=float)
         spat = np.arange(self.nspat)
-        for i in _slitids:
+        for i in _slitidx:
             coo = (spat[None,:] - left[:,i,None])/slitwidth[:,i,None]
             if not full:
-                indx = slitid_img == i
+                indx = slitid_img == self.spat_id[i]
                 coo_img[indx] = coo[indx]
             else:
                 coo_img = coo
         return coo_img
 
-    def spatial_coordinates(self, original=False):
+    def spatial_coordinates(self, initial=False, flexure=None):
         """
         Return a fiducial coordinate for each slit.
 
@@ -584,7 +540,8 @@ class SlitTraceSet(datamodel.DataContainer):
             `numpy.ndarray`_: Vector with the list of floating point
             spatial coordinates.
         """
-        left, right = self.select_edges(original=original)
+        # TODO -- Confirm it makes sense to pass in flexure
+        left, right, _ = self.select_edges(initial=initial, flexure=flexure)
         return SlitTraceSet.slit_spat_pos(left, right, self.nspat)
 
     @staticmethod
@@ -616,4 +573,89 @@ class SlitTraceSet(datamodel.DataContainer):
             msgs.error('Left and right traces must have the same shape.')
         nspec = left.shape[0]
         return (left[nspec//2,:] + right[nspec//2,:])/2/nspat
+
+    def user_mask(self, det, slitspatnum):
+        """
+        Mask all but the input slit
+
+        Args:
+            det (:obj:`int`): Detector number
+            slitspatnum (:obj:`str` or :obj:`list`):
+        """
+        # Parse
+        dets, spat_ids = parse_slitspatnum(slitspatnum)
+        if det not in dets:
+            return
+        # Cut down for convenience
+        indet = dets == det
+        spat_ids = spat_ids[indet]
+        #
+        msk = np.ones(self.nslits, dtype=bool)
+        for slit_spat in spat_ids:
+            #TODO -- Consider putting in a tolerance which if not met causes a crash
+            idx = np.argmin(np.abs(self.spat_id - slit_spat))
+            msk[idx] = False
+        self.mask[msk] = self.bitmask.turn_on(self.mask[msk], 'USERIGNORE')
+
+    def mask_flats(self, flatImages):
+        """
+        Mask from a :class:`pypeit.flatfield.FlatImages` object
+
+        Args:
+            flatImages (:class:`pypeit.flatfield.FlatImages`):
+
+        """
+        # Loop on all the FLATFIELD BPM keys
+        for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
+            bad_flats = self.bitmask.flagged(flatImages.bpmflats, flag)
+            if np.any(bad_flats):
+                self.mask[bad_flats] = self.bitmask.turn_on(self.mask[bad_flats], flag)
+
+    def mask_wvcalib(self, wv_calib):
+        """
+        Mask from a WaveCalib object
+
+        Args:
+            wv_calib (:obj:`dict`):
+
+        """
+        #for kk, spat_id in enumerate(self.spat_id):
+        #    if wv_calib[str(spat_id)] is None:
+        #        self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
+        for islit in range(self.nslits):
+            if wv_calib[str(self.slitord_id[islit])] is None:
+                self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
+
+    def mask_wavetilts(self, waveTilts):
+        """
+        Mask from a :class:`pypeit.wavetilts.WaveTilts` object
+
+        Args:
+            waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+
+        """
+        # There is only one BPM for Tilts (so far)
+        bad_tilts = waveTilts.bpmtilts > 0
+        if np.any(bad_tilts):
+            self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
+
+def parse_slitspatnum(slitspatnum):
+    """
+    Parse the slitspatnum into a list of detectors and SPAT_IDs
+
+    Args:
+        slitspatnum (:obj:`str` or :obj:`list`:
+
+    Returns:
+        tuple:  dets, spat_ids  (each is an `numpy.ndarray`_ of int's)
+
+    """
+    dets = []
+    spat_ids = []
+    for item in slitspatnum.split(','):
+        spt = item.split(':')
+        dets.append(int(spt[0]))
+        spat_ids.append(int(spt[1]))
+    # Return
+    return np.array(dets).astype(int), np.array(spat_ids).astype(int)
 

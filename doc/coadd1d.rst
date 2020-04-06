@@ -1,0 +1,172 @@
+================
+Coadd 1D Spectra
+================
+
+Overview
+========
+
+This document will describe how to combine the 1D spectra
+from multiple exposures of the same object.
+
+PypeIt currently only offers the coadding of spectra in
+1D and must be done outside of the data reduction pipeline,
+i.e. PypeIt will *not* coadd your spectra as
+part of the data reduction process.
+
+The current defaults use the Optimal extraction
+and fluxed data.
+
+See below for the `Current Coadd1D Data Model`_.
+
+pypeit_coadd_1dspec
+===================
+
+The primary script is called `pypeit_coadd_1dspec`_ which takes
+an input file to guide the process.
+
+coadd1d file
+------------
+
+The format of that file
+is described in the *usage* of the script, i.e. type
+*pypeit_coadd_1dspec -h*.  Here is an example from the Dev Suite
+for the *shane_kast_blue* instrument::
+
+    # User-defined coadding parameters
+    [coadd1d]
+       coaddfile = 'J1217p3905_coadd.fits'
+
+    # Read in the data
+    coadd1d read
+      Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits SPAT0176-SLIT0000-DET01
+      Science/spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits SPAT0175-SLIT0000-DET01
+    coadd1d
+
+The opening block sets parameters for the process, including
+the output file name.  See `Parameters`_ for common choices.
+
+The data block provides a list of :doc:`out_spec1D` files
+and the object name in each to be coadded.
+See :doc:`specobj` for a discussion of the naming.
+
+
+The list of object identifiers in a given spec1d file can be
+output with the *pypeit_show_1dspec* script, e.g.::
+
+    pypeit_show_1dspec spec1d-filename.fits --list
+
+These can also be recovered from the object info files
+in the Science/folder (one per exposure).
+
+run
+---
+
+Then run the script::
+
+    pypeit_coadd_1dspec FRB190714_LRISr_coadd1d_file.txt --show
+
+A substantial set of output are printed to the screen, and
+if successful the final spectrum is written to disk.
+See below for the `Current Coadd1D Data Model`_.
+
+
+
+The parameters that guide the coadd process are also written
+to disk for your records. The default location is *coadd1d.par*.
+You can choose another location with the `--par_outfile`_
+option.
+
+Command Line Options
+--------------------
+
+--show
+++++++
+
+At the end of the process, this will launch a *matplotlib* window
+showing the stacked spectrum on the bottom.  The top panel
+illustrates the number of pixels included in the stack.
+
+--par_outfile
++++++++++++++
+
+This input filename will hold a listing of the parameters
+used to run the coadd1d process.
+
+Parameters
+==========
+
+Fluxing
+-------
+
+The default parameters assume your spectra have gone
+through :doc:`fluxing`.  If not you should set::
+
+    flux_value = False
+
+Flux Scale
+++++++++++
+
+If your data has been fluxed, you may scale the coadded
+spectrum to a chosen value (typically a photometric
+measurement) in one of many filter curves.
+
+To do so, you need to add the *filter* and *magnitude*
+to the [coadd1d] block of the `coadd1d file`_.
+
+Here is an example::
+
+    [coadd1d]
+       coaddfile = 'J121555.09-130116.0_LRISr_A.fits'
+       filter = PS1-R
+       filter_mag = 20.85
+       filter_mask = 7187:7376
+
+
+The call here will convolve the coadded spectrum with the
+PS1 r-band filter,
+and then scale the flux to give an AB magnitude of 20.85.
+Furthermore, the spectral wavelengths from 7187-7376A
+are masked in the analysis.
+
+Filters
++++++++
+
+The list of filters is provided in
+`this file <https://github.com/pypeit/PypeIt/blob/master/pypeit/data/filters/filter_list.ascii>`_.
+
+Cosmic Ray Cleaning
+-------------------
+
+
+
+Scaling
+-------
+
+==================   =======================  ==================================================
+Parameter            Option                   Description
+==================   =======================  ==================================================
+scale_method         default: auto            scale the flux arrays based on the root mean
+                                              square value (RMS) of the S/N^2 value for all
+                                              spectra; if this RMS value is less than the
+                                              minimum median scale value, no scaling is applied.
+                                              If the RMS value is greater than the minimum but
+                                              smaller than the maximum median scale value, the
+                                              applied method is the median, as described below
+--                   hand                     scale the flux arrays using values specified by
+                                              the user in the input parameter 'hand_scale'. Must
+                                              have one value per spectrum
+--                   median                   scale the flux arrays by the median flux value
+                                              of each spectra
+==================   =======================  ==================================================
+
+
+Current Coadd1D Data Model
+==========================
+
+Internally, the data are held in
+:class:`pypeit.coadd1d.OneSpec`.
+
+The data model is:
+
+.. include:: include/datamodel_onespec.rst
+

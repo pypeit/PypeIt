@@ -31,25 +31,7 @@ Configuration`_ are listed below.
 
 .. warning::
 
- * Parsing of the PypeIt parameters from the :ref:`pypeit_file` does not
-   yet check that the parameter group and keyword are valid.  This can
-   make the syntax of the changes made incredibly important.  In
-   particular, the indentation of the configuration lines, while useful
-   for legibility, is irrelevant to how the lines are parsed.  For
-   example, the following successfully changes the theshold for slit
-   edge detection::
-        
-        [calibrations]
-            [[slitedges]]
-                edge_thresh = 100
-    
-   whereas the following fails silently::
-        
-        [calibrations]
-            [slitedges]
-                edge_thresh = 100
-
- - Default values of parameters that actually point to data files
+ * Default values of parameters that actually point to data files
    provided by PypeIt (e.g. the ``spectrum`` parameter for
    :class:`pypeit.par.pypeitpar.FlexurePar`) in its root directory will
    point to the relevant location on disk of whoever generated the

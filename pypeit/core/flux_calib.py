@@ -24,9 +24,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import bspline
 from pypeit.wavemodel import conv2res
-from pypeit.core import pydl, load, save, coadd
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit import specobjs
+from pypeit.core import pydl
 
 # TODO: Put these in the relevant functions
 TINY = 1e-15
@@ -1110,6 +1108,7 @@ def scale_in_filter(wave, flux, gpm, scale_dict):
     flux = flux[gpm]
 
     # Grab the instrument response function
+    msgs.info("Integrating spectrum in filter: {}".format(scale_dict['filter']))
     fwave, trans = load_filter_file(scale_dict['filter'])
     tfunc = interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
 

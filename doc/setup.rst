@@ -2,8 +2,6 @@
 Setup
 *****
 
-.. index:: Setup
-
 Overview
 ========
 

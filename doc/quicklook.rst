@@ -14,28 +14,36 @@ We describe each in turn.
 pypeit_ql_mos
 =============
 
-This script performs a boxcar extraction of a long
+This script performs a boxcar (only) extraction of a long
 or multi-slit observation taken with one of PypeIt's
 spectrographs
 
-Here is the usage::
+Here is the usage (get the latest with *pypeit_ql_mos -h*)::
 
-    usage: pypeit_ql_mos [-h] [-b BOX_RADIUS]
-                         spectrograph full_rawpath arc flat science
+    usage: pypeit_ql_mos [-h] [-b BOX_RADIUS] [-d DET] [--ignore_headers]
+                     [--user_pixflat USER_PIXFLAT] [--slit_spat SLIT_SPAT]
+                     spectrograph full_rawpath arc flat science
 
     Script to run PypeIt in QuickLook on a set of MOS files
 
     positional arguments:
       spectrograph          Name of spectograph, e.g. shane_kast_blue
       full_rawpath          Full path to the raw files
-      arc                   Arc frame
-      flat                  Flat frame
-      science               Science frame
+      arc                   Arc frame filename
+      flat                  Flat frame filename
+      science               Science frame filename
 
     optional arguments:
       -h, --help            show this help message and exit
       -b BOX_RADIUS, --box_radius BOX_RADIUS
                             Set the radius for the boxcar extraction (arcsec)
+      -d DET, --det DET     Detector number
+      --ignore_headers      Ignore bad headers?
+      --user_pixflat USER_PIXFLAT
+                            Use a user-supplied pixel flat (e.g. keck_lris_blue)
+      --slit_spat SLIT_SPAT
+                            Reduce only this slit
+
 
 And here is a sample call on files from the Development suite::
 
@@ -45,7 +53,37 @@ This generates a `shane_kast_blue_A` folder with the standard
 calibration (Masters), QA, and Science outputs.
 
 This script has been tested successfully on the following instruments:
-shane_kast_blue, shane_kast_red.
+shane_kast_blue, shane_kast_red, keck_lris_blue, keck_deimos.
+
+.. _pypeit-ql-mos-options:
+
+QL Options
+++++++++++
+
+Here are a few of the standard options:
+
+--box_radius
+------------
+
+Specify the size of the extraction radius.
+
+--ignore_headers
+----------------
+
+If your telescope (e.g. Keck) has a tendency to write
+bad headers, you may wish to set it.  We recommend
+not doing so until you see it crash from a bad header.
+
+--det
+-----
+
+Specify the detector to be reduced. Only 1 is done at a time.
+
+--slit_spat
+-----------
+
+Specify the spatial position of the single slit to reduce.
+On the detector you chose.
 
 Examples
 ++++++++
@@ -62,7 +100,11 @@ keck_lris_blue (longslit + archived pixel flat)::
 
     pypeit_ql_mos keck_lris_blue /home/xavier/scratch/FRB190714/Raw b191228_1020.fits b191228_1066.fits b191228_1051.fits --det 2 --user_pixflat=/home/xavier/local/Python/PypeIt-development-suite//CALIBS/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
 
-It is possible all of the MOS instruments will work.
+keck_deimos (multislit with one slit isolated)::
+
+    pypeit_ql_mos keck_deimos /home/xavier/scratch/QL/2020-03-29-DEIMOS-TestData DE.20100913.56927.fits DE.20100913.57161.fits DE.20100913.22358.fits -d 7 --slit_spat 1132
+
+It is possible all of the MOS :doc:`spectrographs` will work.
 Give it a shot!
 
 pypeit_ql_keck_nires
@@ -83,6 +125,8 @@ Before running this script, you will need to
 - You may place this folder anywhere.
 - Point the Environmental variable *NIRES_MASTERS* at this folder.
    - e.g. export NIRES_MASTERS=/data/Keck_NIRES/Masters_NIRES
+
+.. _nires-options:
 
 Options
 +++++++

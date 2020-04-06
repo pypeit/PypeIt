@@ -47,18 +47,24 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['minimum_slit_length'] = 6
         # 1D wavelengths
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grism dependent
-        # Always correct for flexure, starting with default parameters
-        par['flexure']['method'] = 'boxcar'
-
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]    # This may be too low for LRISb
         par['calibrations']['traceframe']['exprng'] = [None, 30]
+
+        # Flexure
+        # Always correct for spectral flexure, starting with default parameters
+        par['flexure']['spec_method'] = 'boxcar'
+        # Always correct for spatial flexure on science images
+        # TODO -- Decide whether to make the following defaults
+        #   May not want to do them for LongSlit
+        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+
         par['scienceframe']['exprng'] = [29, None]
         return par
-
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -85,6 +91,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Ignore PCA if longslit
         #  This is a little risky as a user could put long into their maskname
         #  But they would then need to over-ride in their PypeIt file
+        if scifile is None:
+            msgs.error("You have not included a standard or science file in your PypeIt file to determine the configuration")
         if 'long' in self.get_meta_value(scifile, 'decker'):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
             # This might only be required for det=2, but we'll see..
@@ -92,7 +100,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
         return par
-
 
     def init_meta(self):
         """
@@ -341,6 +348,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Return
         return self.get_detector_par(hdu, det if det is None else 1), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+
+    def subheader_for_spec(self, row_fitstbl, raw_header):
+        """
+        See :func:`pypeit.spectrograph.spectrograph.Spectrograph.subheader_for_spec`
+        for doc string
+
+        Args:
+            row_fitstbl (:class:`astropy.table.Row` or :class:`astropy.io.fits.Header`):
+            raw_header (:class:`astropy.io.fits.Header`):
+
+        Returns:
+            :obj:`dict`: -- Used to generate a Header or table downstream
+
+        """
+        return super(KeckLRISSpectrograph, self).subheader_for_spec(
+            row_fitstbl, raw_header, extra_header_cards=['GRANAME', 'GRISNAME', 'SLITNAME'])
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -834,6 +857,7 @@ def lris_read_amp(inp, ext):
         hdu = fits.open(inp)
     else:
         hdu = inp
+    n_ext = len(hdu) - 1  # Number of extensions (usually 4)
 
     # Get the pre and post pix values
     # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
@@ -871,7 +895,7 @@ def lris_read_amp(inp, ext):
     #data = temp[xdata1:xdata2+1, :]
     if (xdata1-1) != precol:
         msgs.error("Something wrong in LRIS datasec or precol")
-    xshape = 1024 // xbin
+    xshape = 1024 // xbin * (4//n_ext)  # Allow for single amp
     if (xshape+precol+postpix) != temp.shape[0]:
         msgs.warn("Unexpected size for LRIS detector.  We expect you did some windowing...")
         xshape = temp.shape[0] - precol - postpix
