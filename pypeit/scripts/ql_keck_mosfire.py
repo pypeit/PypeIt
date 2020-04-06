@@ -4,7 +4,7 @@
 #
 # -*- coding: utf-8 -*-
 """
-This script runs PypeIt on a pair of NIRES images (A-B)
+This script runs PypeIt on a pair of MOSFIRE images (A-B)
 """
 import argparse
 
