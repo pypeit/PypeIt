@@ -2030,7 +2030,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     SNR_arr = np.zeros((norders, nobj))
     for iobj in range(nobj):
         for iord in range(norders):
-            indx = sobjs_align.slitorder_objid_indices(iord, uni_obj_id[iobj])
+            iorder_vec = order_vec[iord]
+            indx = sobjs_align.slitorder_objid_indices(iorder_vec, uni_obj_id[iobj])
             #indx = (sobjs_align.ECH_OBJID == uni_obj_id[iobj]) & (sobjs_align.ECH_ORDERINDX == iord)
             #spec = sobjs_align[indx][0]
             thismask = slitmask == gdslit_spat[iord]
