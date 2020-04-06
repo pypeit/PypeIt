@@ -768,6 +768,10 @@ class FlatField(object):
                                                                slitid_img=_slitid_img)
 
                 # Construct the empirical illumination profile
+                # TODO This is extremely inefficient, because we only need to re-fit the illumflat, but
+                #  spatial_fit does both the reconstruction of the illumination function and the bspline fitting.
+                #  Only the b-spline fitting needs be reddone with the new tweaked spatial coordinates, so that would
+                #  save a ton of runtime. It is not a trivial change becauase the coords are sorted, etc.
                 exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                     spat_flat_fit, spat_flat_data_raw = self.spatial_fit(
                     norm_spec, spat_coo_tweak, median_slit_widths[slit_idx], spat_gpm, gpm, debug=False)
@@ -928,7 +932,7 @@ class FlatField(object):
             # TODO -- JFH :: Are we ok with this change??
             #self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
             self.mspixelflat[onslit_tweak] = 1.
-            trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim)
+            trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
             onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
             self.mspixelflat[onslit_trimmed_anew] = rawflat[onslit_trimmed_anew]/self.flat_model[onslit_trimmed_anew]
             # TODO: Add some code here to treat the edges and places where fits

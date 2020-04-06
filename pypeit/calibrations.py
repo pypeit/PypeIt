@@ -609,6 +609,9 @@ class Calibrations(object):
         elif len(trace_image_files) > 0:
             # Process/combine the input pixelflat frames
             # TODO -- Include an illum frametype eventually
+            # TODO This is incorrect nad is only a hack for LRIS-Blue where we want to only run this code
+            # for the illumination flat construction. There needs to be a pixelflat and an illumflat, and
+            # in cases where the files are different, we need to run the flat field code twice.
             stacked_traceflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['traceframe'],
                                                     trace_image_files,
