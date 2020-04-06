@@ -165,3 +165,46 @@ If all goes smoothly, the code will generate four spectral
 output files, with 2 each with extensions of spec1d and
 spec2d.  These can be viewed with :ref:`pypeit-1dspec`
 and :ref:`pypeit-2dspec`.
+
+pypeit_ql_keck_mosfire
+======================
+
+This script performs a quick A-B reduction of a pair of
+Keck/MOSFIRE spectral images.  Currently, the code takes
+6min to process two images with boxcar extractions in
+long-slit mode (i.e. full detector).
+
+usage
++++++
+
+Here is the current usage (`pypeit_ql_keck_mosfire -h`)::
+
+    usage: pypeit_ql_keck_mosfire [-h] [-b BOX_RADIUS] [-l]
+                              full_rawpath fileA fileB flat dark
+
+    Script to run PypeIt on MOSFIRE in A-B mode
+
+    positional arguments:
+      full_rawpath          Full path to the raw files
+      fileA                 A frame
+      fileB                 B frame
+      flat                  Flat frame filename for tracing the slits
+      dark                  Dark frame with exposure matched to the flat
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -b BOX_RADIUS, --box_radius BOX_RADIUS
+                            Set the radius for the boxcar extraction
+      -l, --long_slit       Long (ie. single) slit?
+
+
+
+Example
++++++++
+
+This worked on the Development Suite::
+
+    pypeit_ql_keck_mosfire  /full_path/Y_long m191120_0043.fits m191120_0044.fits m191119_0028.fits m191119_0037.fits -l
+
+with nice outputs.
+
