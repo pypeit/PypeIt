@@ -929,17 +929,22 @@ class FlatField(object):
                                         * np.fmax(spec_model[onslit_tweak], 1.0)
 
             # Construct the pixel flat
-            # TODO -- JFH :: Are we ok with this change??
             #self.mspixelflat[onslit] = rawflat[onslit]/self.flat_model[onslit]
-            self.mspixelflat[onslit_tweak] = 1.
-            trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
-            onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
-            self.mspixelflat[onslit_trimmed_anew] = rawflat[onslit_trimmed_anew]/self.flat_model[onslit_trimmed_anew]
+            #self.mspixelflat[onslit_tweak] = 1.
+            #trimmed_slitid_img_anew = self.slits.slit_img(pad=-trim, slitidx=slit_idx)
+            #onslit_trimmed_anew = trimmed_slitid_img_anew == slit_spat
+            self.mspixelflat[onslit_tweak] = rawflat[onslit_tweak]/self.flat_model[onslit_tweak]
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
+        # Set the pixelflat to 1.0 within trim pixels of all the slit edges
+        trimmed_slitid_img_new = self.slits.slit_img(pad=-trim, initial=False)
+        tweaked_slitid_img = self.slits.slit_img(initial=False)
+        self.mspixelflat[(trimmed_slitid_img_new < 0) & (tweaked_slitid_img > 0)] = 1.0
+
+
         # Do not apply pixelflat field corrections that are greater than
         # 100% to avoid creating edge effects, etc.
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
