@@ -98,7 +98,7 @@ def main(args):
     gpm = mask == 0
     left = all_left[:, gpm]
     right = all_right[:, gpm]
-    slid_IDs = spec2DObj.slits.spat_id[gpm]
+    slid_IDs = spec2DObj.slits.slitord_id[gpm]
 
     bitMask = ImageBitMask()
 
