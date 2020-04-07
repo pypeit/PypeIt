@@ -85,6 +85,10 @@ class Spec2DObj(datamodel.DataContainer):
 
         """
         hdul = fits.open(file)
+        # Quick check on det
+        if not np.any(['DET{:02d}'.format(det) in hdu.name for hdu in hdul]):
+            msgs.error("Requested detector {} is not in this file - {}".format(det, file))
+        #
         slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
         slf.head0 = hdul[0].header
         return slf
