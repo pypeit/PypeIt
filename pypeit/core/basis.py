@@ -3,6 +3,8 @@
 # Also cite https://doi.org/10.5281/zenodo.1095150 when referencing PYDL
 """
 Module implements a set of basis functions for fitting.
+
+.. include:: ../links.rst
 """
 from IPython import embed
 

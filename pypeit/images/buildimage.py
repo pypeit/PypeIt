@@ -29,8 +29,7 @@ class ArcImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Arc'
-    file_format = 'fits'
-
+    master_file_format = 'fits'
 
 class AlignImage(pypeitimage.PypeItImage):
     """
@@ -45,7 +44,7 @@ class AlignImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Align'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
 
 class BiasImage(pypeitimage.PypeItImage):
@@ -59,7 +58,7 @@ class BiasImage(pypeitimage.PypeItImage):
     output_to_disk = ('BIAS_IMAGE', 'BIAS_DETECTOR')
     hdu_prefix = 'BIAS_'
     master_type = 'Bias'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
 
 class TiltImage(pypeitimage.PypeItImage):
@@ -76,7 +75,7 @@ class TiltImage(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'Tiltimg'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
 
 class TraceImage(pypeitimage.PypeItImage):
@@ -90,9 +89,6 @@ class TraceImage(pypeitimage.PypeItImage):
     # I/O
     output_to_disk = ('TRACE_IMAGE', 'TRACE_FULLMASK', 'TRACE_DETECTOR')
     hdu_prefix = 'TRACE_'
-
-    # Master fun
-    master_type = 'Trace'
 
 
 class SkyRegions(pypeitimage.PypeItImage):
@@ -110,7 +106,6 @@ class SkyRegions(pypeitimage.PypeItImage):
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                         bias=None, bpm=None,
                         flatimages=None,
-                        #pixel_flat=None, illum_flat_fit=None,
                         sigma_clip=False, sigrej=None, maxiters=5,
                         ignore_saturation=True, slits=None):
     """
@@ -131,12 +126,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
             Bad pixel mask.  Held in ImageMask
         bias (np.ndarray, optional):
             Bias image
-        pixel_flat (np.ndarray, optional):
-            Flat image. If None, pixel-to-pixel response is not
-            removed.
-        illum_flat_fit (:class:`pypeit.bspline.bspline`, optional):
-            if provided, use this bspline fit to construct an illumination flat
-            If None, slit illumination profile is not removed.
+        flatimages (:class:`pypeit.flatfield.FlatImages`, optional):  For flat fielding
         sigrej (int or float, optional): Rejection threshold for sigma clipping.
              Code defaults to determining this automatically based on the numberr of images provided.
         maxiters (int, optional):

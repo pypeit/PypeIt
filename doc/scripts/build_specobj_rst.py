@@ -12,6 +12,7 @@ from pkg_resources import resource_filename
 from pypeit.par.parset import ParSet
 from pypeit import specobj
 from pypeit import spec2dobj
+from pypeit import coadd1d
 
 from IPython import embed
 
@@ -27,8 +28,9 @@ if __name__ == '__main__':
     # the person building the documentation as necessary.
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
 
-    for obj, basefile in zip([specobj.SpecObj, spec2dobj.Spec2DObj],
-                             ['datamodel_specobj.rst', 'datamodel_spec2dobj.rst']):
+    for obj, basefile in zip([specobj.SpecObj, spec2dobj.Spec2DObj, coadd1d.OneSpec],
+                             ['datamodel_specobj.rst', 'datamodel_spec2dobj.rst',
+                              'datamodel_onespec.rst']):
         lines = []
         lines += ['']
 
@@ -57,6 +59,9 @@ if __name__ == '__main__':
                 data_table[i+1,2] = data_model[k]['atype'].__name__
             else:
                 data_table[i+1,2] = ' '
+            if data_table[i+1,2][-1] == '_':
+                data_table[i+1,2] = data_table[i+1,2][:-1]
+
             # Description
             data_table[i+1,3] = ParSet._data_string(data_model[k]['desc'])
 

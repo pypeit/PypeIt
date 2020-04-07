@@ -8,7 +8,7 @@ Fluxing is done after the main run of PypeIt.
 
 It is a two step process of generating a `Sensitivity Function`_
 and then `Applying the Sensitivity Function`_.
-We describe each in turn
+We describe each in turn.
 
 
 
@@ -16,7 +16,7 @@ Sensitivity Function
 ====================
 
 The sensitivity function is generated from the
-:doc:`out_spec1D` file of a processes standard star.
+:doc:`out_spec1D` file of a processed standard star.
 
 PypeIt uses an archived fluxed spectrum from either
 the `CALSPEC calibration database <http://stsci.edu/hst/observatory/crds/calspec.html>`_
@@ -50,7 +50,7 @@ Here are the common options used:
 --multi
 +++++++
 
-For some instruments (e.g. *keck_deimos*, *gemini_gmos*), the spectrum goes
+For some instruments (e.g. *keck_deimos*, *gemini_gmos*), the spectrum spans
 across multiple detectors.  You can have the sensitivity function
 handle this by using the --multi option, e.g.::
 
@@ -101,7 +101,7 @@ following format::
           ...
     flux end
 
-Here is an actual example
+Here is an actual example::
 
     flux read
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T020241.687.fits VLT_FORS2_sens.fits
@@ -124,7 +124,8 @@ See :ref:`pypeit-1dspec` for details on how to view them.
 FluxSpec Class
 ==============
 
-The guts of the flux algorithms are guided by the :class:`pypeit.fluxcalibrate/FluxCalibrate`.
+The guts of the flux algorithms are guided by the
+:class:`pypeit.fluxcalibrate.FluxCalibrate`.
 class.
 
 Troubleshooting

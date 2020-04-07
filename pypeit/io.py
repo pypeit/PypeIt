@@ -150,50 +150,6 @@ def rec_to_bintable(arr, name=None, hdr=None):
                                             for n in arr.dtype.names], name=name, header=hdr)
 
 
-'''
-def init_hdus(update_det, outfile):
-    """
-    Load up existing header and HDUList
-
-    ..todo:: Confirm this works when you are modifying an inner HDU
-
-    Args:
-        update_det (int or list):
-        outfile (str):
-
-    Returns:
-        fits.HDUList, fits.PrimaryHDU
-
-    """
-    #
-    hdus = fits.open(outfile)
-    pypeit.msgs.info("Using existing output file, including the Header")
-    pypeit.msgs.info("Will only update the data extension for {} detector(s)".format(update_det))
-    prihdu = hdus[0]
-    # Names
-    hdu_names = [hdu.name for hdu in hdus]
-    # Remove the detector(s) being updated
-    _update_det = numpy.atleast_1d(update_det)
-    popme = []
-
-    # Find em
-    for ss,hdu_name in enumerate(hdu_names):
-        for det in _update_det:
-            sdet = pypeit.get_dnum(det, prefix=False)
-            idx = '{:s}{:s}'.format(pypeit.specobj.naming_model['det'], sdet)
-            if idx in hdu_name:
-                popme.append(ss)
-    # Remove em (and the bit in the Header too)
-    for popthis in reversed(popme):
-        hdus.pop(popthis)
-        keywd = 'EXT{:04d}'.format(popthis)
-        # Not always used (e.g. DETECTOR)
-        if keywd in prihdu.header:
-            prihdu.header.remove(keywd)
-    # Return
-    return hdus, prihdu
-'''
-
 def compress_file(ifile, overwrite=False, rm_original=True):
     """
     Compress a file using gzip package.
@@ -392,11 +348,12 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     using the ``name`` argument.
 
     Elements in the dictionary that are a list or a `numpy.ndarray`_
-    are written as either an image (if there is only one array) or a
-    series of table columns. The lists are assumed to be
-    interpretable as the ``array`` argument of
-    `astropy.io.fits.Column` (for a table) or the ``data`` argument of
-    `astropy.io.fits.ImageHDU`_ (for an image).
+    are written as either an image (if there is only one array and a
+    binary table is not specifically requested using
+    ``force_to_bintbl``) or a series of table columns. The lists are
+    assumed to be interpretable as the ``array`` argument of
+    `astropy.io.fits.Column`_ (for a table) or the ``data`` argument
+    of `astropy.io.fits.ImageHDU`_ (for an image).
 
         - If an image is to be written, the extension name, by
           default, is the dictionary key for the array item; this can
@@ -428,6 +385,10 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
         hdr (`astropy.io.fits.Header`_, optional):
             Base-level header to include in the HDU. If None, an
             empty header is used and then added to.
+        force_to_bintbl (:obj:`bool`, optional):
+            Force a BinTableHDU to be constructed instead of an
+            ImageHDU when either there are no arrays or tables to
+            write or only a single array is provided.
 
     Returns:
         `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_:
@@ -480,15 +441,14 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
         else:
             raise TypeError('Do not know how to write object with type {0}'.format(type(d[key])))
 
-    # If there aren't any arrays or tables, return an empty ImageHDU with just the header data.
+    # If there aren't any arrays or tables, return an empty ImageHDU or
+    # BinTableHDU with just the header data.
     if len(array_keys) < 1 and len(table_keys) < 1:
-        if force_to_bintbl:
-            return fits.BinTableHDU(header=_hdr, name=name)
-        else:
-            return fits.ImageHDU(header=_hdr, name=name)
+        return fits.BinTableHDU(header=_hdr, name=name) if force_to_bintbl \
+                    else fits.ImageHDU(header=_hdr, name=name)
 
-
-    # If there's only a single array, return it in an ImageHDU
+    # If there's only a single array, return it in an ImageHDU or, if
+    # requested, a BinTableHDU
     if len(array_keys) == 1 and not force_to_bintbl:
         return fits.ImageHDU(data=d[array_keys[0]], header=_hdr,
                              name=array_keys[0] if name is None else name)
@@ -510,16 +470,15 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
-        try:
-            cols += [fits.Column(name=key, format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
+        cols += [fits.Column(name=key,
+                             format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
                              dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                             array=numpy.expand_dims(d[key], 0) if single_row else numpy.asarray(d[key]))]
-        except:
-            import pdb; pdb.set_trace()
+                             array=numpy.expand_dims(d[key], 0) if single_row 
+                                   else numpy.asarray(d[key]))]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
-def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
+def write_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     """
     Write the input to an astropy.io.fits HDU extension.
 
@@ -540,7 +499,7 @@ def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
             Name for the HDU extension.
         hdr (`astropy.io.fits.Header`_, optional):
             Header to include in the HDU.
-        force_dict_bintbl (bool, optional):
+        force_to_bintbl (bool, optional):
             Force dict into a BinTableHDU
 
     Returns:
@@ -554,7 +513,7 @@ def write_to_hdu(d, name=None, hdr=None, force_dict_bintbl=False):
 
     """
     if isinstance(d, dict):
-        return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_dict_bintbl)
+        return dict_to_hdu(d, name=name, hdr=hdr, force_to_bintbl=force_to_bintbl)
     if isinstance(d, Table):
         return fits.BinTableHDU(data=d, name=name, header=hdr)
     if isinstance(d, (numpy.ndarray, list)):

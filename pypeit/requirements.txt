@@ -2,6 +2,7 @@
 #
 # TODO: Make linetools and arclines pip installable so that they can be
 # added here, or add them as submodule dependencies in extern/ directory
+#  linetools is now pip installable but caused readthedocs to barf..
 #
 # Users
 packaging>=19.0
@@ -9,6 +10,7 @@ numpy>=1.16.0
 scipy>=1.2
 matplotlib>=3.1
 astropy>=4.0
+extension_helpers>=0.1
 PyYAML>=5.1
 configobj>=5.0.6
 scikit-learn>=0.20

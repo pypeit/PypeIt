@@ -180,7 +180,7 @@ class SpecObj(datamodel.DataContainer):
 
 
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_dict_bintbl=False):
+               limit_hdus=None, force_to_bintbl=True):
         """
         Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
         a BinTableHDU
@@ -190,7 +190,7 @@ class SpecObj(datamodel.DataContainer):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # Force
-        _d['force_dict_bintbl'] = True
+        _d['force_to_bintbl'] = True
         # Do it
         return super(SpecObj, self).to_hdu(**_d)
 
@@ -226,12 +226,14 @@ class SpecObj(datamodel.DataContainer):
 
             Each object is named by its:
              - spatial position (pixel number) on the reduced image [SPAT]
-             - the slit number, zero-indexed [SLIT]
+             - the slit number based on SPAT center of the slit or SlitMask ID [SLIT]
              - the detector number [DET]
 
             For example::
 
-                SPAT0176-SLIT0000-DET01
+                SPAT0176-SLIT0185-DET01
+
+        Echelle
 
         Returns:
             str:
@@ -289,7 +291,7 @@ class SpecObj(datamodel.DataContainer):
         Generate a copy of this object
 
         Returns:
-            `SpecObj`_:
+            :class:`SpecObj`:
 
         """
         # Return
@@ -457,7 +459,7 @@ class SpecObj(datamodel.DataContainer):
 
     def to_xspec1d(self, **kwargs):
         """
-        Push the data in SpecObj into an XSpectrum1D object
+        Push the data in :class:`SpecObj` into an XSpectrum1D object
 
 
         Returns:
@@ -467,7 +469,5 @@ class SpecObj(datamodel.DataContainer):
         wave, flux, ivar, _ = self.to_arrays(**kwargs)
         sig = np.sqrt(utils.inverse(ivar))
         # Create
-        xspec = xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
-        # Return
-        return xspec
+        return xspectrum1d.XSpectrum1D.from_tuple((wave, flux, sig))
 

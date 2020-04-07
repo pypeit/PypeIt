@@ -57,6 +57,8 @@ def parse_traces(hdulist_1d, det_nm):
 
 def main(args):
 
+    raise NotImplementedError('This script is currently out of date.')
+
     # List only?
     hdu = fits.open(args.file)
     head0 = hdu[0].header
@@ -109,7 +111,8 @@ def main(args):
     slits = slittrace.SlitTraceSet.from_master(mast_key, mdir)
 
     # Object traces
-    left, right = slits.select_edges()
+    left, right, mask = slits.select_edges()
+    msgs.error("You need to choose which slits you care about here")
 
     # Get object traces
     spec1d_file = args.file.replace('spec2d', 'spec1d')

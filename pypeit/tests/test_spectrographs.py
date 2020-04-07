@@ -15,6 +15,18 @@ from pypeit.tests.tstutils import dev_suite_required
 
 
 @dev_suite_required
+def test_mdm_osmos():
+    s = spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
+    example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'mdm_osmos',
+                                'MDM4K', 'MDM_science.fits')
+    assert os.path.isfile(example_file), 'Could not find example file for MDM OSMOS read.'
+    det = 1
+    _, data, hdu, exptime, rawdatasec_img, oscansec_img = s.get_rawimage(example_file, det)
+    bpm = s.bpm(example_file, det)
+    assert data.shape == (1016, 4128)
+    assert bpm.shape == (4060, 1008)
+
+@dev_suite_required
 def test_gemini_flamingos():
     s = spectrographs.gemini_flamingos.GeminiFLAMINGOS2Spectrograph()
     example_file = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'gemini_flamingos2',

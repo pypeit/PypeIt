@@ -6,7 +6,7 @@ import pytest
 
 import numpy as np
 
-from pypeit.slittrace import SlitTraceSet
+from pypeit.slittrace import SlitTraceSet, SlitTraceBitMask
 from pypeit import masterframe
 
 master_key = 'dummy'
@@ -16,19 +16,27 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
+def test_bits():
+    # Make sure bits are correct
+    bm = SlitTraceBitMask()
+    assert bm.bits['USERIGNORE'] == 1, 'Bits changed'
+    assert bm.bits['BADFLATCALIB'] == 5, 'Bits changed'
+
 def test_init():
 
     slits = SlitTraceSet(left_init=np.full((1000,3), 2, dtype=float),
-                         right_init=np.full((1000,3), 8, dtype=float), nspat=10, PYP_SPEC='dummy')
+                         right_init=np.full((1000,3), 8, dtype=float),
+                         pypeline='MultiSlit',
+                         nspat=10, PYP_SPEC='dummy')
 
-    left, right = slits.select_edges()
+    left, right, _ = slits.select_edges()
     center = (left+right)/2
     assert np.all(center == 5), 'Bad center'
 
 def test_io():
 
-
     slits = SlitTraceSet(np.full((1000,3), 2, dtype=float), np.full((1000,3), 8, dtype=float),
+                         'MultiSlit',
                          nspat=10, PYP_SPEC='dummy')
     master_file = masterframe.construct_file_name(slits, master_key, master_dir=master_dir)
 
@@ -71,6 +79,7 @@ def test_io():
 
 def test_io_single():
     slits = SlitTraceSet(np.full((1000, 1), 2, dtype=float), np.full((1000, 1), 8, dtype=float),
+                         'MultiSlit',
                          nspat=10, PYP_SPEC='dummy')
 
     # Remove any existing file from previous runs that were interrupted

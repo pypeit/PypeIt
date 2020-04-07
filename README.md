@@ -36,9 +36,10 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * Lick/Kast 
 * Magellan/MagE
 * Magellan/Fire
-* Keck/DEIMOS
+* MDM/OSMOS
+* Keck/DEIMOS (600ZD, 830G, 1200G)
 * Keck/LRIS 
-* Keck/MOSFIRE  (beta)
+* Keck/MOSFIRE  (J and Y gratings tested)
 * Keck/NIRES
 * Keck/NIRSPEC (low-dispersion)
 * VLT/X-Shooter

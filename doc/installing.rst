@@ -1,6 +1,6 @@
-*****************
+=================
 Installing PypeIt
-*****************
+=================
 
 This document describes how to install PypeIt.
 Both for users and developers.
@@ -37,7 +37,6 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
-* `linetools <https://github.com/linetools/linetools/>`_ -- version 0.2 or later
 
 If you are using Anaconda, you can check the presence of these packages with::
 
@@ -49,6 +48,10 @@ If any of the packages are out of date, they can be updated with a command like:
 
 	conda update scipy
 
+
+Use conda's *pip install* to install the following:
+
+* `linetools <https://github.com/linetools/linetools/>`_ -- version 0.2 or later
 
 GitHub cloning
 ++++++++++++++

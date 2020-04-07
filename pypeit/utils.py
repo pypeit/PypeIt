@@ -8,26 +8,26 @@ import os
 import pickle
 import warnings
 import itertools
-import matplotlib
+from collections import deque
+from bisect import insort, bisect_left
+
+from IPython import embed
 
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 
 from scipy.optimize import curve_fit
 from scipy import interpolate, ndimage
 
-from astropy import units
-from astropy import stats
+import matplotlib
 from matplotlib import pyplot as plt
 
-# Imports for fast_running_median
-from collections import deque
-from itertools import islice
-from bisect import insort, bisect_left
+from astropy import units
+from astropy import stats
+
 from pypeit.core import pydl
 from pypeit import bspline
 from pypeit import msgs
-from IPython import embed
-from numpy.lib.stride_tricks import as_strided
 
 def spec_atleast_2d(wave, flux, ivar, mask):
     """
@@ -464,7 +464,7 @@ def fast_running_median(seq, window_size):
     d = deque()
     s = []
     result = []
-    for item in islice(seq_pad, window_size):
+    for item in itertools.islice(seq_pad, window_size):
         d.append(item)
         insort(s, item)
         result.append(s[len(d)//2])
@@ -640,12 +640,12 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         to zero to disable rejection.
     nord : :obj:`int`, optional
         Order of B-spline fit
-    bkpt : `numpy.ndarray`_, optinoal
+    bkpt : `numpy.ndarray`_, optional
         Array of breakpoints to be used for the b-spline
-    fullbkpt : `numpy.ndarray`_, optinoal
+    fullbkpt : `numpy.ndarray`_, optional
         Full array of breakpoints to be used for the b-spline,
         without letting the b-spline class append on any extra bkpts
-    relative : `numpy.ndarray`_, optinoal
+    relative : `numpy.ndarray`_, optional
         Array of integer indices to be used for computing the reduced
         chi^2 of the fits, which then is used as a scale factor for
         the upper,lower rejection thresholds
@@ -735,8 +735,6 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
         msgs.error('No valid data points in bspline_profile!.')
 
     # Init bspline class
-#    sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
-#                            funcname='Bspline longslit special', **kwargs_bspline)
     sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
                            funcname='Bspline longslit special', **kwargs_bspline)
     if maskwork.sum() < sset.nord:
@@ -912,7 +910,7 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
     plt.show()
 
 
-def clip_ivar(flux, ivar, sn_clip, mask=None):
+def clip_ivar(flux, ivar, sn_clip, mask=None, verbose=False):
     """
 
     This adds an error floor to the ivar, preventing too much rejection
@@ -942,7 +940,8 @@ def clip_ivar(flux, ivar, sn_clip, mask=None):
         gmask = (ivar > 0) & mask
         ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
         ivar_out = np.minimum(ivar, ivar_cap)
-        msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+        if verbose:
+            msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
         return ivar_out
 
 
@@ -1736,6 +1735,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
                     lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                     groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=False,
+                    verbose=False,
                     **kwargs_optimizer):
     """
     A routine to perform robust optimization. It is completely analogous
@@ -1873,9 +1873,10 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
                                           use_mad=use_mad, sticky=sticky)
         nrej = np.sum(thismask_iter & np.invert(thismask))
         nrej_tot = np.sum(inmask & np.invert(thismask))
-        msgs.info(
-            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
-            'total pixels'.format(iter, nrej, nrej_tot, nin_good))
+        if verbose:
+            msgs.info(
+                'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
+                'total pixels'.format(iter, nrej, nrej_tot, nin_good))
         iter += 1
 
     if (iter == maxiter) & (maxiter != 0):

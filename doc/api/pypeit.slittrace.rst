@@ -1,7 +1,7 @@
-pypeit.waveimage module
+pypeit.slittrace module
 =======================
 
-.. automodule:: pypeit.waveimage
+.. automodule:: pypeit.slittrace
    :members:
    :private-members:
    :undoc-members:

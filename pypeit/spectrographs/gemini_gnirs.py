@@ -82,9 +82,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
                 par['calibrations'][key]['process']['overscan'] = 'none'
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
+        par['calibrations']['standardframe']['process']['illumflatten'] = False
+        par['scienceframe']['process']['illumflatten'] = False
 
         # Finding objects
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -100,7 +101,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
 
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure']['spec_method'] = 'skip'
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]
         par['calibrations']['traceframe']['exprng'] = [None, 30]

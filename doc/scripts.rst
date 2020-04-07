@@ -47,7 +47,7 @@ Data Processing Scripts
 pypeit_coadd_1dspec
 ===================
 
-See :doc:`coadding` for further details.
+See :doc:`coadd1d` for further details.
 
 Calibration Scripts
 +++++++++++++++++++

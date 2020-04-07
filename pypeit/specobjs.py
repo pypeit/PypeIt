@@ -19,13 +19,14 @@ from pypeit.io import initialize_header
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
+from pypeit import slittrace
 
 from IPython import embed
 
 
 class SpecObjs(object):
     """
-    Object to hold a set of SpecObj objects
+    Object to hold a set of :class:`~pypeit.specobj.SpecObj` objects
 
     Note that this class overloads:
 
@@ -36,7 +37,8 @@ class SpecObjs(object):
           specobjs.
 
     Args:
-        specobjs (ndarray or list, optional):  One or more SpecObj objects
+        specobjs (`numpy.ndarray`_, list, optional):
+            One or more :class:`~pypeit.specobj.SpecObj`  objects
 
     Attributes:
         summary (astropy.table.Table):
@@ -44,7 +46,7 @@ class SpecObjs(object):
     version = '1.0.0'
 
     @classmethod
-    def from_fitsfile(cls, fits_file):
+    def from_fitsfile(cls, fits_file, det=None):
         """
         Instantiate from a FITS file
 
@@ -52,6 +54,8 @@ class SpecObjs(object):
 
         Args:
             fits_file (str):
+            det (int, optional):
+                Only load SpecObj matching this det value
 
         Returns:
             specobsj.SpecObjs
@@ -74,6 +78,9 @@ class SpecObjs(object):
             if 'DETECTOR' in hdu.name:
                 continue
             sobj = specobj.SpecObj.from_hdu(hdu)
+            # Restrict on det?
+            if det is not None and sobj.DET != det:
+                continue
             # Check for detector
             if sobj.DET in detector_hdus.keys():
                 sobj.DETECTOR = detector_hdus[sobj.DET]
@@ -135,8 +142,7 @@ class SpecObjs(object):
         """
         return len(self.specobjs)
 
-    # TODO -- This should return a simple DataContainer not a long stream of variables
-    def unpack_object(self, ret_flam=False):
+    def unpack_object(self, ret_flam=False, extract_type='OPT'):
         """
         Utility function to unpack the sobjs for one object and
         return various numpy arrays describing the spectrum and meta
@@ -163,15 +169,13 @@ class SpecObjs(object):
                   spectrograph.header_cards_from_spec()
                 - header (astropy.io.header object): header from
                   spec1d file
-    """
-
-        # Read in the spec1d file
+        """
+        # Prep
         norddet = self.nobj
-        if ret_flam:
-            # TODO Should nspec be an attribute of specobj?
-            nspec = self[0].OPT_FLAM.size
-        else:
-            nspec = self[0].OPT_COUNTS.size
+        flux_attr = 'FLAM' if ret_flam else 'COUNTS'
+        flux_key = '{}_{}'.format(extract_type, flux_attr)
+        wave_key = '{}_WAVE'.format(extract_type)
+        nspec = getattr(self, flux_key)[0].size
         # Allocate arrays and unpack spectrum
         wave = np.zeros((nspec, norddet))
         flux = np.zeros((nspec, norddet))
@@ -179,41 +183,27 @@ class SpecObjs(object):
         flux_gpm = np.zeros((nspec, norddet), dtype=bool)
         detector = np.zeros(norddet, dtype=int)
         ech_orders = np.zeros(norddet, dtype=int)
-        # TODO make the extraction that is desired OPT vs BOX and optional input variable.
+
+        # TODO make the extraction that is desired OPT vs BOX an optional input variable.
         for iorddet in range(norddet):
-            wave[:, iorddet] = self[iorddet].OPT_WAVE
-            flux_gpm[:, iorddet] = self[iorddet].OPT_MASK
+            wave[:, iorddet] = getattr(self, wave_key)[iorddet]
+            flux_gpm[:, iorddet] = getattr(self, '{}_MASK'.format(extract_type))[iorddet]
             detector[iorddet] = self[iorddet].DET
             if self[0].PYPELINE == 'Echelle':
                 ech_orders[iorddet] = self[iorddet].ECH_ORDER
-            if ret_flam:
-                flux[:, iorddet] = self[iorddet].OPT_FLAM
-                flux_ivar[:, iorddet] = self[iorddet].OPT_FLAM_IVAR
-            else:
-                flux[:, iorddet] = self[iorddet].OPT_COUNTS
-                flux_ivar[:, iorddet] = self[iorddet].OPT_COUNTS_IVAR
+            flux[:, iorddet] = getattr(self, flux_key)[iorddet]
+            flux_ivar[:, iorddet] = getattr(self, flux_key+'_IVAR')[iorddet] #OPT_FLAM_IVAR
 
         # Populate meta data
-        # TODO Remove this hack is it needed? If PYP_SPEC is always written then it is not.
-        try:
-            spectrograph = load_spectrograph(self.header['PYP_SPEC'])
-        except:
-            # TODO JFH  This is a hack until a generic spectrograph is implemented.
-            spectrograph = load_spectrograph('shane_kast_blue')
+        spectrograph = load_spectrograph(self.header['PYP_SPEC'])
 
-        meta_spec = {}
-        core_keys = spectrograph.header_cards_for_spec()
-        for key in core_keys:
-            try:
-                meta_spec[key.upper()] = self.header[key.upper()]
-            except KeyError:
-                msgs.warn('Core meta data is missing from the specobjs header ')
-                pass
+        meta_spec = spectrograph.parse_spec_header(self.header)
         # Add the pyp spec.
         # TODO JFH: Make this an atribute of the specobj by default.
         meta_spec['PYP_SPEC'] = self.header['PYP_SPEC']
         meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
+        # Return
         if self[0].PYPELINE == 'MultiSlit' and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
@@ -221,7 +211,6 @@ class SpecObjs(object):
         else:
             meta_spec['ECH_ORDERS'] = ech_orders
             return wave, flux, flux_ivar, flux_gpm, meta_spec, self.header
-
 
     def get_std(self, multi_spec_det=None):
         """
@@ -360,9 +349,8 @@ class SpecObjs(object):
             name (str): The name of the object
 
         Returns:
-            `np.ndarray`_: indx array-like, shape (nobj,)
-                 Array of indices with the corresponding name.
-
+            `numpy.ndarray`_: Array of indices with the corresponding
+            name. Shape is (nobj,).
         """
         if self[0].PYPELINE == 'Echelle':
             indx = self.ECH_NAME == name
@@ -378,7 +366,7 @@ class SpecObjs(object):
         Return the set of indices matching the input slit/order and the input objid
         """
         if self[0].PYPELINE == 'Echelle':
-            indx = (self.ECH_ORDERINDX == slitorder) & (self.ECH_OBJID == objid)
+            indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
@@ -414,7 +402,7 @@ class SpecObjs(object):
         Remove one or more SpecObj by index
 
         Args:
-            index (int or `np.ndarray`_):
+            index (int, `numpy.ndarray`_):
         """
         msk = np.ones(self.specobjs.size, dtype=bool)
         msk[index] = False
@@ -426,7 +414,7 @@ class SpecObjs(object):
         Generate a copy of self
 
         Returns:
-            `SpecObjs`_:
+            :class:`SpecObjs`:
 
         """
         sobj_copy = SpecObjs(header=self.header)
@@ -492,61 +480,17 @@ class SpecObjs(object):
     def __len__(self):
         return len(self.specobjs)
 
-    def build_header(self, head_fitstbl, head2d, spectrograph):
-        """
-        Builds the spec1d file header from the fitstbl meta data and meta data from spectrograph
-        and meta data from original header
-
-        Args:
-            head_fitstbl (:class:`astropy.io.fits.Header`):
-               Header from fitstbl
-            head2d (:class:`astropy.io.fits.Header`):
-               Header from the Raw file
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-               Spectrograph object
-
-        Returns:
-            :class:`astropy.io.fits.Header`:
-
-        """
-        header = initialize_header(primary=True)
-        # Try to pull a few from the original header
-        try:
-            header['MJD-OBS'] = head_fitstbl['mjd']  # recorded as 'mjd' in fitstbl
-        except KeyError:
-            header['MJD-OBS'] = head_fitstbl['MJD-OBS']
-
-        # Original Header -- What else do we want??
-        for key in ['INSTRUME']:
-            if key in head2d.keys():
-                header[key] = head2d[key]  # Self-assigned instrument name
-
-        core_keys = spectrograph.header_cards_for_spec()
-        for key in core_keys:
-            # Allow for fitstbl vs. header
-            try:
-                header[key.upper()] = head_fitstbl[key.upper()]
-            except KeyError:
-                header[key.upper()] = head_fitstbl[key]
-        # Specify which pipeline created this file
-        header['PYPELINE'] = spectrograph.pypeline
-        header['PYP_SPEC'] = (spectrograph.spectrograph, 'PypeIt: Spectrograph name')
-        # Observatory and Header supplied Instrument
-        telescope = spectrograph.telescope
-        header['LON-OBS'] = telescope['longitude']
-        header['LAT-OBS'] = telescope['latitude']
-        header['ALT-OBS'] = telescope['elevation']
-        # Return
-        return header
-
-    def write_to_fits(self, header, outfile, overwrite=True, update_det=None, debug=False):
+    def write_to_fits(self, subheader, outfile, overwrite=True, update_det=None,
+                      slitspatnum=None, debug=False):
         """
         Write the set of SpecObj objects to one multi-extension FITS file
 
         Args:
             outfile (str):
-            header (`astropy.io.fits.Header`_):
+            subheader (:obj:`dict`):
             overwrite (bool, optional):
+            slitspatnum (:obj:`str` or :obj:`list`, optional):
+                Restricted set of slits for reduction
             update_det (int or list, optional):
               If provided, do not clobber the existing file but only update
               the indicated detectors.  Useful for re-running on a subset of detectors
@@ -556,16 +500,22 @@ class SpecObjs(object):
             msgs.warn("Outfile exists.  Set overwrite=True to clobber it")
             return
 
-
-        # If the file exists and update_det is provided, use the existing header
+        # If the file exists and update_det (and slit_spat_num) is provided, use the existing header
         #   and load up all the other hdus so that we only over-write the ones
         #   we are updating
-        if os.path.isfile(outfile) and (update_det is not None):
+        if os.path.isfile(outfile) and (update_det is not None or slitspatnum is not None):
             _specobjs = SpecObjs.from_fitsfile(outfile)
-            # Pop out those with this detector
-            for kk,sobj in enumerate(_specobjs):
-                if sobj.DET in np.atleast_1d(update_det):
-                    _specobjs.remove_sobj(kk)
+            mask = np.ones(_specobjs.nobj, dtype=bool)
+            # Update_det
+            if update_det is not None:
+                # Pop out those with this detector (and slit if slit_spat_num is provided)
+                for det in np.atleast_1d(update_det):
+                    mask[_specobjs.DET == det] = False
+            elif slitspatnum is not None: # slitspatnum
+                dets, spat_ids = slittrace.parse_slitspatnum(slitspatnum)
+                for det, spat_id in zip(dets, spat_ids):
+                    mask[(_specobjs.DET == det) & (_specobjs.SLITID == spat_id)] = False
+            _specobjs = _specobjs[mask]
             # Add in the new
             for sobj in self.specobjs:
                 _specobjs.add_sobj(sobj)
@@ -573,6 +523,11 @@ class SpecObjs(object):
             _specobjs = self.specobjs
 
         # Build up the Header
+        header = initialize_header(primary=True)
+        for key in subheader.keys():
+            header[key.upper()] = subheader[key]
+
+        # Init
         prihdu = fits.PrimaryHDU()
         hdus = [prihdu]
         prihdu.header = header
@@ -625,7 +580,7 @@ class SpecObjs(object):
         prihdu.header['NSPEC'] = nspec
 
         # Code versions
-        _ = initialize_header(prihdu.header)
+        initialize_header(hdr=prihdu.header)
 
         # Finish
         hdulist = fits.HDUList(hdus)
@@ -635,7 +590,14 @@ class SpecObjs(object):
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return
 
-    def write_info(self, outfile, pypeline, update_det=None):
+    def write_info(self, outfile, pypeline):
+        """
+        Write a summary of items to an ASCII file
+
+        Args:
+            outfile (:obj:`str`):  Output filename
+            pypeline (:obj:`str`): PypeIt pipeline mode
+        """
         # TODO -- Deal with update_det
         slits, names, spat_pixpos, spat_fracpos, boxsize, opt_fwhm, s2n = [], [], [], [], [], [], []  # Lists for a Table
         # binspectral, binspatial = parse.parse_binning(binning)
@@ -659,7 +621,7 @@ class SpecObjs(object):
                 slits.append(specobj.ECH_ORDER)
                 names.append(specobj.ECH_NAME)
             # Boxcar width
-            if 'BOX_RADIUS' in specobj.keys():
+            if specobj.BOX_RADIUS is not None:
                 slit_pix = 2.0 * specobj.BOX_RADIUS
                 # Convert to arcsec
                 binspectral, binspatial = parse.parse_binning(specobj.DETECTOR.binning)

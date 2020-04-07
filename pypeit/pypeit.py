@@ -1,4 +1,4 @@
-""" of the tilt image onto the desired frame (typically a science image)
+"""
 Main driver class for PypeIt run
 
 .. include common links, assuming primary doc root is up one directory
@@ -7,7 +7,7 @@ Main driver class for PypeIt run
 import time
 import os
 import numpy as np
-from collections import OrderedDict
+import copy
 from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
@@ -16,9 +16,9 @@ from pypeit import ginga
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
-from pypeit import io
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import slittrace
 
 from configobj import ConfigObj
 from pypeit.par.util import parse_pypeit_file
@@ -63,7 +63,7 @@ class PypeIt(object):
             Name of the pypeit file to read.  PypeIt files have a
             specific set of valid formats. A description can be found
             :ref:`pypeit_file`.
-        fitstbl (:obj:`pypit.metadata.PypeItMetaData`): holds the meta info
+        fitstbl (:obj:`pypeit.metadata.PypeItMetaData`): holds the meta info
 
     """
 #    __metaclass__ = ABCMeta
@@ -131,10 +131,7 @@ class PypeIt(object):
         self.show = show
 
         # Set paths
-        if self.par['calibrations']['caldir'] == 'default':
-            self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], 'Masters')
-        else:
-            self.calibrations_path = self.par['calibrations']['caldir']
+        self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['master_dir'])
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
@@ -150,16 +147,16 @@ class PypeIt(object):
         if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
             self.caliBrate \
                 = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                     self.spectrograph,
-                                                     caldir=self.calibrations_path,
+                                                     self.spectrograph, self.calibrations_path,
                                                      qadir=self.qa_path,
                                                      reuse_masters=self.reuse_masters,
-                                                     show=self.show)
+                                                     show=self.show,
+                                                     slitspat_num=self.par['rdx']['slitspatnum'])
         elif self.spectrograph.pypeline in ['IFU']:
             self.caliBrate \
                 = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
                                                self.spectrograph,
-                                               caldir=self.calibrations_path,
+                                               self.calibrations_path,
                                                qadir=self.qa_path,
                                                reuse_masters=self.reuse_masters,
                                                show=self.show)
@@ -170,7 +167,6 @@ class PypeIt(object):
         self.verbosity = verbosity
         # TODO: I don't think this ever used
 
-        self.frame = None
         self.det = None
 
         self.tstart = None
@@ -259,10 +255,8 @@ class PypeIt(object):
 
         """
         # Validate the parameter set
-        required = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib']
-        can_be_None = ['flexure', 'fluxcalib']
-        self.par.validate_keys(required=required, can_be_None=can_be_None)
-
+        self.par.validate_keys(required=['rdx', 'calibrations', 'scienceframe', 'reduce',
+                                         'flexure'])
         self.tstart = time.time()
 
         # Find the standard frames
@@ -292,7 +286,6 @@ class PypeIt(object):
                     std_spec2d, std_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames)
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], std_spec2d, std_sobjs, self.basename)
-                    #self.save_exposure(frames[0], std_dict, self.basename)
                 else:
                     msgs.info('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -322,12 +315,12 @@ class PypeIt(object):
                 import pdb
                 pdb.set_trace()
                 if not self.outfile_exists(frames[0]) or self.overwrite:
+                    # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
                     sci_spec2d, sci_sobjs = self.reduce_exposure(frames, bg_frames=bg_frames,
                                                     std_outfile=std_outfile)
                     science_basename[j] = self.basename
                     # TODO come up with sensible naming convention for save_exposure for combined files
                     self.save_exposure(frames[0], sci_spec2d, sci_sobjs, self.basename)
-                    #self.save_exposure(frames[0], sci_dict, self.basename)
                 else:
                     msgs.warn('Output file: {:s} already exists'.format(self.fitstbl.construct_basename(frames[0])) +
                               '. Set overwrite=True to recreate and overwrite.')
@@ -339,7 +332,7 @@ class PypeIt(object):
 
     # This is a static method to allow for use in coadding script 
     @staticmethod
-    def select_detectors(detnum=None, ndet=1):
+    def select_detectors(detnum=None, ndet=1, slitspatnum=None):
         """
         Return the 1-indexed list of detectors to reduce.
 
@@ -355,9 +348,14 @@ class PypeIt(object):
             list:  List of detectors to be reduced
 
         """
-        if detnum is None:
+        if detnum is not None and slitspatnum is not None:
+            msgs.error("You cannot specify both detnum and slitspatnum.  Too painful for over-writing SpecObjs")
+        if detnum is None and slitspatnum is None:
             return np.arange(1, ndet+1).tolist()
-        return [detnum] if isinstance(detnum, int) else detnum
+        elif detnum is not None:
+            return np.atleast_1d(detnum).tolist()
+        else:
+            return slittrace.parse_slitspatnum(slitspatnum)[0].tolist()
 
     def reduce_exposure(self, frames, bg_frames=None, std_outfile=None):
         """
@@ -399,6 +397,7 @@ class PypeIt(object):
         all_spec2d = spec2dobj.AllSpec2DObj()
         all_spec2d['meta']['ir_redux'] = self.ir_redux
 
+        # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
 
         all_specobjs = specobjs.SpecObjs()
 
@@ -419,6 +418,7 @@ class PypeIt(object):
 
         # Find the detectors to reduce
         detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+                                            slitspatnum=self.par['rdx']['slitspatnum'],
                                             ndet=self.spectrograph.ndet)
         if len(detectors) != self.spectrograph.ndet:
             msgs.warn('Not reducing detectors: {0}'.format(' '.join([ str(d) for d in 
@@ -436,14 +436,8 @@ class PypeIt(object):
             # TODO: pass back the background frame, pass in background
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
-            #sci_dict[self.det]['sciimg'], sci_dict[self.det]['sciivar'], \
-            #    sci_dict[self.det]['skymodel'], sci_dict[self.det]['objmodel'], \
-            #    sci_dict[self.det]['ivarmodel'], sci_dict[self.det]['outmask'], \
-            #    sci_dict[self.det]['specobjs'], sci_dict[self.det]['detector'] \
-            #            = self.extract_one(frames, self.det, bg_frames,
-            #                               std_outfile=std_outfile)
-            all_spec2d[self.det], tmp_sobjs = self.extract_one(
-                frames, self.det, bg_frames, std_outfile=std_outfile)
+            all_spec2d[self.det], tmp_sobjs \
+                    = self.extract_one(frames, self.det, bg_frames, std_outfile=std_outfile)
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs.add_sobj(tmp_sobjs)
@@ -558,6 +552,7 @@ class PypeIt(object):
         # Grab some meta-data needed for the reduction from the fitstbl
         self.objtype, self.setup, self.obstime, self.basename, self.binning \
                 = self.get_sci_metadata(frames[0], det)
+        msgs.info("Extraction begins for {} on det={}".format(self.basename, det))
         # Is this a standard star?
         self.std_redux = 'standard' in self.objtype
         if self.std_redux:
@@ -569,36 +564,23 @@ class PypeIt(object):
 
         # Build Science image
         sci_files = self.fitstbl.frame_paths(frames)
-        self.sciImg = buildimage.buildimage_fromlist(
+        sciImg = buildimage.buildimage_fromlist(
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
             flatimages=self.caliBrate.flatimages,
-            #pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
 
         # Background Image?
         if len(bg_frames) > 0:
             bg_file_list = self.fitstbl.frame_paths(bg_frames)
-            self.sciImg = self.sciImg.sub(
+            sciImg = sciImg.sub(
                 buildimage.buildimage_fromlist(
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
                 flatimages=self.caliBrate.flatimages,
-                #pixel_flat=self.caliBrate.flatimages.pixelflat, illum_flat_fit=illum_flat_fit,
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
-
-        # Update mask for slitmask; uses pad in EdgeTraceSetPar; and flexure
-        # Do this in Reduce where flexure is dealt with
-        #self.sciImg.update_mask_slitmask(self.caliBrate.slits.slit_img(flexure=self.sciImg.flexure))
-
-        #embed(header='600 of pypeit')
-        #self.caliBrate.slits.mask[:] = True
-        #self.caliBrate.slits.mask[6] = False
-
-        # For QA on crash
-        msgs.sciexp = self.sciImg
 
         # TODO :: need the standard star information, so do this for now
         self.caliBrate.std_outfile = std_outfile
@@ -606,13 +588,12 @@ class PypeIt(object):
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
-        self.redux = reduce.instantiate_me(self.sciImg, self.spectrograph,
+        self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
                                            self.par, self.caliBrate.slits,
                                            self.caliBrate.wavetilts,
                                            self.caliBrate.wv_calib,
                                            self.caliBrate,
                                            self.objtype,
-                                           maskslits=self.caliBrate.slits.mask.copy(),
                                            ir_redux=self.ir_redux,
                                            std_redux=self.std_redux,
                                            setup=self.setup,
@@ -620,38 +601,44 @@ class PypeIt(object):
                                            det=det, binning=self.binning)
         # Show?
         if self.show:
-            self.redux.show('image', image=self.sciImg.image, chname='processed',
+            self.redux.show('image', image=sciImg.image, chname='processed',
                             slits=True, clear=True)
 
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, waveImg = self.redux.run(
+        skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.redux.run(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
+        # TODO -- Save the slits yet again?
+
+
         # TODO -- Do this upstream
         # Tack on detector
-        for sobj in self.sobjs:
-            sobj.DETECTOR = self.sciImg.detector
+        for sobj in sobjs:
+            sobj.DETECTOR = sciImg.detector
 
         # Construct the Spec2DObj
         spec2DObj = spec2dobj.Spec2DObj(det=self.det,
-                                        sciimg=self.sciImg.image,
-                                        ivarraw=self.sciImg.ivar,
-                                        skymodel=self.skymodel,
-                                        objmodel=self.objmodel,
-                                        ivarmodel=self.ivarmodel,
+                                        sciimg=sciImg.image,
+                                        ivarraw=sciImg.ivar,
+                                        skymodel=skymodel,
+                                        objmodel=objmodel,
+                                        ivarmodel=ivarmodel,
                                         waveimg=waveImg,
-                                        mask=self.outmask,
-                                        detector=self.sciImg.detector,
-                                        spat_flexure=self.sciImg.spat_flexure)
+                                        bpmmask=outmask,
+                                        detector=sciImg.detector,
+                                        sci_spat_flexure=sciImg.spat_flexure,
+                                        tilts=tilts,
+                                        slits=copy.deepcopy(self.caliBrate.slits))
+        spec2DObj.process_steps = sciImg.process_steps
+
         # Return
-        return spec2DObj, self.sobjs
+        return spec2DObj, sobjs
 
 
-    # TODO: Why not use self.frame?
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
         """
         Save the outputs from extraction for a given exposure
@@ -674,7 +661,7 @@ class PypeIt(object):
         # TODO: Need some checks here that the exposure has been reduced?
 
         # Determine the headers
-        head1d = self.fitstbl[frame]
+        row_fitstbl = self.fitstbl[frame]
         # Need raw file header information
         rawfile = self.fitstbl.frame_paths(frame)
         head2d = fits.getheader(rawfile, ext=self.spectrograph.primary_hdrext)
@@ -683,26 +670,28 @@ class PypeIt(object):
         if not os.path.isdir(self.science_path):
             os.makedirs(self.science_path)
 
+        subheader = self.spectrograph.subheader_for_spec(row_fitstbl, head2d)
         # 1D spectra
         if all_specobjs.nobj > 0:
             # Spectra
             outfile1d = os.path.join(self.science_path, 'spec1d_{:s}.fits'.format(basename))
-            header = all_specobjs.build_header(head1d, head2d, self.spectrograph)
-            # TODO -- Need to check this is working ok before merging
-            all_specobjs.write_to_fits(header, outfile1d, update_det=self.par['rdx']['detnum'])
+            all_specobjs.write_to_fits(subheader, outfile1d,
+                                       update_det=self.par['rdx']['detnum'],
+                                       slitspatnum=self.par['rdx']['slitspatnum'])
             # Info
             outfiletxt = os.path.join(self.science_path, 'spec1d_{:s}.txt'.format(basename))
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # 2D spectra
         outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
-        update_det = self.par['rdx']['detnum']
         # Build header
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
+                                               redux_path=self.par['rdx']['redux_path'],
                                                master_key_dict=self.caliBrate.master_key_dict,
-                                               master_dir=self.caliBrate.master_dir)
+                                               master_dir=self.caliBrate.master_dir,
+                                               subheader=subheader)
         # Write
-        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=update_det)
+        all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=self.par['rdx']['detnum'])
 
 
     def msgs_reset(self):

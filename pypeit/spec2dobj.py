@@ -13,13 +13,15 @@ import numpy as np
 
 from scipy import interpolate
 
-from astropy import units
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import io
 from pypeit import datamodel
+from pypeit import slittrace
+from pypeit import wavetilts
 from pypeit.images import detector_container
+from pypeit.images import imagebitmask
 
 
 def spec2d_hdu_prefix(det):
@@ -49,49 +51,75 @@ class Spec2DObj(datamodel.DataContainer):
     # tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
     #                 write these for each file as well. Alternatively we could just write the offsets to the header.
 
+    # TODO -- Hold, save the non-wavelength images as FLOAT32 ??
+
+    # Becase we are including nested DataContainers, be careful not to duplicate variable names!!
     datamodel = {
         'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
         'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image'),
         'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image'),
         'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
+        'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image'),
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
-        'mask': dict(otype=np.ndarray, atype=np.integer, desc='2D mask image'),
-        'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
+        'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
+        'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
+        'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
+        'sci_spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'det': dict(otype=int, desc='Detector index'),
     }
 
     @classmethod
     def from_file(cls, file, det):
+        """
+        Overload :func:`pypeit.datamodel.DataContainer.from_file` to allow det
+        input and to slurp the header
+
+        Args:
+            file (:obj:`str`):
+            det (:obj:`int`):
+
+        Returns:
+            `Spec2DObj`:
+
+        """
         hdul = fits.open(file)
+        # Quick check on det
+        if not np.any(['DET{:02d}'.format(det) in hdu.name for hdu in hdul]):
+            msgs.error("Requested detector {} is not in this file - {}".format(det, file))
+        #
         slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
         slf.head0 = hdul[0].header
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 waveimg, mask, detector, spat_flexure):
-
+                 waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
+        # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
-
     def _init_internals(self):
-        """
-        All modifiable internals go here
-        """
-        self.head0 = None
+        self.process_steps = None
 
-    def _vaildate(self):
+    def _validate(self):
         """
         Assert that the detector has been set
 
         Returns:
 
         """
+        bitmask = imagebitmask.ImageBitMask()
+
         assert self.det is not None, 'Must set det at instantiation!'
+        if self.imgbitm is None:
+            self.imgbitm = ','.join(list(bitmask.keys()))
+        else:
+            # Validate
+            if self.imgbitm != ','.join(list(bitmask.keys())):
+                msgs.error("Input BITMASK keys differ from current data model!")
 
     def _bundle(self):
         """
@@ -114,9 +142,12 @@ class Spec2DObj(datamodel.DataContainer):
                 tmp = {}
                 tmp[key] = self[key]
                 d.append(tmp)
-            # Deal with the detector
+            # Detector
             elif key == 'detector':
                 d.append(dict(detector=self.detector))
+            # SliTraceSet
+            elif key == 'slits':
+                d.append(dict(slits=self.slits))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
@@ -135,6 +166,40 @@ class Spec2DObj(datamodel.DataContainer):
         """
         return spec2d_hdu_prefix(self.det)
 
+    def update_slits(self, spec2DObj):
+        """
+        Update the object at all good slits in the input object
+
+        Args:
+            spec2DObj (`Spec2DObj`):
+
+        Returns:
+
+        """
+        # Quick checks
+        if spec2DObj.det != self.det:
+            msgs.error("Objects are not even the same detector!!")
+        if not np.array_equal(spec2DObj.slits.spat_id, spec2DObj.slits.spat_id):
+            msgs.error("SPAT_IDs are not in sync!")
+
+        # Find the good ones on the input object
+        bpm = spec2DObj.slits.mask.astype(bool)
+        exc_reduce = np.invert(spec2DObj.slits.bitmask.flagged(
+            spec2DObj.slits.mask, flag=spec2DObj.slits.bitmask.exclude_for_reducing))
+        gpm = np.invert(bpm & exc_reduce)
+
+        # Update slits.mask
+        self.slits.mask[gpm] = spec2DObj.slits.mask[gpm]
+
+        # Slitmask
+        slitmask = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure,
+                                                 exclude_flag=spec2DObj.slits.bitmask.exclude_for_reducing)
+        # Fill in the image
+        for slit_idx, spat_id in enumerate(spec2DObj.slits.spat_id[gpm]):
+            inmask = slitmask == spat_id
+            # Get em all
+            for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
+                self[imgname][inmask] = spec2DObj[imgname][inmask]
 
 class AllSpec2DObj(object):
     """
@@ -217,21 +282,26 @@ class AllSpec2DObj(object):
         """Get an item directly from the internal dict."""
         return self.__dict__[item]
 
-    def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None):
+    def build_primary_hdr(self, raw_header, spectrograph, master_key_dict=None, master_dir=None,
+                          redux_path=None, subheader=None):
         """
         Build the primary header for a spec2d file
 
         Args:
-            raw_header (:class:`astropy.io.fits.Header`):
+            raw_header (`astropy.io.fits.Header`_):
                 Header from the raw FITS file (i.e. original header)
-            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            master_key_dict (dict):
-                dict of master keys from :class:`pypeit.calibrations.Calibrations`
-            master_dir (:obj:`str):
-                Path to the Masters/ folder
+            spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            master_key_dict (:obj:`dict`, optional):
+                dict of master keys from :class:`~pypeit.calibrations.Calibrations`
+            master_dir (:obj:`str`):
+                Path to the ``Masters`` folder
+            redux_path (:obj:`str`, optional):
+                Full path to the location where the data were run
+            subheader (:obj:`dict`, optional):
+                Generated by `:func:pypeit.spectrographs.spectrograph.Spectrograph.subheader_for_spec`
 
         Returns:
-            :class:`astropy.io.fits.Header`:
+            `astropy.io.fits.Header`_:
 
         """
         hdr = io.initialize_header(primary=True)
@@ -250,23 +320,38 @@ class AllSpec2DObj(object):
             tmp = str(raw_header['HISTORY']).replace('\n', ' ')
             hdr.add_history(str(tmp))
 
+        # Sub-header
+        if subheader is not None:
+            for key in subheader.keys():
+                hdr[key.upper()] = subheader[key]
+
         # PYPEIT
         # TODO Should the spectrograph be written to the header?
         hdr['PIPELINE'] = str('PYPEIT')
         hdr['PYPELINE'] = spectrograph.pypeline
         hdr['SPECTROG'] = spectrograph.spectrograph
         hdr['DATE-RDX'] = str(datetime.date.today().strftime('%Y-%b-%d'))
+
         # MasterFrame info
         # TODO -- Should this be in the header of the individual HDUs ?
         if master_key_dict is not None:
-            hdr['FRAMMKEY'] = master_key_dict['frame'][:-3]
-            hdr['BPMMKEY'] = master_key_dict['bpm'][:-3]
+            #hdr['FRAMMKEY'] = master_key_dict['frame'][:-3]
+            #hdr['BPMMKEY'] = master_key_dict['bpm'][:-3]
             hdr['BIASMKEY'] = master_key_dict['bias'][:-3]
             hdr['ARCMKEY'] = master_key_dict['arc'][:-3]
             hdr['TRACMKEY'] = master_key_dict['trace'][:-3]
             hdr['FLATMKEY'] = master_key_dict['flat'][:-3]
+
+        # Processing steps
+        det = self.detectors[0]
+        if self[det].process_steps is not None:
+            hdr['PROCSTEP'] = (','.join(self[det].process_steps), 'Completed reduction steps')
+
+        # Some paths
         if master_dir is not None:
             hdr['PYPMFDIR'] = str(master_dir)
+        if redux_path is not None:
+            hdr['PYPRDXP'] = redux_path
         # Sky sub mode
         if self['meta']['ir_redux']:
             hdr['SKYSUB'] = 'DIFF'
@@ -339,4 +424,12 @@ class AllSpec2DObj(object):
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote: {:s}".format(outfile))
 
+    def __repr__(self):
+        # Generate sets string
+        txt = '<{:s}: '.format(self.__class__.__name__)
+        txt += 'dets=('
+        for det in self.detectors:
+            txt += str(det)+','
+        txt += ') >'
+        return txt
 

@@ -1,6 +1,13 @@
 # Licensed under a 3-clause BSD style license - see PYDL_LICENSE.rst
 # -*- coding: utf-8 -*-
 # Also cite https://doi.org/10.5281/zenodo.1095150 when referencing PYDL
+
+"""
+Implements the bspline class
+
+.. include:: ../links.rst
+"""
+
 import copy
 import warnings
 
@@ -10,6 +17,7 @@ import numpy as np
 
 from pypeit.core import basis
 from pypeit import datamodel
+from pypeit import msgs
 
 try:
     from pypeit.bspline.utilc import cholesky_band, cholesky_solve, solution_arrays, intrv, \
@@ -229,6 +237,9 @@ class bspline(datamodel.DataContainer):
             self.xmin = 0.0
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
+
+    def _init_internals(self):
+        self.hdu_prefix = None
 
     def _bundle(self):
         """

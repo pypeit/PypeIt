@@ -28,6 +28,40 @@
 - Every calibration output to disk is help within a DataContainer, separate from
   previous classes.  Exception is WaveCalib (this needsd a fit DataContainer first)
 - Substantial refactoring of Calibrations
+- Add MDM OSMOS spectrograph
+- Moved pypeit.core.pydl.bspline into its own module, `pypeit.bspline`
+- Introduced C backend functions to speed up bspline fitting
+    - now require `extension_helpers` package to build pypeit and
+      necessary files/code in `setup.py` to build the C code
+    - C functions will be used by default, but code will revert to pure
+      python, if there's some problem importing the C module
+    - Added tests and pre-cooked data to ensure identical behavior
+      between the pure python and C functions.
+- Moved some basis function builders to pypeit.core.basis
+- Release 1.0 doc
+- Lots of new docs
+- pypeit_chk_2dslits script
+- DataContainer's for specobj, bspline
+- Introduction of Spec2DObj, AllSpec2DObj, and OneSpec (for Coadd1D)
+- Added bitmask to SlitTraceSet
+- Introduced SlitTraceSet.spat_id and its usage throughout the code
+- Spatial flexure corrections
+    - Significant refactor of flatfield.BuildFlatField.fit()
+    - Spatial flexure measuring code
+    - PypeItPar control
+    - Modifications to SlitTraceSet methods
+    - Illumflat generated dynamically with different PypeIt control
+    - waveimage generated dynamicall and WaveImage deprecated
+- Moved RawImage into ProcessRawImage and renamed the latter to the former
+- Continued refactoring of Calibrations
+- Initial code for syncing SpecObjs across exposures
+- Option to ignore profile masking during extraction
+- Additional code in DataContainer related to MasterFrames
+- Eliminated WaveImage
+- Updates to QL scripts
+- Lots of new tests
+
+
 
 0.13.2 (17 Mar 2020)
 --------------------

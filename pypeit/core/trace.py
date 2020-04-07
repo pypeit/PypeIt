@@ -832,6 +832,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     Iteratively fit the trace of a feature in the provided image.
 
     Each iteration performs two steps:
+
         - Remeasure the trace centroid using :func:`masked_centroid`.
           The size of the integration window (see the definition of
           the `width` parameter for
@@ -923,10 +924,13 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         xmax (:obj:`float`, optional):
             Upper reference for robust_polyfit polynomial fitting.
             Default is to use the image size in nspec direction
+        flavor (:obj:`str`, optional):
+            Defines the type of fit performed. Only used by QA
 
     Returns:
-        tuple: Returns four `numpy.ndarray`_ objects all with the same
-        shape as the input positions (`trace_cen`) and provide:
+        :obj:`tuple`: Returns four `numpy.ndarray`_ objects all with
+        the same shape as the input positions (`trace_cen`) and
+        provide:
 
             - The best-fitting positions of each trace determined by the
               polynomial fit.
@@ -934,7 +938,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
               Gaussian-weighting, to which the polynomial is fit.
             - The errors in the centroids.
             - Boolean flags for each centroid measurement (see
-              :func:`pypeit.core.moment.moment1d`).
+              :func:`~pypeit.core.moment.moment1d`).
 
     """
     # Ensure setup is correct
@@ -992,7 +996,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
         # measurements that hit boundaries are treated. This replaces
         # any measurement that is outside the integration window,
         # within a buffer of the detector edge, above a maximum shift,
-
+        # or is above the maximum error. In these cases, the output is
         # the same as the input and bad_trace has the relevant bit or
         # boolean.
         cen, err, msk = masked_centroid(flux, trace_fit, width[i], ivar=ivar, bpm=bpm, fwgt=fwgt,

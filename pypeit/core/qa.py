@@ -74,9 +74,11 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
     elif method == 'obj_profile_qa':
         outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(root, det, slit)
     elif method == 'spec_flexure_qa_corr':
-        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
+#        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
+        outfile = 'PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
     elif method == 'spec_flexure_qa_sky':
-        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_sky.png'.format(root, det, slit)
+#        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_sky.png'.format(root, det, slit)
+        outfile = 'PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_sky.png'.format(root, det, slit)
     else:
         raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return

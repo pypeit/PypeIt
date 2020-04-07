@@ -1,7 +1,7 @@
-pypeit.tiltimage module
+pypeit.spec2dobj module
 =======================
 
-.. automodule:: pypeit.tiltimage
+.. automodule:: pypeit.spec2dobj
    :members:
    :private-members:
    :undoc-members:

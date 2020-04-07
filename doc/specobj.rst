@@ -19,12 +19,12 @@ Naming
 
 Each object is named by its:
  - spatial position (pixel number) on the reduced image [SPAT]
- - the slit number, zero-indexed [SLIT]
+ - the slit position (pixel number) on the reduced image [SLIT]
  - the detector number [DET]
 
 For example::
 
-    SPAT0176-SLIT0000-DET01
+    SPAT0176-SLIT0185-DET01
 
 Extraction
 ==========

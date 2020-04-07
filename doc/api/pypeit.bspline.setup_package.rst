@@ -1,7 +1,7 @@
-pypeit.images.processrawimage module
+pypeit.bspline.setup\_package module
 ====================================
 
-.. automodule:: pypeit.images.processrawimage
+.. automodule:: pypeit.bspline.setup_package
    :members:
    :private-members:
    :undoc-members:

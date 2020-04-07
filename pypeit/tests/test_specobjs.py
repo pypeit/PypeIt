@@ -28,6 +28,9 @@ def sobj2():
 @pytest.fixture
 def sobj3():
     return specobj.SpecObj('MultiSlit', 3, SLITID=0)
+@pytest.fixture
+def sobj4():
+    return specobj.SpecObj('MultiSlit', 1, SLITID=10)
 
 
 def test_init(sobj1, sobj2):
@@ -78,8 +81,8 @@ def test_set(sobj1, sobj2, sobj3):
     assert sobjs.PYPELINE[0] == 'MultiSlit'
 
 
-def test_io(sobj1, sobj2, sobj3):
-    sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3])
+def test_io(sobj1, sobj2, sobj3, sobj4):
+    sobjs = specobjs.SpecObjs([sobj1,sobj2,sobj3,sobj4])
     sobjs[0]['BOX_WAVE'] = np.arange(1000).astype(float)
     sobjs[1]['BOX_WAVE'] = np.arange(1000).astype(float)
     sobjs[2]['BOX_WAVE'] = np.arange(1000).astype(float)
@@ -101,11 +104,11 @@ def test_io(sobj1, sobj2, sobj3):
     sobjs.write_to_fits(header, ofile, overwrite=False)
     # Read
     hdul = fits.open(ofile)
-    assert len(hdul) == 6 # Primary + 3 Obj + 2 Detectors
-    assert hdul[0].header['NSPEC'] == 3
+    assert len(hdul) == 7  # Primary + 4 Obj + 2 Detectors
+    assert hdul[0].header['NSPEC'] == 4
     #
     _sobjs = specobjs.SpecObjs.from_fitsfile(ofile)
-    assert _sobjs.nobj == 3
+    assert _sobjs.nobj == 4
     assert np.array_equal(sobjs[0].BOX_WAVE, _sobjs[0].BOX_WAVE)
     assert np.array_equal(sobjs[1].BOX_WAVE, _sobjs[1].BOX_WAVE)
     _sobjs.write_to_fits(header, ofile, overwrite=True)

@@ -135,7 +135,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     # Check
     if chk:
         debugger.plot1d(nwwv, nwspec)
-        embed(header='102')
+        embed(header='123')
     # Generate the table
     write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
 
@@ -159,7 +159,7 @@ def pypeit_arcspec(in_file, slit):
     wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
     # Return
-    return wv_vac, np.array(iwv_calib['spec'])
+    return wv_vac, np.array(iwv_calib['spec']).flatten()  # JXP added flatten on 2019-11-09
 
 
 def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
@@ -737,6 +737,18 @@ def main(flg):
             wfile = os.path.join(reid_path, iroot[ii])
             build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
 
+
+    # MDM/OSMOS -- MDM4K
+    if flg & (2 ** 28):
+        # ArI 4159 -- 6800
+        wfile = os.path.join(template_path, 'MDM_OSMOS', 'MasterWaveCalib_MDM4K_01.json')
+        outroot = 'mdm_osmos_mdm4k.fits'
+        binspec = 1
+        slits = [0]
+        lcut = [3200.]
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
+                       chk=True, subtract_conti=True)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -796,7 +808,10 @@ if __name__ == '__main__':
     #flg += 2**26  # Longslit
 
     # Keck/LRIS r
-    flg += 2**27  # R600/7500
+    #flg += 2**27  # R600/7500
+
+    # MDM/OSMMOS
+    flg += 2**28
 
     main(flg)
 

@@ -78,57 +78,6 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['exprng'] = [1, None]
         return par
 
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an TNG Dolores exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.DET_ID': 'E2V4240',
-                             '0.NAXIS': 2}
-        super(TNGDoloresSpectrograph, self).check_headers(headers, expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-        hdr_keys[2] = {}
-        hdr_keys[3] = {}
-        hdr_keys[4] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBS-TYPE'
-        hdr_keys[0]['target'] = 'OBJCAT'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['time'] = 'DATE-OBS'
-        hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['naxis0'] = 'NAXIS2'
-        hdr_keys[0]['naxis1'] = 'NAXIS1'
-        hdr_keys[0]['filter1'] = 'FLT_ID'
-        hdr_keys[0]['dispname'] = 'GRM_ID'
-        hdr_keys[0]['lamps'] = 'LMP_ID'
-
-        return hdr_keys
-    '''
-
     def init_meta(self):
         """
         Generate the meta data dict

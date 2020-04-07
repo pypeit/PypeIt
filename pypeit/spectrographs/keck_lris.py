@@ -60,12 +60,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Always correct for spatial flexure on science images
         # TODO -- Decide whether to make the following defaults
         #   May not want to do them for LongSlit
-        #par['scienceframe']['process']['spat_flexure_correct'] = True
-        #par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
+        par['scienceframe']['process']['spat_flexure_correct'] = True
+        par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
         par['scienceframe']['exprng'] = [29, None]
         return par
-
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -101,7 +100,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
                 par['calibrations']['slitedges']['edge_thresh'] = 1000.
 
         return par
-
 
     def init_meta(self):
         """
@@ -350,6 +348,22 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Return
         return self.get_detector_par(hdu, det if det is None else 1), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+
+    def subheader_for_spec(self, row_fitstbl, raw_header):
+        """
+        See :func:`pypeit.spectrograph.spectrograph.Spectrograph.subheader_for_spec`
+        for doc string
+
+        Args:
+            row_fitstbl (:class:`astropy.table.Row` or :class:`astropy.io.fits.Header`):
+            raw_header (:class:`astropy.io.fits.Header`):
+
+        Returns:
+            :obj:`dict`: -- Used to generate a Header or table downstream
+
+        """
+        return super(KeckLRISSpectrograph, self).subheader_for_spec(
+            row_fitstbl, raw_header, extra_header_cards=['GRANAME', 'GRISNAME', 'SLITNAME'])
 
 
 class KeckLRISBSpectrograph(KeckLRISSpectrograph):
@@ -843,6 +857,7 @@ def lris_read_amp(inp, ext):
         hdu = fits.open(inp)
     else:
         hdu = inp
+    n_ext = len(hdu) - 1  # Number of extensions (usually 4)
 
     # Get the pre and post pix values
     # for LRIS red POSTLINE = 20, POSTPIX = 80, PRELINE = 0, PRECOL = 12
@@ -880,7 +895,7 @@ def lris_read_amp(inp, ext):
     #data = temp[xdata1:xdata2+1, :]
     if (xdata1-1) != precol:
         msgs.error("Something wrong in LRIS datasec or precol")
-    xshape = 1024 // xbin
+    xshape = 1024 // xbin * (4//n_ext)  # Allow for single amp
     if (xshape+precol+postpix) != temp.shape[0]:
         msgs.warn("Unexpected size for LRIS detector.  We expect you did some windowing...")
         xshape = temp.shape[0] - precol - postpix

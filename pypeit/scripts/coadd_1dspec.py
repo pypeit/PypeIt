@@ -9,6 +9,7 @@ import numpy as np
 from pypeit import par, msgs
 import argparse
 from pypeit import coadd1d
+from pypeit.core import coadd
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
@@ -70,7 +71,7 @@ def read_coaddfile(ifile):
     if s >= 0 and e < 0:
         msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
-        msgs.error("Missing coadd1d block in in {0}. Check the input format for the .coadd1d file".format(ifile))
+        msgs.error("Missing coadd1d read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
@@ -98,6 +99,46 @@ def read_coaddfile(ifile):
 
     # Return
     return cfg_lines, spec1dfiles, objids
+
+
+def coadd1d_filelist(files, outroot, det, debug=False, show=False):
+    """
+
+    Args:
+        files:
+        outroot:
+        det:
+        debug:
+        show:
+
+    Returns:
+
+    """
+    # Build sync_dict
+    sync_dict = None
+    for ifile in files[1:]:
+        sync_dict = coadd.sync_pair(files[0], ifile, det, sync_dict=sync_dict)
+    #
+    header = fits.getheader(files[0])
+    spectrograph = load_spectrograph(header['PYP_SPEC'])
+    par = spectrograph.default_pypeit_par()
+
+    par['coadd1d']['flux_value'] = False
+
+    sensfile = None
+    # Loop on entries
+    for key in sync_dict:
+
+        coaddfile = outroot+'-SPAT{:04d}-DET{:02d}'.format(key, det)+'.fits'
+
+        coAdd1d = coadd1d.CoAdd1D.get_instance(sync_dict[key]['files'],
+                                               sync_dict[key]['names'],
+                                               spectrograph=spectrograph, par=par['coadd1d'],
+                                               sensfile=sensfile, debug=debug, show=show)
+        # Run
+        coAdd1d.run()
+        # Save to file
+        coAdd1d.save(coaddfile)
 
 
 def parser(options=None):
@@ -176,6 +217,7 @@ def main(args):
     par.to_config(args.par_outfile)
     sensfile = par['coadd1d']['sensfuncfile']
     coaddfile = par['coadd1d']['coaddfile']
+
     # Testing?
     if args.test_spec_path is not None:
         if sensfile is not None:
@@ -185,17 +227,14 @@ def main(args):
     if spectrograph.pypeline is 'Echelle' and sensfile is None:
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
 
-    # TODO JFH I really dislike that the parsets are used to hold actually run time specific information and not
-    # i.e. parameter defaults, or values of parameters. The problem is there is no other easy way to pass this information
-    # in via a .coadd1d file, since the parsets parse in a simply way. Otherwise I have to waste time trying to parse
-    # text files, whereas there are things like yaml and json that do this well already.
-
     # Instantiate
-    coadd = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids, sensfile=sensfile, par=par['coadd1d'],
-                                       debug=args.debug, show=args.show)
+    coAdd1d = coadd1d.CoAdd1D.get_instance(spec1dfiles, objids,
+                                           spectrograph=spectrograph, par=par['coadd1d'],
+                                           sensfile=sensfile,
+                                           debug=args.debug, show=args.show)
     # Run
-    coadd.run()
+    coAdd1d.run()
     # Save to file
-    coadd.save(coaddfile)
+    coAdd1d.save(coaddfile)
     msgs.info('Coadding complete')
 

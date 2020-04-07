@@ -386,8 +386,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
         trace_orig: ndarray, float
             trace that you want to resize
     Returns:
-        trace: ndarray, float
-            trace corresponding to the binning of the arc
+        `numpy.ndarray`: trace corresponding to the binning of the arc
 
     """
     (nspec, nspat) = shape_arc
@@ -433,7 +432,8 @@ def resize_spec(spec_from, nspec_to):
     return spec_to
 
 
-def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10):
+def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10,
+                slit_bpm=None):
     """
     Extract a boxcar spectrum down the center of the slit
 
@@ -473,20 +473,28 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
     _gpm = _gpm & (arcimg < nonlinear_counts)
 
     # Inialize output
-    arc_spec = np.zeros(slit_cen.shape, dtype=float)
+    arc_spec = np.zeros_like(slit_cen)
 
     # Iterate over slits
     nslits = slit_cen.shape[1]
     nspat = arcimg.shape[1]
     spat = np.arange(nspat)
     for islit in range(nslits):
+        if slit_bpm is not None and slit_bpm[islit]:
+            msgs.info('Ignoring masked slit {}'.format(islit))
+            # TODO -- Avoid using NaNs
+            arc_spec[:,islit] = np.nan
+            continue
         msgs.info('Extracting approximate arc spectrum along the center of slit {0}'.format(islit))
         # Create a mask for the pixels that will contribue to the arc
         arcmask = _gpm & (np.absolute(spat[None,:] - slit_cen[:,islit,None]) < box_rad)
         # Trimming the image makes this much faster
         indx = np.nonzero(np.any(arcmask, axis=0))[0]
+        if len(indx) == 0:  # Must have been a masked slit
+            arc_spec[:,islit] = np.nan
+            continue
         left, right = np.clip([indx[0]-4, indx[-1]+5], 0, nspat)
-        # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix. 
+        # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
                                                       mask=np.invert(arcmask[:,left:right]),
                                                       sigma=3.0, axis=1)[1]
