@@ -10,7 +10,6 @@ Submodules
    pypeit.images.combineimage
    pypeit.images.detector_container
    pypeit.images.imagebitmask
-   pypeit.images.processrawimage
    pypeit.images.pypeitimage
    pypeit.images.rawimage
 

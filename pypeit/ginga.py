@@ -125,8 +125,8 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     # Input checks
     if cuts is not None and len(cuts) != 2:
         raise ValueError('Input cuts must only have two elements, the lower and upper cut.')
-    if bitmask is not None and mask is None:
-        raise ValueError('If providing a bitmask, must also provide the mask values.')
+    if mask is not None and bitmask is None:
+        raise ValueError('If providing a mask, must also provide the bitmask.')
 
     # Read or set the image data.  This will fail if the input is a
     # string and astropy.io.fits cannot read the image.
@@ -146,11 +146,12 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
-    if waveimg is not None:
-        header['WCS-XIMG'] = waveimg
 
     # Giddy up
-    ch.load_np(chname, img, 'fits', header)
+    try:
+        ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
+    except:
+        ch.load_np(chname, img, 'fits', header)
     canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at
@@ -178,7 +179,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 
     # If bitmask was passed in, assume this is an extraction qa image
     # and use the mask to identify why each pixel was masked
-    if bitmask is not None:
+    if mask is not None:
         # Unpack the bitmask
         bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
                 = bitmask.unpack(mask)
@@ -301,7 +302,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
                        'synchronized into slits.')
         if left_ids is not None or right_ids is not None:
             msgs.warn('For showing synced edges, left and right ID numbers are ignored.')
-        nslits = left.shape[1]
+        nslits = _left.shape[1]
         _left_ids = None
         _right_ids = None
         _slit_ids = np.arange(nslits) if slit_ids is None else np.atleast_1d(slit_ids)
@@ -328,7 +329,7 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
 
     # Label positions
     top = int(2*nspec/3.)
-    bot = int(nspec/5.)
+    bot = int(nspec/2.)
 
     # Plot lefts. Points need to be int or float. Use of .tolist() on
     # each array insures this
@@ -343,9 +344,9 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
             if rotate:
                 xt, yt = yt, xt
                 xb, yb = yb, xb
-            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('green'),
+            canvas.add(str('text'), xb, yb, str('S{0}'.format(_left_ids[i])), color=str('blue'),
                        fontsize=20.)
-            canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
+            #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'), fontsize=20.)
 
     # Plot rights. Points need to be int or float. Use of .tolist() on
     # each array insures this
@@ -374,10 +375,11 @@ def show_slits(viewer, ch, left, right, slit_ids=None, left_ids=None, right_ids=
         if rotate:
             xt, yt = yt, xt
             xb, yb = yb, xb
-        canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('green'),
+        canvas.add(str('text'), xb, yb, str('S{0}'.format(_slit_ids[i])), color=str('blue'),
                    fontsize=20.)
-        canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
-                   fontsize=20.) 
+        # TODO -- Fix indices if you really want to show them
+        #canvas.add(str('text'), xt, yt, str('{0}'.format(i)), color=str('green'),
+        #           fontsize=20.)
 
 
 def show_trace(viewer, ch, trace, trc_name='Trace', color='blue', clear=False,

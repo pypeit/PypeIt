@@ -104,7 +104,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
-        # Always correct for flexure, starting with default parameters
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
 
@@ -119,7 +118,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         # Always flux calibrate, starting with default parameters
         # Do not correct for flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [20, None]

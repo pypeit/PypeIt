@@ -14,7 +14,6 @@ from pypeit.par import pypeitpar
 from pypeit import utils
 
 from pypeit.images import pypeitimage
-from pypeit.images import processrawimage
 from pypeit.images import rawimage
 from pypeit.images import imagebitmask
 
@@ -51,39 +50,11 @@ class CombineImage(object):
         if self.nfiles == 0:
             msgs.error('Combineimage requires a list of files to instantiate')
 
-    def process_one(self, filename, process_steps, bias, pixel_flat=None, illum_flat=None, bpm=None):
-        """
-        Process a single image
-
-        Args:
-            filename (str):
-                File to process
-            process_steps (list):
-                List of processing steps
-            bias (np.ndarray or None):
-                Bias image
-            pixel_flat (np.ndarray, optional):
-                Flat image
-            illum_flat (np.ndarray, optional):
-                Illumination image
-            bpm (np.ndarray, optional):
-                Bad pixel mask
-
-        Returns:
-            :class:`pypeit.images.pypeitimage.PypeItImage`:
-
-        """
-        # Load raw image
-        rawImage = rawimage.RawImage(filename, self.spectrograph, self.det)
-        # Process
-        processrawImage = processrawimage.ProcessRawImage(rawImage, self.par, bpm=bpm)
-        processedImage = processrawImage.process(process_steps, bias=bias, pixel_flat=pixel_flat,
-                                                 illum_flat=illum_flat)
-        # Return
-        return processedImage
-
-    def run(self, process_steps, bias, pixel_flat=None, illum_flat=None,
-            ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5):
+    def run(self, process_steps, bias,
+            flatimages=None,
+            #pixel_flat=None, illum_flat_fit=None,
+            ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5,
+            slits=None):
         """
         Generate a PypeItImage from a list of images
 
@@ -120,9 +91,11 @@ class CombineImage(object):
         nimages = len(self.files)
         lampstat = []
         for kk, ifile in enumerate(self.files):
-            # Process a single image
-            pypeitImage = self.process_one(ifile, process_steps, bias, pixel_flat=pixel_flat,
-                                           illum_flat=illum_flat, bpm=bpm)
+            # Load raw image
+            rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
+            # Process
+            pypeitImage = rawImage.process(process_steps, self.par, bias=bias, bpm=bpm,
+                                                  flatimages=flatimages, slits=slits)
             # Are we all done?
             if nimages == 1:
                 return pypeitImage

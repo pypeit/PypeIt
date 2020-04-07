@@ -2,6 +2,10 @@
 MasterWave
 ==========
 
+
+OUT OF DATE?
+
+
 Overview
 ========
 
@@ -39,5 +43,5 @@ which is a :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
 
-.. include:: include/datamodel_waveimage.rst
+.. include: include/datamodel_waveimage.rst
 

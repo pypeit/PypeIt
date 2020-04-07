@@ -83,14 +83,15 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Flats
         # Do not illumination correct. We should also not be flat fielding given the bars.
         # TODO Implement imaging flats for MOSFIRE. Do test with/without illumination flats.
-        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['standardframe']['process']['illumflatten'] = False
+        par['scienceframe']['process']['illumflatten'] = False
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'

@@ -52,6 +52,7 @@ def grab_key_mdir(inp, from_filename=False):
         tuple:  str, str of master_key and master_dir
     """
     if from_filename:
+        # Grab the last folder of the path
         master_dir = os.path.dirname(inp)
         # Parse
         base = os.path.basename(inp)

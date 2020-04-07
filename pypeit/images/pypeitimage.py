@@ -39,6 +39,7 @@ class PypeItImage(datamodel.DataContainer):
         crmask (`numpy.ndarray`_, optional):
         fullmask (`numpy.ndarray`_, optional):
         detector (:class:`pypeit.images.data_container.DataContainer`):
+        spat_flexure (:obj:`float`, optional):
 
     Attributes:
         hdu_prefix (str, optional):
@@ -57,7 +58,8 @@ class PypeItImage(datamodel.DataContainer):
 
     """
     # Set the version of this class
-    version = '1.0.0'
+    minimum_useful_version = '1.0.0'
+    version = '1.0.1'
     #
     datamodel_v100 = {
         'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
@@ -68,6 +70,8 @@ class PypeItImage(datamodel.DataContainer):
         'fullmask': dict(otype=np.ndarray, atype=np.integer, desc='Full image mask'),
         'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+        'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
+        'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
     }
     datamodel = datamodel_v100.copy()
 
@@ -75,33 +79,6 @@ class PypeItImage(datamodel.DataContainer):
     bitmask = imagebitmask.ImageBitMask()
 
     hdu_prefix = None
-
-    @classmethod
-    def from_file(cls, ifile):
-        """
-        Instantiate from a file on disk (FITS file)
-
-        Overloaded :func:`pypeit.datamodel.DataContainer.from_file` to grab Header
-
-        Args:
-            ifile (str):
-
-        Returns:
-            :class:`pypeit.images.pypeitimage.PypeItImage`:
-                Loaded up PypeItImage with the primary Header attached
-
-        """
-        # Open
-        hdu = fits.open(ifile)
-        # Instantiate
-        slf = super(PypeItImage, cls).from_hdu(hdu)
-        slf.filename = ifile
-        slf.head0 = hdu[0].header
-        # Try to parse masters
-        slf.master_key, slf.master_dir = masterframe.grab_key_mdir(ifile)
-        # Return
-        return slf
-
 
     @classmethod
     def from_pypeitimage(cls, pypeitImage):
@@ -130,8 +107,10 @@ class PypeItImage(datamodel.DataContainer):
         # Return
         return slf
 
-    def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,  # This should contain all datamodel items
-                 crmask=None, fullmask=None, detector=None, PYP_SPEC=None):
+    # This needs to contain all datamodel items
+    def __init__(self, image=None, ivar=None, rn2img=None, bpm=None,
+                 crmask=None, fullmask=None, detector=None, spat_flexure=None,
+                 PYP_SPEC=None, imgbitm=None):
 
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -147,6 +126,17 @@ class PypeItImage(datamodel.DataContainer):
         # Master stuff
         self.master_key = None
         self.master_dir = None
+
+    def _validate(self):
+        """
+        Validate the slit traces.
+        """
+        if self.imgbitm is None:
+            self.imgbitm = ','.join(list(self.bitmask.keys()))
+        else:
+            # Validate
+            if self.imgbitm != ','.join(list(self.bitmask.keys())):
+                msgs.error("Input BITMASK keys differ from current data model!")
 
 
     def _bundle(self):

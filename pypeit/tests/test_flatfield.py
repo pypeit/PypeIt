@@ -12,9 +12,10 @@ from astropy.io import fits
 
 from pypeit.tests.tstutils import dev_suite_required, load_kast_blue_masters, cooked_required
 from pypeit import flatfield
-from pypeit.par import pypeitpar
+from pypeit import slittrace
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.images import pypeitimage
+from pypeit import bspline
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
@@ -48,10 +49,15 @@ def data_path(filename):
 
 def test_flatimages():
     tmp = np.ones((1000, 100)) * 10.
+    x = np.random.rand(500)
+    # Create bspline
+    spat_bspline1 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
+    spat_bspline2 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
     instant_dict = dict(procflat=tmp,
                         pixelflat=np.ones_like(tmp),
-                        illumflat=np.ones_like(tmp),
-                        flat_model=None)
+                        flat_model=None,
+                        spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
+                        spat_id=np.asarray([100, 200]))
 
     flatImages = flatfield.FlatImages(**instant_dict)
     assert flatImages.flat_model is None
@@ -62,26 +68,42 @@ def test_flatimages():
     _flatImages = flatfield.FlatImages.from_file(outfile)
     # Test
     for key in instant_dict.keys():
+        if key == 'spat_bsplines':
+            np.array_equal(flatImages[key][0].breakpoints,
+                           _flatImages[key][0].breakpoints)
+            continue
         if isinstance(instant_dict[key], np.ndarray):
             assert np.array_equal(flatImages[key],_flatImages[key])
         else:
             assert flatImages[key] == _flatImages[key]
 
-@cooked_required
-def test_run():
-    # Masters
-    spectrograph = load_spectrograph('shane_kast_blue')
-    edges, waveTilts = load_kast_blue_masters(edges=True, tilts=True)
-    # Instantiate
-    par = spectrograph.default_pypeit_par()
-    rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
-    # TODO -- We would want to save the detector if we ever planned to re-run from EdgeTrace
-    hdul = fits.HDUList([])
-    rawflatimg.detector = spectrograph.get_detector_par(hdul, 1)
-    flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
-                                    wavetilts=waveTilts, slits=edges.get_slits())
+    os.remove(outfile)
 
-    # Use the trace image
-    flatImages = flatField.run()
-    assert np.isclose(np.median(flatImages.pixelflat), 1.0)
+    # Illumflat
+#    left = np.full((1000,2), 90, dtype=float)
+#    left[:,1] = 190.
+#    right = np.full((1000,2), 110, dtype=float)
+#    right[:,1] = 210
+#    slits = slittrace.SlitTraceSet(left_init=left, right_init=right,
+#                                   nspat=1000, PYP_SPEC='dummy')
+#    illumflat = flatImages.generate_illumflat(slits)
+#    pytest.set_trace()
 
+
+#@cooked_required
+#def test_run():
+#    # Masters
+#    spectrograph = load_spectrograph('shane_kast_blue')
+#    edges, waveTilts = load_kast_blue_masters(edges=True, tilts=True)
+#    # Instantiate
+#    par = spectrograph.default_pypeit_par()
+#    rawflatimg = pypeitimage.PypeItImage(edges.img.copy())
+#    # TODO -- We would want to save the detector if we ever planned to re-run from EdgeTrace
+#    hdul = fits.HDUList([])
+#    rawflatimg.detector = spectrograph.get_detector_par(hdul, 1)
+#    flatField = flatfield.FlatField(rawflatimg, spectrograph, par['calibrations']['flatfield'],
+#                                    wavetilts=waveTilts, slits=edges.get_slits())
+#
+#    # Use the trace image
+#    flatImages = flatField.run()
+#    assert np.isclose(np.median(flatImages.pixelflat), 1.0)

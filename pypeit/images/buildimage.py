@@ -92,9 +92,10 @@ class TraceImage(pypeitimage.PypeItImage):
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
-                        bias=None, bpm=None, pixel_flat=None,
-                        illum_flat=None, sigma_clip=False, sigrej=None, maxiters=5,
-                        ignore_saturation=True):
+                        bias=None, bpm=None,
+                        flatimages=None,
+                        sigma_clip=False, sigrej=None, maxiters=5,
+                        ignore_saturation=True, slits=None):
     """
     Build a PypeItImage from a list of files (and instructions)
 
@@ -113,12 +114,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
             Bad pixel mask.  Held in ImageMask
         bias (np.ndarray, optional):
             Bias image
-        pixel_flat (np.ndarray, optional):
-            Flat image. If None, pixel-to-pixel response is not
-            removed.
-        illum_flat (np.ndarray, optional):
-            Illumination image. If None, slit illumination profile is
-            not removed.
+        flatimages (:class:`pypeit.flatfield.FlatImages`, optional):  For flat fielding
         sigrej (int or float, optional): Rejection threshold for sigma clipping.
              Code defaults to determining this automatically based on the numberr of images provided.
         maxiters (int, optional):
@@ -135,10 +131,12 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     process_steps = procimg.set_process_steps(bias, frame_par)
     #
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm, pixel_flat=pixel_flat,
-                                   illum_flat=illum_flat, sigma_clip=sigma_clip,
+    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm,
+                                   #pixel_flat=pixel_flat, illum_flat_fit=illum_flat_fit,
+                                   flatimages=flatimages,
+                                   sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
-                                   ignore_saturation=ignore_saturation)
+                                   ignore_saturation=ignore_saturation, slits=slits)
     #
     # Decorate according to the type of calibration
     #   Primarily for handling MasterFrames

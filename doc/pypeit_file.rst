@@ -93,19 +93,19 @@ Setup Block
 -----------
 
 The next block describes the instrument configuration.
-You should *not* edit any of this.
+You should *not* edit any of this; it is informational and required.
 
 Data Block
 ----------
 
 Last is the data block which includes the path(s) to the raw data files
-and a Table describing those files.  It is common to need to have to
-make edits of this Table.
+and a Table describing those files.  It is common
+to edit this Table as described below.
 
 This data block is a fixed-format table.
 The | symbols need not align but the number per row must be equal.
 
-`Important:` The values in this table will over-ride anything derived
+**Important:** The values in this table will over-ride anything derived
 from the FITS header.
 
 Edits to the Data Block

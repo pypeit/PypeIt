@@ -168,7 +168,6 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
@@ -187,7 +186,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure']['spec_method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [20, None]
@@ -373,7 +372,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure']['spec_method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [1, 50]

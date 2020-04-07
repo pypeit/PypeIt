@@ -72,6 +72,7 @@ class BitMask:
             The maximum valid bitmask value given the number of bits.
     """
     prefix = 'BIT'
+    version = None
     def __init__(self, keys, descr=None):
 
         _keys = keys if hasattr(keys, '__iter__') else [keys]

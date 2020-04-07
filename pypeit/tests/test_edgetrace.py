@@ -40,6 +40,7 @@ def test_addrm_slit():
     edges.rm_user_traces(rm_user_slits)
     assert edges.ntrace//2 == nslits, 'Did not remove trace.'
 
+'''
 @cooked_required
 def test_chk_kast_slits():
     """ This tests finding the longslit for Kast blue """
@@ -106,4 +107,5 @@ def test_chk_deimos_slits():
     edges.auto_trace(bpm=edges.bpm, det=edges.det, binning=edges.binning)
     assert edges.ntrace//2 == nslits, 'Did not regain the same slits!'
 
+'''
 

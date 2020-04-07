@@ -20,7 +20,6 @@ from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
 from pypeit import masterframe
-from pypeit.images import detector_container
 
 # ----------------------------------------------------------------------
 # pytest @decorators setting the tests to perform

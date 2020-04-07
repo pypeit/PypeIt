@@ -489,7 +489,7 @@ class DataContainer:
 
         - Define a datamodel
         - Provide an :func:`__init__` method that defines the
-          instantiation calling sequence and passes the relavant
+          instantiation calling sequence and passes the relevant
           dictionary to this base-class instantiation.
         - Provide a :func:`_validate` method, if necessary, that
           processes the data provided in the `__init__` into a
@@ -528,6 +528,12 @@ class DataContainer:
             the object is instantiated with all of the relevant data
             model attributes but with all of those attributes set to
             None.
+
+    Attributes:
+        filename (:obj:`str`):
+            Filename, if loaded from disk
+        head0 (`astropy.io.fits.Header`):
+            Primary header of the file (if loaded)
 
     """
 
@@ -605,6 +611,7 @@ class DataContainer:
 
         # Initialize internals for all DataContainer objects
         self.filename = None
+        self.head0 = None
 
         # Initialize other internals
         self._init_internals()
@@ -934,10 +941,12 @@ class DataContainer:
 
 
         for e in _ext:
-            # Check for header elements
+            # Check for header elements, but do not over-ride existing items
             indx = np.isin([key.upper() for key in keys], list(_hdu[e].header.keys()))
             if np.any(indx):
                 for key in keys[indx]:
+                    if key in d.keys() and d[key] is not None:
+                        continue
                     d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
                                 else eval(_hdu[e].header[key.upper()])
             # Parse BinTableHDUs
@@ -951,6 +960,17 @@ class DataContainer:
                         d[key] = _hdu[e].data[key][0] if (single_row and _hdu[e].data[key].ndim > 1) else _hdu[e].data[key]
                         if transpose_table_arrays:
                             d[key] = d[key].T
+
+        # Two annoying hacks:
+        #   - Hack to expunge charray which are basically deprecated and
+        #     cause trouble.
+        #   - Hack to force native byte ordering
+        for key in d:
+            if isinstance(d[key], np.chararray):
+                d[key] = np.asarray(d[key])
+            elif isinstance(d[key], np.ndarray) and d[key].dtype.byteorder not in ['=', '|']:
+                d[key] = d[key].astype(d[key].dtype.type)
+        # Return
         return d, dm_version_passed, dm_type_passed
 
     def __getattr__(self, item):
@@ -1029,7 +1049,8 @@ class DataContainer:
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
+               limit_hdus=None, force_to_bintbl=False):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1066,6 +1087,8 @@ class DataContainer:
                 Header to add to the primary if add_primary=True
             limit_hdus (list, optional):
                 Limit the HDUs that can be written to the items in this list
+            force_to_bintbl (bool, optional):
+                Force any dict into a BinTableHDU (e.g. for SpecObj)
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -1091,9 +1114,10 @@ class DataContainer:
                 if isinstance(d[ext], DataContainer):
                     hdu += d[ext].to_hdu()
                 else:
-                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr)]
+                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
+                                            force_to_bintbl=force_to_bintbl)]
             else:
-                hdu += [io.write_to_hdu(d, hdr=_hdr)]
+                hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
         # Prefixes
         if self.hdu_prefix is not None:
             for ihdu in hdu:
@@ -1177,27 +1201,28 @@ class DataContainer:
                                      limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
-    def to_master_file(self, master_filename, **kwargs):
+    def to_master_file(self, master_filename=None, **kwargs):
         """
         Wrapper on to_file() that deals with masterframe naming and header
+
+        This also sets master_key and master_dir internally if
+        when master_filename is provided
 
         self.hdu_prefix and self.output_to_disk must be set (or None)
 
         Args:
-            master_dir (str):
-                path to Masters folder
-            master_key (str):
-                Master key, e.g. A_1_01
-            spectrograph (str):
-                Name of the spectrograph
-            steps (list, optional):
-                List of steps taken to build this DataContainer
-            raw_files (list):
-                List of raw data files used to build this DataContainer
+            master_filename (str, optional):
+                Name of masterfile;  if provided, parsed for master_key, master_dir
+                If not provided, constructed from internal master_key, master_dir
             **kwargs: passed to to_file()
         """
         # Output file
-        master_key, master_dir = masterframe.grab_key_mdir(master_filename, from_filename=True)
+        if master_filename is None:
+            master_filename = masterframe.construct_file_name(self, self.master_key,
+                                                              master_dir=self.master_dir)
+        else:
+            self.master_key, self.master_dir = masterframe.grab_key_mdir(
+                master_filename, from_filename=True)
         # Header
         if hasattr(self, 'process_steps'):
             steps = self.process_steps
@@ -1207,8 +1232,8 @@ class DataContainer:
             raw_files = self.files
         else:
             raw_files = None
-        hdr = masterframe.build_master_header(self, master_key, master_dir, steps=steps,
-                                              raw_files=raw_files)
+        hdr = masterframe.build_master_header(self, self.master_key, self.master_dir,
+                                              steps=steps, raw_files=raw_files)
         # Finish
         self.to_file(master_filename, primary_hdr=hdr,
                      limit_hdus=self.output_to_disk, overwrite=True, **kwargs)
@@ -1232,22 +1257,25 @@ class DataContainer:
         if not os.path.isfile(ifile):
             raise FileNotFoundError('{0} does not exist!'.format(ifile))
 
-        # Master frame check?
-        if hasattr(cls, 'master_type'):
-            hdr = fits.getheader(ifile)
-            if 'MSTRTYP' in hdr.keys():
-                if hdr['MSTRTYP'] != cls.master_type:
-                    msgs.error('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
-                        hdr['MSTRTYP'], cls.master_type))
-            else:
-                msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
         if verbose:
             msgs.info("Loading {} from {}".format(cls.__name__, ifile))
 
+        # Do it
         with fits.open(ifile) as hdu:
             obj = cls.from_hdu(hdu)
+            obj.head0 = hdu[0].header
             # Tack on filename
             obj.filename = ifile
+
+            # Master this and that
+            if hasattr(cls, 'master_type'):
+                obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
+                if 'MSTRTYP' in obj.head0.keys():
+                    if obj.head0['MSTRTYP'] != cls.master_type:
+                        msgs.error('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
+                            obj.head0['MSTRTYP'], cls.master_type))
+                else:
+                    msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
         return obj
 
     def __repr__(self):
