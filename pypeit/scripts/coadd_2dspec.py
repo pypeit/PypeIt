@@ -226,7 +226,7 @@ def main(args):
         # TODO -- JFH -- Check that the slits we are using are correct
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'], \
-            sci_dict[det]['slits']= coadd.reduce(pseudo_dict, show = args.show, show_peaks = args.peaks)
+            sci_dict[det]['slits'] = coadd.reduce(pseudo_dict, show = args.show, show_peaks = args.peaks)
         # Save pseudo image master files
         #coadd.save_masters()
 

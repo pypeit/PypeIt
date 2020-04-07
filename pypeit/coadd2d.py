@@ -328,7 +328,7 @@ class CoAdd2D(object):
         slits_pseudo \
                 = slittrace.SlitTraceSet(slit_left, slit_righ, self.pypeline, nspat=nspat_pseudo,
                                          PYP_SPEC=self.spectrograph.spectrograph,
-                                         specmin=spec_min1, specmax=spec_max1)
+                                         specmin=spec_min1, specmax=spec_max1, ech_order=slits.ech_order)
                                          #master_key=self.stack_dict['master_key_dict']['trace'],
                                          #master_dir=self.master_dir)
         slitmask_pseudo = slits_pseudo.slit_img()
@@ -348,10 +348,7 @@ class CoAdd2D(object):
             slit_width_sm = ndimage.filters.median_filter(slit_width, size=nsmooth, mode='reflect')
             igood = (slit_width_sm > min_slit_frac*med_slit_width)
             # TODO -- inline docs
-            try:
-                spec_min[slit_idx] = spec_vec_pseudo[igood].min()
-            except:
-                embed(header='351 of coadd2d')
+            spec_min[slit_idx] = spec_vec_pseudo[igood].min()
             spec_max[slit_idx] = spec_vec_pseudo[igood].max()
             bad_pix = (slit_width_img < min_slit_frac*med_slit_width) & (slitmask_pseudo == spat_id)
             inmask_pseudo[bad_pix] = False
@@ -369,15 +366,6 @@ class CoAdd2D(object):
 
         show = self.show if show is None else show
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
-
-        # Generate a ScienceImage
-#        sciImage = pypeitimage.PypeItImage(self.spectrograph, self.det,
-#                                                      self.par['scienceframe']['process'],
-##                                                      pseudo_dict['imgminsky'],
-##                                                      pseudo_dict['sciivar'],
-#                                                      np.zeros_like(pseudo_dict['inmask']),  # Dummy bpm
-#                                                      rn2img=np.zeros_like(pseudo_dict['inmask']),  # Dummy rn2img
-#                                                      crmask=np.invert(pseudo_dict['inmask']))
         sciImage = pypeitimage.PypeItImage(image=pseudo_dict['imgminsky'],
                                            ivar=pseudo_dict['sciivar'],
                                            bpm=np.zeros_like(pseudo_dict['inmask'].astype(int)),  # Dummy bpm
@@ -402,6 +390,9 @@ class CoAdd2D(object):
         redux.waveimg = pseudo_dict['waveimg']
 
         # Masking
+        ## TODO: This is incorrect here JXP and an ugly hack. You need to treat the masking of the slits objects
+        #  from every exposure, come up with an aggregate mask (if it is masked on one slit, mask the slit for all) and that should
+        ## be propagated into the slits object in the psuedo_dict
         slits = self.stack_dict['slits_list'][0]
         reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
             slits.mask, flag=slits.bitmask.exclude_for_reducing)))
@@ -442,22 +433,22 @@ class CoAdd2D(object):
                objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, pseudo_dict['slits']
 
 
-    '''
-    def save_masters(self):
 
-        # Write out the pseudo master files to disk
-        master_key_dict = self.stack_dict['master_key_dict']
-
-        # TODO: These saving operations are a temporary kludge
-        # spectrograph is needed for header
-        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
-        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
-        waveImage.to_master_file(wave_filename)
-
-        # TODO: Assumes overwrite=True
-        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
-        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
-    '''
+#    def save_masters(self):
+#
+#        # Write out the pseudo master files to disk
+#        master_key_dict = self.stack_dict['master_key_dict']
+#
+#        # TODO: These saving operations are a temporary kludge
+#        # spectrograph is needed for header
+#        waveImage = WaveImage(self.pseudo_dict['waveimg'], PYP_SPEC=self.spectrograph.spectrograph)
+#        wave_filename = masterframe.construct_file_name(WaveImage, master_key_dict['arc'], self.master_dir)
+#        waveImage.to_master_file(wave_filename)
+#
+#        # TODO: Assumes overwrite=True
+#        slit_filename = masterframe.construct_file_name(self.pseudo_dict['slits'], master_key_dict['trace'], self.master_dir)
+#        self.pseudo_dict['slits'].to_master_file(slit_filename) #self.master_dir, master_key_dict['trace'], self.spectrograph.spectrograph)
+#    '''
 
     def snr_report(self, snr_bar, slitid=None):
 
