@@ -1,6 +1,6 @@
 
-0.13.3dev
----------
+1.0.0 (07 Apr 2020)
+-------------------
 
 - Replaces usage of the `tslits_dict` dictionary with
   `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
