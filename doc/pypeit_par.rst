@@ -31,25 +31,7 @@ Configuration`_ are listed below.
 
 .. warning::
 
- * Parsing of the PypeIt parameters from the :ref:`pypeit_file` does not
-   yet check that the parameter group and keyword are valid.  This can
-   make the syntax of the changes made incredibly important.  In
-   particular, the indentation of the configuration lines, while useful
-   for legibility, is irrelevant to how the lines are parsed.  For
-   example, the following successfully changes the theshold for slit
-   edge detection::
-        
-        [calibrations]
-            [[slitedges]]
-                edge_thresh = 100
-    
-   whereas the following fails silently::
-        
-        [calibrations]
-            [slitedges]
-                edge_thresh = 100
-
- - Default values of parameters that actually point to data files
+ * Default values of parameters that actually point to data files
    provided by PypeIt (e.g. the ``spectrum`` parameter for
    :class:`pypeit.par.pypeitpar.FlexurePar`) in its root directory will
    point to the relevant location on disk of whoever generated the
@@ -143,6 +125,12 @@ Current PypeItPar Parameter Hierarchy
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
 
+        ``[[alignframe]]``: `FrameGroupPar Keywords`_
+
+            ``[[[process]]]``: `ProcessImagesPar Keywords`_
+
+        ``[[alignment]]``: `AlignPar Keywords`_
+
         ``[[traceframe]]``: `FrameGroupPar Keywords`_
 
             ``[[[process]]]``: `ProcessImagesPar Keywords`_
@@ -201,7 +189,7 @@ Key               Type                                            Options  Defau
 ``coadd2d``       :class:`pypeit.par.pypeitpar.Coadd2DPar`        ..       `Coadd2DPar Keywords`_        Par set to control 2D coadds.  Only used in the after-burner script.                                                                                                                                                                                                                  
 ``flexure``       :class:`pypeit.par.pypeitpar.FlexurePar`        ..       `FlexurePar Keywords`_        Parameters used by the flexure-correction procedure.  Flexure corrections are not performed by default.  To turn on, either set the parameters in the 'flexure' parameter group or set 'flexure = True' in the 'rdx' parameter group to use the default flexure-correction parameters.
 ``fluxcalib``     :class:`pypeit.par.pypeitpar.FluxCalibratePar`  ..       `FluxCalibratePar Keywords`_  Parameters used by the flux-calibration procedure.  Flux calibration is not performed by default.  To turn on, either set the parameters in the 'fluxcalib' parameter group or set 'fluxcalib = True' in the 'rdx' parameter group to use the default flux-calibration parameters.    
-``rdx``           :class:`pypeit.par.pypeitpar.ReduxPar`          ..       `ReduxPar Keywords`_          PypIt reduction rules.                                                                                                                                                                                                                                                                
+``rdx``           :class:`pypeit.par.pypeitpar.ReduxPar`          ..       `ReduxPar Keywords`_          PypeIt reduction rules.                                                                                                                                                                                                                                                               
 ``reduce``        :class:`pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
 ``scienceframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`     ..       `FrameGroupPar Keywords`_     The frames and combination rules for the science observations                                                                                                                                                                                                                         
 ``sensfunc``      :class:`pypeit.par.pypeitpar.SensFuncPar`       ..       `SensFuncPar Keywords`_       Par set to control sensitivity function computation.  Only used in the after-burner script.                                                                                                                                                                                           
@@ -218,12 +206,14 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.CalibrationsPar`
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
 Key                 Type                                                 Options  Default                            Description                                                                                                                                                                              
 ==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
+``alignframe``      :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                    
+``alignment``       :class:`pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                         
 ``arcframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
 ``biasframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
 ``bpm_usebias``     bool                                                 ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                    
-``caldir``          str                                                  ..       ``default``                        If provided, it must be the full path to calling directory to write master files.                                                                                                        
 ``darkframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
 ``flatfield``       :class:`pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
+``master_dir``      str                                                  ..       ``Masters``                        If provided, it should be the name of the folder to write master files. NOT A PATH.                                                                                                      
 ``pinholeframe``    :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                        
 ``pixelflatframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the field flattening                                                                                                                                
 ``setup``           str                                                  ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
@@ -239,24 +229,47 @@ Key                 Type                                                 Options
 
 ----
 
+AlignPar Keywords
+-----------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.AlignPar`
+
+===============  =============  =======  =============  ================================================================================================================================================================================================================================================================================
+Key              Type           Options  Default        Description                                                                                                                                                                                                                                                                     
+===============  =============  =======  =============  ================================================================================================================================================================================================================================================================================
+``locations``    list, ndarray  ..       0.0, 0.5, 1.0  Locations of the bars, in a list, specified as a fraction of the slit width                                                                                                                                                                                                     
+``sig_thresh``   int, float     ..       1.0            Significance threshold for finding an alignment trace. This should be a lownumber to ensure that the algorithm finds all bars. The algorithm willthen only use the N most significant detections, where N is the numberof elements specified in the "locations" keyword argument
+``trace_npoly``  int            ..       8              Order of the polynomial to use when fitting the trace of a single bar                                                                                                                                                                                                           
+``trim_edge``    list           ..       1, 1           Trim the slit by this number of pixels left/right before finding objects                                                                                                                                                                                                        
+===============  =============  =======  =============  ================================================================================================================================================================================================================================================================================
+
+
+----
+
 FlatFieldPar Keywords
 ---------------------
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FlatFieldPar`
 
-=======================  ==========  =====================  =============  =================================================================================================================================================================================================================================================
-Key                      Type        Options                Default        Description                                                                                                                                                                                                                                      
-=======================  ==========  =====================  =============  =================================================================================================================================================================================================================================================
-``frame``                str         ..                     ``pixelflat``  Frame to use for field flattening.  Options are: "pixelflat", or a specified calibration filename.                                                                                                                                               
-``illumflatten``         bool        ..                     True           Use the flat field to determine the illumination profile of each slit.                                                                                                                                                                           
-``method``               str         ``bspline``, ``skip``  ``bspline``    Method used to flat field the data; use skip to skip flat-fielding.  Options are: None, bspline, skip                                                                                                                                            
-``spat_samp``            int, float  ..                     5.0            Spatial sampling for slit illumination function. This is the width of the median filter in pixels used to determine the slit illumination function, and thus sets the minimum scale on which the illumination function will have features.       
-``spec_samp_coarse``     int, float  ..                     50.0           bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image residuals. This should be a large number unless you are trying to fit a sky flat with lots of narrow spectral features.                        
-``spec_samp_fine``       int, float  ..                     1.2            bspline break point spacing in units of pixels for spectral fit to flat field blaze function.                                                                                                                                                    
-``tweak_slits``          bool        ..                     True           Use the illumination flat field to tweak the slit edges. This will work even if illumflatten is set to False                                                                                                                                     
-``tweak_slits_maxfrac``  float       ..                     0.1            If tweak_slit is True, this sets the maximum fractional amount (of a slits width) allowed for trimming each (i.e. left and right) slit boundary, i.e. the default is 10% which means slits would shrink or grow by at most 20% (10% on each side)
-``tweak_slits_thresh``   float       ..                     0.93           If tweak_slits is True, this sets the illumination function threshold used to tweak the slit boundaries based on the illumination flat. It should be a number less than 1.0                                                                      
-=======================  ==========  =====================  =============  =================================================================================================================================================================================================================================================
+=======================  =================  =================================  =============  =========================================================================================================================================================================================================================================================================================================================================
+Key                      Type               Options                            Default        Description                                                                                                                                                                                                                                                                                                                              
+=======================  =================  =================================  =============  =========================================================================================================================================================================================================================================================================================================================================
+``frame``                str                ..                                 ``pixelflat``  Frame to use for field flattening.  Options are: "pixelflat", or a specified calibration filename.                                                                                                                                                                                                                                       
+``illum_iter``           int                ..                                 0              The number of rejection iterations to perform when constructing the slit-illumination profile.  No rejection iterations are performed if 0.  WARNING: Functionality still being tested.                                                                                                                                                  
+``illum_rej``            int, float         ..                                 5.0            The sigma threshold used in the rejection iterations used to refine the slit-illumination profile.  Rejection iterations are only performed if ``illum_iter > 0``.                                                                                                                                                                       
+``method``               str                ``bspline``, ``skip``              ``bspline``    Method used to flat field the data; use skip to skip flat-fielding.  Options are: None, bspline, skip                                                                                                                                                                                                                                    
+``rej_sticky``           bool               ..                                 False          Propagate the rejected pixels through the stages of the flat-field fitting (i.e, from the spectral fit, to the spatial fit, and finally to the 2D residual fit).  If False, pixels rejected in each stage are included in each subsequent stage.                                                                                         
+``saturated_slits``      str                ``crash``, ``mask``, ``continue``  ``crash``      Behavior when a slit is encountered with a large fraction of saturated pixels in the flat-field.  The options are: 'crash' - Raise an error and halt the data reduction; 'mask' - Mask the slit, meaning no science data will be extracted from the slit; 'continue' - ignore the flat-field correction, but continue with the reduction.
+``slit_illum_pad``       int, float         ..                                 5.0            The number of pixels to pad the slit edges when constructing the slit-illumination profile. Single value applied to both edges.                                                                                                                                                                                                          
+``slit_trim``            int, float, tuple  ..                                 3.0            The number of pixels to trim each side of the slit when selecting pixels to use for fitting the spectral response function.  Single values are used for both slit edges; a two-tuple can be used to trim the left and right sides differently.                                                                                           
+``spat_samp``            int, float         ..                                 5.0            Spatial sampling for slit illumination function. This is the width of the median filter in pixels used to determine the slit illumination function, and thus sets the minimum scale on which the illumination function will have features.                                                                                               
+``spec_samp_coarse``     int, float         ..                                 50.0           bspline break point spacing in units of pixels for 2-d bspline-polynomial fit to flat field image residuals. This should be a large number unless you are trying to fit a sky flat with lots of narrow spectral features.                                                                                                                
+``spec_samp_fine``       int, float         ..                                 1.2            bspline break point spacing in units of pixels for spectral fit to flat field blaze function.                                                                                                                                                                                                                                            
+``tweak_slits``          bool               ..                                 True           Use the illumination flat field to tweak the slit edges. This will work even if illumflatten is set to False                                                                                                                                                                                                                             
+``tweak_slits_maxfrac``  float              ..                                 0.1            If tweak_slit is True, this sets the maximum fractional amount (of a slits width) allowed for trimming each (i.e. left and right) slit boundary, i.e. the default is 10% which means slits would shrink or grow by at most 20% (10% on each side)                                                                                        
+``tweak_slits_thresh``   float              ..                                 0.93           If tweak_slits is True, this sets the illumination function threshold used to tweak the slit boundaries based on the illumination flat. It should be a number less than 1.0                                                                                                                                                              
+``twod_fit_npoly``       int                ..                                 ..             Order of polynomial used in the 2D bspline-polynomial fit to flat-field image residuals. The code determines the order of these polynomials to each slit automatically depending on the slit width, which is why the default is None. Alter this paramter at your own risk!                                                              
+=======================  =================  =================================  =============  =========================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -302,7 +315,7 @@ Key                      Type              Options                              
 ``minimum_slit_length``  int, float        ..                                           ..              Minimum slit length in arcsec.  Slit lengths are determined by the median difference between the left and right edge locations for the unmasked trace locations.  Short slits are masked or clipped.  If None, no minimum slit length applied.                                                                                                                                                                                                                                      
 ``niter_gaussian``       int               ..                                           6               The number of iterations of :func:`pypeit.core.trace.fit_trace` to use when using Gaussian weighting.                                                                                                                                                                                                                                                                                                                                                                               
 ``niter_uniform``        int               ..                                           9               The number of iterations of :func:`pypeit.core.trace.fit_trace` to use when using uniform weighting.                                                                                                                                                                                                                                                                                                                                                                                
-``pad``                  int               ..                                           0               Integer number of pixels to consider beyond the slit edges.                                                                                                                                                                                                                                                                                                                                                                                                                         
+``pad``                  int               ..                                           0               Integer number of pixels to consider beyond the slit edges when selecting pixels that are 'on' the slit.                                                                                                                                                                                                                                                                                                                                                                            
 ``pca_function``         str               ``polynomial``, ``legendre``, ``chebyshev``  ``polynomial``  Type of function fit to the PCA coefficients for each component.  Options are: polynomial, legendre, chebyshev                                                                                                                                                                                                                                                                                                                                                                      
 ``pca_maxiter``          int               ..                                           25              Maximum number of rejection iterations when fitting the PCA coefficients.                                                                                                                                                                                                                                                                                                                                                                                                           
 ``pca_maxrej``           int               ..                                           1               Maximum number of PCA coefficients rejected during a given fit iteration.                                                                                                                                                                                                                                                                                                                                                                                                           
@@ -347,7 +360,7 @@ Key                  Type                       Options  Default         Descrip
 ``sigrej_trace``     int, float                 ..       3.0             Outlier rejection significance to determine which traced arc lines should be included in the global fit                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
 ``spat_order``       int, float, list, ndarray  ..       3               Order of the legendre polynomial to be fit to the the tilt of an arc line. This parameter determinesboth the orer of the *individual* arc line tilts, as well as the order of the spatial direction of the2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across theslit/order. This can be a single number or a list/array providing the value for each slit                                                                                                                                                           
 ``spec_order``       int, float, list, ndarray  ..       4               Order of the spectral direction of the 2d legendre polynomial (spatial, spectral) that is fit to obtain a global solution for the tilts across the slit/order. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                             
-``tracethresh``      int, float, list, ndarray  ..       20.0            Significance threshold for arcs to be used in tracing wavelength tilts. This can be a single number or a list/array providing the value for each slit                                                                                                                                                                                                                                                                                                                                                                                                                    
+``tracethresh``      int, float, list, ndarray  ..       20.0            Significance threshold for arcs to be used in tracing wavelength tilts. This can be a single number or a list/array providing the value for each slit/order.                                                                                                                                                                                                                                                                                                                                                                                                             
 ===================  =========================  =======  ==============  =========================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
@@ -382,7 +395,6 @@ Key                   Type                       Options                        
 ``n_first``           int                        ..                                                                                                      2                 Order of first guess fit to the wavelength solution.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
 ``nfitpix``           int                        ..                                                                                                      5                 Number of pixels to fit when deriving the centroid of the arc lines (an odd number is best)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
 ``nlocal_cc``         int                        ..                                                                                                      11                Size of pixel window used for local cross-correlation computation for each arc line. If not an odd number one will be added to it to make it odd.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
-``nonlinear_counts``  float                      ..                                                                                                      10000000000.0     Arc lines above this saturation threshold are not used in wavelength solution fits because they cannotbe accurately centroided                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
 ``nreid_min``         int                        ..                                                                                                      1                 Minimum number of times that a given candidate reidentified line must be properly matched with a line in the arxiv to be considered a good reidentification. If there is a lot of duplication in the arxiv of the spectra in question (i.e. multislit) set this to a number like 1-4. For echelle this depends on the number of solutions in the arxiv. For fixed format echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will depend on the number of solutions in the arxiv.                                                                                                          
 ``nsnippet``          int                        ..                                                                                                      2                 Number of spectra to chop the arc spectrum into when using the full_template method                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 ``numsearch``         int                        ..                                                                                                      20                Number of brightest arc lines to search for in preliminary identification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -455,13 +467,13 @@ FlexurePar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FlexurePar`
 
-============  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-Key           Type        Options                            Default                                                                         Description                                                                                                                                                                                                           
-============  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
-``maxshift``  int, float  ..                                 20                                                                              Maximum allowed flexure shift in pixels.                                                                                                                                                                              
-``method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                        Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
-``spectrum``  str         ..                                 ``/Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
-============  ==========  =================================  ==============================================================================  ======================================================================================================================================================================================================================
+=================  ==========  =================================  ======================================================================  ======================================================================================================================================================================================================================
+Key                Type        Options                            Default                                                                 Description                                                                                                                                                                                                           
+=================  ==========  =================================  ======================================================================  ======================================================================================================================================================================================================================
+``spec_maxshift``  int, float  ..                                 20                                                                      Maximum allowed spectral flexure shift in pixels.                                                                                                                                                                     
+``spec_method``    str         ``boxcar``, ``slitcen``, ``skip``  ``skip``                                                                Method used to correct for flexure. Use skip for no correction.  If slitcen is used, the flexure correction is performed before the extraction of objects (not recommended).  Options are: None, boxcar, slitcen, skip
+``spectrum``       str         ..                                 ``/home/xavier/Projects/PypeIt/pypeit/data/sky_spec/paranal_sky.fits``  Archive sky spectrum to be used for the flexure correction.                                                                                                                                                           
+=================  ==========  =================================  ======================================================================  ======================================================================================================================================================================================================================
 
 
 ----
@@ -485,18 +497,19 @@ ReduxPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ReduxPar`
 
-======================  ==========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                Default                                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
-======================  ==========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     0                                             The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
-``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ..                                            Restrict reduction to a list of detector indices                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
-``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     False                                         Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
-``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ``QA``                                        Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ``/Users/westfall/Work/packages/pypeit/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
-``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ``Science``                                   Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               
-``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     ..                                            A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_lris_red_longonly``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``wht_isis_red``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``  ..                                            Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_lris_red_longonly, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec
-======================  ==========  =====================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ============================================  ==============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+======================  ==========  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ====================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                     Type        Options                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        Default                               Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       
+======================  ==========  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ====================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``calwin``              int, float  ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             0                                     The window of time in hours to search for calibration frames for a science frame                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``detnum``              int, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ..                                    Restrict reduction to a list of detector indices.This cannot (and should not) be used with slitspatnum.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+``ignore_bad_headers``  bool        ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             False                                 Ignore bad headers (NOT recommended unless you know it is safe).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+``qadir``               str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ``QA``                                Directory relative to calling directory to write quality assessment files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+``redux_path``          str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ``/home/xavier/Projects/PypeIt/doc``  Path to folder for performing reductions.  Default is the current working directory.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``scidir``              str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ``Science``                           Directory relative to calling directory to write science files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   
+``slitspatnum``         str, list   ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ..                                    Restrict reduction to a set of slit DET:SPAT values (closest slit is used). Example syntax -- slitspatnum = 1:175,1:205   If you are re-running the code, (i.e. modifying one slit) you *must* have the precise SPAT_ID index.This cannot (and should not) be used with detnum                                                                                                                                                                                                                                                                                                                                                    
+``sortroot``            str         ..                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ..                                    A filename given to output the details of the sorted files.  If None, the default is the root name of the pypeit file.  If off, no output is produced.                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
+``spectrograph``        str         ``keck_deimos``, ``keck_lris_blue``, ``keck_lris_red``, ``keck_nires``, ``keck_nirspec_low``, ``keck_mosfire``, ``keck_hires_red``, ``keck_kcwi``, ``shane_kast_blue``, ``shane_kast_red``, ``shane_kast_red_ret``, ``tng_dolores``, ``wht_isis_blue``, ``wht_isis_red``, ``vlt_xshooter_uvb``, ``vlt_xshooter_vis``, ``vlt_xshooter_nir``, ``vlt_fors2``, ``gemini_gnirs``, ``gemini_flamingos1``, ``gemini_flamingos2``, ``gemini_gmos_south_ham``, ``gemini_gmos_north_e2v``, ``gemini_gmos_north_ham``, ``magellan_fire``, ``magellan_fire_long``, ``magellan_mage``, ``lbt_mods1r``, ``lbt_mods1b``, ``lbt_mods2r``, ``lbt_mods2b``, ``lbt_luci1``, ``lbt_luci2``, ``mmt_binospec``, ``mdm_osmos_mdm4k``  ..                                    Spectrograph that provided the data to be reduced.  Options are: keck_deimos, keck_lris_blue, keck_lris_red, keck_nires, keck_nirspec_low, keck_mosfire, keck_hires_red, keck_kcwi, shane_kast_blue, shane_kast_red, shane_kast_red_ret, tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs, gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham, gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire, magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec, mdm_osmos_mdm4k
+======================  ==========  =============================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================  ====================================  ==================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -522,16 +535,17 @@ ExtractionPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ExtractionPar`
 
-===================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
-Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                  
-===================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
-``boxcar_radius``    int, float  ..       1.5      Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                       
-``manual``           list        ..       ..       List of manual extraction parameter sets                                                                                                                                                                                                                                                     
-``model_full_slit``  bool        ..       False    If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits
-``skip_optimal``     bool        ..       False    Perform boxcar extraction only (i.e. skip Optimal and local skysub)                                                                                                                                                                                                                          
-``sn_gauss``         int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                             
-``std_prof_nsigma``  float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                           
-===================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
+====================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
+Key                   Type        Options  Default  Description                                                                                                                                                                                                                                                                                  
+====================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
+``boxcar_radius``     int, float  ..       1.5      Boxcar radius in arcseconds used for boxcar extraction                                                                                                                                                                                                                                       
+``manual``            list        ..       ..       List of manual extraction parameter sets                                                                                                                                                                                                                                                     
+``model_full_slit``   bool        ..       False    If True local sky subtraction will be performed on the entire slit. If False, local sky subtraction will be applied to only a restricted region around each object. This should be set to True for either multislit observations using narrow slits or echelle observations with narrow slits
+``skip_optimal``      bool        ..       False    Perform boxcar extraction only (i.e. skip Optimal and local skysub)                                                                                                                                                                                                                          
+``sn_gauss``          int, float  ..       4.0      S/N threshold for performing the more sophisticated optimal extraction which performs a b-spline fit to the object profile. For S/N < sn_gauss the code will simply optimal extractwith a Gaussian with FWHM determined from the object finding.                                             
+``std_prof_nsigma``   float       ..       30.0     prof_nsigma parameter for Standard star extraction.  Prevents undesired rejection.                                                                                                                                                                                                           
+``use_2dmodel_mask``  bool        ..       True     Mask pixels rejected during profile fitting when extracting.Turning this off may help with bright emission lines.                                                                                                                                                                            
+====================  ==========  =======  =======  =============================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -584,15 +598,15 @@ FrameGroupPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.FrameGroupPar`
 
-=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-Key            Type                                            Options                                                                                                  Default                       Description                                                                                                                                                                                                                                                    
-=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
-``exprng``     list                                            ..                                                                                                       None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].
-``frametype``  str                                             ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``science``, ``standard``, ``trace``, ``tilt``  ``science``                   Frame type.  Options are: arc, bias, dark, pinhole, pixelflat, science, standard, trace, tilt                                                                                                                                                                  
-``number``     int                                             ..                                                                                                       0                             Used in matching calibration frames to science frames.  This sets the number of frames to use of this type                                                                                                                                                     
-``process``    :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                       `ProcessImagesPar Keywords`_  Parameters used for basic image processing                                                                                                                                                                                                                     
-``useframe``   str                                             ..                                                                                                       ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                
-=============  ==============================================  =======================================================================================================  ============================  ===============================================================================================================================================================================================================================================================
+====================  ==============================================  ==================================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                   Type                                            Options                                                                                                             Default                       Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+====================  ==============================================  ==================================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
+``exprng``            list                                            ..                                                                                                                  None, None                    Used in identifying frames of this type.  This sets the minimum and maximum allowed exposure times.  There must be two items in the list.  Use None to indicate no limit; i.e., to select exposures with any time greater than 30 sec, use exprng = [30, None].                                                                                                                                                                                                                    
+``frametype``         str                                             ``align``, ``arc``, ``bias``, ``dark``, ``pinhole``, ``pixelflat``, ``science``, ``standard``, ``trace``, ``tilt``  ``science``                   Frame type.  Options are: align, arc, bias, dark, pinhole, pixelflat, science, standard, trace, tilt                                                                                                                                                                                                                                                                                                                                                                               
+``process``           :class:`pypeit.par.pypeitpar.ProcessImagesPar`  ..                                                                                                                  `ProcessImagesPar Keywords`_  Low level parameters used for basic image processing                                                                                                                                                                                                                                                                                                                                                                                                                               
+``processing_steps``  list                                            ``orient``, ``trim``, ``apply_gain``, ``flatten``, ``crmask``                                                       []                            Steps to be applied during processing.  Modify these at your own risk!! Bias and overscan subtraction depend on whether bias frames were included and also the settings in ["process"]. orient: Orient the image in the PypeIt frame (required!)trim: Trim the image (Code will probably break if not set)apply_gain: Convert ADU to electronsflatten:  Apply the flat field image(s), if providedcrmask: Generate a cosmic ray mask (recommended only for standard/science frames)
+``useframe``          str                                             ..                                                                                                                  ``science``                   A master calibrations file to use if it exists.                                                                                                                                                                                                                                                                                                                                                                                                                                    
+====================  ==============================================  ==================================================================================================================  ============================  ===================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -602,27 +616,27 @@ ProcessImagesPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.ProcessImagesPar`
 
-================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
-Key               Type        Options                                                                Default           Description                                                                                                                                                                                                                                                              
-================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
-``bias``          str         ``as_available``, ``force``, ``skip``                                  ``as_available``  Parameter for bias subtraction. Options are: (1) 'as_available' -- Bias subtract if bias frames were provided;  (2) 'force' -- Require bias subtraction; exception raised if no biases available;  (3) 'skip' -- Skip bias subtraction even if bias frames were provided.
-``combine``       str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                                                    
-``cr_reject``     bool        ..                                                                     False             Perform cosmic ray rejection                                                                                                                                                                                                                                             
-``grow``          int, float  ..                                                                     1.5               Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                                                   
-``lamaxiter``     int         ..                                                                     1                 Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                                                     
-``match``         int, float  ..                                                                     -1                (Deprecate?) Match frames with pixel counts that are within N-sigma of one another, where match=N below.  If N < 0, nothing is matched.                                                                                                                                  
-``n_lohi``        list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                                         
-``objlim``        int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                                                             
-``overscan``      str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan. Options are: polynomial, savgol, median, none                                                                                                                                                                                           
-``overscan_par``  int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                              
-``replace``       str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                                                  
-``rmcompact``     bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                                                          
-``satpix``        str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                                       
-``sig_lohi``      list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                                                   
-``sigclip``       int, float  ..                                                                     4.5               Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                          
-``sigfrac``       int, float  ..                                                                     0.3               Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                                                         
-``sigrej``        int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                                                           
-================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
+========================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
+Key                       Type        Options                                                                Default           Description                                                                                                                                                                                                                                                              
+========================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
+``bias``                  str         ``as_available``, ``force``, ``skip``                                  ``as_available``  Parameter for bias subtraction. Options are: (1) 'as_available' -- Bias subtract if bias frames were provided;  (2) 'force' -- Require bias subtraction; exception raised if no biases available;  (3) 'skip' -- Skip bias subtraction even if bias frames were provided.
+``combine``               str         ``mean``, ``median``, ``weightmean``                                   ``weightmean``    Method used to combine frames.  Options are: mean, median, weightmean                                                                                                                                                                                                    
+``grow``                  int, float  ..                                                                     1.5               Factor by which to expand regions with cosmic rays detected by the LA cosmics routine.                                                                                                                                                                                   
+``illumflatten``          bool        ..                                                                     False             Use the flat field to determine the illumination profile of each slit.                                                                                                                                                                                                   
+``lamaxiter``             int         ..                                                                     1                 Maximum number of iterations for LA cosmics routine.                                                                                                                                                                                                                     
+``n_lohi``                list        ..                                                                     0, 0              Number of pixels to reject at the lowest and highest ends of the distribution; i.e., n_lohi = low, high.  Use None for no limit.                                                                                                                                         
+``objlim``                int, float  ..                                                                     3.0               Object detection limit in LA cosmics routine                                                                                                                                                                                                                             
+``overscan``              str         ``polynomial``, ``savgol``, ``median``, ``none``                       ``savgol``        Method used to fit the overscan. Options are: polynomial, savgol, median, none                                                                                                                                                                                           
+``overscan_par``          int, list   ..                                                                     5, 65             Parameters for the overscan subtraction.  For 'polynomial', set overcan_par = order, number of pixels, number of repeats ; for 'savgol', set overscan_par = order, window size ; for 'median', set overscan_par = None or omit the keyword.                              
+``replace``               str         ``min``, ``max``, ``mean``, ``median``, ``weightmean``, ``maxnonsat``  ``maxnonsat``     If all pixels are rejected, replace them using this method.  Options are: min, max, mean, median, weightmean, maxnonsat                                                                                                                                                  
+``rmcompact``             bool        ..                                                                     True              Remove compact detections in LA cosmics routine                                                                                                                                                                                                                          
+``satpix``                str         ``reject``, ``force``, ``nothing``                                     ``reject``        Handling of saturated pixels.  Options are: reject, force, nothing                                                                                                                                                                                                       
+``sig_lohi``              list        ..                                                                     3.0, 3.0          Sigma-clipping level at the low and high ends of the distribution; i.e., sig_lohi = low, high.  Use None for no limit.                                                                                                                                                   
+``sigclip``               int, float  ..                                                                     4.5               Sigma level for rejection in LA cosmics routine                                                                                                                                                                                                                          
+``sigfrac``               int, float  ..                                                                     0.3               Fraction for the lower clipping threshold in LA cosmics routine.                                                                                                                                                                                                         
+``sigrej``                int, float  ..                                                                     20.0              Sigma level to reject cosmic rays (<= 0.0 means no CR removal)                                                                                                                                                                                                           
+``spat_flexure_correct``  bool        ..                                                                     False             Correct slits, illumination flat, etc. for flexure                                                                                                                                                                                                                       
+========================  ==========  =====================================================================  ================  =========================================================================================================================================================================================================================================================================
 
 
 ----
@@ -661,7 +675,7 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.TelluricPar`
 =====================  ==========  =======  =========  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
 Key                    Type        Options  Default    Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 =====================  ==========  =======  =========  =================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================================
-``disp``               bool        ..       True       Argument for scipy.optimize.differential_evolution which will  display status messages to the screen indicating the status of the optimization. See documentation for telluric.Telluric for a description of the output and how to know if things are working well.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+``disp``               bool        ..       False      Argument for scipy.optimize.differential_evolution which will  display status messages to the screen indicating the status of the optimization. See documentation for telluric.Telluric for a description of the output and how to know if things are working well.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 ``lower``              int, float  ..       3.0        Lower rejection threshold in units of sigma_corr*sigma, where sigma is the formal noise of the spectrum, and sigma_corr is an empirically determined correction to the formal error. The distribution of input chi (defined by chi = (data - model)/sigma) values is analyzed, and a correction factor to the formal error sigma_corr is returned which is multiplied into the formal errors. In this way, a rejection threshold of i.e. 3-sigma, will always correspond to roughly the same percentile.  This renormalization is performed with coadd1d.renormalize_errors function, and guarantees that rejection is not too agressive in cases where the empirical errors determined from the chi-distribution differ significantly from the formal noise which is used to determine chi.                                                                                                                     
 ``maxiter``            int         ..       3          Maximum number of iterations for the telluric + object model fitting. The code performs multiple iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels. For this reason if you run with the disp=True option, you will see that the f(x) loss function gets progressively better during the iterations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
 ``pix_shift_bounds``   tuple       ..       -5.0, 5.0   Bounds for the pixel shift optimization in telluric model fit in units of pixels. The atmosphere will be allowed to shift within this range during the fit.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
@@ -721,35 +735,40 @@ Alterations to the default parameters are::
       spectrograph = keck_deimos
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 2
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               combine = median
               satpix = nothing
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
-          nonlinear_counts = 62258.25
           match_toler = 2.5
           n_first = 3
       [[slitedges]]
@@ -760,11 +779,13 @@ Alterations to the default parameters are::
           sync_clip = False
   [scienceframe]
       exprng = 30, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           sigclip = 4.0
           objlim = 1.5
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
 
 KECK LRISb (``keck_lris_blue``)
 -------------------------------
@@ -774,34 +795,40 @@ Alterations to the default parameters are::
       spectrograph = keck_lris_blue
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              spat_flexure_correct = True
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
-          nonlinear_counts = 56360.1
           sigdetect = 10.0
           rms_threshold = 0.2
           match_toler = 2.5
@@ -815,8 +842,12 @@ Alterations to the default parameters are::
           minimum_slit_length = 6
   [scienceframe]
       exprng = 29, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          spat_flexure_correct = True
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
 
 KECK LRISr (``keck_lris_red``)
 ------------------------------
@@ -826,33 +857,39 @@ Alterations to the default parameters are::
       spectrograph = keck_lris_red
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              spat_flexure_correct = True
+              illumflatten = True
       [[wavelengths]]
           lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
-          nonlinear_counts = 49806.6
           sigdetect = 10.0
           rms_threshold = 0.2
       [[slitedges]]
@@ -868,73 +905,17 @@ Alterations to the default parameters are::
           sigrej2d = 5.0
   [scienceframe]
       exprng = 29, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           sigclip = 5.0
           objlim = 5.0
+          spat_flexure_correct = True
+          illumflatten = True
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
   [flexure]
-      method = boxcar
-
-KECK LRISr (``keck_lris_red_longonly``)
----------------------------------------
-Alterations to the default parameters are::
-
-  [rdx]
-      spectrograph = keck_lris_red
-  [calibrations]
-      [[biasframe]]
-          number = 5
-          exprng = None, 1
-      [[darkframe]]
-          exprng = 999999, None
-      [[arcframe]]
-          number = 1
-          [[[process]]]
-              sigrej = -1
-      [[tiltframe]]
-          number = 1
-          [[[process]]]
-              sigrej = -1
-      [[pixelflatframe]]
-          number = 5
-          exprng = None, 30
-          [[[process]]]
-              satpix = nothing
-      [[pinholeframe]]
-          exprng = 999999, None
-      [[traceframe]]
-          number = 3
-          exprng = None, 30
-      [[standardframe]]
-          number = 1
-      [[wavelengths]]
-          lamps = NeI, ArI, CdI, KrI, XeI, ZnI, HgI
-          nonlinear_counts = 56360.1
-          sigdetect = 10.0
-          rms_threshold = 0.2
-      [[slitedges]]
-          fit_order = 3
-          sync_center = gap
-          minimum_slit_length = 6
-      [[tilts]]
-          tracethresh = 25
-          maxdev_tracefit = 1.0
-          spat_order = 4
-          spec_order = 7
-          maxdev2d = 1.0
-          sigrej2d = 5.0
-  [scienceframe]
-      exprng = 29, None
-      [[process]]
-          sigclip = 5.0
-          objlim = 5.0
-  [reduce]
-      [[skysub]]
-          bspline_spacing = 0.8
-  [flexure]
-      method = boxcar
+      spec_method = boxcar
 
 KECK NIRES (``keck_nires``)
 ---------------------------
@@ -945,37 +926,39 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
-          number = 5
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 60, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = 100, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
           exprng = 100, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = None, 60
-      [[flatfield]]
-          illumflatten = False
+          processing_steps = trim, orient, apply_gain, flatten, crmask
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_norder_coeff = 6
           ech_sigrej = 3.0
           lamps = OH_NIRES
-          nonlinear_counts = 760000.0
           fwhm = 5.0
           reid_arxiv = keck_nires.fits
           rms_threshold = 0.2
@@ -988,6 +971,7 @@ Alterations to the default parameters are::
           tracethresh = 10.0
   [scienceframe]
       exprng = 60, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           satpix = nothing
           sigclip = 20.0
@@ -1000,7 +984,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK NIRSPEC (``keck_nirspec_low``)
 -----------------------------------
@@ -1010,51 +994,57 @@ Alterations to the default parameters are::
       spectrograph = keck_nirspec_low
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 20, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               satpix = nothing
               bias = force
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               bias = force
       [[standardframe]]
-          number = 1
           exprng = None, 20
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
               bias = skip
+              illumflatten = True
       [[flatfield]]
           tweak_slits_thresh = 0.8
       [[wavelengths]]
           lamps = OH_NIRES
-          nonlinear_counts = 100000.0
           fwhm = 5.0
           rms_threshold = 0.2
       [[slitedges]]
@@ -1062,11 +1052,13 @@ Alterations to the default parameters are::
           sync_predict = nearest
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           overscan = none
           satpix = nothing
           sigclip = 20.0
           bias = skip
+          illumflatten = True
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -1074,7 +1066,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK MOSFIRE (``keck_mosfire``)
 -------------------------------
@@ -1085,46 +1077,49 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
-          number = 5
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 20, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 20
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
-      [[flatfield]]
-          illumflatten = False
       [[wavelengths]]
           lamps = OH_NIRES
-          nonlinear_counts = 1000000000.0
           fwhm = 5.0
           rms_threshold = 0.2
       [[slitedges]]
@@ -1132,6 +1127,7 @@ Alterations to the default parameters are::
           sync_predict = nearest
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           overscan = none
           satpix = nothing
@@ -1143,7 +1139,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 KECK HIRES_R (``keck_hires_red``)
 ---------------------------------
@@ -1153,29 +1149,36 @@ Alterations to the default parameters are::
       spectrograph = keck_hires_red
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = None, 600
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           echelle = True
           ech_sigrej = 3.0
           lamps = ThAr
-          nonlinear_counts = 56360.1
           rms_threshold = 0.25
       [[slitedges]]
           edge_thresh = 600.0
@@ -1183,9 +1186,66 @@ Alterations to the default parameters are::
           left_right_pca = True
   [scienceframe]
       exprng = 600, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           satpix = nothing
           sigclip = 20.0
+          illumflatten = True
+
+KECK KCWI (``keck_kcwi``)
+-------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = keck_kcwi
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 0.01
+          processing_steps = trim, orient
+      [[darkframe]]
+          exprng = 0.01, None
+          processing_steps = trim, orient
+      [[arcframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          exprng = None, 30
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              sig_lohi = 10.0, 10.0
+      [[pinholeframe]]
+          exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignment]]
+          locations = 0.1, 0.3, 0.5, 0.7, 0.9
+      [[traceframe]]
+          exprng = None, 30
+          processing_steps = trim, orient, apply_gain
+      [[standardframe]]
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
+      [[slitedges]]
+          fit_order = 4
+  [scienceframe]
+      exprng = 30, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          sigclip = 4.0
+          objlim = 1.5
+          illumflatten = True
+  [reduce]
+      [[extraction]]
+          skip_optimal = True
 
 SHANE KASTb (``shane_kast_blue``)
 ---------------------------------
@@ -1195,36 +1255,41 @@ Alterations to the default parameters are::
       spectrograph = shane_kast_blue
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = None, 61
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 61
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = CdI, HgI, HeI
-          nonlinear_counts = 49806.6
           rms_threshold = 0.2
           match_toler = 2.5
           n_first = 3
@@ -1236,9 +1301,12 @@ Alterations to the default parameters are::
           maxdev2d = 0.02
   [scienceframe]
       exprng = 61, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [flexure]
-      method = boxcar
-      spectrum = /Users/westfall/Work/packages/pypeit/pypeit/data/sky_spec/sky_kastb_600.fits
+      spec_method = boxcar
+      spectrum = /home/xavier/Projects/PypeIt/pypeit/data/sky_spec/sky_kastb_600.fits
 
 SHANE KASTr (``shane_kast_red``)
 --------------------------------
@@ -1248,41 +1316,49 @@ Alterations to the default parameters are::
       spectrograph = shane_kast_red
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = None, 61
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 61
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
-          nonlinear_counts = 49806.6
       [[slitedges]]
           sync_predict = nearest
   [scienceframe]
       exprng = 61, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
 
 SHANE KASTr (``shane_kast_red_ret``)
 ------------------------------------
@@ -1292,41 +1368,49 @@ Alterations to the default parameters are::
       spectrograph = shane_kast_red_ret
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = None, 61
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 3
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 61
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = NeI, HgI, HeI, ArI
-          nonlinear_counts = 91200.0
       [[slitedges]]
           sync_predict = nearest
   [scienceframe]
       exprng = 61, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
 
 TNG DOLORES (``tng_dolores``)
 -----------------------------
@@ -1334,30 +1418,39 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
           exprng = None, 0.1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
   [scienceframe]
       exprng = 1, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
 
 WHT ISISb (``wht_isis_blue``)
 -----------------------------
@@ -1368,27 +1461,28 @@ Alterations to the default parameters are::
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          number = 5
           exprng = None, 1
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = None, 120
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               combine = median
@@ -1396,21 +1490,26 @@ Alterations to the default parameters are::
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 120
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = NeI, ArI, ArII, CuI
-          nonlinear_counts = 49806.6
           sigdetect = 10.0
           n_first = 3
           n_final = 5
@@ -1420,8 +1519,10 @@ Alterations to the default parameters are::
           sync_predict = nearest
   [scienceframe]
       exprng = 90, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           overscan = none
+          illumflatten = True
 
 WHT ISISr (``wht_isis_red``)
 ----------------------------
@@ -1432,27 +1533,28 @@ Alterations to the default parameters are::
   [calibrations]
       bpm_usebias = True
       [[biasframe]]
-          number = 5
           exprng = None, 1
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = None, 120
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               combine = median
@@ -1460,21 +1562,26 @@ Alterations to the default parameters are::
               sig_lohi = 10.0, 10.0
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 120
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = NeI, ArI, ArII, CuI
-          nonlinear_counts = 49806.6
           sigdetect = 10.0
           wv_cen = 6000.0
           disp = 0.2
@@ -1482,8 +1589,10 @@ Alterations to the default parameters are::
           sync_predict = nearest
   [scienceframe]
       exprng = 90, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           overscan = none
+          illumflatten = True
 
 VLT XShooter_UVB (``vlt_xshooter_uvb``)
 ---------------------------------------
@@ -1493,35 +1602,42 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_uvb
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_norder_coeff = 5
           ech_sigrej = 3.0
           lamps = ThAr_XSHOOTER_UVB
-          nonlinear_counts = 55900.0
           reid_arxiv = vlt_xshooter_uvb1x1_iraf.json
           rms_threshold = 0.5
       [[slitedges]]
@@ -1532,6 +1648,9 @@ Alterations to the default parameters are::
           length_range = 0.3
   [scienceframe]
       useframe = overscan
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
 
 VLT XShooter_VIS (``vlt_xshooter_vis``)
 ---------------------------------------
@@ -1541,28 +1660,36 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_vis
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[flatfield]]
           tweak_slits_thresh = 0.9
       [[wavelengths]]
@@ -1570,7 +1697,6 @@ Alterations to the default parameters are::
           echelle = True
           ech_sigrej = 3.0
           lamps = ThAr_XSHOOTER_VIS
-          nonlinear_counts = 56360.1
           fwhm = 11.0
           reid_arxiv = vlt_xshooter_vis1x1.fits
           cc_thresh = 0.5
@@ -1589,6 +1715,9 @@ Alterations to the default parameters are::
           spec_order = 5
   [scienceframe]
       useframe = overscan
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [reduce]
       [[findobj]]
           find_trim_edge = 3, 3
@@ -1603,7 +1732,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
 VLT XShooter_NIR (``vlt_xshooter_nir``)
 ---------------------------------------
@@ -1613,32 +1742,37 @@ Alterations to the default parameters are::
       spectrograph = vlt_xshooter_nir
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
               bias = skip
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
               bias = force
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               bias = force
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               bias = skip
       [[flatfield]]
-          illumflatten = False
           tweak_slits_thresh = 0.9
       [[wavelengths]]
           method = reidentify
@@ -1647,7 +1781,6 @@ Alterations to the default parameters are::
           ech_norder_coeff = 5
           ech_sigrej = 3.0
           lamps = OH_XSHOOTER
-          nonlinear_counts = 172000.0
           sigdetect = 10.0
           fwhm = 5.0
           reid_arxiv = vlt_xshooter_nir.fits
@@ -1668,6 +1801,7 @@ Alterations to the default parameters are::
           maxdev2d = 0.04
           rm_continuum = True
   [scienceframe]
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           satpix = nothing
           sigclip = 20.0
@@ -1686,7 +1820,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_Paranal_NIR_9800_25000_R25000.fits
 
 VLT FORS2 (``vlt_fors2``)
 -------------------------
@@ -1696,40 +1830,46 @@ Alterations to the default parameters are::
       spectrograph = vlt_fors2
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
           [[[process]]]
               overscan = median
       [[darkframe]]
+          processing_steps = trim, orient
           [[[process]]]
               overscan = median
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = median
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = median
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = median
+              illumflatten = True
       [[flatfield]]
-          illumflatten = False
           tweak_slits_thresh = 0.9
       [[wavelengths]]
           lamps = HeI, ArI
@@ -1741,8 +1881,12 @@ Alterations to the default parameters are::
           fit_order = 3
       [[tilts]]
           tracethresh = 25.0
+  [scienceframe]
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
 
 GEMINI-N GNIRS (``gemini_gnirs``)
 ---------------------------------
@@ -1753,45 +1897,52 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 5
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
       [[flatfield]]
-          illumflatten = False
           tweak_slits_thresh = 0.9
   [scienceframe]
       exprng = 30, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
   [reduce]
       [[findobj]]
           sig_thresh = 5.0
@@ -1808,7 +1959,7 @@ Alterations to the default parameters are::
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 GEMINI-S FLAMINGOS (``gemini_flamingos1``)
 ------------------------------------------
@@ -1818,45 +1969,51 @@ Alterations to the default parameters are::
       spectrograph = gemini_flamingos1
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 1, 50
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 60
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = ArI, ArII, ThAr, NeI
-          nonlinear_counts = 280000.0
           sigdetect = 3
           fwhm = 20
           reid_arxiv = magellan_fire_long.fits
@@ -1869,6 +2026,9 @@ Alterations to the default parameters are::
           tracethresh = 5
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [reduce]
       [[findobj]]
           sig_thresh = 5
@@ -1883,45 +2043,51 @@ Alterations to the default parameters are::
   [calibrations]
       [[biasframe]]
           useframe = none
-          number = 5
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 50, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
           exprng = 50, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 30
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
+              illumflatten = True
       [[wavelengths]]
           lamps = OH_NIRES
-          nonlinear_counts = 700000.0
           fwhm = 5
           rms_threshold = 0.5
           match_toler = 5.0
@@ -1935,8 +2101,10 @@ Alterations to the default parameters are::
           spat_order = 4
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           overscan = none
+          illumflatten = True
   [reduce]
       [[findobj]]
           find_trim_edge = 10, 10
@@ -1949,25 +2117,33 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               combine = median
               satpix = nothing
               sig_lohi = 10.0, 10.0
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = CuI, ArI, ArII
@@ -1977,12 +2153,16 @@ Alterations to the default parameters are::
           fit_order = 3
       [[tilts]]
           tracethresh = 10.0
+  [scienceframe]
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
   [sensfunc]
       multi_spec_det = 1, 2, 3
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-N GMOS-N (``gemini_gmos_north_e2v``)
 -------------------------------------------
@@ -1990,25 +2170,33 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               combine = median
               satpix = nothing
               sig_lohi = 10.0, 10.0
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = CuI, ArI, ArII
@@ -2018,8 +2206,12 @@ Alterations to the default parameters are::
           fit_order = 3
       [[tilts]]
           tracethresh = 10.0
+  [scienceframe]
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
   [sensfunc]
       multi_spec_det = 1, 2, 3
 
@@ -2029,25 +2221,33 @@ Alterations to the default parameters are::
 
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               combine = median
               satpix = nothing
               sig_lohi = 10.0, 10.0
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = CuI, ArI, ArII
@@ -2057,8 +2257,12 @@ Alterations to the default parameters are::
           fit_order = 3
       [[tilts]]
           tracethresh = 10.0
+  [scienceframe]
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [flexure]
-      method = boxcar
+      spec_method = boxcar
   [sensfunc]
       multi_spec_det = 1, 2, 3
 
@@ -2070,48 +2274,54 @@ Alterations to the default parameters are::
       spectrograph = magellan_fire
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 20, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 60
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
+              illumflatten = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_norder_coeff = 6
           ech_sigrej = 3.0
           lamps = OH_FIRE_Echelle
-          nonlinear_counts = 100000.0
           sigdetect = 5, 10, 10, 10, 10, 20, 30, 30, 30, 30, 30, 10, 30, 30, 60, 30, 30, 10, 20, 30, 10
           reid_arxiv = magellan_fire_echelle.fits
           cc_thresh = 0.35
@@ -2129,14 +2339,16 @@ Alterations to the default parameters are::
           tracethresh = 5
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           satpix = nothing
           sigclip = 20.0
+          illumflatten = True
   [sensfunc]
       algorithm = IR
       polyorder = 8
       [[IR]]
-          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
+          telgridfile = /home/xavier/Projects/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
 MAGELLAN FIRE (``magellan_fire_long``)
 --------------------------------------
@@ -2146,45 +2358,51 @@ Alterations to the default parameters are::
       spectrograph = magellan_fire_long
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
           [[[process]]]
               overscan = none
       [[arcframe]]
-          number = 1
           exprng = 1, 50
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
               satpix = nothing
       [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              overscan = none
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               overscan = none
       [[standardframe]]
-          number = 1
           exprng = None, 60
+          processing_steps = trim, orient, apply_gain, flatten, crmask
           [[[process]]]
               overscan = none
+              illumflatten = True
       [[wavelengths]]
           method = full_template
           lamps = ArI, ArII, ThAr, NeI
-          nonlinear_counts = 280000.0
           sigdetect = 3
           fwhm = 20
           reid_arxiv = magellan_fire_long.fits
@@ -2197,6 +2415,9 @@ Alterations to the default parameters are::
           tracethresh = 5
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
   [reduce]
       [[findobj]]
           sig_thresh = 5
@@ -2210,33 +2431,39 @@ Alterations to the default parameters are::
       spectrograph = magellan_mage
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
           exprng = 20, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = None, 20
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           method = reidentify
           echelle = True
           ech_sigrej = 3.0
           lamps = ThAr_MagE
-          nonlinear_counts = 64879.65
           reid_arxiv = magellan_mage.fits
           cc_thresh = 0.5
           cc_local_thresh = 0.5
@@ -2250,9 +2477,11 @@ Alterations to the default parameters are::
           tracethresh = 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           satpix = nothing
           sigclip = 20.0
+          illumflatten = True
   [reduce]
       [[findobj]]
           find_trim_edge = 4, 4
@@ -2265,34 +2494,39 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods1r
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
-          nonlinear_counts = 64879.65
           fwhm = 10.0
           rms_threshold = 0.4
           match_toler = 2.5
@@ -2307,6 +2541,9 @@ Alterations to the default parameters are::
           maxdev2d = 0.02
   [scienceframe]
       exprng = 200, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
 
 LBT MODS1B (``lbt_mods1b``)
 ---------------------------
@@ -2316,34 +2553,39 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods1b
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = XeI, ArII, ArI, NeI, KrI
-          nonlinear_counts = 64879.65
           rms_threshold = 0.2
           n_first = 1
       [[slitedges]]
@@ -2355,6 +2597,9 @@ Alterations to the default parameters are::
           maxdev2d = 0.02
   [scienceframe]
       exprng = 200, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
 
 LBT MODS2R (``lbt_mods2r``)
 ---------------------------
@@ -2364,34 +2609,39 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods2r
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = ArI, NeI, KrI, XeI
-          nonlinear_counts = 64879.65
           fwhm = 10.0
           rms_threshold = 1.0
           match_toler = 2.5
@@ -2405,6 +2655,9 @@ Alterations to the default parameters are::
           maxdev2d = 0.02
   [scienceframe]
       exprng = 200, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
 
 LBT MODS2B (``lbt_mods2b``)
 ---------------------------
@@ -2414,34 +2667,39 @@ Alterations to the default parameters are::
       spectrograph = lbt_mods2b
   [calibrations]
       [[biasframe]]
-          number = 1
           exprng = None, 1
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 999999, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
       [[pinholeframe]]
           exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 1
           exprng = 0, None
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
           exprng = 1, 200
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = XeI, ArII, ArI, NeI, KrI
-          nonlinear_counts = 64879.65
           rms_threshold = 0.2
           n_first = 1
       [[slitedges]]
@@ -2453,6 +2711,9 @@ Alterations to the default parameters are::
           maxdev2d = 0.02
   [scienceframe]
       exprng = 200, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
 
 LBT LUCI1 (``lbt_luci1``)
 -------------------------
@@ -2462,36 +2723,45 @@ Alterations to the default parameters are::
       spectrograph = lbt_luci1
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = OH_NIRES
-          nonlinear_counts = 80000000.0
           fwhm = 5.0
           rms_threshold = 0.2
       [[slitedges]]
           edge_thresh = 300.0
           sync_predict = nearest
   [scienceframe]
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           overscan = none
           satpix = nothing
           sigclip = 20.0
+          illumflatten = True
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -2506,26 +2776,33 @@ Alterations to the default parameters are::
       spectrograph = lbt_luci2
   [calibrations]
       [[biasframe]]
-          number = 5
+          processing_steps = trim, orient
+      [[darkframe]]
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 3
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = OH_NIRES
-          nonlinear_counts = 80000000.0
           fwhm = 5.0
           rms_threshold = 0.2
       [[slitedges]]
@@ -2533,10 +2810,12 @@ Alterations to the default parameters are::
           fit_order = 8
           sync_predict = nearest
   [scienceframe]
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           overscan = none
           satpix = nothing
           sigclip = 20.0
+          illumflatten = True
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
@@ -2552,29 +2831,37 @@ Alterations to the default parameters are::
   [rdx]
       spectrograph = mmt_binospec
   [calibrations]
+      [[biasframe]]
+          processing_steps = trim, orient
       [[darkframe]]
           exprng = 20, None
+          processing_steps = trim, orient
       [[arcframe]]
-          number = 5
           exprng = 20, None
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
-              overscan = median
               sigrej = -1
       [[tiltframe]]
-          number = 1
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               sigrej = -1
       [[pixelflatframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
           [[[process]]]
               satpix = nothing
+      [[pinholeframe]]
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
       [[traceframe]]
-          number = 5
+          processing_steps = trim, orient, apply_gain
       [[standardframe]]
           exprng = None, 100
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
       [[wavelengths]]
           lamps = ArI, ArII
-          nonlinear_counts = 62258.25
           sigdetect = 20.0
           fwhm = 5.0
           rms_threshold = 0.5
@@ -2586,11 +2873,65 @@ Alterations to the default parameters are::
           spec_order = 6
   [scienceframe]
       exprng = 20, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
       [[process]]
           satpix = nothing
           sigclip = 20.0
+          illumflatten = True
   [reduce]
       [[skysub]]
           bspline_spacing = 0.8
           global_sky_std = False
+
+KPNO MDM4K (``mdm_osmos_mdm4k``)
+--------------------------------
+Alterations to the default parameters are::
+
+  [rdx]
+      spectrograph = mdm_osmos_mdm4k
+  [calibrations]
+      [[biasframe]]
+          exprng = None, 1
+          processing_steps = trim, orient
+      [[darkframe]]
+          exprng = 999999, None
+          processing_steps = trim, orient
+      [[arcframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              sigrej = -1
+      [[tiltframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              sigrej = -1
+      [[pixelflatframe]]
+          processing_steps = trim, orient, apply_gain
+          [[[process]]]
+              combine = median
+              satpix = nothing
+              sig_lohi = 10.0, 10.0
+      [[pinholeframe]]
+          exprng = 999999, None
+          processing_steps = trim, orient, apply_gain
+      [[alignframe]]
+          processing_steps = trim, orient, apply_gain
+      [[traceframe]]
+          processing_steps = trim, orient, apply_gain
+      [[standardframe]]
+          exprng = None, 120
+          processing_steps = trim, orient, apply_gain, flatten, crmask
+          [[[process]]]
+              illumflatten = True
+      [[wavelengths]]
+          method = full_template
+          lamps = ArI, XeI
+          sigdetect = 10.0
+          reid_arxiv = mdm_osmos_mdm4k.fits
+      [[slitedges]]
+          sync_predict = nearest
+  [scienceframe]
+      exprng = 90, None
+      processing_steps = trim, orient, apply_gain, flatten, crmask
+      [[process]]
+          illumflatten = True
 

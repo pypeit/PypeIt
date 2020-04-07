@@ -35,7 +35,7 @@ env:
         - MAIN_CMD='python setup.py'
         - SETUP_CMD='test'
         - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future numba scikit-learn configobj IPython'
-        - PIP_DEPENDENCIES=''
+        - PIP_DEPENDENCIES='extension_helpers'
         - EVENT_TYPE='pull_request push'
         - TASK='test'
 

@@ -5,32 +5,131 @@ Coadding module.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
-
+import inspect
 import os
 
 from IPython import embed
 
 import numpy as np
+
 from astropy.io import fits
+
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit import utils
 from pypeit import specobjs
 from pypeit import msgs
-from pypeit.core import coadd
+from pypeit.core import coadd, flux_calib
+from pypeit import datamodel
+from pypeit import io
 
+
+class OneSpec(datamodel.DataContainer):
+    """
+    DataContainer to hold the products from :class:`pypeit.coadd1d.CoAdd1D`
+
+    See the datamodel for argument descriptions
+
+    Args:
+        wave:
+        flux:
+        PYP_SPEC:
+
+    Attributes:
+        head0 (`astropy.io.fits.Header`):  Primary header
+        spect_meta (:obj:`dict`): Parsed meta from the header
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            Build from PYP_SPEC
+
+    """
+    version = '1.0.0'
+
+    datamodel = {
+        'wave': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength array'),
+        'flux': dict(otype=np.ndarray, atype=np.floating, desc='Flux/counts array'),
+        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
+        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array (0=Good???)'),
+        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt: Spectrograph name'),
+        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
+        'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
+        'fluxed': dict(otype=bool, desc='Fluxed?'),
+    }
+    @classmethod
+    def from_file(cls, ifile):
+        """
+        Over-load :func:`pypeit.datamodel.DataContainer.from_file`
+        to deal with the header
+
+        Args:
+            ifile (str):  Filename holding the object
+
+        Returns:
+            :class:`OneSpec`:
+
+        """
+        hdul = fits.open(ifile)
+        slf = super(OneSpec, cls).from_hdu(hdul)
+
+        # Internals
+        slf.filename = ifile
+        slf.head0 = hdul[0].header
+        # Meta
+        slf.spectrograph = load_spectrograph(slf.PYP_SPEC)
+        slf.spect_meta = slf.spectrograph.parse_spec_header(slf.head0)
+        #
+        return slf
+
+
+    def __init__(self, wave, flux, PYP_SPEC, ivar=None, mask=None, telluric=None,
+                 obj_model=None, ext_mode=None, fluxed=None):
+
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=_d)
+
+    def _init_internals(self):
+        self.head0 = None
+        self.spec_meta = None
+        self.spectrograph = None
+
+    def to_file(self, ofile, primary_hdr=None, **kwargs):
+        """
+        Over-load :func:`pypeit.datamodel.DataContainer.to_file`
+        to deal with the header
+
+        Args:
+            ofile (:obj:`str`): Filename
+            primary_hdr (`astropy.io.fits.Header`_, optional):
+            **kwargs:  Passed to super.to_file()
+
+        """
+        if primary_hdr is None:
+            primary_hdr = io.initialize_header(primary=True)
+        # Build the header
+        if self.head0 is not None and self.PYP_SPEC is not None:
+            spectrograph = load_spectrograph(self.PYP_SPEC)
+            subheader = spectrograph.subheader_for_spec(self.head0, self.head0)
+        else:
+            subheader = {}
+        # Add em in
+        for key in subheader:
+            primary_hdr[key] = subheader[key]
+        # Do it
+        super(OneSpec, self).to_file(ofile, primary_hdr=primary_hdr,
+                                     **kwargs)
 
 class CoAdd1D(object):
 
     @classmethod
-    def get_instance(cls, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def get_instance(cls, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
         Superclass factory method which generates the subclass instance. See __init__ docs for arguments.
         """
         pypeline = fits.getheader(spec1dfiles[0])['PYPELINE'] + 'CoAdd1D'
         return next(c for c in cls.__subclasses__() if c.__name__ == pypeline)(
-            spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+            spec1dfiles, objids, spectrograph=spectrograph, par=par, sensfile=sensfile, debug=debug, show=show)
 
-    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
 
         Args:
@@ -38,26 +137,32 @@ class CoAdd1D(object):
                List of strings which are the spec1dfiles
             objids (list):
                List of strings which are the objids for the object in each spec1d file that you want to coadd
-            par (parset):
-               Pypeit parameter set object
-            sensfile (str): optional
+            spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`, optional):
+            par (:class:`pypeit.par.pypeitpar.Coadd1DPar`, optional):
+               Pypeit parameter set object for Coadd1D
+            sensfile (str, optional):
                File holding the sensitivity function. This is required for echelle coadds only.
-            debug (bool): optional
+            debug (bool, optional)
                Debug. Default = False
-            show (bool):
+            show (bool, optional):
                Debug. Default = True
         """
         # Instantiate attributes
         self.spec1dfiles = spec1dfiles
         self.objids = objids
-        self.sensfile = sensfile
-        # Load the spectrograph only if par was not passed in to get default parset
-        if par is None:
+
+        # Optional
+        if spectrograph is not None:
+            self.spectrograph = spectrograph
+        else:
             header = fits.getheader(spec1dfiles[0])
-            spectrograph = load_spectrograph(header['PYP_SPEC'])
+            self.spectrograph = load_spectrograph(header['PYP_SPEC'])
+        if par is None:
             self.par = spectrograph.default_pypeit_par()['coadd1d']
         else:
             self.par = par
+        #
+        self.sensfile = sensfile
         self.debug = debug
         self.show = show
         self.nexp = len(self.spec1dfiles) # Number of exposures
@@ -69,11 +174,16 @@ class CoAdd1D(object):
         """
 
         # Load the data
-        self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load()
+        self.waves, self.fluxes, self.ivars, self.masks, self.header = self.load_arrays()
         # Coadd the data
         self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.mask_coadd = self.coadd()
+        # Scale to a filter magnitude?
+        if self.par['filter'] != 'none':
+            scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.mask_coadd, self.par)
+            self.flux_coadd *= scale
+            self.ivar_coadd = self.ivar_coadd / scale**2
 
-    def load(self):
+    def load_arrays(self):
         """
         Load the arrays we need for performing coadds.
 
@@ -88,7 +198,7 @@ class CoAdd1D(object):
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, mask_iexp, meta_spec, header = \
-                sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
+                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
             # Allocate arrays on first iteration
             if iexp == 0:
                 waves = np.zeros(wave_iexp.shape + (self.nexp,))
@@ -103,68 +213,46 @@ class CoAdd1D(object):
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """
-        Routine to save 1d coadds to a fits file. This replaces save.save_coadd1d_to_fits
+        Generate a :class:`OneSpec` object and write it to disk.
 
         Args:
             coaddfile (str):
-               File to outuput coadded spectrum to.
-            telluric (str):
-               This is vestigial and should probably be removed.
+               File to output coadded spectrum to.
+            telluric (`numpy.ndarray`_):
             obj_model (str):
-               This is vestigial and should probably be removed
             overwrite (bool):
                Overwrite existing file?
-
         """
-
         self.coaddfile = coaddfile
-        ex_value = self.par['ex_value']
-        # Estimate sigma from ivar
-        sig = np.sqrt(utils.inverse(self.ivar_coadd))
-        if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
-            hdulist = fits.open(self.coaddfile)
-            msgs.info("Reading primary HDU from existing file: {:s}".format(self.coaddfile))
-        else:
-            msgs.info("Creating a new primary HDU.")
-            prihdu = fits.PrimaryHDU()
-            if self.header is None:
-                msgs.warn('The primary header is none')
-            else:
-                prihdu.header = self.header
-            hdulist = fits.HDUList([prihdu])
-
         wave_mask = self.wave_coadd > 1.0
-        # Add Spectrum Table
-        cols = []
-        cols += [fits.Column(array=self.wave_coadd[wave_mask], name='{:}_WAVE'.format(ex_value), format='D')]
-        cols += [fits.Column(array=self.flux_coadd[wave_mask], name='{:}_FLAM'.format(ex_value), format='D')]
-        cols += [fits.Column(array=self.ivar_coadd[wave_mask], name='{:}_FLAM_IVAR'.format(ex_value), format='D')]
-        cols += [fits.Column(array=sig[wave_mask], name='{:}_FLAM_SIG'.format(ex_value), format='D')]
-        cols += [fits.Column(array=self.mask_coadd[wave_mask].astype(float), name='{:}_MASK'.format(ex_value), format='D')]
+        # Generate the DataContainer
+        onespec = OneSpec(self.wave_coadd[wave_mask],
+                          self.flux_coadd[wave_mask],
+                          PYP_SPEC=self.spectrograph.spectrograph,
+                          ivar=self.ivar_coadd[wave_mask],
+                          mask=self.mask_coadd[wave_mask].astype(int),
+                          ext_mode=self.par['ex_value'],
+                          fluxed=self.par['flux_value'])
+        onespec.head0 = fits.getheader(self.spec1dfiles[0])
+
+        # Add on others
         if telluric is not None:
-            cols += [fits.Column(array=telluric[wave_mask], name='TELLURIC', format='D')]
+            onespec.telluric  = telluric[wave_mask]
         if obj_model is not None:
-            cols += [fits.Column(array=obj_model[wave_mask], name='OBJ_MODEL', format='D')]
-
-        coldefs = fits.ColDefs(cols)
-        tbhdu = fits.BinTableHDU.from_columns(coldefs)
-        tbhdu.name = 'OBJ0001-SPEC0001-{:}'.format(ex_value.capitalize())
-        hdulist.append(tbhdu)
-
-        if (os.path.exists(self.coaddfile)) and (np.invert(overwrite)):
-            hdulist.writeto(self.coaddfile, overwrite=True)
-            msgs.info("Appending 1D spectra to existing file {:s}".format(self.coaddfile))
-        else:
-            hdulist.writeto(self.coaddfile, overwrite=overwrite)
-            msgs.info("Wrote 1D spectra to {:s}".format(self.coaddfile))
-
-
+            onespec.obj_model = obj_model[wave_mask]
+        # Write
+        onespec.to_file(coaddfile, overwrite=overwrite)
 
     def coadd(self):
         """
         Dummy method overloaded by sub-classes
 
         Returns:
+            :obj:`tuple`:  four items
+              - wave
+              - flux
+              - ivar
+              - mask
 
         """
         return (None,)*4
@@ -175,26 +263,12 @@ class MultiSlitCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Multislit and Longslit reductions
     """
 
-    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
-
-            Args:
-                spec1dfiles (list):
-                   List of strings which are the spec1dfiles
-                objids (list):
-                   List of strings which are the objids for the object in each spec1d file that you want to coadd
-                par (parset):
-                   Pypeit parameter set object
-                sensfile (str): optional
-                   File holding the sensitivity function. This is required for echelle coadds only.
-                debug (bool): optional
-                   Debug. Default = False
-                show (bool):
-                   Debug. Default = True
+        See `CoAdd1D` doc string
         """
-
-        super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
-
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
+                         debug = debug, show = show)
 
     def coadd(self):
         """
@@ -224,25 +298,13 @@ class EchelleCoAdd1D(CoAdd1D):
     Child of CoAdd1d for Echelle reductions
     """
 
-    def __init__(self, spec1dfiles, objids, par=None, sensfile=None, debug=False, show=False):
+    def __init__(self, spec1dfiles, objids, spectrograph=None, par=None, sensfile=None, debug=False, show=False):
         """
+        See `CoAdd1D` doc string
 
-            Args:
-                spec1dfiles (list):
-                   List of strings which are the spec1dfiles
-                objids (list):
-                   List of strings which are the objids for the object in each spec1d file that you want to coadd
-                par (parset):
-                   Pypeit parameter set object
-                sensfile (str): optional
-                   File holding the sensitivity function. This is required for echelle coadds only.
-                debug (bool): optional
-                   Debug. Default = False
-                show (bool):
-                   Debug. Default = True
         """
-
-        super().__init__(spec1dfiles, objids, par=par, sensfile=sensfile, debug=debug, show=show)
+        super().__init__(spec1dfiles, objids, spectrograph=spectrograph, par = par, sensfile = sensfile,
+                         debug = debug, show = show)
 
     def coadd(self):
         """

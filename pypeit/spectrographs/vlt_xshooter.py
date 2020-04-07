@@ -10,11 +10,10 @@ from astropy import units
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
-from pypeit import utils
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit.core import pixels
+from pypeit.images import detector_container
 from IPython import embed
 
 from pkg_resources import resource_filename
@@ -25,6 +24,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle VLT/XSHOOTER specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(VLTXShooterSpectrograph, self).__init__()
@@ -41,9 +42,6 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         Set default parameters for VLT XSHOOTER reductions.
         """
         par = pypeitpar.PypeItPar()
-        # Correct for flexure using the default approach
-#        par['flexure'] = pypeitpar.FlexurePar()
-        # Right now turn off flexure compensation
         return par
 
     def init_meta(self):
@@ -137,31 +135,46 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         super(VLTXShooterNIRSpectrograph, self).__init__()
         self.spectrograph = 'vlt_xshooter_nir'
         self.camera = 'XShooter_NIR'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.197, # average between order 11 & 30, see manual
-                            darkcurr        = 0.0,
-                            saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 2.12, #
-                            ronoise         = 8.0, # ?? more precise value? #TODO the read noise is exposure time  dependent and should be grabbed from header
-                            datasec         = '[4:2044,4:]', # These are all unbinned pixels
-                            # EMA: No real overscan for XSHOOTER-NIR: 
-                            # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
-                            # The overscan region below contains only zeros
-                            # ToDo should we just set it as empty?
-                            oscansec        = '[4:2044,1:3]', # These are all unbinned pixels.
-                            suffix          = '_NIR'
-                            )]
-        self.numhead = 1
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',  # No binning in near-IR
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.197, # average between order 11 & 30, see manual
+            darkcurr        = 0.0,
+            saturation      = 2.0e5, # I think saturation may never be a problem here since there are many DITs
+            nonlinear       = 0.86,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(2.12), #
+            ronoise         = np.atleast_1d(8.0), # ?? more precise value? #TODO the read noise is exposure time  dependent and should be grabbed from header
+            datasec         = np.atleast_1d('[4:2044,4:]'), # These are all unbinned pixels
+            # EMA: No real overscan for XSHOOTER-NIR:
+            # See Table 6 in http://www.eso.org/sci/facilities/paranal/instruments/xshooter/doc/VLT-MAN-ESO-14650-4942_P103v1.pdf
+            # The overscan region below contains only zeros
+            # ToDo should we just set it as empty?
+            #  JXP says yes
+            oscansec        = np.atleast_1d('[4:2044,1:3]'), # These are all unbinned pixels.
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
 
     def default_pypeit_par(self):
@@ -190,7 +203,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['OH_XSHOOTER']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['fwhm'] = 5.0
@@ -208,13 +221,12 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['standardframe']['process']['illumflatten'] = False
+        par['scienceframe']['process']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
 
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
@@ -347,23 +359,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos = np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
-                                   0.33141317, 0.38813936, 0.44310197, 0.49637422,
-                                   0.54839496, 0.59948157, 0.65005956, 0.70074477,
-                                   0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
-        return ord_spat_pos
+        return np.array([0.08284662, 0.1483813 , 0.21158701, 0.27261607,
+                         0.33141317, 0.38813936, 0.44310197, 0.49637422,
+                         0.54839496, 0.59948157, 0.65005956, 0.70074477,
+                         0.75240745, 0.80622583, 0.86391259, 0.9280528 ])
 
     @property
     def orders(self):
         return np.arange(26, 10, -1, dtype=int)
-
 
     @property
     def spec_min_max(self):
         spec_max = np.asarray([1467,1502,1540, 1580,1620,1665,1720, 1770,1825,1895, 1966, 2000,2000,2000,2000,2000])
         spec_min = np.asarray([420 ,390 , 370,  345, 315, 285, 248,  210, 165, 115,   63,   10,   0,   0,   0,   0])
         return np.vstack((spec_min, spec_max))
-
 
     def order_platescale(self, order_vec, binning=None):
         """
@@ -412,27 +421,44 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         super(VLTXShooterVISSpectrograph, self).__init__()
         self.spectrograph = 'vlt_xshooter_vis'
         self.camera = 'XShooter_VIS'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.16, # average from order 17 and order 30, see manual
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 0.595, # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
-                            ronoise         = 3.1, # raw unbinned images are (4000,2106) (spec, spat)
-                            datasec='[:,11:2058]',  # pre and oscan are in the spatial direction
-                            oscansec='[:,2059:2106]',
-                            suffix          = '_VIS'
-                            )]
-        self.numhead = 1
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = binning,
+            det              =1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.16, # average from order 17 and order 30, see manual
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.86,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(0.595), # FITS format is flipped: PrimaryHDU  (2106, 4000) w/respect to Python
+            ronoise         = np.atleast_1d(3.1), # raw unbinned images are (4000,2106) (spec, spat)
+            datasec=np.atleast_1d('[:,11:2058]'),  # pre and oscan are in the spatial direction
+            oscansec=np.atleast_1d('[:,2059:2106]'),
+        )
+        return detector_container.DetectorContainer(**detector_dict)
 
 
 
@@ -465,7 +491,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_VIS']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = [3] + 13*[4] + [3]
@@ -485,7 +511,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
@@ -636,29 +661,45 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         super(VLTXShooterUVBSpectrograph, self).__init__()
         self.spectrograph = 'vlt_xshooter_uvb'
         self.camera = 'XShooter_UVB'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = True,
-                            spatflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            # average from order 14 and order 24, see manual
-                            platescale      = 0.161,
-                            darkcurr        = 0.0,
-                            saturation      = 65000.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.61,
-                            ronoise         = 2.60,
-                            datasec         = '[:,49:2096]', # '[49:2000,1:2999]',
-                            oscansec        = '[:,1:48]', # '[1:48, 1:2999]',
-                            suffix          = '_UVB'
-                            )]
-        self.numhead = 1
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning         =binning,
+            det             =1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = True,
+            spatflip        = True,
+            platescale      = 0.161, # average from order 14 and order 24, see manual
+            darkcurr        = 0.0,
+            saturation      = 65000.,
+            nonlinear       = 0.86,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(1.61),
+            ronoise         = np.atleast_1d(2.60),
+            datasec         = np.atleast_1d('[:,49:2096]'), # '[49:2000,1:2999]',
+            oscansec        = np.atleast_1d('[:,1:48]'), # '[1:48, 1:2999]',
+            )
+        # Return
+        return detector_container.DetectorContainer(**detector_dict)
 
 
 #    @staticmethod
@@ -686,7 +727,7 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
         # TODO: This is a KLUDGE; default_pypeit_par should be a
         # staticmethod meaning it should not depend on self
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.50 # This is for 1x1 binning. TODO GET BINNING SORTED OUT!!
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters

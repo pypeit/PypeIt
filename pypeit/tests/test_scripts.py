@@ -18,7 +18,7 @@ matplotlib.use('agg')  # For Travis
 from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos
+from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
@@ -27,14 +27,6 @@ from pypeit import ginga
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
-
-
-#def test_arcid_plot():
-#    json_file = data_path('LRISb_600_WaveCalib_01.json')
-#    pargs = arcid_plot.parser([json_file, 'LRISb', 'tmp.pdf'])
-#    # Run
-#    arcid_plot.main(pargs)
-
 
 @dev_suite_required
 def test_run_pypeit():
@@ -102,13 +94,13 @@ def test_quicklook():
         shutil.rmtree(outdir)
 
     # Raw path
-    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA',
-                         'keck_lris_blue', 'long_600_4000_d560')
-    ql_mos.main(ql_mos.parser(
-        ['keck_lris_blue', droot,
-         'b150910_2033.fits.gz', 'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
-         '--user_pixflat={0}'.format(
-             os.path.join(calib_dir, 'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_lris_blue',
+                         'long_600_4000_d560')
+    ql_mos.main(ql_mos.parser(['keck_lris_blue', droot, 'b150910_2033.fits.gz',
+                               'b150910_2051.fits.gz', 'b150910_2070.fits.gz', '--det=2',
+                               '--user_pixflat={0}'.format(
+                                   os.path.join(calib_dir,
+                                        'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
 
 @dev_suite_required
 def test_trace_edges():
@@ -143,7 +135,6 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
-
 @cooked_required
 def test_show_1dspec():
     spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
@@ -152,6 +143,24 @@ def test_show_1dspec():
     pargs = show_1dspec.parser([spec_file, '--list'])
     show_1dspec.main(pargs)
 
+@cooked_required
+def test_show_2dspec():
+    droot = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')
+    spec2d_file = os.path.join(droot, 'Science',
+                             'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    # Ginga needs to be open in RC mode
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    # Save
+    cdir = os.getcwd()
+    os.chdir(droot)
+    # List
+    pargs = show_2dspec.parser([spec2d_file, '--list'])
+    show_2dspec.main(pargs)
+    # Show
+    pargs = show_2dspec.parser([spec2d_file])
+    show_2dspec.main(pargs)
+    # Go back
+    os.chdir(cdir)
 
 @cooked_required
 def test_chk_edges():
@@ -173,7 +182,7 @@ def test_view_fits():
 
 @cooked_required
 def test_chk_flat():
-    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue',
+    mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
                                 'MasterFlat_A_1_01.fits')
     # Ginga needs to be open in RC mode
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
@@ -181,11 +190,9 @@ def test_chk_flat():
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
 
-
-
 def test_coadd1d_1():
     """
-    Test basic coadd using Shane Kast blue
+    Test basic coadd using shane_kast_blue
     """
     # NOTE: flux_value is False
     parfile = 'coadd1d.par'
@@ -199,9 +206,8 @@ def test_coadd1d_1():
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
-    assert hdu[0].header['NSPEC'] == 1, 'Bad number of spectra'
-    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
-    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+    assert hdu[1].header['EXT_MODE'] == 'OPT'
+    assert hdu[1].header['FLUXED'] is False
 
     # Clean up
     os.remove(parfile)
@@ -224,14 +230,11 @@ def test_coadd1d_2():
     coadd_1dspec.main(coadd_1dspec.parser([coadd_ifile, '--test_spec_path', data_path('')]))
 
     hdu = fits.open(coadd_ofile)
-    assert hdu[0].header['NSPEC'] == 6, 'Bad number of spectra'
-    assert [h.name for h in hdu] == ['PRIMARY', 'OBJ0001-SPEC0001-OPT'], 'Bad extensions'
-    assert np.all([c.split('_')[0] == 'OPT' for c in hdu[1].columns.names]), 'Bad columns'
+    assert hdu[1].header['EXT_MODE'] == 'OPT'
+    assert hdu[1].header['FLUXED'] is False
 
     # Clean up
     os.remove(parfile)
     os.remove(coadd_ofile)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
-
-

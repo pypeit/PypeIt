@@ -3,9 +3,6 @@
 import glob
 
 import numpy as np
-from astropy.io import fits
-from astropy.coordinates import SkyCoord
-from astropy import units
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -13,7 +10,7 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit.core import pixels
+from pypeit.images import detector_container
 
 from pkg_resources import resource_filename
 
@@ -24,6 +21,8 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
     Child of Spectrograph to handle VLT/FORS specific code
     Parent for FORS1 and FORS2
     """
+    ndet = 1  # Because each detector is written to a separate FITS file
+
     def __init__(self):
         # Get it started
         super(VLTFORSSpectrograph, self).__init__()
@@ -42,7 +41,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
 
         # Always correct for flexure, starting with default parameters
-        par['flexure']['method'] = 'boxcar'
+        par['flexure']['spec_method'] = 'boxcar'
 
         # Median overscan
         #   IF YOU CHANGE THIS, YOU WILL NEED TO DEAL WITH THE OVERSCAN GOING ALONG ROWS
@@ -68,7 +67,6 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_final'] = 4
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
@@ -171,50 +169,70 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         self.camera = 'FORS2'
         self.numhead = 1
 
-    def set_detector(self, chip):
-        detectors = [
-            # Detector 1 (Thor)  -- http://www.eso.org/sci/php/optdet/instruments/fors2/index.html
-            pypeitpar.DetectorPar(
-                dataext         = 0,
-                specaxis        = 1,
-                specflip        = False,
-                xgap            = 0.,
-                ygap            = 0.,
-                ysize           = 1.,
-                platescale      = 0.126,  # average between order 11 & 30, see manual
-                darkcurr        = 0.0,
-                saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
-                nonlinear       = 0.80,
-                numamplifiers   = 1,
-                gain            = 0.70,
-                ronoise         = 2.9, # High gain
-                datasec         = '[11:2059,:]',  # For 1x binning, I think
-                oscansec        = '[2062:,:]',
-                suffix          = '_Thor'),
-            # Detector 2 (Belenos)
-            pypeitpar.DetectorPar(
-                dataext         = 0,
-                specaxis        = 1,
-                specflip        = False,
-                xgap            = 0.,
-                ygap            = 0.,
-                ysize           = 1.,
-                platescale      = 0.126,  # average between order 11 & 30, see manual
-                darkcurr        = 0.0,
-                saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
-                nonlinear       = 0.80,
-                numamplifiers   = 1,
-                gain            = 0.70,
-                ronoise         = 3.0,  # High gain
-                datasec         = '[20:,0:2048]',
-                oscansec        = '[4:20,4:2044]',
-                suffix          = '_Belenos'
-                )]
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1 (Thor)  -- http://www.eso.org/sci/php/optdet/instruments/fors2/index.html
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.126,  # average between order 11 & 30, see manual
+            darkcurr        = 0.0,
+            saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
+            nonlinear       = 0.80,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(0.70),
+            ronoise         = np.atleast_1d(2.9), # High gain
+            datasec         = np.atleast_1d('[11:2059,:]'),  # For 1x binning, I think
+            oscansec        = np.atleast_1d('[2062:,:]'),
+            #suffix          = '_Thor',
+        )
+        # Detector 2 (Belenos)
+        detector_dict2 = dict(
+            binning         = binning,
+            det             = 1,  # ESO writes these to separate FITS images!!
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.126,  # average between order 11 & 30, see manual
+            darkcurr        = 0.0,
+            saturation      = 2.0e5,  # I think saturation may never be a problem here since there are many DITs
+            nonlinear       = 0.80,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(0.70),
+            ronoise         = np.atleast_1d(3.0),  # High gain
+            datasec         = np.atleast_1d('[20:,0:2048]'),
+            oscansec        = np.atleast_1d('[4:20,4:2044]'),
+            #suffix          = '_Belenos'
+        )
+
+        # Finish
+        chip = self.get_meta_value(self.get_headarr(hdu), 'detector')
         if chip == 'CHIP1':
-            self.detector = [detectors[0]]
+            return detector_container.DetectorContainer(**detector_dict1)
         elif chip == 'CHIP2':
-            debugger.set_trace()  # NEED TO SET DATASEC
-            self.detector = [detectors[1]]
+            return detector_container.DetectorContainer(**detector_dict2)
 
 
     def default_pypeit_par(self):

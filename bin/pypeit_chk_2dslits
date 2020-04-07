@@ -1,0 +1,9 @@
+#!/usr/bin/env python
+
+"""
+Print slit info summary to the screen for a given spec2D file
+"""
+
+from pypeit.scripts import chk_spec2d_slits
+if __name__ == '__main__':
+    chk_spec2d_slits.main(chk_spec2d_slits.parser())

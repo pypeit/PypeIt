@@ -12,11 +12,11 @@ import pickle
 from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
-from pypeit.core import save
 from pypeit.core import coadd
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
+from pypeit import coadd1d
 from astropy.io import fits
 from sklearn import mixture
 
@@ -572,35 +572,25 @@ def general_spec_reader(specfile, ret_flam=False):
         bonus['ECH_ORDERINDX'] = (sobjs.ech_orderindx).astype(int)
         bonus['ECH_SNR'] = (sobjs.ech_snr).astype(float)
         bonus['NORDERS'] = wave.shape[1]
-    except:
-        # Read in the coadd 1d spectra file
-        hdu = fits.open(specfile)
-        head = hdu[0].header
-        data = hdu[1].data
-        wave_in, flux_in, flux_ivar_in, mask_in = data['OPT_WAVE'], data['OPT_FLAM'], data['OPT_FLAM_IVAR'], data[
-            'OPT_MASK']
-        wave = wave_in
-        counts = flux_in
-        counts_ivar = flux_ivar_in
-        counts_mask = mask_in.astype(bool)
-        #wave = np.reshape(wave_in,(wave_in.size,1))
-        #counts = np.reshape(flux_in,(wave_in.size,1))
-        #counts_ivar = np.reshape(flux_ivar_in,(wave_in.size,1))
-        #counts_mask = np.reshape(mask_in,(wave_in.size,1))
-
-    try:
-        spectrograph = load_spectrograph(head['INSTRUME'])
-    except:
-        # This is a hack until a generic spectrograph is implemented.
-        spectrograph = load_spectrograph('shane_kast_blue')
-
-    meta_spec = dict(core={}, bonus=bonus)
-    core_keys = spectrograph.header_cards_for_spec()
-    for key in core_keys:
         try:
-            meta_spec['core'][key.upper()] = head[key.upper()]
-        except KeyError:
-            pass
+            spectrograph = load_spectrograph(head['INSTRUME'])
+        except:
+            spectrograph = load_spectrograph('shane_kast_blue')
+        spect_dict = spectrograph.parse_spec_header(head)
+    except:
+        # Load
+        onespec = coadd1d.OneSpec.from_file(specfile)
+        # Unpack
+        wave = onespec.wave
+        counts = onespec.flux
+        counts_ivar = onespec.ivar
+        counts_mask = onespec.mask.astype(bool)
+        spect_dict = onespec.spec_meta
+        head = onespec.head0
+
+    # Build this
+    meta_spec = dict(bonus=bonus)
+    meta_spec['core'] = spect_dict
 
     return wave, counts, counts_ivar, counts_mask, meta_spec, head
 
@@ -1073,7 +1063,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
                       ech_orders=None,
                       polyorder=8, mask_abs_lines=True,
                       delta_coeff_bounds=(-20.0, 20.0), minmax_coeff_bounds=(-5.0, 5.0),
-                      sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True,
+                      sn_clip=30.0, only_orders=None, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False,
                       debug_init=False, debug=False):
     """
     Function to compute a sensitivity function and a telluric model from the PypeIt spec1d file of a standard star spectrum
@@ -1167,6 +1157,9 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         Table containing the values for telluric model parameters and object model parameters.
     """
 
+    # Turn on disp for the differential_evolution if debug mode is turned on.
+    if debug:
+        disp = True
 
     if counts.ndim == 2:
         norders = counts.shape[1]
@@ -1251,9 +1244,12 @@ def create_bal_mask(wave):
 def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, create_bal_mask=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
-                 pca_upper=3100.0, polish=True, disp=True, debug_init=False, debug=False,
+                 pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
                  show=False):
 
+    # Turn on disp for the differential_evolution if debug mode is turned on.
+    if debug:
+        disp = True
 
     obj_params = dict(pca_file=pca_file, npca=npca, z_qso=z_qso, delta_zqso=delta_zqso, bounds_norm=bounds_norm,
                       tell_norm_thresh=tell_norm_thresh,
@@ -1316,8 +1312,11 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None, star_mag=None, star_ra=None, star_dec=None,
                   func='legendre', model='exp', polyorder=5, mask_abs_lines=True, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, recombination=0.7, polish=True,
-                  disp=True, debug_init=False, debug=False, show=False):
+                  disp=False, debug_init=False, debug=False, show=False):
 
+    # Turn on disp for the differential_evolution if debug mode is turned on.
+    if debug:
+        disp = True
 
     # Read in the data
     wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
@@ -1401,7 +1400,11 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
                   fit_region_min=None, fit_region_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=5,
-                  recombination=0.7, polish=True, disp=True, debug_init=False, debug=False, show=False):
+                  recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
+
+    # Turn on disp for the differential_evolution if debug mode is turned on.
+    if debug:
+        disp = True
 
     # Read in the data
     wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=False)
@@ -1643,7 +1646,11 @@ class Telluric(object):
                  sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
                  resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
                  maxiter=3, sticky=True, lower=3.0, upper=3.0,
-                 seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=True, debug=False):
+                 seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False, debug=False):
+
+        # Turn on disp for the differential_evolution if debug mode is turned on.
+        if debug:
+            disp = True
 
         # This init function performs the following steps:
         # 1) assignement of relevant input arguments

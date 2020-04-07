@@ -15,6 +15,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 
 
@@ -30,6 +31,8 @@ class MagellanFIRESpectrograph(spectrograph.Spectrograph):
         the read noise is ~20 electron.
 
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(MagellanFIRESpectrograph, self).__init__()
@@ -93,28 +96,42 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         self.spectrograph = 'magellan_fire'
         self.camera = 'FIRE'
         self.numhead = 1
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.18,
-                            darkcurr        = 0.01,
-                            #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
-                            saturation      = 100000., # This is an arbitrary value.
-                            nonlinear       = 1.0, # high gain mode, low gain is 0.875
-                            numamplifiers   = 1,
-                            gain            = 1.2, # high gain mode, low gain is 3.8 e-/DN
-                            ronoise         = 5.0, # for high gain mode and SUTR read modes with exptime ~ 900s
-                            datasec         = '[5:2044,5:2044]',
-                            oscansec        = '[5:2044,:5]'
-                            #datasec         = '[:,:]',
-                            #oscansec        = '[:,:]'
-                            )]
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = True,
+            spatflip        = False,
+            platescale      = 0.18,
+            darkcurr        = 0.01,
+            #saturation      = 20000., # high gain is 20000 ADU, low gain is 32000 ADU
+            saturation      = 100000., # This is an arbitrary value.
+            nonlinear       = 1.0, # high gain mode, low gain is 0.875
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(1.2), # high gain mode, low gain is 3.8 e-/DN
+            ronoise         = np.atleast_1d(5.0), # for high gain mode and SUTR read modes with exptime ~ 900s
+            datasec         = np.atleast_1d('[5:2044,5:2044]'),
+            oscansec        = np.atleast_1d('[5:2044,:5]')
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
     @property
     def pypeline(self):
@@ -137,7 +154,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=[3,3,3,2,4,4,4,3,4,4,4,3,4,4,4,4,4,4,6,6,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_FIRE_Echelle']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.35
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_echelle.fits'
@@ -151,7 +168,6 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
@@ -170,7 +186,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         # Always flux calibrate, starting with default parameters
         #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure']['spec_method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [20, None]
@@ -282,25 +298,43 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         self.spectrograph = 'magellan_fire_long'
         self.camera = 'FIRE'
         self.numhead = 1
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.15,
-                            darkcurr        = 0.01,
-                            saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
-                            nonlinear       = 0.875,
-                            numamplifiers   = 1,
-                            gain            = 3.8,
-                            ronoise         = 6.0, # SUTR readout mode with exposure~600s
-                            datasec         = '[5:2044, 900:1250]',
-                            oscansec        = '[:5, 900:1250]'
-                            )]
+
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.15,
+            darkcurr        = 0.01,
+            saturation      = 320000., #32000 for low gain, I set to a higher value to keep data in K-band
+            nonlinear       = 0.875,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(3.8),
+            ronoise         = np.atleast_1d(6.0), # SUTR readout mode with exposure~600s
+            datasec         = np.atleast_1d('[5:2044, 900:1250]'),
+            oscansec        = np.atleast_1d('[:5, 900:1250]')
+        )
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
@@ -321,7 +355,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['wavelengths']['n_first']=2
         par['calibrations']['wavelengths']['n_final']=4
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'ThAr', 'NeI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'magellan_fire_long.fits'
         par['calibrations']['wavelengths']['match_toler']=5.0
@@ -338,7 +372,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
         # Do not correct for flexure
-        par['flexure'] = None
+        par['flexure']['spec_method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [1, 50]

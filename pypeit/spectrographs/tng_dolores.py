@@ -9,6 +9,7 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 
 from pypeit import debugger
 
@@ -16,36 +17,53 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Shane/Kast specific code
     """
+    ndet = 1
 
     def __init__(self):
         super(TNGDoloresSpectrograph, self).__init__()
         self.spectrograph = 'tng_dolores'
         self.telescope = telescopes.TNGTelescopePar()
         self.camera = 'DOLORES'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.252,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 0.97,
-                            ronoise         = 9.0,
-                            datasec         = '[51:,1:2045]',
-                            oscansec        = '[51:,2054:]',
-                            suffix          = '_lrr'
-                            )]
-        self.numhead = 1
-        # Uses default primary_hdrext
         self.timeunit = 'isot'
-        # self.sky_file = ?
+
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning='1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            xgap            = 0.,
+            ygap            = 0.,
+            ysize           = 1.,
+            platescale      = 0.252,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.76,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(0.97),
+            ronoise         = np.atleast_1d(9.0),
+            datasec         = np.atleast_1d('[51:,1:2045]'),
+            oscansec        = np.atleast_1d('[51:,2054:]'),
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
     @staticmethod
     def default_pypeit_par():
@@ -59,57 +77,6 @@ class TNGDoloresSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
         par['scienceframe']['exprng'] = [1, None]
         return par
-
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an TNG Dolores exposure.
-
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.DET_ID': 'E2V4240',
-                             '0.NAXIS': 2}
-        super(TNGDoloresSpectrograph, self).check_headers(headers, expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[1] = {}
-        hdr_keys[2] = {}
-        hdr_keys[3] = {}
-        hdr_keys[4] = {}
-
-        # Copied over defaults
-        hdr_keys[0]['idname'] = 'OBS-TYPE'
-        hdr_keys[0]['target'] = 'OBJCAT'
-        hdr_keys[0]['exptime'] = 'EXPTIME'
-        hdr_keys[0]['time'] = 'DATE-OBS'
-        hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['naxis0'] = 'NAXIS2'
-        hdr_keys[0]['naxis1'] = 'NAXIS1'
-        hdr_keys[0]['filter1'] = 'FLT_ID'
-        hdr_keys[0]['dispname'] = 'GRM_ID'
-        hdr_keys[0]['lamps'] = 'LMP_ID'
-
-        return hdr_keys
-    '''
 
     def init_meta(self):
         """

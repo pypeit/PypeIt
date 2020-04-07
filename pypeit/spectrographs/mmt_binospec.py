@@ -18,6 +18,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle MMT/BINOSPEC specific code
     """
+    ndet = 2
+
     def __init__(self):
         # Get it started
         super(MMTBINOSPECSpectrograph, self).__init__()
@@ -25,41 +27,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.MMTTelescopePar()
         self.camera = 'BINOSPEC'
         self.numhead = 11
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.24,
-                            darkcurr        = 3.0, ##ToDO: To Be update
-                            saturation      = 65535.,
-                            nonlinear       = 0.95,  #ToDO: To Be update
-                            numamplifiers   = 4,
-                            gain            = [1.085,1.046,1.042,0.975],
-                            ronoise         = [3.2]*4,
-                            suffix          = '_01'
-                            ),
-                # Detector 2
-                pypeitpar.DetectorPar(
-                            dataext         = 2,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.24,
-                            darkcurr        = 3.0, ##ToDO: To Be update
-                            saturation      = 65535.,
-                            nonlinear       = 0.95, #ToDO: To Be update
-                            numamplifiers   = 4,
-                            gain            = [1.028,1.163,1.047,1.045],
-                            ronoise         = [3.2]*4,
-                            suffix          = '_02'
-                )]
 
     def init_meta(self):
         """
@@ -116,20 +83,13 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'mmt_binospec'
-        # Frame numbers
-        par['calibrations']['standardframe']['number'] = 0
-        par['calibrations']['biasframe']['number'] = 0
-        par['calibrations']['pixelflatframe']['number'] = 5
-        par['calibrations']['traceframe']['number'] = 5
-        par['calibrations']['arcframe']['number'] = 5
-        par['calibrations']['arcframe']['process']['overscan'] ='median'
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
         par['calibrations']['wavelengths']['sigdetect'] = 20.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Tilt and slit parameters
@@ -137,9 +97,6 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spat_order'] = 6
         par['calibrations']['tilts']['spec_order'] = 6
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -150,7 +107,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['global_sky_std']  = False
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
@@ -356,28 +313,24 @@ def binospec_read_amp(inp, ext):
     return data, overscan, datasec, biassec
 
 
-'''
-    # Subtract overscan along y-axis
-    if ydata2<nyt-2:
-        oscany = np.median(temp[:, ydata2:nyt],axis=1)
-        #from scipy import signal
-        #ossub = signal.savgol_filter(oscany, 65, 5)
-        ossub = oscany.copy()
-        temp = temp - ossub[:, None]
-    # grab the components...
-    data = temp[xdata1 - 1:xdata2, ydata1 -1 : ydata2]
-
-    # Overscan
-    biassec = '[0:{:},{:}:{:}]'.format(xdata1-1, ydata1-1, ydata2)
-    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
-    from IPython import embed
-    embed()
-    ## ToDO: Figure out the real overscan along x-axis
-    overscan = temp[xdata1:xdata2, ydata1:ydata2]
-    #overscan =np.zeros_like(temp[xdata1:xdata2, ydata1:ydata2]) + np.median(temp[xdata1:xdata2,:np.max([nyt-ydata2,50])])
-
-    # Return
-    return data, overscan, datasec, biassec
-
-
-'''
+#    # Subtract overscan along y-axis
+#    if ydata2<nyt-2:
+#        oscany = np.median(temp[:, ydata2:nyt],axis=1)
+#        #from scipy import signal
+#        #ossub = signal.savgol_filter(oscany, 65, 5)
+#        ossub = oscany.copy()
+#        temp = temp - ossub[:, None]
+#    # grab the components...
+#    data = temp[xdata1 - 1:xdata2, ydata1 -1 : ydata2]
+#
+#    # Overscan
+#    biassec = '[0:{:},{:}:{:}]'.format(xdata1-1, ydata1-1, ydata2)
+#    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
+#    from IPython import embed
+#    embed()
+#    ## ToDO: Figure out the real overscan along x-axis
+#    overscan = temp[xdata1:xdata2, ydata1:ydata2]
+#    #overscan =np.zeros_like(temp[xdata1:xdata2, ydata1:ydata2]) + np.median(temp[xdata1:xdata2,:np.max([nyt-ydata2,50])])
+#
+#    # Return
+#    return data, overscan, datasec, biassec

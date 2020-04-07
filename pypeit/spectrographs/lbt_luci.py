@@ -8,13 +8,15 @@ from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-
+from pypeit.images import detector_container
 
 
 class LBTLUCISpectrograph(spectrograph.Spectrograph):
     """
     Class to handle LBT/LUCI specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(LBTLUCISpectrograph, self).__init__()
@@ -34,8 +36,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         par['reduce'] = pypeitpar.ReducePar()
         # Always flux calibrate, starting with default parameters
         par['fluxcalib'] = pypeitpar.FluxCalibratePar()
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -69,8 +69,6 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='EXPTIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         meta['dispname'] = dict(ext=0, card='GRATNAME')
-
-
         self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
@@ -204,45 +202,59 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         super(LBTLUCI1Spectrograph, self).__init__()
         self.spectrograph = 'lbt_luci1'
         self.camera = 'LUCI1'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.25,
-                    # Dark current nominally is < 360 electrons per hours
-                    # but the dark subtraction will effectively bring this to 0
-                            darkcurr        = 0.0,
-                    # Saturation is 55000, but will be set to dummy value for
-                    # now
-                            saturation      = 1e+8,
-                    # NIR detectors are non-linear even in lower percentages
-                    # of the full well, thus for precision measurements one
-                    # should take into account a general non-linearity
-                    # correction.
-                            nonlinear       = 0.80,
-                    # In fact there are 32 amplifiers, which gain and ronoise
-                    # are extremely similar to each other, thus it will be
-                    # mimicked as 1
-                            numamplifiers   = 1,
-                    # The readout noise for LUCI are different for
-                    # different readout modes. The LIR mode values will be
-                    # commented in and the MER values will be uncommented:
-                            gain= 2.0,
-                            # ronoise= 10.3,
-                            ronoise         = 4.61,
-                            datasec='[5:2044,5:2044]',
-                    # For Luci the first 4 pixels on each side can
-                    # technically be used for as a biassec. This is not
-                    # included here.
-                            oscansec= '[5:2044,1:4]',
-                            suffix          = '_luci1'
-                            )]
-        self.numhead = 1
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.25,
+            # Dark current nominally is < 360 electrons per hours
+            # but the dark subtraction will effectively bring this to 0
+            darkcurr        = 0.0,
+            # Saturation is 55000, but will be set to dummy value for
+            # now
+            saturation      = 1e+8,
+            # NIR detectors are non-linear even in lower percentages
+            # of the full well, thus for precision measurements one
+            # should take into account a general non-linearity
+            # correction.
+            nonlinear       = 0.80,
+            mincounts       = -1e10,
+            # In fact there are 32 amplifiers, which gain and ronoise
+            # are extremely similar to each other, thus it will be
+            # mimicked as 1
+            numamplifiers   = 1,
+            # The readout noise for LUCI are different for
+            # different readout modes. The LIR mode values will be
+            # commented in and the MER values will be uncommented:
+            gain= np.atleast_1d(2.0),
+            # ronoise= 10.3,
+            ronoise         = np.atleast_1d(4.61),
+            datasec=np.atleast_1d('[5:2044,5:2044]'),
+            # For Luci the first 4 pixels on each side can
+            # technically be used for as a biassec. This is not
+            # included here.
+            oscansec= np.atleast_1d('[5:2044,1:4]'),
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
 
     def default_pypeit_par(self):
@@ -264,15 +276,12 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['wavelengths']['fwhm'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = \
-        self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = \
+        #self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
         par['calibrations']['slitedges']['edge_thresh'] = 300.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
 
         # Extraction
         # Model full slit currently turned on
@@ -286,7 +295,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
@@ -322,30 +331,43 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         super(LBTLUCI2Spectrograph, self).__init__()
         self.spectrograph = 'lbt_luci2'
         self.camera = 'LUCI2'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.25,
-                            darkcurr        = 0.0,
-                            # Saturation is 55000, but will be set to dummy value for
-                            # now
-                            saturation=1e+8,
-                            nonlinear       = 0.80,
-                            numamplifiers   = 1,
-                            gain            = 2.0,
-                            # ronoise         = 10.0,
-                            ronoise         = 4.47,
-                            datasec='[5:2044,5:2044]',
-                            oscansec='[5:2044,1:4]',
-                            suffix          = '_luci2'
-                            )]
-        self.numhead = 1
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Detector 1
+        detector_dict = dict(
+            binning         = '1,1',
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.25,
+            darkcurr        = 0.0,
+            # Saturation is 55000, but will be set to dummy value for
+            # now
+            saturation=1e+8,
+            nonlinear       = 0.80,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(2.0),
+            ronoise         = np.atleast_1d(4.47),
+            datasec= np.atleast_1d('[5:2044,5:2044]'),
+            oscansec= np.atleast_1d('[5:2044,1:4]'),
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
 
     def default_pypeit_par(self):
@@ -367,18 +389,14 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['calibrations']['wavelengths']['fwhm'] = 5.0
         par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = \
-            self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = \
+        #    self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
 
         par['calibrations']['slitedges']['edge_thresh'] = 300
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
         par['calibrations']['slitedges']['fit_order'] = 8
-
-        # Flats
-        par['calibrations']['flatfield']['illumflatten'] = True
-        # par['calibration']['flatfield']['tweak_slits'] = False
 
         # Extraction
         # Model full slit currently turned on
@@ -391,7 +409,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'

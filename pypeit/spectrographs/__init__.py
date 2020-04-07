@@ -4,6 +4,7 @@ from pypeit.spectrographs import gemini_gnirs
 from pypeit.spectrographs import gemini_gmos
 from pypeit.spectrographs import gemini_flamingos
 from pypeit.spectrographs import keck_deimos
+from pypeit.spectrographs import keck_kcwi
 from pypeit.spectrographs import keck_lris
 from pypeit.spectrographs import keck_nires
 from pypeit.spectrographs import keck_hires
@@ -17,5 +18,6 @@ from pypeit.spectrographs import vlt_xshooter
 from pypeit.spectrographs import wht_isis
 from pypeit.spectrographs import lbt_mods
 from pypeit.spectrographs import vlt_fors
+from pypeit.spectrographs import mdm_osmos
 from pypeit.spectrographs import lbt_luci
 from pypeit.spectrographs import mmt_binospec

@@ -28,8 +28,6 @@ from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit import msgs
 from pypeit.core import combine
-from pypeit import io
-from pypeit.core import load, save
 from pypeit.core.wavecal import wvutils
 from pypeit.core import pydl
 from pypeit.core import flux_calib
@@ -686,7 +684,8 @@ def interp_spec(wave_new, waves, fluxes, ivars, masks):
         msgs.error('Invalid size for wave_new')
 
 
-def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False, ivar_weights=False, verbose=False):
+def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
+               ivar_weights=False, verbose=False):
 
     """
     Calculate the S/N of each input spectrum and create an array of
@@ -902,7 +901,8 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
 
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,
-                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0):
+                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0,
+                        verbose=False):
     """
     Robustly determine the ratio between input spectrum flux and reference spectrum flux_ref. The code will perform
     best if the reference spectrum is chosen to be the higher S/N ratio spectrum, i.e. a preliminary stack that you want
@@ -979,7 +979,8 @@ def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None
             msgs.warn('Negative median flux found. Not rescaling')
             ratio = 1.0
         else:
-            msgs.info('Used {:} good pixels for computing median flux ratio'.format(np.sum(new_mask)))
+            if verbose:
+                msgs.info('Used {:} good pixels for computing median flux ratio'.format(np.sum(new_mask)))
             ratio = np.fmax(np.fmin(flux_ref_median/flux_dat_median, max_factor), 1.0/max_factor)
     else:
         if (np.sum(calc_mask) <= min_good*nspec):
@@ -1758,8 +1759,8 @@ def update_errors(fluxes, ivars, masks, fluxes_stack, ivars_stack, masks_stack, 
 
 
 def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30.0, lower=3.0, upper=3.0,
-                     maxrej=None, maxiter_reject=5, title='', debug=False):
-    '''
+                     maxrej=None, maxiter_reject=5, title='', debug=False, verbose=False):
+    """
     Routine for executing the iterative combine and rejection of a set of spectra to compute a final stacked spectrum.
 
     Args:
@@ -1830,7 +1831,7 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
               irregularly gridded input wavelength array waves will land
               in one bin versus another depending on the sampling.
 
-    '''
+    """
     thismask = np.copy(masks)
     iter = 0
     qdone = False
@@ -1856,9 +1857,10 @@ def spec_reject_comb(wave_grid, waves, fluxes, ivars, masks, weights, sn_clip=30
     nrej = np.sum(np.invert(outmask) & masks, axis=0)
     norig = np.sum((waves > 1.0) & np.invert(masks), axis=0)
 
-    for iexp in range(nexp):
-        # nrej = pixels that are now masked that were previously good
-        msgs.info("Rejected {:d} pixels in exposure {:d}/{:d}".format(nrej[iexp], iexp, nexp))
+    if verbose:
+        for iexp in range(nexp):
+            # nrej = pixels that are now masked that were previously good
+            msgs.info("Rejected {:d} pixels in exposure {:d}/{:d}".format(nrej[iexp], iexp, nexp))
 
     # Compute the final stack using this outmask
     wave_stack, flux_stack, ivar_stack, mask_stack, nused = compute_stack(wave_grid, waves, fluxes, ivars, outmask, weights)
@@ -2029,7 +2031,9 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
              ref_percentile=70.0, maxiter_scale=5,
              sigrej_scale=3.0, scale_method='auto', hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
              const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
-             maxrej=None, qafile=None, title='', debug=False, debug_scale=False, show_scale=False, show=False):
+             maxrej=None, qafile=None, title='', debug=False,
+             debug_scale=False, show_scale=False, show=False,
+             verbose=False):
 
     '''
     Driver routine for coadding longslit/multi-slit spectra.
@@ -2132,7 +2136,7 @@ def combspec(waves, fluxes, ivars, masks, sn_smooth_npix,
                                     wave_grid_max=wave_grid_max,dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=True)
+    rms_sn, weights = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
 
     fluxes_scale, ivars_scale, scales, scale_method_used = scale_spec_stack(
         wave_grid, waves, fluxes, ivars, masks, rms_sn, weights, ref_percentile=ref_percentile, maxiter_scale=maxiter_scale,
@@ -2288,8 +2292,8 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
-                 show_exp=False, show=False):
-    '''
+                 show_exp=False, show=False, verbose=False):
+    """
     Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
     three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
     (straight combine of stacked individual orders), spec1d_stack_XX.fits (a giant stack of all exposures and all orders).
@@ -2409,7 +2413,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
               propagated according to weighting and masking.
             - mask_giant_stack: ndarray, bool, (ngrid,): Mask for
               stacked spectrum on wave_stack wavelength grid. True=Good.
-    '''
+    """
 
     # output filenams for fits and QA plots
     #outfile_order = outfile.replace('.fits', '_order.fits') if outfile is not None else None
@@ -2445,7 +2449,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
                                     dwave=dwave, dv=dv, dloglam=dloglam, samp_fact=samp_fact)
 
     # Evaluate the sn_weights. This is done once at the beginning
-    rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=True)
+    rms_sn, weights_sn = sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=const_weights, verbose=verbose)
     # Isolate the nbest best orders, and then use the average S/N of these to determine the per exposure relative weights.
     mean_sn_ord = np.mean(rms_sn, axis=1)
     best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]
@@ -2697,9 +2701,7 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
     wave_lower = waveimg_stack[wavemask].min()
     wave_upper = waveimg_stack[wavemask].max()
     ind_lower, ind_upper = get_wave_ind(wave_grid, wave_lower, wave_upper)
-    wave_bins = wave_grid[ind_lower:ind_upper + 1]
-
-    return wave_bins
+    return wave_grid[ind_lower:ind_upper + 1]
 
 
 def get_spat_bins(thismask_stack, trace_stack):
@@ -2748,7 +2750,8 @@ def get_spat_bins(thismask_stack, trace_stack):
     return dspat_bins, dspat_stack
 
 
-def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack, inmask_stack, tilts_stack,
+def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
+                    inmask_stack, tilts_stack,
                     thismask_stack, waveimg_stack, wave_grid, weights='uniform'):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
@@ -3018,6 +3021,170 @@ def rebin2d(spec_bins, spat_bins, waveimg_stack, spatimg_stack, thismask_stack, 
 
 
     return sci_list_out, var_list_out, norm_rebin_stack.astype(int), nsmp_rebin_stack.astype(int)
+
+
+def spectra_to_peaks(spec, maxspat, det, extract='OPT', sigma=2.):
+    """
+    From a set of spectra in a :class:`pypeit.specobjs.Specobjs`
+    generate an array of peaks for cross-correlation
+
+    These are Gaussians with amplitude proportional to the S/N
+    of the spectrum
+
+    Args:
+        spec (:class:`pypeit.specobjs.Specobjs`):
+        maxspat (int):
+            Size of the array generated
+        det (int):
+        extract (str, optional):  Type of extraction performed
+        sigma (float, optional):  sigma of the Gaussian peaks generated
+
+    Returns:
+        `numpy.ndarray`_:
+
+    """
+    # Generate "arc spectra"
+    arc_spec = np.zeros(maxspat)
+    xval = np.arange(maxspat)
+
+    # Add in Gaussian
+    for sobj in spec:
+        # Detector
+        if sobj.DET != det:
+            continue
+        gdi = sobj[extract+'_COUNTS_IVAR'] > 0
+        s2n = np.median(sobj[extract+'_COUNTS'][gdi] * np.sqrt(sobj[extract+'_COUNTS_IVAR'][gdi]))
+        # Add it in
+        arc_spec += s2n * np.exp(-1*(sobj.SPAT_PIXPOS-xval)**2 / (2*sigma**2))
+
+    # Return
+    return arc_spec
+
+def update_sync_dict(sync_dict, in_indx, in_files, in_names, sync_toler=3):
+    """
+    Perform glorious book-keeping on the dict used to sync up
+    spectra from multiple exposures.
+
+    The input sync_dict is modified in place.
+
+    Args:
+        sync_dict (dict):
+        in_indx (int):  Index to sync against.  This is related to SPAT_POS
+        in_files (list):
+            List of filenames to append when we have match
+        in_names:
+            List of names to match to
+        sync_toler (int, optional):
+            A match occurs if SPAT_POS is within sync_toler
+    """
+    if len(in_files) != len(in_names):
+        raise ValueError('Number of files {0} and names {1} do not match.'.format(
+                            len(in_files),len(in_names)))
+    # Check for indx
+    if len(sync_dict) > 0:
+        ikeys = np.array(list(sync_dict.keys()))
+        mtch = np.abs(ikeys-in_indx) < sync_toler
+        nmtch = np.sum(mtch)
+        if nmtch == 0:
+            indx = in_indx
+        elif nmtch == 1:
+            indx = ikeys[mtch][0]
+        else:
+            raise ValueError("Too many matches!")
+    else:
+        indx = in_indx
+
+    # Now update
+    files = np.array(in_files)
+    names = np.array(in_names)
+    keep = np.ones_like(names).astype(bool)
+    if indx in sync_dict.keys():
+        # Avoid writing file1 names twice
+        for ii, ifile in enumerate(in_files):
+            if ifile in sync_dict[indx]['files']:
+                keep[ii] = False
+    else:
+        # Init
+        sync_dict[indx] = {}
+        sync_dict[indx]['files'] = []
+        sync_dict[indx]['names'] = []
+    # Append
+    sync_dict[indx]['files'] += files[keep].tolist()
+    sync_dict[indx]['names'] += names[keep].tolist()
+
+def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=False):
+    """
+    Routine to sync up spectra in a pair of :class:`pypeit.specobjs.Specobjs`
+    objects.
+
+    Args:
+        spec1_file (str):
+        spec2_file (str):
+        det (int):
+        sync_dict (dict):
+        sync_toler (int):
+        debug:
+
+    Returns:
+        dict:  The dict with the book-keeping
+           - Each key is considered a unique source
+           - It contains a list of the files where it was found
+           - And the PypeIt name for each source, e.g. SPAT0132-SLIT0020-DET01
+
+    """
+
+    if sync_dict is None:
+        sync_dict = {}
+    # Load spectra, restricted by det
+    spec1 = specobjs.SpecObjs.from_fitsfile(spec1_file, det=det)
+    spec2 = specobjs.SpecObjs.from_fitsfile(spec2_file, det=det)
+
+    # Max spat
+    maxspat = int(np.max(np.concatenate([spec1.SPAT_PIXPOS, spec2.SPAT_PIXPOS]))) + 10
+
+    # Test
+    #spec2.SPAT_PIXPOS = spec2.SPAT_PIXPOS - 5.
+
+    # Arcs
+    peaks1 = spectra_to_peaks(spec1, maxspat, det)
+    peaks2 = spectra_to_peaks(spec2, maxspat, det)
+
+    # Cross-correlate
+    shift, cross_corr = wvutils.xcorr_shift(peaks1, peaks2, debug=debug)
+
+    # Loop me now
+    done2 = np.ones(spec2.nobj).astype(bool)
+
+    for sobj1 in spec1:
+        #
+        indx1 = int(sobj1.SPAT_PIXPOS)
+        # Match
+        mtch = np.abs(sobj1.SPAT_PIXPOS-spec2.SPAT_PIXPOS-shift) < sync_toler
+        nmtch = np.sum(mtch)
+        if nmtch == 0:  # No match with sobj2, save only sobj1 for now
+            files = [spec1_file]
+            names = [sobj1.NAME]
+        elif nmtch == 1:  # Matched
+            idx = np.where(mtch)[0][0]
+            sobj2 = spec2[idx]
+            files = [spec1_file, spec2_file]
+            names = [sobj1.NAME, sobj2.NAME]
+            #
+            done2[idx] = True
+
+        else:
+            embed(header="70 Should not get here")
+        # Update
+        update_sync_dict(sync_dict, indx1, files, names)
+
+    # Deal with not done
+    if np.any(np.invert(done2)):
+        for sobj2 in spec2[np.invert(done2)]:
+            indx2 = int(sobj2.SPAT_PIXPOS+shift)
+            update_sync_dict(sync_dict, indx2, [spec2_file], [sobj2.NAME])
+
+    # Populate the sync_dict
+    return sync_dict
 
 
 

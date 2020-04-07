@@ -580,12 +580,16 @@ class PypeItMetaData:
                     {'--':
                         {'disperser': {'name': dispname, 'angle':dispangle},
                          'dichroic': dichroic,
-                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen}}}}
-        _det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
-        for d in _det:
-            setup[skey][str(d).zfill(2)] \
-                    = {'binning': binning, 'det': d,
-                       'namp': self.spectrograph.detector[d-1]['numamplifiers']}
+                         'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
+                         'binning': binning,  # PypeIt orientation binning of a science image
+                         }
+                     }
+                 }
+        #_det = np.arange(self.spectrograph.ndet)+1 if det is None else [det]
+        #for d in _det:
+        #    setup[skey][str(d).zfill(2)] \
+        #            = {'binning': binning, 'det': d,
+        #               'namp': self.spectrograph.detector[d-1]['numamplifiers']}
         return setup[skey] if config_only else setup
 
     def get_configuration_names(self, ignore=None, return_index=False, configs=None):

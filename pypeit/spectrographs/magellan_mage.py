@@ -11,7 +11,7 @@ from pypeit.core import framematch
 from pypeit.core import parse
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit.core import pixels
+from pypeit.images import detector_container
 from pypeit import debugger
 
 from IPython import embed
@@ -26,35 +26,51 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'magellan_mage'
         self.camera = 'MagE'
         self.telescope = telescopes.MagellanTelescopePar()
-        self.numhead = 1
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 1,
-                            specflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            # plate scale in arcsec/pixel
-                            platescale      = 0.3,
-                            # electrons/pixel/hour. From: http://www.lco.cl/telescopes-information/magellan/instruments/mage/the-mage-spectrograph-user-manual
-                            darkcurr        = 1.00,
-                            saturation      = 65535.,
-                            # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
-                            nonlinear       = 0.99,
-                            numamplifiers   = 1,
-                            gain            = 1.02, # depends on the readout
-                            ronoise         = 2.9, # depends on the readout
-                            datasec         = '[1:1024, 1:2048]',
-                            oscansec        = '[1:1024, 2049:2176]',
-                            )]
+    ndet = 1
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = True,
+            spatflip        = False,
+            # plate scale in arcsec/pixel
+            platescale      = 0.3,
+            # electrons/pixel/hour. From: http://www.lco.cl/telescopes-information/magellan/instruments/mage/the-mage-spectrograph-user-manual
+            darkcurr        = 1.00,
+            saturation      = 65535.,
+            # CCD is linear to better than 0.5 per cent up to digital saturation (65,536 DN including bias) in the Fast readout mode.
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(1.02), # depends on the readout
+            ronoise         = np.atleast_1d(2.9), # depends on the readout
+            datasec         = np.atleast_1d('[1:1024, 1:2048]'),
+            oscansec        = np.atleast_1d('[1:1024, 2049:2176]'),
+            )
         # Taken from the MASE paper: https://arxiv.org/pdf/0910.1834.pdf
         #self.norders = 15
         # 20-6
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+        return detector_container.DetectorContainer(**detector_dict)
 
     @property
     def pypeline(self):
@@ -73,7 +89,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_MagE']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         par['calibrations']['wavelengths']['cc_thresh'] = 0.50
@@ -88,7 +104,6 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 4
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
-        # Always correct for flexure, starting with default parameters
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
 
@@ -103,7 +118,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         # Always flux calibrate, starting with default parameters
         # Do not correct for flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [20, None]
@@ -217,37 +232,38 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         # Return
         return bpm_img
 
-    @staticmethod
-    def slitmask(tslits_dict, pad=None, binning=None):
-        """
-         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
-         overload this function to implement instrument specific slitmask behavior, for example setting
-         where the orders on an echelle spectrograph end
-
-         Parameters
-         -----------
-         tslits_dict: dict
-            Trace slits dictionary with slit boundary information
-
-         Optional Parameters
-         pad: int or float
-            Padding of the slit boundaries
-         binning: tuple
-            Spectrograph binning in spectral and spatial directions
-
-         Returns
-         -------
-         slitmask: ndarray int
-            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
-            indicating the slit number going from 0 to nslit-1 from left to right.
-
-         """
-
-        # These lines are always the same
-        pad = tslits_dict['pad'] if pad is None else pad
-        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
-
-        return slitmask
+# TODO: Not sure if this was ever used.
+#    @staticmethod
+#    def slitmask(tslits_dict, pad=None, binning=None):
+#        """
+#         Generic routine ton construct a slitmask image from a tslits_dict. Children of this class can
+#         overload this function to implement instrument specific slitmask behavior, for example setting
+#         where the orders on an echelle spectrograph end
+#
+#         Parameters
+#         -----------
+#         tslits_dict: dict
+#            Trace slits dictionary with slit boundary information
+#
+#         Optional Parameters
+#         pad: int or float
+#            Padding of the slit boundaries
+#         binning: tuple
+#            Spectrograph binning in spectral and spatial directions
+#
+#         Returns
+#         -------
+#         slitmask: ndarray int
+#            Image with -1 where there are no slits/orders, and an integer where there are slits/order with the integer
+#            indicating the slit number going from 0 to nslit-1 from left to right.
+#
+#         """
+#
+#        # These lines are always the same
+#        pad = tslits_dict['pad'] if pad is None else pad
+#        slitmask = pixels.slit_pixels(tslits_dict['lcen'], tslits_dict['rcen'], tslits_dict['nspat'], pad=pad)
+#
+#        return slitmask
 
     @property
     def norders(self):

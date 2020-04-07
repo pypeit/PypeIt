@@ -15,10 +15,13 @@ from astropy.io import fits
 from pypeit.pypeit import PypeIt
 from pypeit import par, msgs
 from pypeit import coadd2d
-from pypeit.core import save
+#from pypeit.core import save
 from pypeit import io
 from pypeit.spectrographs.util import load_spectrograph
+from pypeit import specobjs
+from pypeit import spec2dobj
 
+from IPython import embed
 
 # TODO: We need an 'io' module where we can put functions like this...
 def read_coadd2d_file(ifile):
@@ -209,19 +212,23 @@ def main(args):
                                              weights=parset['coadd2d']['weights'],
                                              ir_redux=ir_redux,
                                              debug_offsets=args.debug_offsets, debug=args.debug,
-                                             samp_fact=args.samp_fact)
+                                             samp_fact=args.samp_fact, master_dir=master_dir)
 
         # Coadd the slits
         coadd_dict_list = coadd.coadd(only_slits=None) # TODO implement only_slits later
-        # Create the psuedo images
-        psuedo_dict = coadd.create_psuedo_image(coadd_dict_list)
+        # Create the pseudo images
+        pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
         # Reduce
         msgs.info('Running the extraction')
+        # TODO -- This should mirror what is in pypeit.extract_one
+        # TODO -- JFH :: This ought to return a Spec2DObj and SpecObjs which would be slurped into
+        #  AllSpec2DObj and all_specobsj, as below.
+        # TODO -- JFH -- Check that the slits we are using are correct
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
-        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'] = coadd.reduce(
-            psuedo_dict, show = args.show, show_peaks = args.peaks)
-        # Save psuedo image master files
-        coadd.save_masters(master_dir)
+        sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'], \
+            sci_dict[det]['slits'] = coadd.reduce(pseudo_dict, show = args.show, show_peaks = args.peaks)
+        # Save pseudo image master files
+        #coadd.save_masters()
 
     # Make the new Science dir
     # TODO: This needs to be defined by the user
@@ -230,9 +237,44 @@ def main(args):
         msgs.info('Creating directory for Science output: {0}'.format(scipath))
         os.makedirs(scipath)
 
-    # Save the results
-    save.save_all(sci_dict, coadd.stack_dict['master_key_dict'], master_dir, spectrograph, head1d,
-                  head2d, scipath, basename)#, binning=coadd.binning)
+    # THE FOLLOWING MIMICS THE CODE IN pypeit.save_exposure()
 
+    # TODO -- These lines should be above once reduce() passes back something sensible
+    all_specobjs = specobjs.SpecObjs()
+    for det in detectors:
+        all_specobjs.add_sobj(sci_dict[det]['specobjs'])
+
+    # Write
+    outfile1d = os.path.join(scipath, 'spec1d_{:s}.fits'.format(basename))
+    subheader = spectrograph.subheader_for_spec(head2d, head2d)
+    all_specobjs.write_to_fits(subheader, outfile1d)
+
+    # 2D spectra
+    # TODO -- These lines should be above once reduce() passes back something sensible
+    all_spec2d = spec2dobj.AllSpec2DObj()
+    all_spec2d['meta']['ir_redux'] = ir_redux
+    for det in detectors:
+        all_spec2d[det] = spec2dobj.Spec2DObj(det=det,
+                                              sciimg=sci_dict[det]['sciimg'],
+                                              ivarraw=sci_dict[det]['sciivar'],
+                                              skymodel=sci_dict[det]['skymodel'],
+                                              objmodel=sci_dict[det]['objmodel'],
+                                              ivarmodel=sci_dict[det]['ivarmodel'],
+                                              bpmmask=sci_dict[det]['outmask'],
+                                              detector=sci_dict[det]['detector'],
+                                              slits=sci_dict[det]['slits'],
+                                        # TODO -- JFH :: Fill in all of these
+                                        waveimg=None,
+                                        sci_spat_flexure=None,
+                                        tilts=None)
+    # Build header
+    outfile2d = os.path.join(scipath, 'spec2d_{:s}.fits'.format(basename))
+    pri_hdr = all_spec2d.build_primary_hdr(head2d, spectrograph,
+                                           subheader=subheader,
+                                           # TODO -- JFH :: Decide if we need any of these
+                                           redux_path=None, master_key_dict=None,
+                                           master_dir=None)
+    # Write
+    all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr)
 
 

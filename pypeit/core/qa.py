@@ -73,10 +73,12 @@ def set_qa_filename(root, method, det=None, slit=None, prefix=None, out_dir=None
         outfile = 'QA/PNGs/{:s}_D{:02d}_obj_trace.png'.format(root, det)
     elif method == 'obj_profile_qa':
         outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_obj_prof.png'.format(root, det, slit)
-    elif method == 'flexure_qa_corr':
-        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_flex_corr.png'.format(root, det, slit)
-    elif method == 'flexure_qa_sky':
-        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_flex_sky.png'.format(root, det, slit)
+    elif method == 'spec_flexure_qa_corr':
+#        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
+        outfile = 'PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_corr.png'.format(root, det, slit)
+    elif method == 'spec_flexure_qa_sky':
+#        outfile = 'QA/PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_sky.png'.format(root, det, slit)
+        outfile = 'PNGs/{:s}_D{:02d}_S{:04d}_spec_flex_sky.png'.format(root, det, slit)
     else:
         raise IOError("NOT READY FOR THIS QA: {:s}".format(method))
     # Return
@@ -347,14 +349,16 @@ def gen_mf_html(pypeit_file, qa_path):
         calib_dict = yaml.load(infile, Loader=yaml.FullLoader)
     # Parse
     setup = list(calib_dict.keys())[0]
-    dets, cbsets = [], []
+    cbsets = []
     for key in calib_dict[setup].keys():
         if key == '--':
             continue
-        if isinstance(key,str):
-            dets.append(int(key))
+        #if isinstance(key,str):
+        #    dets.append(int(key))
         else:
             cbsets.append(key)
+    # TODO -- Read in spectograph from .pypeit file and then use spectrograph.ndet
+    dets = (1+np.arange(99)).tolist()
     # Generate MF file
     MF_filename = os.path.join('{:s}'.format(qa_path), 'MF_{:s}.html'.format(setup))
     body = ''

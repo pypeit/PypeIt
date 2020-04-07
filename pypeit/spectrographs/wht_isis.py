@@ -11,6 +11,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
+from pypeit.images import detector_container
 
 from pypeit import debugger
 
@@ -19,6 +20,8 @@ class WHTISISSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle WHT/ISIS specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(WHTISISSpectrograph, self).__init__()
@@ -95,30 +98,44 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         super(WHTISISBlueSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis_blue'
         self.camera = 'ISISb'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.20,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 1.2,
-                            ronoise         = 5.0,
-                            datasec         = '[:,2:4030]',
-                            oscansec        = None,
-                            suffix          = '_blue'
-                            )]
-        self.numhead = 2
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.20,
+            darkcurr        = 0.0,
+            saturation      = 65535.,
+            nonlinear       = 0.76,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(1.2),
+            ronoise         = np.atleast_1d(5.0),
+            datasec         = np.atleast_1d('[:,2:4030]'),
+            )
+        return detector_container.DetectorContainer(**detector_dict)
+
 
     def default_pypeit_par(self):
         """
@@ -145,7 +162,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['n_final'] = 5
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -153,8 +170,6 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
         par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -223,30 +238,43 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         super(WHTISISRedSpectrograph, self).__init__()
         self.spectrograph = 'wht_isis_red'
         self.camera = 'ISISr'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.22,
-                            darkcurr        = 0.0,
-                            saturation      = 65535.,
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 0.98,
-                            ronoise         = 4.0,
-                            datasec         = '[:,:]',
-                            oscansec        = None,
-                            suffix          = '_red'
-                            )]
-        self.numhead = 2
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict = dict(
+            binning=binning,
+            det=1,
+            dataext=1,
+            specaxis=0,
+            specflip=False,
+            spatflip=False,
+            platescale=0.22,
+            darkcurr=0.0,
+            saturation=65535.,
+            nonlinear=0.76,
+            mincounts=-1e10,
+            numamplifiers=1,
+            gain=np.atleast_1d(0.98),
+            ronoise=np.atleast_1d(4.0),
+            datasec=np.atleast_1d('[:,:]'),
+        )
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
@@ -273,14 +301,12 @@ class WHTISISRedSpectrograph(WHTISISSpectrograph):
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'ArII', 'CuI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         par['calibrations']['wavelengths']['wv_cen'] = 6000.0
         par['calibrations']['wavelengths']['disp'] = 0.2
         # Do not flux calibrate
         par['fluxcalib'] = None
-        # Always correct for flexure, starting with default parameters
-        par['flexure'] = pypeitpar.FlexurePar()
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames

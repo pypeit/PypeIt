@@ -5,15 +5,13 @@ import os
 import numpy as np
 
 from astropy.io import fits
-from astropy import units
-from astropy.coordinates import SkyCoord
 
 from pypeit import msgs
 from pypeit.spectrographs import spectrograph
-from ..par.pypeitpar import DetectorPar
 from .. import telescopes
 from pypeit.core import framematch
 from pypeit.core import parse
+from pypeit.images import detector_container
 from pypeit.par import pypeitpar
 from pkg_resources import resource_filename
 
@@ -24,6 +22,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Gemini/GMOS specific code
     """
+    ndet = 3
 
     def __init__(self):
 
@@ -128,7 +127,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Always correct for flexure
-        par['flexure']['method'] = 'boxcar'
+        par['flexure']['spec_method'] = 'boxcar'
         # Splice detectors 1,2,3 when creating sensitivity function
         par['sensfunc']['multi_spec_det'] = [1,2,3]
 
@@ -194,12 +193,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             det (int):
 
         Returns:
-            tuple:
-                raw_img (np.ndarray) -- Raw image for this detector
-                hdu (astropy.io.fits.HDUList)
-                exptime (float)
-                rawdatasec_img (np.ndarray)
-                oscansec_img (np.ndarray)
+            tuple: See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
 
         """
         # Check for file; allow for extra .gz, etc. suffix
@@ -281,7 +275,8 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
+        return self.get_detector_par(hdu, det if det is None else 1), \
+                array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
 
 class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
@@ -296,54 +291,77 @@ class GeminiGMOSSHamSpectrograph(GeminiGMOSSpectrograph):
         self.camera = 'GMOS-S'
         self.telescope = telescopes.GeminiSTelescopePar()
 
-        self.detector = [  #  Hamamatsu (since 2014)
-            # Detector 1
-            DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 129000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_01'
-                        ),
-            # Detector 2
-            DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 123000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_02'
-                        ),
-            # Detector 3
-            DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.080,
-                        darkcurr        = 0.0,
-                        saturation      = 125000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.83]*4,
-                        ronoise         = [3.98]*4,
-                        suffix          = '_03'
-                        ),
-        ]
-        self.numhead = 13
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.080,
+            darkcurr        = 0.0,
+            saturation      = 129000.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.83]*4),
+            ronoise         = np.atleast_1d([3.98]*4),
+            )
+        # Detector 2
+        detector_dict2 = dict(
+            binning         = binning,
+            det             = 2,
+            dataext         = 2,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.080,
+            darkcurr        = 0.0,
+            saturation      = 123000.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.83]*4),
+            ronoise         = np.atleast_1d([3.98]*4),
+            )
+        # Detector 3
+        detector_dict3 = dict(
+            binning         = binning,
+            det             = 3,
+            dataext         = 3,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.080,
+            darkcurr        = 0.0,
+            saturation      = 125000.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.83]*4),
+            ronoise         = np.atleast_1d([3.98]*4),
+            )
+        detectors = [detector_dict1, detector_dict2, detector_dict3]
+        # Return
+        return detector_container.DetectorContainer(**detectors[det-1])
 
     @staticmethod
     def default_pypeit_par():
@@ -478,54 +496,78 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
         super(GeminiGMOSNHamSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos_north_ham'
 
-        self.detector = [  #  Hamamatsu
-            # Detector 1
-            DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.0807,
-                        darkcurr        = 0.0,
-                        saturation      = 129000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.63]*4,
-                        ronoise         = [4.14]*4,
-                        suffix          = '_01'
-                        ),
-            # Detector 2
-            DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.0807,
-                        darkcurr        = 0.0,
-                        saturation      = 123000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.63]*4,
-                        ronoise         = [4.14]*4,
-                        suffix          = '_02'
-                        ),
-            # Detector 3
-            DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.0807,
-                        darkcurr        = 0.0,
-                        saturation      = 125000.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 4,
-                        gain            = [1.63]*4,
-                        ronoise         = [4.14]*4,
-                        suffix          = '_03'
-                        ),
-        ]
-        self.numhead = 13
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.0807,
+            darkcurr        = 0.0,
+            saturation      = 129000.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.63]*4),
+            ronoise         = np.atleast_1d([4.14]*4),
+            )
+        # Detector 2
+        detector_dict2 = dict(
+            binning         = binning,
+            det             = 2,
+            dataext         = 2,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.0807,
+            darkcurr        = 0.0,
+            saturation      = 123000.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.63]*4),
+            ronoise         = np.atleast_1d([4.14]*4),
+            )
+        # Detector 3
+        detector_dict3 = dict(
+            binning         = binning,
+            det             = 3,
+            dataext         = 3,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.0807,
+            darkcurr        = 0.0,
+            saturation      = 125000.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.63]*4),
+            ronoise         = np.atleast_1d([4.14]*4),
+            )
+        detectors = [detector_dict1, detector_dict2, detector_dict3]
+        # Return
+        return detector_container.DetectorContainer(**detectors[det-1])
+
 
     def config_specific_par(self, scifile, inp_par=None):
         """
@@ -569,54 +611,77 @@ class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
 
         self.spectrograph = 'gemini_gmos_north_e2v'
 
-        self.detector = [  #  E2V
-            # Detector 1
-            DetectorPar(dataext         = 1,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.0728,  # arcsec per pixel
-                        darkcurr        = 0.0,
-                        saturation      = 110900.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 2,
-                        gain            = [2.27]*2,
-                        ronoise         = [3.32]*2,
-                        suffix          = '_01'
-                        ),
-            # Detector 2
-            DetectorPar(dataext         = 2,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.0728,
-                        darkcurr        = 0.0,
-                        saturation      = 115500.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 2,
-                        gain            = [2.27]*2,
-                        ronoise         = [3.32]*2,
-                        suffix          = '_02'
-                        ),
-            # Detector 3
-            DetectorPar(dataext         = 3,  # Not sure this is used
-                        specaxis        = 1,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.0728,
-                        darkcurr        = 0.0,
-                        saturation      = 116700.,
-                        nonlinear       = 0.95,
-                        numamplifiers   = 2,
-                        gain            = [2.27]*2,
-                        ronoise         = [3.32]*2,
-                        suffix          = '_03'
-                        ),
-        ]
-        self.numhead = 7
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.0728,  # arcsec per pixel
+            darkcurr        = 0.0,
+            saturation      = 110900.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 2,
+            gain            = np.atleast_1d([2.27]*2),
+            ronoise         = np.atleast_1d([3.32]*2),
+            )
+        # Detector 2
+        detector_dict2 = dict(
+            binning         = binning,
+            det             = 2,
+            dataext         = 2,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.0728,
+            darkcurr        = 0.0,
+            saturation      = 115500.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 2,
+            gain            = np.atleast_1d([2.27]*2),
+            ronoise         = np.atleast_1d([3.32]*2),
+            )
+        # Detector 3
+        detector_dict3 = dict(
+            binning         = binning,
+            det             = 3,
+            dataext         = 3,  # Not sure this is used
+            specaxis        = 1,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.0728,
+            darkcurr        = 0.0,
+            saturation      = 116700.,
+            nonlinear       = 0.95,
+            mincounts       = -1e10,
+            numamplifiers   = 2,
+            gain            = np.atleast_1d([2.27]*2),
+            ronoise         = np.atleast_1d([3.32]*2),
+            )
+        detectors = [detector_dict1, detector_dict2, detector_dict3]
+        # Return
+        return detector_container.DetectorContainer(**detectors[det-1])
 
     def config_specific_par(self, scifile, inp_par=None):
         """

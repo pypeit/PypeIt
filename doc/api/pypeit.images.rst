@@ -6,13 +6,12 @@ Submodules
 
 .. toctree::
 
-   pypeit.images.calibrationimage
+   pypeit.images.buildimage
    pypeit.images.combineimage
-   pypeit.images.maskimage
-   pypeit.images.processrawimage
+   pypeit.images.detector_container
+   pypeit.images.imagebitmask
    pypeit.images.pypeitimage
    pypeit.images.rawimage
-   pypeit.images.scienceimage
 
 Module contents
 ---------------

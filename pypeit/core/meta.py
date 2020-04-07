@@ -9,7 +9,6 @@ common metadata used for all specrographs.
 """
 
 from collections import OrderedDict
-
 import numpy as np
 
 from astropy import units, coordinates
@@ -87,12 +86,12 @@ def define_core_meta():
     # Instrument related
     core_meta['dispname'] = dict(dtype=str, comment='Disperser name')
     core_meta['decker'] = dict(dtype=str, comment='Slit/mask/decker name')
-    core_meta['binning'] = dict(dtype=str, comment='"spatial,spectral" binning')
+    core_meta['binning'] = dict(dtype=str, comment='"spectral,spatial" binning')
 
     # Obs
     core_meta['mjd'] = dict(dtype=float, comment='Observation MJD; Read by astropy.time.Time format=mjd')
     core_meta['airmass'] = dict(dtype=float, comment='Airmass')
-    core_meta['exptime'] = dict(dtype=float, comment='Exposure time')
+    core_meta['exptime'] = dict(dtype=float, comment='Exposure time (s)')
 
     # Test me
     # TODO: Do we need this?
@@ -135,6 +134,8 @@ def define_additional_meta(nlamps=20):
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
                 = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')
+        additional_meta['lampshst{:02d}'.format(kk + 1)] \
+            = dict(dtype=str, comment='Status of a lamp shutter (e.g closed/open)')
     return additional_meta
 
 

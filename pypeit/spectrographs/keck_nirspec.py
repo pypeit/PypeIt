@@ -3,8 +3,7 @@
 import numpy as np
 
 from pypeit import msgs
-from pypeit.par import pypeitpar
-from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
 from pypeit import telescopes
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
@@ -17,35 +16,47 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRSPEC specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KeckNIRSPECSpectrograph, self).__init__()
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'NIRSPEC'
-        self.detector = [
-                # Detector 1
-            pypeitpar.DetectorPar(
-                            dataext         = 0,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.193,
-                            darkcurr        = 0.8,
-                            saturation      = 100000.,
-                            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
-                            numamplifiers   = 1,
-                            gain            = 5.8,
-                            ronoise         = 23,
-                            datasec         = '[:,:]',
-                            oscansec        = '[:,:]'
-                            )]
-        self.numhead = 1
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
 
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        detector_dict = dict(
+            det=1,
+            binning         ='1,1',  # No binning allowed
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.193,
+            darkcurr        = 0.8,
+            saturation      = 100000.,
+            nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
+            numamplifiers   = 1,
+            mincounts       = -1e10,
+            gain            = np.atleast_1d(5.8),
+            ronoise         = np.atleast_1d(23.),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
         """
@@ -60,7 +71,7 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'holy-grail'
         # Reidentification parameters
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
@@ -69,14 +80,13 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.80
-        par['calibrations']['flatfield']['illumflatten'] = True
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
@@ -115,109 +125,8 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
-
-
-
         return par
 
-    # JFH Replaced with updated values based on experienced with MOSFIRE above.
-    #
-    # @staticmethod
-    # def default_pypeit_par():
-    #     """
-    #     Set default parameters for NIRSPEC reductions
-    #     """
-    #     par = pypeitpar.PypeItPar()
-    #     # Frame numbers
-    #     par['calibrations']['standardframe']['number'] = 1
-    #     par['calibrations']['biasframe']['number'] = 0
-    #     par['calibrations']['pixelflatframe']['number'] = 5
-    #     par['calibrations']['traceframe']['number'] = 5
-    #     par['calibrations']['arcframe']['number'] = 1
-    #     # Do not flux calibrate
-    #     # NIRSPEC uses sky lines to wavelength calibrate; no need for flexure correction
-    #     par['flexure'] = pypeitpar.FlexurePar()
-    #     par['flexure']['method'] = 'skip'
-    #     # Set the default exposure time ranges for the frame typing
-    #     par['calibrations']['arcframe']['exprng'] = [1, None]
-    #     par['calibrations']['biasframe']['exprng'] = [None, 2]
-    #     par['calibrations']['darkframe']['exprng'] = [None, 5]
-    #     par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-    #     par['calibrations']['pixelflatframe']['exprng'] = [0, None]
-    #     par['calibrations']['traceframe']['exprng'] = [0, None]
-    #     par['calibrations']['standardframe']['exprng'] = [None,5]
-    #     par['scienceframe']['exprng'] = [1, None]
-    #     # Lower the default threshold for tilts
-    #     par['calibrations']['tilts']['tracethresh'] = 10.
-    #     # Slits
-    #     par['calibrations']['slitedges']['edge_thresh'] = 200.
-    #     # 1D wavelength solution
-    #     par['calibrations']['wavelengths']['lamps']  = ['OH_R24000']
-    #     par['calibrations']['wavelengths']['rms_threshold'] = 0.20  # Good for NIRSPEC-1
-    #     par['calibrations']['wavelengths']['sigdetect'] = 5.      # Good for NIRSPEC-1
-    #
-    #     return par
-    #
-
-    '''
-    def check_headers(self, headers):
-        """
-        Check headers match expectations for an LRISb exposure.
-        See also
-        :func:`pypeit.spectrographs.spectrograph.Spectrograph.check_headers`.
-        Args:
-            headers (list):
-                A list of headers read from a fits file
-        """
-        expected_values = { '0.INSTRUME': 'NIRSPEC',
-                               '0.NAXIS': 2,
-                              '0.NAXIS1': 1024,
-                              '0.NAXIS2': 1024 }
-        super(KeckNIRSPECSpectrograph, self).check_headers(headers,
-                                                           expected_values=expected_values)
-
-    def header_keys(self):
-        """
-        Return a dictionary with the header keywords to read from the
-        fits file.
-        Returns:
-            dict: A nested dictionary with the header keywords to read.
-            The first level gives the extension to read and the second
-            level gives the common name for header values that is passed
-            on to the PypeItMetaData object.
-        """
-        hdr_keys = {}
-        hdr_keys[0] = {}
-        hdr_keys[0]['idname'] = 'IMAGETYP'
-        #hdr_keys[0]['date'] = 'DATE-OBS'
-        hdr_keys[0]['utc'] = 'UTC'
-        hdr_keys[0]['target'] = 'OBJECT'
-        hdr_keys[0]['time'] = 'MJD-OBS'
-        hdr_keys[0]['ra'] = 'RA'
-        hdr_keys[0]['dec'] = 'DEC'
-        hdr_keys[0]['airmass'] = 'AIRMASS'
-        hdr_keys[0]['decker'] = 'SLITNAME'
-        hdr_keys[0]['echellepos'] = 'ECHLPOS'
-        hdr_keys[0]['crosspos'] = 'DISPPOS'
-        hdr_keys[0]['naxis0'] = 'NAXIS2'
-        hdr_keys[0]['naxis1'] = 'NAXIS1'
-        hdr_keys[0]['filter1'] = 'FILNAME'
-        hdr_keys[0]['dispname'] = 'DISPERS'
-        hdr_keys[0]['hatch'] = 'CALMPOS'
-        hdr_keys[0]['slitwid'] = 'SLITWIDT'
-        hdr_keys[0]['slitlen'] = 'SLITLEN'
-
-        # 'ELAPTIME' is added by KOA, but otherwise would need to do 'ITIME' * 'COADDS'
-        hdr_keys[0]['exptime'] = 'ELAPTIME'
-
-        # Lamp names and statuses
-        lamp_names = ['NEON', 'ARGON', 'KRYPTON', 'XENON', 'ETALON', 'FLAT']
-        for kk,lamp_name in enumerate(lamp_names):
-            hdr_keys[0]['lampstat{:02d}'.format(kk+1)] = lamp_name
-
-        return hdr_keys
-    '''
     def init_meta(self):
         """
         Generate the meta data dict
@@ -252,11 +161,6 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     def configuration_keys(self):
         return ['decker', 'dispname']
 
-    '''
-    def metadata_keys(self):
-        return super(KeckNIRSPECSpectrograph, self).metadata_keys() \
-                    + ['echellepos', 'crosspos', 'idname']
-    '''
     def pypeit_file_keys(self):
         pypeit_keys = super(KeckNIRSPECSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
@@ -360,18 +264,3 @@ class KeckNIRSPECLowSpectrograph(KeckNIRSPECSpectrograph):
     def telluric_grid_file(self):
         """Return the grid of HITRAN atmosphere models for telluric correctinos"""
         return resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
-
-
-
-    '''
-    def check_header(self, headers):
-        """Validate elements of the header."""
-        chk_dict = {}
-        # chk_dict is 1-indexed!
-        chk_dict[1] = {}
-        # THIS CHECK IS A MUST! It performs a standard check to make sure the data are 2D.
-        chk_dict[1]['NAXIS'] = 2
-        return chk_dict
-    '''
-
-

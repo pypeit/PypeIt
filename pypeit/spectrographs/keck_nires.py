@@ -5,10 +5,10 @@ import numpy as np
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import framematch
-from pypeit import utils
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
-from pypeit.core import pixels
+from pypeit.images import detector_container
+
 from pkg_resources import resource_filename
 
 
@@ -18,6 +18,8 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRES specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KeckNIRESSpectrograph, self).__init__()
@@ -25,27 +27,29 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'NIRES'
         self.numhead = 3
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            specaxis        = 1,
-                            specflip        = True,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.15,
-                            darkcurr        = 0.01,
-                            saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
-                            nonlinear       = 0.76,
-                            numamplifiers   = 1,
-                            gain            = 3.8,
-                            ronoise         = 5.0,
-                            datasec         = '[:,:]',
-                            oscansec        = '[980:1024,:]'  # Is this a hack??
-                            )]
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file = ?
+
+    def get_detector_par(self, hdu, det):
+        # Detector 1
+        detector_dict = dict(
+            binning='1,1',
+            det=1,
+            dataext         = 0,
+            specaxis        = 1,
+            specflip        = True,
+            spatflip=False,
+            platescale      = 0.15,
+            darkcurr        = 0.01,
+            saturation      = 1e6, # I'm not sure we actually saturate with the DITs???
+            nonlinear       = 0.76,
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(3.8),
+            ronoise         = np.atleast_1d(5.0),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[980:1024,:]')  # Is this a hack??
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
 
     @property
     def pypeline(self):
@@ -64,7 +68,7 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
@@ -85,14 +89,16 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['tilts']['spec_order'] =  3
 
         # Flats
-        par['calibrations']['flatfield']['illumflatten'] = False
+        par['calibrations']['standardframe']['process']['illumflatten'] = False
+        par['scienceframe']['process']['illumflatten'] = False
+        par['scienceframe']['process']['illumflatten'] = False
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['method'] = 'skip'
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
@@ -144,9 +150,23 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         self.meta = meta
 
     def configuration_keys(self):
+        """
+        Add additional keys to determine the instrument configuration
+
+        Returns:
+            list:
+
+        """
         return ['dispname']
 
     def pypeit_file_keys(self):
+        """
+        Add additional columns to the file block of the PypeIt file
+
+        Returns:
+            list:
+
+        """
         pypeit_keys = super(KeckNIRESSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys

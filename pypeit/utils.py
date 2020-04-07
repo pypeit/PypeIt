@@ -8,25 +8,26 @@ import os
 import pickle
 import warnings
 import itertools
-import matplotlib
+from collections import deque
+from bisect import insort, bisect_left
+
+from IPython import embed
 
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 
 from scipy.optimize import curve_fit
 from scipy import interpolate, ndimage
 
-from astropy import units
-from astropy import stats
+import matplotlib
 from matplotlib import pyplot as plt
 
-# Imports for fast_running_median
-from collections import deque
-from itertools import islice
-from bisect import insort, bisect_left
+from astropy import units
+from astropy import stats
+
 from pypeit.core import pydl
+from pypeit import bspline
 from pypeit import msgs
-from IPython import embed
-from numpy.lib.stride_tricks import as_strided
 
 def spec_atleast_2d(wave, flux, ivar, mask):
     """
@@ -237,6 +238,7 @@ def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
     return smoothed_img.data
 
 
+# TODO: Could this use bisect?
 def index_of_x_eq_y(x, y, strict=False):
     """
     Return an index array that maps the elements of `x` to those of
@@ -462,7 +464,7 @@ def fast_running_median(seq, window_size):
     d = deque()
     s = []
     result = []
-    for item in islice(seq_pad, window_size):
+    for item in itertools.islice(seq_pad, window_size):
         d.append(item)
         insort(s, item)
         result.append(s[len(d)//2])
@@ -604,61 +606,90 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
 
 #ToDo I would prefer to remove the kwargs_bspline and
 # and make them explicit
-def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5, lower=5,
-                    maxiter=25, nord = 4, bkpt=None, fullbkpt=None,
-                    relative=None, kwargs_bspline={}, kwargs_reject={}):
+def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lower=5, maxiter=25,
+                    nord=4, bkpt=None, fullbkpt=None, relative=None, kwargs_bspline={},
+                    kwargs_reject={}, quiet=False):
     """
-    Create a B-spline in the least squares sense with rejection, using a model profile
+    Fit a B-spline in the least squares sense with rejection to the
+    provided data and model profiles.
+
+    .. todo::
+        Fully describe procedure.
 
     Parameters
     ----------
-    xdata : :class:`numpy.ndarray`
+    xdata : `numpy.ndarray`_
         Independent variable.
-    ydata : :class:`numpy.ndarray`
+    ydata : `numpy.ndarray`_
         Dependent variable.
-    invvar : :class:`numpy.ndarray`
+    invvar : `numpy.ndarray`_
         Inverse variance of `ydata`.
-    profile_basis : :class:`numpy.ndarray`
-        model profiles
-    upper : :class:`int` or :class:`float`, optional
-        Upper rejection threshold in units of sigma, defaults to 5 sigma.
-    lower : :class:`int` or :class:`float`, optional
-        Lower rejection threshold in units of sigma, defaults to 5 sigma.
-    maxiter : :class:`int`, optional
-        Maximum number of rejection iterations, default 10.  Set this to
-        zero to disable rejection.
-    nord : :class:`int`, optional
+    profile_basis : `numpy.ndarray`_
+        Model profiles.
+    ingpm : `numpy.ndarray`_, optional
+        Input good-pixel mask. Values to fit in ``ydata`` should be
+        True.
+    upper : :obj:`int`, :obj:`float`, optional
+        Upper rejection threshold in units of sigma, defaults to 5
+        sigma.
+    lower : :obj:`int`, :obj:`float`, optional
+        Lower rejection threshold in units of sigma, defaults to 5
+        sigma.
+    maxiter : :obj:`int`, optional
+        Maximum number of rejection iterations, default 10. Set this
+        to zero to disable rejection.
+    nord : :obj:`int`, optional
         Order of B-spline fit
-    bkpt : :class:`numpy.ndarray`
+    bkpt : `numpy.ndarray`_, optional
         Array of breakpoints to be used for the b-spline
-    fullbkpt : :class:`numpy.ndarray`
-        Full array of breakpoints to be used for the b-spline, without
-        letting the b-spline class append on any extra bkpts
-    relative : class:`numpy.ndarray`
+    fullbkpt : `numpy.ndarray`_, optional
+        Full array of breakpoints to be used for the b-spline,
+        without letting the b-spline class append on any extra bkpts
+    relative : `numpy.ndarray`_, optional
         Array of integer indices to be used for computing the reduced
-        chi^2 of the fits, which then is used as a scale factor for the
-        upper,lower rejection thresholds
-    kwargs_bspline : dict
-        Passed to bspline
-    kwargs_reject : dict
-        Passed to djs_reject
+        chi^2 of the fits, which then is used as a scale factor for
+        the upper,lower rejection thresholds
+    kwargs_bspline : :obj:`dict`, optional
+        Keyword arguments used to instantiate
+        :class:`pypeit.bspline.bspline`
+    kwargs_reject : :obj:`dict`, optional
+        Keyword arguments passed to :func:`pypeit.core.pydl.djs_reject`
+    quiet : :obj:`bool`, optional
+        Suppress output to the screen
 
     Returns
     -------
-    sset: object
-        bspline object
-    outmask: : :class:`numpy.ndarray`
-        output mask which the same size as xdata, such that rejected
-        points have outmask set to False
-    yfit  : :class:`numpy.ndarray`
-        result of the bspline fit (same size as xdata)
-    reduced_chi: float
-        value of the reduced chi^2
+    sset : :class:`pypeit.bspline.bspline`
+        Result of the fit.
+    gpm : `numpy.ndarray`_
+        Output good-pixel mask which the same size as ``xdata``. The
+        values in this array for the corresponding data are not used in
+        the fit, either because the input data was masked or the data
+        were rejected during the fit, if they are False. Data
+        rejected during the fit (if rejection is performed) are::
+
+            rejected = ingpm & np.invert(gpm)
+
+    yfit : `numpy.ndarray`_
+        The best-fitting model; shape is the same as ``xdata``.
+    reduced_chi : :obj:`float`
+        Reduced chi-square of the best-fitting model.
+    exit_status : :obj:`int`
+        Indication of the success/failure of the fit.  Values are:
+
+            - 0 = fit exited cleanly
+            - 1 = maximum iterations were reached
+            - 2 = all points were masked
+            - 3 = all break points were dropped
+            - 4 = Number of good data points fewer than nord
+
     """
     # Checks
     nx = xdata.size
     if ydata.size != nx:
         msgs.error('Dimensions of xdata and ydata do not agree.')
+
+    # TODO: invvar and profile_basis should be optional
 
     # ToDO at the moment invvar is a required variable input
     #    if invvar is not None:
@@ -682,50 +713,56 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     yfit = np.zeros(ydata.shape)
     reduced_chi = 0.
 
-    if invvar.size == 1:
-        outmask = True
-    else:
-        outmask = np.ones(invvar.shape, dtype='bool')
+    # TODO: Instanting these place-holder arrays can be expensive.  Can we avoid doing this?
+    outmask = True if invvar.size == 1 else np.ones(invvar.shape, dtype=bool)
 
-    if inmask is None:
-        inmask = (invvar > 0)
+    if ingpm is None:
+        ingpm = invvar > 0
 
-    nin = np.sum(inmask)
-    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nin=" + "{:3d}".format(nin) + " good pixels")
-    msgs.info("******************************  Iter  Chi^2  # rejected  Rel. fact   ******************************")
-    msgs.info("                              ----  -----  ----------  --------- ")
+    if not quiet:
+        termwidth = 80-13
+        msgs.info('B-spline fit:')
+        msgs.info('    npoly = {0} profile basis functions'.format(npoly))
+        msgs.info('    ngood = {0}/{1} measurements'.format(np.sum(ingpm), ingpm.size))
+        msgs.info(' {0:>4}  {1:>8}  {2:>7}  {3:>6} '.format(
+                    'Iter', 'Chi^2', 'N Rej', 'R. Fac').center(termwidth, '*'))
+        hlinestr = ' {0}  {1}  {2}  {3} '.format('-'*4, '-'*8, '-'*7, '-'*6)
+        nullval = '  {0:>8}  {1:>7}  {2:>6} '.format('-'*2, '-'*2, '-'*2)
+        msgs.info(hlinestr.center(termwidth))
 
-
-    maskwork = outmask & inmask & (invvar > 0)
+    maskwork = outmask & ingpm & (invvar > 0)
     if not maskwork.any():
         msgs.error('No valid data points in bspline_profile!.')
-    else:
-        # Init bspline class
-        sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
-                                funcname='Bspline longslit special', **kwargs_bspline)
-        if maskwork.sum() < sset.nord:
+
+    # Init bspline class
+    sset = bspline.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
+                           funcname='Bspline longslit special', **kwargs_bspline)
+    if maskwork.sum() < sset.nord:
+        if not quiet:
             msgs.warn('Number of good data points fewer than nord.')
-            exit_status = 4
-            return sset, outmask, yfit, reduced_chi, exit_status
+        # TODO: Why isn't maskwork returned?
+        return sset, outmask, yfit, reduced_chi, 4
 
     # This was checked in detail against IDL for identical inputs
-    outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T
+    # KBW: Tried a few things and this was about as fast as you can get.
+    outer = np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F')).T
     action_multiple = outer.reshape((nx, npoly * nord), order='F')
     #--------------------
     # Iterate spline fit
     iiter = 0
-    error = -1
-    qdone = False
+    error = -1                  # Indicates that the fit should be done
+    qdone = False               # True if rejection iterations are done
     exit_status = 0
     relative_factor = 1.0
-    tempin = np.copy(inmask)
-    while (error != 0 or qdone is False) and iiter <= maxiter and (exit_status == 0):
+    nrel = 0 if relative is None else len(relative)
+    # TODO: Why do we need both maskwork and tempin?
+    tempin = np.copy(ingpm)
+    while (error != 0 or qdone is False) and iiter <= maxiter and exit_status == 0:
         ngood = maskwork.sum()
         goodbk = sset.mask.nonzero()[0]
         if ngood <= 1 or not sset.mask.any():
             sset.coeff = 0
             exit_status = 2 # This will end iterations
-            #iiter = maxiter + 1 # End iterations
         else:
             # Do the fit. Return values from workit for error are as follows:
             #    0 if fit is good
@@ -735,48 +772,58 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
             # we'll do the fit right here..............
             if error != 0:
                 bf1, laction, uaction = sset.action(xdata)
-                if np.any(bf1 == -2) or (bf1.size !=nx*nord):
+                if np.any(bf1 == -2) or bf1.size !=nx*nord:
                     msgs.error("BSPLINE_ACTION failed!")
                 action = np.copy(action_multiple)
                 for ipoly in range(npoly):
                     action[:, np.arange(nord)*npoly + ipoly] *= bf1
                 del bf1 # Clear the memory
-            if np.sum(np.isfinite(action) is False) > 0:
-                msgs.error("Infinities in action matrix, wavelengths may be very messed up!!!")
-            error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
-        iiter += 1
-        if error == -2:
-            msgs.warn(" All break points have been dropped!! Fit failed, I hope you know what you are doing")
-            exit_status = 3
-            return (sset, np.zeros(xdata.shape,dtype=bool), np.zeros(xdata.shape), reduced_chi, exit_status)
-        elif error == 0:
-            # Iterate the fit -- next rejection iteration
-            chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
-            reduced_chi = np.sum(chi_array**2)/(ngood - npoly*(len(goodbk) + nord)-1)
-            relative_factor = 1.0
-            # JFH -- What is
-            if relative is not None:
-                nrel = len(relative)
-                if nrel == 1:
-                    relative_factor = np.sqrt(reduced_chi)
-                else:
-                    this_chi2 = np.sum(chi_array[relative]**2)/(nrel - (len(goodbk) + nord) - 1)
-                    relative_factor = np.sqrt(this_chi2)
-                relative_factor = max(relative_factor,1.0)
-            # Rejection
-            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
-            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring sticky to be set is the more transparent behavior.
-            maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
-                                         inmask=tempin, outmask=maskwork,
-                                         upper=upper*relative_factor,
-                                         lower=lower*relative_factor, **kwargs_reject)
-            tempin = np.copy(maskwork)
-            msgs.info("                             {:4d}".format(iiter) + "{:8.3f}".format(reduced_chi) +
-                      "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
 
-        else:
-            msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
+            if np.any(np.invert(np.isfinite(action))):
+                msgs.error('Infinities in action matrix.  B-spline fit faults.')
+
+            error, yfit = sset.workit(xdata, ydata, invvar*maskwork, action, laction, uaction)
+
+        iiter += 1
+
+        if error == -2:
+            if not quiet:
+                msgs.warn('All break points lost!!  Bspline fit failed.')
+            exit_status = 3
+            return sset, np.zeros(xdata.shape, dtype=bool), np.zeros(xdata.shape), reduced_chi, \
+                        exit_status
+
+        if error != 0:
+            if not quiet:
+                msgs.info((' {0:4d}'.format(iiter) + nullval).center(termwidth))
+            continue
+
+        # Iterate the fit -- next rejection iteration
+        chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
+        reduced_chi = np.sum(np.square(chi_array)) / (ngood - npoly*(len(goodbk) + nord)-1)
+
+        relative_factor = 1.0
+        if relative is not None:
+            this_chi2 = reduced_chi if nrel == 1 \
+                            else np.sum(np.square(chi_array[relative])) \
+                                    / (nrel - (len(goodbk) + nord) - 1)
+            relative_factor = max(np.sqrt(this_chi2), 1.0)
+
+        # Rejection
+
+        # TODO: JFH by setting ingpm to be tempin which is maskwork, we
+        # are basically implicitly enforcing sticky rejection here. See
+        # djs_reject.py. I'm leaving this as is for consistency with
+        # the IDL version, but this may require further consideration.
+        # I think requiring sticky to be set is the more transparent
+        # behavior.
+        maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar, inmask=tempin,
+                                          outmask=maskwork, upper=upper*relative_factor,
+                                          lower=lower*relative_factor, **kwargs_reject)
+        tempin = np.copy(maskwork)
+        if not quiet:
+            msgs.info(' {0:4d}  {1:8.3f}  {2:7d}  {3:6.2f} '.format(iiter,
+                        reduced_chi, np.sum(maskwork == 0), relative_factor).center(termwidth))
 
     if iiter == (maxiter + 1):
         exit_status = 1
@@ -788,17 +835,82 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5,
     #    3 = all break points were dropped
     #    4 = Number of good data points fewer than nord
 
-    msgs.info("***************************************************************************************************")
-    msgs.info(
-        "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
-        ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
+    if not quiet:
+        msgs.info(' {0:>4}  {1:8.3f}  {2:7d}  {3:6.2f} '.format('DONE',
+                    reduced_chi, np.sum(maskwork == 0), relative_factor).center(termwidth))
+        msgs.info('*'*termwidth)
+
     # Finish
+    # TODO: Why not return maskwork directly
     outmask = np.copy(maskwork)
     # Return
     return sset, outmask, yfit, reduced_chi, exit_status
 
 
-def clip_ivar(flux, ivar, sn_clip, mask=None):
+def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None, show=True):
+    """
+    Construct a QA plot of the bspline fit.
+
+    Args:
+        xdata (`numpy.ndarray`_):
+            Array with the independent variable. Regardless of shape,
+            data is treated as one-dimensional.
+        ydata (`numpy.ndarray`_):
+            Array with the dependent variable. Regardless of shape,
+            data is treated as one-dimensional.
+        sset (:class:`pypeit.bspline.bspline`):
+            Object with the results of the fit. (First object
+            returned by :func:`bspline_profile`).
+        gpm (`numpy.ndarray`_):
+            Boolean array with the same size as ``xdata``.
+            Measurements rejected during the fit have ``gpm=False``.
+            (Second object returned by :func:`bspline_profile`).
+        yfit (`numpy.ndarray`_):
+            Best-fitting model sampled at ``xdata``. (Third object
+            returned by :func:`bspline_profile`).
+        xlabel (:obj:`str`, optional):
+            Label for the ordinate.  If None, none given.
+        ylabel (:obj:`str`, optional):
+            Label for the abcissa.  If None, none given.
+        title (:obj:`str`, optional):
+            Label for the plot.  If None, none given.
+        show (:obj:`bool`, optional):
+            Plot the result. If False, the axis instance is returned.
+            This is done before any labels or legends are added to
+            the plot.
+
+    Returns:
+        `matplotlib.axes.Axes`_: Axes instance with the data, model,
+        and breakpoints.  Only returned if ``show`` is False.
+    """
+    goodbk = sset.mask
+    bkpt, _ = sset.value(sset.breakpoints[goodbk])
+    was_fit_and_masked = np.invert(gpm)
+
+    plt.clf()
+    ax = plt.gca()
+    ax.plot(xdata, ydata, color='k', marker='o', markersize=0.4, mfc='k', fillstyle='full',
+            linestyle='None', label='data')
+    ax.plot(xdata[was_fit_and_masked], ydata[was_fit_and_masked], color='red', marker='+',
+            markersize=1.5, mfc='red', fillstyle='full', linestyle='None', label='masked')
+    ax.plot(xdata, yfit, color='cornflowerblue', label='fit')
+    ax.plot(sset.breakpoints[goodbk], bkpt, color='lawngreen', marker='o', markersize=2.0,
+            mfc='lawngreen', fillstyle='full', linestyle='None', label='bspline breakpoints')
+    ax.set_ylim(0.99*np.amin(yfit), 1.01*np.amax(yfit))
+    if not show:
+        return ax
+
+    plt.legend()
+    if xlabel is not None:
+        plt.xlabel(xlabel)
+    if ylabel is not None:
+        plt.ylabel(ylabel)
+    if title is not None:
+        plt.title(title)
+    plt.show()
+
+
+def clip_ivar(flux, ivar, sn_clip, mask=None, verbose=False):
     """
 
     This adds an error floor to the ivar, preventing too much rejection
@@ -828,7 +940,8 @@ def clip_ivar(flux, ivar, sn_clip, mask=None):
         gmask = (ivar > 0) & mask
         ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
         ivar_out = np.minimum(ivar, ivar_cap)
-        msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+        if verbose:
+            msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
         return ivar_out
 
 
@@ -1622,6 +1735,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
                     lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                     groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=False,
+                    verbose=False,
                     **kwargs_optimizer):
     """
     A routine to perform robust optimization. It is completely analogous
@@ -1759,9 +1873,10 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=No
                                           use_mad=use_mad, sticky=sticky)
         nrej = np.sum(thismask_iter & np.invert(thismask))
         nrej_tot = np.sum(inmask & np.invert(thismask))
-        msgs.info(
-            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
-            'total pixels'.format(iter, nrej, nrej_tot, nin_good))
+        if verbose:
+            msgs.info(
+                'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
+                'total pixels'.format(iter, nrej, nrej_tot, nin_good))
         iter += 1
 
     if (iter == maxiter) & (maxiter != 0):

@@ -21,10 +21,11 @@ def parser(options=None):
     parser.add_argument('flat', type=str, help='Flat frame filename')
     parser.add_argument('science', type=str, help='Science frame filename')
     parser.add_argument('-b', '--box_radius', type=float, help='Set the radius for the boxcar extraction (arcsec)')
-    parser.add_argument('-d', '--det', type=int, default=1, help='Detector number')
+    parser.add_argument('-d', '--det', type=int, default=1, help='Detector number. Cannot use with --slit_spat')
     parser.add_argument("--ignore_headers", default=False, action="store_true",
                         help="Ignore bad headers?")
     parser.add_argument("--user_pixflat", type=str, help="Use a user-supplied pixel flat (e.g. keck_lris_blue)")
+    parser.add_argument("--slit_spat", type=str, help="Reduce only this slit on this detector DET:SPAT_ID, e.g. 1:175")
 
     if options is None:
         pargs = parser.parse_args()
@@ -43,6 +44,7 @@ def main(pargs):
     from pypeit import pypeit
     from pypeit import pypeitsetup
     from pypeit.core import framematch
+    from pypeit import msgs
 
     spec = pargs.spectrograph
 
@@ -50,20 +52,29 @@ def main(pargs):
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
     cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
-    cfg_lines += ['    detnum = {0}'.format(pargs.det)]
+    if pargs.slit_spat is not None:
+        msgs.info("--slit_spat provided.  Ignoring --det")
+    else:
+        cfg_lines += ['    detnum = {0}'.format(pargs.det)]
+    # Restrict on slit
+    if pargs.slit_spat is not None:
+        cfg_lines += ['    slitspatnum = {0}'.format(pargs.slit_spat)]
+    # Allow for bad headers
     if pargs.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[scienceframe]']
-    cfg_lines += ['    [[process]]']
-    cfg_lines += ['          cr_reject = False']
+    cfg_lines += ['    processing_steps = orient,trim,apply_gain,flatten']
+    cfg_lines += ['[calibrations]']
+    # Input pixel flat?
     if pargs.user_pixflat is not None:
-        cfg_lines += ['[calibrations]']
         cfg_lines += ['    [[flatfield]]']
         cfg_lines += ['        frame = {0}'.format(pargs.user_pixflat)]
+    # Reduction restrictions
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['         skip_optimal = True']
-    if pargs.box_radius is not None: # Boxcar radius
+    # Set boxcar radius
+    if pargs.box_radius is not None:
         cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['         skip_second_find = True']
