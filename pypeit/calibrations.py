@@ -566,7 +566,7 @@ class Calibrations(object):
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('Must have the arc, bpm, slits, and wv_calib defined to proceed!')
 
-        if self.par['flatfield']['method'] is 'skip':
+        if self.par['flatfield']['method'] == 'skip':
             # User does not want to flat-field
             msgs.warn('Parameter calibrations.flatfield.method is set to skip. You are NOT '
                       'flatfielding your data!!!')
