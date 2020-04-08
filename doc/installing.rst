@@ -82,7 +82,14 @@ we recommend that you install PypeIt with `pip`::
 
     pip install pypeit
 
-Nuff said.  If you have not yet satisfied all the requirements, PypeIt will fail
+Nuff said, or so we thought.  Some OS systems struggle. If that
+includes you then do::
+
+    pip install git+https://github.com/pypeit/PypeIt.git
+
+And if that fails, let us know.
+
+If you have not yet satisfied all the requirements, PypeIt will fail
 when you first attempt to run it.   Try it::
 
     run_pypeit -h
