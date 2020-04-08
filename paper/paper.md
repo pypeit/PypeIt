@@ -28,11 +28,14 @@ bibliography: paper.bib
 astronomical, spectroscopic data. 
 Its algorithms build on decades-long development of previous
 data reduction pipelines by the developers [@mike; @mase].
+The reduction procedure - including a complete list of the
+input parameters and available functionality - is provided
+as online documentation, which is regularly updated.
 
 After the creation of a custom input/configuration file,
 the pipeline runs end-to-end to convert raw spectroscopic images
 into calibrated, science-ready spectra.
-It also includes scripts to flux and combine multiple exposures.
+It also includes scripts to flux calibrate and combine multiple exposures.
 ``PypeIt`` produces a series of calibration-related outputs and includes
 scripts for quality assurance inspection.  The final outputs
 are FITS files with rigid data models that hold the
@@ -40,15 +43,15 @@ two-dimensional (includes spatial information) and
 one-dimensional spectral extractions.
 
 Release v1.0 of ``PypeIt`` is designed to be used by both advanced 
-spectroscopists with prior data-reduction expertise and new astronomers. 
+spectroscopists with prior data reduction expertise and new astronomers. 
 It is highly configurable and designed to be applied to any 
 standard spectrograph.
 It has already enabled several scientific publications 
 [@hsyu2018; @eilers2020]. 
 
 It is our plan to expand PypeIt to include the majority of spectrographs
-on the largest ground-based telescopes, ideally with help from
-the broader community.
+on the largest ground-based optical and near-infrared telescopes, ideally
+with help from the broader community.
 
 
 # Acknowledgements
