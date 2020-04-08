@@ -1,6 +1,10 @@
 
-0.13.3dev
----------
+1.0.1dev
+--------
+
+
+1.0.0 (07 Apr 2020)
+-------------------
 
 - Replaces usage of the `tslits_dict` dictionary with
   `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
@@ -22,11 +26,14 @@
 - Added `bspline_profile_qa` for generic QA of a bspline fit.
 - Eliminate MasterFrame class
 - Masks handled by a DataContainer
-- Move DetectorPar into a DataContainer (named DetectorContainer) which enables frame-level construction
-- Advances to DataContainer (array type checking; nested DataContainers; to_master_file)
+- Move DetectorPar into a DataContainer (named DetectorContainer) which
+  enables frame-level construction
+- Advances to DataContainer (array type checking; nested DataContainers;
+  to_master_file)
 - Dynamic docs for calibration images
-- Every calibration output to disk is help within a DataContainer, separate from
-  previous classes.  Exception is WaveCalib (this needsd a fit DataContainer first)
+- Every calibration output to disk is help within a DataContainer,
+  separate from previous classes.  Exception is WaveCalib (this needsd a
+  fit DataContainer first)
 - Substantial refactoring of Calibrations
 - Add MDM OSMOS spectrograph
 - Moved pypeit.core.pydl.bspline into its own module, `pypeit.bspline`
@@ -52,7 +59,8 @@
     - Modifications to SlitTraceSet methods
     - Illumflat generated dynamically with different PypeIt control
     - waveimage generated dynamicall and WaveImage deprecated
-- Moved RawImage into ProcessRawImage and renamed the latter to the former
+- Moved RawImage into ProcessRawImage and renamed the latter to the
+  former
 - Continued refactoring of Calibrations
 - Initial code for syncing SpecObjs across exposures
 - Option to ignore profile masking during extraction

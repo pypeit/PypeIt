@@ -446,11 +446,21 @@ The tagging process is as follows:
    All of the `Pull Request Acceptance Requirements`_ should already be
    satisfied, meaning that the PR should be quickly accepted and merged.
 
+DOI
+---
+
+If we wish to generate a new DOI for the code, it is as simple
+as
+
+ - Generate a `new release on GitHub <https://help.github.com/en/github/administering-a-repository/about-releases>`_.
+ - Update the DOI in the README.md
+
+
 ----
 
 This document was developed and mutually agreed upon by: Kyle Westfall,
 J. Xavier Prochaska, Joseph Hennawi.
 
-*Last Modified: 18 Mar 2020*
+*Last Modified: 07 Apr 2020*
 
 

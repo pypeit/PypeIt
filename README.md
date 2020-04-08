@@ -16,7 +16,8 @@ https://github.com/pypeit/PypeIt/issues/676)
 # Please cite:
 
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3506873.svg)](https://doi.org/10.5281/zenodo.3506873)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3743493.svg)](https://doi.org/10.5281/zenodo.3743493)
+
 
 # Contribute
 

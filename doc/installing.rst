@@ -37,6 +37,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
+* `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
 
 If you are using Anaconda, you can check the presence of these packages with::
 
@@ -81,7 +82,14 @@ we recommend that you install PypeIt with `pip`::
 
     pip install pypeit
 
-Nuff said.  If you have not yet satisfied all the requirements, PypeIt will fail
+Nuff said, or so we thought.  Some OS systems struggle. If that
+includes you then do::
+
+    pip install git+https://github.com/pypeit/PypeIt.git
+
+And if that fails, let us know.
+
+If you have not yet satisfied all the requirements, PypeIt will fail
 when you first attempt to run it.   Try it::
 
     run_pypeit -h
