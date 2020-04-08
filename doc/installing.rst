@@ -85,15 +85,15 @@ we recommend that you install PypeIt with `pip`::
 
     pip install pypeit
 
-Nuff said, or so we thought.  Some OS systems struggle. If that
-includes you then do::
+Nuff said, or so we thought because this does not seem to work on all
+OS systems. If that includes you then do::
 
     pip install git+https://github.com/pypeit/PypeIt.git
 
 And if that fails, let us know.
 
 If you have not yet satisfied all the requirements, PypeIt will fail
-when you first attempt to run it.   Try it::
+when you first attempt to run it.   Try::
 
     run_pypeit -h
 
@@ -120,18 +120,29 @@ And we then recommend you install with::
 
 Again, do a test run as above to check you have all the requirements.
 
-c code
+C code
 ------
 
-Significant speed gains in PypeIt can be enabled via compilation of the
-c code version of the b-spline fitting code.
-This is done automatically
-at installation, but may require updating gcc.
+Significant speed gains in PypeIt can be enabled via compilation of
+the C code version of the b-spline fitting code. Compilation of the C
+code should happen automatically when you execute `pip install` or
+`python setup.py`. You can check that the C code was compiled
+successfully by running the `pypeit_c_enabled` script. What you
+should see is::
 
-It may also necessitate an XCode update for Mac users
-and (often) an OS update.
-Alternatively, Mac users can directly install gcc
-without updating XCode.
+    $ pypeit_c_enabled
+    Successfully imported bspline C utilities.
+
+If no message is printed, the C code could not be imported.
+
+Some notes if you have problems installing the C code:
+
+    - the code will still run successfully by falling back to slower,
+      pure-python implementations
+    - to successfully compile the C code, you may need to update
+      `gcc` and/or `Xcode` for Mac users
+    - for some Mac users, you may also need to update your OS if
+      you're using a particularly old version (e.g., 10.10 Yosemite)
 
 Testing the Installation
 ========================
