@@ -74,6 +74,9 @@ This will push the code into your Python distribution.
 PypeIt
 ======
 
+pip
+---
+
 Read all of the text in this sub-section before choosing how you
 wish to install `PypeIt`.
 
@@ -103,6 +106,9 @@ where path is to wherever `pip` installed the code.  Or you can download the
 `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`_ file
 and run on it directly.
 
+git clone
+---------
+
 However, if you are going to use development branches (common, we fear)
 then you will need to install via GitHub::
 
@@ -113,6 +119,19 @@ And we then recommend you install with::
     python setup.py develop
 
 Again, do a test run as above to check you have all the requirements.
+
+c code
+------
+
+Significant speed gains in PypeIt can be enabled via compilation of the
+c code version of the b-spline fitting code.
+This is done automatically
+at installation, but may require updating gcc.
+
+It may also necessitate an XCode update for Mac users
+and (often) an OS update.
+Alternatively, Mac users can directly install gcc
+without updating XCode.
 
 Testing the Installation
 ========================
