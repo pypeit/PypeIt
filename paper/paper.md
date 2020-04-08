@@ -52,13 +52,18 @@ It has already enabled several scientific publications
 It is our plan to expand PypeIt to include the majority of spectrographs
 on the largest ground-based optical and near-infrared telescopes, ideally
 with help from the broader community.
+Join us [on GitHub](https://github.com/pypeit/PypeIt).
+By using this software, we politely request that you abide by our 
+[code of conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 
 # Acknowledgements
 
-We acknowledge contributions from TO BE FILLED IN. 
+We acknowledge intellectual contributions from TO BE FILLED IN. 
 
 PypeIt has been financially supported by 
 the University of California Observatories.
+During this work, R.~J.~C. was supported by a Royal Society University Research 
+Fellowship, and acknowledges support from STFC (ST/P000541/1, ST/T000244/1).
 
 # References
