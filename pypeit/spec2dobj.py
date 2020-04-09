@@ -335,12 +335,14 @@ class AllSpec2DObj(object):
         # MasterFrame info
         # TODO -- Should this be in the header of the individual HDUs ?
         if master_key_dict is not None:
-            #hdr['FRAMMKEY'] = master_key_dict['frame'][:-3]
-            #hdr['BPMMKEY'] = master_key_dict['bpm'][:-3]
-            hdr['BIASMKEY'] = master_key_dict['bias'][:-3]
-            hdr['ARCMKEY'] = master_key_dict['arc'][:-3]
-            hdr['TRACMKEY'] = master_key_dict['trace'][:-3]
-            hdr['FLATMKEY'] = master_key_dict['flat'][:-3]
+            if 'bias' in master_key_dict.keys():
+                hdr['BIASMKEY'] = master_key_dict['bias'][:-3]
+            if 'arc' in master_key_dict.keys():
+                hdr['ARCMKEY'] = master_key_dict['arc'][:-3]
+            if 'trace' in master_key_dict.keys():
+                hdr['TRACMKEY'] = master_key_dict['trace'][:-3]
+            if 'flat' in master_key_dict.keys():
+                hdr['FLATMKEY'] = master_key_dict['flat'][:-3]
 
         # Processing steps
         det = self.detectors[0]
