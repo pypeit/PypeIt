@@ -227,7 +227,7 @@ class RawImage(object):
         if self.par['illumflatten']:
             if flatimages is None:
                 msgs.warn("Cannot illumflatten, no flat field image generated. Skipping..")
-            if slits is None:
+            elif slits is None:
                 msgs.error("Need to provide slits to create illumination flat")
             else:
                 illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
