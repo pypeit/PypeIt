@@ -1474,6 +1474,9 @@ class EdgeTraceSet(object):
             gpm = np.ones(2*nslits, dtype=bool)
             traceid = np.concatenate((-np.arange(nslits), np.arange(nslits)))
             synced = True
+            # JFH Trying to make this work for the case where slits are known, but this functionality appears to be
+            # never used? I think slits needs its own show method. 
+            slit_ids = slits.slitord_id
 
         if in_ginga:
             # Set up the appropriate keyword arguments for the IDs
@@ -1484,9 +1487,11 @@ class EdgeTraceSet(object):
 
             # spat_id
             if synced:
-                half = fit.shape[0] // 2
-                scen = (_trc[half, gpm & is_left] + _trc[half, gpm & is_right]) / 2.
-                id_kwargs['slit_ids'] = scen.astype(int)
+                if slits is None:
+                    half = fit.shape[0] // 2
+                    slit_ids = ((_trc[half, gpm & is_left] + _trc[half, gpm & is_right]) / 2.).astype(int)
+
+                id_kwargs['slit_ids'] = slit_ids
 
             # Connect to or instantiate ginga window
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
