@@ -223,10 +223,14 @@ class RawImage(object):
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
 
         # Generate the illumination flat
+        illum_flat = None
         if self.par['illumflatten']:
-            if flatimages is None or slits is None:
-                msgs.error("Need to provide slits and flatimages to illumination flat")
-            illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
+            if flatimages is None:
+                msgs.warn("Cannot illumflatten, no flat field image generated. Skipping..")
+            elif slits is None:
+                msgs.error("Need to provide slits to create illumination flat")
+            else:
+                illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
             if debug:
                 from pypeit import ginga
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
@@ -236,14 +240,13 @@ class RawImage(object):
                 orig_image = self.image.copy()
                 viewer, ch = ginga.show_image(orig_image, chname='orig_image')
                 ginga.show_slits(viewer, ch, left, right)  # , slits.id)
-        else:
-            illum_flat = None
 
         # Flat field
         if 'flatten' in process_steps:
             if flatimages is not None:
                 self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
-            # TODO: Print a warning when it is None?
+            else:
+                msgs.warn("Flat fielding desired but no flat field image generated.  Skipping flat fielding")
             steps_copy.remove('flatten')
         if debug:
             viewer, ch = ginga.show_image(self.image, chname='image')

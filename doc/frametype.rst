@@ -2,9 +2,9 @@
 
 .. _frame_types:
 
-**********
-Frame Type
-**********
+***********
+Frame Types
+***********
 
 .. index:: Frame_Type
 
