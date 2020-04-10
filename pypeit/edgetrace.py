@@ -1437,6 +1437,9 @@ class EdgeTraceSet(object):
         if include_img and include_sobel:
             msgs.error('Cannot show both the trace image and the filtered version.')
 
+        # TODO: Clean and consolidate the objects needed for either the
+        # ginga or matplotlib methods so that this isn't as onerous.
+
         # Build the slit edge data to plot.
         if slits is None:
             # Use the internals. Any masked data is excluded; masked
@@ -1458,6 +1461,12 @@ class EdgeTraceSet(object):
             traceid = self.traceid
             nslits = np.amax(traceid)   # Only used if synced is True
             synced = self.is_synced
+            slit_ids = None
+            if synced:
+                _trc = cen if fit is None else fit
+                half = fit.shape[0] // 2
+                slit_ids = ((_trc[half, gpm & is_left]
+                             + _trc[half, gpm & is_right]) / 2.).astype(int)
         else:
             # Use the provided SlitTraceSet
             _include_error = False
@@ -1474,24 +1483,17 @@ class EdgeTraceSet(object):
             gpm = np.ones(2*nslits, dtype=bool)
             traceid = np.concatenate((-np.arange(nslits), np.arange(nslits)))
             synced = True
-            # JFH Trying to make this work for the case where slits are known, but this functionality appears to be
-            # never used? I think slits needs its own show method. 
+            # JFH Trying to make this work for the case where slits are
+            # known, but this functionality appears to be never used? I
+            # think slits needs its own show method.
             slit_ids = slits.slitord_id
 
         if in_ginga:
             # Set up the appropriate keyword arguments for the IDs
-            id_kwargs = {'slit_ids': np.arange(nslits)+1} if synced \
+            id_kwargs = {'slit_ids': slit_ids} if synced \
                             else {'left_ids': traceid[gpm & is_left],
                                   'right_ids': traceid[gpm & is_right]}
             _trc = cen if fit is None else fit
-
-            # spat_id
-            if synced:
-                if slits is None:
-                    half = fit.shape[0] // 2
-                    slit_ids = ((_trc[half, gpm & is_left] + _trc[half, gpm & is_right]) / 2.).astype(int)
-
-                id_kwargs['slit_ids'] = slit_ids
 
             # Connect to or instantiate ginga window
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
