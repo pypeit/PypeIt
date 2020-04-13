@@ -40,7 +40,7 @@ for the *shane_kast_blue* instrument::
     coadd1d read
       Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits SPAT0176-SLIT0000-DET01
       Science/spec1d_b28-J1217p3905_KASTb_2015May20T051801.470.fits SPAT0175-SLIT0000-DET01
-    coadd1d
+    coadd1d end
 
 The opening block sets parameters for the process, including
 the output file name.  See `Parameters`_ for common choices.
