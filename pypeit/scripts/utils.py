@@ -76,9 +76,9 @@ class Utilities:
         idx = self.check_index(iFile)
         # Grab the filename
         fname = self.data_files[idx]
-        rawimage, _, _, datasec, _ = self.spectrograph.get_rawimage(fname, self.det)
+        detpar, rawimage, _, _, datasec, _ = self.spectrograph.get_rawimage(fname, self.det)
         rawimage = procimg.trim_frame(rawimage, datasec < 1)
-        return self.spectrograph.orient_image(rawimage, self.det)
+        return self.spectrograph.orient_image(detpar, rawimage)
 
     def load_spectrograph_parset(self, iFile=None):
         # Do some checks
