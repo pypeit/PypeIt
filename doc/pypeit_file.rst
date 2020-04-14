@@ -82,12 +82,12 @@ See :doc:`pypeit_par` for the complete list of parameters,
 the spectrograph specific settings, and the syntax for changing parameters.
 
 Here are notes on somewhat common edits that PypeIt users make
-(docs not yet generated!):
+(docs under construction!):
 
   - Restrict reduction (including the detectors reduced)
   - Wavelength fussing
-  - SlitEdge fussing
-  - Object finding
+  - :doc:`slit_tracing`
+  - :doc:`object_finding`
 
 Setup Block
 -----------

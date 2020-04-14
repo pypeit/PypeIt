@@ -58,28 +58,24 @@ The standard algorithm performs the following steps:
 
 10.  Restrict to **maxnumber** of objects, ordered by flux.
 
-by-hand
--------
+The most common modification that we recommend is to reduce
+**sig_thresh** to enable the identification of fainter sources
+(at the risk of false positives).  Reasonable results have been
+obtained with **sig_thresh** as low as 3.0.
 
-Parameters
-==========
+To make this modification, add the following to your
+:doc:`pypeit_file`::
 
-The following parameters refer to the prefix of `trace object`
-and refer to options for finding the object(s) in a slit.
+    [reduce]
+      [[findobj]]
+        sig_thresh = 3.
 
-============== =========== =======================  ==================================================
-Parameter      Algorithm   Options                  Description
-============== =========== =======================  ==================================================
-find           N/A         standard,nminima         Algorithm to use for finding objects
-nsmooth        nminima     int; default=3           Parameter for Gaussian smoothing when the nminima
-                                                    algorithm is used
-xedge          Any         float; default=0.03      Ignore any objects within xedge of the edge of the
-                                                    slit.  One may lower this value to recover an
-                                                    object very close to the edge.
-============== =========== =======================  ==================================================
+
 
 Interactive object finding/tracing
 ----------------------------------
+
+THE FOLLOWING IS UNDER DEVELOPMENT.
 
 In some cases, the code may not find the object that you're after,
 or may find several spurious objects. To add/remove/modify object
