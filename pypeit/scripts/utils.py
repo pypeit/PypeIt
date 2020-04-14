@@ -53,10 +53,10 @@ class Utilities:
             msgs.error()
         idx = self.check_index(iFile)
         # Get the master dir
-        if self.par['calibrations']['caldir'] == 'default':
+        if self.par['calibrations']['master_dir'] == 'default':
             mdir = os.path.join(self.par['rdx']['redux_path'], 'Masters')
         else:
-            mdir = self.par['calibrations']['caldir']
+            mdir = self.par['calibrations']['master_dir']
 
         if not os.path.exists(mdir):
             mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
