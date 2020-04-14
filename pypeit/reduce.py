@@ -555,7 +555,7 @@ class Reduce(object):
             # Loop on slits
             for slit_idx in gdslits:
                 slit_spat = self.slits.spat_id[slit_idx]
-                msgs.info("Global sky subtraction for slit: {:d}".format(slit))
+                msgs.info("Global sky subtraction for slit: {:d}".format(slit_idx))
                 thismask = self.slitmask == slit_spat
                 inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
                 # Find sky
