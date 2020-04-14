@@ -46,7 +46,7 @@ def main(args):
     info.load_spectrograph_parset(sciIdx)
 
     # Get the master key and directory
-    mdir, mkey = info.get_master_dirkey(args.file)
+    mdir, mkey = info.get_master_dirkey()
 
     # Load the image data
     frame = info.load_frame(sciIdx)
