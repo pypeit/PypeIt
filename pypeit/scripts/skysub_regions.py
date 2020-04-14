@@ -11,20 +11,12 @@ Run above the Science/ folder.
 
 import os
 import argparse
-import numpy as np
-from configobj import ConfigObj
 
-from astropy.table import Table
-
-from pypeit import msgs
 from pypeit import slittrace
 from pypeit import masterframe
 from pypeit.core.gui.skysub_regions import SkySubGUI
 from pypeit.core import procimg
-from pypeit.par.util import parse_pypeit_file
-from pypeit.par import PypeItPar
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.metadata import PypeItMetaData
+from pypeit.scripts import utils
 
 
 def parser(options=None):
@@ -42,78 +34,22 @@ def parser(options=None):
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def get_science_frame(usrdata):
-    """Find all of the indices that correspond to science frames
-    """
-    sciidx = np.array([], dtype=np.int)
-    cntr = 0
-    print("\nList of science frames:")
-    for tt in range(len(usrdata)):
-        ftype = usrdata['frametype'][tt].split(",")
-        for ff in range(len(ftype)):
-            if ftype[ff] == "science":
-                sciidx = np.append(sciidx, tt)
-                print("  ({0:d}) {1:s}".format(cntr+1, usrdata['filename'][tt]))
-                cntr += 1
-                break
-    # Determine which science frame the user wants
-    if cntr == 1:
-        msgs.info("Only one science frame listed in .pypeit file - using that frame")
-        idx = sciidx[0]
-    else:
-        ans = ''
-        while True:
-            ans = input(" Which frame would you like to select [1-{0:d}]: ".format(cntr))
-            try:
-                ans = int(ans)
-                if 1 <= ans <= cntr:
-                    idx = sciidx[ans-1]
-                    break
-            except ValueError:
-                pass
-            msgs.info("That is not a valid option!")
-    return idx
-
-
 def main(args):
 
-    # Load fits file
-    cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(args.file, runtime=False)
+    # Generate a utilities class
+    info = utils.Utilities(args)
 
-    # Get the raw fits file name
-    sciIdx = get_science_frame(usrdata)
-    fname = data_files[sciIdx]
+    # Interactively select a science frame
+    sciIdx = info.select_science_frame()
 
-    # Load the spectrograph
-    cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name)
-    msgs.info('Loaded spectrograph {0}'.format(spectrograph.spectrograph))
-    spectrograph_cfg_lines = spectrograph.config_specific_par(fname).to_config()
-    par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+    # Load the spectrograph and parset
+    info.load_spectrograph_parset(sciIdx)
 
-    # Get the master key
-    file_base = os.path.basename(fname)
-    ftdict = dict({file_base: 'science'})
-    fitstbl = PypeItMetaData(spectrograph, par, files=[data_files[sciIdx]], usrdata=Table(usrdata[sciIdx]), strict=True)
-    fitstbl.finalize_usr_build(ftdict, setups[0])
-    mkey = fitstbl.master_key(0, det=args.det)
+    # Get the master key and directory
+    mdir, mkey = info.get_master_dirkey(args.file)
 
-    # Load the frame data
-    detpar, rawimage, _, _, datasec, _ = spectrograph.get_rawimage(fname, args.det)
-    rawimage = procimg.trim_frame(rawimage, datasec < 1)
-    frame = spectrograph.orient_image(detpar, rawimage)
-
-    # Set paths
-    if par['calibrations']['caldir'] == 'default':
-        mdir = os.path.join(par['rdx']['redux_path'], 'Masters')
-    else:
-        mdir = par['calibrations']['caldir']
-
-    if not os.path.exists(mdir):
-        mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
-        msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
-        mdir = mdir_base
+    # Load the image data
+    frame = info.load_frame(sciIdx)
 
     # Load the slits information
     slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
@@ -122,6 +58,7 @@ def main(args):
     slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
 
     # Derive an appropriate output filename
+    file_base = info.get_basename(sciIdx)
     prefix = os.path.splitext(file_base)
     if prefix[1] == ".gz":
         outname = os.path.splitext(prefix[0])[0]
