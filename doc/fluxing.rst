@@ -33,7 +33,7 @@ spectrum.
 
 The sensitivity function is written to disk as a FITS file.
 This function converts the extracted count spectrum
-to f_lambda units (erg/s/cm^2/Ang) scaled by 1e-17.
+to f_lambda units of 1e-17 erg/s/cm^2/Ang.
 
 pypeit_sensfunc
 ---------------
