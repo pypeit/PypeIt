@@ -995,3 +995,27 @@ class IFUCalibrations(Calibrations):
         # Order matters!
         return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats', 'wave']
 
+
+def check_for_calibs(par, fitstbl):
+    # Find the science frames
+    is_science = fitstbl.find_frames('science')
+    # Frame indices
+    frame_indx = np.arange(len(fitstbl))
+
+    for i in range(fitstbl.n_calib_groups):
+        in_grp = fitstbl.find_calib_group(i)
+        grp_science = frame_indx[is_science & in_grp]
+        u_combid = np.unique(fitstbl['comb_id'][grp_science])
+        for j, comb_id in enumerate(u_combid):
+            frames = np.where(fitstbl['comb_id'] == comb_id)[0]
+            calib_ID = int(fitstbl['calib'][frames[0]])
+
+            # Explore
+            for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat', 'use_illumflat'],
+                                  ['bias', 'dark', 'pixelflat', 'illumflat']):
+                if par['scienceframe']['process'][key]:
+                    rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
+                    if len(rows) == 0:
+                        msgs.error("No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(
+                            ftype, key))
+

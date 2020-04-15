@@ -133,6 +133,9 @@ class PypeIt(object):
         # Set paths
         self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['master_dir'])
 
+        # Check for calibrations
+        calibrations.check_for_calibs(self.par, self.fitstbl)
+
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
         msgs.info('Master calibration data output to: {0}'.format(self.calibrations_path))
