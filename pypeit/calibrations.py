@@ -11,6 +11,7 @@ from abc import ABCMeta
 from IPython import embed
 
 import numpy as np
+import warnings
 
 from astropy.io import fits
 
@@ -65,7 +66,10 @@ class Calibrations(object):
         wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
         mstilt (:class:`pypeit.images.buildimage.TiltImage`):
         flatimages (:class:`pypeit.flatfield.FlatImages`):
-        msbias (`numpy.ndarray`):
+        msbias (:class:`pypeit.images.buildimage.BiasImage`):
+        msbpm (`numpy.ndarray`):
+        wv_calib (:obj:`dict):
+        slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
         write_qa
         show
@@ -149,9 +153,6 @@ class Calibrations(object):
         # Steps
         self.steps = []
 
-        # Internals
-        self._reset_internals()
-
     def _prep_calibrations(self, ctype):
         """
         Parse self.fitstbl for rows matching the calibration type
@@ -173,80 +174,80 @@ class Calibrations(object):
         # Return
         return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
 
-    def _reset_internals(self):
-        """
-        Reset all of the key internals to None or an empty object
+#    def _reset_internals(self):
+#        """
+#        Reset all of the key internals to None or an empty object
+#
+#        """
+#        # TODO: I think all of these should change to the relevant class
+#        # objects, particularly if we're going to allow a class (e.g.,
+#        # FlatField) to alter the internals of another classe (e.g.,
+#        # TraceSlits)
 
-        """
-        # TODO: I think all of these should change to the relevant class
-        # objects, particularly if we're going to allow a class (e.g.,
-        # FlatField) to alter the internals of another classe (e.g.,
-        # TraceSlits)
-
-    def _update_cache(self, master_key, master_type, data):
-        """
-        Update or add new cached data held in memory.
-
-        Fundamentally just executes::
-
-            self.calib_dict[self.master_key_dict[master_key]][master_type] = data
-
-        Args:
-            master_key (:obj:`str`):
-                Keyword used to select the master key from
-                :attr:`master_key_dict`.
-            master_type (:obj:`str`, :obj:`tuple`):
-                One or more keywords setting the type of master frame
-                being saved to :attr:`calib_dict`. E.g.
-                ``master_type=bpm`` for the data saved to
-                ``self.calib_dict['A_01_1']['bpm']``.
-            data (object, :obj:`tuple`):
-                One or more data objects to save to :attr:`calib_dict`.
-
-        """
-        # Handle a single entry
-        _master_type = master_type if isinstance(master_type, tuple) else (master_type,)
-        _data = data if isinstance(data, tuple) else (data,)
-        # Save the data
-        # TODO: Allow for copy option?  Do we now whether or not this is
-        #  actually being done correctly as it is?
-        #  We should *not* copy.
-        for key, d in zip(_master_type, _data):
-            self.calib_dict[self.master_key_dict[master_key]][key] = d
-
-    def _cached(self, master_type, master_key):
-        """
-        Check if the calibration frame data has been cached in memory.
-
-        The image data is saved in memory as, e.g.::
-
-           self.calib_dict[master_key][master_type] = {}
-
-        If the master has not yet been generated, an empty dict is
-        prepared::
-
-           self.calib_dict[master_key] = {}
-
-        Args:
-            master_type (str): Type of calibration frame, e.g. 'bias', 'arc', ..
-            master_key (str): Master key naming
-
-        Returns:
-             bool: True = Built previously
-        """
-        if master_key not in self.calib_dict.keys():
-            # Masters are not available for any frames in this
-            # configuration + calibration group + detector
-            self.calib_dict[master_key] = {}
-            return False
-        if master_key in self.calib_dict.keys():
-            if master_type in self.calib_dict[master_key].keys():
-                # Found the previous master in memory (may be None)
-                msgs.info('Using {0} for {1} found in cache.'.format(master_type, master_key))
-                return True
-        # Master key exists but no master in memory for this specific type
-        self.calib_dict[master_key][master_type] = {}
-        return False
+#    def _update_cache(self, master_key, master_type, data):
+#        """
+#        Update or add new cached data held in memory.
+#
+#        Fundamentally just executes::
+#
+#            self.calib_dict[self.master_key_dict[master_key]][master_type] = data
+#
+#        Args:
+#            master_key (:obj:`str`):
+#                Keyword used to select the master key from
+#                :attr:`master_key_dict`.
+#            master_type (:obj:`str`, :obj:`tuple`):
+#                One or more keywords setting the type of master frame
+#                being saved to :attr:`calib_dict`. E.g.
+#                ``master_type=bpm`` for the data saved to
+#                ``self.calib_dict['A_01_1']['bpm']``.
+#            data (object, :obj:`tuple`):
+#                One or more data objects to save to :attr:`calib_dict`.
+#
+#        """
+#        # Handle a single entry
+#        _master_type = master_type if isinstance(master_type, tuple) else (master_type,)
+#        _data = data if isinstance(data, tuple) else (data,)
+#        # Save the data
+#        # TODO: Allow for copy option?  Do we now whether or not this is
+#        #  actually being done correctly as it is?
+#        #  We should *not* copy.
+#        for key, d in zip(_master_type, _data):
+#            self.calib_dict[self.master_key_dict[master_key]][key] = d
+#
+#    def _cached(self, master_type, master_key):
+#        """
+#        Check if the calibration frame data has been cached in memory.
+#
+#        The image data is saved in memory as, e.g.::
+#
+#           self.calib_dict[master_key][master_type] = {}
+#
+#        If the master has not yet been generated, an empty dict is
+#        prepared::
+#
+#           self.calib_dict[master_key] = {}
+#
+#        Args:
+#            master_type (str): Type of calibration frame, e.g. 'bias', 'arc', ..
+#            master_key (str): Master key naming
+#
+#        Returns:
+#             bool: True = Built previously
+#        """
+#        if master_key not in self.calib_dict.keys():
+#            # Masters are not available for any frames in this
+#            # configuration + calibration group + detector
+#            self.calib_dict[master_key] = {}
+#            return False
+#        if master_key in self.calib_dict.keys():
+#            if master_type in self.calib_dict[master_key].keys():
+#                # Found the previous master in memory (may be None)
+#                msgs.info('Using {0} for {1} found in cache.'.format(master_type, master_key))
+#                return True
+#        # Master key exists but no master in memory for this specific type
+#        self.calib_dict[master_key][master_type] = {}
+#        return False
 
     def set_config(self, frame, det, par=None):
         """
@@ -262,7 +263,6 @@ class Calibrations(object):
         # Reset internals to None
         # NOTE: This sets empties calib_ID and master_key_dict so must
         # be done here first before these things are initialized below.
-        self._reset_internals()
 
         # Initialize for this setup
         self.frame = frame
@@ -298,11 +298,6 @@ class Calibrations(object):
         masterframe_name = masterframe.construct_file_name(
             buildimage.ArcImage, self.master_key_dict['arc'], master_dir=self.master_dir)
 
-        # Previously calculated?  If so, reuse
-        if self._cached('arc', self.master_key_dict['arc']):
-            self.msarc = self.calib_dict[self.master_key_dict['arc']]['arc']
-            return self.msarc
-
         # Reuse master frame?
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msarc = buildimage.ArcImage.from_file(masterframe_name)
@@ -313,8 +308,7 @@ class Calibrations(object):
                                                         bias=self.msbias, bpm=self.msbpm)
             # Save
             self.msarc.to_master_file(masterframe_name)
-        # Cache
-        self._update_cache('arc', 'arc', self.msarc)
+
         # Return
         return self.msarc
 
@@ -339,11 +333,6 @@ class Calibrations(object):
         masterframe_name = masterframe.construct_file_name(
             buildimage.TiltImage, self.master_key_dict['tilt'], master_dir=self.master_dir)
 
-        # Previously calculated?  If so, reuse
-        if self._cached('tiltimg', self.master_key_dict['tilt']):
-            self.mstilt = self.calib_dict[self.master_key_dict['tilt']]['tiltimg']
-            return self.mstilt
-
         # Reuse master frame?
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.mstilt = buildimage.TiltImage.from_file(masterframe_name)
@@ -357,8 +346,6 @@ class Calibrations(object):
             # Save to Masters
             self.mstilt.to_master_file(masterframe_name)
 
-        # Cache
-        self._update_cache('tilt', 'tiltimg', self.mstilt)
         # TODO in the future add in a tilt_inmask
         #self._update_cache('tilt', 'tilt_inmask', self.mstilt_inmask)
 
@@ -465,7 +452,7 @@ class Calibrations(object):
            master_key, det, par
 
         Returns:
-            ndarray or str: :attr:`bias`
+            :class:`pypeit.images.buildimage.BiasImage`:
 
         """
 
@@ -511,7 +498,7 @@ class Calibrations(object):
            Instrument dependent
 
         Returns:
-            ndarray: :attr:`msbpm` image of bad pixel mask
+            `numpy.ndarray`: :attr:`msbpm` image of bad pixel mask
 
         """
         # Check internals
@@ -519,10 +506,6 @@ class Calibrations(object):
 
         # Generate a bad pixel mask (should not repeat)
         self.master_key_dict['bpm'] = self.fitstbl.master_key(self.frame, det=self.det)
-
-        if self._cached('bpm', self.master_key_dict['bpm']):
-            self.msbpm = self.calib_dict[self.master_key_dict['bpm']]['bpm']
-            return self.msbpm
 
         # Build the data-section image
         sci_image_file = self.fitstbl.frame_paths(self.frame)
@@ -535,8 +518,6 @@ class Calibrations(object):
         self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=msbias)
         self.shape = self.msbpm.shape
 
-        # Record it
-        self._update_cache('bpm', 'bpm', self.msbpm)
         # Return
         return self.msbpm
 
@@ -633,22 +614,17 @@ class Calibrations(object):
         # Return
         return self.flatimages
 
-    # TODO: why do we allow redo here?
-    def get_slits(self, redo=False):
+    def get_slits(self):
         """
         Load or generate the definition of the slit boundaries.
 
         Internals that must be available are :attr:`fitstbl`,
         :attr:`calib_ID`, :attr:`det`.
 
-        Args:
-            redo (bool): Redo
-
         Returns:
-            Returns the :class:`SlitTraceSet` object (also kept
-            internally as :attr:`slits`) and the slit mask array
-            (numpy.ndarray; also kept internally as
-            :attr:`maskslits`)
+            :class:`pypeit.slittrace.SlitTraceSet`:
+                Returns the :class:`SlitTraceSet` object (also kept
+                internally as :attr:`slits`)
 
         """
         # Check for existing data
@@ -661,13 +637,6 @@ class Calibrations(object):
 
         # Prep
         trace_image_files, self.master_key_dict['trace'] = self._prep_calibrations('trace')
-
-        # Previously calculated?  If so, reuse
-        if self._cached('trace', self.master_key_dict['trace']) and not redo:
-            self.slits = self.calib_dict[self.master_key_dict['trace']]['trace']
-            # Reset the bitmask
-            self.slits.mask = self.slits.mask_init.copy()
-            return self.slits
 
         # Reuse master frame?
         slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
@@ -720,62 +689,7 @@ class Calibrations(object):
         if self.slitspat_num is not None:
             self.slits.user_mask(self.det, self.slitspat_num)
 
-        # Save, initialize maskslits, and return
-        self._update_cache('trace', 'trace', self.slits)
         return self.slits
-
-#    def get_wave(self):
-#        """
-#        Load or generate a wavelength image
-#
-#        Requirements:
-#           wavetilts, slits, wv_calib, det, par, master_key
-#
-#        Returns:
-#            `numpy.ndarray`_: :attr:`mswave` wavelength image
-#
-#        """
-#        msgs.error("NO LONGER USED.  GENERATE ON-THE-SPOT with code in pypeit.wavecalib")
-#        # Check for existing data
-#        if not self._chk_objs(['wavetilts', 'slits', 'wv_calib']):
-#            self.mswave = None
-#            return self.mswave
-#
-#        # Check internals
-#        self._chk_set(['det', 'par'])
-#
-#        # Return existing data
-#        if self._cached('wave', self.master_key_dict['arc']):
-#            self.mswave = self.calib_dict[self.master_key_dict['arc']]['wave']
-#            return self.mswave
-#
-#        # No wavelength calibration requested
-#        if self.par['wavelengths']['reference'] == 'pixel':
-#            msgs.warn('No wavelength calibration performed!')
-#            self.mswave = waveimage.WaveImage(self.wavetilts['tilts'] * (self.wavetilts['tilts'].shape[0]-1.0))
-#            self.calib_dict[self.master_key_dict['arc']]['wave'] = self.mswave
-#            return self.mswave
-#
-#        # Load?
-#        masterframe_name = masterframe.construct_file_name(
-#            waveimage.WaveImage, self.master_key_dict['arc'], master_dir=self.master_dir)
-#        if os.path.isfile(masterframe_name) and self.reuse_masters:
-#            self.mswave = waveimage.WaveImage.from_file(masterframe_name)
-#        else:  # Build
-#            # Instantiate
-#            # TODO we are regenerating this mask a lot in this module. Could reduce that
-#            buildwaveImage = waveimage.BuildWaveImage(self.slits, self.wavetilts['tilts'], self.wv_calib,
-#                                             self.spectrograph, self.det)
-#            self.mswave = buildwaveImage.build_wave()
-#            # Save to hard-drive
-#            self.mswave.to_master_file(masterframe_name)
-#                    #self.master_dir, self.master_key_dict['arc'],  # Naming
-#                    #                      self.spectrograph.spectrograph,  # Header
-#                    #                      steps=buildwaveImage.steps)
-#
-#        # Cache & return
-#        self._update_cache('arc', 'wave', self.mswave)
-#        return self.mswave
 
     def get_wv_calib(self):
         """
@@ -785,7 +699,7 @@ class Calibrations(object):
           msarc, msbpm, slits, det, par
 
         Returns:
-            dict, ndarray: :attr:`wv_calib` calibration dict and the updated slit mask array
+            dict: :attr:`wv_calib` calibration dict and the updated slit mask array
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits']):
@@ -795,12 +709,6 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
         if 'arc' not in self.master_key_dict.keys():
             msgs.error('Arc master key not set.  First run get_arc.')
-
-        # Return existing data
-        if self._cached('wavecalib', self.master_key_dict['arc']):
-            self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
-            self.slits.mask_wvcalib(self.wv_calib)
-            return self.wv_calib
 
         # No wavelength calibration requested
         if self.par['wavelengths']['reference'] == 'pixel':
@@ -830,8 +738,6 @@ class Calibrations(object):
             # Save to Masters
             self.waveCalib.save(outfile=masterframe_name)
 
-        # Save & return
-        self._update_cache('arc', 'wavecalib', self.wv_calib)
         # Return
         return self.wv_calib
 
@@ -844,8 +750,7 @@ class Calibrations(object):
            det, par, spectrograph
 
         Returns:
-            dict, ndarray: :attr:`wavetilts` dictionary with tilts information (2D)
-            and the updated slit mask array
+            :class:`pypeit.wavetilts.WaveTilts`:
 
         """
         # Check for existing data
@@ -857,13 +762,6 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
         if 'tilt' not in self.master_key_dict.keys():
             msgs.error('Tilt master key not set.  First run get_tiltimage.')
-
-        # Return existing data
-        if self._cached('wavetilts', self.master_key_dict['tilt']):
-            self.wavetilts = self.calib_dict[self.master_key_dict['tilt']]['wavetilts']
-            self.wavetilts.is_synced(self.slits)
-            self.slits.mask_wavetilts(self.wavetilts)
-            return self.wavetilts
 
         # Load up?
         masterframe_name = masterframe.construct_file_name(wavetilts.WaveTilts, self.master_key_dict['tilt'],
@@ -887,8 +785,6 @@ class Calibrations(object):
             # Save?
             self.wavetilts.to_master_file(masterframe_name)
 
-        # Save & return
-        self._update_cache('tilt', 'wavetilts', self.wavetilts)
         return self.wavetilts
 
     def run_the_steps(self):
@@ -996,7 +892,7 @@ class IFUCalibrations(Calibrations):
         return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats', 'wave']
 
 
-def check_for_calibs(par, fitstbl):
+def check_for_calibs(par, fitstbl, raise_error=True):
     # Find the science frames
     is_science = fitstbl.find_frames('science')
     # Frame indices
@@ -1016,6 +912,9 @@ def check_for_calibs(par, fitstbl):
                 if par['scienceframe']['process'][key]:
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
-                        msgs.error("No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(
-                            ftype, key))
+                        msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
+                        if raise_error:
+                            msgs.error(msg)
+                        else:
+                            warnings.warn(msg)
 
