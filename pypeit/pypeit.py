@@ -442,7 +442,7 @@ class PypeIt(object):
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
             all_spec2d[self.det], tmp_sobjs \
-                    = self.extract_one(frames, self.det, bg_frames, std_outfile=std_outfile)
+                    = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile)
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs.add_sobj(tmp_sobjs)
@@ -525,9 +525,9 @@ class PypeIt(object):
 
         return std_trace
 
-    def extract_one(self, frames, det, bg_frames, std_outfile=None):
+    def reduce_one(self, frames, det, bg_frames, std_outfile=None):
         """
-        Extract a single exposure/detector pair
+        Reduce + Extract a single exposure/detector pair
 
         sci_ID and det need to have been set internally prior to calling this method
 
@@ -591,9 +591,7 @@ class PypeIt(object):
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
-                                         self.par, self.caliBrate.slits,
-                                         self.caliBrate.wavetilts,
-                                         self.caliBrate.wv_calib,
+                                         self.par, self.caliBrate,
                                          self.objtype,
                                          ir_redux=self.ir_redux,
                                          std_redux=self.std_redux,
