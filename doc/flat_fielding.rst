@@ -55,7 +55,7 @@ need to modify the :doc:`pypeit_file` and specifically the
 **use_pixelflat** and **use_illumflat** parameters in the
 :ref:`pypeit_par:ProcessImagesPar Keywords`.
 
-We now provide a few standard examples.
+We now provide a few typical examples.
 
 No Flat Fielding
 ----------------

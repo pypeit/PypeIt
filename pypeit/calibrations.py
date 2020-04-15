@@ -64,6 +64,9 @@ class Calibrations(object):
     Attributes:
         wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
         mstilt (:class:`pypeit.images.buildimage.TiltImage`):
+        flatimages (:class:`pypeit.flatfield.FlatImages`):
+        msbias (`numpy.ndarray`):
+
         write_qa
         show
         spectrograph
@@ -129,6 +132,20 @@ class Calibrations(object):
         self.frame = None
         self.binning = None
 
+        self.shape = None
+        self.msarc = None
+        self.msalign = None
+        self.alignment = None
+        self.msbias = None
+        self.msbpm = None
+        self.slits = None
+        self.wavecalib = None
+        self.wavetilts = None
+        self.flatimages = None
+        self.mswave = None
+        self.calib_ID = None
+        self.master_key_dict = {}
+
         # Steps
         self.steps = []
 
@@ -165,19 +182,6 @@ class Calibrations(object):
         # objects, particularly if we're going to allow a class (e.g.,
         # FlatField) to alter the internals of another classe (e.g.,
         # TraceSlits)
-        self.shape = None
-        self.msarc = None
-        self.msalign = None
-        self.alignment = None
-        self.msbias = None
-        self.msbpm = None
-        self.slits = None
-        self.wavecalib = None
-        self.wavetilts = None
-        self.flatimages = None
-        self.mswave = None
-        self.calib_ID = None
-        self.master_key_dict = {}
 
     def _update_cache(self, master_key, master_type, data):
         """
@@ -475,37 +479,22 @@ class Calibrations(object):
                                                            self.master_key_dict['bias'],
                                                            master_dir=self.master_dir)
 
-        # This needs to come after prep or the code crashes when saving as master_key_dict['bias'] is not set
-        if self.par['biasframe']['useframe'].lower() == 'none':
-            self.msbias = None
-            return self.msbias
-
-
-        # Grab from internal dict (or hard-drive)?
-        if self._cached('bias', self.master_key_dict['bias']):
-            self.msbias = self.calib_dict[self.master_key_dict['bias']]['bias']
-            msgs.info("Reloading the bias from the internal dict")
-            return self.msbias
+        if self.par['biasframe']['useframe'] is not None:
+            msgs.error("Not ready to load from disk")
 
         # Try to load?
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msbias = buildimage.BiasImage.from_file(masterframe_name)
+        elif len(bias_files) == 0:
+            self.msbias = None
         else:
-            # Without files, we are stuck
-            if len(bias_files) == 0:
-                self.msbias = None
-            else:
-                # Build it
-                self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+            # Build it
+            self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                     self.par['biasframe'], bias_files)
-                # Save it?
-                self.msbias.to_master_file(masterframe_name)
-                        #self.master_dir, self.master_key_dict['bias'],  # Naming
-                        #                  self.spectrograph.spectrograph,  # Header
-                        #                  steps=self.msbias.process_steps,
-                        #                  raw_files=bias_files)
-        # Save & return
-        self._update_cache('bias', 'bias', self.msbias)
+            # Save it?
+            self.msbias.to_master_file(masterframe_name)
+
+        # Return
         return self.msbias
 
     def get_bpm(self):
@@ -566,14 +555,6 @@ class Calibrations(object):
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.error('Must have the arc, bpm, slits, and wv_calib defined to proceed!')
 
-        if self.par['flatfield']['method'] == 'skip':
-            # User does not want to flat-field
-            msgs.warn('Parameter calibrations.flatfield.method is set to skip. You are NOT '
-                      'flatfielding your data!!!')
-            # TODO: Why does this not return unity arrays, like what's
-            # done below?
-            return flatfield.FlatImages(None)
-
         # Slit and tilt traces are required to flat-field the data
         if not self._chk_objs(['slits', 'wavetilts']):
             # TODO: Why doesn't this fault?
@@ -585,40 +566,43 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        trace_image_files, self.master_key_dict['flat'] = self._prep_calibrations('trace')
-
-        # Return cached images
-        if self._cached('flatimages', self.master_key_dict['flat']):
-            self.flatimages = self.calib_dict[self.master_key_dict['flat']]['flatimages']
-            self.flatimages.is_synced(self.slits)
-            self.slits.mask_flats(self.flatimages)
-            return self.flatimages
+        illum_image_files, self.master_key_dict['flat'] = self._prep_calibrations('illumflat')
+        pixflat_image_files, self.master_key_dict['flat'] = self._prep_calibrations('pixelflat')
 
         masterframe_filename = masterframe.construct_file_name(flatfield.FlatImages,
                                                            self.master_key_dict['flat'], master_dir=self.master_dir)
         # The following if-elif-else does:
-        #   1.  Try to load a MasterFrame (if reuse_masters is True)
+        #   1.  Try to load a MasterFrame (if reuse_masters is True).  If successful, pass it back
         #   2.  Build from scratch
-        #   3.  Replace the built pixel-flat with user supplied (e.g. LRISb)
+        #   3.  Load any user-supplied images to over-ride any built
 
+        # Load MasterFrame?
         if os.path.isfile(masterframe_filename) and self.reuse_masters:
-            # Load MasterFrame
             self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
             self.flatimages.is_synced(self.slits)
             self.slits.mask_flats(self.flatimages)
-        elif len(trace_image_files) > 0:
-            # Process/combine the input pixelflat frames
-            # TODO -- Include an illum frametype eventually
-            # TODO This is incorrect nad is only a hack for LRIS-Blue where we want to only run this code
-            # for the illumination flat construction. There needs to be a pixelflat and an illumflat, and
-            # in cases where the files are different, we need to run the flat field code twice.
-            stacked_traceflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                    self.par['traceframe'],
-                                                    trace_image_files,
-                                                    bias=self.msbias, bpm=self.msbpm)
+            return self.flatimages
+
+
+        # Generate the image?
+        #if len(pixflat_image_files) > 0:
+        #    stacked_pixelflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+        #                                                       self.par['pixelflatframe'],
+        #                                                       pixflat_image_files,
+        #                                                       bias=self.msbias, bpm=self.msbpm)
+        # TODO -- Allow for separate pixelflat and illumflat images
+        if len(illum_image_files) > 0:
+            # CHECK
+            if len(pixflat_image_files) > 0 and illum_image_files != pixflat_image_files:
+                msgs.error("PypeIt cannot handle a distinct set of pixel and illum flats")
+            stacked_illumflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                       self.par['illumflatframe'],
+                                                       illum_image_files,
+                                                       bias=self.msbias, bpm=self.msbpm)
+
             # Normalize and illumination
-            flatField = flatfield.FlatField(stacked_traceflat, self.spectrograph, self.par['flatfield'],
-                self.slits, self.wavetilts)
+            flatField = flatfield.FlatField(stacked_illumflat, self.spectrograph,
+                                            self.par['flatfield'], self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show)
 
@@ -630,27 +614,23 @@ class Calibrations(object):
             self.flatimages = flatfield.FlatImages(None, None, None, None)
             msgs.warn("No pixelflats provided")
 
-        # TODO: We need to document this format for the user!
-        # User supplied pixelf flat??
-        if self.par['flatfield']['frame'] != 'pixelflat':
+        # 3) Load user-supplied images
+        #  NOTE:  This is the *final* images, not just a stack
+        #  And it will over-ride what is generated below (if generated)
+        if self.par['flatfield']['pixelflat_file'] is not None:
             # - Name is explicitly correct?
-            if os.path.isfile(self.par['flatfield']['frame']):
-                flat_file = self.par['flatfield']['frame']
-            else:
-                msgs.error('Could not find user-defined flatfield file: {0}'.format(
-                    self.par['flatfield']['frame']))
+            # THIS IS DONE IN PYPEITPAR
+            #if os.path.isfile(self.par['flatfield']['pixelflat_file']):
+            #    flat_file = self.par['flatfield']['pixelflat_file']
+            #else:
+            #    msgs.error('Could not find user-defined flatfield file: {0}'.format(
+            #        self.par['flatfield']['pixelflat_file']))
             # Load
-            msgs.info('Using user-defined file: {0}'.format(flat_file))
-            with fits.open(flat_file) as hdu:
-                user_pixelflat = hdu[self.det].data
-            self.flatimages.pixelflat = user_pixelflat
+            msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
+            with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+                self.flatimages.pixelflat = hdu[self.det].data
 
-        # 4) If flat is still None, print out a warning
-        if self.flatimages.pixelflat is None:
-            msgs.warn('You are not pixel flat fielding your data!!!')
-
-        # Cache & return
-        self._update_cache('flat', 'flatimages', self.flatimages)
+        # Return
         return self.flatimages
 
     # TODO: why do we allow redo here?

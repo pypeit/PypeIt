@@ -27,8 +27,8 @@ def parser(options=None):
     parser.add_argument('-r', '--sort_dir', default=None,
                         help='Directory used to store the sorted files.  Default is to omit '
                              'writing these files.')
-    parser.add_argument('-m', '--use_masters', default=False, action='store_true',
-                        help='Load previously generated MasterFrames')
+    parser.add_argument('-m', '--do_not_reuse_masters', default=False, action='store_true',
+                        help='Do not load previously generated MasterFrames, even ones made during the run.')
     parser.add_argument('-s', '--show', default=False, action='store_true',
                         help='Show reduction steps via plots (which will block further execution until clicked on) '
                              'and outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"')
@@ -76,7 +76,7 @@ def main(args):
 
     # Instantiate the main pipeline reduction object
     pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
-                           reuse_masters=args.use_masters, overwrite=args.overwrite,
+                           reuse_masters=~args.do_not_reuse_masters, overwrite=args.overwrite,
                            logname=logname, show=args.show)
 
     # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters

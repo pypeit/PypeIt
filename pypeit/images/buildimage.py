@@ -128,11 +128,10 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
         msgs.error('Provided ParSet for must be type FrameGroupPar.')
-    process_steps = procimg.set_process_steps(bias, frame_par)
+    #process_steps = procimg.set_process_steps(bias, frame_par)
     #
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm,
-                                   #pixel_flat=pixel_flat, illum_flat_fit=illum_flat_fit,
+    pypeitImage = combineImage.run(bias=bias, bpm=bpm,
                                    flatimages=flatimages,
                                    sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
@@ -149,14 +148,14 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
         finalImage = TiltImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'trace':
         finalImage = TraceImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] in ['pixelflat', 'science', 'standard']:
+    elif frame_par['frametype'] in ['pixelflat', 'science', 'standard', 'illumflat']:
         finalImage = pypeitImage
     else:
         finalImage = None
-        embed(header='193 of calibrationimage')
+        embed(header='193 of buildimage')
 
     # Internals
-    finalImage.process_steps = process_steps
+    finalImage.process_steps = pypeitImage.process_steps
     finalImage.files = file_list
     finalImage.rawheadlist = pypeitImage.rawheadlist
     finalImage.head0 = pypeitImage.head0

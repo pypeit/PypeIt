@@ -110,7 +110,7 @@ class RawImage(object):
 
         gain = np.atleast_1d(self.detector['gain']).tolist()
         # Apply
-        self.image *= procimg.gain_frame(self.datasec_img, gain) #, trim=self.steps['trim'])
+        self.image *= procimg.gain_frame(self.datasec_img, gain)
         self.steps[step] = True
         # Return
         return self.image.copy()
@@ -156,7 +156,7 @@ class RawImage(object):
         # Return
         return self.rn2img.copy()
 
-    def process(self, process_steps, par, bpm=bpm, flatimages=None, bias=None,
+    def process(self, par, bpm=bpm, flatimages=None, bias=None,
                 slits=None, debug=False):
         """
         Process the image
@@ -175,8 +175,6 @@ class RawImage(object):
             crmask -- Generate a CR mask
 
         Args:
-            process_steps (list):
-                List of processing steps
             par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
                 Parameters that dictate the processing of the images.  See
                 :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
@@ -195,42 +193,33 @@ class RawImage(object):
         self.par = par
         self._bpm = bpm
 
-        # For error checking
-        steps_copy = process_steps.copy()
         # Get started
         # Standard order
         #   -- May need to allow for other order some day..
-        if 'subtract_overscan' in process_steps:
+        if par['use_overscan']:
             self.subtract_overscan()
-            steps_copy.remove('subtract_overscan')
-        if 'trim' in process_steps:
+        if par['trim']:
             self.trim()
-            steps_copy.remove('trim')
-        if 'orient' in process_steps:
+        if par['orient']:
             self.orient()
-            steps_copy.remove('orient')
-        if 'subtract_bias' in process_steps: # Bias frame, if it exists, is trimmed and oriented
+        if par['use_biasimage']:  # Bias frame, if it exists, is trimmed and oriented
             self.subtract_bias(bias)
-            steps_copy.remove('subtract_bias')
-        if 'apply_gain' in process_steps:
+        if par['apply_gain']:
             self.apply_gain()
-            steps_copy.remove('apply_gain')
 
         # This needs to come after trim, orient
         # Calculate flexure -- May not be used, but always calculated when slits are provided
-        # TODO -- PUT THIS BACK!!
         if slits is not None and self.par['spat_flexure_correct']:
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
 
         # Generate the illumination flat
         illum_flat = None
-        if self.par['illumflatten']:
+        if self.par['use_illumflat']:
             if flatimages is None:
-                msgs.warn("Cannot illumflatten, no flat field image generated. Skipping..")
-            elif slits is None:
+                msgs.error("Cannot illumflatten, no such image generated. Add one or more illumflat images to your PypeIt file!!")
+            if slits is None:
                 msgs.error("Need to provide slits to create illumination flat")
-            else:
-                illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
+            illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
             if debug:
                 from pypeit import ginga
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
@@ -242,16 +231,11 @@ class RawImage(object):
                 ginga.show_slits(viewer, ch, left, right)  # , slits.id)
 
         # Flat field
-        if 'flatten' in process_steps:
+        if self.par['use_pixelflat'] or self.par['use_illumflat']:
             if flatimages is not None:
                 self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
             else:
-                msgs.warn("Flat fielding desired but no flat field image generated.  Skipping flat fielding")
-            steps_copy.remove('flatten')
-        if debug:
-            viewer, ch = ginga.show_image(self.image, chname='image')
-            ginga.show_slits(viewer, ch, left, right)  # , slits.id)
-            embed(header='258 of processrawimage')
+                msgs.error("Flat fielding desired but no flat field image generated.  Skipping flat fielding")
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
@@ -266,18 +250,15 @@ class RawImage(object):
                                               spat_flexure=self.spat_flexure_shift,
                                               PYP_SPEC=self.spectrograph.spectrograph)
         pypeitImage.rawheadlist = self.headarr
+        pypeitImage.process_steps = [key for key in self.steps.keys() if self.steps[key]]
 
         # Mask(s)
-        if 'crmask' in process_steps:
+        if par['mask_cr']:
             pypeitImage.build_crmask(self.par)
-            steps_copy.remove('crmask')
         #
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
-                                                              apply_gain='apply_gain' in process_steps)
+                                                              apply_gain=self.par['apply_gain'])
         pypeitImage.build_mask(saturation=nonlinear_counts)
-        # Error checking
-        if len(steps_copy) != 0:
-            msgs.error('Coding issue: Processing steps not completed: {0}'.format(','.join(steps_copy)))
 
         # Return
         return pypeitImage
@@ -370,7 +351,7 @@ class RawImage(object):
             msgs.warn("Image was already overscan subtracted!")
 
         temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
-                                         method=self.par['overscan'],
+                                         method=self.par['overscan_method'],
                                          params=self.par['overscan_par'])
         # Fill
         self.steps[step] = True
@@ -403,49 +384,4 @@ class RawImage(object):
     def __repr__(self):
         return ('<{:s}: file={}, steps={}>'.format(self.__class__.__name__, self.filename,
                                                    self.steps))
-
-#def process_raw_for_jfh(filename, spectrograph, det=1, proc_par=None,
-#                        process_steps=None, bias=None):
-#    """
-#    Process an input raw frame for JFH
-#
-#    Args:
-#        filename (str):
-#        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-#            Spectrograph used to take the data.
-#        proc_par (:class:`pypeit.par.pypeitpar.ProcessImagesPar`):
-#            Parameters that dictate the processing of the images.  See
-#            :class:`pypeit.par.pypeitpar.ProcessImagesPar` for the
-#            defaults.
-#        det (:obj:`int`, optional):
-#            The 1-indexed detector number to process.
-#        process_steps (list, optional):
-#            Processing steps.
-#        bias (str or `numpy.ndarray`_ or None):
-#            Bias image or command
-#
-#    Returns:
-#        :class:`pypeit.images.pypeitimage.PypeItImage`:
-#
-#    """
-#    # Setup
-#    if proc_par is None:
-#        par = spectrograph.default_pypeit_par()
-#        msgs.warn("Using the Processing parameters from scienceframe")
-#        proc_par = par['scienceframe']['process']
-#    if process_steps is None:
-#        process_steps = procimg.init_process_steps(bias, proc_par)
-#        process_steps += ['trim']
-#        process_steps += ['orient']
-#        process_steps += ['apply_gain']
-#
-#    # Generate the rawImage
-#    rawImage = rawimage.RawImage(filename, spectrograph, det)
-#
-#    # Now Process
-#    processRawImage = ProcessRawImage(rawImage, proc_par)
-#    pypeitImage = processRawImage.process(process_steps, bias=bias)
-#
-#    # Return
-#    return pypeitImage
 

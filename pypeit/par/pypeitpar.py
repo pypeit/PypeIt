@@ -122,6 +122,7 @@ class FrameGroupPar(ParSet):
 
         # TODO: Add overscan parameters for each frame type?
 
+        defaults['useframe'] = None
         dtypes['useframe'] = str
         descr['useframe'] = 'A master calibrations file to use if it exists.'
 
@@ -189,9 +190,6 @@ class FrameGroupPar(ParSet):
         return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask']
 
     def validate(self):
-        if self.data['useframe'] is None:
-            self.default['useframe'] = self.data['frametype']
-            self.data['useframe'] = self.data['frametype']
         if len(self.data['exprng']) != 2:
             raise ValueError('exprng must be a list with two items.')
 
@@ -207,10 +205,16 @@ class ProcessImagesPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, overscan=None, overscan_par=None, combine=None, satpix=None,
+    def __init__(self, trim=None, apply_gain=None, orient=None,
+                 overscan_method=None, overscan_par=None,
+                 combine=None, satpix=None,
+                 mask_cr=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
-                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None, bias=None,
-                 spat_flexure_correct=None, illumflatten=None):
+                 rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
+                 use_biasimage=None, use_overscan=None, use_darkimage=None,
+                 use_pixelflat=None, use_illumflat=None,
+                 spat_flexure_correct=None,
+                 ):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -226,20 +230,34 @@ class ProcessImagesPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['bias'] = 'as_available'
-        options['bias'] = ProcessImagesPar.valid_bias()
-        dtypes['bias'] = str
-        descr['bias'] = 'Parameter for bias subtraction. Options are: ' \
-                        '(1) \'as_available\' -- Bias subtract if bias frames were provided;  ' \
-                        '(2) \'force\' -- Require bias subtraction; exception raised if no ' \
-                        'biases available;  ' \
-                        '(3) \'skip\' -- Skip bias subtraction even if bias frames were provided.'
 
-        defaults['overscan'] = 'savgol'
-        options['overscan'] = ProcessImagesPar.valid_overscan()
-        dtypes['overscan'] = str
-        descr['overscan'] = 'Method used to fit the overscan. ' \
-                            'Options are: {0}'.format(', '.join(options['overscan']))
+        # Raw image fussing
+        defaults['trim'] = True
+        dtypes['trim'] = bool
+        descr['trim'] = 'Trim the image to the detector supplied region'
+
+        defaults['apply_gain'] = True
+        dtypes['apply_gain'] = bool
+        descr['apply_gain'] = 'Convert the ADUs to electrons using the detector gain'
+
+        defaults['orient'] = True
+        dtypes['orient'] = bool
+        descr['orient'] = 'Orient the raw image into the PypeIt frame'
+
+        # Bias, overscan, dark (i.e. detector "signal")
+        defaults['use_biasimage'] = True
+        dtypes['use_biasimage'] = bool
+        descr['use_biasimage'] = 'Use a bias image.  If True, one or more must be supplied in the PypeIt file.'
+
+        defaults['use_overscan'] = True
+        dtypes['use_overscan'] = bool
+        descr['use_overscan'] = 'Subtract off the overscan.  Detector *must* have one or code will crash.'
+
+        defaults['overscan_method'] = 'savgol'
+        options['overscan_method'] = ProcessImagesPar.valid_overscan_methods()
+        dtypes['overscan_method'] = str
+        descr['overscan_method'] = 'Method used to fit the overscan. ' \
+                            'Options are: {0}'.format(', '.join(options['overscan_method']))
         
         defaults['overscan_par'] = [5, 65]
         dtypes['overscan_par'] = [int, list]
@@ -249,10 +267,29 @@ class ProcessImagesPar(ParSet):
                                 'order, window size ; for \'median\', set overscan_par = ' \
                                 'None or omit the keyword.'
 
+        defaults['use_darkimage'] = False
+        dtypes['use_darkimage'] = bool
+        descr['use_darkimage'] = 'Subtract off a dark image.  If True, one or more darks must be provided.'
+
+        # Flats
+        defaults['use_pixelflat'] = True
+        dtypes['use_pixelflat'] = bool
+        descr['use_pixelflat'] = 'Use the pixel flat to make pixel-level corrections.  A pixelflat image must be provied.'
+
+        defaults['use_illumflat'] = True
+        dtypes['use_illumflat'] = bool
+        descr['use_illumflat'] = 'Use the illumination flat to correct for the illumination profile of each slit.'
+
+        # Flexure
+        defaults['spat_flexure_correct'] = False
+        dtypes['spat_flexure_correct'] = bool
+        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
+
+
         defaults['combine'] = 'weightmean'
         options['combine'] = ProcessImagesPar.valid_combine_methods()
         dtypes['combine'] = str
-        descr['combine'] = 'Method used to combine frames.  Options are: {0}'.format(
+        descr['combine'] = 'Method used to combine multiple frames.  Options are: {0}'.format(
                                        ', '.join(options['combine']))
 
         defaults['satpix'] = 'reject'
@@ -260,6 +297,11 @@ class ProcessImagesPar(ParSet):
         dtypes['satpix'] = str
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
+
+        # TODO -- Make CR Parameters their own ParSet
+        defaults['mask_cr'] = False
+        dtypes['mask_cr'] = bool
+        descr['mask_cr'] = 'Identify CRs and mask them'
 
         defaults['sigrej'] = 20.0
         dtypes['sigrej'] = [int, float]
@@ -306,14 +348,6 @@ class ProcessImagesPar(ParSet):
         dtypes['objlim'] = [int, float]
         descr['objlim'] = 'Object detection limit in LA cosmics routine'
 
-        defaults['spat_flexure_correct'] = False
-        dtypes['spat_flexure_correct'] = bool
-        descr['spat_flexure_correct'] = 'Correct slits, illumination flat, etc. for flexure'
-
-        defaults['illumflatten'] = False
-        dtypes['illumflatten'] = bool
-        descr['illumflatten'] = 'Use the flat field to determine the illumination profile of each slit.'
-
         # Instantiate the parameter set
         super(ProcessImagesPar, self).__init__(list(pars.keys()),
                                                values=list(pars.values()),
@@ -328,11 +362,13 @@ class ProcessImagesPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['bias', 'overscan', 'overscan_par',
-                   'combine', 'satpix', 'sigrej', 'n_lohi',
+        parkeys = ['trim', 'apply_gain', 'orient',
+                   'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
+            'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
+            'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-                   'rmcompact', 'sigclip', 'sigfrac', 'objlim',
-                   'spat_flexure_correct', 'illumflatten']
+            'rmcompact', 'sigclip', 'sigfrac', 'objlim',
+                   ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -344,18 +380,11 @@ class ProcessImagesPar(ParSet):
         return cls(**kwargs)
 
     @staticmethod
-    def valid_bias():
-        """
-        Return the valid bias methods.
-        """
-        return ['as_available', 'force', 'skip']
-
-    @staticmethod
-    def valid_overscan():
+    def valid_overscan_methods():
         """
         Return the valid overscan methods.
         """
-        return ['polynomial', 'savgol', 'median','none']
+        return ['polynomial', 'savgol', 'median']
 
     @staticmethod
     def valid_combine_methods():
@@ -388,7 +417,7 @@ class ProcessImagesPar(ParSet):
         if self.data['sig_lohi'] is not None and len(self.data['sig_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
 
-        if self.data['overscan'] is None:
+        if self.data['use_overscan'] is False:
             return
         if self.data['overscan_par'] is None:
             raise ValueError('No overscan method parameters defined!')
@@ -397,14 +426,14 @@ class ProcessImagesPar(ParSet):
         if isinstance(self.data['overscan_par'], int):
             self.data['overscan_par'] = [self.data['overscan_par']]
         
-        if self.data['overscan'] == 'polynomial' and len(self.data['overscan_par']) != 3:
+        if self.data['overscan_method'] == 'polynomial' and len(self.data['overscan_par']) != 3:
             raise ValueError('For polynomial overscan method, set overscan_par = order, '
                              'number of pixels, number of repeats')
 
-        if self.data['overscan'] == 'savgol' and len(self.data['overscan_par']) != 2:
+        if self.data['overscan_method'] == 'savgol' and len(self.data['overscan_par']) != 2:
             raise ValueError('For savgol overscan method, set overscan_par = order, window size')
             
-        if self.data['overscan'] == 'median' and self.data['overscan_par'] is not None:
+        if self.data['overscan_method'] == 'median' and self.data['overscan_par'] is not None:
             warnings.warn('No parameters necessary for median overscan method.  Ignoring input.')
 
     def to_header(self, hdr):
@@ -459,7 +488,7 @@ class FlatFieldPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, method=None, frame=None, spec_samp_fine=None,
+    def __init__(self, method=None, pixelflat_file=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
                  illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None):
@@ -487,12 +516,9 @@ class FlatFieldPar(ParSet):
         descr['method'] = 'Method used to flat field the data; use skip to skip flat-fielding.  ' \
                           'Options are: None, {0}'.format(', '.join(options['method']))
 
-        # TODO: Provide a list of valid masters to use as options?
-        defaults['frame'] = 'pixelflat'
-        dtypes['frame'] = str
-        descr['frame'] = 'Frame to use for field flattening.  Options are: "pixelflat", ' \
-                         'or a specified calibration filename.'
-
+        defaults['pixelflat_file'] = None
+        dtypes['pixelflat_file'] = str
+        descr['pixelflat_file'] = 'Filename of the image to use for pixel-level field flattening'
 
         defaults['spec_samp_fine'] = 1.2
         dtypes['spec_samp_fine'] = [int, float]
@@ -591,7 +617,7 @@ class FlatFieldPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['method', 'frame', 'spec_samp_fine', 'spec_samp_coarse',
+        parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
                    'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
                    'twod_fit_npoly', 'saturated_slits']
@@ -605,14 +631,14 @@ class FlatFieldPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
 
-    @staticmethod
-    def valid_frames():
-        """
-        Return the valid frame types.
-        """
-
-        # ToDO JFH So won't this fail if the user tries to provide a filename?
-        return ['pixelflat'] # , 'pinhole'] disabling this for now, we don't seem to be using it. JFH
+#    @staticmethod
+#    def valid_frames():
+#        """
+#        Return the valid frame types.
+#        """
+#
+#        # ToDO JFH So won't this fail if the user tries to provide a filename?
+#        return ['pixelflat'] # , 'pinhole'] disabling this for now, we don't seem to be using it. JFH
 
     @staticmethod
     def valid_methods():
@@ -642,13 +668,13 @@ class FlatFieldPar(ParSet):
         #                     'pixels, number of repeats')
         #if self.data['method'] == 'bspline' and len(self.data['params']) != 1:
         #    raise ValueError('For bspline method, set params = spacing (integer).')
-        if self.data['frame'] in FlatFieldPar.valid_frames() or self.data['frame'] is None:
+        if self.data['pixelflat_file'] is None:
             return
 
         # Check the frame exists
-        if not os.path.isfile(self.data['frame']):
+        if not os.path.isfile(self.data['pixelflat_file']):
             raise ValueError('Provided frame file name does not exist: {0}'.format(
-                                self.data['frame']))
+                                self.data['pixelflat_file']))
 
         # Check that if tweak slits is true that illumflatten is alwo true
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
@@ -3065,9 +3091,10 @@ class CalibrationsPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, master_dir=None, setup=None, trim=None, bpm_usebias=None, biasframe=None,
+    def __init__(self, master_dir=None, setup=None, bpm_usebias=None, biasframe=None,
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
+                 illumflatframe=None,
                  standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
 
 
@@ -3095,31 +3122,43 @@ class CalibrationsPar(ParSet):
                          'C_02_aa .  The detector number is ignored but the other information ' \
                          'must match the Master Frames in the master frame folder.'
 
-        defaults['trim'] = True
-        dtypes['trim'] = bool
-        descr['trim'] = 'Trim the frame to isolate the data'
-
         defaults['bpm_usebias'] = False
         dtypes['bpm_usebias'] = bool
         descr['bpm_usebias'] = 'Make a bad pixel mask from bias frames? Bias frames must be provided.'
 
-        defaults['biasframe'] = FrameGroupPar(frametype='bias', processing_steps=['trim', 'orient'])
+        # Calibration Frames
+        defaults['biasframe'] = FrameGroupPar(frametype='bias',
+                                              process=ProcessImagesPar(use_overscan=False,
+                                                                       apply_gain=False,
+                                                                       use_biasimage=False,
+                                                                       use_pixelflat=False,
+                                                                       use_illumflat=False))
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
-        defaults['darkframe'] = FrameGroupPar(frametype='bias', processing_steps=['trim', 'orient'])
+        defaults['darkframe'] = FrameGroupPar(frametype='dark',
+                                              process = ProcessImagesPar(apply_gain=False,
+                                                                         use_pixelflat = False,
+                                                                         use_illumflat = False))
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
         # JFH Turning off masking of saturated pixels which causes headaches becauase it was being done unintelligently
         defaults['pixelflatframe'] = FrameGroupPar(frametype='pixelflat',
-                                                   process=ProcessImagesPar(satpix='nothing'),
-                                                   processing_steps=['trim', 'orient', 'apply_gain'])
+                                                   process=ProcessImagesPar(satpix='nothing',
+                                                                            use_pixelflat=False,
+                                                                            use_illumflat=False))
         dtypes['pixelflatframe'] = [ ParSet, dict ]
-        descr['pixelflatframe'] = 'The frames and combination rules for the field flattening'
+        descr['pixelflatframe'] = 'The frames and combination rules for the pixel flat'
 
-        defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole',
-                                                 processing_steps = ['trim', 'orient', 'apply_gain'])
+        defaults['illumflatframe'] = FrameGroupPar(frametype='illumflat',
+                                                   process=ProcessImagesPar(satpix='nothing',
+                                                                            use_pixelflat=False,
+                                                                            use_illumflat=False))
+        dtypes['illumflatframe'] = [ ParSet, dict ]
+        descr['illumflatframe'] = 'The frames and combination rules for the illumination flat'
+
+        defaults['pinholeframe'] = FrameGroupPar(frametype='pinhole')
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
@@ -3129,29 +3168,29 @@ class CalibrationsPar(ParSet):
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
         defaults['arcframe'] = FrameGroupPar(frametype='arc',
-                                             process=ProcessImagesPar(sigrej=-1),
-                                             processing_steps = ['trim', 'orient', 'apply_gain'])
+                                             process=ProcessImagesPar(sigrej=-1,
+                                                                      use_pixelflat=False,
+                                                                      use_illumflat=False))
         dtypes['arcframe'] = [ ParSet, dict ]
         descr['arcframe'] = 'The frames and combination rules for the wavelength calibration'
 
         defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
-                                              process=ProcessImagesPar(sigrej=-1),
-                                              processing_steps = ['trim', 'orient', 'apply_gain'])
+                                              process=ProcessImagesPar(sigrej=-1,
+                                              use_pixelflat=False,
+                                              use_illumflat=False))
         dtypes['tiltframe'] = [ ParSet, dict ]
         descr['tiltframe'] = 'The frames and combination rules for the wavelength tilts'
 
         defaults['traceframe'] = FrameGroupPar(frametype='trace',
                                                # Note that CR masking is found to be too problematic!!
-                                               processing_steps = ['trim', 'orient', 'apply_gain'])
+                                               process=ProcessImagesPar(use_pixelflat=False,
+                                                                        use_illumflat=False))
 
         dtypes['traceframe'] = [ ParSet, dict ]
         descr['traceframe'] = 'The frames and combination rules for images used for slit tracing'
 
         defaults['standardframe'] = FrameGroupPar(frametype='standard',
-                                                  processing_steps = ['trim', 'orient', 'apply_gain',
-                                                                      'flatten', 'crmask'])
-        # TODO -- Is there a way to do this more transparently??
-        defaults['standardframe']['process']['illumflatten'] = True
+                                                  process=ProcessImagesPar(mask_cr=True))
         dtypes['standardframe'] = [ ParSet, dict ]
         descr['standardframe'] = 'The frames and combination rules for the spectrophotometric ' \
                                  'standard observations'
@@ -3190,9 +3229,10 @@ class CalibrationsPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'master_dir', 'setup', 'trim', 'bpm_usebias']
+        parkeys = [ 'master_dir', 'setup', 'bpm_usebias']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
+                             'illumflatframe',
                              'pinholeframe', 'alignframe', 'alignment', 'traceframe', 'standardframe', 'flatfield',
                              'wavelengths', 'slitedges', 'tilts']
         badkeys = numpy.array([pk not in allkeys for pk in k])
@@ -3214,6 +3254,8 @@ class CalibrationsPar(ParSet):
         kwargs[pk] = FrameGroupPar.from_dict('tilt', cfg[pk]) if pk in k else None
         pk = 'pixelflatframe'
         kwargs[pk] = FrameGroupPar.from_dict('pixelflat', cfg[pk]) if pk in k else None
+        pk = 'illumflatframe'
+        kwargs[pk] = FrameGroupPar.from_dict('illumflat', cfg[pk]) if pk in k else None
         pk = 'pinholeframe'
         kwargs[pk] = FrameGroupPar.from_dict('pinhole', cfg[pk]) if pk in k else None
         pk = 'alignframe'
@@ -3313,9 +3355,7 @@ class PypeItPar(ParSet):
         descr['calibrations'] = 'Parameters for the calibration algorithms'
 
         defaults['scienceframe'] = FrameGroupPar(frametype='science',
-                                                 process=ProcessImagesPar(illumflatten=True),
-                                                 processing_steps=['trim', 'orient', 'apply_gain',
-                                                                   'flatten', 'crmask'])
+                                                 process=ProcessImagesPar(mask_cr=True))
         dtypes['scienceframe'] = [ ParSet, dict ]
         descr['scienceframe'] = 'The frames and combination rules for the science observations'
 
