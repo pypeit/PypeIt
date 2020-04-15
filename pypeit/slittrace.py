@@ -198,7 +198,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # TODO: May want nspat to be a required argument given the
             # only other option is this kludge, which should basically
             # never be useful.
-            self.nspat = np.amax(np.append(self.left_init, self.right_init))
+            self.nspat = int(np.amax(np.append(self.left_init, self.right_init)))
         if self.spat_id is None:
             self.spat_id = np.round(self.center[int(np.round(0.5 * self.nspec)), :]).astype(int)
         if self.PYP_SPEC is None:
