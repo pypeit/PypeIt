@@ -124,3 +124,15 @@ And, if **use_illumflat** is set for *any* of your images,
 at least one of the data files in the
 :doc:`pypeit_file` :ref:`pypeit_file:Data Block` must
 be labelled as *illumflat*.
+
+Algorithms
+----------
+
+To be filled in by JFH.
+
+Tuning
+------
+
+If you wish to tune the algorithms used to generate the
+pixel flat and/or illumination flat, you will want to
+modify the :ref:`pypeit_par:FlatFieldPar Keywords`.
