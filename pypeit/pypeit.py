@@ -146,25 +146,25 @@ class PypeIt(object):
         # directories?
         # An html file wrapping them all too
 
-        # Instantiate Calibrations class
-        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
-            self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                     self.spectrograph, self.calibrations_path,
-                                                     qadir=self.qa_path,
-                                                     reuse_masters=self.reuse_masters,
-                                                     show=self.show,
-                                                     slitspat_num=self.par['rdx']['slitspatnum'])
-        elif self.spectrograph.pypeline in ['IFU']:
-            self.caliBrate \
-                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
-                                               self.spectrograph,
-                                               self.calibrations_path,
-                                               qadir=self.qa_path,
-                                               reuse_masters=self.reuse_masters,
-                                               show=self.show)
-        else:
-            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
+#        # Instantiate Calibrations class
+#        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
+#            self.caliBrate \
+#                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+#                                                     self.spectrograph, self.calibrations_path,
+#                                                     qadir=self.qa_path,
+#                                                     reuse_masters=self.reuse_masters,
+#                                                     show=self.show,
+#                                                     slitspat_num=self.par['rdx']['slitspatnum'])
+#        elif self.spectrograph.pypeline in ['IFU']:
+#            self.caliBrate \
+#                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
+#                                               self.spectrograph,
+#                                               self.calibrations_path,
+#                                               qadir=self.qa_path,
+#                                               reuse_masters=self.reuse_masters,
+#                                               show=self.show)
+#        else:
+#            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
 
         # Init
         self.verbosity = verbosity
@@ -429,8 +429,12 @@ class PypeIt(object):
         # TODO: Attempt to put in a multiprocessing call here?
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
-            # Calibrate
-            #TODO Is the right behavior to just use the first frame?
+            # Instantiate Calibrations class
+            self.caliBrate = calibrations.Calibrations.get_instance(
+                self.fitstbl, self.par['calibrations'], self.spectrograph,
+                self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
+                show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+            # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
             # Extract

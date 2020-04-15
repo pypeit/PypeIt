@@ -92,6 +92,19 @@ class Calibrations(object):
     """
     __metaclass__ = ABCMeta
 
+    @classmethod
+    def get_instance(cls, fitstbl, par, spectrograph, caldir, qadir=None,
+                     reuse_masters=False, show=False, slitspat_num=None):
+        """
+        """
+        pypeline = spectrograph.pypeline
+        if spectrograph.pypeline == 'Echelle':
+            pypeline = 'MultiSlit'
+        return next(c for c in cls.__subclasses__()
+                    if c.__name__ == (pypeline + 'Calibrations'))(
+            fitstbl, par, spectrograph, caldir, qadir=qadir,
+                     reuse_masters=reuse_masters, show=show, slitspat_num=slitspat_num)
+
     def __init__(self, fitstbl, par, spectrograph, caldir, qadir=None,
                  reuse_masters=False, show=False, slitspat_num=None):
 
