@@ -136,3 +136,5 @@ Tuning
 If you wish to tune the algorithms used to generate the
 pixel flat and/or illumination flat, you will want to
 modify the :ref:`pypeit_par:FlatFieldPar Keywords`.
+
+JFH+KBW to provide expert advice on that here.
