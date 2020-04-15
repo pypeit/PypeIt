@@ -20,6 +20,8 @@ from pypeit.par.util import parse_pypeit_file
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import procimg
 from pypeit import msgs
+from pypeit import slittrace
+from pypeit import masterframe
 
 
 class Utilities:
@@ -96,7 +98,7 @@ class Utilities:
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=self.cfg_lines)
         return
 
-    def select_science_frame(self):
+    def select_science_frame(self, use_first=False):
         """Find all of the indices that correspond to science frames
         """
         sciidx = np.array([], dtype=np.int)
@@ -114,6 +116,8 @@ class Utilities:
         if cntr == 1:
             msgs.info("Only one science frame listed in .pypeit file - using that frame")
             idx = sciidx[0]
+        elif use_first:
+            idx = sciidx[0]
         else:
             ans = ''
             while True:
@@ -129,3 +133,10 @@ class Utilities:
         # Set the selected filename
         self.iFile = idx
         return idx
+
+
+def get_slits(mkey, mdir):
+    slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
+                                                            master_key=mkey,
+                                                            master_dir=mdir)
+    return slittrace.SlitTraceSet.from_file(slit_masterframe_name)
