@@ -136,7 +136,7 @@ class Calibrations(object):
 
         # Check the directories exist
         # TODO: This should be done when the masters are saved
-        if not os.path.isdir(self.master_dir):
+        if caldir is not None and not os.path.isdir(self.master_dir):
             os.makedirs(self.master_dir)
         # TODO: This should be done when the qa plots are saved
         if self.write_qa and not os.path.isdir(os.path.join(self.qa_path, 'PNGs')):
@@ -148,6 +148,7 @@ class Calibrations(object):
         self.binning = None
 
         self.shape = None
+
         self.msarc = None
         self.mstilt = None
         self.msalign = None
@@ -155,7 +156,9 @@ class Calibrations(object):
         self.msbias = None
         self.msdark = None
         self.msbpm = None
+        self.wv_calib = None
         self.slits = None
+
         self.wavecalib = None
         self.wavetilts = None
         self.flatimages = None
