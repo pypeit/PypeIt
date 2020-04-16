@@ -39,7 +39,7 @@ def parser(options=None):
 def main(args):
 
     # Generate a utilities class
-    info = utils.Utilities(args)
+    info = utils.Utilities(args.file, args.det)
 
     # Interactively select a science frame
     sciIdx = info.select_science_frame()
