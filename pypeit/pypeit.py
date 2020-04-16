@@ -99,9 +99,10 @@ class PypeIt(object):
                       os.path.split(scistd_file)[1]))
         else:
             if self.calib_only:
-                # Try to find an arc or flat
-                if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                    scistd_file = data_files[idx]
+                # Try to find an arc or trace
+                for idx, row in enumerate(usrdata):
+                    if ('arc' in row['frametype']) or ('trace' in row['frametype']):
+                        scistd_file = data_files[idx]
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters

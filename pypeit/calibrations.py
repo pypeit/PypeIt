@@ -152,6 +152,7 @@ class Calibrations(object):
 
         self.shape = None
         self.msarc = None
+        self.mstilt = None
         self.msalign = None
         self.alignment = None
         self.msbias = None
@@ -161,7 +162,6 @@ class Calibrations(object):
         self.wavecalib = None
         self.wavetilts = None
         self.flatimages = None
-        self.mswave = None
         self.calib_ID = None
         self.master_key_dict = {}
 
@@ -316,6 +316,9 @@ class Calibrations(object):
         # Reuse master frame?
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msarc = buildimage.ArcImage.from_file(masterframe_name)
+        elif len(arc_files) == 0:
+            msgs.warn("No frametype=arc files to build arc")
+            return
         else:  # Build it
             msgs.info("Preparing a master {0:s} frame".format(buildimage.ArcImage.master_type))
             self.msarc = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -351,6 +354,9 @@ class Calibrations(object):
         # Reuse master frame?
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.mstilt = buildimage.TiltImage.from_file(masterframe_name)
+        elif len(tilt_files) == 0:
+            msgs.warn("No frametype=tilt files to build tiltimg")
+            return
         else: # Build
             msgs.info("Preparing a master {0:s} frame".format(buildimage.TiltImage.master_type))
             self.mstilt = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -587,14 +593,17 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
-            msgs.error('Must have the arc, bpm, slits, and wv_calib defined to proceed!')
+            msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  Skipping and may crash down the line')
+            self.flatimages = flatfield.FlatImages(None, None, None, None)
+            return
 
         # Slit and tilt traces are required to flat-field the data
         if not self._chk_objs(['slits', 'wavetilts']):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            return flatfield.FlatImages(None)
+            self.flatimages = flatfield.FlatImages(None, None, None, None)
+            return
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -682,8 +691,7 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msbpm']):
-            self.slits = None
-            return self.slits
+            return
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -707,6 +715,9 @@ class Calibrations(object):
             # Reuse master frame?
             if os.path.isfile(edge_masterframe_name) and self.reuse_masters:
                 self.edges = edgetrace.EdgeTraceSet.from_file(edge_masterframe_name)
+            elif len(trace_image_files) == 0:
+                msgs.warn("No frametype=trace files to build slits")
+                return
             else:
                 # Build the trace image
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
@@ -724,7 +735,7 @@ class Calibrations(object):
                                     master_key=self.master_key_dict['trace'])
                     msgs.error('Crashed out of finding the slits. Have saved the work done to '
                                'disk but it needs fixing.')
-                    return None
+                    return
                 else:
                     self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
                                     master_key=self.master_key_dict['trace'])

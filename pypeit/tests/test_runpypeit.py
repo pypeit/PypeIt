@@ -42,12 +42,12 @@ def test_run_pypeit_calib_only():
     all_masters = ['MasterArc_A_1_01.fits', 'MasterTiltimg_A_1_01.fits',
                    'MasterBias_A_1_01.fits',
                    'MasterTilts_A_1_01.fits', 'MasterEdges_A_1_01.fits.gz',
-                   'MasterWave_A_1_01.fits', 'MasterFlat_A_1_01.fits',
+                   'MasterFlat_A_1_01.fits',
                    'MasterWaveCalib_A_1_01.json']
 
     # Just get a few files
-    for sub_files, masters in zip(
-            [['arcs', 'flats', 'bias'], ['arcs'], ['flats']],
+    for ss, sub_files, masters in zip(range(3),
+            [['arcs', 'flats', 'bias'], ['arcs', 'bias'], ['flats', 'bias']],
             [all_masters, ['MasterArc_A_1_01.fits', 'MasterTiltimg_A_1_01.fits'],
              ['MasterEdges_A_1_01.fits.gz']]):
         # Grab the subset
@@ -91,6 +91,7 @@ def test_run_pypeit_calib_only():
         shutil.rmtree(outdir)
         shutil.rmtree(testrawdir)
 
+'''
 
 @dev_suite_required
 def test_run_pypeit():
@@ -139,3 +140,4 @@ def test_run_pypeit():
     # Clean-up
     shutil.rmtree(outdir)
     shutil.rmtree(testrawdir)
+'''
