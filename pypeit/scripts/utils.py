@@ -4,7 +4,7 @@
 #
 # -*- coding: utf-8 -*-
 """
-This file contains a bunch of utility functions
+This file contains a series of utility functions
 that can be used with the PypeIt scripts.
 """
 
