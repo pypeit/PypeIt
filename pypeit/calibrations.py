@@ -40,14 +40,14 @@ class Calibrations(object):
 
     Args:
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
-            The class holding the metadata for all the frames in this
-            PypeIt run.
+            The class holding the metadata for all the frames in this PypeIt run.
+            If None, we are using this class as a glorified dict to hold the objects.
         par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
             Parameter set defining optional parameters of PypeIt's algorithms
             for Calibrations
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
-        caldir (:obj:`str`, optional):
+        caldir (:obj:`str`, None):
             Path to write the output calibrations.  If None, calibration
             data are not saved.
         qadir (:obj:`str`, optional):
