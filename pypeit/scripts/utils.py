@@ -25,16 +25,48 @@ from pypeit import masterframe
 
 
 class Utilities:
-    def __init__(self, args):
-        self.pypeit_file = args.file
-        self.det = args.det
+    """This class contains a series of convenience functions
+    that are used by many of the pypeit scripts. None of the
+    functions in this script should be used by the reduction
+    code.
+
+    Attributes:
+        pypeit_file (:obj:`str`):
+            The name of the input .pypeit file used for reduction.
+        det (:obj:`int`):
+            Detector index
+        iFile (:obj:`int`):
+            Index of the frame being displayed/loaded.
+        spectrograph
+            (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The spectrograph used to collect the data save to each file.
+            The class is used to provide the header keyword data to
+            include in the table and specify any validation checks.
+        par (:class:`pypeit.par.pypeitpar.PypeItPar`):
+            PypeIt parameters used to set the code behavior.  If not
+            provided, the default parameters specific to the provided
+            spectrograph are used.
+        cfg_lines (:obj:`list`):
+            List of configuration lines
+        data_files (:obj:`list`):
+            List of data files to read
+        frametype (:obj:`list`):
+            List of frametypes for each file
+        usrdata (:obj:`astropy.table.Table`):
+            Table of user supplied info on data files
+        setups (:obj:`list`):
+            List of setup lines
+    """
+    def __init__(self, pypeit_file, det=0):
+        self.pypeit_file = pypeit_file
+        self.det = det
         self.iFile = None  # if a single frame is being used, set the index, otherwise None
         self.spectrograph = None
         self.par = None
 
         # Load the pypeit file
         self.cfg_lines, self.data_files, self.frametype, self.usrdata, self.setups =\
-            parse_pypeit_file(args.file, runtime=False)
+            parse_pypeit_file(pypeit_file, runtime=False)
 
     def check_index(self, iFile):
         if self.iFile is None and iFile is None:
