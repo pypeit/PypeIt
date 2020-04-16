@@ -260,7 +260,7 @@ class RawImage(object):
         #
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
                                                               apply_gain=self.par['apply_gain'])
-        # Skip mask for bias image
+        # Build
         pypeitImage.build_mask(saturation=nonlinear_counts)
 
         # Return

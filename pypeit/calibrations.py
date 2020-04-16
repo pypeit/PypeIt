@@ -640,7 +640,7 @@ class Calibrations(object):
                                                        illum_image_files, dark=self.msdark,
                                                        bias=self.msbias, bpm=self.msbpm)
 
-            # Normalize and illumination
+            # Create pixelflat and illumination flat from illumination flat stack
             flatField = flatfield.FlatField(stacked_illumflat, self.spectrograph,
                                             self.par['flatfield'], self.slits, self.wavetilts)
             # Run
@@ -652,7 +652,6 @@ class Calibrations(object):
             self.slits.to_master_file()
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
-            msgs.warn("No pixelflats provided")
 
         # 3) Load user-supplied images
         #  NOTE:  This is the *final* images, not just a stack
