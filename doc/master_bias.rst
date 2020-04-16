@@ -9,8 +9,7 @@ This file describes the data model for the MasterBias image.
 This is written to disk as a multi-extension FITS file prefixed by
 MasterBias in the Masters/ folder.
 
-This is generally a simple combination of all input bias frames
-oriented as the raw image read in by PypeIt.
+This is generally a simple combination of all input bias frames.
 
 Inspecting
 ==========
@@ -20,10 +19,13 @@ any standard image viewer, e.g.::
 
     ginga Masters/MasterBias_A_1_01.fits
 
-It should resemble any one of your input bias frames.
-Here is an example for the :ref:`keck-lris-red` spectrograph
-(note: this image is a little out of date in that you cannot
-see the overscan regions).
+It should resemble any one of your input bias frames aside from:
+
+- Having been overscan subtracted
+- Being only a trimmed portion of the image
+- Re-oriented so that vertical is the spectral dimension with blue at the bottom
+
+Here is an example for the :ref:`keck-lris-red` spectrograph.
 
 .. image:: figures/bias_image.png
 

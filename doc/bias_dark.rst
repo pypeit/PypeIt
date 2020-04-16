@@ -41,8 +41,6 @@ on how to inspect the image and what to look for.
 The :ref:`pypeit_par:ProcessImagesPar Keywords`
 defaults are to:
 
-- Do not trim (*trim = False*)
-- Do not orient (*orient = False*)
 - Skip cosmic ray rejection in the individual frames (*mask_cr=False*)
 - Not apply a gain correction (*apply_gain = False*)
 - Not apply an overscan correction (*use_overscan = False*)
@@ -103,10 +101,10 @@ from any of its images, except `Bias Image`_.
 
 The generation of a dark image has the following defaults:
 
+- Do not subtract the overscan region (*use_overscan = False*)
 - Trim (*trim = True*)
 - Orient (*orient = True*)
-- Subtract a bias image as desired
-- Subtract the overscan region as desired
+- Do not subtract a bias image (*use_biasimage = False*)
 - Skip cosmic ray rejection in the individual frames (*mask_cr=False*)
 - Do not apply a gain correction (*apply_gain = False*)
 - Combine images with a weighted mean (*combine = weightmean*)

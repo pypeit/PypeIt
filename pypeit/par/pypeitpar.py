@@ -207,7 +207,7 @@ class ProcessImagesPar(ParSet):
     def __init__(self, trim=None, apply_gain=None, orient=None,
                  overscan_method=None, overscan_par=None,
                  combine=None, satpix=None,
-                 mask_cr=None, skip_mask=None,
+                 mask_cr=None,
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
@@ -297,11 +297,6 @@ class ProcessImagesPar(ParSet):
         descr['satpix'] = 'Handling of saturated pixels.  Options are: {0}'.format(
                                        ', '.join(options['satpix']))
 
-        # Mask
-        defaults['skip_mask'] = False
-        dtypes['skip_mask'] = bool
-        descr['skip_mask'] = 'Skip mask generation of this image (e.g. bias)'
-
         # TODO -- Make CR Parameters their own ParSet
         defaults['mask_cr'] = False
         dtypes['mask_cr'] = bool
@@ -369,7 +364,7 @@ class ProcessImagesPar(ParSet):
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
             'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
-            'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr', 'skip_mask',
+            'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
             'rmcompact', 'sigclip', 'sigfrac', 'objlim',
                    ]
@@ -3132,21 +3127,19 @@ class CalibrationsPar(ParSet):
 
         # Calibration Frames
         defaults['biasframe'] = FrameGroupPar(frametype='bias',
-                                              process=ProcessImagesPar(trim=False,
-                                                                       orient=False,
-                                                                       skip_mask=True,
-                                                                       use_overscan=False,
-                                                                       apply_gain=False,
+                                              process=ProcessImagesPar(apply_gain=False,
                                                                        use_biasimage=False,
-                                                                      use_pixelflat=False,
+                                                                       use_pixelflat=False,
                                                                        use_illumflat=False))
         dtypes['biasframe'] = [ ParSet, dict ]
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
         defaults['darkframe'] = FrameGroupPar(frametype='dark',
-                                              process=ProcessImagesPar(apply_gain=False,
-                                                                         use_pixelflat = False,
-                                                                         use_illumflat = False))
+                                              process=ProcessImagesPar(use_biasimage=False,
+                                                                       use_overscan=False,
+                                                                       apply_gain=False,
+                                                                       use_pixelflat = False,
+                                                                       use_illumflat = False))
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
