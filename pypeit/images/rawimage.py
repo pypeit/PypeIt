@@ -234,10 +234,10 @@ class RawImage(object):
 
         # Flat field
         if self.par['use_pixelflat'] or self.par['use_illumflat']:
-            if flatimages is not None:
-                self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
+            if flatimages is None or (self.par['use_pixelflat'] and flatimages.pixelflat is None):
+                msgs.error("Flat fielding desired but not generated/provided.")
             else:
-                msgs.error("Flat fielding desired but no flat field image generated.  Skipping flat fielding")
+                self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
@@ -294,7 +294,7 @@ class RawImage(object):
         # BPM
         if bpm is None:
             bpm = self.bpm
-        # TODO -- Adjust the illum_flat with flexure
+        # Do it
         self.image = flat.flatfield(self.image, pixel_flat, bpm, illum_flat=illum_flat)
         self.steps[step] = True
 
