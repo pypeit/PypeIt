@@ -196,15 +196,15 @@ class RawImage(object):
         # Get started
         # Standard order
         #   -- May need to allow for other order some day..
+        if par['use_biasimage']:  # Bias frame, if it exists, is *not* trimmed nor oriented
+            self.subtract_bias(bias)
         if par['use_overscan']:
             self.subtract_overscan()
         if par['trim']:
             self.trim()
         if par['orient']:
             self.orient()
-        if par['use_biasimage']:  # Bias frame, if it exists, is trimmed and oriented
-            self.subtract_bias(bias)
-        if par['use_darkimage']:  # Bias frame, if it exists, is trimmed and oriented
+        if par['use_darkimage']:  # Dark frame, if it exists, is trimmed and oriented
             self.subtract_dark(dark)
         if par['apply_gain']:
             self.apply_gain()
@@ -260,7 +260,9 @@ class RawImage(object):
         #
         nonlinear_counts = self.spectrograph.nonlinear_counts(self.detector,
                                                               apply_gain=self.par['apply_gain'])
-        pypeitImage.build_mask(saturation=nonlinear_counts)
+        # Skip mask for bias image
+        if not par['skip_mask']:
+            pypeitImage.build_mask(saturation=nonlinear_counts)
 
         # Return
         return pypeitImage

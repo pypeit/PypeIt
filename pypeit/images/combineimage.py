@@ -93,6 +93,7 @@ class CombineImage(object):
             # Process
             pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
                                                   flatimages=flatimages, slits=slits)
+            #embed(header='96 of combineimage')
             # Are we all done?
             if nimages == 1:
                 return pypeitImage
@@ -124,11 +125,12 @@ class CombineImage(object):
             # Final mask for this image
             # TODO This seems kludgy to me. Why not just pass ignore_saturation to process_one and ignore the saturation
             # when the mask is actually built, rather than untoggling the bit here
-            if ignore_saturation:  # Important for calibrations as we don't want replacement by 0
+            if ignore_saturation and not self.par['skip_mask']:  # Important for calibrations as we don't want replacement by 0
                 indx = pypeitImage.bitmask.flagged(pypeitImage.fullmask, flag=['SATURATION'])
                 pypeitImage.fullmask[indx] = pypeitImage.bitmask.turn_off(
                     pypeitImage.fullmask[indx], 'SATURATION')
-            mask_stack[kk, :, :] = pypeitImage.fullmask
+            if not self.par['skip_mask']:
+                mask_stack[kk, :, :] = pypeitImage.fullmask
 
         # Check that the lamps being combined are all the same:
         if not lampstat[1:] == lampstat[:-1]:
@@ -168,7 +170,8 @@ class CombineImage(object):
 
         nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
                                                               apply_gain=self.par['apply_gain'])
-        final_pypeitImage.build_mask(saturation=nonlinear_counts)
+        if not self.par['skip_mask']:
+            final_pypeitImage.build_mask(saturation=nonlinear_counts)
         # Return
         return final_pypeitImage
 
