@@ -2,6 +2,10 @@
 1.0.2dev
 --------
 
+ - Refactor of Calibrations (remove cache, add get_dark)
+ - Enable calibration-only run
+ - Add illumflat frametype
+ - Clean up flat, bias handling
 
 1.0.1 (13 Apr 2020)
 -------------------
