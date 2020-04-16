@@ -67,6 +67,7 @@ class Calibrations(object):
         mstilt (:class:`pypeit.images.buildimage.TiltImage`):
         flatimages (:class:`pypeit.flatfield.FlatImages`):
         msbias (:class:`pypeit.images.buildimage.BiasImage`):
+        msdark (:class:`pypeit.images.buildimage.DarkImage`):
         msbpm (`numpy.ndarray`):
         wv_calib (:obj:`dict):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
@@ -154,6 +155,7 @@ class Calibrations(object):
         self.msalign = None
         self.alignment = None
         self.msbias = None
+        self.msdark = None
         self.msbpm = None
         self.slits = None
         self.wavecalib = None
@@ -497,6 +499,44 @@ class Calibrations(object):
         # Return
         return self.msbias
 
+    def get_dark(self):
+        """
+        Load or generate the dark image
+
+        Requirements:
+           master_key, det, par
+
+        Returns:
+            :class:`pypeit.images.buildimage.DarkImage`:
+
+        """
+
+        # Check internals
+        self._chk_set(['det', 'calib_ID', 'par'])
+
+        # Prep
+        dark_files, self.master_key_dict['dark'] = self._prep_calibrations('dark')
+        # Construct the name, in case we need it
+        masterframe_name = masterframe.construct_file_name(buildimage.DarkImage,
+                                                           self.master_key_dict['dark'],
+                                                           master_dir=self.master_dir)
+
+        # Try to load?
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.msdark = buildimage.DarkImage.from_file(masterframe_name)
+        elif len(dark_files) == 0:
+            self.msdark = None
+        else:
+            # Build it
+            self.msdark = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                    self.par['darkframe'], dark_files)
+            # Save it?
+            self.msdark.to_master_file(masterframe_name)
+
+        # Return
+        return self.msdark
+
+
     def get_bpm(self):
         """
         Load or generate the bad pixel mask
@@ -591,7 +631,7 @@ class Calibrations(object):
                 msgs.error("PypeIt cannot handle a distinct set of pixel and illum flats")
             stacked_illumflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                        self.par['illumflatframe'],
-                                                       illum_image_files,
+                                                       illum_image_files, dark=self.msdark,
                                                        bias=self.msbias, bpm=self.msbpm)
 
             # Normalize and illumination
@@ -671,7 +711,8 @@ class Calibrations(object):
                 # Build the trace image
                 self.traceImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                         self.par['traceframe'], trace_image_files,
-                                                        bias=self.msbias, bpm=self.msbpm)
+                                                        bias=self.msbias, bpm=self.msbpm,
+                                                        dark=self.msdark)
                 # Build me
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph, self.par['slitedges'],
                                                     files=trace_image_files)
@@ -878,7 +919,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
+        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
 
 
 class IFUCalibrations(Calibrations):

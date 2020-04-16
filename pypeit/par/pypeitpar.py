@@ -3137,7 +3137,7 @@ class CalibrationsPar(ParSet):
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
         defaults['darkframe'] = FrameGroupPar(frametype='dark',
-                                              process = ProcessImagesPar(apply_gain=False,
+                                              process=ProcessImagesPar(apply_gain=False,
                                                                          use_pixelflat = False,
                                                                          use_illumflat = False))
         dtypes['darkframe'] = [ ParSet, dict ]

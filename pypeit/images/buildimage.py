@@ -61,6 +61,20 @@ class BiasImage(pypeitimage.PypeItImage):
     master_file_format = 'fits'
 
 
+class DarkImage(pypeitimage.PypeItImage):
+    """
+    Simple DataContainer for the Dark Image
+    """
+    # Set the version of this class
+    version = pypeitimage.PypeItImage.version
+
+    # Output to disk
+    output_to_disk = ('DARK_IMAGE', 'DARK_DETECTOR')
+    hdu_prefix = 'DARK_'
+    master_type = 'Dark'
+    master_file_format = 'fits'
+
+
 class TiltImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Tilt Image
@@ -92,7 +106,7 @@ class TraceImage(pypeitimage.PypeItImage):
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
-                        bias=None, bpm=None,
+                        bias=None, bpm=None, dark=None,
                         flatimages=None,
                         sigma_clip=False, sigrej=None, maxiters=5,
                         ignore_saturation=True, slits=None):
@@ -131,7 +145,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     #process_steps = procimg.set_process_steps(bias, frame_par)
     #
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(bias=bias, bpm=bpm,
+    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark,
                                    flatimages=flatimages,
                                    sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
@@ -142,6 +156,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     #   WARNING, any internals in pypeitImage are lost here
     if frame_par['frametype'] == 'bias':
         finalImage = BiasImage.from_pypeitimage(pypeitImage)
+    elif frame_par['frametype'] == 'dark':
+        finalImage = DarkImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'arc':
         finalImage = ArcImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'tilt':

@@ -157,7 +157,7 @@ class RawImage(object):
         return self.rn2img.copy()
 
     def process(self, par, bpm=bpm, flatimages=None, bias=None,
-                slits=None, debug=False):
+                slits=None, debug=False, dark=None):
         """
         Process the image
 
@@ -204,6 +204,8 @@ class RawImage(object):
             self.orient()
         if par['use_biasimage']:  # Bias frame, if it exists, is trimmed and oriented
             self.subtract_bias(bias)
+        if par['use_darkimage']:  # Bias frame, if it exists, is trimmed and oriented
+            self.subtract_dark(dark)
         if par['apply_gain']:
             self.apply_gain()
 
@@ -334,6 +336,23 @@ class RawImage(object):
             return self.image.copy()
         # Do it
         self.image -= bias_image.image
+        self.steps[step] = True
+
+    def subtract_dark(self, dark_image, force=False):
+        """
+        Perform dark image subtraction
+
+        Args:
+            dark_image (PypeItImage):
+                Dark image
+        """
+        step = inspect.stack()[0][3]
+        # Check if already bias subtracted
+        if self.steps[step] and (not force):
+            msgs.warn("Image was already dark subtracted.  Returning the current image")
+            return self.image.copy()
+        # Do it
+        self.image -= dark_image.image
         self.steps[step] = True
 
     def subtract_overscan(self, force=False):

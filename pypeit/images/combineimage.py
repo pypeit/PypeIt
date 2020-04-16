@@ -51,7 +51,7 @@ class CombineImage(object):
             msgs.error('Combineimage requires a list of files to instantiate')
 
     def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None):
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None):
         """
         Generate a PypeItImage from a list of images
 
@@ -91,7 +91,7 @@ class CombineImage(object):
             # Load raw image
             rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
             # Process
-            pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm,
+            pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
                                                   flatimages=flatimages, slits=slits)
             # Are we all done?
             if nimages == 1:
