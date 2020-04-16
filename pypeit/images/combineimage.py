@@ -50,11 +50,8 @@ class CombineImage(object):
         if self.nfiles == 0:
             msgs.error('Combineimage requires a list of files to instantiate')
 
-    def run(self, process_steps, bias,
-            flatimages=None,
-            #pixel_flat=None, illum_flat_fit=None,
-            ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5,
-            slits=None):
+    def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None):
         """
         Generate a PypeItImage from a list of images
 
@@ -64,8 +61,8 @@ class CombineImage(object):
 
         Args:
             process_steps (list):
-            bias (np.ndarray or None):
-                Bias image or instruction
+            bias (np.ndarray, optional):
+                Bias image
             pixel_flat (np.ndarray, optional):
                 Flat image
             illum_flat (np.ndarray, optional):
@@ -94,8 +91,9 @@ class CombineImage(object):
             # Load raw image
             rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
             # Process
-            pypeitImage = rawImage.process(process_steps, self.par, bias=bias, bpm=bpm,
+            pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
                                                   flatimages=flatimages, slits=slits)
+            #embed(header='96 of combineimage')
             # Are we all done?
             if nimages == 1:
                 return pypeitImage
@@ -167,9 +165,10 @@ class CombineImage(object):
                                                     PYP_SPEC=pypeitImage.PYP_SPEC)
         # Internals
         final_pypeitImage.rawheadlist = pypeitImage.rawheadlist
+        final_pypeitImage.process_steps = pypeitImage.process_steps
 
         nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
-                                                              apply_gain='apply_gain' in process_steps)
+                                                              apply_gain=self.par['apply_gain'])
         final_pypeitImage.build_mask(saturation=nonlinear_counts)
         # Return
         return final_pypeitImage

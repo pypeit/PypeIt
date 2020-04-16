@@ -1,7 +1,21 @@
 
-1.0.1dev
+
+1.0.2dev
 --------
 
+ - Add illumflat frametype
+ - Enable dark image subtraction
+ - Refactor of Calibrations (remove cache, add get_dark)
+ - Enable calibration-only run
+ - Clean up flat, bias handling
+ - Make re-use masters the default mode of run_pypeit
+ - Require Python 3.7
+ - Fixed a bug in NIRES order finding. 
+
+1.0.1 (13 Apr 2020)
+-------------------
+
+ - Various hot fixes
 
 1.0.0 (07 Apr 2020)
 -------------------

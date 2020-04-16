@@ -57,6 +57,8 @@ class PypeIt(object):
             remote control ginga session via ``ginga --modules=RC &``
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
+        calib_only: (:obj:`bool`, optional):
+            Only generate the calibration files that you can
 
     Attributes:
         pypeit_file (:obj:`str`):
@@ -69,12 +71,13 @@ class PypeIt(object):
 #    __metaclass__ = ABCMeta
 
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
-                 show=False, redux_path=None):
+                 show=False, redux_path=None, calib_only=False):
 
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
                 = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
+        self.calib_only = calib_only
 
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
@@ -94,6 +97,12 @@ class PypeIt(object):
         if scistd_file is not None:
             msgs.info('Setting configuration-specific parameters using {0}'.format(
                       os.path.split(scistd_file)[1]))
+        else:
+            if self.calib_only:
+                # Try to find an arc or trace
+                for idx, row in enumerate(usrdata):
+                    if ('arc' in row['frametype']) or ('trace' in row['frametype']):
+                        scistd_file = data_files[idx]
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
@@ -133,6 +142,10 @@ class PypeIt(object):
         # Set paths
         self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['master_dir'])
 
+        # Check for calibrations
+        if not self.calib_only:
+            calibrations.check_for_calibs(self.par, self.fitstbl)
+
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
         msgs.info('Master calibration data output to: {0}'.format(self.calibrations_path))
@@ -143,25 +156,25 @@ class PypeIt(object):
         # directories?
         # An html file wrapping them all too
 
-        # Instantiate Calibrations class
-        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
-            self.caliBrate \
-                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
-                                                     self.spectrograph, self.calibrations_path,
-                                                     qadir=self.qa_path,
-                                                     reuse_masters=self.reuse_masters,
-                                                     show=self.show,
-                                                     slitspat_num=self.par['rdx']['slitspatnum'])
-        elif self.spectrograph.pypeline in ['IFU']:
-            self.caliBrate \
-                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
-                                               self.spectrograph,
-                                               self.calibrations_path,
-                                               qadir=self.qa_path,
-                                               reuse_masters=self.reuse_masters,
-                                               show=self.show)
-        else:
-            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
+#        # Instantiate Calibrations class
+#        if self.spectrograph.pypeline in ['MultiSlit', 'Echelle']:
+#            self.caliBrate \
+#                = calibrations.MultiSlitCalibrations(self.fitstbl, self.par['calibrations'],
+#                                                     self.spectrograph, self.calibrations_path,
+#                                                     qadir=self.qa_path,
+#                                                     reuse_masters=self.reuse_masters,
+#                                                     show=self.show,
+#                                                     slitspat_num=self.par['rdx']['slitspatnum'])
+#        elif self.spectrograph.pypeline in ['IFU']:
+#            self.caliBrate \
+#                = calibrations.IFUCalibrations(self.fitstbl, self.par['calibrations'],
+#                                               self.spectrograph,
+#                                               self.calibrations_path,
+#                                               qadir=self.qa_path,
+#                                               reuse_masters=self.reuse_masters,
+#                                               show=self.show)
+#        else:
+#            msgs.error("No calibration available to support pypeline: {0:s}".format(self.spectrograph.pypeline))
 
         # Init
         self.verbosity = verbosity
@@ -246,6 +259,41 @@ class PypeIt(object):
         if std_outfile is not None and not os.path.isfile(std_outfile):
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
+    
+    def calib_all(self):
+        """
+        Create calibrations for all setups
+
+        This will not crash if not all of the standard set of files are not provided
+
+
+        """
+
+        self.tstart = time.time()
+
+        # Frame indices
+        frame_indx = np.arange(len(self.fitstbl))
+        for i in range(self.fitstbl.n_calib_groups):
+            # Find all the frames in this calibration group
+            in_grp = self.fitstbl.find_calib_group(i)
+            grp_frames = frame_indx[in_grp]
+
+            # Find the detectors to reduce
+            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+                                            ndet=self.spectrograph.ndet)
+            # Loop on Detectors
+            for self.det in detectors:
+                # Instantiate Calibrations class
+                self.caliBrate = calibrations.Calibrations.get_instance(
+                    self.fitstbl, self.par['calibrations'], self.spectrograph,
+                    self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
+                    show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+                # Do it
+                self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
+                self.caliBrate.run_the_steps()
+
+        # Finish
+        self.print_end_time()
 
     def reduce_all(self):
         """
@@ -426,8 +474,12 @@ class PypeIt(object):
         # TODO: Attempt to put in a multiprocessing call here?
         for self.det in detectors:
             msgs.info("Working on detector {0}".format(self.det))
-            # Calibrate
-            #TODO Is the right behavior to just use the first frame?
+            # Instantiate Calibrations class
+            self.caliBrate = calibrations.Calibrations.get_instance(
+                self.fitstbl, self.par['calibrations'], self.spectrograph,
+                self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
+                show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+            # These need to be separate to accomodate COADD2D
             self.caliBrate.set_config(frames[0], self.det, self.par['calibrations'])
             self.caliBrate.run_the_steps()
             # Extract
@@ -435,7 +487,7 @@ class PypeIt(object):
             # files as an argument. extract one takes a file list as an
             # argument and instantiates science within
             all_spec2d[self.det], tmp_sobjs \
-                    = self.extract_one(frames, self.det, bg_frames, std_outfile=std_outfile)
+                    = self.reduce_one(frames, self.det, bg_frames, std_outfile=std_outfile)
             # Hold em
             if tmp_sobjs.nobj > 0:
                 all_specobjs.add_sobj(tmp_sobjs)
@@ -518,9 +570,9 @@ class PypeIt(object):
 
         return std_trace
 
-    def extract_one(self, frames, det, bg_frames, std_outfile=None):
+    def reduce_one(self, frames, det, bg_frames, std_outfile=None):
         """
-        Extract a single exposure/detector pair
+        Reduce + Extract a single exposure/detector pair
 
         sci_ID and det need to have been set internally prior to calling this method
 
@@ -584,9 +636,7 @@ class PypeIt(object):
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
-                                         self.par, self.caliBrate.slits,
-                                         self.caliBrate.wavetilts,
-                                         self.caliBrate.wv_calib,
+                                         self.par, self.caliBrate,
                                          self.objtype,
                                          ir_redux=self.ir_redux,
                                          std_redux=self.std_redux,
