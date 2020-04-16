@@ -5,7 +5,7 @@ This script allows the user to manually select the sky background regions
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Button, TextBox
+from matplotlib.widgets import Button
 import matplotlib.transforms as mtransforms
 
 from pypeit import slittrace
