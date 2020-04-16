@@ -757,7 +757,8 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits']):
-            msgs.error('Not enough information to load/generate the wavelength calibration')
+            msgs.warn('Not enough information to load/generate the wavelength calibration. Skipping and may crash down the line')
+            return None
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
@@ -810,7 +811,8 @@ class Calibrations(object):
         # Check for existing data
         #TODO add mstilt_inmask to this list when it gets implemented.
         if not self._chk_objs(['mstilt', 'msbpm', 'slits', 'wv_calib']):
-            msgs.error('dont have all the objects')
+            msgs.warn('dont have all the objects for tilts.  Skipping and may crash down the line..')
+            return None
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])

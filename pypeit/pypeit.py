@@ -57,6 +57,8 @@ class PypeIt(object):
             remote control ginga session via ``ginga --modules=RC &``
         redux_path (:obj:`str`, optional):
             Over-ride reduction path in PypeIt file (e.g. Notebook usage)
+        calib_only: (:obj:`bool`, optional):
+            Only generate the calibration files that you can
 
     Attributes:
         pypeit_file (:obj:`str`):
@@ -69,12 +71,13 @@ class PypeIt(object):
 #    __metaclass__ = ABCMeta
 
     def __init__(self, pypeit_file, verbosity=2, overwrite=True, reuse_masters=False, logname=None,
-                 show=False, redux_path=None):
+                 show=False, redux_path=None, calib_only=False):
 
         # Load
         cfg_lines, data_files, frametype, usrdata, setups \
                 = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
+        self.calib_only = calib_only
 
         # Spectrograph
         cfg = ConfigObj(cfg_lines)
@@ -94,6 +97,11 @@ class PypeIt(object):
         if scistd_file is not None:
             msgs.info('Setting configuration-specific parameters using {0}'.format(
                       os.path.split(scistd_file)[1]))
+        else:
+            if self.calib_only:
+                # Try to find an arc or flat
+                if ('arc' in row['frametype']) or ('trace' in row['frametype']):
+                    scistd_file = data_files[idx]
         spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file).to_config()
         #   - Build the full set, merging with any user-provided
         #     parameters
@@ -134,7 +142,8 @@ class PypeIt(object):
         self.calibrations_path = os.path.join(self.par['rdx']['redux_path'], self.par['calibrations']['master_dir'])
 
         # Check for calibrations
-        calibrations.check_for_calibs(self.par, self.fitstbl)
+        if not self.calib_only:
+            calibrations.check_for_calibs(self.par, self.fitstbl)
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))
@@ -249,6 +258,41 @@ class PypeIt(object):
         if std_outfile is not None and not os.path.isfile(std_outfile):
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
+    
+    def calib_all(self):
+        """
+        Create calibrations for all setups
+
+        This will not crash if not all of the standard set of files are not provided
+
+
+        """
+
+        self.tstart = time.time()
+
+        # Frame indices
+        frame_indx = np.arange(len(self.fitstbl))
+        for i in range(self.fitstbl.n_calib_groups):
+            # Find all the frames in this calibration group
+            in_grp = self.fitstbl.find_calib_group(i)
+            grp_frames = frame_indx[in_grp]
+
+            # Find the detectors to reduce
+            detectors = PypeIt.select_detectors(detnum=self.par['rdx']['detnum'],
+                                            ndet=self.spectrograph.ndet)
+            # Loop on Detectors
+            for self.det in detectors:
+                # Instantiate Calibrations class
+                self.caliBrate = calibrations.Calibrations.get_instance(
+                    self.fitstbl, self.par['calibrations'], self.spectrograph,
+                    self.calibrations_path, qadir=self.qa_path, reuse_masters=self.reuse_masters,
+                    show=self.show, slitspat_num=self.par['rdx']['slitspatnum'])
+                # Do it
+                self.caliBrate.set_config(grp_frames[0], self.det, self.par['calibrations'])
+                self.caliBrate.run_the_steps()
+
+        # Finish
+        self.print_end_time()
 
     def reduce_all(self):
         """
