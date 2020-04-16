@@ -115,7 +115,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
 #                                        for t in fitstbl['target']])
         if ftype == 'bias':
             return good_exp # & (fitstbl['target'] == 'Bias')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') # & (fitstbl['target'] == 'Dome Flat')
         if ftype in ['pinhole', 'dark']:

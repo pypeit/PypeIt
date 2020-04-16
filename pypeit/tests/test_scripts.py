@@ -20,54 +20,6 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-@dev_suite_required
-def test_run_pypeit():
-    # Get the directories
-    rawdir = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'shane_kast_blue', '600_4310_d55')
-    assert os.path.isdir(rawdir), 'Incorrect raw directory'
-
-    # Just get a few files
-    testrawdir = os.path.join(rawdir, 'TEST')
-    if os.path.isdir(testrawdir):
-        shutil.rmtree(testrawdir)
-    os.makedirs(testrawdir)
-    files = [ 'b21.fits.gz', 'b22.fits.gz', 'b23.fits.gz', 'b27.fits.gz', 'b1.fits.gz',
-              'b11.fits.gz', 'b12.fits.gz', 'b13.fits.gz' ]
-    for f in files:
-        shutil.copy(os.path.join(rawdir, f), os.path.join(testrawdir, f))
-
-    outdir = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT_TEST')
-
-    # For previously failed tests
-    if os.path.isdir(outdir):
-        shutil.rmtree(outdir)
-
-    # Run the setup
-    sargs = setup.parser(['-r', testrawdir, '-s', 'shane_kast_blue', '-c all', '-o',
-                          '--output_path', outdir])
-    setup.main(sargs)
-
-    # Change to the configuration directory and set the pypeit file
-    configdir = os.path.join(outdir, 'shane_kast_blue_A')
-    pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
-    assert os.path.isfile(pyp_file), 'PypeIt file not written.'
-
-    # Perform the original reductions
-    pargs = run_pypeit.parser([pyp_file, '-o'])
-    run_pypeit.main(pargs)
-
-    # Now try to reuse the old masters
-    pargs = run_pypeit.parser([pyp_file, '-o', '-m'])
-    run_pypeit.main(pargs)
-
-    # Now try not overwriting and using the old masters
-    pargs = run_pypeit.parser([pyp_file, '-m'])
-    run_pypeit.main(pargs)
-
-    # Clean-up
-    shutil.rmtree(outdir)
-    shutil.rmtree(testrawdir)
-
 
 @dev_suite_required
 def test_quicklook():

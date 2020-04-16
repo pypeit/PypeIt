@@ -221,11 +221,18 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Flats
-        par['calibrations']['standardframe']['process']['illumflatten'] = False
-        par['scienceframe']['process']['illumflatten'] = False
+        #par['calibrations']['standardframe']['process']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
+        # Turn of illumflat
+        use_off = ['use_illumflat', 'use_biasimage', 'use_overscan']
+        for key in par['calibrations'].keys():
+            if isinstance(par['calibrations'][key], pypeitpar.ParSet) and 'process' in par['calibrations'][key].keys():
+                for off in use_off:
+                    par['calibrations'][key]['process'][off] = False
+        for off in use_off:
+            par['scienceframe']['process'][off] = False
 
         # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
@@ -244,13 +251,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
         # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
         # images.
-        par['calibrations']['biasframe']['useframe'] = 'bias'
-        par['calibrations']['traceframe']['process']['bias'] = 'force'
-        par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
-        par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
-        par['calibrations']['standardframe']['process']['bias'] = 'skip'
-        par['scienceframe']['process']['bias'] = 'skip'
+        #par['calibrations']['biasframe']['useframe'] = 'bias'
+        #par['calibrations']['traceframe']['process']['bias'] = 'force'
+        #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        #par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        #par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        #par['scienceframe']['process']['bias'] = 'skip'
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
