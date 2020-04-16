@@ -108,6 +108,27 @@ The | symbols need not align but the number per row must be equal.
 **Important:** The values in this table will over-ride anything derived
 from the FITS header.
 
+Most :doc:`spectrographs` require at least one file with each
+of the following :doc:`frametype`:
+
+ - arc -- Wavelength calibration
+ - trace -- Slit/order definition
+ - pixelflat -- Flat fielding (see below if you **not** provided)
+ - science -- Science exposure
+
+FlatField
++++++++++
+
+If you do **not** provide one or more *pixelflat* frames, you should
+explicitly tell the code to ignore flatfielding.  Do so by
+adding the following to your `Parameter Block`::
+
+    [calibrations]
+        [[flatfield]]
+            method=skip
+
+This will skip all flat-field steps.
+
 Edits to the Data Block
 =======================
 
