@@ -41,12 +41,14 @@ on how to inspect the image and what to look for.
 The :ref:`pypeit_par:ProcessImagesPar Keywords`
 defaults are to:
 
-- Combine images with a weighted mean (*combine = weightmean*)
+- Do not trim (*trim = False*)
+- Do not orient (*orient = False*)
 - Skip cosmic ray rejection in the individual frames (*mask_cr=False*)
 - Not apply a gain correction (*apply_gain = False*)
 - Not apply an overscan correction (*use_overscan = False*)
+- Combine images with a weighted mean (*combine = weightmean*)
 
-Modify these at your discretion.
+Modify these at your discretion (and danger).
 
 Application
 +++++++++++
@@ -99,9 +101,15 @@ Dark Subtraction
 PypeIt allows for the construction and subtraction of dark images
 from any of its images, except `Bias Image`_.
 
-The `Generation`_ of a dark image
-is effectively identical to the steps for a `Bias Image`_,
-except the latter can be applied if desired.
+The generation of a dark image has the following defaults:
+
+- Trim (*trim = True*)
+- Orient (*orient = True*)
+- Subtract a bias image as desired
+- Subtract the overscan region as desired
+- Skip cosmic ray rejection in the individual frames (*mask_cr=False*)
+- Do not apply a gain correction (*apply_gain = False*)
+- Combine images with a weighted mean (*combine = weightmean*)
 
 To apply a dark, you will need to specify the :doc:`frametype`
 accordingly.  Here is an example for the VLT/X-SHOOTER NIR arm::

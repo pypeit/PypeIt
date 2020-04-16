@@ -23,7 +23,7 @@ any standard image viewer, e.g.::
 It should resemble any one of your input bias frames.
 Here is an example for the :ref:`keck-lris-red` spectrograph
 (note: this image is a little out of date in that you cannot
-view the overscan regions).
+see the overscan regions).
 
 .. image:: figures/bias_image.png
 
