@@ -575,7 +575,7 @@ class Spectrograph(object):
             pix_img = np.zeros(raw_img.shape, dtype=int)
             for i in range(detector['numamplifiers']):
 
-                if image_sections[i] is not None:
+                if image_sections is not None:  # and image_sections[i] is not None:
                     # Convert the data section from a string to a slice
                     datasec = parse.sec2slice(image_sections[i], one_indexed=one_indexed,
                                               include_end=include_last, require_dim=2,

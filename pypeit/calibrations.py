@@ -36,8 +36,7 @@ class Calibrations(object):
     calibration images and objects in PypeIt.
 
     To avoid rebuilding MasterFrames that were generated during this execution
-    of PypeIt, the class performs book-keeping of these master frames and
-    holds that info in self.calib_dict
+    of PypeIt, the class performs book-keeping of these master frames
 
     Args:
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
@@ -79,7 +78,6 @@ class Calibrations(object):
         full_par (:class:`pypeit.par.pypeitpar.PypeItPar`):
         redux_path
         master_dir
-        calib_dict
         det
         frame (:obj:`int`):
             0-indexed row of the frame being calibrated in
@@ -145,7 +143,6 @@ class Calibrations(object):
             os.makedirs(os.path.join(self.qa_path, 'PNGs'))
 
         # Attributes
-        self.calib_dict = {}
         self.det = None
         self.frame = None
         self.binning = None
@@ -960,6 +957,19 @@ class IFUCalibrations(Calibrations):
 
 
 def check_for_calibs(par, fitstbl, raise_error=True):
+    """
+    Perform a somewhat quick and dirty check to see if the user
+    has provided all of the calibration frametype's to reduce
+    the science frames
+
+    Args:
+        par (:class:`pypeit.par.pyepeitpar.PypeItPar`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
+            The class holding the metadata for all the frames in this
+            PypeIt run.
+        raise_error (:obj:`bool`, optional):
+            If True, crash out
+    """
     # Find the science frames
     is_science = fitstbl.find_frames('science')
     # Frame indices
@@ -979,6 +989,11 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                 if par['scienceframe']['process'][key]:
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
+                        # Allow for pixelflat inserted
+                        if ftype == 'pixelflat':
+                            if par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                                continue
+                        # Fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
                         if raise_error:
                             msgs.error(msg)

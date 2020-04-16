@@ -29,7 +29,7 @@ class Reduce(object):
     Args:
         sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph (pypeit.spectrograph.Spectrograph):
-        par (pypeit.par.pyepeitpar.PypeItPar):
+        par (:class:`pypeit.par.pyepeitpar.PypeItPar`):
         caliBrate (:class:`pypeit.calibrations.Calibrations`):
         objtype (str):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'

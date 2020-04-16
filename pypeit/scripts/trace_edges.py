@@ -87,14 +87,14 @@ def main(args):
         # Save the full file paths
         files = rdx.fitstbl.frame_paths(tbl_rows)
         # Trace image processing parameters
-        proc_par = rdx.caliBrate.par['traceframe']
+        proc_par = rdx.par['calibrations']['traceframe']
         # Slit tracing parameters
-        trace_par = rdx.caliBrate.par['slitedges']
+        trace_par = rdx.par['calibrations']['slitedges']
 
         # Get the bias files, if requested
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
         bias_files = rdx.fitstbl.frame_paths(bias_rows)
-        bias_par = rdx.caliBrate.par['biasframe']
+        bias_par = rdx.par['calibrations']['biasframe']
         if len(bias_files) == 0:
             bias_files = None
 

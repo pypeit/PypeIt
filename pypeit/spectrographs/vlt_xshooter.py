@@ -172,7 +172,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             # The overscan region below contains only zeros
             # ToDo should we just set it as empty?
             #  JXP says yes
-            oscansec        = np.atleast_1d('[4:2044,1:3]'), # These are all unbinned pixels.
+            #oscansec        = np.atleast_1d('[4:2044,1:3]'), # These are all unbinned pixels.
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -226,13 +226,8 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
 
         # Turn of illumflat
-        use_off = ['use_illumflat', 'use_biasimage', 'use_overscan']
-        for key in par['calibrations'].keys():
-            if isinstance(par['calibrations'][key], pypeitpar.ParSet) and 'process' in par['calibrations'][key].keys():
-                for off in use_off:
-                    par['calibrations'][key]['process'][off] = False
-        for off in use_off:
-            par['scienceframe']['process'][off] = False
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False)
+        par.reset_all_processimages_par(**turn_off)
 
         # Is this needed below?
         par['scienceframe']['process']['sigclip'] = 20.0
@@ -477,12 +472,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
 
         # Adjustments to parameters for VIS
-        par['calibrations']['arcframe']['process']['overscan'] = 'median'
+        par['calibrations']['arcframe']['process']['overscan_method'] = 'median'
         # X-SHOOTER arcs/tilts are also have different binning with bias frames
-        par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        par['calibrations']['arcframe']['process']['use_biasimage'] = False
+        par['calibrations']['tiltframe']['process']['use_biasimage'] = False
         # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
-        par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
 
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
@@ -724,11 +719,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['length_range'] = 0.3
 
-        par['calibrations']['arcframe']['process']['overscan'] = 'median'
-        par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        par['calibrations']['arcframe']['process']['overscan_method'] = 'median'
+        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
         # X-SHOOTER UVB arcs/tilts have different binning with bias frames
-        par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        par['calibrations']['arcframe']['process']['use_biasimage'] = False
+        par['calibrations']['tiltframe']['process']['use_biasimage'] = False
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']
