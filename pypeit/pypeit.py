@@ -632,20 +632,18 @@ class PypeIt(object):
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
 
-        # TODO :: need the standard star information, so do this for now
-        self.caliBrate.std_outfile = std_outfile
-
         # Instantiate Reduce object
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
-                                         self.par, self.caliBrate,
-                                         self.objtype,
-                                         ir_redux=self.ir_redux,
-                                         std_redux=self.std_redux,
-                                         setup=self.setup,
-                                         show=self.show,
-                                         det=det, binning=self.binning)
+                                                self.par, self.caliBrate,
+                                                self.objtype,
+                                                ir_redux=self.ir_redux,
+                                                std_redux=self.std_redux,
+                                                setup=self.setup,
+                                                show=self.show,
+                                                det=det, binning=self.binning,
+                                                std_outfile=std_outfile)
         # Show?
         if self.show:
             self.redux.show('image', image=sciImg.image, chname='processed',

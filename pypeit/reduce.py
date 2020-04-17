@@ -86,7 +86,7 @@ class Reduce(object):
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None):
+                 binning=None, setup=None, std_outfile=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -114,7 +114,7 @@ class Reduce(object):
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None):
+                 binning=None, setup=None, std_outfile=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -123,6 +123,8 @@ class Reduce(object):
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
+        self.caliBrate = caliBrate
+        self.std_outfile = std_outfile
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -1149,7 +1151,7 @@ class IFUReduce(Reduce):
         # Get the plate scale
         plate_scale = self.get_platescale(None)
         # Find the slits with the minimum and maximum wavelength
-        mawave = np.ma.masked_array(self.waveImg, mask=self.waveImg == 0)
+        mawave = np.ma.masked_array(self.waveimg, mask=self.waveimg == 0)
         ypixmn, minidx = np.unravel_index(np.ma.argmin(mawave), mawave.shape)
         ypixmx, maxidx = np.unravel_index(np.ma.argmax(mawave), mawave.shape)
         wmin = np.where((self.slits_left[ypixmn, :] <= minidx) & (minidx <= self.slits_right[ypixmn, :]))[0]
@@ -1172,14 +1174,14 @@ class IFUReduce(Reduce):
         msgs.info("Building relative scale image")
         nspec = self.slits_left.shape[0]
         scale_dict = dict(scale=np.zeros((nspec, ref_slits.size)), wavescl=np.zeros((nspec, ref_slits.size)))
-        if self.objtype == 'standard' or self.caliBrate.std_outfile is None:  # Standard star trace is not available
+        if self.objtype == 'standard' or self.std_outfile is None:  # Standard star trace is not available
             # Initialise a SpecObj
             for ss, slit in enumerate(ref_slits):
                 relspec = specobj.SpecObj("IFU", self.det, SLITID=slit)
                 relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit] + self.slits_right[:, slit])
                 # Do a boxcar extraction - assume standard is in the middle of the slit
                 extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                       self.waveImg, glob_skym, rn2img,
+                                       self.waveimg, glob_skym, rn2img,
                                        self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
                                        relspec)
                 # Interpolate over the bad pixels
@@ -1189,7 +1191,7 @@ class IFUReduce(Reduce):
                 scale_dict['scale'][:, ss] = fspl(relspec.BOX_WAVE)
                 scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
         elif self.objtype in ['science', 'science_coadd2d']:
-            sobjs = specobjs.SpecObjs.from_fitsfile(self.caliBrate.std_outfile)
+            sobjs = specobjs.SpecObjs.from_fitsfile(self.std_outfile)
             # Does the detector match?
             this_det = sobjs.DET == self.det
             if np.any(this_det):
@@ -1201,7 +1203,7 @@ class IFUReduce(Reduce):
                 for ss, slit in enumerate(ref_slits):
                     # Do optimal extraction
                     extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                           self.waveImg, glob_skym, rn2img,
+                                           self.waveimg, glob_skym, rn2img,
                                            self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
                                            relspec)
                     scale_dict['scale'][:, ss] = relspec.OPT_COUNTS.copy()
@@ -1228,7 +1230,7 @@ class IFUReduce(Reduce):
 
         # Create the final interpolating polynomial, and apply it to the wavelength image
         refspl = interp1d(wavearr, fluxarr, kind='cubic', bounds_error=False, fill_value="extrapolate")
-        scale_model = refspl(self.waveImg)
+        scale_model = refspl(self.waveimg)
 
         # Now return
         return self.caliBrate.flatimages.flat_model/scale_model
