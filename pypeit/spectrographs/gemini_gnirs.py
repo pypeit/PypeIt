@@ -266,7 +266,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             # Don't type pinhole, dark, or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'ARC')
+            ## FW ToDo: self.dispname does not work yet. need to replace the following later.
+            if '32/mm' in fitstbl['dispname'][0]:
+                return good_exp & (fitstbl['idname'] == 'OBJECT')
+            elif '10/mmLBSX' in fitstbl['dispname'][0]:
+                return good_exp & (fitstbl['idname'] == 'ARC')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
