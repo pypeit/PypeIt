@@ -599,13 +599,11 @@ class SkySubGUI(object):
                 spec_min = np.append(spec_min, self.slits.specmin[sl])
                 spec_max = np.append(spec_max, self.slits.specmax[sl])
         # Instantiate the regions
-        regions = slittrace.SlitTraceSet(left_edg, righ_edg, self.pypeline, self.slits.nspat,
-                                         mask=self.slits.mask,
-                                         specmin=spec_min, specmax=spec_max,
-                                         binspec=self.slits.binspec, binspat=self.slits.binspat,
-                                         pad=0)
+        regions = slittrace.SlitTraceSet(left_edg, righ_edg, self.pypeline, nspec=self.nspec, nspat=self.nspat,
+                                         mask=self.slits.mask, specmin=spec_min, specmax=spec_max,
+                                         binspec=self.slits.binspec, binspat=self.slits.binspat, pad=0)
         # Generate the mask, and return
-        return (regions.slit_img() >= 0).astype(np.int)
+        return (regions.slit_img(use_spatial=False) >= 0).astype(np.int)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
