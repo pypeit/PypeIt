@@ -92,7 +92,7 @@ class CombineImage(object):
             rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
             # Process
             pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
-                                                  flatimages=flatimages, slits=slits)
+                                           flatimages=flatimages, slits=slits)
             # Are we all done?
             if nimages == 1:
                 return pypeitImage
