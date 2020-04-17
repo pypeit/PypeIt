@@ -89,7 +89,7 @@ class Alignment():
             self.shape_science = self.slitmask_science.shape
             self.shape_align = self.msalign.image.shape
             self.nslits = self.slits.nslits
-            self.slit_left, self.slit_right, _ = self.slits.select_edges()
+            self.slit_left, self.slit_right, _ = self.slits.select_edges(initial=True)
             self.slitcen = 0.5 * (self.slit_left + self.slit_right)
             self.slitmask = arc.resize_mask2arc(self.shape_align, self.slitmask_science)
             self.gpm = (arc.resize_mask2arc(self.shape_align, gpm)) & (self.msalign.image < self.nonlinear_counts)
@@ -138,7 +138,8 @@ class Alignment():
                 nperslit=len(self.par['locations']))
             if len(align_traces) != len(self.par['locations']):
                 # Align tracing has failed for this slit
-                msgs.warn("Alignment tracing has failed on slit {0:d}".format(sl))
+                # TODO :: Maybe throw a warning and just mask the slit from further reduction?
+                msgs.error("Alignment tracing has failed on slit {0:d}".format(sl))
             if show_trace:
                 self.show('overplot', chname='align_traces', align_traces=align_traces, slits=False)
             align_prof['{0:d}'.format(sl)] = align_traces.copy()
@@ -238,22 +239,26 @@ class Alignment():
             msgs.info('Compressing file to: {0}.gz'.format(outfile))
             io.compress_file(outfile, overwrite=overwrite)
 
-    def load(self, ifile=None):
+    def load(self, msfile):
         """
         Load the profiles of the align frame.
 
         Args:
-            ifile (:obj:`str`, optional):
+            msfile (:obj:`str`, optional):
                 Name of the master frame file.  Defaults to
                 :attr:`master_file_path`.
 
         Returns:
             dict or None: self.align_dict
         """
-        msgs.info('Loading Master frame: {0}'.format(ifile))
+        if os.path.exists(msfile):
+            msgs.info('Loading Master frame: {0}'.format(msfile))
+        else:
+            # Master frame doesn't exist
+            return None
         # Load
         extnames = ['ALIGNMENTS']
-        *data, head0 = load.load_multiext_fits(ifile, extnames)
+        *data, head0 = load.load_multiext_fits(msfile, extnames)
 
         # Set the data
         self._alignprof = data[0]

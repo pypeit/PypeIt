@@ -364,10 +364,10 @@ class ProcessImagesPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-            'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
-            'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
+                   'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
+                   'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-            'rmcompact', 'sigclip', 'sigfrac', 'objlim',
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim',
                    ]
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -3272,9 +3272,10 @@ class CalibrationsPar(ParSet):
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
         defaults['alignframe'] = FrameGroupPar(frametype='align',
-                                               process=ProcessImagesPar(sigrej=-1,
-                                                                      use_pixelflat=False,
-                                                                      use_illumflat=False))
+                                               process=ProcessImagesPar(satpix='nothing',
+                                                                        sigrej=-1,
+                                                                        use_pixelflat=False,
+                                                                        use_illumflat=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 

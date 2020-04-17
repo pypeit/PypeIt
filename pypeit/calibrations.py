@@ -435,23 +435,22 @@ class Calibrations(object):
         masterframe_name = masterframe.construct_file_name(alignframe.Alignment, self.master_key_dict['align'],
                                                            master_dir=self.master_dir)
 
-        # Check if the alignment dictionary exists
-        if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.align_dict = self.calib_dict[self.master_key_dict['align']]['align_dict']
-        else:  # Build
-            # Extract some header info needed by the algorithm
-            binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
+        # Build the alignment dictionary
+        # Extract some header info needed by the algorithm
+        binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
 
-            # Instantiate
-            self.alignment = alignframe.Alignment(self.msalign, self.slits, self.spectrograph,
-                                                  self.par['alignment'],
-                                                  det=self.det, binning=binning,
-                                                  master_key=self.master_key_dict['align'],
-                                                  qa_path=self.qa_path, msbpm=self.msbpm)
-
+        # Instantiate
+        alignment = alignframe.Alignment(self.msalign, self.slits, self.spectrograph,
+                                         self.par['alignment'],
+                                         det=self.det, binning=binning,
+                                         master_key=self.master_key_dict['align'],
+                                         qa_path=self.qa_path, msbpm=self.msbpm)
+        # Master
+        self.align_dict = alignment.load(masterframe_name)
+        if self.align_dict is None:
             # Trace and save the profiles
-            self.align_dict = self.alignment.run(self.show)
-            self.alignment.save(outfile=masterframe_name)
+            self.align_dict = alignment.run(self.show)
+            alignment.save(masterframe_name)
 
         return self.msalign, self.align_dict
 
