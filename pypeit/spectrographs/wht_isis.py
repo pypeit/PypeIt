@@ -153,7 +153,7 @@ class WHTISISBlueSpectrograph(WHTISISSpectrograph):
                 par['calibrations'][ftype]['process']['overscan'] = 'none'
             except (TypeError, KeyError):
                 pass
-        par['scienceframe']['process']['overscan'] = 'none'
+        par['scienceframe']['process']['use_overscan'] = False
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method

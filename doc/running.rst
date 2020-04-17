@@ -15,6 +15,9 @@ It assumes:
 
 3. You edited the :doc:`pypeit_file` as desired.
 
+4. You have removed any (likely all) calibration file from the
+Masters/ folder that are stale/old versions/etc.
+
 
 
 
@@ -36,17 +39,17 @@ Here is the script `usage`
 see the very latest)::
 
     usage: run_pypeit [-h] [-v VERBOSITY] [-t] [-r SORT_DIR] [-m] [-s] [-o]
-                      [-d DETECTOR]
-                      pypeit_file
+                  [-d DETECTOR]
+                  pypeit_file
 
-    ##  PypeIt : The Python Spectroscopic Data Reduction Pipeline v0.12.3dev
+    ##  PypeIt : The Python Spectroscopic Data Reduction Pipeline v1.0.2dev
     ##
     ##  Available pipelines include (OUTDATED):
-    ##   armed, arms
+    ##   arms, armed
     ##  Available spectrographs include (OUTDATED):
-    ##   keck_nires, shane_kast_red, tng_dolores, apf_levy,
-    ##   keck_lris_blue, shane_kast_blue, keck_lris_red, keck_hires,
-    ##   shane_kast_red_ret, wht_isis_blue, keck_nirspec, keck_deimos
+    ##   keck_nires, keck_hires, keck_lris_blue, keck_lris_red,
+    ##   apf_levy, keck_nirspec, shane_kast_red, shane_kast_red_ret,
+    ##   keck_deimos, wht_isis_blue, shane_kast_blue, tng_dolores
 
     positional arguments:
       pypeit_file           PypeIt reduction file (must have .pypeit extension)
@@ -60,7 +63,9 @@ see the very latest)::
       -r SORT_DIR, --sort_dir SORT_DIR
                             Directory used to store the sorted files. Default is
                             to omit writing these files.
-      -m, --use_masters     Load previously generated MasterFrames
+      -m, --do_not_reuse_masters
+                            Do not load previously generated MasterFrames, even
+                            ones made during the run.
       -s, --show            Show reduction steps via plots (which will block
                             further execution until clicked on) and outputs to
                             ginga. Requires remote control ginga session via
@@ -70,6 +75,7 @@ see the very latest)::
                             Detector to limit reductions on. If the output files
                             exist and -o is used, the outputs for the input
                             detector will be replaced.
+
 
 Standard Call
 -------------
@@ -102,12 +108,12 @@ then remove them and run without `-o`.
 -m
 ++
 
-This `-m` or `--use_masters` flag tells PypeIt to use any existing
-calibration frames (referred to as :doc:`masters`) instead of
-re-creating them.
+This `-m` or `--do_not_use_masters` flag tells PypeIt to **avoid**
+using any existing
+calibration frames (referred to as :doc:`masters`) instead
+of loading from disk.
 
-This can *greatly* speed up the code so is
-recommended once you trust they have been generated properly.
+Using this can *greatly* slow down the code.
 
 -s
 ++
