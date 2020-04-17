@@ -536,7 +536,7 @@ class Reduce(object):
             print(skymask_now.shape)
             pdb.set_trace()
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
-            wavenorm = self.waveImg / np.max(self.waveImg)
+            wavenorm = self.waveimg / np.max(self.waveimg)
             # Find sky
             # TODO :: JXP removed the left and right (non trimmed) edges (see above). This might not allow the whole slit to be used
             scalefact = scaleImg + (scaleImg == 0)
