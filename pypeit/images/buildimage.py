@@ -114,7 +114,7 @@ class SkyRegions(pypeitimage.PypeItImage):
 
     # Master fun
     master_type = 'SkyRegions'
-    file_format = 'fits.gz'
+    master_file_format = 'fits.gz'
 
 
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,

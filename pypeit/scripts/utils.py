@@ -130,7 +130,7 @@ class Utilities:
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=self.cfg_lines)
         return
 
-    def select_science_frame(self, use_first=False):
+    def select_science_frame(self, use_first=False, standard=False):
         """Find all of the indices that correspond to science frames
         """
         sciidx = np.array([], dtype=np.int)
@@ -139,14 +139,14 @@ class Utilities:
         for tt in range(len(self.usrdata)):
             ftype = self.usrdata['frametype'][tt].split(",")
             for ff in range(len(ftype)):
-                if ftype[ff] == "science":
+                if ftype[ff] == "science" or (standard and ftype[ff] == "standard"):
                     sciidx = np.append(sciidx, tt)
-                    print("  ({0:d}) {1:s}".format(cntr+1, self.usrdata['filename'][tt]))
+                    print("  ({0:d}) {1:s}    ({2:s} frame)".format(cntr+1, self.usrdata['filename'][tt], ftype[ff]))
                     cntr += 1
                     break
         # Determine which science frame the user wants
         if cntr == 1:
-            msgs.info("Only one science frame listed in .pypeit file - using that frame")
+            msgs.info("Only one frame listed in .pypeit file - using that frame")
             idx = sciidx[0]
         elif use_first:
             idx = sciidx[0]

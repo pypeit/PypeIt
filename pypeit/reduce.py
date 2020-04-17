@@ -530,6 +530,11 @@ class Reduce(object):
         if self.par['reduce']['skysub']['joint_fit']:
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
+            import pdb
+            print((self.sciImg.fullmask == 0).shape)
+            print(thismask.shape)
+            print(skymask_now.shape)
+            pdb.set_trace()
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             wavenorm = self.waveImg / np.max(self.waveImg)
             # Find sky
@@ -1267,7 +1272,7 @@ class IFUReduce(Reduce):
 
             # Setup the master frame name
             master_dir = self.caliBrate.master_dir
-            master_key = list(self.caliBrate.calib_dict)[0] + "_" + sciName
+            master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
 
             regfile = masterframe.construct_file_name(buildimage.SkyRegions,
                                                       master_key=master_key,
@@ -1312,8 +1317,21 @@ class IFUReduce(Reduce):
         if ref_slit is None:
             ref_slit = 0
 
-        # Get the plate scale
-        plate_scale = self.get_platescale(None)
+        # Deal with dynamic calibrations
+        # Tilts
+        self.waveTilts.is_synced(self.slits)
+        #   Deal with Flexure
+        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+            # If they both shifted the same, there will be no reason to shift the tilts
+            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+        else:
+            tilt_flexure_shift = self.spat_flexure_shift
+        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+
+        # Wavelengths (on unmasked slits)
+        self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
+                                               self.wv_calib, spat_flexure=self.spat_flexure_shift)
 
         # If this is a slit-based IFU, perform a relative scaling of the IFU slits
         scaleImg = 1.0
