@@ -1086,7 +1086,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         thismask:  boolean ndarray
             Boolean mask image specifying the pixels which lie on the
             slit/order to search for objects on.  The convention is:
-            True = on the slit/order, False  = off the slit/order
+            True = on the slit/order, False = off the slit/order
         slit_left:  float ndarray
             Left boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)

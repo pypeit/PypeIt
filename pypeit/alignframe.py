@@ -47,7 +47,7 @@ class Alignment():
     version = '1.0.0'
     frametype = 'alignment'
     master_type = 'Alignment'
-    file_format = 'fits'
+    master_file_format = 'fits'
 
     def __init__(self, msalign, slits, spectrograph, par, det=1,
                  binning=None, master_key=None,
@@ -83,13 +83,13 @@ class Alignment():
         # the slits
         if self.slits is not None and self.msalign is not None:
             # NOTE: This uses the internal definition of `pad`
-            self.slitmask_science = self.slits.slit_img()
+            self.slitmask_science = self.slits.slit_img(use_spatial=False)
             gpm = (self.bpm == 0) if self.bpm is not None \
                 else np.ones_like(self.slitmask_science, dtype=bool)
             self.shape_science = self.slitmask_science.shape
             self.shape_align = self.msalign.image.shape
             self.nslits = self.slits.nslits
-            self.slit_left, self.slit_right = self.slits.select_edges()
+            self.slit_left, self.slit_right, _ = self.slits.select_edges()
             self.slitcen = 0.5 * (self.slit_left + self.slit_right)
             self.slitmask = arc.resize_mask2arc(self.shape_align, self.slitmask_science)
             self.gpm = (arc.resize_mask2arc(self.shape_align, gpm)) & (self.msalign.image < self.nonlinear_counts)

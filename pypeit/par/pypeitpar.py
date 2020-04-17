@@ -3272,7 +3272,9 @@ class CalibrationsPar(ParSet):
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
         defaults['alignframe'] = FrameGroupPar(frametype='align',
-                                               processing_steps=['trim', 'orient', 'apply_gain'])
+                                               process=ProcessImagesPar(sigrej=-1,
+                                                                      use_pixelflat=False,
+                                                                      use_illumflat=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 

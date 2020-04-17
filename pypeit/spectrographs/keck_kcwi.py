@@ -257,7 +257,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '1')  #hatch=1,0=open,closed
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == '0')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'illumflat', 'trace']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome_noarc') & (fitstbl['hatch'] == '0') & (fitstbl['idname'] == '6')
         if ftype in ['dark']:

@@ -392,32 +392,22 @@ class Calibrations(object):
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        align_files = self._prep_calibrations('align')
-        #align_rows = self.fitstbl.find_frames('align', calib_ID=self.calib_ID, index=True)
-        #self.align_files = self.fitstbl.frame_paths(align_rows)
-        #self.master_key_dict['align'] \
-        #        = self.fitstbl.master_key(align_rows[0] if len(align_rows) > 0 else self.frame,
-        #                                  det=self.det)
+        align_files, self.master_key_dict['align'] = self._prep_calibrations('align')
         masterframe_name = masterframe.construct_file_name(
             buildimage.AlignImage, self.master_key_dict['align'], master_dir=self.master_dir)
 
-        # Previously cahded?
-        if self._cached('align', self.master_key_dict['align']):
-            # Previously calculated
-            self.msalign = self.calib_dict[self.master_key_dict['align']]['alignframe']
-        elif os.path.isfile(masterframe_name) and self.reuse_masters:
+        # Reuse master frame?
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.msalign = buildimage.AlignImage.from_file(masterframe_name)
-        else:
-            # Instantiate with everything needed to generate the image (in case we do)
-            #self.alignFrame = alignframe.AlignFrame(self.spectrograph, files=self.align_files,
-            #                                  det=self.det, msbias=self.msbias,
-            #                                  par=self.par['alignframe'],
-            #                                  master_key=self.master_key_dict['align'],
-            #                                  master_dir=self.master_dir,
-            #                                  reuse_masters=self.reuse_masters)
+        elif len(align_files) == 0:
+            msgs.warn("No frametype=align files to build alignment image")
+            return
+        else:  # Build
             self.msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                           self.par['alignframe'],
                                                           align_files, bias=self.msbias, bpm=self.msbpm)
+            # Save to Masters
+            self.msalign.to_master_file(masterframe_name)
 
             # Load the MasterFrame (if it exists and is desired)?
             #self.msalign = self.alignFrame.load()
@@ -431,8 +421,8 @@ class Calibrations(object):
             #    if self.save_masters:
             #        self.alignFrame.save()
             # Save to Masters
-            if self.save_masters:
-                self.msalign.to_master_file(masterframe_name)
+            # if self.save_masters:
+            #     self.msalign.to_master_file(masterframe_name)
             #  TODO :: This may be what is needed if broken:
             # self.msalign.to_master_file(self.master_dir, self.master_key_dict['align'],  # Naming
             #                            self.spectrograph.spectrograph,  # Header
@@ -440,13 +430,15 @@ class Calibrations(object):
             #                            raw_files=align_files)
 
             # Store the alignment frame
-            self._update_cache('align', 'align', self.msalign)
+            # self._update_cache('align', 'align', self.msalign)
+
+        masterframe_name = masterframe.construct_file_name(alignframe.Alignment, self.master_key_dict['align'],
+                                                           master_dir=self.master_dir)
 
         # Check if the alignment dictionary exists
-        if self._cached('align_dict', self.master_key_dict['align']) \
-                and self._cached('wtmask', self.master_key_dict['align']):
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.align_dict = self.calib_dict[self.master_key_dict['align']]['align_dict']
-        else:
+        else:  # Build
             # Extract some header info needed by the algorithm
             binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
 
@@ -457,19 +449,9 @@ class Calibrations(object):
                                                   master_key=self.master_key_dict['align'],
                                                   qa_path=self.qa_path, msbpm=self.msbpm)
 
-            # Load from disk (MasterFrame)?
-            masterframe_name = masterframe.construct_file_name(alignframe.Alignment, self.master_key_dict['align'],
-                                                               master_dir=self.master_dir)
-            if os.path.isfile(masterframe_name) and self.reuse_masters:
-                self.align_dict = self.alignment.load(masterframe_name)
-            else:
-                self.align_dict = self.alignment.run(self.show)
-                # Save to Masters
-                if self.save_masters:
-                    self.alignment.save(outfile=masterframe_name)
-
-            # Save & return
-            self._update_cache('align', 'align_dict', self.align_dict)
+            # Trace and save the profiles
+            self.align_dict = self.alignment.run(self.show)
+            self.alignment.save(outfile=masterframe_name)
 
         return self.msalign, self.align_dict
 
@@ -940,7 +922,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
+        return ['bias', 'dark', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
 
 
 class IFUCalibrations(Calibrations):
