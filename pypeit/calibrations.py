@@ -633,7 +633,8 @@ class Calibrations(object):
         #                                                       self.par['pixelflatframe'],
         #                                                       pixflat_image_files,
         #                                                       bias=self.msbias, bpm=self.msbpm)
-        # TODO -- Allow for separate pixelflat and illumflat images
+
+        # TODO -- Allow for separate pixelflat and illumflat images!! Someday maybe we can do this right?!
         if len(illum_image_files) > 0:
             # CHECK
             if len(pixflat_image_files) > 0 and illum_image_files != pixflat_image_files:
