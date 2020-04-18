@@ -128,11 +128,11 @@ at least one of the data files in the
 :doc:`pypeit_file` :ref:`pypeit_file:Data Block` must
 be labelled as *illumflat*.
 
-Last, and **most constraining**, at present the effectively code requires
+Last, and **most confusing**, at present the code
 
+- Cannot process separate sets of *illumflat* and *pixelflat* images
+  and will take the former if both are provided.
 - the *illumflat* images must be the same as the *trace* images
-- the *pixelflat* images must be the same as the *illumflat* images
-  (with one exception; see below)
 
 Feed a PixelFlat
 ----------------

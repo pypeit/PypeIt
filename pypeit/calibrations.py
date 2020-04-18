@@ -627,24 +627,26 @@ class Calibrations(object):
             return self.flatimages
 
 
-        # Generate the image?
-        #if len(pixflat_image_files) > 0:
-        #    stacked_pixelflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-        #                                                       self.par['pixelflatframe'],
-        #                                                       pixflat_image_files,
-        #                                                       bias=self.msbias, bpm=self.msbpm)
         # TODO -- Allow for separate pixelflat and illumflat images
+
+        # Generate the image
+        stacked_flat = None
         if len(illum_image_files) > 0:
             # CHECK
             if len(pixflat_image_files) > 0 and illum_image_files != pixflat_image_files:
                 msgs.error("PypeIt cannot handle a distinct set of pixel and illum flats")
-            stacked_illumflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                       self.par['illumflatframe'],
-                                                       illum_image_files, dark=self.msdark,
-                                                       bias=self.msbias, bpm=self.msbpm)
-
+            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                          self.par['illumflatframe'],
+                                                          illum_image_files, dark=self.msdark,
+                                                          bias=self.msbias, bpm=self.msbpm)
+        if stacked_flat is None and len(pixflat_image_files) > 0:
+            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                               self.par['pixelflatframe'],
+                                                               pixflat_image_files,
+                                                               bias=self.msbias, bpm=self.msbpm)
+        if stacked_flat is not None:
             # Create pixelflat and illumination flat from illumination flat stack
-            flatField = flatfield.FlatField(stacked_illumflat, self.spectrograph,
+            flatField = flatfield.FlatField(stacked_flat, self.spectrograph,
                                             self.par['flatfield'], self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show)
