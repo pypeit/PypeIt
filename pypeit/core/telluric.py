@@ -594,6 +594,28 @@ def general_spec_reader(specfile, ret_flam=False):
 
     return wave, counts, counts_ivar, counts_mask, meta_spec, head
 
+def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, telluric=None, obj_model=None,
+        header=None, ex_value='OPT', overwrite=True):
+
+    wave_mask = wave > 1.0
+    # Generate the DataContainer
+    onespec = coadd1d.OneSpec(wave[wave_mask],
+                      flux[wave_mask],
+                      PYP_SPEC=spectrograph,
+                      ivar=ivar[wave_mask],
+                      mask=mask[wave_mask].astype(int),
+                      ext_mode=ex_value,
+                      fluxed=True)
+    onespec.head0 = header
+
+    # Add on others
+    if telluric is not None:
+        onespec.telluric = telluric[wave_mask]
+    if obj_model is not None:
+        onespec.obj_model = obj_model[wave_mask]
+    # Write
+    onespec.to_file(outfile, overwrite=overwrite)
+
 ############################
 #  Object model functions  #
 ############################
@@ -1304,8 +1326,9 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=pca_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=None, telluric=telluric, obj_model=pca_model,
+                            header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
@@ -1392,8 +1415,9 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=star_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=None, telluric=telluric, obj_model=star_model,
+                            header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
@@ -1482,8 +1506,9 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=poly_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=None, telluric=telluric, obj_model=poly_model,
+                            header=header, ex_value='OPT', overwrite=True)
 
 
     return TelObj
