@@ -45,9 +45,7 @@ def parser(options=None):
 def main(args):
 
     import os
-    import pdb as debugger
 
-    from pypeit import msgs
     from pypeit.pypeitsetup import PypeItSetup
 
     # Check that the spectrograph is provided if using a file root
@@ -55,7 +53,7 @@ def main(args):
         if args.spectrograph is None:
             raise ValueError('Must provide spectrograph identifier with file root.')
         # Check that input spectrograph is supported
-        instruments_served = valid_spectrographs()
+        instruments_served = defs.pypeit_spectrographs
         if args.spectrograph not in instruments_served:
             raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
                              + '\tOptions are: {0}\n'.format(', '.join(instruments_served))
