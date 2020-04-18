@@ -110,6 +110,9 @@ See below for further details.
 Generating the Flat Field Images
 ================================
 
+Input files
+-----------
+
 If you wish to apply one or more of the `Corrections`_ you will
 need to provide the matching flat field images in your
 :doc:`pypeit_file` and specify them with the appropriate
@@ -118,12 +121,38 @@ need to provide the matching flat field images in your
 In short, if **use_pixelflat** is set for *any* of your images,
 at least one of the data files in the
 :doc:`pypeit_file` :ref:`pypeit_file:Data Block` must
-be labelled as *pixelflat*.
+be labelled as *pixelflat* (unless you `Feed a PixelFlat`_).
 
 And, if **use_illumflat** is set for *any* of your images,
 at least one of the data files in the
 :doc:`pypeit_file` :ref:`pypeit_file:Data Block` must
 be labelled as *illumflat*.
+
+Last, and **most constraining**, at present the effectively code requires
+
+- the *illumflat* images must be the same as the *trace* images
+- the *pixelflat* images must be the same as the *illumflat* images
+  (with one exception; see below)
+
+Feed a PixelFlat
+----------------
+
+If you have generated your own pixel flat (or were provided one)
+and it is trimmed and oriented
+in the PypeIt frame (spectral vertical, blue at the bottom),
+then you may feed this into PypeIt.  This is the recommended approach
+at present for :ref:`lris:keck_lris_blue`.
+
+And you perform this by modifying the
+:ref:`pypeit_file:Parameter Block`::
+
+    [calibrations]
+        [[flatfield]]
+            pixelflat_file = /Users/joe/python/PypeIt-development-suite/CALIBS/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
+
+None of the frames in the
+:doc:`pypeit_file` :ref:`pypeit_file:Data Block`
+should be labelled as *pixelflat*.
 
 Algorithms
 ----------

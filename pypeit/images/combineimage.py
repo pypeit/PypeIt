@@ -55,27 +55,22 @@ class CombineImage(object):
         """
         Generate a PypeItImage from a list of images
 
-        Mainly a wrapper to coadd2d.weighted_combine()
-
         This may also generate the ivar, crmask, rn2img and mask
 
         Args:
-            process_steps (list):
-            bias (np.ndarray, optional):
-                Bias image
-            pixel_flat (np.ndarray, optional):
-                Flat image
-            illum_flat (np.ndarray, optional):
-                Illumination image
+            bias (:class:`pypeit.images.buildimage.BiasImage`, optional): Bias image
+            flatimages (:class:`pypeit.flatfield.FlatImages`, optional):  For flat fielding
+            dark (:class:`pypeit.images.buildimage.DarkImage`, optional): Dark image
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, optional): Slit object
             sigma_clip (bool, optional):
                 Perform sigma clipping
             sigrej (int or float, optional): Rejection threshold for sigma clipping.
                  Code defaults to determining this automatically based on the number of images provided.
             maxiters (int, optional):
                 Number of iterations for the clipping
-            bpm (np.ndarray, optional):
+            bpm (`numpy.ndarray`_, optional):
                 Bad pixel mask.  Held in ImageMask
-            ignore_saturation (bool, optional):
+            ignore_saturation (:obj:`bool`, optional):
                 If True, turn off the saturation flag in the individual images before stacking
                 This avoids having such values set to 0 which for certain images (e.g. flat calibrations)
                 can have unintended consequences.
@@ -93,6 +88,7 @@ class CombineImage(object):
             # Process
             pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
                                            flatimages=flatimages, slits=slits)
+            #embed(header='96 of combineimage')
             # Are we all done?
             if nimages == 1:
                 return pypeitImage

@@ -3187,7 +3187,8 @@ def sync_pair(spec1_file, spec2_file, det, sync_dict=None, sync_toler=3, debug=F
     return sync_dict
 
 
-
+# TODO: I thought you removed this JXP, to be replaced by the version in coadd1d.py. This below should all be commented
+# out I believe.
 class CoAdd1d(object):
 
     @classmethod

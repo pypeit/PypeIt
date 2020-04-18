@@ -30,6 +30,24 @@ If the user supplies set of bias images in the
 this image will be subtracted from the raw image
 during reduction.
 
+Generation
+++++++++++
+
+If one or more bias frames are provided in the :doc:`pypeit_file`,
+these will be combined to generate a bias image.  And this image
+will be written to disk as a :doc:`master_bias`. See those docs
+on how to inspect the image and what to look for.
+
+The :ref:`pypeit_par:ProcessImagesPar Keywords`
+defaults are to:
+
+- Skip cosmic ray rejection in the individual frames (*mask_cr=False*)
+- Not apply a gain correction (*apply_gain = False*)
+- Not apply an overscan correction (*use_overscan = False*)
+- Combine images with a weighted mean (*combine = weightmean*)
+
+Modify these at your discretion (and danger).
+
 Application
 +++++++++++
 
@@ -62,4 +80,48 @@ The default for all optical :doc:`spectrographs` is to
 estimate the bias level from the overscan region and
 subtract this from raw image.
 
-If a **use_biasimage**
+If **use_biasimage** was implemented, the overscan region will have been
+reduced accordingly.  And the bias image corrected value will be
+implemented.
+
+If you wish to ignore the overscan, add the following to
+the :doc:`pypeit_file` :ref:`pypeit_file:Parameter Block`::
+
+    [baseprocess]
+        use_overscan = False
+
+This should be the default set for :doc:`spectrographs` with near-IR
+detectors.
+
+Dark Subtraction
+================
+
+PypeIt allows for the construction and subtraction of dark images
+from any of its images, except `Bias Image`_.
+
+The generation of a dark image has the following defaults:
+
+- Do not subtract the overscan region (*use_overscan = False*)
+- Trim (*trim = True*)
+- Orient (*orient = True*)
+- Do not subtract a bias image (*use_biasimage = False*)
+- Skip cosmic ray rejection in the individual frames (*mask_cr=False*)
+- Do not apply a gain correction (*apply_gain = False*)
+- Combine images with a weighted mean (*combine = weightmean*)
+
+To apply a dark, you will need to specify the :doc:`frametype`
+accordingly.  Here is an example for the VLT/X-SHOOTER NIR arm::
+
+    [calibrations]
+      [[pixelflatframe]]
+         [[[process]]]
+            use_darkimage = True
+      [[illumflatframe]]
+         [[[process]]]
+            use_darkimage = True
+      [[traceframe]]
+         [[[process]]]
+            use_darkimage = True
+
+This will subtract the dark image generated from the flat
+and trace :doc:`frametype`.

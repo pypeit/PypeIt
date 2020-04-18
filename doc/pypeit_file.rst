@@ -85,6 +85,7 @@ Here are notes on somewhat common edits that PypeIt users make
 (docs not yet generated!):
 
   - Restrict reduction (including the detectors reduced)
+  - :doc:`bias_dark`
   - :doc:`flat_fielding`
   - Wavelength fussing
   - SlitEdge fussing

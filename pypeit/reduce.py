@@ -35,7 +35,7 @@ class Reduce(object):
     Args:
         sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph (pypeit.spectrograph.Spectrograph):
-        par (pypeit.par.pyepeitpar.PypeItPar):
+        par (:class:`pypeit.par.pyepeitpar.PypeItPar`):
         caliBrate (:class:`pypeit.calibrations.Calibrations`):
         objtype (str):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
@@ -164,6 +164,7 @@ class Reduce(object):
                         self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
+        # These may be None (i.e. COADD2D)
         self.waveTilts = caliBrate.wavetilts
         self.wv_calib = caliBrate.wv_calib
 

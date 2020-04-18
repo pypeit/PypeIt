@@ -59,12 +59,14 @@ def test_instantiate_from_one(shane_kast_blue_sci_files):
     bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Process steps -- Set in PypeItPar
     frame_par = kast_par['scienceframe']
-    frame_par['process']['illumflatten'] = False
-    process_steps = procimg.set_process_steps(None, frame_par)
+    frame_par['process']['use_illumflat'] = False
+    frame_par['process']['use_biasimage'] = False
     # Load
     rawImage = rawimage.RawImage(shane_kast_blue_sci_files[0], kast_blue, det)
     flatImages = flatfield.FlatImages(pixelflat=pixelflat)
-    pypeItImage = rawImage.process(process_steps, frame_par['process'], flatimages=flatImages)
+    pypeItImage = rawImage.process(frame_par['process'], flatimages=flatImages)
+
+
 
 
 @cooked_required
@@ -78,7 +80,8 @@ def test_from_list(shane_kast_blue_sci_files):
     bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Do it
     flatImages = flatfield.FlatImages(pixelflat=pixelflat)
-    kast_par['scienceframe']['process']['illumflatten'] = False
+    kast_par['scienceframe']['process']['use_illumflat'] = False
+    kast_par['scienceframe']['process']['use_biasimage'] = False
     sciImg = buildimage.buildimage_fromlist(kast_blue, det, kast_par['scienceframe'],
                                                shane_kast_blue_sci_files, bpm=bpm,
                                                bias=None, flatimages=flatImages)

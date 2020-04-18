@@ -97,8 +97,7 @@ class FrameGroupPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, frametype=None, useframe=None, exprng=None, process=None,
-                 processing_steps=None):
+    def __init__(self, frametype=None, useframe=None, exprng=None, process=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -133,17 +132,17 @@ class FrameGroupPar(ParSet):
                           'the list.  Use None to indicate no limit; i.e., to select exposures ' \
                           'with any time greater than 30 sec, use exprng = [30, None].'
 
-        defaults['processing_steps'] = []
-        dtypes['processing_steps'] = list
-        options['processing_steps'] = FrameGroupPar.valid_processing_steps()
-        descr['processing_steps'] = 'Steps to be applied during processing.  Modify these at your own risk!! ' \
-                'Bias and overscan subtraction depend on whether bias frames were included and ' \
-                'also the settings in ["process"]. ' \
-                'orient: Orient the image in the PypeIt frame (required!)' \
-                'trim: Trim the image (Code will probably break if not set)' \
-                'apply_gain: Convert ADU to electrons' \
-                'flatten:  Apply the flat field image(s), if provided' \
-                'crmask: Generate a cosmic ray mask (recommended only for standard/science frames)'
+#        defaults['processing_steps'] = []
+#        dtypes['processing_steps'] = list
+#        options['processing_steps'] = FrameGroupPar.valid_processing_steps()
+#        descr['processing_steps'] = 'Steps to be applied during processing.  Modify these at your own risk!! ' \
+#                'Bias and overscan subtraction depend on whether bias frames were included and ' \
+#                'also the settings in ["process"]. ' \
+#                'orient: Orient the image in the PypeIt frame (required!)' \
+#                'trim: Trim the image (Code will probably break if not set)' \
+#                'apply_gain: Convert ADU to electrons' \
+#                'flatten:  Apply the flat field image(s), if provided' \
+#                'crmask: Generate a cosmic ray mask (recommended only for standard/science frames)'
 
         defaults['process'] = ProcessImagesPar()
         dtypes['process'] = [ ParSet, dict ]
@@ -162,7 +161,7 @@ class FrameGroupPar(ParSet):
     @classmethod
     def from_dict(cls, frametype, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['useframe', 'exprng', 'processing_steps']
+        parkeys = ['useframe', 'exprng']
         # TODO: cfg can contain frametype but it is ignored...
         allkeys = parkeys + ['process', 'frametype']
         badkeys = numpy.array([pk not in allkeys for pk in k])
@@ -182,12 +181,12 @@ class FrameGroupPar(ParSet):
         """
         return FrameTypeBitMask().keys()
 
-    @staticmethod
-    def valid_processing_steps():
-        """
-        Return the list of valid processing steps
-        """
-        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask']
+#    @staticmethod
+#    def valid_processing_steps():
+#        """
+#        Return the list of valid processing steps
+#        """
+#        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask']
 
     def validate(self):
         if len(self.data['exprng']) != 2:
@@ -3237,8 +3236,7 @@ class CalibrationsPar(ParSet):
 
         # Calibration Frames
         defaults['biasframe'] = FrameGroupPar(frametype='bias',
-                                              process=ProcessImagesPar(use_overscan=False,
-                                                                       apply_gain=False,
+                                              process=ProcessImagesPar(apply_gain=False,
                                                                        use_biasimage=False,
                                                                        use_pixelflat=False,
                                                                        use_illumflat=False))
@@ -3246,9 +3244,11 @@ class CalibrationsPar(ParSet):
         descr['biasframe'] = 'The frames and combination rules for the bias correction'
 
         defaults['darkframe'] = FrameGroupPar(frametype='dark',
-                                              process=ProcessImagesPar(apply_gain=False,
-                                                                         use_pixelflat = False,
-                                                                         use_illumflat = False))
+                                              process=ProcessImagesPar(use_biasimage=False,
+                                                                       use_overscan=False,
+                                                                       apply_gain=False,
+                                                                       use_pixelflat = False,
+                                                                       use_illumflat = False))
         dtypes['darkframe'] = [ ParSet, dict ]
         descr['darkframe'] = 'The frames and combination rules for the dark-current correction'
 
@@ -3769,6 +3769,28 @@ class PypeItPar(ParSet):
         baseproc = ProcessImagesPar.from_dict(cfg['baseprocess'])
         self.sync_processing(baseproc)
         return self
+
+    def reset_all_processimages_par(self, **kwargs):
+        """
+        Set all of the ProcessImagesPar objects to have the input setting
+
+        e.g.
+
+        par.reset_all_processimages_par(use_illumflat=False)
+
+        Args:
+            **kwargs:
+        """
+        # Calibrations
+        for _key in self['calibrations'].keys():
+            if isinstance(self['calibrations'][_key], ParSet) and 'process' in self['calibrations'][_key].keys():
+                for key,value in kwargs.items():
+                    self['calibrations'][_key]['process'][key] = value
+        # Science frame
+        for _key in self.keys():
+            if isinstance(self[_key], ParSet) and 'process' in self[_key].keys():
+                for key,value in kwargs.items():
+                    self[_key]['process'][key] = value
 
     def sync_processing(self, proc_par):
         """

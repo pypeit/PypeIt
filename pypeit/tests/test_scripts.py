@@ -51,6 +51,7 @@ def test_trace_edges():
     # Define the output directories (HARDCODED!!)
     setupdir = os.path.join(os.getcwd(), 'setup_files')
     outdir = os.path.join(os.getcwd(), 'shane_kast_blue_A')
+    masterdir = os.path.join(os.getcwd(), 'shane_kast_blue_A', 'Masters')
     # Remove them if they already exist
     if os.path.isdir(setupdir):
         shutil.rmtree(setupdir)
@@ -61,6 +62,9 @@ def test_trace_edges():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
     droot += '/'
     setup.main(setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c', 'all']))
+
+    # Generate the Masters folder
+    os.mkdir(masterdir)
 
     # Define the pypeit file (HARDCODED!!)
     pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')
@@ -78,6 +82,7 @@ def test_trace_edges():
     # Clean up
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
+
 
 @cooked_required
 def test_show_1dspec():

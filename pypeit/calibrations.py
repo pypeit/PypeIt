@@ -36,19 +36,18 @@ class Calibrations(object):
     calibration images and objects in PypeIt.
 
     To avoid rebuilding MasterFrames that were generated during this execution
-    of PypeIt, the class performs book-keeping of these master frames and
-    holds that info in self.calib_dict
+    of PypeIt, the class performs book-keeping of these master frames
 
     Args:
         fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
-            The class holding the metadata for all the frames in this
-            PypeIt run.
+            The class holding the metadata for all the frames in this PypeIt run.
+            If None, we are using this class as a glorified dict to hold the objects.
         par (:class:`pypeit.par.pypeitpar.CalibrationsPar`):
             Parameter set defining optional parameters of PypeIt's algorithms
             for Calibrations
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
-        caldir (:obj:`str`, optional):
+        caldir (:obj:`str`, None):
             Path to write the output calibrations.  If None, calibration
             data are not saved.
         qadir (:obj:`str`, optional):
@@ -79,7 +78,6 @@ class Calibrations(object):
         full_par (:class:`pypeit.par.pypeitpar.PypeItPar`):
         redux_path
         master_dir
-        calib_dict
         det
         frame (:obj:`int`):
             0-indexed row of the frame being calibrated in
@@ -138,19 +136,19 @@ class Calibrations(object):
 
         # Check the directories exist
         # TODO: This should be done when the masters are saved
-        if not os.path.isdir(self.master_dir):
+        if caldir is not None and not os.path.isdir(self.master_dir):
             os.makedirs(self.master_dir)
         # TODO: This should be done when the qa plots are saved
         if self.write_qa and not os.path.isdir(os.path.join(self.qa_path, 'PNGs')):
             os.makedirs(os.path.join(self.qa_path, 'PNGs'))
 
         # Attributes
-        self.calib_dict = {}
         self.det = None
         self.frame = None
         self.binning = None
 
         self.shape = None
+
         self.msarc = None
         self.mstilt = None
         self.msalign = None
@@ -158,7 +156,9 @@ class Calibrations(object):
         self.msbias = None
         self.msdark = None
         self.msbpm = None
+        self.wv_calib = None
         self.slits = None
+
         self.wavecalib = None
         self.wavetilts = None
         self.flatimages = None
@@ -622,7 +622,8 @@ class Calibrations(object):
         #                                                       self.par['pixelflatframe'],
         #                                                       pixflat_image_files,
         #                                                       bias=self.msbias, bpm=self.msbpm)
-        # TODO -- Allow for separate pixelflat and illumflat images
+
+        # TODO -- Allow for separate pixelflat and illumflat images!! Someday maybe we can do this right?!
         if len(illum_image_files) > 0:
             # CHECK
             if len(pixflat_image_files) > 0 and illum_image_files != pixflat_image_files:
@@ -632,7 +633,7 @@ class Calibrations(object):
                                                        illum_image_files, dark=self.msdark,
                                                        bias=self.msbias, bpm=self.msbpm)
 
-            # Normalize and illumination
+            # Create pixelflat and illumination flat from illumination flat stack
             flatField = flatfield.FlatField(stacked_illumflat, self.spectrograph,
                                             self.par['flatfield'], self.slits, self.wavetilts)
             # Run
@@ -644,7 +645,6 @@ class Calibrations(object):
             self.slits.to_master_file()
         else:
             self.flatimages = flatfield.FlatImages(None, None, None, None)
-            msgs.warn("No pixelflats provided")
 
         # 3) Load user-supplied images
         #  NOTE:  This is the *final* images, not just a stack
@@ -949,6 +949,19 @@ class IFUCalibrations(Calibrations):
 
 
 def check_for_calibs(par, fitstbl, raise_error=True):
+    """
+    Perform a somewhat quick and dirty check to see if the user
+    has provided all of the calibration frametype's to reduce
+    the science frames
+
+    Args:
+        par (:class:`pypeit.par.pyepeitpar.PypeItPar`):
+        fitstbl (:class:`pypeit.metadata.PypeItMetaData`, None):
+            The class holding the metadata for all the frames in this
+            PypeIt run.
+        raise_error (:obj:`bool`, optional):
+            If True, crash out
+    """
     # Find the science frames
     is_science = fitstbl.find_frames('science')
     # Frame indices
@@ -968,6 +981,11 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                 if par['scienceframe']['process'][key]:
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
+                        # Allow for pixelflat inserted
+                        if ftype == 'pixelflat':
+                            if par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                                continue
+                        # Fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
                         if raise_error:
                             msgs.error(msg)

@@ -89,9 +89,11 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['tilts']['spec_order'] =  3
 
         # Flats
-        par['calibrations']['standardframe']['process']['illumflatten'] = False
-        par['scienceframe']['process']['illumflatten'] = False
-        par['scienceframe']['process']['illumflatten'] = False
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False)
+        par.reset_all_processimages_par(**turn_off)
+        #par['calibrations']['standardframe']['process']['illumflatten'] = False
+        #par['scienceframe']['process']['illumflatten'] = False
+        #par['scienceframe']['process']['illumflatten'] = False
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8

@@ -76,16 +76,13 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'gemini_gnirs'
-        # No overscan
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
+
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False)
+        par.reset_all_processimages_par(**turn_off)
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
-        par['calibrations']['standardframe']['process']['illumflatten'] = False
-        par['scienceframe']['process']['illumflatten'] = False
 
         # Finding objects
         par['reduce']['skysub']['bspline_spacing'] = 0.8
