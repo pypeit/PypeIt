@@ -175,3 +175,8 @@ The data model is:
 
 .. include:: include/datamodel_onespec.rst
 
+The Coadd1D spectrum may be viewed with the *lt_xspec* script which loads the data
+and launches a GUI from the linetools package. e.g.::
+
+    lt_xspec J1217p3905_coadd.fits
+
