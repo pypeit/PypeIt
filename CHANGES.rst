@@ -1,4 +1,5 @@
 
+
 1.0.2dev
 --------
 
@@ -9,6 +10,7 @@
  - Clean up flat, bias handling
  - Make re-use masters the default mode of run_pypeit
  - Require Python 3.7
+ - Fixed a bug in NIRES order finding. 
 
 1.0.1 (13 Apr 2020)
 -------------------
