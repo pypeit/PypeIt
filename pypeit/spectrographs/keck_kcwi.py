@@ -193,6 +193,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10., 10.]
         par['calibrations']['flatfield']['spec_samp_fine'] = 30.0
+        par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.5  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]

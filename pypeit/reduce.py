@@ -530,11 +530,6 @@ class Reduce(object):
         if self.par['reduce']['skysub']['joint_fit']:
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
-            import pdb
-            print((self.sciImg.fullmask == 0).shape)
-            print(thismask.shape)
-            print(skymask_now.shape)
-            pdb.set_trace()
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             wavenorm = self.waveimg / np.max(self.waveimg)
             # Find sky
@@ -1179,6 +1174,7 @@ class IFUReduce(Reduce):
         msgs.info("Building relative scale image")
         nspec = self.slits_left.shape[0]
         scale_dict = dict(scale=np.zeros((nspec, ref_slits.size)), wavescl=np.zeros((nspec, ref_slits.size)))
+        from matplotlib import pyplot as plt
         if self.objtype == 'standard' or self.std_outfile is None:  # Standard star trace is not available
             # Initialise a SpecObj
             for ss, slit in enumerate(ref_slits):
@@ -1192,9 +1188,11 @@ class IFUReduce(Reduce):
                 # Interpolate over the bad pixels
                 ww = np.where(relspec.BOX_NPIX == np.max(relspec.BOX_NPIX))
                 xspl, yspl = relspec.BOX_WAVE[ww], relspec.BOX_COUNTS[ww] / relspec.BOX_NPIX[ww]
+                plt.plot(xspl, yspl)
                 fspl = interp1d(xspl, yspl, kind='cubic', bounds_error=False, fill_value="extrapolate")
                 scale_dict['scale'][:, ss] = fspl(relspec.BOX_WAVE)
                 scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
+            plt.show()
         elif self.objtype in ['science', 'science_coadd2d']:
             sobjs = specobjs.SpecObjs.from_fitsfile(self.std_outfile)
             # Does the detector match?
