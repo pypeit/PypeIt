@@ -17,9 +17,9 @@ from linetools import utils as ltu
 from scipy.interpolate import interp1d
 
 from pypeit import specobjs, specobj
-from pypeit import ginga, msgs
+from pypeit import ginga, msgs, utils
 from pypeit import masterframe
-from pypeit.core import skysub, extract, wave, flexure
+from pypeit.core import skysub, extract, wave, flexure, flat
 from pypeit.images import buildimage
 from pypeit import wavecalib
 
@@ -1134,7 +1134,86 @@ class IFUReduce(Reduce):
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
-    def build_scaleimg(self, ref_slit, trim=10):
+    def build_scaleimg(self, ref_slit):
+        """
+        Generate a relative scaling image for slit-based IFU.
+        All slits are scaled relative to ref_slit
+
+        Args:
+            ref_slit (int):
+                The slit index to be used as a reference
+
+        Returns:
+            ndarray: An image containing the appropriate scaling
+        """
+        msgs.info('Performing a joint flat-field response using all slits')
+        # Grab some parameters
+        trim = self.par['calibrations']['flatfield']['slit_trim']
+        spec_samp_fine = self.par['calibrations']['flatfield']['spec_samp_coarse']
+        # Get the data needed
+        rawflat = self.caliBrate.flatimages.procflat.copy()
+        gpm = np.logical_not(self.caliBrate.msbpm)
+        slitid_img_init = self.slits.slit_img(initial=True)
+        trimmed_slitid_img = self.slits.slit_img(pad=-trim, initial=True)
+        blaze_model = np.ones_like(rawflat)
+        # Find all good slits, and create a mask of pixels to include (True=include)
+        wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
+        # Normalise the counts in all slits to the median counts
+        spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
+        medval = np.median(rawflat[spec_tot])
+        relscl_model = np.ones_like(rawflat)
+        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+            onslit_init = slitid_img_init == slit_spat
+            relscl_model[onslit_init] = medval/np.median(rawflat[onslit_init])
+        # Apply the relative scaling
+        rawflat *= relscl_model
+        # Flat-field modeling is done in the log of the counts
+        flat_log = np.log(np.fmax(rawflat, 1.0))
+        gpm_log = (rawflat > 1.0) & gpm
+        # set errors to just be 0.5 in the log
+        ivar_log = gpm_log.astype(float)/0.5**2
+        # Only include the trimmed set of pixels in the flat-field
+        # fit along the spectral direction.
+        spec_gpm = np.isin(trimmed_slitid_img, wgd) & gpm_log  # & (rawflat < nonlinear_counts)
+        spec_nfit = np.sum(spec_gpm)
+        spec_ntot = np.sum(spec_tot)
+        msgs.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
+                  + ' pixels on all slits.')
+        # Get the wavelength image to use as the spectral coordinates
+        spec_coo = self.waveimg[spec_gpm]
+        # Sort the pixels by their spectral coordinate.
+        # TODO: Include ivar and sorted gpm in outputs?
+        spec_gpm, spec_srt, spec_coo_data, spec_flat_data \
+                = flat.sorted_flat_data(flat_log, spec_coo, gpm=spec_gpm)
+        spec_ivar_data = ivar_log[spec_gpm].ravel()[spec_srt]
+        spec_gpm_data = gpm_log[spec_gpm].ravel()[spec_srt]
+
+        # Fit the spectral direction of the blaze.
+        logrej = 0.5
+        spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
+                = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+                                        np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
+                                        nord=4, upper=logrej, lower=logrej,
+                                        kwargs_bspline={'bkspace': spec_samp_fine},
+                                        kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+
+        scale_model = np.ones_like(self.caliBrate.flatimages.procflat)
+        if exit_status > 1:
+            msgs.warn("Joint blaze fit failed")
+        else:
+            blaze_model[...] = 1.
+            blaze_model[spec_tot] = np.exp(spec_bspl.value(self.waveimg[spec_tot])[0])
+            # Now take out the median scaling
+            blaze_model /= relscl_model
+            # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
+            corr_model = self.caliBrate.flatimages.fit2illumflat(self.slits, flexure_shift=self.spat_flexure_shift)
+            corr_model *= self.caliBrate.flatimages.pixelflat
+            scale_model = self.caliBrate.flatimages.procflat/corr_model
+            scale_model /= blaze_model
+        embed()
+        return scale_model
+
+    def build_scaleimg_old(self, ref_slit, trim=10):
         """
         Generate a relative scaling image for slit-based IFU.
         All slits are scaled relative to ref_slit
