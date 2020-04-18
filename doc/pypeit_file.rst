@@ -88,6 +88,7 @@ Here are notes on somewhat common edits that PypeIt users make
   - Wavelength fussing
   - :doc:`slit_tracing`
   - :doc:`object_finding`
+  - :doc:`reduction_tips`
 
 Setup Block
 -----------
