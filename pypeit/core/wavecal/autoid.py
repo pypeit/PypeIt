@@ -1496,6 +1496,7 @@ class HolyGrail:
         for slit in range(self._nslit):
             msgs.info("Working on slit: {}".format(slit))
             if slit not in self._ok_mask:
+                self._all_final_fit[str(slit)] = {}
                 continue
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
@@ -1601,6 +1602,7 @@ class HolyGrail:
         self._det_stro = {}
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
+                self._all_final_fit[str(slit)] = {}
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\

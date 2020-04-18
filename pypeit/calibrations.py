@@ -819,7 +819,10 @@ class Calibrations(object):
         # Return existing data
         if self._cached('wavecalib', self.master_key_dict['arc']):
             self.wv_calib = self.calib_dict[self.master_key_dict['arc']]['wavecalib']
-            self.slits.mask_wvcalib(self.wv_calib)
+            try:
+                self.slits.mask_wvcalib(self.wv_calib)
+            except:
+                embed(header='825 of header')
             return self.wv_calib
 
         # No wavelength calibration requested
@@ -844,7 +847,10 @@ class Calibrations(object):
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             # Load from disk
             self.wv_calib = self.waveCalib.load(masterframe_name)
-            self.slits.mask_wvcalib(self.wv_calib)
+            try:
+                self.slits.mask_wvcalib(self.wv_calib)
+            except:
+                embed(header='853 of calibrations')
         else:
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
