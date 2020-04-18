@@ -202,7 +202,7 @@ class RawImage(object):
             self.trim()
         if par['orient']:
             self.orient()
-        if par['use_biasimage'] and not par['use_overscan']:  # Bias frame, if it exists, is trimmed and oriented
+        if par['use_biasimage']:  # Bias frame, if it exists, is trimmed and oriented
             self.subtract_bias(bias)
         if par['use_darkimage']:  # Dark frame, if it exists, is TODO:: check: trimmed, oriented (and oscan/bias subtracted?)
             self.subtract_dark(dark)
