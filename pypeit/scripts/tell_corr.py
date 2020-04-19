@@ -11,6 +11,7 @@ from pypeit.spectrographs.util import load_spectrograph
 import argparse
 from pypeit.core import telluric
 import os
+from pkg_resources import resource_filename
 
 
 # A trick from stackoverflow to allow multi-line output in the help:
@@ -84,7 +85,7 @@ def main(args):
     spectrograph_def_par = spectrograph.default_pypeit_par()
 
     # If the .tell file was passed in read it and overwrite default parameters
-    if args.tell_grid is not None:
+    if args.tell_file is not None:
         cfg_lines = read_tellfile(args.tell_file)
         par = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
                                                  merge_with=cfg_lines)
@@ -94,14 +95,20 @@ def main(args):
     # If args was provided override defaults. Note this does undo .tell file
     if args.algorithm is not None:
         par['tellfit']['algorithm'] = args.algorithm
-    if args.tell_grid is not None:
-        par['sensfunc']['IR']['telgridfile'] = args.tell_grid
     if args.pca_file is not None:
         par['tellfit']['pca_file'] = args.pca_file
     if args.redshift is not None:
         par['tellfit']['redshift'] = args.redshift
     if args.norder is not None:
         par['tellfit']['polyorder'] = args.norder
+
+    if args.tell_grid is not None:
+        par['tellfit']['tell_grid'] = args.tell_grid
+    elif par['sensfunc']['IR']['telgridfile'] is not None:
+        par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
+    else:
+        msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
+        par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
@@ -114,11 +121,11 @@ def main(args):
     # Run the telluric fitting procedure.
     if par['tellfit']['algorithm']=='qso':
         # run telluric.qso_telluric to get the final results
-        TelQSO = telluric.qso_telluric(args.spec1dfile, par['sensfunc']['IR']['telgridfile'], par['tellfit']['pca_file'],
+        TelQSO = telluric.qso_telluric(args.spec1dfile, par['tellfit']['tell_grid'], par['tellfit']['pca_file'],
                                        par['tellfit']['redshift'], modelfile, outfile,
-                                       create_bal_mask=None, disp=args.plot, debug=args.debug, show=args.plot)
+                                       bal_mask=par['tellfit']['bal_mask'], disp=args.plot, debug=args.debug, show=args.plot)
     elif par['tellfit']['algorithm']=='poly':
-        TelPoly = telluric.poly_telluric(args.spec1dfile, par['sensfunc']['IR']['telgridfile'], modelfile, outfile,
+        TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
                                          polyorder=par['tellfit']['polyorder'],
                                          fit_region_min=None, fit_region_max=None, func='legendre',
                                          model='exp', mask_lyman_a=True,
