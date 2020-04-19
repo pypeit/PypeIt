@@ -1561,6 +1561,7 @@ class TellFitPar(ParSet):
 
     def __init__(self, algorithm=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_mask=None,
                  bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
+                 star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
                  func=None, model=None, polyorder=None, fit_region_min=None, fit_region_max=None, mask_lyman_a=None,
                  delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
 
@@ -1573,19 +1574,23 @@ class TellFitPar(ParSet):
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
 
-        defaults['algorithm'] = 'qso'
-        dtypes['algorithm'] = str
-        descr['algorithm'] = 'which algorithm you want to use for telluric fit'
-
         defaults['tell_grid'] = None
         dtypes['tell_grid'] = str
         descr['tell_grid'] = 'pca pickle file. needed when you use qso_telluric'
 
-        ### Start parameters for qso_telluric
+        defaults['only_orders'] = None
+        dtypes['only_orders'] = int
+        descr['only_orders'] = "order number if you only want to fit a single order"
+
+        defaults['algorithm'] = 'qso'
+        dtypes['algorithm'] = str
+        descr['algorithm'] = 'which algorithm you want to use for telluric fit'
+
         defaults['redshift'] = 0.0
         dtypes['redshift'] = [int, float]
         descr['redshift'] = 'redshift for your object model'
 
+        ### Start parameters for qso_telluric
         defaults['delta_redshift'] = 0.1
         dtypes['delta_redshift'] = [int, float]
         descr['delta_redshift'] = 'variable redshift range during the fit'
@@ -1611,10 +1616,6 @@ class TellFitPar(ParSet):
         dtypes['tell_norm_thresh'] = [int, float]
         descr['tell_norm_thresh'] = "Normalization bounds"
 
-        defaults['only_orders'] = None
-        dtypes['only_orders'] = int
-        descr['only_orders'] = "order number if you only want to fit a single order"
-
         defaults['pca_lower'] = 1220.0
         dtypes['pca_lower'] = [int, float]
         descr['pca_lower'] = "minimum wavelength for the pca model"
@@ -1623,7 +1624,28 @@ class TellFitPar(ParSet):
         dtypes['pca_upper'] = [int, float]
         descr['pca_upper'] = "maximum wavelength for the pca model"
 
-        ### Start parameters for poly_telluric
+        ### Start parameters for star_telluric
+        defaults['star_type'] = None
+        dtypes['star_type'] = str
+        descr['star_type'] = 'stellar type'
+
+        defaults['star_mag'] = None
+        dtypes['star_mag'] = [float, int]
+        descr['star_mag'] = 'AB magnitude in V band'
+
+        defaults['star_ra'] = None
+        dtypes['star_ra'] = float
+        descr['star_ra'] = 'Object right-ascension in decimal deg'
+
+        defaults['star_dec'] = None
+        dtypes['star_dec'] = float
+        descr['star_dec'] = 'Object declination in decimal deg'
+
+        defaults['mask_abs_lines'] = True
+        dtypes['mask_abs_lines'] = bool
+        descr['mask_abs_lines'] = 'Mask stellar absorption line?'
+
+        ### parameters for both star_telluric and poly_telluric
         defaults['func'] = 'legendre'
         dtypes['func'] = str
         descr['func'] = 'model function'
@@ -1636,6 +1658,15 @@ class TellFitPar(ParSet):
         dtypes['polyorder'] = int
         descr['polyorder'] = "polynomial order for the object model"
 
+        defaults['delta_coeff_bounds'] = [-20.0, 20.0]
+        dtypes['delta_coeff_bounds'] = list
+        descr['delta_coeff_bounds'] = "Normalization bounds"
+
+        defaults['minmax_coeff_bounds'] = [-5.0, 5.0]
+        dtypes['minmax_coeff_bounds'] = list
+        descr['minmax_coeff_bounds'] = "Normalization bounds"
+
+        ### Start parameters for poly_telluric
         defaults['fit_region_min'] = None
         dtypes['fit_region_min'] = list
         descr['fit_region_min'] = "a list of minimum wavelength"
@@ -1648,13 +1679,6 @@ class TellFitPar(ParSet):
         dtypes['mask_lyman_a'] = bool
         descr['mask_lyman_a'] = 'mask the blueward of Lyman-alpha line'
 
-        defaults['delta_coeff_bounds'] = [-20.0, 20.0]
-        dtypes['delta_coeff_bounds'] = list
-        descr['delta_coeff_bounds'] = "Normalization bounds"
-
-        defaults['minmax_coeff_bounds'] = [-5.0, 5.0]
-        dtypes['minmax_coeff_bounds'] = list
-        descr['minmax_coeff_bounds'] = "Normalization bounds"
 
         # Instantiate the parameter set
         super(TellFitPar, self).__init__(list(pars.keys()),
@@ -1669,6 +1693,7 @@ class TellFitPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['algorithm','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_mask', 'bounds_norm',
                    'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
+                   'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
                    'func','model','polyorder','fit_region_min','fit_region_max','mask_lyman_a',
                    'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
 
