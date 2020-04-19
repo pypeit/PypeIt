@@ -52,7 +52,7 @@ class OneSpec(datamodel.DataContainer):
         'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
         'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
         'fluxed': dict(otype=bool, desc='Fluxed?'),
-        'spect_meta': dict(otype=dict, desc='PypeIt: Spectrograph name'),
+        'spect_meta': dict(otype=dict, desc='header dict'),
     }
     @classmethod
     def from_file(cls, ifile):
