@@ -10,6 +10,8 @@ in PypeIt, how one goes about `Modifying the Default Approach`_
 for a given :doc:`spectrographs`, and
 how to guide `Generating the Flat Field Images`_.
 
+Note that :doc:`slit_tracing` is frequently performed with
+flat field images; refer to that doc for a full description.
 
 Approach
 ========
