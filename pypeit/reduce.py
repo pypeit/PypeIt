@@ -1134,42 +1134,97 @@ class IFUReduce(Reduce):
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
-    def build_scaleimg(self, ref_slit):
+    def build_scaleimg(self):
         """
         Generate a relative scaling image for slit-based IFU.
         All slits are scaled relative to ref_slit
 
-        Args:
-            ref_slit (int):
-                The slit index to be used as a reference
+        TODO :: Consider including this routine in FlatImages
 
         Returns:
             ndarray: An image containing the appropriate scaling
         """
         msgs.info('Performing a joint flat-field response using all slits')
         # Grab some parameters
-        trim = self.par['calibrations']['flatfield']['slit_trim']
+        trim = 0  #self.par['calibrations']['flatfield']['slit_trim']
         spec_samp_fine = self.par['calibrations']['flatfield']['spec_samp_coarse']
         # Get the data needed
         rawflat = self.caliBrate.flatimages.procflat.copy()
         gpm = np.logical_not(self.caliBrate.msbpm)
-        slitid_img_init = self.slits.slit_img(initial=True)
-        trimmed_slitid_img = self.slits.slit_img(pad=-trim, initial=True)
+        slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
+        trimmed_slitid_img = self.slits.slit_img(pad=-trim, initial=True, flexure=self.spat_flexure_shift)
         blaze_model = np.ones_like(rawflat)
         # Find all good slits, and create a mask of pixels to include (True=include)
         wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
-        # Normalise the counts in all slits to the median counts
-        spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
-        medval = np.median(rawflat[spec_tot])
-        relscl_model = np.ones_like(rawflat)
+        # Obtain the minimum and maximum wavelength of all slits
+        mnmx_wv = np.zeros((self.slits.nslits,2))
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            onslit_init = slitid_img_init == slit_spat
-            relscl_model[onslit_init] = medval/np.median(rawflat[onslit_init])
+            onslit_init = (slitid_img_init == slit_spat)
+            mnmx_wv[slit_idx, 0] = np.min(self.waveimg[onslit_init])
+            mnmx_wv[slit_idx, 1] = np.max(self.waveimg[onslit_init])
+        # Sort by increasing minimum wavelength
+        swslt = np.argsort(mnmx_wv[:,0])
+        # Go through the slits and calculate the overlapping flux
+        relscl_model = np.ones_like(rawflat)
+        scalefact = 1.0
+        for slit_idx in range(1, self.slits.spat_id.size):
+            # Only use the overlapping regions of the slits, where the same wavelength range is covered
+            onslit_a_olap = (slitid_img_init == self.slits.spat_id[swslt[slit_idx-1]]) & gpm & \
+                            (self.waveimg > mnmx_wv[swslt[slit_idx], 0]) & \
+                            (self.waveimg < mnmx_wv[swslt[slit_idx], 1])
+            onslit_b      = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+            onslit_b_olap = onslit_b & (self.waveimg > mnmx_wv[swslt[slit_idx-1], 0]) & gpm & \
+                            (self.waveimg < mnmx_wv[swslt[slit_idx-1], 1])
+
+            # Take the median of the overlapping regions
+            print(scalefact, np.median(rawflat[onslit_a_olap])/np.median(rawflat[onslit_b_olap]))
+            scalefact *= np.median(rawflat[onslit_a_olap])/np.median(rawflat[onslit_b_olap])
+            relscl_model[onslit_b] = scalefact
+
+        # Test how well the above code does
+        # TODO :: DELETE THE DEBUGGING CODE BELOW BEFORE MERGING!!
+        if False:
+            plate_scale = self.get_platescale(None)
+            plt.subplot(211)
+            flat_modl = self.caliBrate.flatimages.flat_model
+            flat_ivar = np.ones_like(flat_modl)
+            glob_skym = np.zeros_like(flat_modl)
+            rn2img = self.sciImg.rn2img
+            for slit_idx in range(0, self.slits.spat_id.size):
+                print(1, slit_idx)
+                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
+                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
+                # Do a boxcar extraction - assume standard is in the middle of the slit
+                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+                                       self.waveimg, glob_skym, rn2img,
+                                       60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                       relspec)
+                plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
+            plt.plot(wave, flux, 'k--', linewidth=3)
+            plt.subplot(212)
+            flat_modl = self.caliBrate.flatimages.flat_model*relscl_model
+            flat_ivar = np.ones_like(flat_modl)
+            glob_skym = np.zeros_like(flat_modl)
+            rn2img = self.sciImg.rn2img
+            for slit_idx in range(0, self.slits.spat_id.size):
+                print(2, slit_idx)
+                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
+                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
+                # Do a boxcar extraction - assume standard is in the middle of the slit
+                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+                                       self.waveimg, glob_skym, rn2img,
+                                       60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                       relspec)
+                plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
+            plt.plot(wave, flux, 'k--', linewidth=3)
+            plt.show()
+        # Get the pixels containing good slits
+        spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
         # Apply the relative scaling
-        rawflat *= relscl_model
+        rawflatscl = rawflat*relscl_model
         # Flat-field modeling is done in the log of the counts
-        flat_log = np.log(np.fmax(rawflat, 1.0))
-        gpm_log = (rawflat > 1.0) & gpm
+        flat_log = np.log(np.fmax(rawflatscl, 1.0))
+        gpm_log = (rawflatscl > 1.0) & gpm
         # set errors to just be 0.5 in the log
         ivar_log = gpm_log.astype(float)/0.5**2
         # Only include the trimmed set of pixels in the flat-field
@@ -1179,24 +1234,23 @@ class IFUReduce(Reduce):
         spec_ntot = np.sum(spec_tot)
         msgs.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
                   + ' pixels on all slits.')
-        # Get the wavelength image to use as the spectral coordinates
-        spec_coo = self.waveimg[spec_gpm]
         # Sort the pixels by their spectral coordinate.
         # TODO: Include ivar and sorted gpm in outputs?
         spec_gpm, spec_srt, spec_coo_data, spec_flat_data \
-                = flat.sorted_flat_data(flat_log, spec_coo, gpm=spec_gpm)
+            = flat.sorted_flat_data(flat_log, self.waveimg, gpm=spec_gpm)
         spec_ivar_data = ivar_log[spec_gpm].ravel()[spec_srt]
         spec_gpm_data = gpm_log[spec_gpm].ravel()[spec_srt]
 
         # Fit the spectral direction of the blaze.
         logrej = 0.5
         spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-                = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
-                                        np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
-                                        nord=4, upper=logrej, lower=logrej,
-                                        kwargs_bspline={'bkspace': spec_samp_fine},
-                                        kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+            = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+                                    np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
+                                    nord=4, upper=logrej, lower=logrej,
+                                    kwargs_bspline={'bkspace': spec_samp_fine},
+                                    kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
+        msgs.info("Generating relative response model image")
         scale_model = np.ones_like(self.caliBrate.flatimages.procflat)
         if exit_status > 1:
             msgs.warn("Joint blaze fit failed")
@@ -1206,11 +1260,14 @@ class IFUReduce(Reduce):
             # Now take out the median scaling
             blaze_model /= relscl_model
             # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
-            corr_model = self.caliBrate.flatimages.fit2illumflat(self.slits, flexure_shift=self.spat_flexure_shift)
+            corr_model = self.caliBrate.flatimages.fit2illumflat(self.slits, initial=True, flexure_shift=self.spat_flexure_shift)
             corr_model *= self.caliBrate.flatimages.pixelflat
             scale_model = self.caliBrate.flatimages.procflat/corr_model
             scale_model /= blaze_model
         embed()
+        import astropy.io.fits as fits
+        hdu = fits.PrimaryHDU(scale_model)
+        hdu.writeto('scale_model.fits', overwrite=True)
         return scale_model
 
     def build_scaleimg_old(self, ref_slit, trim=10):
@@ -1381,16 +1438,15 @@ class IFUReduce(Reduce):
                 Show peaks in find_objects methods
             ref_slit (int, optional):
                 Slit index to be used as reference for relative transmission calibration
+                TODO :: This is not currently used - is it even needed, given that it's a relative calibration?
+                Need to think about whether we need to use the exact same pixels for the relative calibration
+                (i.e. using the pixels that the standard star falls on, since the spatial illumflat is not constant).
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
                outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
 
         """
-        # Check ref_slit is not None
-        if ref_slit is None:
-            ref_slit = 0
-
         # Deal with dynamic calibrations
         # Tilts
         self.waveTilts.is_synced(self.slits)
@@ -1412,7 +1468,7 @@ class IFUReduce(Reduce):
         if self.par['reduce']['cube']['slit_spec']:
             msgs.info("Calculating relative scaling for slit-based IFU")
             # Use the reference slit, stitched either side with slits that extend to the minimum and maximum wavelength
-            scaleImg = self.build_scaleimg(ref_slit)
+            scaleImg = self.build_scaleimg()
 
         # Check if the user has a pre-defined sky regions file
         skymask_init = self.load_skyregions()
