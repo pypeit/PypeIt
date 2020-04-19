@@ -58,7 +58,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             platescale      = 0.2138,
             mincounts       = -1e10,
             darkcurr        = 1.3,   # e-/pix/hr
-            saturation      = 113500., # e-
+            saturation      = 700000., # ADU
             nonlinear       = 0.86,
             datasec         = np.atleast_1d('[:,{}:{}]'.format(1, 2062)),  # Unbinned
             oscansec        = None,
@@ -87,7 +87,8 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Wavelength calibration methods
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        #par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI']
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
@@ -185,4 +186,37 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'WAVE,LAMP')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super(NOTALFOSCSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
+        # Wavelength calibrations
+        if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
+        else:
+            embed(header='not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
+            msgs.error("Crashing out..")
+
+        # Return
+        return par
 
