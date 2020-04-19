@@ -1562,7 +1562,7 @@ class TellFitPar(ParSet):
     def __init__(self, algorithm=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_mask=None,
                  bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
                  func=None, model=None, polyorder=None, fit_region_min=None, fit_region_max=None, mask_lyman_a=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None):
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
 
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1577,13 +1577,17 @@ class TellFitPar(ParSet):
         dtypes['algorithm'] = str
         descr['algorithm'] = 'which algorithm you want to use for telluric fit'
 
+        defaults['tell_grid'] = None
+        dtypes['tell_grid'] = str
+        descr['tell_grid'] = 'pca pickle file. needed when you use qso_telluric'
+
         ### Start parameters for qso_telluric
         defaults['redshift'] = 0.0
-        dtypes['redshift'] = float
+        dtypes['redshift'] = [int, float]
         descr['redshift'] = 'redshift for your object model'
 
         defaults['delta_redshift'] = 0.1
-        dtypes['delta_redshift'] = float
+        dtypes['delta_redshift'] = [int, float]
         descr['delta_redshift'] = 'variable redshift range during the fit'
 
         defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/'),
@@ -1596,15 +1600,15 @@ class TellFitPar(ParSet):
         descr['npca'] = 'Number of pca'
 
         defaults['bal_mask'] = None
-        dtypes['bal_mask'] = list
+        dtypes['bal_mask'] = [list, numpy.ndarray]
         descr['bal_mask'] = 'List of bal masks '
 
-        defaults['bounds_norm'] = (0.1, 3.0)
-        dtypes['bounds_norm'] = tuple
+        defaults['bounds_norm'] = [0.1, 3.0]
+        dtypes['bounds_norm'] = list
         descr['bounds_norm'] = "Normalization bounds"
 
         defaults['tell_norm_thresh'] = 0.9
-        dtypes['tell_norm_thresh'] = float
+        dtypes['tell_norm_thresh'] = [int, float]
         descr['tell_norm_thresh'] = "Normalization bounds"
 
         defaults['only_orders'] = None
@@ -1612,11 +1616,11 @@ class TellFitPar(ParSet):
         descr['only_orders'] = "order number if you only want to fit a single order"
 
         defaults['pca_lower'] = 1220.0
-        dtypes['pca_lower'] = float
+        dtypes['pca_lower'] = [int, float]
         descr['pca_lower'] = "minimum wavelength for the pca model"
 
         defaults['pca_upper'] = 3100.0
-        dtypes['pca_upper'] = float
+        dtypes['pca_upper'] = [int, float]
         descr['pca_upper'] = "maximum wavelength for the pca model"
 
         ### Start parameters for poly_telluric
@@ -1644,12 +1648,12 @@ class TellFitPar(ParSet):
         dtypes['mask_lyman_a'] = bool
         descr['mask_lyman_a'] = 'mask the blueward of Lyman-alpha line'
 
-        defaults['delta_coeff_bounds'] = (-20.0, 20.0)
-        dtypes['delta_coeff_bounds'] = tuple
+        defaults['delta_coeff_bounds'] = [-20.0, 20.0]
+        dtypes['delta_coeff_bounds'] = list
         descr['delta_coeff_bounds'] = "Normalization bounds"
 
-        defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
-        dtypes['minmax_coeff_bounds'] = tuple
+        defaults['minmax_coeff_bounds'] = [-5.0, 5.0]
+        dtypes['minmax_coeff_bounds'] = list
         descr['minmax_coeff_bounds'] = "Normalization bounds"
 
         # Instantiate the parameter set
@@ -1666,7 +1670,7 @@ class TellFitPar(ParSet):
         parkeys = ['algorithm','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_mask', 'bounds_norm',
                    'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
                    'func','model','polyorder','fit_region_min','fit_region_max','mask_lyman_a',
-                   'delta_coeff_bounds','minmax_coeff_bounds']
+                   'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3694,7 +3698,7 @@ class PypeItPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
-                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess']
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
