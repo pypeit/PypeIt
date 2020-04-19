@@ -1241,7 +1241,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     return meta_table, out_table
 
-def create_bal_mask(wave):
+def create_bal_mask(wave, bal_mask):
     """
     Example of a utility function for creating a BAL mask for QSOs with BAL features. Can also be used to mask other
     features that the user does not want to fit.
@@ -1254,17 +1254,26 @@ def create_bal_mask(wave):
     Returns
     -------
     gpm : array shape, (nspec,)
-       Good pixel mask for the fits.
+       Good pixel (non-bal pixels) mask for the fits.
 
     """
+    if np.size(bal_mask) % 2 !=0:
+        msgs.error('bal_mask must be a list/array with even numbers.')
 
-    # example of a BAL mask
-    bal_mask =  (wave > 12000.0) & (wave < 12100)
-    return np.invert(bal_mask)
+    bal_bpm = np.zeros_like(wave, dtype=bool)
+    nbal = int(np.size(bal_mask) / 2)
+    if isinstance(bal_mask, list):
+        bal_mask = np.array(bal_mask)
+    wav_min_max = np.reshape(bal_mask,(nbal,2))
+    for ibal in range(nbal):
+        print(wav_min_max[ibal,0],wav_min_max[ibal,1])
+        bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
+
+    return np.invert(bal_bpm)
 
 
 
-def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, create_bal_mask=None,
+def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, bal_mask=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
@@ -1285,9 +1294,9 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +
                                                                     z_qso))
     # TODO this 3100 is hard wired now, but make the QSO PCA a PypeIt product and determine it from the file
-    if create_bal_mask is not None:
-        bal_mask = create_bal_mask(wave)
-        mask_tot = mask & qsomask & bal_mask
+    if bal_mask is not None:
+        bal_gpm = create_bal_mask(wave, bal_mask)
+        mask_tot = mask & qsomask & bal_gpm
     else:
         mask_tot = mask & qsomask
 
