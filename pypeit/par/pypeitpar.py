@@ -1582,7 +1582,7 @@ class TellFitPar(ParSet):
         dtypes['only_orders'] = int
         descr['only_orders'] = "order number if you only want to fit a single order"
 
-        defaults['algorithm'] = 'qso'
+        defaults['algorithm'] = None
         dtypes['algorithm'] = str
         descr['algorithm'] = 'which algorithm you want to use for telluric fit'
 
