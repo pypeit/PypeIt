@@ -577,6 +577,7 @@ def general_spec_reader(specfile, ret_flam=False):
         except:
             spectrograph = load_spectrograph('shane_kast_blue')
         spect_dict = spectrograph.parse_spec_header(head)
+        head['PYP_SPEC'] = spectrograph.spectrograph
     except:
         # Load
         onespec = coadd1d.OneSpec.from_file(specfile)
@@ -585,7 +586,7 @@ def general_spec_reader(specfile, ret_flam=False):
         counts = onespec.flux
         counts_ivar = onespec.ivar
         counts_mask = onespec.mask.astype(bool)
-        spect_dict = onespec.spec_meta
+        spect_dict = onespec.spect_meta
         head = onespec.head0
 
     # Build this
@@ -1275,7 +1276,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
     obj_params = dict(pca_file=pca_file, npca=npca, z_qso=z_qso, delta_zqso=delta_zqso, bounds_norm=bounds_norm,
                       tell_norm_thresh=tell_norm_thresh,
-                      output_meta_keys=('pca_file', 'npca', 'z_qso', 'delta_zqso','bounds_norm', 'tell_norm_thresh'))
+                      output_meta_keys=('pca_file', 'npca', 'z_qso', 'delta_zqso','bounds_norm', 'tell_norm_thresh'),
+                      debug_init=debug_init)
 
     wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
     header = fits.getheader(spec1dfile) # clean this up!
@@ -1327,8 +1329,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
         plt.show()
 
     # save the telluric corrected spectrum
-    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=None, telluric=telluric, obj_model=pca_model,
-                            header=header, ex_value='OPT', overwrite=True)
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=pca_model,header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
@@ -1416,8 +1418,8 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         plt.show()
 
     # save the telluric corrected spectrum
-    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=None, telluric=telluric, obj_model=star_model,
-                            header=header, ex_value='OPT', overwrite=True)
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=star_model,header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
@@ -1507,8 +1509,8 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         plt.show()
 
     # save the telluric corrected spectrum
-    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=None, telluric=telluric, obj_model=poly_model,
-                            header=header, ex_value='OPT', overwrite=True)
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=poly_model,header=header, ex_value='OPT', overwrite=True)
 
 
     return TelObj
