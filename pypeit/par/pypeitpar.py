@@ -1550,6 +1550,135 @@ class TelluricPar(ParSet):
         # scipy.optimize.differential_evoluiton probalby checks this.
 
 
+class TellFitPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, algorithm=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_mask=None,
+                 bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
+                 func=None, model=None, polyorder=None, fit_region_min=None, fit_region_max=None, mask_lyman_a=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None):
+
+        # Grab the parameter names and values from the function arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['algorithm'] = 'qso'
+        dtypes['algorithm'] = str
+        descr['algorithm'] = 'which algorithm you want to use for telluric fit'
+
+        ### Start parameters for qso_telluric
+        defaults['redshift'] = 0.0
+        dtypes['redshift'] = float
+        descr['redshift'] = 'redshift for your object model'
+
+        defaults['delta_redshift'] = 0.1
+        dtypes['delta_redshift'] = float
+        descr['delta_redshift'] = 'variable redshift range during the fit'
+
+        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/'),
+                                            'qso_pca_1200_3100.pckl')
+        dtypes['pca_file'] = str
+        descr['pca_file'] = 'pca pickle file. needed when you use qso_telluric'
+
+        defaults['npca'] = 8
+        dtypes['npca'] = int
+        descr['npca'] = 'Number of pca'
+
+        defaults['bal_mask'] = None
+        dtypes['bal_mask'] = list
+        descr['bal_mask'] = 'List of bal masks '
+
+        defaults['bounds_norm'] = (0.1, 3.0)
+        dtypes['bounds_norm'] = tuple
+        descr['bounds_norm'] = "Normalization bounds"
+
+        defaults['tell_norm_thresh'] = 0.9
+        dtypes['tell_norm_thresh'] = float
+        descr['tell_norm_thresh'] = "Normalization bounds"
+
+        defaults['only_orders'] = None
+        dtypes['only_orders'] = int
+        descr['only_orders'] = "order number if you only want to fit a single order"
+
+        defaults['pca_lower'] = 1220.0
+        dtypes['pca_lower'] = float
+        descr['pca_lower'] = "minimum wavelength for the pca model"
+
+        defaults['pca_upper'] = 3100.0
+        dtypes['pca_upper'] = float
+        descr['pca_upper'] = "maximum wavelength for the pca model"
+
+        ### Start parameters for poly_telluric
+        defaults['func'] = 'legendre'
+        dtypes['func'] = str
+        descr['func'] = 'model function'
+
+        defaults['model'] = 'exp'
+        dtypes['model'] = str
+        descr['model'] = 'model'
+
+        defaults['polyorder'] = 3
+        dtypes['polyorder'] = int
+        descr['polyorder'] = "polynomial order for the object model"
+
+        defaults['fit_region_min'] = None
+        dtypes['fit_region_min'] = list
+        descr['fit_region_min'] = "a list of minimum wavelength"
+
+        defaults['fit_region_max'] = None
+        dtypes['fit_region_max'] = list
+        descr['fit_region_max'] = "a list of minimum wavelength"
+
+        defaults['mask_lyman_a'] = True
+        dtypes['mask_lyman_a'] = bool
+        descr['mask_lyman_a'] = 'mask the blueward of Lyman-alpha line'
+
+        defaults['delta_coeff_bounds'] = (-20.0, 20.0)
+        dtypes['delta_coeff_bounds'] = tuple
+        descr['delta_coeff_bounds'] = "Normalization bounds"
+
+        defaults['minmax_coeff_bounds'] = (-5.0, 5.0)
+        dtypes['minmax_coeff_bounds'] = tuple
+        descr['minmax_coeff_bounds'] = "Normalization bounds"
+
+        # Instantiate the parameter set
+        super(TellFitPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['algorithm','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_mask', 'bounds_norm',
+                   'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
+                   'func','model','polyorder','fit_region_min','fit_region_max','mask_lyman_a',
+                   'delta_coeff_bounds','minmax_coeff_bounds']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for TellFitPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
 
 class ManualExtractionPar(ParSet):
     """
@@ -3285,7 +3414,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
-                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3359,6 +3488,11 @@ class PypeItPar(ParSet):
         defaults['sensfunc'] = SensFuncPar()
         dtypes['sensfunc'] = [ParSet, dict]
         descr['sensfunc'] = 'Par set to control sensitivity function computation.  Only used in the after-burner script.'
+
+        # Telluric Fit
+        defaults['tellfit'] = TellFitPar()
+        dtypes['tellfit'] = [ParSet, dict]
+        descr['tellfit'] = 'Par set to control telluric fitting.  Only used in the after-burner script.'
 
 
         # Instantiate the parameter set
@@ -3607,6 +3741,12 @@ class PypeItPar(ParSet):
         default = SensFuncPar() \
                         if pk in cfg['rdx'].keys() and cfg['rdx']['sensfunc'] else None
         kwargs[pk] = SensFuncPar.from_dict(cfg[pk]) if pk in k else default
+
+        # Allow tellfit to be turned on using cfg['rdx']
+        pk = 'tellfit'
+        default = TellFitPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['tellfit'] else None
+        kwargs[pk] = TellFitPar.from_dict(cfg[pk]) if pk in k else default
 
         if 'baseprocess' not in k:
             return cls(**kwargs)
