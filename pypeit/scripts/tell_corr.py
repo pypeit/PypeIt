@@ -57,13 +57,47 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
                         help="spec1d file for the standard that will be used to compute sensitivity function")
-    parser.add_argument("--algorithm", type=str, default=None, choices=['qso', 'poly'],
-                        help="telluric model algorithm")
-    parser.add_argument("-g", "--tell_grid", type=str, help="Telluric model grid.")
-    parser.add_argument("-p", "--pca_file", type=str, help="PCA pickle file")
-    parser.add_argument("-t", "--tell_file", type=str, help="Configuration file to change default telluric parameters")
+    parser.add_argument("--algorithm", type=str, default=None, choices=['qso', 'star', 'poly'],
+                        help="R|telluric fitting algorithm"
+                        "The algorithm options are:\n"
+                        "\n"
+                        "    qso  = For quasars.\n"
+                        "\n"
+                        "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
+                        "\n"
+                        "    poly = For other type object, you might need to set fit_region_min, fit_region_max, \n"
+                        "           and norder in the tell_file."
+                        )
+    parser.add_argument("-g", "--tell_grid", type=str, help="Telluric model grid. You should download the giant grid file\n"
+                        "to the pypeit/data/telluric folder.")
+    parser.add_argument("-p", "--pca_file", type=str, help="Quasar PCA pickle file with full path. The default pickle file \n"
+                        "(qso_pca_1200_3100.pckl) should be stored in the pypeit/data/telluric folder. If you change the pickle \n"
+                        "file, make sure to set the pca_lower and pca_upper in the tell_file to specify the \n"
+                        "wavelength coverage of your model. The defaults are pca_lower=1200. and pca_upper=3100.")
+    parser.add_argument("-t", "--tell_file", type=str, help="R|Configuration file to change default telluric parameters.\n"
+                        "Note that the parameters in this file will be overwritten if you set argument in your terminal. \n"
+                        "The --tell_file option requires a .tell file with the following format:\n"
+                        "\n"
+                        "    [tellfit]\n"
+                        "         algorithm = qso\n"
+                        "         redshift = 7.6\n"
+                        "         bal_mask = 10825,12060\n"
+                        "         pca_lower = 1200.\n"
+                        "         pca_upper = 3100.\n"
+                        "OR\n"
+                        "    [tellfit]\n"
+                        "         algorithm = star\n"
+                        "         star_type = A0\n"
+                        "         star_mag = 8.\n"
+                        "OR\n"
+                        "    [tellfit]\n"
+                        "         algorithm = poly\n"
+                        "         polyorder = 3\n"
+                        "         fit_region_min = 9000.\n"
+                        "         fit_region_max = 9500.\n"
+                        "\n"
+                        )
     parser.add_argument("-r", "--redshift", type=float, default=None, help="Object redshift")
-    parser.add_argument("-n", "--norder", type=int, default=None, help="Polynomial order")
     parser.add_argument("--debug", default=False, action="store_true", help="show debug plots?")
     parser.add_argument("--plot", default=False, action="store_true", help="Show the telluric corrected spectrum")
     parser.add_argument("--par_outfile", default='telluric.par', help="Name of outut file to save the parameters used by the fit")
@@ -99,8 +133,6 @@ def main(args):
         par['tellfit']['pca_file'] = args.pca_file
     if args.redshift is not None:
         par['tellfit']['redshift'] = args.redshift
-    if args.norder is not None:
-        par['tellfit']['polyorder'] = args.norder
 
     if args.tell_grid is not None:
         par['tellfit']['tell_grid'] = args.tell_grid
@@ -123,11 +155,25 @@ def main(args):
         # run telluric.qso_telluric to get the final results
         TelQSO = telluric.qso_telluric(args.spec1dfile, par['tellfit']['tell_grid'], par['tellfit']['pca_file'],
                                        par['tellfit']['redshift'], modelfile, outfile,
-                                       bal_mask=par['tellfit']['bal_mask'], disp=args.plot, debug=args.debug, show=args.plot)
+                                       bal_mask=par['tellfit']['bal_mask'],
+                                       debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
+    elif par['tellfit']['algorithm']=='star':
+        TelStar = telluric.star_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
+                                         polyorder=par['tellfit']['polyorder'],
+                                         star_type=par['tellfit']['star_type'],
+                                         star_mag=par['tellfit']['star_mag'],
+                                         star_ra=par['tellfit']['star_ra'],
+                                         star_dec=par['tellfit']['star_dec'],
+                                         func=par['tellfit']['func'], model=par['tellfit']['model'],
+                                         mask_abs_lines=par['tellfit']['mask_abs_lines'],
+                                         debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     elif par['tellfit']['algorithm']=='poly':
         TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
                                          polyorder=par['tellfit']['polyorder'],
-                                         fit_region_min=None, fit_region_max=None, func='legendre',
-                                         model='exp', mask_lyman_a=True,
-                                         debug_init=args.debug, debug=args.debug, show=args.plot)
-
+                                         fit_region_min=par['tellfit']['fit_region_min'],
+                                         fit_region_max=par['tellfit']['fit_region_max'],
+                                         func=par['tellfit']['func'], model=par['tellfit']['model'],
+                                         mask_lyman_a=par['tellfit']['mask_lyman_a'],
+                                         debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
+    else:
+        msgs.error("Algorithm is not supported yet. Please choose one of 'qso', 'star', 'poly'.")
