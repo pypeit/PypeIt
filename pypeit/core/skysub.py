@@ -1111,3 +1111,43 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     return skymodel, objmodel, ivarmodel, outmask, sobjs
 
 
+def read_userregions(text, resolution=1000):
+    """
+
+    Args:
+        text: str
+            The sky region definition. The text should
+            be a comma separated list of percentages to apply to all slits
+            Example: The following string   :10,35:65,80:
+            would select the first 10%, the inner 30%, and the final 20% of all slits
+        resolution: int
+            The percentage regions will be scaled to the specified resolution. The
+            resolution should probably correspond to the number of spatial pixels
+            on the slit.
+
+    Returns:
+        status: int
+            Status of the region parsing (0 = Successful, 1,2 = fail)
+        regions : list
+            A list of two elements converting the input percentage regions to the resolution value
+
+    """
+    status = 0
+    regions = []
+    try:
+        tspl = text.split(",")
+        for tt in tspl:
+            if ":" not in tt:
+                # Poor region definition - it should contain a semi-colon'
+                status = 2
+                break
+            tts = tt.split(":")
+            regions.append([0 if len(tts[0]) == 0 else int(
+                                round((resolution - 1) * float(tts[0]) / 100.0)),
+                            resolution if len(tts[1]) == 0 else int(
+                                round((resolution - 1) * float(tts[1]) / 100.0))
+                            ])
+    except:
+        status = 1
+    # Return
+    return status, regions

@@ -143,21 +143,8 @@ class Reduce(object):
         else:
             msgs.error("Not ready for this objtype in Reduce")
 
-        # Slits
-        self.slits = caliBrate.slits
-        # Select the edges to use
-        self.slits_left, self.slits_right, _ \
-                = self.slits.select_edges(flexure=self.spat_flexure_shift)
-
-        # Slitmask
-        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
-                                           exclude_flag=self.slits.bitmask.exclude_for_reducing)
-        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
-        # NOTE: this uses the par defined by EdgeTraceSet; this will
-        # use the tweaked traces if they exist
-        self.sciImg.update_mask_slitmask(self.slitmask)
-        # For echelle
-        self.spatial_coo = self.slits.spatial_coordinates(flexure=self.spat_flexure_shift)
+        # Initialise the slits
+        self.initialise_slits()
 
         # Internal bpm mask
         self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
@@ -167,7 +154,6 @@ class Reduce(object):
         # These may be None (i.e. COADD2D)
         self.waveTilts = caliBrate.wavetilts
         self.wv_calib = caliBrate.wv_calib
-
 
         # Load up other input items
         self.ir_redux = ir_redux
@@ -193,7 +179,28 @@ class Reduce(object):
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
 
+    def initialise_slits(self, initial=False):
+        """Initialise the slits
 
+        Args:
+            initial (bool): Use the initial definition of the slits (Setting this to False will use the tweaked slits)
+        """
+        # Slits
+        self.slits = self.caliBrate.slits
+        # Select the edges to use
+        self.slits_left, self.slits_right, _ \
+                = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+
+        # Slitmask
+        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+                                           exclude_flag=self.slits.bitmask.exclude_for_reducing)
+        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
+        # NOTE: this uses the par defined by EdgeTraceSet; this will
+        # use the tweaked traces if they exist
+        self.sciImg.update_mask_slitmask(self.slitmask)
+        # For echelle
+        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
+        return
 
     def parse_manual_dict(self, manual_dict, neg=False):
         """
@@ -1133,6 +1140,7 @@ class IFUReduce(Reduce):
     """
     def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        self.initialise_slits(initial=True)
 
     def build_scaleimg(self):
         """
@@ -1218,6 +1226,9 @@ class IFUReduce(Reduce):
                 plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
             plt.plot(wave, flux, 'k--', linewidth=3)
             plt.show()
+
+
+
         # Get the pixels containing good slits
         spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
         # Apply the relative scaling
@@ -1414,6 +1425,14 @@ class IFUReduce(Reduce):
                 skymask_init = fits.getdata(regfile).astype(np.bool)
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
+        elif self.par['reduce']['skysub']['user_regions'] != '':
+            msgs.info("Generating skysub mask based on the user defined regions: {0:s}".format(
+                self.par['reduce']['skysub']['user_regions']))
+            # Get the regions
+            status, reg = skysub.read_userregions(self.par['reduce']['skysub']['user_regions'],
+                                                  resolution=)
+            # Generate image
+
         return skymask_init
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,

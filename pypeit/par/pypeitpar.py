@@ -3008,7 +3008,7 @@ class SkySubPar(ParSet):
     """
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
-                 ref_slit=None, joint_fit=None, load_mask=None):
+                 user_regions=None, ref_slit=None, joint_fit=None, load_mask=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3041,6 +3041,15 @@ class SkySubPar(ParSet):
         defaults['no_poly'] = False
         dtypes['no_poly'] = bool
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
+
+        defaults['user_regions'] = ''
+        dtypes['user_regions'] = str
+        descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
+                                'the code to identify the sky regions automatically, set this variable to' \
+                                'an empty string. If you wish to set the sky regions, The text should be' \
+                                'a comma separated list of percentages to apply to _all_ slits' \
+                                ' For example: The following string   :10,35:65,80:   would select the' \
+                                'first 10%, the inner 30%, and the final 20% of _all_ slits.'
 
         defaults['load_mask'] = False
         dtypes['load_mask'] = bool

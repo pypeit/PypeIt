@@ -10,6 +10,7 @@ import matplotlib.transforms as mtransforms
 
 from pypeit import slittrace
 from pypeit import msgs
+from pypeit.core import skysub
 from pypeit.io import write_to_fits
 
 operations = dict({'cursor': "Add sky region (LMB drag)\n" +
@@ -283,26 +284,22 @@ class SkySubGUI(object):
         self.update_infobox(message='Enter regions in the terminal (see terminal for help)', yesno=False)
         print("")
         self.region_help()
-        print("To exit this tool, press enter.")
+        print("To exit this tool, enter no text, and press enter.")
         while True:
             print("")
             text = input("Enter the regions: ")
-            try:
-                tspl = text.split(",")
-                for tt in tspl:
-                    if ":" not in tt:
-                        print('Region definition should contain a semi-colon (see help)')
-                        break
-                    tts = tt.split(":")
-                    self._start[0] = 0 if len(tts[0]) == 0 else int(round((self._resolution-1)*float(tts[0])/100.0))
-                    self._end[0] = self._resolution if len(tts[1]) == 0 else int(round((self._resolution-1)*float(tts[1])/100.0))
-                    self.add_region_all()
-                # If we've made it to hear, then the regions must have been successfully added
+            status, reg = skysub.read_userregions(text, resolution=self._resolution)
+            if status == 0:
                 print("Regions successful!")
+                for rr in range(len(reg)):
+                    self._start[0], self._end[0] = reg[rr][0], reg[rr][1]
+                    self.add_region_all()
                 self.replot()
                 break
-            except:
+            elif status == 1:
                 print('Region definition should be a comma-separated list of percentages (see help)')
+            elif status == 2:
+                print('Region definition should contain a semi-colon (see help)')
             # Break out of the loop if no text is entered
             if len(text.strip()) == 0: break
         return
