@@ -165,7 +165,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
             # Reidentification parameters
             par['calibrations']['wavelengths']['method'] = 'reidentify'
-            par['calibrations']['wavelengths']['cc_thresh'] = 1.5
+            par['calibrations']['wavelengths']['cc_thresh'] = 0.6
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gnirs.fits'
             par['calibrations']['wavelengths']['ech_fix_format'] = True
             # Echelle parameters
