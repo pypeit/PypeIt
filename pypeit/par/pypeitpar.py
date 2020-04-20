@@ -1077,7 +1077,7 @@ class FluxCalibratePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extinct_correct=None):
+    def __init__(self, extinct_correct=None, extrap_sens=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1089,6 +1089,10 @@ class FluxCalibratePar(ParSet):
         defaults = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['extrap_sens'] = False
+        dtypes['extrap_sens'] = bool
+        descr['extrap_sens'] = 'Over-ride the default to crash out when the sensitivity function does not cover the full wavelength range.'
 
         defaults['extinct_correct'] = True
         dtypes['extinct_correct'] = bool
@@ -1107,7 +1111,7 @@ class FluxCalibratePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['extinct_correct']
+        parkeys = ['extinct_correct', 'extrap_sens']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

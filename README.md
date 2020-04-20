@@ -48,7 +48,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * Lick/APF (planned)
 * NOT/ALFOSC (grism4)
 * VLT/X-Shooter
-* VLT/FORS2
+* VLT/FORS2  (300I, 300V)
 * WHT/ISIS
 
 # Requirements
