@@ -17,7 +17,7 @@ from IPython import embed
 
 from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
-from pypeit import msgs, utils, ginga, bspline
+from pypeit import msgs, utils, ginga, bspline, slittrace
 from pypeit.core.moment import moment1d
 
 def skysub_npoly(thismask):
@@ -1151,3 +1151,50 @@ def read_userregions(text, resolution=1000):
         status = 1
     # Return
     return status, regions
+
+
+def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=1000):
+    """Generate the mask of sky regions
+
+    Returns:
+        ndarray : Boolean mask containing sky regions
+    """
+    # Initialise the sky regions
+    skyreg = [np.zeros(resolution, dtype=np.bool) for all in range(slits.nslits)]
+    # Apply regions
+    for reg in regions:
+        # Do some checks
+        xmin, xmax = reg[0], reg[1]
+        if xmax < xmin:
+            xmin, xmax = xmax, xmin
+        if xmin < 0:
+            xmin = 0
+        if xmax > resolution:
+            xmax = resolution
+        # Apply to all slits
+        for sl in range(slits.nslits):
+            skyreg[sl][xmin:xmax] = 1
+
+    nreg = 0
+    left_edg, righ_edg = np.zeros((slits.nspec, 0)), np.zeros((slits.nspec, 0))
+    spec_min, spec_max = np.array([]), np.array([])
+    for sl in range(slits.nslits):
+        diff = slits_right[:, sl] - slits_left[:, sl]
+        tmp = np.zeros(resolution+2)
+        tmp[1:-1] = skyreg[sl]
+        wl = np.where(tmp[1:] > tmp[:-1])[0]
+        wr = np.where(tmp[1:] < tmp[:-1])[0]
+        for rr in range(wl.size):
+            left = slits_left[:, sl] + wl[rr]*diff/(resolution-1.0)
+            righ = slits_left[:, sl] + wr[rr]*diff/(resolution-1.0)
+            left_edg = np.append(left_edg, left[:, np.newaxis], axis=1)
+            righ_edg = np.append(righ_edg, righ[:, np.newaxis], axis=1)
+            nreg += 1
+            spec_min = np.append(spec_min, slits.specmin[sl])
+            spec_max = np.append(spec_max, slits.specmax[sl])
+    # Instantiate the regions
+    regions = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
+                                     mask=slits.mask, specmin=spec_min, specmax=spec_max,
+                                     binspec=slits.binspec, binspat=slits.binspat, pad=0)
+    # Generate the mask, and return
+    return (regions.slit_img(use_spatial=False) >= 0).astype(np.int)

@@ -192,7 +192,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10., 10.]
-        par['calibrations']['flatfield']['spec_samp_fine'] = 30.0
+        #par['calibrations']['flatfield']['spec_samp_fine'] = 30.0
         #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['slit_illum_pad'] = 2  # Make sure the full slit is used (i.e. no padding)

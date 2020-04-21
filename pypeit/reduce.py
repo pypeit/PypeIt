@@ -1428,11 +1428,14 @@ class IFUReduce(Reduce):
         elif self.par['reduce']['skysub']['user_regions'] != '':
             msgs.info("Generating skysub mask based on the user defined regions: {0:s}".format(
                 self.par['reduce']['skysub']['user_regions']))
+            # This doesn't need to be a user parameter
+            resolution = int(10.0*np.max(self.slits_right-self.slits_left))
             # Get the regions
-            status, reg = skysub.read_userregions(self.par['reduce']['skysub']['user_regions'],
-                                                  resolution=)
+            status, regions = skysub.read_userregions(self.par['reduce']['skysub']['user_regions'],
+                                                      resolution=resolution)
             # Generate image
-
+            skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
+                                                resolution=resolution)
         return skymask_init
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,

@@ -3082,7 +3082,7 @@ class SkySubPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'load_mask', 'ref_slit', 'joint_fit']
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'ref_slit', 'joint_fit']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
