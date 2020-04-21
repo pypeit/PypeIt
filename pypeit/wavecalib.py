@@ -255,7 +255,6 @@ class WaveCalib(object):
         for idx in range(self.slits.nslits):
             if str(idx) in final_fit.keys():
                 self.wv_calib[str(self.slits.slitord_id[idx])] = final_fit.pop(str(idx))
-                #self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
 
         # Update mask
         self.update_wvmask()
