@@ -41,8 +41,7 @@ def main(args):
     import astropy.io.fits as fits
     from pypeit import masterframe
     from pypeit.spectrographs.util import load_spectrograph
-    from pypeit.core import parse
-    from pypeit.core import gui
+    from pypeit.core.gui.identify import Identify
     from pypeit.core.wavecal import waveio, templates
     from pypeit.wavecalib import WaveCalib
     from pypeit import slittrace
@@ -92,9 +91,9 @@ def main(args):
     arccen, arc_maskslit = wavecal.extract_arcs()
 
     # Launch the identify window
-    arcfitter = gui.identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
-                                        wavelim=[args.wmin, args.wmax],
-                                        nonlinear_counts=spec.nonlinear_counts(msarc.detector))
+    arcfitter = Identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
+                                    wavelim=[args.wmin, args.wmax],
+                                    nonlinear_counts=spec.nonlinear_counts(msarc.detector))
     final_fit = arcfitter.get_results()
 
     # Ask the user if they wish to store the result in PypeIt calibrations

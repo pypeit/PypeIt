@@ -151,6 +151,117 @@ class Identify(object):
         # Draw the spectrum
         self.replot()
 
+    @classmethod
+    def initialise(cls, arccen, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
+        """Initialise the 'Identify' window for real-time wavelength calibration
+
+        .. todo::
+
+            * Implement multislit functionality
+
+        Parameters
+        ----------
+        arccen : ndarray
+            Arc spectrum
+        slit : int, optional
+            The slit to be used for wavelength calibration
+        par : :obj:`int`, optional
+            The slit to be used for wavelength calibration
+        wv_calib_all : :obj:`dict`, None, optional
+            If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+        wavelim : :obj:`list`, None, optional
+            A two element list containing the desired minimum and maximum wavelength of the linelist
+
+        Returns
+        -------
+        object : :class:`Identify`
+            Returns an instance of the :class:`Identify` class, which contains the results of the fit
+        """
+
+        # Double check that a WavelengthSolutionPar was input
+        par = pypeitpar.WavelengthSolutionPar() if par is None else par
+
+        # If a wavelength calibration has been performed already, load it:
+        wv_calib = wv_calib_all[str(slit)] if wv_calib_all is not None else None
+
+        # Extract the lines that are detected in arccen
+        thisarc = arccen[:, slit]
+        tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
+                                                            nonlinear_counts=nonlinear_counts)
+        detns = tdetns[icut]
+
+        # Load line lists
+        if 'ThAr' in par['lamps']:
+            line_lists_all = waveio.load_line_lists(par['lamps'])
+            line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
+        else:
+            line_lists = waveio.load_line_lists(par['lamps'])
+
+        # Trim the wavelength scale if requested
+        if wavelim is not None:
+            ww = np.ones(len(line_lists), dtype=bool)
+            if wavelim[0] is not None:
+                ww &= line_lists['wave'] > wavelim[0]
+            if wavelim[1] is not None:
+                ww &= line_lists['wave'] < wavelim[1]
+            line_lists = line_lists[ww]
+
+        # Create a Line2D instance for the arc spectrum
+        spec = Line2D(np.arange(thisarc.size), thisarc,
+                      linewidth=1, linestyle='solid', color='k',
+                      drawstyle='steps', animated=True)
+
+        # Add the main figure axis
+        fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
+        plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.65)
+        ax.add_line(spec)
+        ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
+
+        # Add two residual fitting axes
+        axfit = fig.add_axes([0.7, .5, .28, 0.35])
+        axres = fig.add_axes([0.7, .1, .28, 0.35])
+        # Residuals
+        lflag_color = ['grey', 'blue', 'yellow', 'red']
+        residcmap = LinearSegmentedColormap.from_list("my_list", lflag_color, N=len(lflag_color))
+        resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
+                               c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
+        axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
+        axres.axhline(0.0, color='r', linestyle='-')  # Zero level
+        axres.set_xlim((0, thisarc.size - 1))
+        axres.set_ylim((-0.3, 0.3))
+        axres.set_xlabel('Pixel')
+        axres.set_ylabel('Residuals (Pix)')
+
+        # pixel vs wavelength
+        respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
+                               c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
+        resfit = Line2D(np.arange(thisarc.size), np.zeros(thisarc.size), linewidth=1, linestyle='-', color='r')
+        axfit.add_line(resfit)
+        axfit.set_xlim((0, thisarc.size - 1))
+        axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
+        axfit.set_xlabel('Pixel')
+        axfit.set_ylabel('Wavelength')
+
+        # Add an information GUI axis
+        axinfo = fig.add_axes([0.15, .92, .7, 0.07])
+        axinfo.get_xaxis().set_visible(False)
+        axinfo.get_yaxis().set_visible(False)
+        axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
+                    horizontalalignment='center', verticalalignment='center')
+        axinfo.set_xlim((0, 1))
+        axinfo.set_ylim((0, 1))
+        specres = dict(pixels=respts, model=resfit, resid=resres)
+
+        axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
+        # Initialise the identify window and display to screen
+        fig.canvas.set_window_title('PypeIt - Identify')
+        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
+                         wv_calib=wv_calib)
+        plt.show()
+
+        # Now return the results
+        return ident
+
     def print_help(self):
         """Print the keys and descriptions that can be used for Identification
         """
@@ -856,114 +967,3 @@ class Identify(object):
         ascii_io.write(data, fname, format='fixed_width')
         msgs.info("Line IDs saved as:" + msgs.newline() + fname)
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
-
-
-def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
-    """Initialise the 'Identify' window for real-time wavelength calibration
-
-    .. todo::
-
-        * Implement multislit functionality
-
-    Parameters
-    ----------
-    arccen : ndarray
-        Arc spectrum
-    slit : int, optional
-        The slit to be used for wavelength calibration
-    par : :obj:`int`, optional
-        The slit to be used for wavelength calibration
-    wv_calib_all : :obj:`dict`, None, optional
-        If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
-    wavelim : :obj:`list`, None, optional
-        A two element list containing the desired minimum and maximum wavelength of the linelist
-
-    Returns
-    -------
-    object
-        Returns an instance of the Identify class, which contains the results of the fit
-    """
-
-    # Double check that a WavelengthSolutionPar was input
-    par = pypeitpar.WavelengthSolutionPar() if par is None else par
-
-    # If a wavelength calibration has been performed already, load it:
-    wv_calib = wv_calib_all[str(slit)] if wv_calib_all is not None else None
-
-    # Extract the lines that are detected in arccen
-    thisarc = arccen[:, slit]
-    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
-                                                        nonlinear_counts=nonlinear_counts)
-    detns = tdetns[icut]
-
-    # Load line lists
-    if 'ThAr' in par['lamps']:
-        line_lists_all = waveio.load_line_lists(par['lamps'])
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-    else:
-        line_lists = waveio.load_line_lists(par['lamps'])
-
-    # Trim the wavelength scale if requested
-    if wavelim is not None:
-        ww = np.ones(len(line_lists), dtype=bool)
-        if wavelim[0] is not None:
-            ww &= line_lists['wave'] > wavelim[0]
-        if wavelim[1] is not None:
-            ww &= line_lists['wave'] < wavelim[1]
-        line_lists = line_lists[ww]
-
-    # Create a Line2D instance for the arc spectrum
-    spec = Line2D(np.arange(thisarc.size), thisarc,
-                  linewidth=1, linestyle='solid', color='k',
-                  drawstyle='steps', animated=True)
-
-    # Add the main figure axis
-    fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
-    plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.65)
-    ax.add_line(spec)
-    ax.set_ylim((0.0, 1.1*spec.get_ydata().max()))
-
-    # Add two residual fitting axes
-    axfit = fig.add_axes([0.7, .5, .28, 0.35])
-    axres = fig.add_axes([0.7, .1, .28, 0.35])
-    # Residuals
-    lflag_color = ['grey', 'blue', 'yellow', 'red']
-    residcmap = LinearSegmentedColormap.from_list("my_list", lflag_color, N=len(lflag_color))
-    resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
-                            c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
-    axres.axhline(0.0, color='r', linestyle='-')  # Zero level
-    axres.set_xlim((0, thisarc.size - 1))
-    axres.set_ylim((-0.3, 0.3))
-    axres.set_xlabel('Pixel')
-    axres.set_ylabel('Residuals (Pix)')
-
-    # pixel vs wavelength
-    respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
-                            c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    resfit = Line2D(np.arange(thisarc.size), np.zeros(thisarc.size), linewidth=1, linestyle='-', color='r')
-    axfit.add_line(resfit)
-    axfit.set_xlim((0, thisarc.size - 1))
-    axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
-    axfit.set_xlabel('Pixel')
-    axfit.set_ylabel('Wavelength')
-
-    # Add an information GUI axis
-    axinfo = fig.add_axes([0.15, .92, .7, 0.07])
-    axinfo.get_xaxis().set_visible(False)
-    axinfo.get_yaxis().set_visible(False)
-    axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
-             horizontalalignment='center', verticalalignment='center')
-    axinfo.set_xlim((0, 1))
-    axinfo.set_ylim((0, 1))
-    specres = dict(pixels=respts, model=resfit, resid=resres)
-
-    axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
-    # Initialise the identify window and display to screen
-    fig.canvas.set_window_title('PypeIt - Identify')
-    ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit, wv_calib=wv_calib)
-    plt.show()
-
-    # Now return the results
-    return ident
-
