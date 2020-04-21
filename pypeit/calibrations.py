@@ -907,7 +907,18 @@ def check_for_calibs(par, fitstbl, raise_error=True):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
             calib_ID = int(fitstbl['calib'][frames[0]])
 
-            # Explore
+            # Arc, tilt, science
+            for ftype in ['arc', 'tilt', 'science', 'trace']:
+                rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
+                if len(rows) == 0:
+                    # Fail
+                    msg = "No frames of type={} provided. Add them to your PypeIt file if this is a standard run!".format(ftype)
+                    if raise_error:
+                        msgs.error(msg)
+                    else:
+                        msgs.warn(msg)
+
+            # Explore science frame
             for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat', 'use_illumflat'],
                                   ['bias', 'dark', 'pixelflat', 'illumflat']):
                 if par['scienceframe']['process'][key]:

@@ -100,6 +100,7 @@ class MultiSlitFC(FluxCalibrate):
                                      extinct_correct=self.par['extinct_correct'],
                                      longitude=self.spectrograph.telescope['longitude'],
                                      latitude=self.spectrograph.telescope['latitude'],
+                                     extrap_sens=self.par['extrap_sens'],
                                      airmass=float(sobjs.header['AIRMASS']))
 
 
