@@ -22,14 +22,11 @@ def parser(options=None):
     parser.add_argument('arc_file', type=str, default=None, help='PypeIt MasterArc file')
     parser.add_argument('slits_file', type=str, default=None, help='PypeIt MasterSlits file')
     parser.add_argument("--lamps", type=str, help="Comma separated list of calibration lamps (no spaces)")
-    parser.add_argument("--wmin", default=3000.0, help="Minimum wavelength range",
-                        action="store_true")
-    parser.add_argument("--wmax", default=10000.0, help="Maximum wavelength range",
-                        action="store_true")
-    parser.add_argument("--slit", default=0, help="Slit number to wavelength calibrate",
-                        action="store_true")
-    parser.add_argument("--det", default=1, help="Detector index", action="store_true")
-    parser.add_argument("--rmstol", default=0.1, help="RMS tolerance", action="store_true")
+    parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
+    parser.add_argument("--wmax", type=float, default=10000.0, help="Maximum wavelength range")
+    parser.add_argument("--slit", type=int, default=0, help="Slit number to wavelength calibrate")
+    parser.add_argument("--det", type=int, default=1, help="Detector index")
+    parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
