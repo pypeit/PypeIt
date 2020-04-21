@@ -410,14 +410,16 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
 
 # TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
 #  AND THIS IS WHY THE CODE IS CRASHING
-def spec_flexure_qa(specobjs, gd_slitord, basename, det, flex_list,
+def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
                slit_cen=False, out_dir=None):
     """
 
     Args:
         specobjs:
-        gd_slitord (`numpy.ndarray`_):
-            Array of good slit/order IDs
+        slitords (`numpy.ndarray`_):
+            Array of slit/order numbers
+        bpm (`numpy.ndarray`_):
+            True = masked slit
         basename (str):
         det (int):
         flex_list (list):
@@ -431,8 +433,14 @@ def spec_flexure_qa(specobjs, gd_slitord, basename, det, flex_list,
     # Grab the named of the method
     method = inspect.stack()[0][3]
 
+    # Mask
+    gdslits = np.where(np.invert(bpm))[0]
+
     # Loop over slits, and then over objects here
-    for islit, slitord in enumerate(gd_slitord):
+    for islit in gdslits:
+        # Slit/order number
+        slitord = slitords[islit]
+        # Parse
         indx = specobjs.slitorder_indices(slitord)
         this_specobjs = specobjs[indx]
         this_flex_dict = flex_list[islit]

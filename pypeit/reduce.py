@@ -579,9 +579,8 @@ class Reduce(object):
                                                  self.par['flexure']['spectrum'],
                                                  mxshft=self.par['flexure']['spec_maxshift'])
             # Good slitord
-            gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
             # QA
-            flexure.spec_flexure_qa(sobjs, gd_slitord, basename, self.det, flex_list,
+            flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')
