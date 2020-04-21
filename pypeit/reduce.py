@@ -604,7 +604,9 @@ class Reduce(object):
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
             # TODO change this keyword to refframe instead of frame
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['frame']))
-            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, self.reduce_bpm,
+            # Good slitord
+            gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
+            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, gd_slitord,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
                                                    self.spectrograph.telescope['elevation'],

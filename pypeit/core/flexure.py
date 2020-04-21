@@ -417,7 +417,7 @@ def spec_flexure_qa(specobjs, gd_slitord, basename, det, flex_list,
     Args:
         specobjs:
         gd_slitord (`numpy.ndarray`_):
-            List of good slit/order IDs
+            Array of good slit/order IDs
         basename (str):
         det (int):
         flex_list (list):

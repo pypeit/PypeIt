@@ -139,7 +139,12 @@ def test_run_pypeit():
     spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     assert os.path.isfile(spec1d_file)
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
-    pytest.set_trace()
+
+    # Flexure
+    assert specObjs[0].FLEX_SHIFT != 0., 'Flexure not calculated!'
+
+    # Helio
+    assert specObjs[0].VEL_CORR != 0., 'Heliocentric not calculated!'
 
     # Now re-use those master files
     pargs = run_pypeit.parser([pyp_file, '-o'])
