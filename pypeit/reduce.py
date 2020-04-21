@@ -578,7 +578,6 @@ class Reduce(object):
                                                  self.par['flexure']['spec_method'],
                                                  self.par['flexure']['spectrum'],
                                                  mxshft=self.par['flexure']['spec_maxshift'])
-            # Good slitord
             # QA
             flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))

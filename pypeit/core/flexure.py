@@ -408,8 +408,6 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     return flex_list
 
 
-# TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
-#  AND THIS IS WHY THE CODE IS CRASHING
 def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
                slit_cen=False, out_dir=None):
     """
