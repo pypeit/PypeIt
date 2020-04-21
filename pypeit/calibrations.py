@@ -11,7 +11,6 @@ from abc import ABCMeta
 from IPython import embed
 
 import numpy as np
-import warnings
 
 from astropy.io import fits
 
@@ -188,81 +187,6 @@ class Calibrations(object):
         image_files = self.fitstbl.frame_paths(rows)
         # Return
         return image_files, self.fitstbl.master_key(rows[0] if len(rows) > 0 else self.frame, det=self.det)
-
-#    def _reset_internals(self):
-#        """
-#        Reset all of the key internals to None or an empty object
-#
-#        """
-#        # TODO: I think all of these should change to the relevant class
-#        # objects, particularly if we're going to allow a class (e.g.,
-#        # FlatField) to alter the internals of another classe (e.g.,
-#        # TraceSlits)
-
-#    def _update_cache(self, master_key, master_type, data):
-#        """
-#        Update or add new cached data held in memory.
-#
-#        Fundamentally just executes::
-#
-#            self.calib_dict[self.master_key_dict[master_key]][master_type] = data
-#
-#        Args:
-#            master_key (:obj:`str`):
-#                Keyword used to select the master key from
-#                :attr:`master_key_dict`.
-#            master_type (:obj:`str`, :obj:`tuple`):
-#                One or more keywords setting the type of master frame
-#                being saved to :attr:`calib_dict`. E.g.
-#                ``master_type=bpm`` for the data saved to
-#                ``self.calib_dict['A_01_1']['bpm']``.
-#            data (object, :obj:`tuple`):
-#                One or more data objects to save to :attr:`calib_dict`.
-#
-#        """
-#        # Handle a single entry
-#        _master_type = master_type if isinstance(master_type, tuple) else (master_type,)
-#        _data = data if isinstance(data, tuple) else (data,)
-#        # Save the data
-#        # TODO: Allow for copy option?  Do we now whether or not this is
-#        #  actually being done correctly as it is?
-#        #  We should *not* copy.
-#        for key, d in zip(_master_type, _data):
-#            self.calib_dict[self.master_key_dict[master_key]][key] = d
-#
-#    def _cached(self, master_type, master_key):
-#        """
-#        Check if the calibration frame data has been cached in memory.
-#
-#        The image data is saved in memory as, e.g.::
-#
-#           self.calib_dict[master_key][master_type] = {}
-#
-#        If the master has not yet been generated, an empty dict is
-#        prepared::
-#
-#           self.calib_dict[master_key] = {}
-#
-#        Args:
-#            master_type (str): Type of calibration frame, e.g. 'bias', 'arc', ..
-#            master_key (str): Master key naming
-#
-#        Returns:
-#             bool: True = Built previously
-#        """
-#        if master_key not in self.calib_dict.keys():
-#            # Masters are not available for any frames in this
-#            # configuration + calibration group + detector
-#            self.calib_dict[master_key] = {}
-#            return False
-#        if master_key in self.calib_dict.keys():
-#            if master_type in self.calib_dict[master_key].keys():
-#                # Found the previous master in memory (may be None)
-#                msgs.info('Using {0} for {1} found in cache.'.format(master_type, master_key))
-#                return True
-#        # Master key exists but no master in memory for this specific type
-#        self.calib_dict[master_key][master_type] = {}
-#        return False
 
     def set_config(self, frame, det, par=None):
         """
@@ -616,25 +540,22 @@ class Calibrations(object):
             return self.flatimages
 
 
-        # Generate the image?
-        #if len(pixflat_image_files) > 0:
-        #    stacked_pixelflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-        #                                                       self.par['pixelflatframe'],
-        #                                                       pixflat_image_files,
-        #                                                       bias=self.msbias, bpm=self.msbpm)
-
-        # TODO -- Allow for separate pixelflat and illumflat images!! Someday maybe we can do this right?!
+        # TODO -- Allow for separate pixelflat and illumflat images
+        # Generate the image
+        stacked_flat = None
         if len(illum_image_files) > 0:
-            # CHECK
-            if len(pixflat_image_files) > 0 and illum_image_files != pixflat_image_files:
-                msgs.error("PypeIt cannot handle a distinct set of pixel and illum flats")
-            stacked_illumflat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                       self.par['illumflatframe'],
-                                                       illum_image_files, dark=self.msdark,
-                                                       bias=self.msbias, bpm=self.msbpm)
-
+            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                          self.par['illumflatframe'],
+                                                          illum_image_files, dark=self.msdark,
+                                                          bias=self.msbias, bpm=self.msbpm)
+        if stacked_flat is None and len(pixflat_image_files) > 0:
+            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                               self.par['pixelflatframe'],
+                                                               pixflat_image_files,
+                                                               bias=self.msbias, bpm=self.msbpm)
+        if stacked_flat is not None:
             # Create pixelflat and illumination flat from illumination flat stack
-            flatField = flatfield.FlatField(stacked_illumflat, self.spectrograph,
+            flatField = flatfield.FlatField(stacked_flat, self.spectrograph,
                                             self.par['flatfield'], self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show)
@@ -975,7 +896,18 @@ def check_for_calibs(par, fitstbl, raise_error=True):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
             calib_ID = int(fitstbl['calib'][frames[0]])
 
-            # Explore
+            # Arc, tilt, science
+            for ftype in ['arc', 'tilt', 'science', 'trace']:
+                rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
+                if len(rows) == 0:
+                    # Fail
+                    msg = "No frames of type={} provided. Add them to your PypeIt file if this is a standard run!".format(ftype)
+                    if raise_error:
+                        msgs.error(msg)
+                    else:
+                        msgs.warn(msg)
+
+            # Explore science frame
             for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat', 'use_illumflat'],
                                   ['bias', 'dark', 'pixelflat', 'illumflat']):
                 if par['scienceframe']['process'][key]:
@@ -990,5 +922,5 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                         if raise_error:
                             msgs.error(msg)
                         else:
-                            warnings.warn(msg)
+                            msgs.warn(msg)
 

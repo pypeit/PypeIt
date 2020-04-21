@@ -22,7 +22,6 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-spectrograph = load_spectrograph('shane_kast_blue')
 
 @pytest.fixture
 def fitstbl():
@@ -52,6 +51,7 @@ def multi_caliBrate(fitstbl):
             sci_file = os.path.join(row['directory'], row['filename'])
             break
     # Par
+    spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.config_specific_par(sci_file)
     turn_off = dict(use_biasimage=False)
     par.reset_all_processimages_par(**turn_off)
@@ -194,6 +194,7 @@ def test_reuse(multi_caliBrate, fitstbl):
 
     # Reset
     #reset_calib(multi_caliBrate_reuse)
+    spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
     multi_caliBrate_reuse = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'],
                                                                spectrograph, data_path('Masters'))

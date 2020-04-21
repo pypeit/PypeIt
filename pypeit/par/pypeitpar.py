@@ -70,12 +70,7 @@ from configobj import ConfigObj
 from pypeit.par.parset import ParSet
 from pypeit.par import util
 from pypeit.core.framematch import FrameTypeBitMask
-from pypeit import msgs
-
-# Needs this to determine the valid spectrographs TODO: This causes a
-# circular import.  Spectrograph specific parameter sets and where they
-# go needs to be rethought.
-#from ..spectrographs.util import valid_spectrographs
+from pypeit import defs
 
 #-----------------------------------------------------------------------------
 # Reduction ParSets
@@ -132,18 +127,6 @@ class FrameGroupPar(ParSet):
                           'the list.  Use None to indicate no limit; i.e., to select exposures ' \
                           'with any time greater than 30 sec, use exprng = [30, None].'
 
-#        defaults['processing_steps'] = []
-#        dtypes['processing_steps'] = list
-#        options['processing_steps'] = FrameGroupPar.valid_processing_steps()
-#        descr['processing_steps'] = 'Steps to be applied during processing.  Modify these at your own risk!! ' \
-#                'Bias and overscan subtraction depend on whether bias frames were included and ' \
-#                'also the settings in ["process"]. ' \
-#                'orient: Orient the image in the PypeIt frame (required!)' \
-#                'trim: Trim the image (Code will probably break if not set)' \
-#                'apply_gain: Convert ADU to electrons' \
-#                'flatten:  Apply the flat field image(s), if provided' \
-#                'crmask: Generate a cosmic ray mask (recommended only for standard/science frames)'
-
         defaults['process'] = ProcessImagesPar()
         dtypes['process'] = [ ParSet, dict ]
         descr['process'] = 'Low level parameters used for basic image processing'
@@ -181,13 +164,6 @@ class FrameGroupPar(ParSet):
         """
         return FrameTypeBitMask().keys()
 
-#    @staticmethod
-#    def valid_processing_steps():
-#        """
-#        Return the list of valid processing steps
-#        """
-#        return ['orient', 'trim', 'apply_gain', 'flatten', 'crmask']
-
     def validate(self):
         if len(self.data['exprng']) != 2:
             raise ValueError('exprng must be a list with two items.')
@@ -212,8 +188,7 @@ class ProcessImagesPar(ParSet):
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  use_pixelflat=None, use_illumflat=None,
-                 spat_flexure_correct=None,
-                 ):
+                 spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -366,8 +341,7 @@ class ProcessImagesPar(ParSet):
                    'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
                    'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-                   'rmcompact', 'sigclip', 'sigfrac', 'objlim',
-                   ]
+            'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -416,7 +390,7 @@ class ProcessImagesPar(ParSet):
         if self.data['sig_lohi'] is not None and len(self.data['sig_lohi']) != 2:
             raise ValueError('n_lohi must be a list of two numbers.')
 
-        if self.data['use_overscan'] is False:
+        if not self.data['use_overscan']:
             return
         if self.data['overscan_par'] is None:
             raise ValueError('No overscan method parameters defined!')
@@ -629,15 +603,6 @@ class FlatFieldPar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
-
-#    @staticmethod
-#    def valid_frames():
-#        """
-#        Return the valid frame types.
-#        """
-#
-#        # ToDO JFH So won't this fail if the user tries to provide a filename?
-#        return ['pixelflat'] # , 'pinhole'] disabling this for now, we don't seem to be using it. JFH
 
     @staticmethod
     def valid_methods():
@@ -1198,7 +1163,7 @@ class FluxCalibratePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extinct_correct=None):
+    def __init__(self, extinct_correct=None, extrap_sens=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1210,6 +1175,10 @@ class FluxCalibratePar(ParSet):
         defaults = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['extrap_sens'] = False
+        dtypes['extrap_sens'] = bool
+        descr['extrap_sens'] = 'Over-ride the default to crash out when the sensitivity function does not cover the full wavelength range.'
 
         defaults['extinct_correct'] = True
         dtypes['extinct_correct'] = bool
@@ -1228,7 +1197,7 @@ class FluxCalibratePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['extinct_correct']
+        parkeys = ['extinct_correct', 'extrap_sens']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -1842,26 +1811,14 @@ class ReduxPar(ParSet):
             kwargs[pk] = cfg[pk] if pk in k else None
         # Check that detnum and slitspatnum are not both set
         if kwargs['detnum'] is not None and kwargs['slitspatnum'] is not None:
-            msgs.error("You cannot set both detnum and slitspatnum!  Causes serious SpecObjs output challenges..")
+            raise IOError("You cannot set both detnum and slitspatnum!  Causes serious SpecObjs output challenges..")
         # Finish
         return cls(**kwargs)
 
     @staticmethod
     def valid_spectrographs():
-        # WARNING: Needs this to determine the valid spectrographs.
-        # Should use pypeit.spectrographs.util.valid_spectrographs
-        # instead, but it causes a circular import.  Spectrographs have
-        # to be redefined here.   To fix this, spectrograph specific
-        # parameter sets (like DetectorPar) and where they go needs to
-        # be rethought.
-        return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red',
-                'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
-                'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-                'wht_isis_blue', 'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
-                'vlt_fors2', 'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2',
-                'gemini_gmos_south_ham', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-                'magellan_fire', 'magellan_fire_long', 'magellan_mage', 'lbt_mods1r', 'lbt_mods1b',
-                'lbt_mods2r', 'lbt_mods2b', 'lbt_luci1', 'lbt_luci2', 'mmt_binospec', 'mdm_osmos_mdm4k']
+        return defs.pypeit_spectrographs
+
     def validate(self):
         pass
 
@@ -4134,7 +4091,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO']
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT']
 
     def validate(self):
         pass

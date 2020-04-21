@@ -214,7 +214,7 @@ class RawImage(object):
         if slits is not None and self.par['spat_flexure_correct']:
             self.spat_flexure_shift = flexure.spat_flexure_shift(self.image, slits)
 
-        # Generate the illumination flat
+        # Generate the illumination flat, as needed
         illum_flat = None
         if self.par['use_illumflat']:
             if flatimages is None:
@@ -232,9 +232,9 @@ class RawImage(object):
                 viewer, ch = ginga.show_image(orig_image, chname='orig_image')
                 ginga.show_slits(viewer, ch, left, right)  # , slits.id)
 
-        # Flat field
+        # Flat field -- We cannot do illumination flat without a pixel flat (yet)
         if self.par['use_pixelflat'] or self.par['use_illumflat']:
-            if flatimages is None or (self.par['use_pixelflat'] and flatimages.pixelflat is None):
+            if flatimages is None or flatimages.pixelflat is None:
                 msgs.error("Flat fielding desired but not generated/provided.")
             else:
                 self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
@@ -332,7 +332,7 @@ class RawImage(object):
         """
         step = inspect.stack()[0][3]
         # Check if already bias subtracted
-        if self.steps[step] and (not force):
+        if self.steps[step] and not force:
             msgs.warn("Image was already bias subtracted.  Returning the current image")
             return self.image.copy()
         # Do it
@@ -349,7 +349,7 @@ class RawImage(object):
         """
         step = inspect.stack()[0][3]
         # Check if already bias subtracted
-        if self.steps[step] and (not force):
+        if self.steps[step] and not force:
             msgs.warn("Image was already dark subtracted.  Returning the current image")
             return self.image.copy()
         # Do it

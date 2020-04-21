@@ -88,22 +88,21 @@ class PypeIt(object):
         # --------------------------------------------------------------
         # Get the full set of PypeIt parameters
         #   - Grab a science or standard file for configuration specific parameters
-        scistd_file = None
+
+        config_specific_file = None
         for idx, row in enumerate(usrdata):
             if ('science' in row['frametype']) or ('standard' in row['frametype']):
-                scistd_file = data_files[idx]
-                break
-        #   - Configuration specific parameters for the spectrograph
-        if scistd_file is not None:
-            msgs.info('Setting configuration-specific parameters using {0}'.format(
-                      os.path.split(scistd_file)[1]))
-        else:
-            if self.calib_only:
-                # Try to find an arc or trace
-                for idx, row in enumerate(usrdata):
-                    if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                        scistd_file = data_files[idx]
-        spectrograph_cfg_lines = self.spectrograph.config_specific_par(scistd_file).to_config()
+                config_specific_file = data_files[idx]
+        # search for arcs, trace if no scistd was there
+        if config_specific_file is None:
+            for idx, row in enumerate(usrdata):
+                if ('arc' in row['frametype']) or ('trace' in row['frametype']):
+                    config_specific_file = data_files[idx]
+        if config_specific_file is not None:
+            msgs.info(
+                'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
+        spectrograph_cfg_lines = self.spectrograph.config_specific_par(config_specific_file).to_config()
+
         #   - Build the full set, merging with any user-provided
         #     parameters
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)

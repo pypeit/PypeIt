@@ -29,6 +29,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'd' : "Delete all line identifications (start from scratch)",
                    'f' : "Fit the wavelength solution",
                    'l' : "Load saved line IDs from file",
+                   'm' : "Select line",
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
                    'w' : "Toggle wavelength/pixels on the x-axis of the main panel",
@@ -541,9 +542,9 @@ class Identify(object):
         if event.inaxes == self.axes['info']:
             return
         axisID = self.get_axisID(event)
-        self.operations(event.key, axisID)
+        self.operations(event.key, axisID, event)
 
-    def operations(self, key, axisID):
+    def operations(self, key, axisID, event):
         """Canvas operations
 
         Args:
@@ -611,6 +612,12 @@ class Identify(object):
             self.replot()
         elif key == 'l':
             self.load_IDs()
+        elif key == 'm':
+            msgs.info("Selecting line")
+            self._addsub = 1
+            self._end = self.get_ind_under_point(event)
+            self._detns_idx = self.get_detns()
+            self.replot()
         elif key == 'q':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
@@ -851,7 +858,7 @@ class Identify(object):
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
 
 
-def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
+def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
     """Initialise the 'Identify' window for real-time wavelength calibration
 
     .. todo::
@@ -886,7 +893,7 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
     # Extract the lines that are detected in arccen
     thisarc = arccen[:, slit]
     tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
-                                                        nonlinear_counts=par['nonlinear_counts'])
+                                                        nonlinear_counts=nonlinear_counts)
     detns = tdetns[icut]
 
     # Load line lists
@@ -898,7 +905,7 @@ def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
 
     # Trim the wavelength scale if requested
     if wavelim is not None:
-        ww = np.ones(line_lists.size, dtype=bool)
+        ww = np.ones(len(line_lists), dtype=bool)
         if wavelim[0] is not None:
             ww &= line_lists['wave'] > wavelim[0]
         if wavelim[1] is not None:

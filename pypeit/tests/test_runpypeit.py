@@ -20,13 +20,14 @@ from astropy.io import fits
 from pypeit.scripts import setup
 from pypeit.scripts import run_pypeit
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit import specobjs
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
+'''
 @dev_suite_required
 def test_run_pypeit_calib_only():
     # Get the directories
@@ -90,8 +91,8 @@ def test_run_pypeit_calib_only():
         # Clean-up
         shutil.rmtree(outdir)
         shutil.rmtree(testrawdir)
-
 '''
+
 
 @dev_suite_required
 def test_run_pypeit():
@@ -125,19 +126,35 @@ def test_run_pypeit():
     pyp_file = os.path.join(configdir, 'shane_kast_blue_A.pypeit')
     assert os.path.isfile(pyp_file), 'PypeIt file not written.'
 
-    # Perform the original reductions
+    # Try to run with -m and -o
+    pargs = run_pypeit.parser([pyp_file, '-o', '-m', '-r', configdir])
+    run_pypeit.main(pargs)
+
+    # #########################################################33
+    # Test!!
+    # Files exist
+    assert os.path.isfile(os.path.join(configdir, 'Science', 'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits'))
+
+    # spec1d
+    spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    assert os.path.isfile(spec1d_file)
+    specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+
+    # Flexure
+    assert specObjs[0].FLEX_SHIFT != 0., 'Flexure not calculated!'
+
+    # Helio
+    assert specObjs[0].VEL_CORR != 0., 'Heliocentric not calculated!'
+
+    # Now re-use those master files
     pargs = run_pypeit.parser([pyp_file, '-o'])
     run_pypeit.main(pargs)
 
-    # Now try to reuse the old masters
-    pargs = run_pypeit.parser([pyp_file, '-o', '-m'])
-    run_pypeit.main(pargs)
-
     # Now try not overwriting and using the old masters
-    pargs = run_pypeit.parser([pyp_file, '-m'])
-    run_pypeit.main(pargs)
+    #pargs = run_pypeit.parser([pyp_file, '-m'])
+    #run_pypeit.main(pargs)
 
     # Clean-up
     shutil.rmtree(outdir)
     shutil.rmtree(testrawdir)
-'''
+
