@@ -409,6 +409,11 @@ class Identify(object):
                 i.remove()
             self._fitdict["res_stats"] = []
 
+            # Update the line IDs
+            for ii in range(self._fitdict['pixel_fit'].size):
+                idx = np.argmin(np.abs(self._detns-self._fitdict['pixel_fit'][ii]))
+                self._lineids[idx] = self._fitdict['wave_fit'][ii]
+
             # Extract the fitting info
             wave_soln = self._fitdict['wave_soln']
             pixel_fit = self._detns
@@ -873,14 +878,14 @@ class Identify(object):
             xpix = self._detns[gd_det] / self._fitdict["scale"]
             ylam = self._lineids[gd_det]
             self._fitdict["coeff"] = np.polyfit(xpix, ylam, ord)
-            bdisp = self.fitsol_deriv(self.specdata.size / 2)  # Angstroms/pixel at the centre of the spectrum
+            bdisp = self.fitsol_deriv(self.specdata.size / (2*self._fitdict["scale"]))  # Angstroms/pixel at the centre of the spectrum
             # Then try a detailed fit
             try:
                 final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det[0],
                                                       self._lineids[gd_det[0]], self._line_lists, bdisp,
                                                       verbose=False, n_first=min(2, self._fitdict["polyorder"]),
                                                       match_toler=self.par['match_toler'],
-                                                      func=self.par['func'],
+                                                      func=self.par['func'], input_only=True,
                                                       n_final=self._fitdict["polyorder"],
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])

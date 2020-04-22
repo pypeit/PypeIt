@@ -102,7 +102,7 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
 # very least it should be optional
 def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                       match_toler = 2.0, func = 'legendre', n_first=2, sigrej_first=2.0,
-                      n_final=4, sigrej_final=3.0,
+                      n_final=4, sigrej_final=3.0, input_only=False,
                       weights=None, plot_fil=None, verbose=False):
 
     """ Routine for iteratively fitting wavelength solutions.
@@ -185,18 +185,19 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
         # Reject but keep originals (until final fit)
         ifit = list(ifit[mask == 0]) + sv_ifit
-        # Find new points (should we allow removal of the originals?)
-        twave = utils.func_val(fit, tcent/xnspecmin1, func, minx=fmin, maxx=fmax)
-        for ss, iwave in enumerate(twave):
-            mn = np.min(np.abs(iwave-llist['wave']))
-            if mn/disp < match_toler:
-                imn = np.argmin(np.abs(iwave-llist['wave']))
-                #if verbose:
-                #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
-                # Update and append
-                all_ids[ss] = llist['wave'][imn]
-                all_idsion[ss] = llist['ion'][imn]
-                ifit.append(ss)
+        if not input_only:
+            # Find new points from the linelist (should we allow removal of the originals?)
+            twave = utils.func_val(fit, tcent/xnspecmin1, func, minx=fmin, maxx=fmax)
+            for ss, iwave in enumerate(twave):
+                mn = np.min(np.abs(iwave-llist['wave']))
+                if mn/disp < match_toler:
+                    imn = np.argmin(np.abs(iwave-llist['wave']))
+                    #if verbose:
+                    #    print('Adding {:g} at {:g}'.format(llist['wave'][imn],tcent[ss]))
+                    # Update and append
+                    all_ids[ss] = llist['wave'][imn]
+                    all_idsion[ss] = llist['ion'][imn]
+                    ifit.append(ss)
         # Keep unique ones
         ifit = np.unique(np.array(ifit, dtype=int))
         # Increment order?
