@@ -52,16 +52,6 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         self.meta['datasec'] = dict(ext=1, card='DATASEC')
 
-    def configuration_keys(self):
-        """
-        Extra keys for defining the configuration
-
-        Returns:
-
-        """
-        return ['datasec']
-
-
     def compound_meta(self, headarr, meta_key):
         """
 
@@ -88,7 +78,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
             #& (fitstbl['idname'] == 'OBJECT')
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['target'] == 'CuAr')#& (fitstbl['idname'] == 'ARC')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             return good_exp & (fitstbl['target'] == 'GCALflat')#& (fitstbl['idname'] == 'FLAT')
         if ftype == 'bias':
             return good_exp & (fitstbl['target'] == 'Bias')#& (fitstbl['idname'] == 'BIAS')
@@ -181,7 +171,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         cfg_keys = super(GeminiGMOSSpectrograph, self).configuration_keys()
         # Add grating tilt
-        return cfg_keys+['dispangle']
+        return cfg_keys+['dispangle', 'datasec']
 
     def get_rawimage(self, raw_file, det):
         """

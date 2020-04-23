@@ -649,16 +649,8 @@ class Calibrations(object):
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph, self.par['slitedges'],
                                                     files=trace_image_files)
 
-                try:
-                    self.edges.auto_trace(bpm=self.msbpm, det=self.det, save=False)
-                except:
-                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                    master_key=self.master_key_dict['trace'])
-                    msgs.error('Crashed out of finding the slits. Have saved the work done to '
-                               'disk but it needs fixing.')
-                    return
-                else:
-                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                self.edges.auto_trace(bpm=self.msbpm, det=self.det, save=False)
+                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
                                     master_key=self.master_key_dict['trace'])
 
                 # Show the result if requested
