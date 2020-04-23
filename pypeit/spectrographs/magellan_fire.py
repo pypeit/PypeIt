@@ -143,10 +143,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'magellan_fire'
-        # No overscan
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
+
         # Wavelengths
         # 1D wavelength solution with OH lines
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0
@@ -346,10 +343,6 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'magellan_fire_long'
 
-        # No overscan
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
         # Wavelengths
         # 1D wavelength solution with arc lines
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0

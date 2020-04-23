@@ -104,9 +104,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['satpix'] ='nothing'
         par['reduce']['extraction']['boxcar_radius'] = 0.75  # arcsec
 
-        # Overscan but not bias
-        #  This seems like a kludge of sorts
-        par['calibrations']['biasframe']['useframe'] = 'none'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]

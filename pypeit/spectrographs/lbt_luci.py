@@ -266,10 +266,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'lbt_luci1'
 
-        # for key in par['calibrations'].keys():
-        #     print(key)
-        #     par['calibrations'][key]['process']['overscan'] = 'none'
-
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
@@ -307,9 +303,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
-
-        #par['scienceframe']['process']['overscan'] = 'none'
-        # par['standardframe']['process']['overscan'] = 'none'
 
         return par
 
@@ -384,10 +377,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'lbt_luci2'
 
-        # for key in par['calibrations'].keys():
-        #     print(key)
-        #     par['calibrations'][key]['process']['overscan'] = 'none'
-
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
@@ -426,8 +415,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
 
-        #par['scienceframe']['process']['overscan'] = 'none'
-        # par['standardframe']['process']['overscan'] = 'none'
 
         return par
 
