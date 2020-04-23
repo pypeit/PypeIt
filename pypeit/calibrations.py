@@ -914,10 +914,9 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
                         # Allow for pixelflat inserted
-                        if ftype == 'pixelflat':
-                            if par['calibrations']['flatfield']['pixelflat_file'] is not None:
-                                continue
-                        # Fail
+                        if ftype is 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                            continue
+                        # Otherwise fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
                         if raise_error:
                             msgs.error(msg)

@@ -91,9 +91,14 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
+        # Should be we be illumflattening?
 
-        turn_off = dict(use_biasimage=False, use_overscan=False)
+        # Flats
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
+
+        #turn_off = dict(use_biasimage=False, use_overscan=False)
+        #par.reset_all_processimages_par(**turn_off)
 
 
         # The settings below enable NIRSPEC dark subtraction from the traceframe and pixelflatframe, but enforce
