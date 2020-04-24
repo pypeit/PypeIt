@@ -627,6 +627,9 @@ class Identify(object):
                         widx = np.argmin(np.abs(waveest-self._lines))
                         self.linelist_update(widx)
                         self._slidell.set_val(self._slideval)
+                        # Print to the information panel
+                        self.update_infobox(message="Pixel position = {0:.1f}  Estimated wavelength = {1:.3f}".format(
+                                            self._detns[self._detns_idx], waveest), yesno=False)
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
