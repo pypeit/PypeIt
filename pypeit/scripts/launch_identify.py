@@ -94,7 +94,9 @@ def main(args):
     final_fit = arcfitter.get_results()
 
     # Ask the user if they wish to store the result in PypeIt calibrations
-    if final_fit['rms'] < args.rmstol:
+    if 'rms' not in final_fit.keys():
+        print("No wavelength solution available")
+    elif final_fit['rms'] < args.rmstol:
         ans = ''
         while ans != 'y' and ans != 'n':
             ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")

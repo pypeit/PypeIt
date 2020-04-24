@@ -28,6 +28,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'c' : "Clear automatically identified lines",
                    'd' : "Delete all line identifications (start from scratch)",
                    'f' : "Fit the wavelength solution",
+                   'g' : "Toggle ghost solution on/off (display predicted line positions)",
                    'l' : "Load saved line IDs from file",
                    'm' : "Select line",
                    'r' : "Refit a line",
@@ -142,6 +143,14 @@ class Identify(object):
         self._qconf = False  # Confirm quit message
         self._changes = False
         self._wavepix = 1   # Show wavelength (0) or pixels (1) on the x-axis of the main panel
+        # Setup ghost properties
+        # The ghost params correspond to the central wavelength and dispersion, as measured at the middle pixel of the display
+        self._ghosttrans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
+        self._ghostmode = False  # Display a ghost wavelength solution
+        self._ghostdown = False
+        self._ghostparam = [0.0, 1.0]  # Ghost params [shift, scale] = [wavecen, disp]
+        self.gstlines = []
+        self.gsttexts = []
 
         # If an initial solution is available, load it
         if wv_calib is not None:
@@ -291,6 +300,8 @@ class Identify(object):
         self.toggle_wavepix()
         self.draw_residuals()
         self.draw_lines()
+        if self._ghostmode:
+            self.draw_ghost()
         self.canvas.draw()
 
     def linelist_update(self, val):
@@ -353,6 +364,48 @@ class Identify(object):
         self.spec.set_xdata(self.plotx)
         if toggled:
             self.axes['main'].set_xlim([self.plotx.min(), self.plotx.max()])
+
+    def draw_ghost(self):
+        """Draw tick marks at the location of the ghost
+        """
+        for i in self.gstlines: i.remove()
+        for i in self.gsttexts: i.remove()
+        self.gstlines = []
+        self.gsttexts = []
+        # Decide if pixels or wavelength is being plotted
+        xmn, xmx = self.axes['main'].get_xlim()
+        if self._wavepix == 0:
+            # Plotting wavelength
+            plotx = (self._lines+self._ghostparam[0])*self._ghostparam[1]
+        elif self._fitdict['fitc'] is not None:
+            # Plotting pixels
+            xnorm = self._fitdict['xnorm']
+
+            # Calculate the estimated wavelength of the detections
+            specy = utils.func_val(self._fitdict['fitc'],
+                                   self.specx / xnorm,
+                                   self._fitdict["function"],
+                                   minx=self._fitdict['fmin'],
+                                   maxx=self._fitdict['fmax'])
+            if np.all(specy[1:]-specy[:-1] > 0):
+                plotx = np.interp(self._lines, specy, self.specx)
+            elif np.all(specy[1:]-specy[:-1] < 0):
+                plotx = np.interp(self._lines, specy[::-1], self.specx[::-1])
+            else:
+                specw = (self._lines+self._ghostparam[0])*self._ghostparam[1]
+                plotx = specw*self.specx.size/(np.max(specw) - np.min(specw))
+        else:
+            specw = (self._lines + self._ghostparam[0]) * self._ghostparam[1]
+            plotx = self.specx.size * (specw - np.min(specw)) / (np.max(specw) - np.min(specw))
+        # Plot the lines
+        w = np.where((plotx > xmn) & (plotx < xmx))[0]
+        for i in range(w.size):
+            self.gstlines.append(self.axes['main'].plot([plotx[w[i]], plotx[w[i]]], [0.45, 0.55],
+                                                        color='g', transform=self._ghosttrans))
+            txt = "{0:.2f}".format(self._lines[w[i]])
+            self.gsttexts.append(
+                self.axes['main'].annotate(txt, (plotx[w[i]], 0.6), rotation=90.0, alpha=0.5,
+                                 color='g', ha='center', xycoords=self._ghosttrans))
 
     def draw_lines(self):
         """Draw the lines and annotate with their IDs
@@ -728,6 +781,9 @@ class Identify(object):
             self.replot()
         elif key == 'f':
             self.fitsol_fit()
+            self.replot()
+        elif key == 'g':
+            self._ghostmode = not self._ghostmode
             self.replot()
         elif key == 'l':
             self.load_IDs()
