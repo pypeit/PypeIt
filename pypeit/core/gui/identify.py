@@ -1007,8 +1007,10 @@ class Identify(object):
         """Update the ghosts
         """
         if self._addsub == 1:
+            # LMB
             self._ghostparam[1] = self._start - self._end
         else:
+            # RMB
             self._ghostparam[0] = self._start - self._end
 
     def load_IDs(self, wv_calib=None, fname='waveid.ascii'):
