@@ -300,8 +300,7 @@ class Identify(object):
         self.toggle_wavepix()
         self.draw_residuals()
         self.draw_lines()
-        if self._ghostmode:
-            self.draw_ghost()
+        self.draw_ghost()
         self.canvas.draw()
 
     def linelist_update(self, val):
@@ -368,10 +367,16 @@ class Identify(object):
     def draw_ghost(self):
         """Draw tick marks at the location of the ghost
         """
-        for i in self.gstlines: i.remove()
+        for i in self.gstlines:
+            try:
+                i.remove()
+            except TypeError:
+                i[0].remove()
         for i in self.gsttexts: i.remove()
         self.gstlines = []
         self.gsttexts = []
+        if not self._ghostmode:
+            return
         # Decide if pixels or wavelength is being plotted
         xmn, xmx = self.axes['main'].get_xlim()
         if self._wavepix == 0:
@@ -690,7 +695,10 @@ class Identify(object):
                             tmp = self._start
                             self._start = self._end
                             self._end = tmp
-                        self.update_regions()
+                        if self._ghostmode:
+                            self.update_ghosts()
+                        else:
+                            self.update_regions()
         # Now plot
         trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
         self.canvas.restore_region(self.background)
@@ -994,6 +1002,14 @@ class Identify(object):
         """Update the regions used to fit Gaussian
         """
         self._fitregions[self._start:self._end] = self._addsub
+
+    def update_ghosts(self):
+        """Update the ghosts
+        """
+        if self._addsub == 1:
+            self._ghostparam[1] = self._start - self._end
+        else:
+            self._ghostparam[0] = self._start - self._end
 
     def load_IDs(self, wv_calib=None, fname='waveid.ascii'):
         """Load line IDs
