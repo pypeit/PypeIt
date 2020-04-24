@@ -1266,7 +1266,6 @@ def create_bal_mask(wave, bal_mask):
         bal_mask = np.array(bal_mask)
     wav_min_max = np.reshape(bal_mask,(nbal,2))
     for ibal in range(nbal):
-        print(wav_min_max[ibal,0],wav_min_max[ibal,1])
         bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
 
     return np.invert(bal_bpm)
