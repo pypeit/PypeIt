@@ -35,7 +35,12 @@ def main(args):
         elif ('spec1d' in ifile) and ('.txt' in ifile):
             spec1dinfos.append(ifile)
         else:
-            msgs.warn('{:} is not standard PypeIt output, skipping.'.format(ifile))
+            msgs.warn('{:} is not a standard PypeIt output.'.format(ifile))
+    if len(spec2dfiles) > len(spec1dfiles):
+        msgs.warn('The following exposures do not have 1D extractions:')
+        for ii in range(len(spec2dfiles)):
+            if not os.path.exists(os.path.join(args.sci_path, spec2dfiles[ii].replace('spec2d','spec1d'))):
+                msgs.info('\t {:}'.format(spec2dfiles[ii]))
 
     if len(spec1dfiles) > 0:
         par = fits.open(os.path.join(args.sci_path, spec1dfiles[0]))
