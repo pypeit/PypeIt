@@ -29,6 +29,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'd' : "Delete all line identifications (start from scratch)",
                    'f' : "Fit the wavelength solution",
                    'g' : "Toggle ghost solution on/off (display predicted line positions)",
+                   'h' : "Reset ghost params",
                    'l' : "Load saved line IDs from file",
                    'm' : "Select line",
                    'r' : "Refit a line",
@@ -127,6 +128,7 @@ class Identify(object):
         canvas.mpl_connect('button_press_event', self.button_press_callback)
         canvas.mpl_connect('key_press_event', self.key_press_callback)
         canvas.mpl_connect('button_release_event', self.button_release_callback)
+        canvas.mpl_connect('motion_notify_event', self.motion_notify_event)
         self.canvas = canvas
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
 
@@ -139,6 +141,7 @@ class Identify(object):
         self._fitr = None  # Matplotlib shaded fit region (for refitting lines)
         self._fitregions = np.zeros(self.specdata.size, dtype=np.int)  # Mask of the pixels to be included in a fit
         self._addsub = 0   # Adding a region (1) or removing (0)
+        self._msedown = False  # Is the mouse button being held down (i.e. dragged)
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
         self._qconf = False  # Confirm quit message
         self._changes = False
@@ -375,33 +378,14 @@ class Identify(object):
         for i in self.gsttexts: i.remove()
         self.gstlines = []
         self.gsttexts = []
-        if not self._ghostmode:
+        # Must have ghost mode on, plotting in wavelength, and have an estimated wavelength solution
+        if not self._ghostmode or self._wavepix != 0 or self._fitdict['fitc'] is None:
             return
-        # Decide if pixels or wavelength is being plotted
-        xmn, xmx = self.axes['main'].get_xlim()
-        if self._wavepix == 0:
-            # Plotting wavelength
-            plotx = (self._lines+self._ghostparam[0])*self._ghostparam[1]
-        elif self._fitdict['fitc'] is not None:
-            # Plotting pixels
-            xnorm = self._fitdict['xnorm']
 
-            # Calculate the estimated wavelength of the detections
-            specy = utils.func_val(self._fitdict['fitc'],
-                                   self.specx / xnorm,
-                                   self._fitdict["function"],
-                                   minx=self._fitdict['fmin'],
-                                   maxx=self._fitdict['fmax'])
-            if np.all(specy[1:]-specy[:-1] > 0):
-                plotx = np.interp(self._lines, specy, self.specx)
-            elif np.all(specy[1:]-specy[:-1] < 0):
-                plotx = np.interp(self._lines, specy[::-1], self.specx[::-1])
-            else:
-                specw = (self._lines+self._ghostparam[0])*self._ghostparam[1]
-                plotx = specw*self.specx.size/(np.max(specw) - np.min(specw))
-        else:
-            specw = (self._lines + self._ghostparam[0]) * self._ghostparam[1]
-            plotx = self.specx.size * (specw - np.min(specw)) / (np.max(specw) - np.min(specw))
+        xmn, xmx = self.axes['main'].get_xlim()
+        cent = 0.5*(xmn+xmx)
+        plotx = cent + (self._lines + self._ghostparam[0] - cent)*self._ghostparam[1]
+
         # Plot the lines
         w = np.where((plotx > xmn) & (plotx < xmx))[0]
         for i in range(w.size):
@@ -642,8 +626,24 @@ class Identify(object):
             self._addsub = 1
         elif event.button == 3:
             self._addsub = 0
+        self._msedown = True
         axisID = self.get_axisID(event)
         self._start = self.get_ind_under_point(event)
+        self._startdata = event.xdata
+        self._oldghostscl = self._ghostparam[1]
+
+    def motion_notify_event(self, event):
+        if event.inaxes is None:
+            return
+        self._middata = event.xdata
+        if self._ghostmode and self._msedown:
+            self.update_ghosts()
+            # Now plot
+            trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
+            self.canvas.restore_region(self.background)
+            self.draw_fitregions(trans)
+            # Now replot everything
+            self.replot()
 
     def button_release_callback(self, event):
         """What to do when the mouse button is released
@@ -654,6 +654,7 @@ class Identify(object):
         Returns:
             None
         """
+        self._msedown = False
         if event.inaxes is None:
             return
         if event.inaxes == self.axes['info']:
@@ -691,13 +692,13 @@ class Identify(object):
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
-                        if self._start > self._end:
-                            tmp = self._start
-                            self._start = self._end
-                            self._end = tmp
                         if self._ghostmode:
-                            self.update_ghosts()
+                            pass
                         else:
+                            if self._start > self._end:
+                                tmp = self._start
+                                self._start = self._end
+                                self._end = tmp
                             self.update_regions()
         # Now plot
         trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
@@ -791,7 +792,13 @@ class Identify(object):
             self.fitsol_fit()
             self.replot()
         elif key == 'g':
-            self._ghostmode = not self._ghostmode
+            if self._wavepix == 0:
+                self._ghostmode = not self._ghostmode
+                self.replot()
+            else:
+                self.update_infobox(message="To enable ghost mode, you need to identify some lines.\nYou also need to set wavelength as the x-axis scale", yesno=False)
+        elif key == 'h':
+            self._ghostparam = [0.0, 1.0]
             self.replot()
         elif key == 'l':
             self.load_IDs()
@@ -1006,12 +1013,31 @@ class Identify(object):
     def update_ghosts(self):
         """Update the ghosts
         """
-        if self._addsub == 1:
-            # LMB
-            self._ghostparam[1] = self._start - self._end
-        else:
-            # RMB
-            self._ghostparam[0] = self._start - self._end
+        if self._addsub == 0:  # RMB
+            # Stretching factor
+            xmn, xmx = self.axes['main'].get_xlim()
+            self._ghostparam[1] = self._oldghostscl*(1.0 + (self._middata - self._startdata) / (xmx - xmn))
+        else:  # LMB
+            if self._wavepix == 0:
+                # Plotting wavelength
+                self._ghostparam[0] = self._middata - self._startdata
+            elif self._fitdict['fitc'] is not None:
+                # Plotting pixels and have a wavelength solution
+                xnorm = self._fitdict['xnorm']
+
+                # Calculate the estimated wavelength of the detections
+                specy = utils.func_val(self._fitdict['fitc'],
+                                       np.array([self._startdata, self._middata]) / xnorm,
+                                       self._fitdict["function"],
+                                       minx=self._fitdict['fmin'],
+                                       maxx=self._fitdict['fmax'])
+                self._ghostparam[0] = specy[1] - specy[0]
+            else:
+                # Plotting pixels, but don't have a wavelength solution
+                scale = (np.max(self._lines) - np.min(self._lines))/self.specx.size # Angstroms per pixel
+                self._ghostparam[0] = (self._middata - self._startdata) * scale # Calculate the shift in Angstroms
+            # grad_orig = self.specx.size / (np.max(self._lines) - np.min(self._lines))
+            # plotx = self._ghostparam[1] * grad_orig * (self._lines - np.min(self._lines) + self._ghostparam[0])
 
     def load_IDs(self, wv_calib=None, fname='waveid.ascii'):
         """Load line IDs
