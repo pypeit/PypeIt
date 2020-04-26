@@ -116,8 +116,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Templates
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
-            par['calibrations']['wavelengths']['method'] = 'identify'  # 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = ''
+            par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200'
             par['calibrations']['wavelengths']['lamps'] = ['ThAr']  # TODO :: This default may need to be changed to FeAr
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
