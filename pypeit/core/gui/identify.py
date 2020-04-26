@@ -506,6 +506,7 @@ class Identify(object):
         self.draw_fitregions(trans)
         self.axes['main'].draw_artist(self.spec)
         self.draw_lines()
+        self.draw_ghost()
 
     def draw_fitregions(self, trans):
         """Refresh the fit regions
@@ -595,13 +596,13 @@ class Identify(object):
             gd_det = np.where((self._lineflg == 1) | (self._lineflg == 2))[0]
             bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
             try:
-                n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
+                #n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
                 final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det,
                                                       self._lineids[gd_det], self._line_lists, bdisp,
-                                                      verbose=False, n_first=self.par['n_first'],
+                                                      verbose=False, n_first=self._fitdict["polyorder"],
                                                       match_toler=self.par['match_toler'],
                                                       func=self.par['func'],
-                                                      n_final=n_final,
+                                                      n_final=self._fitdict["polyorder"], input_only=True,
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])
             except TypeError:
@@ -626,7 +627,8 @@ class Identify(object):
             self._addsub = 1
         elif event.button == 3:
             self._addsub = 0
-        self._msedown = True
+        if event.inaxes == self.axes["main"]:
+            self._msedown = True
         axisID = self.get_axisID(event)
         self._start = self.get_ind_under_point(event)
         self._startdata = event.xdata
@@ -828,6 +830,7 @@ class Identify(object):
             self.replot()
         elif key == 'z':
             self.delete_line_id()
+            self.operations('f', axisID, event)
         elif key == '+':
             if self._fitdict["polyorder"] < 10:
                 self._fitdict["polyorder"] += 1
