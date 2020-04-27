@@ -477,12 +477,19 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
 
         # Adjustments to parameters for VIS
-        par['calibrations']['arcframe']['process']['overscan_method'] = 'median'
-        # X-SHOOTER arcs/tilts are also have different binning with bias frames
-        par['calibrations']['arcframe']['process']['use_biasimage'] = False
-        par['calibrations']['tiltframe']['process']['use_biasimage'] = False
-        # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
+        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median', use_darkimage=False, use_illumflat=False, use_pixelflat=False)
+        par.reset_all_processimages_par(**turn_on)
+        # X-SHOOTER arcs/tilts are also have different binning with bias frames, so don't use bias frames
+        # Don't use the biases for any calibrations since it appears to be a different amplifier readout
         par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
+        # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
+        # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
+        par['scienceframe']['process']['use_biasimage']=True
+        par['scienceframe']['process']['use_illumflat']=True
+        par['scienceframe']['process']['use_pixelflat']=True
+        par['calibrations']['standardframe']['process']['use_illumflat']=True
+        par['calibrations']['standardframe']['process']['use_pixelflat']=True
+        #par['scienceframe']['useframe'] ='overscan'
 
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
@@ -528,10 +535,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         par['reduce']['findobj']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
-
-        # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
-        # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
-        par['scienceframe']['useframe'] ='overscan'
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
