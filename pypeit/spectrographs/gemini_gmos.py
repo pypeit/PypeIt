@@ -102,6 +102,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         Set default parameters for Gemini GMOS reductions.
         """
         par = pypeitpar.PypeItPar()
+
+        
+
         par['calibrations']['slitedges']['edge_thresh'] = 20.
         par['calibrations']['slitedges']['fit_order'] = 3
 
