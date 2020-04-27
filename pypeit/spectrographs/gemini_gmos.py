@@ -103,7 +103,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
 
-        
+
 
         par['calibrations']['slitedges']['edge_thresh'] = 20.
         par['calibrations']['slitedges']['fit_order'] = 3
