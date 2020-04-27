@@ -268,10 +268,10 @@ class WaveCalib(object):
             for slit_idx in ok_mask_idx:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
-                try:
-                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
-                except:
-                    embed(header='269 of wavecalib')
+                #try:
+                autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
+                #except:
+                # embed(header='269 of wavecalib')
 
         # Return
         self.steps.append(inspect.stack()[0][3])
