@@ -57,7 +57,7 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
                         help="spec1d file for the standard that will be used to compute sensitivity function")
-    parser.add_argument("--algorithm", type=str, default='qso', choices=['qso', 'star', 'poly'],
+    parser.add_argument("--algorithm", type=str, default=None, choices=['qso', 'star', 'poly'],
                         help="R|telluric fitting algorithm"
                         "The algorithm options are:\n"
                         "\n"

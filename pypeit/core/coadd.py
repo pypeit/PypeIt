@@ -207,7 +207,7 @@ def renormalize_errors_qa(chi, maskchi, sigma_corr, sig_range = 6.0, title='', q
     gauss_corr = scipy.stats.norm(loc=0.0,scale=sigma_corr)
 
     plt.figure(figsize=(12, 8))
-    plt.hist(chi[maskchi],bins=bins_histo,normed=True,histtype='step', align='mid',color='k',linewidth=3,label='Chi distribution')
+    plt.hist(chi[maskchi],bins=bins_histo,density=True,histtype='step', align='mid',color='k',linewidth=3,label='Chi distribution')
     plt.plot(xvals,gauss.pdf(xvals),'c-',lw=3,label='sigma=1')
     plt.plot(xvals,gauss_corr.pdf(xvals),'m--',lw=2,label='new sigma={:4.2f}'.format(round(sigma_corr,2)))
     plt.ylabel('Residual distribution')
