@@ -562,7 +562,7 @@ class Calibrations(object):
         if stacked_flat is None and len(pixflat_image_files) > 0:
             stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                self.par['pixelflatframe'],
-                                                               pixflat_image_files,
+                                                               pixflat_image_files, dark=self.msdark, 
                                                                bias=self.msbias, bpm=self.msbpm)
         if stacked_flat is not None:
             # Create pixelflat and illumination flat from illumination flat stack

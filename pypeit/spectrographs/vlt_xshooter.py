@@ -184,6 +184,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
 
+        # Turn off illumflat
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
+        par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
+        par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
+
+        # Is this needed below?
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] = 'nothing'
+        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
+
+
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 8
@@ -224,20 +238,6 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         #par['calibrations']['standardframe']['process']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
-
-        # Turn of illumflat
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False)
-        par.reset_all_processimages_par(**turn_off)
-
-        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
-        par['calibrations']['traceframe']['process']['use_darkimage'] = True
-        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
-        par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
-
-        # Is this needed below?
-        par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] = 'nothing'
-        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
