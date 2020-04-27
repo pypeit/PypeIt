@@ -1,5 +1,3 @@
-.. highlight:: rest
-
 ***********
 Keck DEIMOS
 ***********
@@ -35,3 +33,12 @@ setting is designed to remove alignment star boxes
 from the analysis.  If you have real slits which are
 the same size (or smaller) they too will be eliminated.
 
+Calibrations
+============
+
+Fluxing
+-------
+
+If you use the LVMslitC (common), avoid placing your standard
+star in the right-most slit as you are likely to collide with
+a bad column.

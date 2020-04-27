@@ -586,8 +586,8 @@ class GeminiGMOSNHamSpectrograph(GeminiGMOSNSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_r400_ham.fits'
         elif self.get_meta_value(scifile, 'dispname')[0:4] == 'B600':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'gemini_gmos_b600_ham.fits'
-        #
         return par
+
 
 class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
     """
