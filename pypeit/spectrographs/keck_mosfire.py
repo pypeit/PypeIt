@@ -84,7 +84,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Do not illumination correct. We should also not be flat fielding given the bars.
         # TODO Implement imaging flats for MOSFIRE. Do test with/without illumination flats.
         # Turn of illumflat
-        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
 
         # Extraction
