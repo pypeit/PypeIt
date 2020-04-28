@@ -57,9 +57,9 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
                         help="spec1d file for the standard that will be used to compute sensitivity function")
-    parser.add_argument("--algorithm", type=str, default=None, choices=['qso', 'star', 'poly'],
-                        help="R|telluric fitting algorithm"
-                        "The algorithm options are:\n"
+    parser.add_argument("--objmodel", type=str, default=None, choices=['qso', 'star', 'poly'],
+                        help="R|science object model used in the fitting"
+                        "The options are:\n"
                         "\n"
                         "    qso  = For quasars. You might need to set redshift, bal_mask in the tell file.\n"
                         "\n"
@@ -68,7 +68,7 @@ def parser(options=None):
                         "    poly = For other type object, You might need to set fit_region_mask, \n"
                         "           and norder in the tell_file."
                         )
-    parser.add_argument("-g", "--tell_grid", type=str, help="Telluric model grid. You should download the giant grid file\n"
+    parser.add_argument("-g", "--tell_grid", type=str, help="Telluric grid. You should download the giant grid file\n"
                         "to the pypeit/data/telluric folder.")
     parser.add_argument("-p", "--pca_file", type=str, help="Quasar PCA pickle file with full path. The default pickle file \n"
                         "(qso_pca_1200_3100.pckl) should be stored in the pypeit/data/telluric folder. If you change the pickle \n"
@@ -79,19 +79,19 @@ def parser(options=None):
                         "The --tell_file option requires a .tell file with the following format:\n"
                         "\n"
                         "    [tellfit]\n"
-                        "         algorithm = qso\n"
+                        "         objmodel = qso\n"
                         "         redshift = 7.6\n"
                         "         bal_mask = 10825,12060\n"
                         "         pca_lower = 1200.\n"
                         "         pca_upper = 3100.\n"
                         "OR\n"
                         "    [tellfit]\n"
-                        "         algorithm = star\n"
+                        "         objmodel = star\n"
                         "         star_type = A0\n"
                         "         star_mag = 8.\n"
                         "OR\n"
                         "    [tellfit]\n"
-                        "         algorithm = poly\n"
+                        "         objmodel = poly\n"
                         "         polyorder = 3\n"
                         "         fit_region_mask = 9000.,9500.\n"
                         "\n"
@@ -126,8 +126,8 @@ def main(args):
         par = spectrograph_def_par
 
     # If args was provided override defaults. Note this does undo .tell file
-    if args.algorithm is not None:
-        par['tellfit']['algorithm'] = args.algorithm
+    if args.objmodel is not None:
+        par['tellfit']['objmodel'] = args.objmodel
     if args.pca_file is not None:
         par['tellfit']['pca_file'] = args.pca_file
     if args.redshift is not None:
@@ -150,13 +150,13 @@ def main(args):
     modelfile = (os.path.basename(args.spec1dfile)).replace('.fits','_tellmodel.fits')
 
     # Run the telluric fitting procedure.
-    if par['tellfit']['algorithm']=='qso':
+    if par['tellfit']['objmodel']=='qso':
         # run telluric.qso_telluric to get the final results
         TelQSO = telluric.qso_telluric(args.spec1dfile, par['tellfit']['tell_grid'], par['tellfit']['pca_file'],
                                        par['tellfit']['redshift'], modelfile, outfile,
                                        bal_mask=par['tellfit']['bal_mask'],
                                        debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
-    elif par['tellfit']['algorithm']=='star':
+    elif par['tellfit']['objmodel']=='star':
         TelStar = telluric.star_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
                                          polyorder=par['tellfit']['polyorder'],
                                          star_type=par['tellfit']['star_type'],
@@ -166,7 +166,7 @@ def main(args):
                                          func=par['tellfit']['func'], model=par['tellfit']['model'],
                                          mask_abs_lines=par['tellfit']['mask_abs_lines'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
-    elif par['tellfit']['algorithm']=='poly':
+    elif par['tellfit']['objmodel']=='poly':
         TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
                                          polyorder=par['tellfit']['polyorder'],
                                          fit_region_mask=par['tellfit']['fit_region_mask'],
@@ -174,4 +174,4 @@ def main(args):
                                          mask_lyman_a=par['tellfit']['mask_lyman_a'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     else:
-        msgs.error("Algorithm is not supported yet. Please choose one of 'qso', 'star', 'poly'.")
+        msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")

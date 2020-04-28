@@ -1,0 +1,151 @@
+=======
+Telluric correction
+=======
+
+Overview
+========
+Telluric correction is done after the main run of PypeIt, :doc:`fluxing` and :doc:`coadd1d`.
+The algorithm for deriving the best telluric model is pretty similar with that used
+in the IR sensitivity function, which fits an user defined model and telluric
+to a giant telluric grid. Please see :doc:`fluxing` for more details.
+
+pypeit_tellfit
+===================
+
+The primary script is called `pypeit_tellfit`_ which takes
+an input file or arguments to guide the process. There are three
+different object models for the fitting:
+
+object models
+------------
+The object model options are:
+ - qso = for quasar or AGN.
+ - star = for stellar object.
+ - poly = can be used for any other object by solving polynomial model.
+
+
+tellfit file
+------------
+
+The format of that file
+is described in the *usage* of the script, i.e. type
+*pypeit_tellfit -h*. Here are three examples for
+three different object models ::
+
+    # User-defined tellfit parameters for a quasar at redshift seven
+    [tellfit]
+         objmodel = qso
+         redshift = 7.0
+         bal_mask = 10825,12060
+
+    OR
+
+    # User-defined tellfit parameters for a A0 type star
+    [tellfit]
+         objmodel = star
+         star_type = A0
+         star_mag = 8.0
+
+    OR
+
+    # User-defined tellfit parameters for other type target
+    [tellfit]
+         objmodel = poly
+         polyorder = 3
+         fit_region_mask = 9000, 9500
+
+See `Parameters`_ for other parameters.
+
+
+run
+---
+
+Then run the script::
+
+    pypeit_tellfit J1342_GNIRS.fits -t gemini_gnirs.tell
+
+A substantial set of output are printed to the screen, and
+if successful the final spectrum is written to disk. Both
+input and output file are in the standard coadd1d data model format.
+See :doc:`coadd1d` for the current data model.
+
+
+
+The parameters that guide the tellfit process are also written
+to disk for your records. The default location is *telluric.par*.
+You can choose another location with the `--par_outfile`_
+option.
+
+Command Line Options
+--------------------
+
+--par_outfile
++++++++++++++
+
+This input filename will hold a listing of the parameters
+used to run the coadd1d process.
+
+Parameters
+==========
+
+qso model
+-------
+
+The two main parameters for a qso model are::
+
+  redshift and bal_mask
+
+redshift
+++++++++++
+The redshift of your science object you want to correct telluric absorption
+
+bal_mask
+++++++++++
+You can set a bal_mask if your quasar/AGN is a broad absorption line quasar.
+It is a list with even float numbers in the format of (in case of two absorption troughs)::
+
+    bal1_wave_min, bal1_wave_max, bal2_wave_min, bal2_wave_max
+
+star model
+-------
+
+The main parameters for a star model are::
+
+  star_type and star_mag
+
+star_type
+++++++++++
+The spectra type of your star. If A0, it will use VEGA spectrum, otherwise will use a
+Kurucz SED model.
+
+
+star_mag
+++++++++++
+V-band magnitude of your star.
+
+poly model
+-------
+
+The main parameters for a poly model are::
+
+  poly_order and fit_region_mask
+
+poly_order
+++++++++++
+The polynomial order you want to use for modeling your object
+
+fit_region_mask
+++++++++++
+You can specify a list of specific regions used for the fitting, if not
+set it will simply use the whole spectrum. The format for this parameter
+is exactly same with the `bal_mask`_ defined above.
+
+
+Show your final telluric corrected spectrum
+==========================
+
+The final spectrum may be viewed with the *lt_xspec* script which loads the data
+and launches a GUI from the linetools package. e.g.::
+
+    lt_xspec J1342_GNIRS_tellcorr.fits
+
