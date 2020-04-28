@@ -170,8 +170,7 @@ def main(args):
     elif par['tellfit']['algorithm']=='poly':
         TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
                                          polyorder=par['tellfit']['polyorder'],
-                                         fit_region_min=par['tellfit']['fit_region_min'],
-                                         fit_region_max=par['tellfit']['fit_region_max'],
+                                         fit_region_mask=par['tellfit']['fit_region_mask'],
                                          func=par['tellfit']['func'], model=par['tellfit']['model'],
                                          mask_lyman_a=par['tellfit']['mask_lyman_a'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)

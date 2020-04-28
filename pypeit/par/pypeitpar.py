@@ -1562,7 +1562,7 @@ class TellFitPar(ParSet):
     def __init__(self, algorithm=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_mask=None,
                  bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
                  star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
-                 func=None, model=None, polyorder=None, fit_region_min=None, fit_region_max=None, mask_lyman_a=None,
+                 func=None, model=None, polyorder=None, fit_region_mask=None, mask_lyman_a=None,
                  delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
 
         # Grab the parameter names and values from the function arguments
@@ -1667,13 +1667,9 @@ class TellFitPar(ParSet):
         descr['minmax_coeff_bounds'] = "Normalization bounds"
 
         ### Start parameters for poly_telluric
-        defaults['fit_region_min'] = None
-        dtypes['fit_region_min'] = [float,list]
-        descr['fit_region_min'] = "a list of minimum wavelength"
-
-        defaults['fit_region_max'] = None
-        dtypes['fit_region_max'] = [float,list]
-        descr['fit_region_max'] = "a list of minimum wavelength"
+        defaults['fit_region_mask'] = None
+        dtypes['fit_region_mask'] = list
+        descr['fit_region_mask'] = "a list of minimum wavelength"
 
         defaults['mask_lyman_a'] = True
         dtypes['mask_lyman_a'] = bool
@@ -1694,7 +1690,7 @@ class TellFitPar(ParSet):
         parkeys = ['algorithm','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_mask', 'bounds_norm',
                    'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
                    'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
-                   'func','model','polyorder','fit_region_min','fit_region_max','mask_lyman_a',
+                   'func','model','polyorder','fit_region_mask','mask_lyman_a',
                    'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])

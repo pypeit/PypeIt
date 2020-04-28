@@ -1432,7 +1432,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
-                  fit_region_min=None, fit_region_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
+                  fit_region_mask=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=5,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
@@ -1471,15 +1471,9 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     else:
         mask_tot = mask
 
-    if fit_region_min is not None:
-        if np.size(fit_region_min) != np.size(fit_region_max):
-            msgs.error('fit_region_min should have the same size with fit_region_max.')
-        else:
-            mask_region = np.zeros_like(mask_tot,dtype=bool)
-            for ii in range(np.size(fit_region_min)):
-                mask_ii = (wave>fit_region_min[ii]) & (wave<fit_region_max[ii])
-                mask_region[mask_ii] = True
-            mask_tot = mask_tot & mask_region
+    if fit_region_mask is not None:
+        mask_region = create_bal_mask(wave, fit_region_mask)
+        mask_tot = mask_tot & np.invert(mask_region)
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params,
