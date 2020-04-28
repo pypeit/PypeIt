@@ -1189,6 +1189,7 @@ class ArchiveReid:
         for slit in range(self.nslits):
             # ToDO should we still be populating wave_calib with an empty dict here?
             if slit not in self.ok_mask:
+                self.wv_calib[str(slit)] = None
                 continue
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
@@ -1211,7 +1212,7 @@ class ArchiveReid:
                            debug_reid=self.debug_reid)
             # Check if an acceptable reidentification solution was found
             if not self.all_patt_dict[str(slit)]['acceptable']:
-                self.wv_calib[str(slit)] = {}
+                self.wv_calib[str(slit)] = None
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
 
@@ -1225,7 +1226,7 @@ class ArchiveReid:
             # Did the fit succeed?
             if final_fit is None:
                 # This pattern wasn't good enough
-                self.wv_calib[str(slit)] = {}
+                self.wv_calib[str(slit)] = None
                 self.bad_slits = np.append(self.bad_slits, slit)
                 continue
             # Is the RMS below the threshold?
@@ -1496,6 +1497,7 @@ class HolyGrail:
         for slit in range(self._nslit):
             msgs.info("Working on slit: {}".format(slit))
             if slit not in self._ok_mask:
+                self._all_final_fit[str(slit)] = None
                 continue
             # TODO Pass in all the possible params for detect_lines to arc_lines_from_spec, and update the parset
             # Detect lines, and decide which tcent to use
@@ -1601,6 +1603,7 @@ class HolyGrail:
         self._det_stro = {}
         for slit in range(self._nslit):
             if slit not in self._ok_mask:
+                self._all_final_fit[str(slit)] = {}
                 continue
             # Detect lines, and decide which tcent to use
             self._all_tcent, self._all_ecent, self._cut_tcent, self._icut, _ =\
