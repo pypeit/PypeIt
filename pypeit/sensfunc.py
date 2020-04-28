@@ -268,7 +268,7 @@ class SensFunc(object):
             interp_func = scipy.interpolate.interp1d(wave_splice[np.invert(zeros)],
                                                  sensfunc_splice[np.invert(zeros)],
                                                  kind='nearest', fill_value=1., bounds_error=False) #
-                      #kind='nearest', fill_value='extrapoloate', bounds_error=False) #  extrapolate fails for JXP
+            #kind='nearest', fill_value='extrapoloate', bounds_error=False) #  extrapolate fails for JXP, even on 1.4.1
             zero_values = interp_func(wave_splice[zeros])
             sensfunc_splice[zeros] = zero_values
 
