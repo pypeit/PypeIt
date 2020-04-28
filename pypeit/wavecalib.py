@@ -252,6 +252,7 @@ class WaveCalib(object):
 
         # Convert keys to spatial system
         self.wv_calib = {}
+        tmp = copy.deepcopy(final_fit)
         for idx in range(self.slits.nslits):
             if str(idx) in final_fit.keys():
                 self.wv_calib[str(self.slits.slitord_id[idx])] = final_fit.pop(str(idx))
@@ -267,10 +268,7 @@ class WaveCalib(object):
             for slit_idx in ok_mask_idx:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
-                try:
-                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
-                except:
-                    embed(header='271 of wavecalib')
+                autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
 
 
         # Return
