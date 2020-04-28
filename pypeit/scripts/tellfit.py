@@ -61,7 +61,7 @@ def parser(options=None):
                         help="R|telluric fitting algorithm"
                         "The algorithm options are:\n"
                         "\n"
-                        "    qso  = For quasars. This is the default option\n"
+                        "    qso  = For quasars.\n"
                         "\n"
                         "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
                         "\n"
