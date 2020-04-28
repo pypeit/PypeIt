@@ -61,11 +61,11 @@ def parser(options=None):
                         help="R|telluric fitting algorithm"
                         "The algorithm options are:\n"
                         "\n"
-                        "    qso  = For quasars.\n"
+                        "    qso  = For quasars. You might need to set redshift, bal_mask in the tell file.\n"
                         "\n"
                         "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
                         "\n"
-                        "    poly = For other type object, you might need to set fit_region_min, fit_region_max, \n"
+                        "    poly = For other type object, You might need to set fit_region_mask, \n"
                         "           and norder in the tell_file."
                         )
     parser.add_argument("-g", "--tell_grid", type=str, help="Telluric model grid. You should download the giant grid file\n"
