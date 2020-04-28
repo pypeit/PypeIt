@@ -97,7 +97,7 @@ window::
     Display MasterTrace image in a previously launched RC Ginga viewer
 
     positional arguments:
-      root             PYPIT Master Trace file root [e.g.
+      root             PypeIt Master Trace file root [e.g.
                        MasterTrace_A_01_aa.fits]
 
     optional arguments:
@@ -118,8 +118,13 @@ the illumination flat, and the flat model::
     Display MasterFlat images in a previously launched RC Ginga viewer
 
     positional arguments:
-      master_file  PYPIT MasterFlat file [e.g. MasterFlat_A_1_01.fits]
+      master_file  PypeIt MasterFlat file [e.g. MasterFlat_A_1_01.fits]
 
     optional arguments:
       -h, --help   show this help message and exit
 
+
+pypeit_flux_setup
+============
+
+This setups files for fluxing, coadding and telluric corrections.  See :doc:`flux`, :doc:`coadd1d`, and :doc:`telluric` for details
