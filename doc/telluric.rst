@@ -54,7 +54,7 @@ three different object models ::
          polyorder = 3
          fit_region_mask = 9000, 9500
 
-See `Parameters`_ for other parameters.
+See `Parameters`_ for details.
 
 
 run
@@ -63,6 +63,10 @@ run
 Then run the script::
 
     pypeit_tellfit J1342_GNIRS.fits -t gemini_gnirs.tell
+
+    OR
+
+    pypeit_tellfit J1342_GNIRS.fits --objmodel qso -r 7.52
 
 A substantial set of output are printed to the screen, and
 if successful the final spectrum is written to disk. Both
@@ -79,11 +83,41 @@ option.
 Command Line Options
 --------------------
 
+--objmodel
++++++++++++++
+Your object model, either qso, star or poly.
+
+--tell_grid OR -g
++++++++++++++
+The full path for the telluric grid file. In case of spectrograph which
+has defined the default grid, you do not need to set this argument.
+
+--pca_file or -p
++++++++++++++
+The full path for the qso pca pickle file. Only used in the qso model.
+The default is qso_pca_1200_3100.pckl which should be downloaded and put in
+the pypeit telluric data folder.
+
+--tell_file or -t
++++++++++++++
+The tellfit parameter file.
+
+--redshift or -r
++++++++++++++
+Redshift of your object.
+
+--debug
++++++++++++++
+show debug plots if set.
+
+--plot
++++++++++++++
+show the final telluric corrected spectrum if set.
+
 --par_outfile
 +++++++++++++
+File name for the tellfit parameters used in the fit.
 
-This input filename will hold a listing of the parameters
-used to run the coadd1d process.
 
 Parameters
 ==========
