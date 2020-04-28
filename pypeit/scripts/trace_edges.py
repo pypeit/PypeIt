@@ -10,7 +10,7 @@ Trace slit edges for a set of images.
 def parser(options=None):
 
     import argparse
-    from pypeit.spectrographs.util import valid_spectrographs
+    from pypeit import defs
 
     parser = argparse.ArgumentParser()
 
@@ -27,7 +27,7 @@ def parser(options=None):
                              'detectors selected by the pypeit file, if provided.')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier, which is only used if providing'
-                             'files directly: {0}'.format(', '.join(valid_spectrographs())))
+                             'files directly: {0}'.format(', '.join(defs.pypeit_spectrographs)))
     parser.add_argument('-b', '--binning', default=None, type=str,
                         help='Image binning in spectral and spatial directions.  Only used if'
                              'providing files directly; default is 1,1.')
@@ -87,14 +87,14 @@ def main(args):
         # Save the full file paths
         files = rdx.fitstbl.frame_paths(tbl_rows)
         # Trace image processing parameters
-        proc_par = rdx.caliBrate.par['traceframe']
+        proc_par = rdx.par['calibrations']['traceframe']
         # Slit tracing parameters
-        trace_par = rdx.caliBrate.par['slitedges']
+        trace_par = rdx.par['calibrations']['slitedges']
 
         # Get the bias files, if requested
         bias_rows = rdx.fitstbl.find_frames('bias', calib_ID=int(group), index=True)
         bias_files = rdx.fitstbl.frame_paths(bias_rows)
-        bias_par = rdx.caliBrate.par['biasframe']
+        bias_par = rdx.par['calibrations']['biasframe']
         if len(bias_files) == 0:
             bias_files = None
 

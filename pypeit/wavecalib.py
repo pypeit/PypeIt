@@ -105,7 +105,7 @@ class WaveCalib(object):
         self.bpm = msbpm
         if self.bpm is None:
             if msarc is not None:  # Can be None for load;  will remove this for DataContainer
-                self.bpm = msarc.mask 
+                self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -530,6 +530,9 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     """
     Main algorithm to build the wavelength image
 
+    Only applied to good slits, which means any non-flagged or flagged
+     in the exclude_for_reducing list
+
     Args:
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
@@ -543,9 +546,13 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
         `numpy.ndarray`_: The wavelength image.
     """
     # Setup
-    ok_slits = slits.mask == 0
+    #ok_slits = slits.mask == 0
+    bpm = slits.mask.astype(bool)
+    bpm &= np.invert(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
+    ok_slits = np.invert(bpm)
+    #
     image = np.zeros_like(tilts)
-    slitmask = slits.slit_img(flexure=spat_flexure)
+    slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
     par = wv_calib['par']
     slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
@@ -559,6 +566,8 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     # Unpack some 2-d fit parameters if this is echelle
     for slit_spat in slits.spat_id[ok_slits]:
         thismask = (slitmask == slit_spat)
+        if not np.any(thismask):
+            msgs.error("Something failed in wavelengths or masking..")
         if par['echelle']:
             # TODO: Put this in `SlitTraceSet`?
             order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
@@ -579,7 +588,6 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
                                              iwv_calib['function'],
                                              minx=iwv_calib['fmin'],
                                              maxx=iwv_calib['fmax'])
-
     # Return
     return image
 

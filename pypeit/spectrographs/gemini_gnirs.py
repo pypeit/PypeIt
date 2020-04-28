@@ -76,29 +76,24 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'gemini_gnirs'
-        # No overscan
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
+
+        # Image processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
 
         # Flats
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
-        par['calibrations']['standardframe']['process']['illumflatten'] = False
-        par['scienceframe']['process']['illumflatten'] = False
 
-        # Finding objects
-        par['reduce']['skysub']['bspline_spacing'] = 0.8
-        par['reduce']['findobj']['sig_thresh'] = 5.0
+        # Reduce parameters
+        par['reduce']['findobj']['sig_thresh'] = 5.0          # Object finding threshold
         par['reduce']['findobj']['find_trim_edge'] = [2,2]    # Slit is too short to trim 5,5 especially
         par['reduce']['findobj']['find_cont_fit'] = False     # Don't continuum fit objfind for narrow slits
         par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
-        # Extraction
+        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['global_sky_std']  = False    # Do not perform global sky subtraction for standard stars
+        par['reduce']['skysub']['no_poly'] = True             # Do not use polynomial degree of freedom for global skysub
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
-        # Sky Subtraction
-        par['reduce']['skysub']['global_sky_std']  = False # Do not perform global sky subtraction for standard stars
-        par['reduce']['skysub']['no_poly'] = True         # Do not use polynomial degree of freedom for global skysub
-
 
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
@@ -108,12 +103,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['traceframe']['exprng'] = [None, 30]
         par['calibrations']['standardframe']['exprng'] = [None, 30]
         par['scienceframe']['exprng'] = [30, None]
-
-        # Do not bias subtract
-        #par['scienceframe']['useframe'] = 'overscan'
-        # This is a hack for now until we can specify for each image type what to do. Bias currently
-        # controls everything
-        par['calibrations']['biasframe']['useframe'] = 'none'
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'

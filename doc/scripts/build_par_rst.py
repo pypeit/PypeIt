@@ -15,7 +15,8 @@ import numpy
 from pkg_resources import resource_filename
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
-from pypeit.spectrographs.util import load_spectrograph, valid_spectrographs
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.spectrographs import valid_spectrographs
 
 #-----------------------------------------------------------------------------
 #def class_name(p):
@@ -81,7 +82,7 @@ if __name__ == '__main__':
                            ':class:`pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
     lines += ['']
 
-    spectrographs = valid_spectrographs()
+    spectrographs = valid_spectrographs.pypeit_spectrographs
     for spec in spectrographs:
         s = load_spectrograph(spec)
         lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.spectrograph)]) ]

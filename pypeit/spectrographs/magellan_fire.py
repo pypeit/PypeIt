@@ -181,12 +181,15 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['pca_order'] = 3
 
-        # Scienceimage default parameters
-        par['reduce'] = pypeitpar.ReducePar()
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Model entire slit
+        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+
+        # Processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [20, None]
@@ -365,14 +368,18 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Scienceimage parameters
         par['reduce']['findobj']['sig_thresh'] = 5
         #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
-        # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
+
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [1, 50]

@@ -281,6 +281,13 @@ class SlitTraceSet(datamodel.DataContainer):
 
     @property
     def slitord_id(self):
+        """
+        Return array of slit_spatId (MultiSlit, IFU) or ech_order (Echelle) values
+
+        Returns:
+            `numpy.ndarray`_:
+
+        """
         if self.pypeline in ['MultiSlit', 'IFU']:
             return self.spat_id
         elif self.pypeline in ['Echelle']:

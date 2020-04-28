@@ -112,7 +112,8 @@ Calibrations
 .. toctree::
    :maxdepth: 2
 
-   customize_calibs
+   bias_dark
+   flat_fielding
    slit_tracing
    wave_calib
    wavetilts

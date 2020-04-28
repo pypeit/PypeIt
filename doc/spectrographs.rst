@@ -14,7 +14,7 @@ tips for customizing the PypeIt file.
 ======================  =========   =======================================
 PypeIt Name             Telescope   Instrument
 ======================  =========   =======================================
-gemini_gmos             Gemini      GMOS spectrometer
+gemini_gmos_north_ham   Gemini      GMOS-N spectrometer; Hamamatsu detector (R400, B600)
 gemini_gnirs            Gemini      GNIRS spectrometer
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
@@ -28,6 +28,7 @@ magellan_fire           Magellan    FIRE spectrometer; Echelle mode
 magellan_fire_long      Magellan    FIRE spectrometer; Longslit high throughput mode
 magellan_mage           Magellan    MagE spectrometer
 mdm_osmos               MDM         OSMOS spectrometer
+not_alfosc              NOT         ALFOSC spectrometer (grism 4)
 shane_kast_blue         Lick 3m     Kast dual spectrometer; blue camera
 shane_kast_red          Lick 3m     Kast dual spectrometer; red camera
 shane_kast_red_ret      Lick 3m     Kast dual spectrometer; red reticon
