@@ -1,4 +1,11 @@
 
+1.0.2 (29 Apr 2020)
+-------------------
+
+ - Various doc hotfixes
+ - wavelength algorithm hotfix, such that they must now generate an
+   entry for every slit, bad or good.
+
 1.0.1 (13 Apr 2020)
 -------------------
 
