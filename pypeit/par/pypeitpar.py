@@ -1668,11 +1668,11 @@ class TellFitPar(ParSet):
 
         ### Start parameters for poly_telluric
         defaults['fit_region_min'] = None
-        dtypes['fit_region_min'] = list
+        dtypes['fit_region_min'] = [float,list]
         descr['fit_region_min'] = "a list of minimum wavelength"
 
         defaults['fit_region_max'] = None
-        dtypes['fit_region_max'] = list
+        dtypes['fit_region_max'] = [float,list]
         descr['fit_region_max'] = "a list of minimum wavelength"
 
         defaults['mask_lyman_a'] = True
