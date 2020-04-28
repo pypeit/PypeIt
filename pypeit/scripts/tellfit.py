@@ -93,8 +93,7 @@ def parser(options=None):
                         "    [tellfit]\n"
                         "         algorithm = poly\n"
                         "         polyorder = 3\n"
-                        "         fit_region_min = 9000.\n"
-                        "         fit_region_max = 9500.\n"
+                        "         fit_region_mask = 9000.,9500.\n"
                         "\n"
                         )
     parser.add_argument("-r", "--redshift", type=float, default=None, help="Object redshift")
