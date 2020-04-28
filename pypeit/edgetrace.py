@@ -2233,7 +2233,10 @@ class EdgeTraceSet(object):
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
         side = np.clip(self.traceid[gpm], -1, 1)
-        return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
+        try:
+            return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
+        except:
+            embed(header='2239 of edgetrace')
 
     def check_synced(self, rebuild_pca=False):
         """

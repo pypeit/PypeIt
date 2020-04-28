@@ -53,6 +53,10 @@ The data block provides a list of :doc:`out_spec1D` files
 and the object name in each to be coadded.
 See :doc:`specobj` for a discussion of the naming.
 
+For instruments with multiple detectors along the spectral dimension
+(e.g. keck_deimos), give a separate entry for each extraction to generate
+a final, spliced spectrum.
+
 
 The list of object identifiers in a given spec1d file can be
 output with the *pypeit_show_1dspec* script, e.g.::

@@ -2,10 +2,8 @@
 """
 import numpy as np
 
-#from pypeit import msgs
-# NOTE:  You cannot import msgs in this module!!
-
 from pypeit import spectrographs
+from pypeit import msgs
 from IPython import embed
 
 # TODO: Allow the spectrographs to be identified by their camera?  Won't
@@ -142,6 +140,9 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'mdm_osmos_mdm4k':
         return spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
+
+    if spectrograph == 'not_alfosc':
+        return spectrographs.not_alfosc.NOTALFOSCSpectrograph()
 
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 
