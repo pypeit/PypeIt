@@ -117,12 +117,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Templates
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
             par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200'
-            par['calibrations']['wavelengths']['lamps'] = ['ThAr']  # TODO :: This default may need to be changed to FeAr
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200.fits'
+            par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM_4375.fits'
-            par['calibrations']['wavelengths']['lamps'] = ['ThAr']  # TODO :: This default may need to be changed to FeAr
+            par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
 
         # FWHM
         # binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))

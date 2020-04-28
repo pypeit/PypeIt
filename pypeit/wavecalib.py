@@ -334,13 +334,15 @@ class WaveCalib(object):
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
-    def extract_arcs(self):
+    def extract_arcs(self, slitIDs=None):
         """
         Extract the arcs down each slit/order
 
         Wrapper to arc.get_censpec()
 
         Args:
+            slitIDs (:obj:`list`, optional):
+                A list of the slit IDs to extract (if None, all slits will be extracted)
 
         Returns:
             tuple: Returns the following:
@@ -353,7 +355,7 @@ class WaveCalib(object):
         """
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm)
+            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm, slitIDs=slitIDs)
         # Step
         self.steps.append(inspect.stack()[0][3])
 

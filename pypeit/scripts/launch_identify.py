@@ -22,9 +22,11 @@ def parser(options=None):
     parser.add_argument('arc_file', type=str, default=None, help='PypeIt MasterArc file')
     parser.add_argument('slits_file', type=str, default=None, help='PypeIt MasterSlits file')
     parser.add_argument("--lamps", type=str, help="Comma separated list of calibration lamps (no spaces)")
+    parser.add_argument('-s', '--solution', default=False, action='store_true',
+                        help="Load a wavelength solution from the arc_file (if it exists)")
     parser.add_argument("--wmin", type=float, default=3000.0, help="Minimum wavelength range")
     parser.add_argument("--wmax", type=float, default=10000.0, help="Maximum wavelength range")
-    parser.add_argument("--slit", type=int, default=0, help="Slit number to wavelength calibrate")
+    parser.add_argument("--slit", type=int, default=0, help="Which slit to load for wavelength calibration")
     parser.add_argument("--det", type=int, default=1, help="Detector index")
     parser.add_argument("--rmstol", type=float, default=0.1, help="RMS tolerance")
 
@@ -80,12 +82,12 @@ def main(args):
 
     # Check if a solution exists
     solnname = os.path.join(mdir, masterframe.construct_file_name(WaveCalib, mkey))
-    wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) else None
+    wv_calib = waveio.load_wavelength_calibration(solnname) if os.path.exists(solnname) and args.solution else None
 
     # Load the MasterFrame (if it exists and is desired)?
     wavecal = WaveCalib(msarc, slits, spec, par, binspectral=slits.binspec, det=args.det,
                         master_key=mkey, msbpm=msarc.fullmask)
-    arccen, arc_maskslit = wavecal.extract_arcs()
+    arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
     # Launch the identify window
     arcfitter = Identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib,

@@ -221,7 +221,7 @@ class Identify(object):
         # Create a Line2D instance for the arc spectrum
         spec = Line2D(np.arange(thisarc.size), thisarc,
                       linewidth=1, linestyle='solid', color='k',
-                      drawstyle='steps', animated=True)
+                      drawstyle='steps-mid', animated=True)
 
         # Add the main figure axis
         fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
@@ -793,15 +793,6 @@ class Identify(object):
         elif key == 'f':
             self.fitsol_fit()
             self.replot()
-        elif key == 'g':
-            if self._wavepix == 0:
-                self._ghostmode = not self._ghostmode
-                self.replot()
-            else:
-                self.update_infobox(message="To enable ghost mode, you need to identify some lines.\nYou also need to set wavelength as the x-axis scale", yesno=False)
-        elif key == 'h':
-            self._ghostparam = [0.0, 1.0]
-            self.replot()
         elif key == 'l':
             self.load_IDs()
         elif key == 'm':
@@ -847,6 +838,15 @@ class Identify(object):
                 self.replot()
             else:
                 self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
+        elif key == 'g':
+            if self._wavepix == 0:
+                self._ghostmode = not self._ghostmode
+                self.replot()
+            else:
+                self.update_infobox(message="To enable ghost mode, you need to identify some lines.\nYou also need to set wavelength as the x-axis scale", yesno=False)
+        elif key == 'h':
+            self._ghostparam = [0.0, 1.0]
+            self.replot()
         self.canvas.draw()
 
     def auto_id(self):
