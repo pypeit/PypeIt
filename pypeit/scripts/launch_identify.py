@@ -90,10 +90,15 @@ def main(args):
     arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
     # Launch the identify window
-    arcfitter = Identify.initialise(arccen, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
+    arcfitter = Identify.initialise(arccen, slits, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
                                     wavelim=[args.wmin, args.wmax],
                                     nonlinear_counts=spec.nonlinear_counts(msarc.detector))
     final_fit = arcfitter.get_results()
+
+    # Temporary... need to delete this...
+    import pickle
+    with open('fit_{0:02d}.pickle'.format(args.slit), 'wb') as handle:
+        pickle.dump(final_fit, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Ask the user if they wish to store the result in PypeIt calibrations
     if 'rms' not in final_fit.keys():

@@ -164,7 +164,7 @@ class Identify(object):
         self.replot()
 
     @classmethod
-    def initialise(cls, arccen, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
+    def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
         """Initialise the 'Identify' window for real-time wavelength calibration
 
         .. todo::
@@ -175,6 +175,8 @@ class Identify(object):
         ----------
         arccen : ndarray
             Arc spectrum
+        slits : :class:`SlitTraceSet`
+            Data container with slit trace information
         slit : int, optional
             The slit to be used for wavelength calibration
         par : :obj:`int`, optional
@@ -194,7 +196,7 @@ class Identify(object):
         par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
         # If a wavelength calibration has been performed already, load it:
-        wv_calib = wv_calib_all[str(slit)] if wv_calib_all is not None else None
+        wv_calib = wv_calib_all[str(slits.spat_id[slit])] if wv_calib_all is not None else None
 
         # Extract the lines that are detected in arccen
         thisarc = arccen[:, slit]
