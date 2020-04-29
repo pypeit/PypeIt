@@ -92,7 +92,9 @@ def test_bias(multi_caliBrate):
     Returns:
 
     """
-    print(multi_caliBrate.fitstbl['framebit'])
+    rows = multi_caliBrate.fitstbl.find_frames('bias', calib_ID=0, index=True)
+    if len(rows) > 0:
+        raise ValueError('Should not find biases!: {0}'.format(multi_caliBrate.fitstbl['framebit']))
     multi_caliBrate.get_bias()
 
 
