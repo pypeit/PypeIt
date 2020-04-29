@@ -40,6 +40,9 @@ def fitstbl():
         fitstbl['filename'][ii] = 'b{0}.fits.gz'.format(ii)
     fitstbl['filename'][5] = 'b27.fits.gz'
 
+    if fitstbl.type_bitmask.flagged(fitstbl['framebit'][0], flag='bias'):
+        raise ValueError('bias bit not turned off!\n{0}'.format(fitstbl['framebit']))
+
     return fitstbl
 
 
