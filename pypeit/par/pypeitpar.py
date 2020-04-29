@@ -1559,7 +1559,7 @@ class TellFitPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, algorithm=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_mask=None,
+    def __init__(self, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_mask=None,
                  bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
                  star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
                  func=None, model=None, polyorder=None, fit_region_mask=None, mask_lyman_a=None,
@@ -1582,9 +1582,9 @@ class TellFitPar(ParSet):
         dtypes['only_orders'] = int
         descr['only_orders'] = "order number if you only want to fit a single order"
 
-        defaults['algorithm'] = None
-        dtypes['algorithm'] = str
-        descr['algorithm'] = 'which algorithm you want to use for telluric fit'
+        defaults['objmodel'] = None
+        dtypes['objmodel'] = str
+        descr['objmodel'] = 'which object model you want to use for telluric fit'
 
         defaults['redshift'] = 0.0
         dtypes['redshift'] = [int, float]
@@ -1687,7 +1687,7 @@ class TellFitPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['algorithm','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_mask', 'bounds_norm',
+        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_mask', 'bounds_norm',
                    'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
                    'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
                    'func','model','polyorder','fit_region_mask','mask_lyman_a',
