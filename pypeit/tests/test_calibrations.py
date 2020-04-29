@@ -23,11 +23,11 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-#@pytest.fixture
-#def fitstbl():
-def get_fitstbl():
+@pytest.fixture
+def fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
         fitstbl = dummy_fitstbl(directory=data_path(''))
+        fitstbl['framebit'][0] = fitstbl.type_bitmask.turn_off(fitstbl['framebit'][0], flag='bias')
         fitstbl['filename'][1] = 'b1.fits.gz'
         fitstbl['filename'][5] = 'b27.fits.gz'
         return fitstbl
@@ -41,19 +41,11 @@ def get_fitstbl():
         fitstbl['filename'][ii] = 'b{0}.fits.gz'.format(ii)
     fitstbl['filename'][5] = 'b27.fits.gz'
 
-    if fitstbl.type_bitmask.flagged(fitstbl['framebit'][0], flag='bias'):
-        raise ValueError('bias bit not turned off!\n{0}'.format(fitstbl['framebit']))
-
     return fitstbl
 
 
-#@pytest.fixture
-#def multi_caliBrate(fitstbl):
-def get_multi_caliBrate():
-    fitstbl = get_fitstbl()
-    if fitstbl.type_bitmask.flagged(fitstbl['framebit'][0], flag='bias'):
-        raise ValueError('bias bit not turned off!\n{0}'.format(fitstbl['framebit']))
-
+@pytest.fixture
+def multi_caliBrate(fitstbl):
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
         if 'science' in row['frametype']:
@@ -70,22 +62,10 @@ def get_multi_caliBrate():
     #calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
-    if fitstbl.type_bitmask.flagged(fitstbl['framebit'][0], flag='bias'):
-        raise ValueError('bias bit not turned off!\n{0}'.format(fitstbl['framebit']))
-
     multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
                                                          data_path('Masters'))
+    return reset_calib(multi_caliBrate)
 
-    if multi_caliBrate.fitstbl.type_bitmask.flagged(multi_caliBrate.fitstbl['framebit'][0], flag='bias'):
-        raise ValueError('bias bit not turned off!\n{0}'.format(multi_caliBrate.fitstbl['framebit']))
-
-    #return reset_calib(multi_caliBrate)
-    multi_caliBrate = reset_calib(multi_caliBrate)
-
-    if multi_caliBrate.fitstbl.type_bitmask.flagged(multi_caliBrate.fitstbl['framebit'][0], flag='bias'):
-        raise ValueError('bias bit not turned off!\n{0}'.format(multi_caliBrate.fitstbl['framebit']))
-
-    return multi_caliBrate
 
 def reset_calib(calib):
     # Find the first science row
@@ -99,42 +79,34 @@ def reset_calib(calib):
 ###################################################
 # TESTS BEGIN HERE
 
-def test_instantiate():
-    fitstbl = get_fitstbl()
+def test_instantiate(fitstbl):
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph,
                                                    data_path('Masters'))
 
 
-def test_bias():
+def test_bias(multi_caliBrate):
     """
     This should produce nothing as we have no bias frames
 
     Returns:
 
     """
-    multi_caliBrate = get_multi_caliBrate()
-    rows = multi_caliBrate.fitstbl.find_frames('bias', calib_ID=0, index=True)
-    if len(rows) > 0:
-        raise ValueError('Should not find biases!: {0}'.format(multi_caliBrate.fitstbl['framebit']))
     multi_caliBrate.get_bias()
 
 
-def test_arc():
-    multi_caliBrate = get_multi_caliBrate()
+def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
     assert arc.image.shape == (2048,350)
 
 
-def test_tiltimg():
-    multi_caliBrate = get_multi_caliBrate()
+def test_tiltimg(multi_caliBrate):
     tilt = multi_caliBrate.get_tiltimg()
     assert tilt.image.shape == (2048,350)
 
-def test_bpm():
+def test_bpm(multi_caliBrate):
     # Prep
-    multi_caliBrate = get_multi_caliBrate()
     multi_caliBrate.shape = (2048,350)
     # Build
     bpm = multi_caliBrate.get_bpm()
@@ -143,8 +115,7 @@ def test_bpm():
 
 
 @dev_suite_required
-def test_it_all():
-    multi_caliBrate = get_multi_caliBrate()
+def test_it_all(multi_caliBrate):
     # Setup
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
@@ -180,8 +151,7 @@ def test_it_all():
     assert mswave.shape == (2048,350)
 
 @dev_suite_required
-def test_reuse():
-    multi_caliBrate = get_multi_caliBrate()
+def test_reuse(multi_caliBrate, fitstbl):
     """
     Test that Calibrations appropriately reuses existing calibrations frames.
     """
@@ -227,7 +197,6 @@ def test_reuse():
     #reset_calib(multi_caliBrate_reuse)
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
-    fitstbl = get_fitstbl()
     multi_caliBrate_reuse = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'],
                                                                spectrograph, data_path('Masters'))
     multi_caliBrate_reuse.reuse_masters = True
@@ -257,3 +226,4 @@ def test_reuse():
 
     # Clean-up
     shutil.rmtree(multi_caliBrate_reuse.master_dir)
+
