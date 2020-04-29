@@ -67,10 +67,22 @@ def get_multi_caliBrate():
     #calib_par['biasframe']['useframe'] = 'none' # Only use overscan
     calib_par['slitedges']['sync_predict'] = 'nearest'
 
+    if fitstbl.type_bitmask.flagged(fitstbl['framebit'][0], flag='bias'):
+        raise ValueError('bias bit not turned off!\n{0}'.format(fitstbl['framebit']))
+
     multi_caliBrate = calibrations.MultiSlitCalibrations(fitstbl, calib_par, spectrograph,
                                                          data_path('Masters'))
-    return reset_calib(multi_caliBrate)
 
+    if multi_caliBrate.fitstbl.type_bitmask.flagged(multi_caliBrate.fitstbl['framebit'][0], flag='bias'):
+        raise ValueError('bias bit not turned off!\n{0}'.format(multi_caliBrate.fitstbl['framebit']))
+
+    #return reset_calib(multi_caliBrate)
+    multi_caliBrate = reset_calib(multi_caliBrate)
+
+    if multi_caliBrate.fitstbl.type_bitmask.flagged(multi_caliBrate.fitstbl['framebit'][0], flag='bias'):
+        raise ValueError('bias bit not turned off!\n{0}'.format(multi_caliBrate.fitstbl['framebit']))
+
+    return multi_caliBrate
 
 def reset_calib(calib):
     # Find the first science row
