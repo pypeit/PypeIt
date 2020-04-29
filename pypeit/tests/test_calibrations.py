@@ -51,6 +51,9 @@ def get_fitstbl():
 #def multi_caliBrate(fitstbl):
 def get_multi_caliBrate():
     fitstbl = get_fitstbl()
+    if fitstbl.type_bitmask.flagged(fitstbl['framebit'][0], flag='bias'):
+        raise ValueError('bias bit not turned off!\n{0}'.format(fitstbl['framebit']))
+
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
         if 'science' in row['frametype']:
