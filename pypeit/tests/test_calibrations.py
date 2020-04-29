@@ -23,8 +23,9 @@ def data_path(filename):
     return os.path.join(data_dir, filename)
 
 
-@pytest.fixture
-def fitstbl():
+#@pytest.fixture
+#def fitstbl():
+def get_fitstbl():
     if os.getenv('PYPEIT_DEV') is None:
         fitstbl = dummy_fitstbl(directory=data_path(''))
         fitstbl['filename'][1] = 'b1.fits.gz'
@@ -46,8 +47,10 @@ def fitstbl():
     return fitstbl
 
 
-@pytest.fixture
-def multi_caliBrate(fitstbl):
+#@pytest.fixture
+#def multi_caliBrate(fitstbl):
+def get_multi_caliBrate():
+    fitstbl = get_fitstbl()
     # Grab a science file for configuration specific parameters
     for idx, row in enumerate(fitstbl):
         if 'science' in row['frametype']:
@@ -81,37 +84,42 @@ def reset_calib(calib):
 ###################################################
 # TESTS BEGIN HERE
 
-def test_instantiate(fitstbl):
+def test_instantiate():
+    fitstbl = get_fitstbl()
     par = pypeitpar.PypeItPar()
     spectrograph = load_spectrograph('shane_kast_blue')
     caliBrate = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'], spectrograph,
                                                    data_path('Masters'))
 
 
-def test_bias(multi_caliBrate):
+def test_bias():
     """
     This should produce nothing as we have no bias frames
 
     Returns:
 
     """
+    multi_caliBrate = get_multi_caliBrate()
     rows = multi_caliBrate.fitstbl.find_frames('bias', calib_ID=0, index=True)
     if len(rows) > 0:
         raise ValueError('Should not find biases!: {0}'.format(multi_caliBrate.fitstbl['framebit']))
     multi_caliBrate.get_bias()
 
 
-def test_arc(multi_caliBrate):
+def test_arc():
+    multi_caliBrate = get_multi_caliBrate()
     arc = multi_caliBrate.get_arc()
     assert arc.image.shape == (2048,350)
 
 
-def test_tiltimg(multi_caliBrate):
+def test_tiltimg():
+    multi_caliBrate = get_multi_caliBrate()
     tilt = multi_caliBrate.get_tiltimg()
     assert tilt.image.shape == (2048,350)
 
-def test_bpm(multi_caliBrate):
+def test_bpm():
     # Prep
+    multi_caliBrate = get_multi_caliBrate()
     multi_caliBrate.shape = (2048,350)
     # Build
     bpm = multi_caliBrate.get_bpm()
@@ -120,7 +128,8 @@ def test_bpm(multi_caliBrate):
 
 
 @dev_suite_required
-def test_it_all(multi_caliBrate):
+def test_it_all():
+    multi_caliBrate = get_multi_caliBrate()
     # Setup
     multi_caliBrate.shape = (2048,350)
     #multi_caliBrate.get_pixlocn()
@@ -156,7 +165,8 @@ def test_it_all(multi_caliBrate):
     assert mswave.shape == (2048,350)
 
 @dev_suite_required
-def test_reuse(multi_caliBrate, fitstbl):
+def test_reuse():
+    multi_caliBrate = get_multi_caliBrate()
     """
     Test that Calibrations appropriately reuses existing calibrations frames.
     """
@@ -202,6 +212,7 @@ def test_reuse(multi_caliBrate, fitstbl):
     #reset_calib(multi_caliBrate_reuse)
     spectrograph = load_spectrograph('shane_kast_blue')
     par = spectrograph.default_pypeit_par()
+    fitstbl = get_fitstbl()
     multi_caliBrate_reuse = calibrations.MultiSlitCalibrations(fitstbl, par['calibrations'],
                                                                spectrograph, data_path('Masters'))
     multi_caliBrate_reuse.reuse_masters = True
