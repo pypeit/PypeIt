@@ -645,13 +645,12 @@ class Calibrations(object):
                                                         self.par['traceframe'], trace_image_files,
                                                         bias=self.msbias, bpm=self.msbpm,
                                                         dark=self.msdark)
-                # Build me
-                self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph, self.par['slitedges'],
+                self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
+                                                    self.par['slitedges'], bpm=self.msbpm,
+                                                    det=self.det, auto=True,
                                                     files=trace_image_files)
-
-                self.edges.auto_trace(bpm=self.msbpm, det=self.det, save=False)
                 self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                    master_key=self.master_key_dict['trace'])
+                                master_key=self.master_key_dict['trace'])
 
                 # Show the result if requested
                 if self.show:
