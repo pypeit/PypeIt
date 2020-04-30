@@ -2,15 +2,7 @@
 Module to run tests on scripts
 """
 import os
-import sys
-import glob
 import shutil
-
-from configobj import ConfigObj
-
-import pytest
-
-import numpy as np
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
@@ -146,6 +138,7 @@ def test_chk_flat():
     #
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)
+
 
 def test_coadd1d_1():
     """

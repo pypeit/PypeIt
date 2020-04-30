@@ -91,6 +91,7 @@ class OneSpec(datamodel.DataContainer):
         self.head0 = None
         self.spec_meta = None
         self.spectrograph = None
+        self.spect_meta = None
 
     def to_file(self, ofile, primary_hdr=None, **kwargs):
         """
