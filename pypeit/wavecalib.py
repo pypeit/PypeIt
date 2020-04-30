@@ -18,8 +18,8 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa
-from pypeit.core.wavecal import autoid, waveio, templates
-from pypeit.core.gui import identify as gui_identify
+from pypeit.core.wavecal import autoid, waveio
+from pypeit.core.gui.identify import Identify
 from pypeit import utils
 from pypeit import datamodel
 
@@ -214,25 +214,13 @@ class WaveCalib(object):
             final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            # TODO: Move this loop to the GUI initalise method
             embed()
             for slit_idx in ok_mask_idx:
-                arcfitter = gui_identify.initialise(arccen, slit=slit_idx, par=self.par)
+                arcfitter = Identify.initialise(arccen, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
-                if final_fit[str(slit_idx)] is not None:
-                    ans = 'y'
-                    # ans = ''
-                    # while ans != 'y' and ans != 'n':
-                    #     ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
-                    if ans == 'y' and final_fit[str(slit_idx)]['rms'] < self.par['rms_threshold']:
-                        # Store the results in the user reid arxiv
-                        specname = self.spectrograph.spectrograph
-                        gratname = "UNKNOWN"  # input("Please input the grating name: ")
-                        dispangl = "UNKNOWN"  # input("Please input the dispersion angle: ")
-                        templates.pypeit_identify_record(final_fit[str(slit_idx)], self.binspectral, specname, gratname, dispangl)
-                        msgs.info("Your wavelength solution has been stored")
-                        msgs.info("Please consider sending your solution to the PYPEIT team!")
-
+                arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
+                                         specname=self.spectrograph.spectrograph,
+                                         gratname="UNKNOWN", dispangl="UNKNOWN")
         elif method == 'reidentify':
             # Now preferred
             # Slit positions

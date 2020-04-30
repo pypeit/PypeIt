@@ -12,10 +12,11 @@ from matplotlib.widgets import Button, Slider
 from IPython import embed
 
 from pypeit.par import pypeitpar
-from pypeit.core.wavecal import fitting, waveio, wvutils
+from pypeit.core.wavecal import fitting, waveio, wvutils, templates
 from pypeit import utils, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
+import astropy.io.fits as fits
 
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
@@ -31,7 +32,7 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'g' : "Toggle ghost solution on/off (display predicted line positions)",
                    'h' : "Reset ghost params",
                    'l' : "Load saved line IDs from file",
-                   'm' : "Select line",
+                   'm' : "Select a line",
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
                    'w' : "Toggle wavelength/pixels on the x-axis of the main panel",
@@ -160,8 +161,32 @@ class Identify(object):
             self.load_IDs(wv_calib=wv_calib)
             self.fitsol_fit()
 
+        # Try to initialise the IDs based on another solution
+        #self.load_guess()
+
         # Draw the spectrum
         self.replot()
+
+    # def load_guess(self):
+    #     import pickle
+    #     from scipy.signal import correlate
+    #     from scipy.ndimage import maximum_filter1d
+    #     with open('fit_00.pickle', 'rb') as handle: final_fit = pickle.load(handle)
+    #     pixfit = final_fit['pixel_fit']
+    #     wavfit = final_fit['wave_fit']
+    #     specsol = final_fit['spec']
+    #     window = 32
+    #     filt = maximum_filter1d(self.spec, size=2 * window)
+    #     for pp, pix in enumerate(pixfit):
+    #         cenpix = int(round(pix))
+    #         in1 = specsol[cenpix - window : cenpix + window]
+    #         ccsol = correlate(self.spec/filt, in1/np.max(in1))
+    #     data = ascii_io.read(fname, format='fixed_width')
+    #     self._detns = data['pixel']
+    #     self._lineids = data['wavelength']
+    #     self._lineflg = data['flag']
+    #     msgs.info("Loaded line IDs:" + msgs.newline() + fname)
+    #     self.update_infobox(message="Loaded line IDs: {0:s}".format(fname), yesno=False)
 
     @classmethod
     def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
@@ -609,11 +634,51 @@ class Identify(object):
                                                       sigrej_final=self.par['sigrej_final'])
             except TypeError:
                 wvcalib = None
-                #wvcalib[str(self._slit)] = None
             else:
                 wvcalib = copy.deepcopy(final_fit)
-                #wvcalib[str(self._slit)] = copy.deepcopy(final_fit)
         return wvcalib
+
+    def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
+                       specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN"):
+        """Check if the user wants to store this solution in the reid arxiv
+
+        Args:
+            final_fit : dict
+                Dict of wavelength calibration solutions (see self.get_results())
+            master_dir : str
+                Master directory
+            binspec : int
+                Spectral binning
+            rmstol : float
+                RMS tolerance allowed for the wavelength solution to be stored in the archive
+            specname : str
+                Spectrograph name
+            gratname : str
+                Grating name
+            dispangl : str
+                Dispersor Angle (expressed as a name/string)
+        """
+        if 'rms' not in final_fit.keys():
+            msgs.warn("No wavelength solution available")
+        elif final_fit['rms'] < rmstol:
+            ans = ''
+            while ans != 'y' and ans != 'n':
+                ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
+            if ans == 'y':
+                outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
+                msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +
+                          os.path.join(master_dir, outroot) + msgs.newline() + msgs.newline() +
+                          "If you would like to move this to the PypeIt database, please move this file into the directory:" +
+                          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
+                          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
+        else:
+            print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
+            print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
+            ans = ''
+            while ans != 'y' and ans != 'n':
+                ans = input("Would you like to store the line IDs? (y/n): ")
+            if ans == 'y':
+                self.save_IDs()
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -683,16 +748,7 @@ class Identify(object):
                 self._end = self.get_ind_under_point(event)
                 if self._end == self._start:
                     # The mouse button was pressed (not dragged)
-                    self._detns_idx = self.get_detns()
-                    if self._fitdict['coeff'] is not None:
-                        # Find closest line
-                        waveest = self.fitsol_value(idx=self._detns_idx)
-                        widx = np.argmin(np.abs(waveest-self._lines))
-                        self.linelist_update(widx)
-                        self._slidell.set_val(self._slideval)
-                        # Print to the information panel
-                        self.update_infobox(message="Pixel position = {0:.1f}  Estimated wavelength = {1:.3f}".format(
-                                            self._detns[self._detns_idx], waveest), yesno=False)
+                    self.operations('m', axisID, event)
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
@@ -798,10 +854,18 @@ class Identify(object):
         elif key == 'l':
             self.load_IDs()
         elif key == 'm':
-            msgs.info("Selecting line")
-            self._addsub = 1
             self._end = self.get_ind_under_point(event)
             self._detns_idx = self.get_detns()
+            # Estimate the wavelength, if a solution is available
+            if self._fitdict['coeff'] is not None:
+                # Find closest line
+                waveest = self.fitsol_value(idx=self._detns_idx)
+                widx = np.argmin(np.abs(waveest - self._lines))
+                self.linelist_update(widx)
+                self._slidell.set_val(self._slideval)
+                # Print to the information panel
+                self.update_infobox(message="Pixel position = {0:.1f}  Estimated wavelength = {1:.3f}".format(
+                    self._detns[self._detns_idx], waveest), yesno=False)
             self.replot()
         elif key == 'q':
             if self._changes:

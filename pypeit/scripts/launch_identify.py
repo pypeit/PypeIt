@@ -37,11 +37,10 @@ def main(args):
 
     import os
     import sys
-    import astropy.io.fits as fits
     from pypeit import masterframe
     from pypeit.spectrographs.util import load_spectrograph
     from pypeit.core.gui.identify import Identify
-    from pypeit.core.wavecal import waveio, templates
+    from pypeit.core.wavecal import waveio
     from pypeit.wavecalib import WaveCalib
     from pypeit import slittrace
     from pypeit.images.buildimage import ArcImage
@@ -101,26 +100,4 @@ def main(args):
         pickle.dump(final_fit, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Ask the user if they wish to store the result in PypeIt calibrations
-    if 'rms' not in final_fit.keys():
-        print("No wavelength solution available")
-    elif final_fit['rms'] < args.rmstol:
-        ans = ''
-        while ans != 'y' and ans != 'n':
-            ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
-        if ans == 'y':
-            gratname = fits.getheader(msarc.head0['F1'])[spec.meta['dispname']['card']].replace("/", "_")
-            dispangl = "UNKNOWN"
-            outroot = templates.pypeit_identify_record(final_fit, slits.binspec, specname, gratname, dispangl, outdir=mdir)
-            print("\nYour wavelength solution has been stored here:")
-            print(os.path.join(mdir, outroot))
-            print("\nIf you would like to move this to the PypeIt database, please move this file into the directory:")
-            print(templates.outpath)
-            print("\nPlease consider sending your solution to the PypeIt team!\n")
-    else:
-        print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], args.rmstol))
-        print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
-        ans = ''
-        while ans != 'y' and ans != 'n':
-            ans = input("Would you like to store the line IDs? (y/n): ")
-        if ans == 'y':
-            arcfitter.save_IDs()
+    arcfitter.store_solution(final_fit, master_dir, slits.binspec, rmstol=args.rmstol)
