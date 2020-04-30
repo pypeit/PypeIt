@@ -16,6 +16,7 @@ PypeIt Name             Telescope   Instrument
 ======================  =========   =======================================
 gemini_gmos             Gemini      GMOS spectrometer
 gemini_gnirs            Gemini      GNIRS spectrometer
+keck_kcwi               Keck        KCWI slit-based IFU (BM, BH2)
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
 keck_mosfire            Keck        MOSFIRE spectrometer; J and Y gratings tested
