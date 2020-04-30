@@ -8,6 +8,7 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
+from linetools import utils as ltu
 
 from IPython import embed
 
@@ -16,7 +17,6 @@ from pypeit.core.wavecal import fitting, waveio, wvutils, templates
 from pypeit import utils, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
-import astropy.io.fits as fits
 
 operations = dict({'cursor': "Select lines (LMB click)\n" +
                     "         Select regions (LMB drag = add, RMB drag = remove)\n" +
@@ -49,7 +49,8 @@ class Identify(object):
     file.
     """
 
-    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=0, wv_calib=None):
+    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
+                 slit=0, spatid='0', wv_calib=None):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -75,6 +76,8 @@ class Identify(object):
             List of colors used for plotting
         slit : int
             The slit to be used for wavelength calibration
+        spatid : str
+            Spatial ID corresponding to slit
         wv_calib : :obj:`dict`, None, optional
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
         """
@@ -88,6 +91,7 @@ class Identify(object):
         self.plotx = self.specx.copy()
         # Detections, linelist, line IDs, and fitting params
         self._slit = slit
+        self._spatid = spatid
         self._detns = detns
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
         self._line_lists = line_lists
@@ -295,7 +299,7 @@ class Identify(object):
         # Initialise the identify window and display to screen
         fig.canvas.set_window_title('PypeIt - Identify')
         ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
-                         wv_calib=wv_calib)
+                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib)
         plt.show()
 
         # Now return the results
@@ -660,6 +664,7 @@ class Identify(object):
         """
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
+            return
         elif final_fit['rms'] < rmstol:
             ans = ''
             while ans != 'y' and ans != 'n':
@@ -679,6 +684,16 @@ class Identify(object):
                 ans = input("Would you like to store the line IDs? (y/n): ")
             if ans == 'y':
                 self.save_IDs()
+        ans = ''
+        while ans != 'y' and ans != 'n':
+            ans = input("Would you like to store a JSON file of the final fit (developers only)? (y/n): ")
+        if ans == 'y':
+            outdict = dict()
+            outdict[self._spatid] = copy.deepcopy(final_fit)
+            jdict = ltu.jsonify(outdict)
+            outname = 'waveids.json'
+            ltu.savejson(outname, jdict, easy_to_read=True, overwrite=True)
+            msgs.info("Wrote: {:s}".format(outname))
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
