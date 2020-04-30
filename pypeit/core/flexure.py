@@ -465,10 +465,7 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
             # Correlation QA
             ax = plt.subplot(gs[iobj//ncol, iobj % ncol])
             # Fit
-            try:
-                fit = this_flex_dict['polyfit'][iobj]
-            except:
-                embed(header='461 of flexure')
+            fit = this_flex_dict['polyfit'][iobj]
             xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][iobj] #+ flex_dict['shift'][o]
             #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
             model = utils.func_val(fit, xval, 'polynomial')
