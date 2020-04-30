@@ -75,7 +75,7 @@ def run_setup(data_files, scripts, packages, install_requires):
           include_package_data=True,
           scripts=scripts,
           install_requires=install_requires,
-          requires=[ 'Python (>3.6.0)' ],                               # *
+          requires=[ 'Python (>3.7.0)' ],                               # *
           zip_safe=False,                                               # *
           use_2to3=False,                                               # *
           setup_requires=[ 'pytest-runner' ],
@@ -88,7 +88,7 @@ def run_setup(data_files, scripts, packages, install_requires):
               'Natural Language :: English',
               'Operating System :: OS Independent',
               'Programming Language :: Python',
-              'Programming Language :: Python :: 3.6',
+              'Programming Language :: Python :: 3.7',
               'Topic :: Documentation :: Sphinx',
               'Topic :: Scientific/Engineering :: Astronomy',
               'Topic :: Software Development :: Libraries :: Python Modules',

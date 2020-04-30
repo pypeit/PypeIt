@@ -382,17 +382,24 @@ class CoAdd2D(object):
         #parcopy['calibrations']['save_masters'] = False
         #parcopy['scienceimage']['find_extrap_npoly'] = 1  # Use low order for trace extrapolation
 
-        redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
-                                         None, None, 'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
+        # Build the Calibrate object
+        caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
+        caliBrate.slits = pseudo_dict['slits']
+
+        redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
+                                         'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
+        #redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
+        #                                 None, None, 'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
         # Set the tilts and waveimg attributes from the psuedo_dict here, since we generate these dynamically from fits
         # normally, but this is not possible for coadds
         redux.tilts = pseudo_dict['tilts']
         redux.waveimg = pseudo_dict['waveimg']
 
         # Masking
-        ## TODO: This is incorrect here JXP and an ugly hack. You need to treat the masking of the slits objects
-        #  from every exposure, come up with an aggregate mask (if it is masked on one slit, mask the slit for all) and that should
-        ## be propagated into the slits object in the psuedo_dict
+        #  TODO: This is incorrect here JXP and an ugly hack. You need to treat the masking of the slits objects
+        #   from every exposure, come up with an aggregate mask (if it is masked on one slit, mask the slit for all) and that should
+        #   be propagated into the slits object in the psuedo_dict
+        #   Good luck with that JFH.
         slits = self.stack_dict['slits_list'][0]
         reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
             slits.mask, flag=slits.bitmask.exclude_for_reducing)))

@@ -19,9 +19,11 @@ any standard image viewer, e.g.::
 
     ginga Masters/MasterBias_A_1_01.fits
 
-It should resemble any one of your input bias frames aside from
-being only a trimmed  portion of the image and also re-oriented
-so that vertical is the spectral dimension with blue at the bottom.
+It should resemble any one of your input bias frames aside from:
+
+- Having been overscan subtracted
+- Being only a trimmed portion of the image
+- Re-oriented so that vertical is the spectral dimension with blue at the bottom
 
 Here is an example for the :ref:`keck-lris-red` spectrograph.
 

@@ -132,7 +132,7 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             type_bits[1] = fitstbl.type_bitmask.turn_on(type_bits[1], flag='arc')
             type_bits[1] = fitstbl.type_bitmask.turn_on(type_bits[1], flag='tilt')
             type_bits[2:4] = fitstbl.type_bitmask.turn_on(type_bits[2:4],
-                                                          flag=['pixelflat', 'trace'])
+                                                          flag=['pixelflat', 'trace', 'illumflat'])
             type_bits[4] = fitstbl.type_bitmask.turn_on(type_bits[4], flag='standard')
             type_bits[5:] = fitstbl.type_bitmask.turn_on(type_bits[5:], flag='science')
             fitstbl.set_frame_types(type_bits)

@@ -36,6 +36,7 @@ def kast_blue_bias_files():
 def test_combine(deimos_flat_files):
     spectograph = load_spectrograph('keck_deimos')
     par = spectograph.default_pypeit_par()
+    par['calibrations']['pixelflatframe']['process']['use_biasimage'] = False
     # DEIMOS
     deimos_flat = buildimage.buildimage_fromlist(spectograph, 3,
                                                   par['calibrations']['pixelflatframe'],

@@ -645,9 +645,11 @@ class SpecObjs(object):
                 s2n.append(is2n)
             else:  # Optimal is not required to occur
                 opt_fwhm.append(0.)
-                # S2N -- use boxcar
-                ivar = specobj.BOX_COUNTS_IVAR
-                is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
+                if specobj.BOX_COUNTS is None:
+                    is2n = 0.
+                else:
+                    ivar = specobj.BOX_COUNTS_IVAR
+                    is2n = np.median(specobj.BOX_COUNTS * np.sqrt(ivar))
                 s2n.append(is2n)
 
         # Generate the table, if we have at least one source

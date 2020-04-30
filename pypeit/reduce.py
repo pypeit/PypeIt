@@ -29,9 +29,8 @@ class Reduce(object):
     Args:
         sciImg (pypeit.images.scienceimage.ScienceImage):
         spectrograph (pypeit.spectrograph.Spectrograph):
-        par (pypeit.par.pyepeitpar.PypeItPar):
-        slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
-        waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+        par (:class:`pypeit.par.pyepeitpar.PypeItPar`):
+        caliBrate (:class:`pypeit.calibrations.Calibrations`):
         objtype (str):
            Specifies object being reduced 'science' 'standard' 'science_coadd2d'
         det (int, optional):
@@ -79,7 +78,7 @@ class Reduce(object):
 
     # Superclass factory method generates the subclass instance
     @classmethod
-    def get_instance(cls, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
+    def get_instance(cls, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None):
         """
@@ -93,8 +92,7 @@ class Reduce(object):
             sciImg (pypeit.images.scienceimage.ScienceImage):
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
-            slitTrace (:class:`pypeit.slittrace.SlitTraceSet`):
-            waveTilts (:class:`pypeit.wavetilts.WaveTilts`):
+            caliBrate (:class:`pypeit.calibrations.Calibrations`):
 
             **kwargs
                 Passed to Parent init
@@ -104,11 +102,11 @@ class Reduce(object):
         """
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
-            sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, ir_redux=ir_redux, det=det,
+            sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, det=det,
             std_redux=std_redux, show=show,binning=binning, setup=setup)
 
 
-    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib,
+    def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
                  binning=None, setup=None):
 
@@ -138,28 +136,29 @@ class Reduce(object):
             msgs.error("Not ready for this objtype in Reduce")
 
         # Slits
-        self.slits = slitTrace
+        self.slits = caliBrate.slits
         # Select the edges to use
         self.slits_left, self.slits_right, _ \
-                = slitTrace.select_edges(flexure=self.spat_flexure_shift)
+                = self.slits.select_edges(flexure=self.spat_flexure_shift)
 
         # Slitmask
-        self.slitmask = slitTrace.slit_img(flexure=self.spat_flexure_shift,
-                                           exclude_flag=slitTrace.bitmask.exclude_for_reducing)
+        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
+                                           exclude_flag=self.slits.bitmask.exclude_for_reducing)
         # Now add the slitmask to the mask (i.e. post CR rejection in proc)
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
         # For echelle
-        self.spatial_coo = slitTrace.spatial_coordinates(flexure=self.spat_flexure_shift)
+        self.spatial_coo = self.slits.spatial_coordinates(flexure=self.spat_flexure_shift)
 
         # Internal bpm mask
-        self.reduce_bpm = (self.slits.mask > 0) & (np.invert(slitTrace.bitmask.flagged(
-                        slitTrace.mask, flag=slitTrace.bitmask.exclude_for_reducing)))
+        self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
+                        self.slits.mask, flag=self.slits.bitmask.exclude_for_reducing)))
         self.reduce_bpm_init = self.reduce_bpm.copy()
 
-        self.waveTilts = waveTilts
-        self.wv_calib = wv_calib
+        # These may be None (i.e. COADD2D)
+        self.waveTilts = caliBrate.wavetilts
+        self.wv_calib = caliBrate.wv_calib
 
 
         # Load up other input items
@@ -726,8 +725,8 @@ class MultiSlitReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
-        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
+        super(MultiSlitReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
     def get_platescale(self, dummy):
         """
@@ -920,8 +919,8 @@ class EchelleReduce(Reduce):
     See parent doc string for Args and Attributes
 
     """
-    def __init__(self, sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs):
-        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, slitTrace, waveTilts, wv_calib, objtype, **kwargs)
+    def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
+        super(EchelleReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
