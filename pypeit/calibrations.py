@@ -66,8 +66,8 @@ class Calibrations(object):
         flatimages (:class:`pypeit.flatfield.FlatImages`):
         msbias (:class:`pypeit.images.buildimage.BiasImage`):
         msdark (:class:`pypeit.images.buildimage.DarkImage`):
-        msbpm (`numpy.ndarray`):
-        wv_calib (:obj:`dict):
+        msbpm (`numpy.ndarray`_):
+        wv_calib (:obj:`dict`):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
         write_qa

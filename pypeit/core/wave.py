@@ -1,4 +1,8 @@
-""" Routines related to flexure, air2vac, etc. """
+""" Routines related to flexure, air2vac, etc.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+ """
 
 import numpy as np
 

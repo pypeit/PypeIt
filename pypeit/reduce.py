@@ -47,19 +47,19 @@ class Reduce(object):
     Attributes:
         ivarmodel (`numpy.ndarray`_):
             Model of inverse variance
-        objimage `numpy.ndarray`_):
+        objimage (`numpy.ndarray`_):
             Model of object
-        skyimage `numpy.ndarray`_):
+        skyimage (`numpy.ndarray`_):
             Final model of sky
-        initial_sky `numpy.ndarray`_):
+        initial_sky (`numpy.ndarray`_):
             Initial sky model after first pass with global_skysub()
-        global_sky `numpy.ndarray`_):
+        global_sky (`numpy.ndarray`_):
             Fit to global sky
-        skymask `numpy.ndarray`_):
+        skymask (`numpy.ndarray`_):
             Mask of the sky fit
-        outmask `numpy.ndarray`_):
+        outmask (`numpy.ndarray`_):
             Final output mask
-        extractmask `numpy.ndarray`_):
+        extractmask (`numpy.ndarray`_):
             Extraction mask
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
@@ -309,8 +309,8 @@ class Reduce(object):
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.narray`_),
-               tilts (`numpy_ndarray`_).
+               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
+               tilts (`numpy.ndarray`_).
                See main doc string for description
 
         """
