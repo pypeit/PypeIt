@@ -264,7 +264,7 @@ class SensFunc(object):
         # Interpolate over gaps
         zeros = sensfunc_splice == 0.
         if np.any(zeros):
-            msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be")
+            msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
             interp_func = scipy.interpolate.interp1d(wave_splice[np.invert(zeros)],
                                                  sensfunc_splice[np.invert(zeros)],
                                                  kind='nearest', fill_value=1., bounds_error=False) #

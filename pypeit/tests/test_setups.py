@@ -26,7 +26,6 @@ def data_path(filename):
 
 expected = ['pypeit', 'sorted']
 
-'''
 def test_run_setup():
     """ Test the setup script
     """
@@ -329,7 +328,6 @@ def test_setup_gemini_gnirs():
 
     # Clean-up
     shutil.rmtree(setup_dir)
-'''
 
 @dev_suite_required
 def test_setup_not_alfosc():
@@ -351,7 +349,7 @@ def test_setup_not_alfosc():
     pargs = setup.parser(['-r', droot, '-s', 'not_alfosc', '-c', 'A', '-d', data_path('')])
     setup.main(pargs)
     pypeit_file = data_path('not_alfosc_A/not_alfosc_A.pypeit')
-    pypeIt = pypeit.PypeIt(pypeit_file)
+    pypeIt = pypeit.PypeIt(pypeit_file, calib_only=True)
 
     # Clean-up
     shutil.rmtree(setup_dir)

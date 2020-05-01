@@ -391,7 +391,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
                 msgs.info("No flexure corrections could be made")
                 break
             # Setup
-            embed(header='394 of flexure')  # JXP -- Make sure this is correct!!
+            msgs.error("This probably needs to be updated")
             slit, ss = items
             flex_dict = flex_list[slit]
             specobj = specobjs[ss]
