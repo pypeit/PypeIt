@@ -152,10 +152,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         npoly_fit = 1
     else:
         npoly_fit = skysub_npoly(thismask) if npoly is None else npoly
-        # TODO -- KCWI4 had a .T on the end of this
-        #    Who is correct??
         poly_basis = basis.flegendre(2.0*ximg_fit - 1.0, npoly_fit)
-        #poly_basis = pydl.flegendre(2.0*ximg_fit - 1.0, npoly_fit).T
 
     # Perform the full fit now
     msgs.info("Full fit in global sky sub.")
