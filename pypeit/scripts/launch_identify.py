@@ -88,23 +88,11 @@ def main(args):
                         master_key=mkey, msbpm=msarc.fullmask)
     arccen, arc_maskslit = wavecal.extract_arcs(slitIDs=[args.slit])
 
-    # # Temporary... need to delete this...
-    # import pickle
-    # wv_calib = dict()
-    # with open('wavecal/fit_{0:02d}.pickle'.format(args.slit), 'rb') as handle: wv_calib['99'] = pickle.load(handle)
-    solnname = "/Users/rcooke/Software/PypeIt-development-suite/dev_algorithms/wavelengths/template_files/KCWI/BH2/Keck_KCWI_BH2_4200_11.json"
-    wv_calib = waveio.load_wavelength_calibration(solnname)
-
     # Launch the identify window
     arcfitter = Identify.initialise(arccen, slits, slit=int(args.slit), par=par, wv_calib_all=wv_calib,
                                     wavelim=[args.wmin, args.wmax],
                                     nonlinear_counts=spec.nonlinear_counts(msarc.detector))
     final_fit = arcfitter.get_results()
-
-    # Temporary... need to delete this...
-    import pickle
-    with open('fit_{0:02d}.pickle'.format(args.slit), 'wb') as handle:
-        pickle.dump(final_fit, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Ask the user if they wish to store the result in PypeIt calibrations
     arcfitter.store_solution(final_fit, mdir, slits.binspec, rmstol=args.rmstol, specname=specname)

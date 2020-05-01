@@ -122,8 +122,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['n_first'] = 4
             par['calibrations']['wavelengths']['n_final'] = 6
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
-            par['calibrations']['wavelengths']['method'] = 'full_template'
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM_4375.fits'
+            par['calibrations']['wavelengths']['method'] = 'identify'#'full_template'
+            #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM_4375.fits'
             par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
 
         # FWHM
@@ -222,7 +222,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Sky subtraction parameters
         #par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['load_mask'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.5
         par['reduce']['skysub']['joint_fit'] = True
         par['reduce']['skysub']['ref_slit'] = -1
