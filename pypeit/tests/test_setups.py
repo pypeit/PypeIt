@@ -5,6 +5,8 @@ import os
 import glob
 import shutil
 
+from IPython import embed
+
 import numpy as np
 
 import pytest
