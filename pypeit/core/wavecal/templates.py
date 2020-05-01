@@ -763,6 +763,13 @@ def main(flg):
         lcut = [4350.0, 8000.0]
         build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
         # FeAr BM
+        wfile1 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4060.json')
+        wfile2 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4670.json')
+        outroot = 'keck_kcwi_BM.fits'
+        binspec = 1
+        slits = [1026, 1021]
+        lcut = [4350.0, 8000.0]
+        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
 
 # Command line execution
 if __name__ == '__main__':
