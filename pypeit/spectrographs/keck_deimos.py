@@ -317,7 +317,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'closed')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'IntFlat') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pinhole', 'dark']:

@@ -143,10 +143,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'magellan_fire'
-        # No overscan
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
+
         # Wavelengths
         # 1D wavelength solution with OH lines
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0
@@ -181,12 +178,15 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['pca_order'] = 3
 
-        # Scienceimage default parameters
-        par['reduce'] = pypeitpar.ReducePar()
-        # Always flux calibrate, starting with default parameters
-        #par['fluxcalib'] = pypeitpar.FluxCalibrationPar()
+        # Model entire slit
+        par['reduce']['extraction']['model_full_slit'] = True # local sky subtraction operates on entire slit
+
+        # Processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [20, None]
@@ -198,7 +198,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         par['sensfunc']['algorithm'] = 'IR'
         par['sensfunc']['polyorder'] = 8
         # place holder for telgrid file
-        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
 
 
         return par
@@ -343,10 +343,6 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'magellan_fire_long'
 
-        # No overscan
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
         # Wavelengths
         # 1D wavelength solution with arc lines
         par['calibrations']['wavelengths']['rms_threshold'] = 1.0
@@ -365,14 +361,18 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Scienceimage parameters
         par['reduce']['findobj']['sig_thresh'] = 5
         #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
-        # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
+
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
+
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [1, 50]

@@ -32,11 +32,13 @@ class LBTLUCISpectrograph(spectrograph.Spectrograph):
         OLD CODE from LBT MODS
         """
         par = pypeitpar.PypeItPar()
-        # Scienceimage default parameters
-        par['reduce'] = pypeitpar.ReducePar()
-        # Always flux calibrate, starting with default parameters
-        par['fluxcalib'] = pypeitpar.FluxCalibratePar()
-        # Set the default exposure time ranges for the frame typing
+
+        # Processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
+
+
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
@@ -264,10 +266,6 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'lbt_luci1'
 
-        # for key in par['calibrations'].keys():
-        #     print(key)
-        #     par['calibrations'][key]['process']['overscan'] = 'none'
-
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
@@ -294,15 +292,17 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
+
+        # Processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Flexure
         par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
-
-        par['scienceframe']['process']['overscan'] = 'none'
-        # par['standardframe']['process']['overscan'] = 'none'
 
         return par
 
@@ -377,10 +377,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'lbt_luci2'
 
-        # for key in par['calibrations'].keys():
-        #     print(key)
-        #     par['calibrations'][key]['process']['overscan'] = 'none'
-
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths'][
@@ -408,6 +404,10 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
+        # Processing steps
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Flexure
         par['flexure']['spec_method'] = 'skip'
 
@@ -415,8 +415,6 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par['scienceframe']['process']['satpix'] = 'nothing'
         # par['scienceframe']['process']['satpix'] = 'reject'
 
-        par['scienceframe']['process']['overscan'] = 'none'
-        # par['standardframe']['process']['overscan'] = 'none'
 
         return par
 

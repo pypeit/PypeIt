@@ -115,7 +115,7 @@ class FrameGroupPar(ParSet):
                              'Options are: {0}'.format(', '.join(options['frametype']))
 
         # TODO: Add overscan parameters for each frame type?
-
+        # TODO: JFH This is not documented. What are the options for useframe and what the  does it do?
         defaults['useframe'] = None
         dtypes['useframe'] = str
         descr['useframe'] = 'A master calibrations file to use if it exists.'
