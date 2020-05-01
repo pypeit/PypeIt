@@ -225,6 +225,7 @@ class Identify(object):
         par = pypeitpar.WavelengthSolutionPar() if par is None else par
 
         # If a wavelength calibration has been performed already, load it:
+        msgs.info("Slit ID = {0:d}  (SPAT ID = {1:d})".format(slit, slits.spat_id[slit]))
         wv_calib = wv_calib_all[str(slits.spat_id[slit])] if wv_calib_all is not None else None
 
         # Extract the lines that are detected in arccen
