@@ -120,7 +120,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200.fits'
             par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
-            par['calibrations']['wavelengths']['n_first'] = 4
+            par['calibrations']['wavelengths']['n_first'] = 2
             par['calibrations']['wavelengths']['n_final'] = 6
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
