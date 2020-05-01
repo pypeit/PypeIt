@@ -561,6 +561,8 @@ def general_spec_reader(specfile, ret_flam=False):
         # Read in the standard spec1d file produced by Pypeit
         #sobjs, head = load.load_specobjs(specfile)
         sobjs = specobjs.SpecObjs.from_fitsfile(specfile)
+        if np.sum(sobjs.OPT_WAVE) is None:
+            raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
         head = sobjs.header
         wave, counts, counts_ivar, counts_mask = unpack_orders(sobjs, ret_flam=ret_flam)
         if (head['PYPELINE'] !='Echelle') and (wave.shape[1]>1):

@@ -17,7 +17,6 @@ from configobj import ConfigObj
 
 from pypeit import msgs
 
-from IPython import embed
 
 #-----------------------------------------------------------------------
 # Parameter utility functions
@@ -395,7 +394,6 @@ def _read_data_file_table(lines, file_check=True):
     for i in range(nfiles):
         row = np.array([ l.strip() for l in lines[i+npaths+1].split('|') ])[1:-1]
         if len(row) != tbl.shape[1]:
-            embed(header='398 of util')
             raise ValueError('Data and header lines have mismatched columns!')
         tbl[i,:] = row
     data = {}
