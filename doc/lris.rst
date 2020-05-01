@@ -30,7 +30,7 @@ keck_lris_blue
 LRISb Default Settings
 ++++++++++++++++++++++
 
-See :ref:`pypeit_par:KECK LRISb (``keck_lris_blue``)` for
+See :ref:`pypeit_par:Instrument-Specific Default Configuration` for
 a listing of modifications to the default settings.
 
 Taking Calibrations for LRISb

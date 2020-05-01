@@ -26,6 +26,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         super(NOTALFOSCSpectrograph, self).__init__()
         self.spectrograph = 'not_alfosc'
         self.telescope = telescopes.NOTTelescopePar()
+        self.camera = 'ALFOSC'
 
     def get_detector_par(self, hdu, det):
         """
