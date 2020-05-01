@@ -78,8 +78,7 @@ def main(args):
         print('[tellfit]', file=f3)
         print('  objmodel = poly', file=f3)
         print('  polyorder = 3', file=f3)
-        print('  fit_region_min = 9000.0', file=f3)
-        print('  fit_region_max = 9500.0', file=f3)
+        print('  fit_region_mask = 9000.0,9500.0', file=f3)
         f3.close()
 
         for ii in range(len(spec1dfiles)):
