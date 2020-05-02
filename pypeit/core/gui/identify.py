@@ -29,8 +29,8 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'c' : "Clear automatically identified lines",
                    'd' : "Delete all line identifications (start from scratch)",
                    'f' : "Fit the wavelength solution",
-                   'g' : "Toggle ghost solution on/off (display predicted line positions)",
-                   'h' : "Reset ghost params",
+                   'g' : "Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)",
+                   'h' : "Reset ghost parameters",
                    'l' : "Load saved line IDs from file",
                    'm' : "Select a line",
                    'r' : "Refit a line",
@@ -165,32 +165,8 @@ class Identify(object):
             self.load_IDs(wv_calib=wv_calib)
             self.fitsol_fit()
 
-        # Try to initialise the IDs based on another solution
-        #self.load_guess()
-
         # Draw the spectrum
         self.replot()
-
-    # def load_guess(self):
-    #     import pickle
-    #     from scipy.signal import correlate
-    #     from scipy.ndimage import maximum_filter1d
-    #     with open('fit_00.pickle', 'rb') as handle: final_fit = pickle.load(handle)
-    #     pixfit = final_fit['pixel_fit']
-    #     wavfit = final_fit['wave_fit']
-    #     specsol = final_fit['spec']
-    #     window = 32
-    #     filt = maximum_filter1d(self.spec, size=2 * window)
-    #     for pp, pix in enumerate(pixfit):
-    #         cenpix = int(round(pix))
-    #         in1 = specsol[cenpix - window : cenpix + window]
-    #         ccsol = correlate(self.spec/filt, in1/np.max(in1))
-    #     data = ascii_io.read(fname, format='fixed_width')
-    #     self._detns = data['pixel']
-    #     self._lineids = data['wavelength']
-    #     self._lineflg = data['flag']
-    #     msgs.info("Loaded line IDs:" + msgs.newline() + fname)
-    #     self.update_infobox(message="Loaded line IDs: {0:s}".format(fname), yesno=False)
 
     @classmethod
     def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):

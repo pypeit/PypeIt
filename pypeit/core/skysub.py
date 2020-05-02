@@ -1109,24 +1109,26 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
 
 
 def read_userregions(text, resolution=1000):
-    """
+    """ Parse the sky regions defined by the user. The text should
+        be a comma separated list of percentages to apply to all slits
+        Example: The following string   :10,35:65,80:
+        would select the first 10%, the inner 30%, and the final 20% of all slits
 
-    Args:
-        text: str
-            The sky region definition. The text should
-            be a comma separated list of percentages to apply to all slits
-            Example: The following string   :10,35:65,80:
-            would select the first 10%, the inner 30%, and the final 20% of all slits
-        resolution: int
-            The percentage regions will be scaled to the specified resolution. The
-            resolution should probably correspond to the number of spatial pixels
-            on the slit.
+    Parameters
+    ----------
+    text : str
+        The sky region definition.
+    resolution: int, optional
+        The percentage regions will be scaled to the specified resolution. The
+        resolution should probably correspond to the number of spatial pixels
+        on the slit.
 
-    Returns:
-        status: int
-            Status of the region parsing (0 = Successful, 1,2 = fail)
-        regions : list
-            A list of two elements converting the input percentage regions to the resolution value
+    Returns
+    -------
+    status: int
+        Status of the region parsing (0 = Successful, 1,2 = fail)
+    regions : list
+        A list of two elements converting the input percentage regions to the resolution value
 
     """
     status = 0
@@ -1153,12 +1155,34 @@ def read_userregions(text, resolution=1000):
 def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=1000):
     """Generate the mask of sky regions
 
-    Returns:
+    Parameters
+    ----------
+    pypeline : str
+        Name of the pypeline being used (e.g. MultiSlit, Echelle, IFU, ...)
+    regions : list
+        A list of two elements converting the input percentage regions to the resolution value.
+        For example, if regions = [[10,100], [800,900]] and resolution=1000, this indicates that
+        the sky regions are from 1-10% of the slit width (i.e. 10/1000, 100/1000, expressed as
+        a percentage) and from 80%-90% of the slit width.
+    slits : :class:`SlitTraceSet`
+        Data container with slit trace information
+    slits_left : ndarray
+        A 2D array containing the pixel coordinates of the left slit edges
+    slits_right : ndarray
+        A 2D array containing the pixel coordinates of the right slit edges
+    resolution: int, optional
+        The percentage regions will be scaled to the specified resolution. The
+        resolution should probably correspond to the number of spatial pixels
+        on the slit.
+
+    Returns
+    -------
         ndarray : Boolean mask containing sky regions
     """
-    # Initialise the sky regions
+    # Initialise the sky regions - For each slit, generate a mask of size `resolution`.
+    # i.e. the spatial coordinate is sampled by `resolution` elements.
     skyreg = [np.zeros(resolution, dtype=np.bool) for all in range(slits.nslits)]
-    # Apply regions
+    # For all regions, set the skyreg mask to True for each region
     for reg in regions:
         # Do some checks
         xmin, xmax = reg[0], reg[1]
@@ -1170,17 +1194,25 @@ def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=
             xmax = resolution
         # Apply to all slits
         for sl in range(slits.nslits):
-            skyreg[sl][xmin:xmax] = 1
+            skyreg[sl][xmin:xmax] = True
 
+    # Using the left/right slit edge traces, generate a series of traces that mark the
+    # sky region boundaries in each slit.
     nreg = 0
+    # Initialise the sky region traces (this contains *all* sky regions,
+    # regardless of which slit the sky regions falls in)
     left_edg, righ_edg = np.zeros((slits.nspec, 0)), np.zeros((slits.nspec, 0))
     spec_min, spec_max = np.array([]), np.array([])
     for sl in range(slits.nslits):
+        # Calculate the slit width
         diff = slits_right[:, sl] - slits_left[:, sl]
+        # Break up the slit into `resolution` subpixels
         tmp = np.zeros(resolution+2)
         tmp[1:-1] = skyreg[sl]
+        # Find all the left and right sky region traces in this slit
         wl = np.where(tmp[1:] > tmp[:-1])[0]
         wr = np.where(tmp[1:] < tmp[:-1])[0]
+        # Construct the left/right traces, and store them in the left_edg, right_edg arrays.
         for rr in range(wl.size):
             left = slits_left[:, sl] + wl[rr]*diff/(resolution-1.0)
             righ = slits_left[:, sl] + wr[rr]*diff/(resolution-1.0)
@@ -1189,7 +1221,9 @@ def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=
             nreg += 1
             spec_min = np.append(spec_min, slits.specmin[sl])
             spec_max = np.append(spec_max, slits.specmax[sl])
-    # Instantiate the regions
+
+    # Now that we have sky region traces, utilise the SlitTraceSet to define the regions.
+    # We will then use the slit_img task to create a mask of the sky regions.
     regions = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
                                      mask=slits.mask, specmin=spec_min, specmax=spec_max,
                                      binspec=slits.binspec, binspat=slits.binspat, pad=0)

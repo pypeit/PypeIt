@@ -137,6 +137,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
       Order of the final wavelength solution fit
     sigrej_final: float, default = 3.0
       Number of sigma for rejection for the final fit to the wavelength solution.
+    input_only: bool
+      If True, the routine will only perform a robust polyfit to the input IDs.
+      If False, the routine will fit the input IDs, and then include additional
+      lines in the linelist that are a satisfactory fit.
     weights: ndarray
       Weights to be used?
     verbose : bool

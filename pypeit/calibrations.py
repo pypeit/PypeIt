@@ -842,7 +842,7 @@ class MultiSlitCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'dark', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
+        return ['bias', 'dark', 'bpm', 'slits', 'arc', 'tiltimg', 'wv_calib', 'tilts', 'flats']
 
 
 class IFUCalibrations(Calibrations):
@@ -866,7 +866,7 @@ class IFUCalibrations(Calibrations):
 
         """
         # Order matters!
-        return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats']
+        return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats']
 
 
 def check_for_calibs(par, fitstbl, raise_error=True):

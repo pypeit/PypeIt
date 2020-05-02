@@ -232,12 +232,6 @@ def load_line_list(line_file, add_path=False, use_ion=False, NIST=False):
     return line_list
 
 
-def get_available_lines(NIST=False):
-    if NIST:
-        line_file = nist_path + '{:s}_vacuum.ascii'.format(line)
-    else:
-        line_file = line_path + '{:s}_lines.dat'.format(line)
-
 def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
     """
     Loads a series of line list files
