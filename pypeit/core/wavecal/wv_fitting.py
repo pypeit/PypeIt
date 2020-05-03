@@ -26,10 +26,9 @@ class WaveFit(datamodel.DataContainer):
 
     # I/O
     output_to_disk = None  # This writes all items that are not None
-    hdu_prefix = None      # None required for this DataContainer
 
     datamodel = {
-        'fit': dict(otype=fitting.PypeItFit, desc='Fit to 1D wavelength solutions'),
+        'pypeitfit': dict(otype=fitting.PypeItFit, desc='Fit to 1D wavelength solutions'),
         'pixel_fit': dict(otype=np.ndarray, atype=np.floating, desc='Pixel values of arc lines'),
         'wave_fit': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength IDs assigned'),
         'xnorm': dict(otype=float, desc='Normalization for fit'),
@@ -44,7 +43,7 @@ class WaveFit(datamodel.DataContainer):
         'rms': dict(otype=float, desc='RMS of the solution'),
     }
 
-    def __init__(self, fit=None, pixel_fit=None, wave_fit=None, ions=None,
+    def __init__(self, pypeitfit=None, pixel_fit=None, wave_fit=None, ions=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None):
         # Parse
@@ -54,18 +53,44 @@ class WaveFit(datamodel.DataContainer):
         datamodel.DataContainer.__init__(self, d=d)
 
     def _init_internals(self):
+        # Needs to be here so we can set it in WaveCalib
         self.hdu_prefix = None
 
-    def _bundle(self):
+    def _bundle(self, **kwargs):
         """
-        Overload for the HDU name
+        Over-ride DataContainer._bundle() to deal with DETECTOR
+
+        Args:
+            kwargs:
+                Passed to DataContainer._bundle()
 
         Returns:
             list:
 
         """
-        return super(WaveFit, self)._bundle(ext='WVFIT')
+        _d = super(WaveFit, self)._bundle(ext='WAVEFIT', **kwargs)
+        # Pull the fit out
+        if _d[0]['WAVEFIT']['pypeitfit'] is not None:
+            _d.append(dict(PYPEITFIT=_d[0]['WAVEFIT'].pop('pypeitfit')))
+        # Return
+        return _d
 
+
+    # TODO -- This snippet shows up in 3 places now.  Can we genrealize somehow KW??
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
+               limit_hdus=None, force_to_bintbl=True):
+        """
+        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
+        a BinTableHDU
+
+        See that func for Args and Returns
+        """
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # Force
+        _d['force_to_bintbl'] = True
+        # Do it
+        return super(WaveFit, self).to_hdu(**_d)
 
 
 def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
@@ -320,7 +345,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     #                 fmin=fmin, fmax=fmax, xnorm = xnspecmin1, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
     #                 xrej=xrej, yrej=yrej, mask=(mask == 0), spec=spec, wave_soln = wave_soln, nrej=sigrej_final,
     #                 shift=0., tcent=tcent, rms=rms_pix)
-    final_fit = WaveFit(fit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, #weights=wfit,
+    final_fit = WaveFit(pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, #weights=wfit,
                         ions=ions, xnorm=xnspecmin1, #nspec=nspec,
                         cen_wave=cen_wave, cen_disp=cen_disp,
                        #xrej=xrej, yrej=yrej, mask=(mask == 0),

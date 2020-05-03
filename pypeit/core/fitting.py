@@ -50,6 +50,32 @@ class PypeItFit(DataContainer):
         # Init
         super(PypeItFit, self).__init__(d=_d)
 
+    def _bundle(self):
+        """
+        Bundle the data in preparation for writing to a fits file.
+
+        See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
+        always written to a 'PYPEITFIT' extension.
+        """
+        return super(PypeItFit, self)._bundle(ext='PYPEITFIT')
+
+
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
+               limit_hdus=None, force_to_bintbl=True):
+        """
+        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
+        a BinTableHDU
+
+        See that func for Args and Returns
+        """
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # Force
+        _d['force_to_bintbl'] = True
+        # Do it
+        return super(PypeItFit, self).to_hdu(**_d)
+
+
     def val(self, x, x2=None): #, minx=None, maxx=None, minx2=None, maxx2=None):
         """
         Return the evaluated fit

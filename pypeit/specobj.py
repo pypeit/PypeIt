@@ -170,8 +170,19 @@ class SpecObj(datamodel.DataContainer):
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
 
-    def _bundle(self, ext=None, transpose_arrays=False):
-        _d = super(SpecObj, self)._bundle(ext=ext, transpose_arrays=transpose_arrays)
+    def _bundle(self, **kwargs):
+        """
+        Over-ride DataContainer._bundle() to deal with DETECTOR
+
+        Args:
+            kwargs:
+                Passed to DataContainer._bundle()
+
+        Returns:
+            list:
+
+        """
+        _d = super(SpecObj, self)._bundle(**kwargs)
         # Move DetectorContainer into its own HDU
         if _d[0]['DETECTOR'] is not None:
             _d.append(dict(detector=_d[0].pop('DETECTOR')))

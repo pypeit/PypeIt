@@ -18,6 +18,7 @@ from linetools import utils as ltu
 
 from pypeit import msgs
 from pypeit.core import arc, qa
+from pypeit.core import fitting
 from pypeit.core.wavecal import autoid, waveio, wv_fitting
 from pypeit.core.gui.identify import Identify
 from pypeit import utils
@@ -65,12 +66,66 @@ class WaveCalib(datamodel.DataContainer):
 
     def _bundle(self):
         """
-        Bundle the data in preparation for writing to a fits file.
+        Over-write default _bundle() method to write one
+        HDU per image.  Any extras are in the HDU header of
+        the primary image.
 
-        See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
-        always written to a 'WVCALIB' extension.
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension. See the description
+            above.
         """
-        return super(WaveCalib, self)._bundle(ext='WVCALIB')
+        d = []
+
+        # Rest of the datamodel
+        for key in self.keys():
+            # Skip None
+            if self[key] is None:
+                continue
+            # Array?
+            if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
+                d.append({key: self[key]})
+            elif key == 'wv_fits':
+                for ss, wv_fit in enumerate(self[key]):
+                    # Naming
+                    wv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
+                    dkey = 'WAVEFIT-{}'.format(self.spat_id[ss])
+                    # Save
+                    d.append({dkey: wv_fit})
+            else: # Add to header of the primary image
+                d[0][key] = self[key]
+        # Return
+        return d
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
+               hdu_prefix=None):
+        # Grab everything but the bspline's
+        _d, dm_version_passed, dm_type_passed = super(WaveCalib, cls)._parse(hdu)
+        # Now the wave_fits
+        list_of_wave_fits = []
+        spat_ids = []
+        for ihdu in hdu:
+            if 'WAVEFIT' in ihdu.name:
+                iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
+                if iwavefit.version != wv_fitting.WaveFit.version:
+                    msgs.warn("Your WaveFit is out of date!!")
+                list_of_wave_fits.append(iwavefit)
+                # Grab PypeItFit
+                hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
+                if hdname in [khdu.name for khdu in hdu]:
+                    iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
+                # Grab SPAT_ID for checking
+                i0 = ihdu.name.find('ID-')
+                i1 = ihdu.name.find('_WAV')
+                spat_ids.append(int(ihdu.name[i0+3:i1]))
+        # Check
+        if spat_ids != _d['spat_id'].tolist():
+            msgs.error("Bad parsing of the MasterFlat")
+        # Finish
+        _d['wv_fits'] = np.asarray(list_of_wave_fits)
+        return _d, dm_version_passed, dm_type_passed
+
 
     def is_synced(self, slits):
         """
