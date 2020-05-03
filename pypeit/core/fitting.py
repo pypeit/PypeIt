@@ -6,7 +6,6 @@
 import numpy as np
 import inspect
 
-import matplotlib
 from matplotlib import pyplot as plt
 
 from scipy.optimize import curve_fit
@@ -18,12 +17,17 @@ from pypeit import msgs
 from pypeit.datamodel import DataContainer
 from pypeit import utils
 
+from IPython import embed
+
 class PypeItFit(DataContainer):
     # Set the version of this class
     minimum_useful_version = '1.0.0'
     version = '1.0.0'
     #
     datamodel = {
+        'xval': dict(otype=np.ndarray, atype=np.floating, desc='x inputs'),
+        'yval': dict(otype=np.ndarray, atype=np.floating, desc='y inputs'),
+        'weights': dict(otype=np.ndarray, atype=np.floating, desc='Weights'),
         'fitc': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
         'fitcov': dict(otype=np.ndarray, atype=np.floating, desc='Covariance of the coefficients'),
         'gpm': dict(otype=np.ndarray, atype=np.integer, desc='Mask (True=good)'),
@@ -37,8 +41,9 @@ class PypeItFit(DataContainer):
     }
 
     # This needs to contain all datamodel items
-    def __init__(self, fitc=None, fitcov=None, func=None, minx=None, maxx=None, minx2=None,
-                 maxx2=None):
+    def __init__(self, xval=None, yval=None, weights=None, fitc=None,
+                 fitcov=None, func=None, minx=None, maxx=None, minx2=None,
+                 maxx2=None, gpm=None):
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = {k: values[k] for k in args[1:]}
@@ -113,6 +118,33 @@ class PypeItFit(DataContainer):
         else:
             msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                        "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
+
+    def calc_fit_rms(self, apply_mask=True):
+        """ Simple RMS calculation
+
+        Args:
+            apply_mask (bool, optional):
+                Apply mask?
+
+        Returns:
+            float: RMS
+
+        """
+        if self.weights is None:
+            weights = np.ones(self.xval.size)
+        else:
+            weights = self.weights
+        if apply_mask:
+            xval = self.xval[self.gpm]
+            yval = self.yval[self.gpm]
+            weights = weights[self.gpm]
+        # Normalise
+        weights /= np.sum(weights)
+        values = self.val(xval)
+        # rms = np.std(yfit-values)
+        rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
+        # Return
+        return rms
 
 
 # TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere
@@ -585,7 +617,7 @@ def func_fit(x, y, func, deg, x2=None, minx=None, maxx=None, minx2=None, maxx2=N
     elif func == "gaussian":
         # Guesses
         if guesses is None:
-            ampl, cent, sigma = utils.guess_gauss(x_out, y_out)
+            ampl, cent, sigma = guess_gauss(x_out, y_out)
             # As first guess choose slope and intercept to be zero
             b = 0
             m = 0
@@ -636,9 +668,10 @@ def func_fit(x, y, func, deg, x2=None, minx=None, maxx=None, minx2=None, maxx2=N
         msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                    "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
     # DataContainer
-    pypeitFit = PypeItFit(fitc=fitc, fitcov=pcov, func=func,
-                          minx=minx, maxx=maxx, minx2=minx2,
-                          maxx2=maxx2)
+    pypeitFit = PypeItFit(xval=x, yval=y, weights=w, fitc=fitc, fitcov=pcov, func=func,
+                          minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
+    if inmask is not None:
+        pypeitFit.gpm = inmask.astype(int)
     return pypeitFit
 
 
@@ -942,7 +975,9 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
     pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights,
                          inmask=outmask, minx=minx, maxx=maxx, minx2=minx2,
                          maxx2=maxx2, bspline_par=bspline_par)
-    pypeitFit.gpm = outmask
+
+    # Needs to be int to write to disk
+    pypeitFit.gpm = outmask.astype(int)
 
     # Return
     return pypeitFit

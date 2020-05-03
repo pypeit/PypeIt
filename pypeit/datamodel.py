@@ -1287,7 +1287,7 @@ class DataContainer:
                 rdict[attr] = True
             else:
                 rdict[attr] = False
-        repr += ' images={}'.format(rdict)
+        repr += ' items={}'.format(rdict)
         repr = repr + '>'
         return repr
 

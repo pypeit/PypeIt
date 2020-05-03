@@ -608,32 +608,6 @@ def calc_ivar(varframe):
 
 
 
-def calc_fit_rms(xfit, yfit, fit, func, minx=None, maxx=None, weights=None):
-    """ Simple RMS calculation
-
-    Args:
-        xfit : ndarray
-        yfit : ndarray
-        fit : coefficients
-        func : str
-        minx : float, optional
-        maxx : float, optional
-
-    Returns:
-        float: RMS
-
-    """
-    if weights is None:
-        weights = np.ones(xfit.size)
-    # Normalise
-    weights /= np.sum(weights)
-    values = func_val(fit, xfit, func, minx=minx, maxx=maxx)
-    # rms = np.std(yfit-values)
-    rms = np.sqrt(np.sum(weights*(yfit-values)**2))
-    # Return
-    return rms
-
-
 def robust_meanstd(array):
     """
     Determine a robust measure of the mean and dispersion of array

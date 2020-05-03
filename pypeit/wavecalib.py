@@ -6,6 +6,7 @@ Module for guiding 1D Wavelength Calibration
 import os
 import copy
 import inspect
+import json
 
 from IPython import embed
 
@@ -13,14 +14,11 @@ import numpy as np
 
 from matplotlib import pyplot as plt
 
-import linetools.utils
+from linetools import utils as ltu
 
 from pypeit import msgs
-from pypeit import masterframe
 from pypeit.core import arc, qa
-from pypeit.core import fitting
-from pypeit.core.gui import identify as gui_identify
-from pypeit.core.wavecal import autoid, waveio
+from pypeit.core.wavecal import autoid, waveio, wv_fitting
 from pypeit.core.gui.identify import Identify
 from pypeit import utils
 from pypeit import datamodel
@@ -45,13 +43,15 @@ class WaveCalib(datamodel.DataContainer):
     master_file_format = 'fits'
 
     datamodel = {
-        'fits': dict(otype=np.ndarray, atype=fitting.PypeItFit,
-                              desc='Fits to 1D wavelength solutions'),
-        'nslit': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
+        'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
+                              desc='WaveFit to each 1D wavelength solution'),
+        'nslits': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+        'par': dict(otype=str, desc='Parameters'),
     }
 
-    def __init__(self, fits=None, nslit=None, spat_id=None):
+    def __init__(self, wv_fits=None, nslits=None, spat_id=None, PYP_SPEC=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -281,12 +281,14 @@ class BuildWaveCalib(object):
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
         # Build the DataContainer
-        embed(header='295')
-        self.wv_calib = {}
-        tmp = copy.deepcopy(final_fit)
+        tmp = []
         for idx in range(self.slits.nslits):
-            if str(idx) in final_fit.keys():
-                self.wv_calib[str(self.slits.slitord_id[idx])] = final_fit.pop(str(idx))
+            tmp.append(final_fit.pop(str(idx)))
+        self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
+                                  nslits=self.slits.nslits,
+                                  spat_id=self.slits.spat_id,
+                                  PYP_SPEC=self.spectrograph.spectrograph,
+                                  )
 
         # Update mask
         self.update_wvmask()
@@ -299,7 +301,12 @@ class BuildWaveCalib(object):
             for slit_idx in ok_mask_idx:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
-                autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
+                #
+                #autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])],
+                #                  outfile=outfile)
+                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
+                                  #str(self.slits.slitord_id[slit_idx]),
+                                  outfile=outfile)
 
 
         # Return
@@ -393,55 +400,55 @@ class BuildWaveCalib(object):
 
         return arccen, self.wvc_bpm
 
-    def save(self, outfile=None, overwrite=True):
-        """
-        Save the wavelength calibration data to a master frame.
+    #def save(self, outfile=None, overwrite=True):
+    #    """
+    #    Save the wavelength calibration data to a master frame.
+#
+#        This is largely a wrapper for
+#        :func:`pypeit.core.wavecal.waveio.save_wavelength_calibration`.
+#
+#        Args:
+#            outfile (:obj:`str`, optional):
+#                Name for the output file.  Defaults to
+#                :attr:`file_path`.
+#            overwrite (:obj:`bool`, optional):
+#                Overwrite any existing file.
+#        """
+#        _outfile = outfile # self.master_file_path if outfile is None else outfile
+#        # Check if it exists
+#        if os.path.exists(_outfile) and not overwrite:
+#            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
+#                      + 'Set overwrite=True to overwrite it.')
+#            return
+#
+#        # Report and save
+#
+#        # jsonify has the annoying property that it modifies the objects
+#        # when it jsonifies them so make a copy, which converts lists to
+#        # arrays, so we make a copy
+#        data_for_json = copy.deepcopy(self.wv_calib)
+#        gddict = linetools.utils.jsonify(data_for_json)
+#        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
+#        msgs.info('Master frame written to {0}'.format(_outfile))
 
-        This is largely a wrapper for
-        :func:`pypeit.core.wavecal.waveio.save_wavelength_calibration`.
+    #def load(self, ifile):
+    #    """
+    #    Load a full (all slit) wavelength calibration.
 
-        Args:
-            outfile (:obj:`str`, optional):
-                Name for the output file.  Defaults to
-                :attr:`file_path`.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file.
-        """
-        _outfile = outfile # self.master_file_path if outfile is None else outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
+    #    This is largely a wrapper for
+    #    :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
 
-        # Report and save
+    #    Args:
+    #        ifile (:obj:`str`, optional):
+    #            Name of the master frame file.  Defaults to
+    #            :attr:`master_file_path`.
 
-        # jsonify has the annoying property that it modifies the objects
-        # when it jsonifies them so make a copy, which converts lists to
-        # arrays, so we make a copy
-        data_for_json = copy.deepcopy(self.wv_calib)
-        gddict = linetools.utils.jsonify(data_for_json)
-        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
-        msgs.info('Master frame written to {0}'.format(_outfile))
-
-    def load(self, ifile):
-        """
-        Load a full (all slit) wavelength calibration.
-
-        This is largely a wrapper for
-        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
-
-        Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`master_file_path`.
-
-        Returns:
-            dict or None: self.wv_calib
-        """
-        # Check on whether to reuse and whether the file exists
-        self.wv_calib = waveio.load_wavelength_calibration(ifile)
-        return self.wv_calib
+    #    Returns:
+    #        dict or None: self.wv_calib
+    #    """
+    #    # Check on whether to reuse and whether the file exists
+    #    self.wv_calib = waveio.load_wavelength_calibration(ifile)
+    #    return self.wv_calib
 
     def update_wvmask(self):
         """
@@ -456,15 +463,20 @@ class BuildWaveCalib(object):
 
         """
         # Update mask based on wv_calib
-        for key in self.wv_calib.keys():
-            if key in ['steps', 'par', 'fit2d', 'bpm']:
-                continue
-            if (self.wv_calib[key] is None) or (len(self.wv_calib[key]) == 0):
-                try:
-                    idx = self.slits.spatid_to_zero(int(key))
-                except:
-                    embed(header='428 of wavecalib')
-                self.wvc_bpm[idx] = True
+        #for key in self.wv_calib.keys():
+        #    if key in ['steps', 'par', 'fit2d', 'bpm']:
+        #        continue
+        #    if (self.wv_calib[key] is None) or (len(self.wv_calib[key]) == 0):
+        #        try:
+        #            idx = self.slits.spatid_to_zero(int(key))
+        #        except:
+        #            embed(header='428 of wavecalib')
+        #        self.wvc_bpm[idx] = True
+        #
+        for kk, fit in enumerate(self.wv_calib.wv_fits):
+            if fit is None:
+                self.wvc_bpm[kk] = True
+
 
     def run(self, skip_QA=False, debug=False):
         """
@@ -505,9 +517,10 @@ class BuildWaveCalib(object):
                     self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
-        self.wv_calib['steps'] = self.steps
+        #self.wv_calib['steps'] = self.steps
         sv_par = self.par.data.copy()
-        self.wv_calib['par'] = sv_par
+        j_par = ltu.jsonify(sv_par)
+        self.wv_calib['par'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
         return self.wv_calib
 
