@@ -24,6 +24,7 @@ from pypeit import bspline
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
 from IPython import embed
@@ -1961,19 +1962,19 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             frac_mean_good = np.mean(slit_frac_good, 0)
             # Perform a  linear fit to fractional slit position
             #TODO Do this as a S/N weighted fit similar to what is now in the pca_trace algorithm?
-            msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
+            #msk_frac, poly_coeff_frac = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
+            pypeitFit = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
                                                                  function='polynomial', maxiter=20, lower=2, upper=2,
                                                                  use_mad= True, sticky=False,
                                                                  minx = order_vec.min(), maxx=order_vec.max())
             frac_mean_new = np.zeros(norders)
-            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, order_vec[badorder], 'polynomial',
-                                                     minx = order_vec.min(),maxx=order_vec.max())
+            frac_mean_new[badorder] = pypeitFit.val(order_vec[badorder])#, minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
             # TODO This QA needs some work
             if show_pca:
-                frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
-                plt.plot(order_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(msk_frac)], frac_mean_new[goodorder][np.invert(msk_frac)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                frac_mean_fit = pypeitFit.val(order_vec)
+                plt.plot(order_vec[goodorder][pypeitFit.gpm], frac_mean_new[goodorder][pypeitFit.gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
+                plt.plot(order_vec[goodorder][np.invert(pypeitFit.gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')

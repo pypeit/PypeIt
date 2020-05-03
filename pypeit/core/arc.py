@@ -766,9 +766,9 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
         cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
         if npoly is not None:
             # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-            msk, poly = fitting.robust_polyfit_djs(spec_vec[cont_mask], cont_med, npoly, function='polynomial', maxiter=25,
+            pypeitFit = fitting.robust_fit(spec_vec[cont_mask], cont_med, npoly, function='polynomial', maxiter=25,
                                                  upper=3.0, lower=3.0, minx=0.0, maxx=float(nspec-1))
-            cont_now = fitting.func_val(poly, spec_vec, 'polynomial')
+            cont_now = pypeitFit.val(spec_vec)
         else:
             cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
 

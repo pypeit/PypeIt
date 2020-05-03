@@ -43,6 +43,10 @@ def test_polynomial():
     pypeitFit = fitting.func_fit(x, y, 'polynomial', 3)
     np.testing.assert_allclose(pypeitFit.fitc, np.array([ -4.74660344e-02,   1.30745471e+00,
                                                   -4.16175760e-01, 3.08557167e-18]), atol=1e-9)
+    # Evaluate
+    val = pypeitFit.val(x)
+    assert np.isclose(val[0], -0.04746603), 'Bad value'
+
 
 def test_legendre():
     x = np.pi*np.linspace(0, 1., 100)
@@ -52,3 +56,6 @@ def test_legendre():
     np.testing.assert_allclose(pypeitFit.fitc, np.array([  6.37115652e-01,   6.83317251e-17,
                                                    -6.84581686e-01, -7.59352737e-17]), atol=1e-9)
 
+def test_robust_fit():
+    # NEED A TEST!!
+    assert False

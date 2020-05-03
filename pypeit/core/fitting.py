@@ -26,6 +26,7 @@ class PypeItFit(DataContainer):
     datamodel = {
         'fitc': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
         'fitcov': dict(otype=np.ndarray, atype=np.floating, desc='Covariance of the coefficients'),
+        'gpm': dict(otype=np.ndarray, atype=np.integer, desc='Mask (True=good)'),
         'func': dict(otype=str, desc='Fit function (polynomial, legendre, chebyshev, bspline, gauss)'),
         'minx': dict(otype=float,
                      desc='minimum value in the array (or the left limit for a legendre / chebyshev polynomial)'),
@@ -798,23 +799,23 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     return c.reshape(deg+1)
 
 
-def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial', minx = None, maxx = None, minx2 = None, maxx2 = None,
-                       bspline_par = None,
-                       guesses = None, maxiter=10, inmask=None, weights=None, invvar=None, lower=None, upper=None,
-                       maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
-                       sticky=True, use_mad=True):
+def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=None,
+               maxx=None, minx2=None, maxx2=None, bspline_par=None,
+               guesses=None, maxiter=10, inmask=None, weights=None, invvar=None,
+               lower=None, upper=None, maxdev=None,maxrej=None, groupdim=None,
+               groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True):
     """
-    A robust polynomial fit is performed to the xarray, yarray pairs
+    A robust fit is performed to the xarray, yarray pairs
     ``mask[i] = 1`` are good values.
 
     Args:
-        xarray:
+        xarray (`numpy.ndarray`_):
             independent variable values
-        yarray:
+        yarray (`numpy.ndarray`_):
             dependent variable values
-        order:
+        order (:obj:`int`):
             the order of the polynomial to be used in the fitting
-        x2 (ndarray, default = None):
+        x2  (`numpy.ndarray`_, optional):
             Do a 2d fit?
         function:
             which function should be used in the fitting (valid inputs:
@@ -894,8 +895,7 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
             invvar, and the code will return an error if this is done.
 
     Returns:
-        tuple: ``mask`` is an array of the masked values, ``ct`` is the
-        coefficients of the robust polyfit.
+        PypeItFit:
     """
 
     # Setup the initial mask
@@ -923,9 +923,9 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
                 ct = np.zeros(order + 1)
             return thismask, ct
 
-        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct,
+        pypeitFit = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct,
                       minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
-        ymodel = func_val(ct, xarray, function, x2 = x2, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
+        ymodel = pypeitFit.val(xarray, x2=x2)#, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
         # TODO Add nrej and nrej_tot as in robust_optimize below?
         thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, invvar=invvar,
                                           lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
@@ -939,9 +939,13 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
         msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
 
     # Do the final fit
-    ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask = outmask, minx=minx, maxx=maxx, minx2 = minx2, maxx2=maxx2, bspline_par=bspline_par)
+    pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights,
+                         inmask=outmask, minx=minx, maxx=maxx, minx2=minx2,
+                         maxx2=maxx2, bspline_par=bspline_par)
+    pypeitFit.gpm = outmask
 
-    return outmask, ct
+    # Return
+    return pypeitFit
 
 
 def scale_minmax(x, minx=None, maxx=None):

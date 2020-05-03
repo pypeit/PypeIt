@@ -25,6 +25,7 @@ from pypeit import utils
 from pypeit import bspline
 from pypeit.wavemodel import conv2res
 from pypeit.core import pydl
+from pypeit.core import fitting
 
 # TODO: Put these in the relevant functions
 TINY = 1e-15
@@ -642,16 +643,17 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
     if np.min(flux_true) <= 0.:
         msgs.warn('Your spectrum extends beyond calibrated standard star, extrapolating the spectra with polynomial.')
         mask_model = flux_true <= 0
-        msk_poly, poly_coeff = utils.robust_polyfit_djs(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
+        pypeitFit = fitting.robust_fit(std_dict['wave'].value, std_dict['flux'].value,8,function='polynomial',
                                                     invvar=None, guesses=None, maxiter=50, inmask=None, \
                                                     lower=3.0, upper=3.0, maxdev=None, maxrej=3, groupdim=None,
                                                     groupsize=None,groupbadpix=False, grow=0, sticky=True, use_mad=True)
-        star_poly = utils.func_val(poly_coeff, wave_star.value, 'polynomial')
+        star_poly = pypeitFit.val(wave_star.value)
         #flux_true[mask_model] = star_poly[mask_model]
         flux_true = star_poly.copy()
         if debug:
             plt.plot(std_dict['wave'], std_dict['flux'],'bo',label='Raw Star Model')
-            plt.plot(std_dict['wave'],  utils.func_val(poly_coeff, std_dict['wave'].value, 'polynomial'), 'k-',label='robust_poly_fit')
+            plt.plot(std_dict['wave'],  pypeitFit.val(std_dict['wave'].value),
+                     'k-',label='robust_poly_fit')
             plt.plot(wave_star,flux_true,'r-',label='Your Final Star Model used for sensfunc')
             plt.show()
 
@@ -889,12 +891,12 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
     msk_fit_sens = masktot & mask_tell & mask_balm
 
     # Polynomial fitting to derive a smooth sensfunc (i.e. without telluric)
-    _, poly_coeff = utils.robust_polyfit_djs(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], polyorder,
+    pypeitFit = fitting.robust_fit(wave_obs[msk_fit_sens], magfunc[msk_fit_sens], polyorder,
                                              function='polynomial', invvar=None, guesses=None, maxiter=maxiter,
                                              inmask=None, lower=lower, upper=upper, maxdev=None,
                                              maxrej=None, groupdim=None, groupsize=None, groupbadpix=False,
                                              grow=0, sticky=True, use_mad=True)
-    magfunc_poly = utils.func_val(poly_coeff, wave_obs, 'polynomial')
+    magfunc_poly = pypeitFit.val(wave_obs)
 
     # Polynomial corrections on Hydrogen Recombination lines
     if ((sum(msk_fit_sens) > 0.5 * len(msk_fit_sens)) & polycorrect):

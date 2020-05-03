@@ -9,6 +9,7 @@ from pypeit import msgs
 from pypeit import utils
 from pypeit import bspline
 from pypeit.core import basis
+from pypeit.core import fitting
 
 """This module corresponds to the image directory in idlutils.
 """
@@ -579,31 +580,21 @@ class TraceSet(object):
                 else:
                     thisinvvar = invvar[iTrace, :]
 
-                mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
+                # TODO -- This may cause a circular import
+                #mask_djs, poly_coeff = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
+                pypeitFit = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
                                                                 inmask = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minx = self.xmin, maxx = self.xmax,
                                                                 maxdev=self.maxdev,maxrej=None,groupdim=None,
                                                                 groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
-                ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minx=self.xmin, maxx=self.xmax)
+                ycurfit_djs = pypeitFit.val(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
 
-                ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
-                #while (not qdone) and (iIter <= maxiter):
-                #    res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
-                #        invvar=tempivar*thismask, function_name=self.func)#function_name='poly')
-                #    #ToDo: is this doing rejection? I think not???? THIS IS A MASSIVE BUG!!!! See IDL code.
-                #    # ADd kwargs_reject in here like with iterfit
-                #    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
-                #                                invvar=tempivar)
-                #    #thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=3,upper=3)
-                #    iIter += 1
-                #self.yfit[iTrace, :] = ycurfit
-                #self.coeff[iTrace, :] = res
-                #self.outmask[iTrace, :] = thismask
+                # Load
                 self.yfit[iTrace, :] = ycurfit_djs #ycurfit
-                self.coeff[iTrace, :] = poly_coeff#[:-1] #res
-                self.outmask[iTrace, :] = mask_djs #thismask
+                self.coeff[iTrace, :] = pypeitFit.fitc #[:-1] #res
+                self.outmask[iTrace, :] = pypeitFit.gpm  #thismask
 
         else:
             msgs.error('Wrong number of arguments to TraceSet!')

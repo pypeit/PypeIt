@@ -815,9 +815,6 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
     return mask, ct
 
-def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial', minx = None, maxx = None, minx2 = None, maxx2 = None):
-    pass
-
 def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
                     lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                     groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=False,

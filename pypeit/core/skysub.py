@@ -18,7 +18,7 @@ from IPython import embed
 from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
 from pypeit import msgs, utils, ginga, bspline
-from pypeit.core.moment import moment1d
+from pypeit.core import fitting
 
 def skysub_npoly(thismask):
     """
@@ -1039,11 +1039,12 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
                         minx = 0.0
                         maxx = fwhm_here[other_orders].max()
                         # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-                        fit_mask, fwhm_coeffs = utils.robust_polyfit_djs(order_vec[other_orders], fwhm_here[other_orders],1,
+                        #fit_mask, fwhm_coeffs = fitting.robust_fit(order_vec[other_orders], fwhm_here[other_orders],1,
+                        pypeitFit = fitting.robust_fit(order_vec[other_orders], fwhm_here[other_orders],1,
                                                                         function='polynomial',maxiter=25,lower=2.0, upper=2.0,
                                                                         maxrej=1,sticky=False, minx=minx, maxx=maxx)
-                        fwhm_this_ord = utils.func_val(fwhm_coeffs, order_vec[iord], 'polynomial', minx=minx, maxx=maxx)
-                        fwhm_all = utils.func_val(fwhm_coeffs, order_vec, 'polynomial', minx=minx, maxx=maxx)
+                        fwhm_this_ord = pypeitFit.val(order_vec[iord])#, 'polynomial', minx=minx, maxx=maxx)
+                        fwhm_all = pypeitFit.val(order_vec)#, 'polynomial', minx=minx, maxx=maxx)
                         fwhm_str = 'linear fit'
                     else:
                         fit_mask = np.ones_like(order_vec[other_orders],dtype=bool)
