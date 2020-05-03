@@ -43,7 +43,7 @@ from pypeit import datamodel
 #
 #    datamodel = datamodel_v100.copy()
 
-class WaveCalib(object):
+class BuildWaveCalib(object):
     """
     Class to guide wavelength calibration
 
