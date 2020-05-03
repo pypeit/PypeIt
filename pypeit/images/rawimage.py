@@ -204,7 +204,7 @@ class RawImage(object):
             self.orient()
         if par['use_biasimage']:  # Bias frame, if it exists, is *not* trimmed nor oriented
             self.subtract_bias(bias)
-        if par['use_darkimage']:  # Dark frame, if it exists, is trimmed and oriented
+        if par['use_darkimage']:  # Dark frame, if it exists, is TODO:: check: trimmed, oriented (and oscan/bias subtracted?)
             self.subtract_dark(dark)
         if par['apply_gain']:
             self.apply_gain()

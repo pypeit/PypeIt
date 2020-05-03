@@ -353,7 +353,7 @@ class SlitTraceSet(datamodel.DataContainer):
         slit.
 
         The output image has the same shape as the original trace
-        image. Each pixel Each pixel in the image is set to the index
+        image. Each pixel in the image is set to the index
         of its associated slit (i.e, the pixel value is
         :math:`0..N_{\rm slit}-1`). Pixels not associated with any
         slit are given values of -1.

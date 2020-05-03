@@ -730,6 +730,10 @@ class Spectrograph(object):
         # Return
         return retvalue
 
+    def set_wcs(self, hdr):
+        msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
+        return hdr
+
     def validate_metadata(self):
         """
         Validates the meta definitions of the Spectrograph

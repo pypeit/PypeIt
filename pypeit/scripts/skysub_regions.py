@@ -15,6 +15,8 @@ import argparse
 from pypeit.core.gui.skysub_regions import SkySubGUI
 from pypeit.core import flexure
 from pypeit.scripts import utils
+from pypeit import masterframe
+from pypeit.images import buildimage
 
 
 def parser(options=None):
@@ -32,6 +34,8 @@ def parser(options=None):
                         help='Use initial slit edges?')
     parser.add_argument('-f', '--flexure', default=False, action='store_true',
                         help='Use flexure corrected slit edges?')
+    parser.add_argument('-s', '--standard', default=False, action='store_true',
+                        help='List standard stars as well?')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -42,7 +46,7 @@ def main(args):
     info = utils.Utilities(args.file, args.det)
 
     # Interactively select a science frame
-    sciIdx = info.select_science_frame()
+    sciIdx = info.select_science_frame(standard=args.standard)
 
     # Load the spectrograph and parset
     info.load_spectrograph_parset(sciIdx)
@@ -52,6 +56,7 @@ def main(args):
 
     # Load the image data
     frame = info.load_frame(sciIdx)
+    print(frame.shape)
 
     # Load the slits information
     slits = utils.get_slits(mkey, mdir)
@@ -66,10 +71,13 @@ def main(args):
         outname = os.path.splitext(prefix[0])[0]
     else:
         outname = prefix[0]
-    outname = "{0:s}/MasterSkyRegions_{1:s}_{2:s}.fits.gz".format(mdir, mkey, outname)
+    ext = buildimage.SkyRegions.master_file_format
+    regfile = masterframe.construct_file_name(buildimage.SkyRegions, master_key=mkey, master_dir=mdir)
+    regfile = regfile.replace(".{0:s}".format(ext), "_{0:s}.{1:s}".format(outname, ext))
+    #outname = "{0:s}/MasterSkyRegions_{1:s}_{2:s}.fits.gz".format(mdir, mkey, outname)
 
     # Finally, initialise the GUI
-    skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline, outname=outname, overwrite=args.overwrite,
+    skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline, outname=regfile, overwrite=args.overwrite,
                                   runtime=False, printout=True, initial=args.initial, flexure=spat_flexure)
 
     # Get the results

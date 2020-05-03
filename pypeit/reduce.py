@@ -5,21 +5,27 @@ Main driver class for skysubtraction and extraction
 .. include:: ../links.rst
 """
 
+import os
 import inspect
 import numpy as np
 import os
 
 from astropy import stats
+from astropy.io import fits
 from abc import ABCMeta
 
 from linetools import utils as ltu
+from scipy.interpolate import interp1d
 
-from pypeit import specobjs
-from pypeit import ginga, msgs
-from pypeit.core import skysub, extract, wave, flexure
+from pypeit import specobjs, specobj
+from pypeit import ginga, msgs, utils
+from pypeit import masterframe
+from pypeit.core import skysub, extract, wave, flexure, flat
+from pypeit.images import buildimage
 from pypeit import wavecalib
 
 from IPython import embed
+
 
 class Reduce(object):
     """
@@ -43,6 +49,8 @@ class Reduce(object):
           True = Masked
         show (bool, optional):
            Show plots along the way?
+        std_outfile (str):
+           Filename of the standard star output
 
     Attributes:
         ivarmodel (`numpy.ndarray`_):
@@ -81,7 +89,7 @@ class Reduce(object):
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None):
+                 binning=None, setup=None, std_outfile=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -109,7 +117,7 @@ class Reduce(object):
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None):
+                 binning=None, setup=None, std_outfile=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -118,6 +126,8 @@ class Reduce(object):
         self.spectrograph = spectrograph
         self.objtype = objtype
         self.par = par
+        self.caliBrate = caliBrate
+        self.std_outfile = std_outfile
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -136,21 +146,8 @@ class Reduce(object):
         else:
             msgs.error("Not ready for this objtype in Reduce")
 
-        # Slits
-        self.slits = caliBrate.slits
-        # Select the edges to use
-        self.slits_left, self.slits_right, _ \
-                = self.slits.select_edges(flexure=self.spat_flexure_shift)
-
-        # Slitmask
-        self.slitmask = self.slits.slit_img(flexure=self.spat_flexure_shift,
-                                           exclude_flag=self.slits.bitmask.exclude_for_reducing)
-        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
-        # NOTE: this uses the par defined by EdgeTraceSet; this will
-        # use the tweaked traces if they exist
-        self.sciImg.update_mask_slitmask(self.slitmask)
-        # For echelle
-        self.spatial_coo = self.slits.spatial_coordinates(flexure=self.spat_flexure_shift)
+        # Initialise the slits
+        self.initialise_slits()
 
         # Internal bpm mask
         self.reduce_bpm = (self.slits.mask > 0) & (np.invert(self.slits.bitmask.flagged(
@@ -160,7 +157,6 @@ class Reduce(object):
         # These may be None (i.e. COADD2D)
         self.waveTilts = caliBrate.wavetilts
         self.wv_calib = caliBrate.wv_calib
-
 
         # Load up other input items
         self.ir_redux = ir_redux
@@ -186,7 +182,28 @@ class Reduce(object):
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
 
+    def initialise_slits(self, initial=False):
+        """Initialise the slits
 
+        Args:
+            initial (bool): Use the initial definition of the slits (Setting this to False will use the tweaked slits)
+        """
+        # Slits
+        self.slits = self.caliBrate.slits
+        # Select the edges to use
+        self.slits_left, self.slits_right, _ \
+                = self.slits.select_edges(initial=initial, flexure=self.spat_flexure_shift)
+
+        # Slitmask
+        self.slitmask = self.slits.slit_img(initial=initial, flexure=self.spat_flexure_shift,
+                                           exclude_flag=self.slits.bitmask.exclude_for_reducing)
+        # Now add the slitmask to the mask (i.e. post CR rejection in proc)
+        # NOTE: this uses the par defined by EdgeTraceSet; this will
+        # use the tweaked traces if they exist
+        self.sciImg.update_mask_slitmask(self.slitmask)
+        # For echelle
+        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
+        return
 
     def parse_manual_dict(self, manual_dict, neg=False):
         """
@@ -473,7 +490,7 @@ class Reduce(object):
          """
         return None, None, None
 
-    def global_skysub(self, skymask=None, update_crmask=True,
+    def global_skysub(self, scaleImg=None, skymask=None, update_crmask=True, trim_edg=(3,3),
                       show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -481,7 +498,11 @@ class Reduce(object):
         Wrapper to skysub.global_skysub
 
         Args:
-            skymask (np.ndarray):
+            scaleImg (np.ndarray, float, None):
+                A 2D image that scales the science frame to provide
+                uniform relative sky response across multiple slits
+            skymask (np.ndarray, None):
+                A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
             show_fit (bool, optional):
             show (bool, optional):
@@ -508,24 +529,54 @@ class Reduce(object):
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
-        # Loop on slits
-        for slit_idx in gdslits:
-            slit_spat = self.slits.spat_id[slit_idx]
-            msgs.info("Global sky subtraction for slit: {:d}".format(slit_spat))
-            thismask = self.slitmask == slit_spat
+        # Select the edges to use: Selects the edges tweaked by the
+        # illumination profile if they're present; otherwise, it
+        # selects the original edges from EdgeTraceSet. To always
+        # select the latter, use the method with `original=True`.
+        # TODO -- JXP removed these from KCWI4..
+        #original = True if ((trim_edg[0] == 0) and (trim_edg[1] == 0)) else False
+        #left, right = self.slits.select_edges(original=original)
+        #left, right = self.slits.select_edges()
+
+        if self.par['reduce']['skysub']['joint_fit']:
+            msgs.info("Performing joint global sky subtraction")
+            thismask = (self.slitmask != 0)
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
+            wavenorm = self.waveimg / np.max(self.waveimg)
             # Find sky
+            # TODO :: JXP removed the left and right (non trimmed) edges (see above). This might not allow the whole slit to be used
+            scalefact = scaleImg + (scaleImg == 0)
             self.global_sky[thismask] \
-                    = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                           thismask, self.slits_left[:,slit_idx],
-                                           self.slits_right[:,slit_idx],
-                                           inmask=inmask, sigrej=sigrej,
-                                           bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                           no_poly=self.par['reduce']['skysub']['no_poly'],
-                                           pos_mask=(not self.ir_redux), show_fit=show_fit)
+                = skysub.global_skysub(self.sciImg.image/scalefact, self.sciImg.ivar, wavenorm,
+                                       thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                       sigrej=sigrej, trim_edg=trim_edg,
+                                       bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                       no_poly=self.par['reduce']['skysub']['no_poly'],
+                                       pos_mask=(not self.ir_redux), show_fit=True)#show_fit)
+            # Apply the scaling factor to the sky image
+            self.global_sky *= scaleImg
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
-                self.reduce_bpm[slit_idx] = True
+                msgs.error("Cannot perform joint global sky fit")
+        else:
+            # Loop on slits
+            for slit_idx in gdslits:
+                slit_spat = self.slits.spat_id[slit_idx]
+                msgs.info("Global sky subtraction for slit: {:d}".format(slit_idx))
+                thismask = self.slitmask == slit_spat
+                inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
+                # Find sky
+                self.global_sky[thismask] \
+                        = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
+                                               thismask, self.slits_left[:,slit_idx],
+                                               self.slits_right[:,slit_idx],
+                                               inmask=inmask, sigrej=sigrej,
+                                               bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                               no_poly=self.par['reduce']['skysub']['no_poly'],
+                                               pos_mask=(not self.ir_redux), show_fit=show_fit)
+                # Mask if something went wrong
+                if np.sum(self.global_sky[thismask]) == 0.:
+                    self.reduce_bpm[slit_idx] = True
 
         if update_crmask:
             # Find CRs with sky subtraction
@@ -1087,3 +1138,385 @@ class EchelleReduce(Reduce):
 
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
+
+class IFUReduce(Reduce):
+    """
+    Child of Reduce for IFU reductions
+
+    See parent doc string for Args and Attributes
+
+    """
+    def __init__(self, sciImg, spectrograph, par, caliBrate, objtype, **kwargs):
+        super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
+        self.initialise_slits(initial=True)
+
+    #
+    # def build_scaleimg(self):
+    #     """
+    #     Generate a relative scaling image for slit-based IFU.
+    #     All slits are scaled relative to ref_slit
+    #     TODO :: Consider including this routine in FlatImages
+    #     Returns:
+    #         ndarray: An image containing the appropriate scaling
+    #     """
+    #     msgs.info('Performing a joint flat-field response using all slits')
+    #     # Grab some parameters
+    #     trim = 0  #self.par['calibrations']['flatfield']['slit_trim']
+    #     spec_samp_fine = self.par['calibrations']['flatfield']['spec_samp_coarse']
+    #     # Get the data needed
+    #     rawflat = self.caliBrate.flatimages.procflat.copy()
+    #     gpm = np.logical_not(self.caliBrate.msbpm)
+    #     slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
+    #     trimmed_slitid_img = self.slits.slit_img(pad=-trim, initial=True, flexure=self.spat_flexure_shift)
+    #     blaze_model = np.ones_like(rawflat)
+    #     # Find all good slits, and create a mask of pixels to include (True=include)
+    #     wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
+    #     # Obtain the minimum and maximum wavelength of all slits
+    #     mnmx_wv = np.zeros((self.slits.nslits,2))
+    #     for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+    #         onslit_init = (slitid_img_init == slit_spat)
+    #         mnmx_wv[slit_idx, 0] = np.min(self.waveimg[onslit_init])
+    #         mnmx_wv[slit_idx, 1] = np.max(self.waveimg[onslit_init])
+    #     # Sort by increasing minimum wavelength
+    #     swslt = np.argsort(mnmx_wv[:,0])
+    #     # Go through the slits and calculate the overlapping flux
+    #     relscl_model = np.ones_like(rawflat)
+    #     scalefact = 1.0
+    #     for slit_idx in range(1, self.slits.spat_id.size):
+    #         # Only use the overlapping regions of the slits, where the same wavelength range is covered
+    #         onslit_a_olap = (slitid_img_init == self.slits.spat_id[swslt[slit_idx-1]]) & gpm & \
+    #                         (self.waveimg > mnmx_wv[swslt[slit_idx], 0]) & \
+    #                         (self.waveimg < mnmx_wv[swslt[slit_idx], 1])
+    #         onslit_b      = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+    #         onslit_b_olap = onslit_b & (self.waveimg > mnmx_wv[swslt[slit_idx-1], 0]) & gpm & \
+    #                         (self.waveimg < mnmx_wv[swslt[slit_idx-1], 1])
+    #
+    #         # Take the median of the overlapping regions
+    #         print(scalefact, np.median(rawflat[onslit_a_olap])/np.median(rawflat[onslit_b_olap]))
+    #         scalefact *= np.median(rawflat[onslit_a_olap])/np.median(rawflat[onslit_b_olap])
+    #         relscl_model[onslit_b] = scalefact
+    #
+    #     # Test how well the above code does
+    #     # TODO :: DELETE THE DEBUGGING CODE BELOW BEFORE MERGING!!
+    #     if False:
+    #         plate_scale = self.get_platescale(None)
+    #         plt.subplot(211)
+    #         flat_modl = self.caliBrate.flatimages.flat_model
+    #         flat_ivar = np.ones_like(flat_modl)
+    #         glob_skym = np.zeros_like(flat_modl)
+    #         rn2img = self.sciImg.rn2img
+    #         for slit_idx in range(0, self.slits.spat_id.size):
+    #             print(1, slit_idx)
+    #             relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
+    #             relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
+    #             # Do a boxcar extraction - assume standard is in the middle of the slit
+    #             extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+    #                                    self.waveimg, glob_skym, rn2img,
+    #                                    60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+    #                                    relspec)
+    #             plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
+    #         plt.plot(wave, flux, 'k--', linewidth=3)
+    #         plt.subplot(212)
+    #         flat_modl = self.caliBrate.flatimages.flat_model*relscl_model
+    #         flat_ivar = np.ones_like(flat_modl)
+    #         glob_skym = np.zeros_like(flat_modl)
+    #         rn2img = self.sciImg.rn2img
+    #         for slit_idx in range(0, self.slits.spat_id.size):
+    #             print(2, slit_idx)
+    #             relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
+    #             relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
+    #             # Do a boxcar extraction - assume standard is in the middle of the slit
+    #             extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+    #                                    self.waveimg, glob_skym, rn2img,
+    #                                    60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+    #                                    relspec)
+    #             plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
+    #         plt.plot(wave, flux, 'k--', linewidth=3)
+    #         plt.show()
+    #
+    #
+    #
+    #     # Get the pixels containing good slits
+    #     spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
+    #     # Apply the relative scaling
+    #     rawflatscl = rawflat*relscl_model
+    #     # Flat-field modeling is done in the log of the counts
+    #     flat_log = np.log(np.fmax(rawflatscl, 1.0))
+    #     gpm_log = (rawflatscl > 1.0) & gpm
+    #     # set errors to just be 0.5 in the log
+    #     ivar_log = gpm_log.astype(float)/0.5**2
+    #     # Only include the trimmed set of pixels in the flat-field
+    #     # fit along the spectral direction.
+    #     spec_gpm = np.isin(trimmed_slitid_img, wgd) & gpm_log  # & (rawflat < nonlinear_counts)
+    #     spec_nfit = np.sum(spec_gpm)
+    #     spec_ntot = np.sum(spec_tot)
+    #     msgs.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
+    #               + ' pixels on all slits.')
+    #     # Sort the pixels by their spectral coordinate.
+    #     # TODO: Include ivar and sorted gpm in outputs?
+    #     spec_gpm, spec_srt, spec_coo_data, spec_flat_data \
+    #         = flat.sorted_flat_data(flat_log, self.waveimg, gpm=spec_gpm)
+    #     spec_ivar_data = ivar_log[spec_gpm].ravel()[spec_srt]
+    #     spec_gpm_data = gpm_log[spec_gpm].ravel()[spec_srt]
+    #
+    #     # Fit the spectral direction of the blaze.
+    #     logrej = 0.5
+    #     spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
+    #         = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+    #                                 np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
+    #                                 nord=4, upper=logrej, lower=logrej,
+    #                                 kwargs_bspline={'bkspace': spec_samp_fine},
+    #                                 kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+    #
+    #     msgs.info("Generating relative response model image")
+    #     scale_model = np.ones_like(self.caliBrate.flatimages.procflat)
+    #     if exit_status > 1:
+    #         msgs.warn("Joint blaze fit failed")
+    #     else:
+    #         blaze_model[...] = 1.
+    #         blaze_model[spec_tot] = np.exp(spec_bspl.value(self.waveimg[spec_tot])[0])
+    #         # Now take out the median scaling
+    #         blaze_model /= relscl_model
+    #         # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
+    #         corr_model = self.caliBrate.flatimages.fit2illumflat(self.slits, initial=True, flexure_shift=self.spat_flexure_shift)
+    #         corr_model *= self.caliBrate.flatimages.pixelflat
+    #         scale_model = self.caliBrate.flatimages.procflat/corr_model
+    #         scale_model /= blaze_model
+    #     embed()
+    #     import astropy.io.fits as fits
+    #     hdu = fits.PrimaryHDU(scale_model)
+    #     hdu.writeto('scale_model.fits', overwrite=True)
+    #     return scale_model
+    #
+    # def build_scaleimg_old(self, ref_slit, trim=10):
+    #     """
+    #     Generate a relative scaling image for slit-based IFU.
+    #     All slits are scaled relative to ref_slit
+    #     Args:
+    #         ref_slit (int):
+    #             The slit index to be used as a reference
+    #         trim (int):
+    #             Trim the pixels towards the edge of the spectrum
+    #             to avoid edge effects
+    #     Returns:
+    #         ndarray: An image containing the appropriate scaling
+    #     """
+    #     # Get the plate scale
+    #     plate_scale = self.get_platescale(None)
+    #     # Find the slits with the minimum and maximum wavelength
+    #     mawave = np.ma.masked_array(self.waveimg, mask=self.waveimg == 0)
+    #     ypixmn, minidx = np.unravel_index(np.ma.argmin(mawave), mawave.shape)
+    #     ypixmx, maxidx = np.unravel_index(np.ma.argmax(mawave), mawave.shape)
+    #     wmin = np.where((self.slits_left[ypixmn, :] <= minidx) & (minidx <= self.slits_right[ypixmn, :]))[0]
+    #     wmax = np.where((self.slits_left[ypixmx, :] <= maxidx) & (maxidx <= self.slits_right[ypixmx, :]))[0]
+    #     # Check that only one slit satisfies these conditions
+    #     if wmin.size != 1:
+    #         msgs.warn("Multiple slits satisfying minimum condition - taking only the first!")
+    #     if wmax.size != 1:
+    #         msgs.warn("Multiple slits satisfying maximum condition - taking only the first!")
+    #
+    #     # Construct an array of slits to use
+    #     ref_slits = np.array([ref_slit, wmin[0], wmax[0]])
+    #
+    #     # Get the relative scaling (use standard star profile, if available)
+    #     flat_modl = self.caliBrate.flatimages.flat_model
+    #     flat_ivar = np.ones_like(flat_modl)
+    #     glob_skym = np.zeros_like(flat_modl)
+    #     rn2img = self.sciImg.rn2img  # This is an approximation, probably fine
+    #
+    #     msgs.info("Building relative scale image")
+    #     nspec = self.slits_left.shape[0]
+    #     scale_dict = dict(scale=np.zeros((nspec, ref_slits.size)), wavescl=np.zeros((nspec, ref_slits.size)))
+    #     if self.objtype == 'standard' or self.std_outfile is None:  # Standard star trace is not available
+    #         # Initialise a SpecObj
+    #         for ss, slit in enumerate(ref_slits):
+    #             relspec = specobj.SpecObj("IFU", self.det, SLITID=slit)
+    #             relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit] + self.slits_right[:, slit])
+    #             # Do a boxcar extraction - assume standard is in the middle of the slit
+    #             extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+    #                                    self.waveimg, glob_skym, rn2img,
+    #                                    self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+    #                                    relspec)
+    #             # Interpolate over the bad pixels
+    #             ww = np.where(relspec.BOX_NPIX == np.max(relspec.BOX_NPIX))
+    #             xspl, yspl = relspec.BOX_WAVE[ww], relspec.BOX_COUNTS[ww] / relspec.BOX_NPIX[ww]
+    #             fspl = interp1d(xspl, yspl, kind='cubic', bounds_error=False, fill_value="extrapolate")
+    #             scale_dict['scale'][:, ss] = fspl(relspec.BOX_WAVE)
+    #             scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
+    #     elif self.objtype in ['science', 'science_coadd2d']:
+    #         sobjs = specobjs.SpecObjs.from_fitsfile(self.std_outfile)
+    #         # Does the detector match?
+    #         this_det = sobjs.DET == self.det
+    #         if np.any(this_det):
+    #             sobjs_det = sobjs[this_det]
+    #             relspec = sobjs_det.get_std()
+    #             msgs.work("Need to find the slit that contains the brightest standard star")
+    #             embed()
+    #             for ss, slit in enumerate(ref_slits):
+    #                 # Do optimal extraction
+    #                 extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+    #                                        self.waveimg, glob_skym, rn2img,
+    #                                        self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+    #                                        relspec)
+    #                 scale_dict['scale'][:, ss] = relspec.OPT_COUNTS.copy()
+    #                 scale_dict['wavescl'][:, ss] = relspec.OPT_WAVE.copy()
+    #
+    #     # Now generate an interpolation polynomial for the relative scaling
+    #     #
+    #     # Create a spline representation of the reference spectrum
+    #     refspl = interp1d(scale_dict['wavescl'][:, 0], scale_dict['scale'][:, 0],
+    #                       kind='cubic', bounds_error=False, fill_value="extrapolate")
+    #     # Start with the lower wavelength, and scale to the reference spectrum
+    #     wmn = np.where(scale_dict['wavescl'][:, 1] < scale_dict['wavescl'][trim:-trim, 0].min())
+    #     sclfct_mn = refspl(scale_dict['wavescl'][:, 1][wmn[0].max()])/scale_dict['scale'][:, 1][wmn[0].max()]
+    #     wavearr = scale_dict['wavescl'][:, 1][wmn]
+    #     fluxarr = scale_dict['scale'][:, 1][wmn] * sclfct_mn
+    #     # Now include the reference spectrum
+    #     wavearr = np.append(wavearr, scale_dict['wavescl'][trim:-trim, 0])
+    #     fluxarr = np.append(fluxarr, scale_dict['scale'][trim:-trim, 0])
+    #     # Now append the upper wavelength, and scale to the reference spectrum
+    #     wmx = np.where(scale_dict['wavescl'][:, 2] > scale_dict['wavescl'][trim:-trim, 0].max())
+    #     sclfct_mx = refspl(scale_dict['wavescl'][:, 2][wmx[0].min()])/scale_dict['scale'][:, 2][wmx[0].min()]
+    #     wavearr = np.append(wavearr, scale_dict['wavescl'][:, 2][wmx])
+    #     fluxarr = np.append(fluxarr, scale_dict['scale'][:, 2][wmx] * sclfct_mx)
+    #
+    #     # Create the final interpolating polynomial, and apply it to the wavelength image
+    #     refspl = interp1d(wavearr, fluxarr, kind='cubic', bounds_error=False, fill_value="extrapolate")
+    #     scale_model = refspl(self.waveimg)
+    #
+    #     # Now return
+    #     return self.caliBrate.flatimages.flat_model/scale_model
+    #
+    # def get_platescale(self, dummy):
+    #     """
+    #     Return the platescale for IFU.
+    #     The input argument is ignored
+    #     Args:
+    #         dummy (:class:`pypeit.specobj.SpecObj`):
+    #             ignored
+    #     Returns:
+    #         float:
+    #     """
+    #     plate_scale = self.sciImg.detector.platescale
+    #     return plate_scale
+    #
+    # def resample_cube(self):
+    #     pass
+    #
+    # def load_skyregions(self):
+    #     skymask_init = None
+    #     if self.par['reduce']['skysub']['load_mask']:
+    #         # Check if a master Sky Regions file exists for this science frame
+    #         file_base = os.path.basename(self.sciImg.files[0])
+    #         prefix = os.path.splitext(file_base)
+    #         if prefix[1] == ".gz":
+    #             sciName = os.path.splitext(prefix[0])[0]
+    #         else:
+    #             sciName = prefix[0]
+    #
+    #         # Setup the master frame name
+    #         master_dir = self.caliBrate.master_dir
+    #         master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
+    #
+    #         regfile = masterframe.construct_file_name(buildimage.SkyRegions,
+    #                                                   master_key=master_key,
+    #                                                   master_dir=master_dir)
+    #         # Check if a file exists
+    #         if os.path.exists(regfile):
+    #             msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
+    #             skymask_init = fits.getdata(regfile).astype(np.bool)
+    #         else:
+    #             msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
+    #     elif self.par['reduce']['skysub']['user_regions'] != '':
+    #         msgs.info("Generating skysub mask based on the user defined regions: {0:s}".format(
+    #             self.par['reduce']['skysub']['user_regions']))
+    #         # This doesn't need to be a user parameter
+    #         resolution = int(10.0*np.max(self.slits_right-self.slits_left))
+    #         # Get the regions
+    #         status, regions = skysub.read_userregions(self.par['reduce']['skysub']['user_regions'],
+    #                                                   resolution=resolution)
+    #         # Generate image
+    #         skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
+    #                                             resolution=resolution)
+    #     return skymask_init
+    #
+    # def run(self, basename=None, ra=None, dec=None, obstime=None,
+    #         std_trace=None, manual_extract_dict=None, show_peaks=False,
+    #         ref_slit=None):
+    #     """
+    #     Primary code flow for PypeIt reductions
+    #     Args:
+    #         basename (str, optional):
+    #             Required if flexure correction is to be applied
+    #         ra (str, optional):
+    #             Required if helio-centric correction is to be applied
+    #         dec (str, optional):
+    #             Required if helio-centric correction is to be applied
+    #         obstime (:obj:`astropy.time.Time`, optional):
+    #             Required if helio-centric correction is to be applied
+    #         std_trace (np.ndarray, optional):
+    #             Trace of the standard star
+    #         manual_extract_dict (dict, optional):
+    #         show_peaks (bool, optional):
+    #             Show peaks in find_objects methods
+    #         ref_slit (int, optional):
+    #             Slit index to be used as reference for relative transmission calibration
+    #             TODO :: This is not currently used - is it even needed, given that it's a relative calibration?
+    #             Need to think about whether we need to use the exact same pixels for the relative calibration
+    #             (i.e. using the pixels that the standard star falls on, since the spatial illumflat is not constant).
+    #     Returns:
+    #         tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
+    #            outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
+    #     """
+    #     # Deal with dynamic calibrations
+    #     # Tilts
+    #     self.waveTilts.is_synced(self.slits)
+    #     #   Deal with Flexure
+    #     if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
+    #         _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
+    #         # If they both shifted the same, there will be no reason to shift the tilts
+    #         tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
+    #     else:
+    #         tilt_flexure_shift = self.spat_flexure_shift
+    #     self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
+    #
+    #     # Wavelengths (on unmasked slits)
+    #     self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
+    #                                            self.wv_calib, spat_flexure=self.spat_flexure_shift)
+    #
+    #     # If this is a slit-based IFU, perform a relative scaling of the IFU slits
+    #     scaleImg = 1.0
+    #     if self.par['reduce']['cube']['slit_spec']:
+    #         msgs.info("Calculating relative scaling for slit-based IFU")
+    #         # Use the reference slit, stitched either side with slits that extend to the minimum and maximum wavelength
+    #         scaleImg = self.build_scaleimg()
+    #
+    #     # Check if the user has a pre-defined sky regions file
+    #     skymask_init = self.load_skyregions()
+    #
+    #     # Global sky subtract based on flatfield model
+    #     self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
+    #
+    #     # Recalculate the scaling based on the sky spectra
+    #     skyfactor = 1.0  # TODO :: Need to calculate a constant (or low order polynomial) scaling factor using the sky for all slits relative to the reference slit
+    #     scaleImg *= skyfactor
+    #
+    #     # Recalculate the global sky subtract based on flatfield model
+    #     self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
+    #
+    #     from pypeit.io import write_to_fits
+    #     write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
+    #     write_to_fits(self.global_sky, "initial_sky.fits", overwrite=True)
+    #     write_to_fits(self.sciImg.image-self.global_sky, "skysub_science.fits", overwrite=True)
+    #     msgs.error("SUCCESSFUL -- UP TO HERE!")
+    #
+    #     # Resample data onto desired grid
+    #     # TODO :: still need to implement this step...
+    #
+    #     # TODO -- Should we move these to redux.run()?
+    #     # Heliocentric
+    #     radec = ltu.radec_to_coord((ra, dec))
+    #     self.helio_correct(self.sobjs, radec, obstime)
+    #
+    #     # Return
+    #     return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs

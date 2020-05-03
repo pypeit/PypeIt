@@ -64,7 +64,7 @@ def sorted_flat_data(data, coo, gpm=None):
             Data array with arbirary shape and data type.
         coo (`numpy.ndarray`_):
             Relevant coordinate array. Shape must match ``data``.
-        gpm (`numpy.ndarray`_, optional): 
+        gpm (`numpy.ndarray`_, optional):
             Good-pixel mask for array. Used to select data (where
             ``gpm`` is True) to sort and return. Shape must match
             ``data``.  If None, all data is used.
@@ -155,7 +155,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
     pixels to reject from the full input set (i.e., rejected pixels
     are not kept between iterations). Rejection iterations are only
     performed if ``illum_iter > 0 and illum_rej is not None``.
-    
+
     Args:
         norm_spec (`numpy.ndarray`_):
             Flat-field image (2D array) with the spectral response
@@ -217,7 +217,7 @@ def construct_illum_profile(norm_spec, spat_coo, slitwidth, spat_gpm=None, spat_
         where ``norm_spec`` is the input array, ``_spat_gpm`` is the
         first returned object, ``srt`` is the second returned object,
         and ``profile`` is the last returned object.
-            
+
     """
     if illum_rej is None and illum_iter > 0:
         msgs.warn('Cannot use iterative rejection to construct the illumination function if the '
@@ -330,7 +330,7 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
             - The fraction of the slit that the right edge is shifted to
               the left
             - The adjusted right edge
-        
+
     """
     # Check input
     nspec = len(left)
@@ -394,7 +394,7 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
             left_shift = linear_interpolate(norm_flat[i], spat_coo[i], norm_flat[i+1],
                                            spat_coo[i+1], left_thresh)
         msgs.info('Tweaking left slit boundary by {0:.1f}%'.format(100*left_shift) +
-                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))        
+                  ' % ({0:.2f} pixels)'.format(left_shift*slitwidth))
         new_left += left_shift * slitwidth
 
     # ------------------------------------------------------------------
@@ -448,11 +448,13 @@ def tweak_slit_edges(left, right, spat_coo, norm_flat, thresh=0.93, maxfrac=0.1,
             right_shift = 1-linear_interpolate(norm_flat[i-1], spat_coo[i-1], norm_flat[i],
                                                spat_coo[i], right_thresh)
         msgs.info('Tweaking right slit boundary by {0:.1f}%'.format(100*right_shift) +
-                  ' % ({0:.2f} pixels)'.format(right_shift*slitwidth))        
+                  ' % ({0:.2f} pixels)'.format(right_shift*slitwidth))
         new_right -= right_shift * slitwidth
 
     return left_thresh, left_shift, new_left, right_thresh, right_shift, new_right
 
+
+# TODO: How much of the rest of this is used?
 
 def flatfield(sciframe, flatframe, bpix, illum_flat=None, snframe=None, varframe=None):
     """ Flat field the input image

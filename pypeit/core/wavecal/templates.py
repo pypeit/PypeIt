@@ -49,7 +49,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         slits (list):
             Slits in the archive files to use
         wv_cuts (list):
-            Wavelengths to cut each slit at
+            Wavelengths to cut each slit at. The elements of the list
+            correspond to the wavelengths where two spectra are stitched together.
         binspec (int):
             Spectral binning of the archived spectrum
         outroot (str):
@@ -77,12 +78,14 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
     if outdir is None:
         outdir = outpath
 
+    if ifiles is None:
+        ifiles = np.arange(len(in_files))
     # Load xidl file
     # Grab it
     # Load and splice
     yvals = []
     lvals = []
-    if not isinstance(in_files,list):
+    if not isinstance(in_files, list):
         in_files = [in_files]
         ifiles = [0]*len(slits)
     for kk, slit in enumerate(slits):
@@ -199,7 +202,7 @@ def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, out
     lcut = [3200.]
     build_template("", slits, lcut, binspec, outroot, outdir=outdir, wvspec=wvspec, lowredux=False, overwrite=False)
     # Return
-    return
+    return outroot
 
 
 def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
@@ -749,10 +752,30 @@ def main(flg):
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
                        chk=True, subtract_conti=True)
 
+    # Keck KCWI
+    if flg & (2 ** 29):
+        # FeAr BH2
+        wfile1 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200_00.json')
+        wfile2 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200_11.json')
+        outroot = 'keck_kcwi_BH2_4200.fits'
+        binspec = 1
+        slits = [99, 1753]
+        lcut = [4350.0, 8000.0]
+        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+        # FeAr BM
+        wfile1 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4060.json')
+        wfile2 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4670.json')
+        outroot = 'keck_kcwi_BM.fits'
+        binspec = 1
+        slits = [1026, 1021]
+        lcut = [4350.0, 8000.0]
+        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
 
+    # TODO : There must be a better way to index these solutions...
     # Keck/LRISb
     #flg += 2**0  # LRISb 300, all lamps
     #flg += 2**1  # LRISb 400, all lamps
@@ -811,7 +834,10 @@ if __name__ == '__main__':
     #flg += 2**27  # R600/7500
 
     # MDM/OSMMOS
-    flg += 2**28
+    #flg += 2**28
+
+    # Keck KCWI
+    flg += 2**29
 
     main(flg)
 

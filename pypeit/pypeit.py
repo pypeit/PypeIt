@@ -259,7 +259,7 @@ class PypeIt(object):
         if std_outfile is not None and not os.path.isfile(std_outfile):
             msgs.error('Could not find standard file: {0}'.format(std_outfile))
         return std_outfile
-    
+
     def calib_all(self):
         """
         Create calibrations for all setups
@@ -636,13 +636,14 @@ class PypeIt(object):
         # Required for pypeline specific object
         # At instantiaton, the fullmask in self.sciImg is modified
         self.redux = reduce.Reduce.get_instance(sciImg, self.spectrograph,
-                                         self.par, self.caliBrate,
-                                         self.objtype,
-                                         ir_redux=self.ir_redux,
-                                         std_redux=self.std_redux,
-                                         setup=self.setup,
-                                         show=self.show,
-                                         det=det, binning=self.binning)
+                                                self.par, self.caliBrate,
+                                                self.objtype,
+                                                ir_redux=self.ir_redux,
+                                                std_redux=self.std_redux,
+                                                setup=self.setup,
+                                                show=self.show,
+                                                det=det, binning=self.binning,
+                                                std_outfile=std_outfile)
         # Show?
         if self.show:
             self.redux.show('image', image=sciImg.image, chname='processed',
