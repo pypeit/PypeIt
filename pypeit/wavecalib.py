@@ -18,30 +18,73 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa
+from pypeit.core import fitting
 from pypeit.core.wavecal import autoid, waveio, templates
 from pypeit.core.gui import identify as gui_identify
 from pypeit import utils
 from pypeit import datamodel
 
-#class WaveCalib(datamodel.DataContainer):
-#    # Peg the version of this class to that of PypeItImage
-#    version = '1.0.0'
-#
-#    # I/O
-#    output_to_disk = None
-#    hdu_prefix = None
-#
-#    # Master fun
-#    frametype = 'wv_calib'
-#    master_type = 'WaveCalib'
-#
-#    # Data model
-#    datamodel_v100 = {
-#        'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
-#        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
-#    }
-#
-#    datamodel = datamodel_v100.copy()
+class WaveCalib(datamodel.DataContainer):
+    """
+    DataContainer for the output from BuildWaveCalib
+
+    All of the items in the datamodel are required for instantiation,
+      although they can be None (but shouldn't be)
+
+    """
+    minimum_version = '1.0.0'
+    version = '1.0.0'
+
+    # I/O
+    output_to_disk = None  # This writes all items that are not None
+    hdu_prefix = None      # None required for this DataContainer
+
+    # MasterFrame fun
+    master_type = 'WaveCalib'
+    master_file_format = 'fits'
+
+    datamodel = {
+        'fits': dict(otype=np.ndarray, atype=fitting.PypeItFit,
+                              desc='Fits to 1D wavelength solutions'),
+        'nslit': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
+        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
+    }
+
+    def __init__(self, fits=None, nslit=None, spat_id=None):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+    def _init_internals(self):
+        # Master stuff
+        self.master_key = None
+        self.master_dir = None
+
+    def _bundle(self):
+        """
+        Bundle the data in preparation for writing to a fits file.
+
+        See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
+        always written to a 'WVCALIB' extension.
+        """
+        return super(WaveCalib, self)._bundle(ext='WVCALIB')
+
+    def is_synced(self, slits):
+        """
+        Confirm the slits in WaveCalib are aligned to that in SlitTraceSet
+
+        Barfs if not
+
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+
+        """
+        if not np.array_equal(self.spat_id, slits.spat_id):
+            msgs.error("Your wvcalib solutions are out of sync with your slits.  Remove Masters and start from scratch")
+
+
 
 class BuildWaveCalib(object):
     """
@@ -89,8 +132,6 @@ class BuildWaveCalib(object):
     """
     # Frametype is a class attribute
     frametype = 'wv_calib'
-    master_type = 'WaveCalib'
-    master_file_format = 'json'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
                  qa_path=None, msbpm=None, master_key=None):
@@ -250,7 +291,8 @@ class BuildWaveCalib(object):
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
-        # Convert keys to spatial system
+        # Build the DataContainer
+        embed(header='295')
         self.wv_calib = {}
         tmp = copy.deepcopy(final_fit)
         for idx in range(self.slits.nslits):

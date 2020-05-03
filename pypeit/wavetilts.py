@@ -30,7 +30,7 @@ class WaveTilts(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_versio = '1.0.0'
+    minimum_version = '1.0.0'
     version = '1.1.0'
 
     # I/O
@@ -75,7 +75,7 @@ class WaveTilts(datamodel.DataContainer):
         Bundle the data in preparation for writing to a fits file.
 
         See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
-        always written to a 'SLITS' extension.
+        always written to a 'TILTS' extension.
         """
         return super(WaveTilts, self)._bundle(ext='TILTS')
 

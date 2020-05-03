@@ -699,7 +699,7 @@ class Calibrations(object):
         binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
 
         # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.slits, self.spectrograph,
+        self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], binspectral=binspec,
                                              det=self.det,
                                              master_key=self.master_key_dict['arc'],  # For QA naming
