@@ -125,7 +125,7 @@ the illumination flat, and the flat model::
 
 
 pypeit_flux_setup
-============
+=================
 
 This setups files for fluxing, coadding and telluric corrections.
 See :doc:`flux`, :doc:`coadd1d`, and :doc:`telluric` for details::

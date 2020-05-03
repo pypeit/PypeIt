@@ -1,23 +1,25 @@
-=======
+===================
 Telluric correction
-=======
+===================
 
 Overview
 ========
+
 Telluric correction is done after the main run of PypeIt, :doc:`fluxing` and :doc:`coadd1d`.
 The algorithm for deriving the best telluric model is pretty similar with that used
 in the IR sensitivity function, which fits an user defined model and telluric
 to a giant telluric grid. Please see :doc:`fluxing` for more details.
 
 pypeit_tellfit
-===================
+==============
 
 The primary script is called `pypeit_tellfit`_ which takes
 an input file or arguments to guide the process. There are three
 different object models for the fitting:
 
 object models
-------------
+-------------
+
 The object model options are:
  - qso = for quasar or AGN.
  - star = for stellar object.
@@ -88,34 +90,41 @@ Command Line Options
 Your object model, either qso, star or poly.
 
 --tell_grid OR -g
-+++++++++++++
++++++++++++++++++
+
 The full path for the telluric grid file. In case of spectrograph which
 has defined the default grid, you do not need to set this argument.
 
 --pca_file or -p
-+++++++++++++
+++++++++++++++++
+
 The full path for the qso pca pickle file. Only used in the qso model.
 The default is qso_pca_1200_3100.pckl which should be downloaded and put in
 the pypeit telluric data folder.
 
 --tell_file or -t
-+++++++++++++
++++++++++++++++++
+
 The tellfit parameter file.
 
 --redshift or -r
-+++++++++++++
+++++++++++++++++
+
 Redshift of your object.
 
 --debug
-+++++++++++++
++++++++
+
 show debug plots if set.
 
 --plot
-+++++++++++++
+++++++
+
 show the final telluric corrected spectrum if set.
 
 --par_outfile
 +++++++++++++
+
 File name for the tellfit parameters used in the fit.
 
 
@@ -123,42 +132,46 @@ Parameters
 ==========
 
 qso model
--------
+---------
 
 The two main parameters for a qso model are::
 
   redshift and bal_mask
 
 redshift
-++++++++++
+++++++++
+
 The redshift of your science object you want to correct telluric absorption
 
 bal_mask
-++++++++++
+++++++++
+
 You can set a bal_mask if your quasar/AGN is a broad absorption line quasar.
 It is a list with even float numbers in the format of (in case of two absorption troughs)::
 
     bal1_wave_min, bal1_wave_max, bal2_wave_min, bal2_wave_max
 
 star model
--------
+----------
 
 The main parameters for a star model are::
 
   star_type and star_mag
 
 star_type
-++++++++++
++++++++++
+
 The spectra type of your star. If A0, it will use VEGA spectrum, otherwise will use a
 Kurucz SED model.
 
 
 star_mag
-++++++++++
+++++++++
+
 V-band magnitude of your star.
 
 poly model
--------
+----------
 
 The main parameters for a poly model are::
 
@@ -169,14 +182,15 @@ poly_order
 The polynomial order you want to use for modeling your object
 
 fit_region_mask
-++++++++++
++++++++++++++++
+
 You can specify a list of specific regions used for the fitting, if not
 set it will simply use the whole spectrum. The format for this parameter
 is exactly same with the `bal_mask`_ defined above.
 
 
 Show your final telluric corrected spectrum
-==========================
+===========================================
 
 The final spectrum may be viewed with the *lt_xspec* script which loads the data
 and launches a GUI from the linetools package. e.g.::
