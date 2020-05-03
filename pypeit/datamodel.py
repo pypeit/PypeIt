@@ -1114,8 +1114,11 @@ class DataContainer:
                 if isinstance(d[ext], DataContainer):
                     hdu += d[ext].to_hdu()
                 else:
-                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
+                    try:
+                        hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
                                             force_to_bintbl=force_to_bintbl)]
+                    except:
+                        import pdb; pdb.set_trace()
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
         # Prefixes

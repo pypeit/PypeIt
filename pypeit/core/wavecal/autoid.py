@@ -111,7 +111,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     # Points
     ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
     # Rejections?
-    bpm = np.invert(waveFit.fit.gpm)
+    bpm = np.invert(waveFit.pypeitfit.gpm)
     if np.any(bpm):
         xrej = waveFit.pixel_fit[bpm]
         yrej = waveFit.wave_fit[bpm]
@@ -128,7 +128,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
     #wave_soln_fit = utils.func_val(fit['fitc'], pixel_fit/xnorm, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    wave_soln_fit = waveFit.fit.val(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+    wave_soln_fit = waveFit.pypeitfit.val(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
     rms = np.sqrt(np.sum((waveFit.wave_fit-wave_soln_fit)**2)/len(waveFit.pixel_fit)) # Ang
     dwv_pix = np.median(np.abs(waveFit.wave_soln-np.roll(waveFit.wave_soln,1)))
     ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')

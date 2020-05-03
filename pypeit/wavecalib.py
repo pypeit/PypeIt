@@ -75,27 +75,35 @@ class WaveCalib(datamodel.DataContainer):
             written to its own fits extension. See the description
             above.
         """
-        d = []
+        _d = []
+        for_header = {}
+
+        # Spat_ID first
+        if self.spat_id is None:
+            msgs.error("Cannot write WaveCalib without spat_id")
+        _d.append(dict(spat_id=self.spat_id))
 
         # Rest of the datamodel
         for key in self.keys():
+            if key == 'spat_id':
+                continue
             # Skip None
             if self[key] is None:
                 continue
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
-                d.append({key: self[key]})
+                _d.append({key: self[key]})
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
                     # Naming
                     wv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
                     dkey = 'WAVEFIT-{}'.format(self.spat_id[ss])
                     # Save
-                    d.append({dkey: wv_fit})
-            else: # Add to header of the primary image
-                d[0][key] = self[key]
+                    _d.append({dkey: wv_fit})
+            else: # Add to header of the spat_id image
+                _d[0][key] = self[key]
         # Return
-        return d
+        return _d
 
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,

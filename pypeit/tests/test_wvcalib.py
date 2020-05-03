@@ -33,6 +33,7 @@ def test_wavefit():
     # Read
     waveFit2 = wv_fitting.WaveFit.from_file(out_file)
     assert np.array_equal(waveFit.pypeitfit.fitc, waveFit2.pypeitfit.fitc)
+    # Write again
     waveFit2.to_file(out_file, overwrite=True)
     # Finish
     os.remove(out_file)
@@ -47,7 +48,7 @@ def test_wavecalib():
     pypeitFit = fitting.PypeItFit(fitc=np.arange(100).astype(float))
     waveFit = wv_fitting.WaveFit(pypeitfit=pypeitFit, pixel_fit=np.arange(100).astype(float))
 
-    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]), spat_id=np.asarray([232]))
+    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]), nslits=1, spat_id=np.asarray([232]))
 
     # Write
     waveCalib.to_file(out_file)
@@ -59,6 +60,9 @@ def test_wavecalib():
     assert np.array_equal(waveCalib.spat_id, waveCalib2.spat_id), 'Bad spat_id'
     assert np.array_equal(waveCalib.wv_fits[0].pypeitfit.fitc,
                           waveCalib2.wv_fits[0].pypeitfit.fitc), 'Bad fitc'
+
+    # Write again!
+    waveCalib2.to_file(out_file, overwrite=True)
 
     # Finish
     os.remove(out_file)
