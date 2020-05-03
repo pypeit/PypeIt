@@ -1,15 +1,35 @@
 #!/usr/bin/env python
 import argparse
-import os
+import os,time
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 from pypeit import msgs
+from pypeit.par.util import make_pypeit_file
 
+
+class SmartFormatter(argparse.HelpFormatter):
+
+    def _split_lines(self, text, width):
+        if text.startswith('R|'):
+            return text[2:].splitlines()
+        # this is the RawTextHelpFormatter._split_lines
+        return argparse.HelpFormatter._split_lines(self, text, width)
 
 def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse')
+    parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("sci_path", type=str, help="Path for Science folder")
+    parser.add_argument("--objmodel", type=str, default='qso', choices=['qso', 'star', 'poly'],
+                        help="R|Science object model used in the telluric fitting.\n"
+                        "The options are:\n"
+                        "\n"
+                        "    qso  = For quasars. You might need to set redshift, bal_mask in the tell file.\n"
+                        "\n"
+                        "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
+                        "\n"
+                        "    poly = For other type object, You might need to set fit_region_mask, \n"
+                        "           and norder in the tell_file."
+                        )
 
     if options is None:
         args = parser.parse_args()
@@ -46,57 +66,55 @@ def main(args):
         par = fits.open(os.path.join(args.sci_path, spec1dfiles[0]))
 
         ## fluxing pypeit file
-        f1 = open('{:}.flux'.format(par[0].header['PYP_SPEC']), 'w')
-        print('# User-defined fluxing parameters', file=f1)
-        print('[fluxcalib]', file=f1)
-        print('  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm', file=f1)
-        print('\nflux read', file=f1)
+        spectrograph = par[0].header['PYP_SPEC']
+        flux_file = '{:}.flux'.format(spectrograph)
+        cfg_lines = ['[fluxcalib]']
+        cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
+        cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
+        make_pypeit_file(flux_file, spectrograph, spec1dfiles, cfg_lines=cfg_lines, setup_mode=True)
+
 
         ## coadd1d pypeit file
-        f2 = open('{:}.coadd1d'.format(par[0].header['PYP_SPEC']), 'w')
-        print('# User-defined coadd1d parameters', file=f2)
-        print('[coadd1d]', file=f2)
-        print('  coaddfile = YOUR_OUTPUT_FILE_NAME', file=f2)
-        print('  sensfuncfile = YOUR_SENSFUNC_FILE', file=f2)
-        print('\n# This file includes all extracted objects. You need to figure out which object you want to \n' + \
-              '# coadd before running pypeit_coadd_1dspec!!!\n', file=f2)
-        print('coadd1d read', file=f2)
-
-        ## tellfit pypeit file
-        f3 = open('{:}.tell'.format(par[0].header['PYP_SPEC']), 'w')
-        print('# User-defined tellfit parameters. Please only use one of the following object models.', file=f3)
-        print('\n# Example for Quasars', file=f3)
-        print('[tellfit]', file=f3)
-        print('  objmodel = qso', file=f3)
-        print('  redshift = 7.0', file=f3)
-        print('\n# Example for Stars', file=f3)
-        print('[tellfit]', file=f3)
-        print('  objmodel = star', file=f3)
-        print('  star_type = A0', file=f3)
-        print('  star_mag = 8.0', file=f3)
-        print('\n# Example for Other objects', file=f3)
-        print('[tellfit]', file=f3)
-        print('  objmodel = poly', file=f3)
-        print('  polyorder = 3', file=f3)
-        print('  fit_region_mask = 9000.0,9500.0', file=f3)
-        f3.close()
-
+        coadd1d_file = '{:}.coadd1d'.format(spectrograph)
+        cfg_lines = ['[coadd1d]']
+        cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
+        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name\n']
+        cfg_lines += ['# This file includes all extracted objects. You need to figure out which object you want to \n'+\
+                      '# coadd before running pypeit_coadd_1dspec!!!']
+        spec1d_info = []
         for ii in range(len(spec1dfiles)):
-            if ii == 0:
-                print('  ' + os.path.join(args.sci_path, spec1dfiles[ii]) + ' YOUR_SENSFUNC_FILE', file=f1)
-            else:
-                print('  ' + os.path.join(args.sci_path, spec1dfiles[ii]), file=f1)
-
             meta_tbl = Table.read(os.path.join(args.sci_path, spec1dfiles[ii]).replace('.fits', '.txt'),
                                   format='ascii.fixed_width')
             objects = np.unique(meta_tbl['name'])
             for jj in range(len(objects)):
-                print('  ' + os.path.join(args.sci_path, spec1dfiles[ii]) + ' ' + meta_tbl['name'][jj], file=f2)
+                spec1d_info.append(spec1dfiles[ii] + ' '+ meta_tbl['name'][jj])
+        make_pypeit_file(coadd1d_file, spectrograph, spec1d_info, cfg_lines=cfg_lines, setup_mode=True)
 
-        print('flux end', file=f1)
-        f1.close()
+        ## tellfit pypeit file
+        tellfit_file = '{:}.tell'.format(spectrograph)
+        cfg_lines = ['[tellfit]']
+        if args.objmodel == 'qso':
+            cfg_lines += ['  objmodel = qso']
+            cfg_lines += ['  redshift = 0.0']
+            cfg_lines += ['  bal_mask = 10000.,11000.']
+        elif args.objmodel == 'star':
+            cfg_lines += ['  objmodel = star']
+            cfg_lines += ['  star_type = A0']
+            cfg_lines += ['  star_mag = 0.0']
+        elif args.objmodel == 'poly':
+            cfg_lines += ['  objmodel = poly']
+            cfg_lines += ['  polyorder = 5']
+            cfg_lines += ['  fit_region_mask = 9000.0,9500.0']
 
-        print('coadd1d end', file=f2)
-        f2.close()
+        with open(tellfit_file, 'w') as f:
+            f.write('# Auto-generated PypeIt file\n')
+            f.write('# {0}\n'.format(time.strftime("%a %d %b %Y %H:%M:%S", time.localtime())))
+            f.write("\n")
+            f.write("# User-defined execution parameters\n")
+            f.write("# This is only an example. Make sure to change the following parameters accordingly.\n")
+            f.write('\n'.join(cfg_lines))
+            f.write('\n')
+            f.write('\n')
+        msgs.info('PypeIt file written to: {0}'.format(tellfit_file))
 
 

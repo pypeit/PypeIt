@@ -127,4 +127,15 @@ the illumination flat, and the flat model::
 pypeit_flux_setup
 ============
 
-This setups files for fluxing, coadding and telluric corrections.  See :doc:`flux`, :doc:`coadd1d`, and :doc:`telluric` for details
+This setups files for fluxing, coadding and telluric corrections.
+See :doc:`flux`, :doc:`coadd1d`, and :doc:`telluric` for details::
+
+    unix> pypeit_flux_setup -h
+    usage: pypeit_flux_setup sci_path [-h] [--objmodel]
+
+    positional arguments:
+      sci_path           the path for your Science folder
+
+    optional arguments:
+      -h, --help     show this help message and exit
+      --objmodel     set objmodel for telluric fitting (default: qso)

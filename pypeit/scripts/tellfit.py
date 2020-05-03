@@ -58,7 +58,7 @@ def parser(options=None):
     parser.add_argument("spec1dfile", type=str,
                         help="spec1d file for the standard that will be used to compute sensitivity function")
     parser.add_argument("--objmodel", type=str, default=None, choices=['qso', 'star', 'poly'],
-                        help="R|science object model used in the fitting"
+                        help="R|science object model used in the fitting.\n"
                         "The options are:\n"
                         "\n"
                         "    qso  = For quasars. You might need to set redshift, bal_mask in the tell file.\n"
