@@ -106,7 +106,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['polyorder'] = 6
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
         return par
@@ -221,7 +221,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         meta['ra'] = dict(ext=0, card='RA')
         meta['dec'] = dict(ext=0, card='DEC')
         meta['target'] = dict(ext=0, card='OBJECT')
-        meta['decker'] = dict(ext=0, card='DECKER')
+        meta['decker'] = dict(ext=0, card='SLIT')
 
         meta['binning'] = dict(ext=0, card=None, default='1,1')
         meta['mjd'] = dict(ext=0, card='MJD_OBS')
@@ -255,7 +255,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             # Don't type pinhole, dark, or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['idname'] == 'ARC')
+            ## FW ToDo: self.dispname does not work yet. need to replace the following later.
+            if '32/mm' in fitstbl['dispname'][0]:
+                return good_exp & (fitstbl['idname'] == 'OBJECT')
+            elif '10/mmLBSX' in fitstbl['dispname'][0]:
+                return good_exp & (fitstbl['idname'] == 'ARC')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -304,6 +308,9 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         if '10/mmLBSX' in self.dispname:
             return np.array([0.050, 0.215, 0.442, 0.759])
         elif '32/mm' in self.dispname:
+            ## Old data, i.e. before 2011
+            #return np.array([0.241211 , 0.3173828, 0.387695, 0.456054, 0.530273, 0.640625])
+            ##New data
             return np.array([0.2955097 , 0.37635756, 0.44952223, 0.51935601, 0.59489503, 0.70210309])
         else:
             msgs.error('Unrecognized disperser')

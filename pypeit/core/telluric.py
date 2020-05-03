@@ -579,6 +579,7 @@ def general_spec_reader(specfile, ret_flam=False):
         except:
             spectrograph = load_spectrograph('shane_kast_blue')
         spect_dict = spectrograph.parse_spec_header(head)
+        head['PYP_SPEC'] = spectrograph.spectrograph
     except:
         # Load
         onespec = coadd1d.OneSpec.from_file(specfile)
@@ -587,7 +588,7 @@ def general_spec_reader(specfile, ret_flam=False):
         counts = onespec.flux
         counts_ivar = onespec.ivar
         counts_mask = onespec.mask.astype(bool)
-        spect_dict = onespec.spec_meta
+        spect_dict = onespec.spect_meta
         head = onespec.head0
 
     # Build this
@@ -595,6 +596,28 @@ def general_spec_reader(specfile, ret_flam=False):
     meta_spec['core'] = spect_dict
 
     return wave, counts, counts_ivar, counts_mask, meta_spec, head
+
+def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, telluric=None, obj_model=None,
+        header=None, ex_value='OPT', overwrite=True):
+
+    wave_mask = wave > 1.0
+    # Generate the DataContainer
+    onespec = coadd1d.OneSpec(wave[wave_mask],
+                      flux[wave_mask],
+                      PYP_SPEC=spectrograph,
+                      ivar=ivar[wave_mask],
+                      mask=mask[wave_mask].astype(int),
+                      ext_mode=ex_value,
+                      fluxed=True)
+    onespec.head0 = header
+
+    # Add on others
+    if telluric is not None:
+        onespec.telluric = telluric[wave_mask]
+    if obj_model is not None:
+        onespec.obj_model = obj_model[wave_mask]
+    # Write
+    onespec.to_file(outfile, overwrite=overwrite)
 
 ############################
 #  Object model functions  #
@@ -1220,7 +1243,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     return meta_table, out_table
 
-def create_bal_mask(wave):
+def create_bal_mask(wave, bal_mask):
     """
     Example of a utility function for creating a BAL mask for QSOs with BAL features. Can also be used to mask other
     features that the user does not want to fit.
@@ -1233,17 +1256,25 @@ def create_bal_mask(wave):
     Returns
     -------
     gpm : array shape, (nspec,)
-       Good pixel mask for the fits.
+       Good pixel (non-bal pixels) mask for the fits.
 
     """
+    if np.size(bal_mask) % 2 !=0:
+        msgs.error('bal_mask must be a list/array with even numbers.')
 
-    # example of a BAL mask
-    bal_mask =  (wave > 12000.0) & (wave < 12100)
-    return np.invert(bal_mask)
+    bal_bpm = np.zeros_like(wave, dtype=bool)
+    nbal = int(np.size(bal_mask) / 2)
+    if isinstance(bal_mask, list):
+        bal_mask = np.array(bal_mask)
+    wav_min_max = np.reshape(bal_mask,(nbal,2))
+    for ibal in range(nbal):
+        bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
+
+    return np.invert(bal_bpm)
 
 
 
-def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, create_bal_mask=None,
+def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, bal_mask=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
@@ -1255,7 +1286,8 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
     obj_params = dict(pca_file=pca_file, npca=npca, z_qso=z_qso, delta_zqso=delta_zqso, bounds_norm=bounds_norm,
                       tell_norm_thresh=tell_norm_thresh,
-                      output_meta_keys=('pca_file', 'npca', 'z_qso', 'delta_zqso','bounds_norm', 'tell_norm_thresh'))
+                      output_meta_keys=('pca_file', 'npca', 'z_qso', 'delta_zqso','bounds_norm', 'tell_norm_thresh'),
+                      debug_init=debug_init)
 
     wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
     header = fits.getheader(spec1dfile) # clean this up!
@@ -1263,9 +1295,9 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +
                                                                     z_qso))
     # TODO this 3100 is hard wired now, but make the QSO PCA a PypeIt product and determine it from the file
-    if create_bal_mask is not None:
-        bal_mask = create_bal_mask(wave)
-        mask_tot = mask & qsomask & bal_mask
+    if bal_mask is not None:
+        bal_gpm = create_bal_mask(wave, bal_mask)
+        mask_tot = mask & qsomask & bal_gpm
     else:
         mask_tot = mask & qsomask
 
@@ -1306,8 +1338,9 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=pca_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=pca_model,header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
@@ -1394,13 +1427,14 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=star_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=star_model,header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
-                  fit_region_min=None, fit_region_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
+                  fit_region_mask=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=5,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
@@ -1439,15 +1473,9 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     else:
         mask_tot = mask
 
-    if fit_region_min is not None:
-        if np.size(fit_region_min) != np.size(fit_region_max):
-            msgs.error('fit_region_min should have the same size with fit_region_max.')
-        else:
-            mask_region = np.zeros_like(mask_tot,dtype=bool)
-            for ii in range(np.size(fit_region_min)):
-                mask_ii = (wave>fit_region_min[ii]) & (wave<fit_region_max[ii])
-                mask_region[mask_ii] = True
-            mask_tot = mask_tot & mask_region
+    if fit_region_mask is not None:
+        mask_region = create_bal_mask(wave, fit_region_mask)
+        mask_tot = mask_tot & np.invert(mask_region)
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params,
@@ -1484,8 +1512,9 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=poly_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=poly_model,header=header, ex_value='OPT', overwrite=True)
 
 
     return TelObj
