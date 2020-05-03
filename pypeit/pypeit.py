@@ -143,7 +143,8 @@ class PypeIt(object):
 
         # Check for calibrations
         if not self.calib_only:
-            calibrations.check_for_calibs(self.par, self.fitstbl)
+            calibrations.check_for_calibs(self.par, self.fitstbl,
+                                          raise_error=self.par['calibrations']['raise_chk_error'])
 
         # Report paths
         msgs.info('Setting reduction path to {0}'.format(self.par['rdx']['redux_path']))

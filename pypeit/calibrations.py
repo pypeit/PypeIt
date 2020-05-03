@@ -66,8 +66,8 @@ class Calibrations(object):
         flatimages (:class:`pypeit.flatfield.FlatImages`):
         msbias (:class:`pypeit.images.buildimage.BiasImage`):
         msdark (:class:`pypeit.images.buildimage.DarkImage`):
-        msbpm (`numpy.ndarray`):
-        wv_calib (:obj:`dict):
+        msbpm (`numpy.ndarray`_):
+        wv_calib (:obj:`dict`):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
         write_qa
@@ -645,21 +645,12 @@ class Calibrations(object):
                                                         self.par['traceframe'], trace_image_files,
                                                         bias=self.msbias, bpm=self.msbpm,
                                                         dark=self.msdark)
-                # Build me
-                self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph, self.par['slitedges'],
+                self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
+                                                    self.par['slitedges'], bpm=self.msbpm,
+                                                    det=self.det, auto=True,
                                                     files=trace_image_files)
-
-                try:
-                    self.edges.auto_trace(bpm=self.msbpm, det=self.det, save=False)
-                except:
-                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                    master_key=self.master_key_dict['trace'])
-                    msgs.error('Crashed out of finding the slits. Have saved the work done to '
-                               'disk but it needs fixing.')
-                    return
-                else:
-                    self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                    master_key=self.master_key_dict['trace'])
+                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
+                                master_key=self.master_key_dict['trace'])
 
                 # Show the result if requested
                 if self.show:
@@ -907,7 +898,18 @@ def check_for_calibs(par, fitstbl, raise_error=True):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
             calib_ID = int(fitstbl['calib'][frames[0]])
 
-            # Explore
+            # Arc, tilt, science
+            for ftype in ['arc', 'tilt', 'science', 'trace']:
+                rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
+                if len(rows) == 0:
+                    # Fail
+                    msg = "No frames of type={} provided. Add them to your PypeIt file if this is a standard run!".format(ftype)
+                    if raise_error:
+                        msgs.error(msg)
+                    else:
+                        msgs.warn(msg)
+
+            # Explore science frame
             for key, ftype in zip(['use_biasimage', 'use_darkimage', 'use_pixelflat', 'use_illumflat'],
                                   ['bias', 'dark', 'pixelflat', 'illumflat']):
                 if par['scienceframe']['process'][key]:

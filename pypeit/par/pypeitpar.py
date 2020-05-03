@@ -1077,7 +1077,7 @@ class FluxCalibratePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extinct_correct=None):
+    def __init__(self, extinct_correct=None, extrap_sens=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1089,6 +1089,10 @@ class FluxCalibratePar(ParSet):
         defaults = OrderedDict.fromkeys(pars.keys())
         dtypes = OrderedDict.fromkeys(pars.keys())
         descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['extrap_sens'] = False
+        dtypes['extrap_sens'] = bool
+        descr['extrap_sens'] = 'Over-ride the default to crash out when the sensitivity function does not cover the full wavelength range.'
 
         defaults['extinct_correct'] = True
         dtypes['extinct_correct'] = bool
@@ -1107,7 +1111,7 @@ class FluxCalibratePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['extinct_correct']
+        parkeys = ['extinct_correct', 'extrap_sens']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3047,7 +3051,8 @@ class CalibrationsPar(ParSet):
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
                  illumflatframe=None,
-                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
+                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
+                 raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -3073,6 +3078,10 @@ class CalibrationsPar(ParSet):
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
                          'must match the Master Frames in the master frame folder.'
+
+        defaults['raise_chk_error'] = True
+        dtypes['raise_chk_error'] = bool
+        descr['raise_chk_error'] = 'Raise an error if the calibration check fails'
 
         defaults['bpm_usebias'] = False
         dtypes['bpm_usebias'] = bool
@@ -3181,7 +3190,7 @@ class CalibrationsPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'master_dir', 'setup', 'bpm_usebias']
+        parkeys = [ 'master_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe',
@@ -3965,7 +3974,7 @@ class TelescopePar(ParSet):
         """
         Return the valid telescopes.
         """
-        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO']
+        return [ 'GEMINI-N','GEMINI-S', 'KECK', 'SHANE', 'WHT', 'APF', 'TNG', 'VLT', 'MAGELLAN', 'LBT', 'MMT', 'KPNO', 'NOT']
 
     def validate(self):
         pass

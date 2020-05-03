@@ -289,12 +289,14 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
                 corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
 
 
-def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
+def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
     Args:
         specobjs (:class:`pypeit.specobjs.Specobjs`):
-        maskslits (`numpy.ndarray`_):
+        slitord (`numpy.ndarray`_):
+            Array of slit/order numbers
+        bpm (`numpy.ndarray`_):
             True = masked slit
         method (:obj:`str`)
           'boxcar' -- Recommneded
@@ -314,8 +316,8 @@ def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     # Load Archive
     sky_spectrum = load_sky_spectrum(sky_file)
 
-    nslits = len(maskslits)
-    gdslits = np.where(~maskslits)[0]
+    nslits = len(bpm)
+    gdslits = np.where(np.invert(bpm))[0]
 
     # Loop on objects
     flex_list = []
@@ -324,17 +326,18 @@ def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     return_later_sobjs = []
 
     # Loop over slits, and then over objects here
-    for slit in range(nslits):
-        msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(slit))
-        # TODO -- This only will work for MultiSlit
-        indx = specobjs.slitorder_indices(slit)
+    for islit in range(nslits):
+        i_slitord = slitord[islit]
+        msgs.info("Working on flexure in slit (if an object was detected): {:d}".format(islit))
+
+        indx = specobjs.slitorder_indices(i_slitord)
         this_specobjs = specobjs[indx]
         # Reset
         flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
                          corr_cen=[], spec_file=sky_file, smooth=[],
                          arx_spec=[], sky_spec=[])
         # If no objects on this slit append an empty dictionary
-        if slit not in gdslits:
+        if islit not in gdslits:
             flex_list.append(flex_dict.copy())
             continue
         for ss, specobj in enumerate(this_specobjs):
@@ -342,7 +345,7 @@ def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                 continue
             if specobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                 continue
-            msgs.info("Working on flexure for object # {:d}".format(specobj.OBJID) + "in slit # {:d}".format(specobj.SLITID))
+            msgs.info("Working on flexure for object # {:d}".format(specobj.OBJID) + "in slit # {:d}".format(islit))
             # Using boxcar
             if method in ['boxcar', 'slitcen']:
                 sky_wave = specobj.BOX_WAVE #.to('AA').value
@@ -364,7 +367,7 @@ def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                 else:
                     # One does not exist yet
                     # Save it for later
-                    return_later_sobjs.append([slit, ss])
+                    return_later_sobjs.append([islit, ss])
                     punt = True
             else:
                 sv_fdict = copy.deepcopy(fdict)
@@ -388,6 +391,7 @@ def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
                 msgs.info("No flexure corrections could be made")
                 break
             # Setup
+            msgs.error("This probably needs to be updated")
             slit, ss = items
             flex_dict = flex_list[slit]
             specobj = specobjs[ss]
@@ -404,15 +408,16 @@ def spec_flexure_obj(specobjs, maskslits, method, sky_file, mxshft=None):
     return flex_list
 
 
-# TODO I don't see why maskslits is needed in these routine, since if the slits are masked in arms, they won't be extracted
-#  AND THIS IS WHY THE CODE IS CRASHING
-def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
+def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
                slit_cen=False, out_dir=None):
     """
 
     Args:
         specobjs:
-        maskslits (`numpy.ndarray`_):
+        slitords (`numpy.ndarray`_):
+            Array of slit/order numbers
+        bpm (`numpy.ndarray`_):
+            True = masked slit
         basename (str):
         det (int):
         flex_list (list):
@@ -425,14 +430,18 @@ def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
 
     # Grab the named of the method
     method = inspect.stack()[0][3]
-    #
-    gdslits = np.where(np.invert(maskslits))[0]
+
+    # Mask
+    gdslits = np.where(np.invert(bpm))[0]
 
     # Loop over slits, and then over objects here
-    for slit in gdslits:
-        indx = specobjs.slitorder_indices(slit)
+    for islit in gdslits:
+        # Slit/order number
+        slitord = slitords[islit]
+        # Parse
+        indx = specobjs.slitorder_indices(slitord)
         this_specobjs = specobjs[indx]
-        this_flex_dict = flex_list[slit]
+        this_flex_dict = flex_list[islit]
 
         # Setup
         if slit_cen:
@@ -446,39 +455,43 @@ def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
             continue
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
-        outfile = qa.set_qa_filename(basename, method + '_corr', det=det,slit=(slit + 1), out_dir=out_dir)
+        outfile = qa.set_qa_filename(basename, method + '_corr', det=det, slit=slitord, out_dir=out_dir)
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
-        for iobj, specobj in enumerate(this_specobjs):
+        # TODO -- This cntr is crummy and needs to be replaced by a DataContainer
+        #  for flex_dict and flex_list
+        cntr = 0
+        for specobj in this_specobjs:
             if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
                 continue
             # Correlation QA
-            ax = plt.subplot(gs[iobj//ncol, iobj % ncol])
+            ax = plt.subplot(gs[cntr//ncol, cntr % ncol])
             # Fit
-            fit = this_flex_dict['polyfit'][iobj]
-            xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][iobj] #+ flex_dict['shift'][o]
+            fit = this_flex_dict['polyfit'][cntr]
+            xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] #+ flex_dict['shift'][o]
             #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
             model = utils.func_val(fit, xval, 'polynomial')
             mxmod = np.max(model)
             ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
             ylim = [ylim_min, 1.3]
-            ax.plot(xval-this_flex_dict['corr_cen'][iobj], model/mxmod, 'k-')
+            ax.plot(xval-this_flex_dict['corr_cen'][cntr], model/mxmod, 'k-')
             # Measurements
-            ax.scatter(this_flex_dict['subpix'][iobj]-this_flex_dict['corr_cen'][iobj],
-                       this_flex_dict['corr'][iobj]/mxmod, marker='o')
+            ax.scatter(this_flex_dict['subpix'][cntr]-this_flex_dict['corr_cen'][cntr],
+                       this_flex_dict['corr'][cntr]/mxmod, marker='o')
             # Final shift
-            ax.plot([this_flex_dict['shift'][iobj]]*2, ylim, 'g:')
+            ax.plot([this_flex_dict['shift'][cntr]]*2, ylim, 'g:')
             # Label
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
                 ax.text(0.5, 0.25, '{:s}'.format(specobj.NAME), transform=ax.transAxes, size='large', ha='center')
-            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][iobj]),
+            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
             ax.set_ylim(ylim)
             ax.set_xlabel('Lag')
+            cntr += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)
@@ -512,7 +525,7 @@ def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = qa.set_qa_filename(basename, method+'_sky', det=det,slit=(slit + 1), out_dir=out_dir)
+        outfile = qa.set_qa_filename(basename, method+'_sky', det=det,slit=slitord, out_dir=out_dir)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()
@@ -549,6 +562,7 @@ def spec_flexure_qa(specobjs, maskslits, basename, det, flex_list,
         # Finish
         plt.savefig(outfile, dpi=400)
         plt.close()
+        msgs.info("Wrote spectral flexure QA: {}".format(outfile))
         #plt.close()
 
     plt.rcdefaults()

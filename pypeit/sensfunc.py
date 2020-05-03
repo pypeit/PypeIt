@@ -264,10 +264,11 @@ class SensFunc(object):
         # Interpolate over gaps
         zeros = sensfunc_splice == 0.
         if np.any(zeros):
-            msgs.info("Interpolating over gaps")
+            msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
             interp_func = scipy.interpolate.interp1d(wave_splice[np.invert(zeros)],
                                                  sensfunc_splice[np.invert(zeros)],
-                                                 kind='nearest', fill_value='extrapoloate')
+                                                 kind='nearest', fill_value=0., bounds_error=False) #
+            #kind='nearest', fill_value='extrapoloate', bounds_error=False) #  extrapolate fails for JXP, even on 1.4.1
             zero_values = interp_func(wave_splice[zeros])
             sensfunc_splice[zeros] = zero_values
 

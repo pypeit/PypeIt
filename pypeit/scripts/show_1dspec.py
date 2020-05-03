@@ -55,7 +55,7 @@ def main(args):
             return
 
         if args.obj is not None:
-            exten = sobjs.name.index(args.obj)
+            exten = np.where(sobjs.NAME == args.obj)[0][0]
             if exten < 0:
                 msgs.error("Bad input object name: {:s}".format(args.obj))
         else:

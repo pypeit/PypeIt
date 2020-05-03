@@ -7,6 +7,7 @@ Main driver class for skysubtraction and extraction
 
 import inspect
 import numpy as np
+import os
 
 from astropy import stats
 from abc import ABCMeta
@@ -46,19 +47,19 @@ class Reduce(object):
     Attributes:
         ivarmodel (`numpy.ndarray`_):
             Model of inverse variance
-        objimage `numpy.ndarray`_):
+        objimage (`numpy.ndarray`_):
             Model of object
-        skyimage `numpy.ndarray`_):
+        skyimage (`numpy.ndarray`_):
             Final model of sky
-        initial_sky `numpy.ndarray`_):
+        initial_sky (`numpy.ndarray`_):
             Initial sky model after first pass with global_skysub()
-        global_sky `numpy.ndarray`_):
+        global_sky (`numpy.ndarray`_):
             Fit to global sky
-        skymask `numpy.ndarray`_):
+        skymask (`numpy.ndarray`_):
             Mask of the sky fit
-        outmask `numpy.ndarray`_):
+        outmask (`numpy.ndarray`_):
             Final output mask
-        extractmask `numpy.ndarray`_):
+        extractmask (`numpy.ndarray`_):
             Extraction mask
         sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
             Only object finding but no extraction
@@ -308,8 +309,8 @@ class Reduce(object):
 
         Returns:
             tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.narray`_),
-               tilts (`numpy_ndarray`_).
+               outmask (ndarray), sobjs (SpecObjs), waveimg (`numpy.ndarray`_),
+               tilts (`numpy.ndarray`_).
                See main doc string for description
 
         """
@@ -572,11 +573,14 @@ class Reduce(object):
         """
 
         if self.par['flexure']['spec_method'] != 'skip':
-            flex_list = flexure.spec_flexure_obj(sobjs, self.reduce_bpm, self.par['flexure']['spec_method'],
-                                         self.par['flexure']['spectrum'],
-                                         mxshft=self.par['flexure']['spec_maxshift'])
+            # Measure
+            flex_list = flexure.spec_flexure_obj(sobjs, self.slits.slitord_id, self.reduce_bpm,
+                                                 self.par['flexure']['spec_method'],
+                                                 self.par['flexure']['spectrum'],
+                                                 mxshft=self.par['flexure']['spec_maxshift'])
             # QA
-            flexure.spec_flexure_qa(sobjs, self.reduce_bpm, basename, self.det, flex_list,out_dir=self.par['rdx']['redux_path'])
+            flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
+                                    out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')
 
@@ -598,7 +602,9 @@ class Reduce(object):
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
             # TODO change this keyword to refframe instead of frame
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['frame']))
-            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, self.reduce_bpm,
+            # Good slitord
+            gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
+            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, gd_slitord,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
                                                    self.spectrograph.telescope['elevation'],

@@ -43,12 +43,13 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * Keck/MOSFIRE  (J and Y gratings tested)
 * Keck/NIRES
 * Keck/NIRSPEC (low-dispersion)
-* VLT/X-Shooter
-* VLT/FORS2
-* WHT/ISIS
 * LBT/Luci-I, Luci-II
 * LBT/MODS (beta)
 * Lick/APF (planned)
+* NOT/ALFOSC (grism4)
+* VLT/X-Shooter
+* VLT/FORS2  (300I, 300V)
+* WHT/ISIS
 
 # Requirements
 

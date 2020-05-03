@@ -1,4 +1,8 @@
-""" Routines related to flexure, air2vac, etc. """
+""" Routines related to flexure, air2vac, etc.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+ """
 
 import numpy as np
 
@@ -24,7 +28,7 @@ def geomotion_calculate(radec, time, longitude, latitude, elevation, refframe):
     return geomotion_velocity(obstime, radec, frame=refframe)
 
 
-def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
+def geomotion_correct(specObjs, radec, time, gd_slitord, longitude, latitude,
                       elevation, refframe):
     """
     Correct the wavelength of every pixel to a barycentric/heliocentric frame.
@@ -33,7 +37,8 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
         specObjs (SpecObjs object):
         radec (astropy.coordiantes.SkyCoord):
         time (:obj:`astropy.time.Time`):
-        maskslits
+        gd_slitord (`numpy.ndarray`_):
+            Array of good slit/order IDs
         fitstbl : Table/PypeItMetaData
             Containing the properties of every fits file
         longitude (float): deg
@@ -55,10 +60,9 @@ def geomotion_correct(specObjs, radec, time, maskslits, longitude, latitude,
     vel = geomotion_calculate(radec, time, longitude, latitude, elevation, refframe)
     vel_corr = np.sqrt((1. + vel/299792.458) / (1. - vel/299792.458))
 
-    gdslits = np.where(np.invert(maskslits))[0]
     # Loop on slits to apply
-    for slit in gdslits:
-        indx = specObjs.slitorder_indices(slit)
+    for slitord in gd_slitord:
+        indx = specObjs.slitorder_indices(slitord)
         this_specobjs = specObjs[indx]
         # Loop on objects
         for specobj in this_specobjs:

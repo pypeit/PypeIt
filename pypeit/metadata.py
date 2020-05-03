@@ -192,6 +192,10 @@ class PypeItMetaData:
             for meta_key in self.spectrograph.meta.keys():
                 value = self.spectrograph.get_meta_value(headarr, meta_key, required=strict, usr_row=usr_row,
                                         ignore_bad_header=self.par['rdx']['ignore_bad_headers'])
+                if isinstance(value, str) and '#' in value:
+                    value = value.replace('#', '')
+                    msgs.warn('Removing troublesome # character from {0}.  Returning {1}.'.format(
+                              meta_key, value))
                 data[meta_key].append(value)
             msgs.info('Added metadata for {0}'.format(os.path.split(ifile)[1]))
 
