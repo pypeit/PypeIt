@@ -25,8 +25,10 @@ def test_wavefit():
     out_file = data_path('test_wavefit.fits')
     if os.path.isfile(out_file):
         os.remove(out_file)
-    pypeitFit = fitting.PypeItFit(fitc=np.arange(100).astype(float))
-    waveFit = wv_fitting.WaveFit(pypeitfit=pypeitFit, pixel_fit=np.arange(100).astype(float))
+    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
+    waveFit = wv_fitting.WaveFit(pypeitfit=pypeitFit, pixel_fit=np.arange(10).astype(float),
+                                 wave_fit=np.linspace(1.,10.,10), sigrej=3.,
+                                 ions=np.asarray(['CdI', 'HgI']))
 
     # Write
     waveFit.to_file(out_file)
@@ -45,8 +47,9 @@ def test_wavecalib():
     if os.path.isfile(out_file):
         os.remove(out_file)
     # Piecese
-    pypeitFit = fitting.PypeItFit(fitc=np.arange(100).astype(float))
-    waveFit = wv_fitting.WaveFit(pypeitfit=pypeitFit, pixel_fit=np.arange(100).astype(float))
+    pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float), xval=np.linspace(1,100., 100))
+    waveFit = wv_fitting.WaveFit(pypeitfit=pypeitFit, pixel_fit=np.arange(10).astype(float),
+                                 wave_fit=np.linspace(1.,10.,10))
 
     waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]), nslits=1, spat_id=np.asarray([232]))
 

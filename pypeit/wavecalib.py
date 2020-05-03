@@ -102,6 +102,7 @@ class WaveCalib(datamodel.DataContainer):
                     _d.append({dkey: wv_fit})
             else: # Add to header of the spat_id image
                 _d[0][key] = self[key]
+        #import pdb; pdb.set_trace()
         # Return
         return _d
 

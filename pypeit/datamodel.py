@@ -1114,11 +1114,12 @@ class DataContainer:
                 if isinstance(d[ext], DataContainer):
                     hdu += d[ext].to_hdu()
                 else:
-                    try:
-                        hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
+                    hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
                                             force_to_bintbl=force_to_bintbl)]
-                    except:
-                        import pdb; pdb.set_trace()
+                    #except:
+                    #    import pdb; pdb.set_trace()
+                    #    embed(header='1121 of datamodel')
+                    #    msgs.error("bad")
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
         # Prefixes
