@@ -391,7 +391,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
                 msgs.info("No flexure corrections could be made")
                 break
             # Setup
-            embed(header='394 of flexure')  # JXP -- Make sure this is correct!!
+            msgs.error("This probably needs to be updated")
             slit, ss = items
             flex_dict = flex_list[slit]
             specobj = specobjs[ss]
@@ -459,35 +459,39 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
-        for iobj, specobj in enumerate(this_specobjs):
+        # TODO -- This cntr is crummy and needs to be replaced by a DataContainer
+        #  for flex_dict and flex_list
+        cntr = 0
+        for specobj in this_specobjs:
             if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
                 continue
             # Correlation QA
-            ax = plt.subplot(gs[iobj//ncol, iobj % ncol])
+            ax = plt.subplot(gs[cntr//ncol, cntr % ncol])
             # Fit
-            fit = this_flex_dict['polyfit'][iobj]
-            xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][iobj] #+ flex_dict['shift'][o]
+            fit = this_flex_dict['polyfit'][cntr]
+            xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] #+ flex_dict['shift'][o]
             #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
             model = utils.func_val(fit, xval, 'polynomial')
             mxmod = np.max(model)
             ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
             ylim = [ylim_min, 1.3]
-            ax.plot(xval-this_flex_dict['corr_cen'][iobj], model/mxmod, 'k-')
+            ax.plot(xval-this_flex_dict['corr_cen'][cntr], model/mxmod, 'k-')
             # Measurements
-            ax.scatter(this_flex_dict['subpix'][iobj]-this_flex_dict['corr_cen'][iobj],
-                       this_flex_dict['corr'][iobj]/mxmod, marker='o')
+            ax.scatter(this_flex_dict['subpix'][cntr]-this_flex_dict['corr_cen'][cntr],
+                       this_flex_dict['corr'][cntr]/mxmod, marker='o')
             # Final shift
-            ax.plot([this_flex_dict['shift'][iobj]]*2, ylim, 'g:')
+            ax.plot([this_flex_dict['shift'][cntr]]*2, ylim, 'g:')
             # Label
             if slit_cen:
                 ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
             else:
                 ax.text(0.5, 0.25, '{:s}'.format(specobj.NAME), transform=ax.transAxes, size='large', ha='center')
-            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][iobj]),
+            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
                     transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
             # Axes
             ax.set_ylim(ylim)
             ax.set_xlabel('Lag')
+            cntr += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)

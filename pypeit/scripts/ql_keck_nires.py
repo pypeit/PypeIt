@@ -73,6 +73,7 @@ def main(pargs):
     cfg_lines += ['    use_pixelflat = False']
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    master_dir = {0}'.format(master_dir)]
+    cfg_lines += ['    raise_chk_error = False']
     cfg_lines += ['[scienceframe]']
     cfg_lines += ['    [[process]]']
     cfg_lines += ['        mask_cr = False']

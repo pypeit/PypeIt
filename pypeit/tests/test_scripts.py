@@ -20,7 +20,6 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-
 @dev_suite_required
 def test_quicklook():
     # The following needs the LRISb calibration files to be

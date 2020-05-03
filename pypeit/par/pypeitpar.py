@@ -3205,7 +3205,8 @@ class CalibrationsPar(ParSet):
                  darkframe=None, arcframe=None, tiltframe=None, pixelflatframe=None,
                  pinholeframe=None, alignframe=None, alignment=None, traceframe=None,
                  illumflatframe=None,
-                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None):
+                 standardframe=None, flatfield=None, wavelengths=None, slitedges=None, tilts=None,
+                 raise_chk_error=None):
 
 
         # Grab the parameter names and values from the function
@@ -3231,6 +3232,10 @@ class CalibrationsPar(ParSet):
         descr['setup'] = 'If masters=\'force\', this is the setup name to be used: e.g., ' \
                          'C_02_aa .  The detector number is ignored but the other information ' \
                          'must match the Master Frames in the master frame folder.'
+
+        defaults['raise_chk_error'] = True
+        dtypes['raise_chk_error'] = bool
+        descr['raise_chk_error'] = 'Raise an error if the calibration check fails'
 
         defaults['bpm_usebias'] = False
         dtypes['bpm_usebias'] = bool
@@ -3339,7 +3344,7 @@ class CalibrationsPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = [ 'master_dir', 'setup', 'bpm_usebias']
+        parkeys = [ 'master_dir', 'setup', 'bpm_usebias', 'raise_chk_error']
 
         allkeys = parkeys + ['biasframe', 'darkframe', 'arcframe', 'tiltframe', 'pixelflatframe',
                              'illumflatframe',

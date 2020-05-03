@@ -54,18 +54,18 @@ def main(args):
     if 'keck_lris' in args.spectrograph:
         #
         gen_lris = keck_lris.KeckLRISRSpectrograph()  # Using LRISr, but this will work for LRISb too
-        _, img, _, _, _, _ = gen_lris.get_rawimage(args.file,  None)
+        img = gen_lris.get_rawimage(args.file,  None)[1]
     # RAW_DEIMOS??
     elif args.spectrograph == 'keck_deimos':
         #
         gen_deimos = keck_deimos.KeckDEIMOSSpectrograph()
-        _, img, _, _, _, _ = gen_deimos.get_rawimage(args.file, None)
+        img = gen_deimos.get_rawimage(args.file, None)[1]
     # RAW_GEMINI??
     elif 'gemini_gmos' in args.spectrograph:
         # TODO this routine should show the whole mosaic if no detector number is passed in!
         # Need to figure out the number of amps
         gen_gmos = gemini_gmos.GeminiGMOSSpectrograph()
-        _, img, _, _, _, _ = gen_gmos.get_rawimage(args.file, args.det)
+        img = gen_gmos.get_rawimage(args.file, args.det)[1]
     else:
         hdu = fits.open(args.file)
         img = hdu[args.exten].data

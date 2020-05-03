@@ -613,8 +613,6 @@ class Identify(object):
         elif key == 'l':
             self.load_IDs()
         elif key == 'm':
-            msgs.info("Selecting line")
-            self._addsub = 1
             self._end = self.get_ind_under_point(event)
             self._detns_idx = self.get_detns()
             self.replot()

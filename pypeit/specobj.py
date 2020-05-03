@@ -350,7 +350,7 @@ class SpecObj(datamodel.DataContainer):
             latitude:
                 latitude in degree for observatory
                 Used for extinction correction
-            extrap (bool, optional):
+            extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
 
         """
@@ -377,7 +377,7 @@ class SpecObj(datamodel.DataContainer):
             except ValueError:
                 if extrap_sens:
                     sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=False)(wave[wave_mask])
-                    msgs.warn("Your data extends beyond the bounds of your sensfunc. Extrapolating per your direction. Good luck!" + msgs.newline())
+                    msgs.warn("our data extends beyond the bounds of your sensfunc. You should be adjusting the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate further and recreate your sensfunc. But we are extrapolating per your direction. Good luck!")
                 else:
                     msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
