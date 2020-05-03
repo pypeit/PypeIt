@@ -17,7 +17,7 @@ from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
-from pypeit.core.wavecal import fitting
+from pypeit.core.wavecal import wv_fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core import arc
 
@@ -320,7 +320,7 @@ def basic(spec, lines, wv_cen, disp, sigdetect=20.,nonlinear_counts = 1e10,
     # Fit
     NIST_lines = line_lists['NIST'] > 0
     ifit = np.where(mask)[0]
-    final_fit = fitting.iterative_fitting(spec, all_tcent, ifit,
+    final_fit = wv_fitting.iterative_fitting(spec, all_tcent, ifit,
                                           IDs, line_lists[NIST_lines], disp, plot_fil=plot_fil)
     # Return
     status = 1
@@ -499,7 +499,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
         if len(add_weak) > 0:
             cut_tcent = np.concatenate([cut_tcent, np.array(add_weak)])
         # Fit
-        final_fit = fitting.iterative_fitting(spec, cut_tcent, ifit,
+        final_fit = wv_fitting.iterative_fitting(spec, cut_tcent, ifit,
                                               np.array(best_dict['IDs'])[ifit], line_lists[NIST_lines],
                                               disp, plot_fil=plot_fil, verbose=verbose,
                                               match_toler=match_toler, func=func, n_first=n_first, sigrej_first=sigrej_first,
@@ -958,7 +958,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             continue
         # Fit
         try:
-            final_fit = fitting.iterative_fitting(ispec, dets, gd_det,
+            final_fit = wv_fitting.iterative_fitting(ispec, dets, gd_det,
                                               IDs[gd_det], line_lists, bdisp,
                                               verbose=False, n_first=par['n_first'],
                                               match_toler=par['match_toler'],
@@ -1218,7 +1218,7 @@ class ArchiveReid:
 
             # Perform the fit
             n_final = wvutils.parse_param(self.par, 'n_final', slit)
-            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)],
+            final_fit = wv_fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)],
                                          self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
                                          sigrej_first=self.sigrej_first, n_final=n_final,sigrej_final=self.sigrej_final)
@@ -2560,7 +2560,7 @@ class HolyGrail:
         #        weights = np.ones(tcent.size)
         # Fit
         try:
-            final_fit = fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
+            final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
                                                   patt_dict['bdisp'],
                                                   match_toler=self._match_toler, func=self._func, n_first=self._n_first,
