@@ -147,12 +147,8 @@ def test_run_pypeit():
     assert specObjs[0].VEL_CORR != 0., 'Heliocentric not calculated!'
 
     # Now re-use those master files
-    pargs = run_pypeit.parser([pyp_file, '-o'])
+    pargs = run_pypeit.parser([pyp_file, '-o', '-m', '-r', configdir])
     run_pypeit.main(pargs)
-
-    # Now try not overwriting and using the old masters
-    #pargs = run_pypeit.parser([pyp_file, '-m'])
-    #run_pypeit.main(pargs)
 
     # Clean-up
     shutil.rmtree(outdir)

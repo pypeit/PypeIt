@@ -14,7 +14,7 @@ tips for customizing the PypeIt file.
 ======================  =========   =======================================
 PypeIt Name             Telescope   Instrument
 ======================  =========   =======================================
-gemini_gmos             Gemini      GMOS spectrometer
+gemini_gmos_north_ham   Gemini      GMOS-N spectrometer; Hamamatsu detector (R400, B600)
 gemini_gnirs            Gemini      GNIRS spectrometer
 keck_kcwi               Keck        KCWI slit-based IFU (BM, BH2)
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera

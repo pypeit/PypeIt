@@ -11,6 +11,10 @@
  - Make re-use masters the default mode of run_pypeit
  - Require Python 3.7
  - Fixed a bug in NIRES order finding. 
+ - Add NOT/ALFOSC
+ - Fluxing docs
+ - Fix flexure and heliocentric bugs
+ - Identify GUI updates
 
 1.0.1 (13 Apr 2020)
 -------------------

@@ -350,7 +350,7 @@ class SpecObj(datamodel.DataContainer):
             latitude:
                 latitude in degree for observatory
                 Used for extinction correction
-            extrap (bool, optional):
+            extrap_sens (bool, optional):
                 Extrapolate the sensitivity function (instead of crashing out)
 
         """

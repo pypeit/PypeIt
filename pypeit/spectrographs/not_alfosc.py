@@ -26,6 +26,7 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         super(NOTALFOSCSpectrograph, self).__init__()
         self.spectrograph = 'not_alfosc'
         self.telescope = telescopes.NOTTelescopePar()
+        self.camera = 'ALFOSC'
 
     def get_detector_par(self, hdu, det):
         """
@@ -90,7 +91,6 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['wavelengths']['method'] = 'holy-grail'
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['lamps'] = ['HeI', 'NeI']
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'mdm_osmos_mdm4k.fits'
         par['calibrations']['wavelengths']['sigdetect'] = 10.0
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
