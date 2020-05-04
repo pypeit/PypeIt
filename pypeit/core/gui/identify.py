@@ -623,21 +623,24 @@ class Identify(object):
                        specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN"):
         """Check if the user wants to store this solution in the reid arxiv
 
-        Args:
-            final_fit : dict
-                Dict of wavelength calibration solutions (see self.get_results())
-            master_dir : str
-                Master directory
-            binspec : int
-                Spectral binning
-            rmstol : float
-                RMS tolerance allowed for the wavelength solution to be stored in the archive
-            specname : str
-                Spectrograph name
-            gratname : str
-                Grating name
-            dispangl : str
-                Dispersor Angle (expressed as a name/string)
+        Parameters
+        ----------
+
+        final_fit : dict
+            Dict of wavelength calibration solutions (see self.get_results())
+        master_dir : str
+            Master directory
+        binspec : int
+            Spectral binning
+        rmstol : float
+            RMS tolerance allowed for the wavelength solution to be stored in the archive
+        specname : str
+            Spectrograph name
+        gratname : str
+            Grating name
+        dispangl : str
+            Dispersor Angle (expressed as a name/string)
+
         """
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
