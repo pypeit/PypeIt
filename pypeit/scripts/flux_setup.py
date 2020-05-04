@@ -72,7 +72,14 @@ def main(args):
         cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
         cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
         make_pypeit_file(flux_file, spectrograph, spec1dfiles, cfg_lines=cfg_lines, setup_mode=True)
-
+        fin = open(flux_file, "rt")
+        data = fin.read()
+        data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
+        data = data.replace('data', 'flux')
+        fin.close()
+        fin = open(flux_file, "wt")
+        fin.write(data)
+        fin.close()
 
         ## coadd1d pypeit file
         coadd1d_file = '{:}.coadd1d'.format(spectrograph)
@@ -90,6 +97,14 @@ def main(args):
             for jj in range(len(objects)):
                 spec1d_info.append(spec1dfiles[ii] + ' '+ objects['name'][jj])
         make_pypeit_file(coadd1d_file, spectrograph, spec1d_info, cfg_lines=cfg_lines, setup_mode=True)
+        fin = open(coadd1d_file, "rt")
+        data = fin.read()
+        data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
+        data = data.replace('data', 'coadd1d')
+        fin.close()
+        fin = open(coadd1d_file, "wt")
+        fin.write(data)
+        fin.close()
 
         ## tellfit pypeit file
         tellfit_file = '{:}.tell'.format(spectrograph)
