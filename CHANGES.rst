@@ -1,7 +1,7 @@
 
 
-1.0.3dev
---------
+1.0.3 (04 May 2020)
+-------------------
 
  - Add illumflat frametype
  - Enable dark image subtraction
