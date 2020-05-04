@@ -890,6 +890,7 @@ def check_for_calibs(par, fitstbl, raise_error=True):
     # Frame indices
     frame_indx = np.arange(len(fitstbl))
 
+    pass_calib = True
     for i in range(fitstbl.n_calib_groups):
         in_grp = fitstbl.find_calib_group(i)
         grp_science = frame_indx[is_science & in_grp]
@@ -904,6 +905,7 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                 if len(rows) == 0:
                     # Fail
                     msg = "No frames of type={} provided. Add them to your PypeIt file if this is a standard run!".format(ftype)
+                    pass_calib = False
                     if raise_error:
                         msgs.error(msg)
                     else:
@@ -920,8 +922,11 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                             continue
                         # Otherwise fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
+                        pass_calib = False
                         if raise_error:
                             msgs.error(msg)
                         else:
                             msgs.warn(msg)
 
+    if pass_calib:
+        msgs.info("Congrats!!  You passed the calibrations inspection!!")
