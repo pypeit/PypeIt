@@ -14,6 +14,9 @@ authors:
   - name: Kyle B. Westfall
     orcid: 0000-0003-1809-6920
     affiliation: 4
+  - name: Ryan J. Cooke
+    orcid: 0000-0001-7653-5827
+    affiliation: 5
 affiliations:
  - name: University of California, Santa Cruz
    index: 1
@@ -23,6 +26,8 @@ affiliations:
    index: 3
  - name: University of California Observatories
    index: 4
+ - name: Durham University, UK
+   index: 5
 date: 08 April 2020
 bibliography: paper.bib
 ---
