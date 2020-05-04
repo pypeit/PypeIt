@@ -3,6 +3,9 @@
 1.0.2dev
 --------
 
+ - Add a script (pypeit_flux_setup) for creating fluxing,
+   coadd1d and tellfit pypeit files
+ - Add telluric fitting script, pypeit_tellfit
  - Add illumflat frametype
  - Enable dark image subtraction
  - Refactor of Calibrations (remove cache, add get_dark)

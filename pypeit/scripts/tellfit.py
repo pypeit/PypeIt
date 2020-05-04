@@ -31,16 +31,15 @@ def read_tellfile(ifile):
     The top is a config block that sets ParSet parameters
       The spectrograph is not required
 
-    Args:
-        ifile: str
-          Name of the flux file
+    Parameters
+    ----------
+    ifile: str
+        Name of the flux file
 
-    Returns:
-        spectrograph: Spectrograph
-        cfg_lines: list
-          Config lines to modify ParSet values
-        flux_dict: dict
-          Contains spec1d_files
+    Returns
+    -------
+    cfg_lines: list
+        Config lines to modify ParSet values
     """
 
     # Read in the pypeit reduction file
@@ -109,7 +108,8 @@ def parser(options=None):
 
 
 def main(args):
-    """ Executes telluric correction.
+    """
+    Executes telluric correction.
     """
 
     # Determine the spectrograph

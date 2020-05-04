@@ -1600,15 +1600,17 @@ class TellFitPar(ParSet):
 
         defaults['bal_mask'] = None
         dtypes['bal_mask'] = [list, numpy.ndarray]
-        descr['bal_mask'] = 'List of bal masks '
+        descr['bal_mask'] = 'Broad absorption line feature mask. If there are several BAL features, ' \
+                            'the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, ' \
+                            'wave_max_bal2,...]. These masked pixels will be ignored during the fitting.'
 
         defaults['bounds_norm'] = [0.1, 3.0]
         dtypes['bounds_norm'] = list
-        descr['bounds_norm'] = "Normalization bounds"
+        descr['bounds_norm'] = "Normalization bounds for scaling the initial object model"
 
         defaults['tell_norm_thresh'] = 0.9
         dtypes['tell_norm_thresh'] = [int, float]
-        descr['tell_norm_thresh'] = "Normalization bounds"
+        descr['tell_norm_thresh'] = "Threshold of telluric absorption region"
 
         defaults['pca_lower'] = 1220.0
         dtypes['pca_lower'] = [int, float]
@@ -1642,11 +1644,11 @@ class TellFitPar(ParSet):
         ### parameters for both star_telluric and poly_telluric
         defaults['func'] = 'legendre'
         dtypes['func'] = str
-        descr['func'] = 'model function'
+        descr['func'] = 'object polynomial model function'
 
         defaults['model'] = 'exp'
         dtypes['model'] = str
-        descr['model'] = 'model'
+        descr['model'] = 'object model function'
 
         defaults['polyorder'] = 3
         dtypes['polyorder'] = int
@@ -1654,20 +1656,21 @@ class TellFitPar(ParSet):
 
         defaults['delta_coeff_bounds'] = [-20.0, 20.0]
         dtypes['delta_coeff_bounds'] = list
-        descr['delta_coeff_bounds'] = "Normalization bounds"
+        descr['delta_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
 
         defaults['minmax_coeff_bounds'] = [-5.0, 5.0]
         dtypes['minmax_coeff_bounds'] = list
-        descr['minmax_coeff_bounds'] = "Normalization bounds"
+        descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
 
         ### Start parameters for poly_telluric
         defaults['fit_region_mask'] = None
         dtypes['fit_region_mask'] = list
-        descr['fit_region_mask'] = "a list of minimum wavelength"
+        descr['fit_region_mask'] = "Pixels within this mask will be used during the fitting. The format"\
+                                   "is the same with bal_mask, but this mask is good pixel masks."
 
         defaults['mask_lyman_a'] = True
         dtypes['mask_lyman_a'] = bool
-        descr['mask_lyman_a'] = 'mask the blueward of Lyman-alpha line'
+        descr['mask_lyman_a'] = 'Mask the blueward of Lyman-alpha line during the fitting?'
 
 
         # Instantiate the parameter set

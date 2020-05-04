@@ -599,6 +599,24 @@ def general_spec_reader(specfile, ret_flam=False):
 
 def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, telluric=None, obj_model=None,
         header=None, ex_value='OPT', overwrite=True):
+    """
+    Write final spectrum to disk.
+
+    Args:
+        outfile (str):
+           File to output telluric corrected spectrum to.
+        wave (`numpy.ndarray`_): wavelength in units of Angstrom
+        flux (`numpy.ndarray`_): flux array
+        ivar (`numpy.ndarray`_): inverse variance array.
+        mask (`numpy.ndarray`_): good pixel mask for your spectrum.
+        spectrograph (str): spectrograph name
+        telluric (`numpy.ndarray`_): telluric model
+        obj_model (`numpy.ndarray`_): object model used for telluric fitting
+        header (`astropy.io.fits.Header`): Primary header
+        ex_value (str): extraction mode, OPT or BOX
+        overwrite (bool):
+           Overwrite existing file?
+    """
 
     wave_mask = wave > 1.0
     # Generate the DataContainer
@@ -1274,11 +1292,98 @@ def create_bal_mask(wave, bal_mask):
 
 
 
-def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, bal_mask=None,
+def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_mask=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
                  show=False):
+    """
+    Telluric correction for a QSO list object.
+
+    Parameters
+    ----------
+    spec1dfile : str
+        File name of the input 1D spectrum
+
+    telgridfile : str
+        File name of the giant telluric grid file.
+
+    pca_file: str
+        File name of the QSO PCA model pickle file.
+
+    z_qso : float
+        Redshift of you QSO.
+
+    telloutfile : str
+        Output file name of the best-fit telluric model.
+
+    outfile : str
+        Output file name of the telluric corrected spectrum.
+
+    npca : int
+        Numer of pca components.
+
+    pca_lower: float
+        Wavelength lower bounds of the PCA model
+
+    pca_upper: float
+        Wavelength upper bounds of the PCA model
+
+    bal_mask : list
+        Broad absorption line feature mask. If there are several BAL features, the format
+        for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...].
+        These masked pixels will be ignored during the fitting.
+
+    delta_zqso : float
+        The QSO redshift can vary within delta_zqso
+
+    bounds_norm : tuple
+
+    tell_norm_thresh :float
+
+    sn_clip : float, optional, default=30.0,
+        Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive
+        rejection in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+        systematics, which in this case is most likely the inadequecy of our telluric model to fit the data at the
+        the precision set by very high S/N ratio
+
+    only_orders : array of int, optional, default = None
+        Only fit these specific orders
+
+    tol (float): default = 1e-3
+        Relative tolerance for converage of the differential evolution optimization. See
+        scipy.optimize.differential_evolution for details.
+
+    popsize (int): default = 30
+        A multiplier for setting the total population size for the differential evolution optimization. See
+        scipy.optimize.differential_evolution for details.
+
+    recombination : float, optional, default = 0.7
+        The recombination constant for the differential evolution optimization. This should be in the range [0, 1].
+        See scipy.optimize.differential_evolution for details.
+
+    polish : bool, optional, default=True
+        If True then differential evolution will perform an additional optimizatino at the end to polish the best fit
+        at the end, which can improve the optimization slightly. See scipy.optimize.differential_evolution for details.
+    disp : bool, optional, default=True
+        Argument for scipy.optimize.differential_evolution which will  display status messages to the screen
+        indicating the status of the optimization. See above for a description of the output and how to know
+        if things are working well.
+
+    debug_init : bool, optional, default=False
+        Show plots to the screen useful for debugging model initialization
+
+    debug : bool, optional, default=False
+        Show plots to the screen useful for debugging the telluric/object model fits.
+
+    Returns
+    -------
+    meta_table : astropy.table.Table object
+        Table containing meta data for the telluric/object model fit
+
+    out_table: astropy.table.Table. object
+        Table containing the values for telluric model parameters and object model parameters.
+    """
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
     if debug:
