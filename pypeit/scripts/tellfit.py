@@ -81,8 +81,6 @@ def parser(options=None):
                         "         objmodel = qso\n"
                         "         redshift = 7.6\n"
                         "         bal_mask = 10825,12060\n"
-                        "         pca_lower = 1200.\n"
-                        "         pca_upper = 3100.\n"
                         "OR\n"
                         "    [tellfit]\n"
                         "         objmodel = star\n"
