@@ -383,7 +383,8 @@ class Identify(object):
                 i.remove()
             except TypeError:
                 i[0].remove()
-        for i in self.gsttexts: i.remove()
+        for i in self.gsttexts:
+            i.remove()
         self.gstlines = []
         self.gsttexts = []
         # Must have ghost mode on, plotting in wavelength, and have an estimated wavelength solution
@@ -407,8 +408,10 @@ class Identify(object):
     def draw_lines(self):
         """Draw the lines and annotate with their IDs
         """
-        for i in self.annlines: i.remove()
-        for i in self.anntexts: i.remove()
+        for i in self.annlines:
+            i.remove()
+        for i in self.anntexts:
+            i.remove()
         self.annlines = []
         self.anntexts = []
         # Decide if pixels or wavelength is being plotted
@@ -747,9 +750,7 @@ class Identify(object):
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
-                        if self._ghostmode:
-                            pass
-                        else:
+                        if not self._ghostmode:
                             if self._start > self._end:
                                 tmp = self._start
                                 self._start = self._end

@@ -327,9 +327,8 @@ class Alignment():
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
                 ginga.show_trace(self.viewer, self.channel, spec.TRACE_SPAT, trc_name="", color=color)
 
-        if slits:
-            if self.slits is not None and self.viewer is not None:
-                ginga.show_slits(self.viewer, self.channel, self.slit_left, self.slit_right)
+        if slits and self.slits is not None and self.viewer is not None:
+            ginga.show_slits(self.viewer, self.channel, self.slit_left, self.slit_right)
         return
 
     def __repr__(self):
