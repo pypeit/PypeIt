@@ -15,6 +15,7 @@
  - Fluxing docs
  - Fix flexure and heliocentric bugs
  - Identify GUI updates
+ - chk_for_calibs script
 
 1.0.1 (13 Apr 2020)
 -------------------
