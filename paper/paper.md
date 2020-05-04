@@ -17,6 +17,9 @@ authors:
   - name: Ryan J. Cooke
     orcid: 0000-0001-7653-5827
     affiliation: 5
+  - name: Feige Wang
+    orcid: 0000-0002-7633-431X
+    affiliation: 6
 affiliations:
  - name: University of California, Santa Cruz
    index: 1
@@ -28,6 +31,8 @@ affiliations:
    index: 4
  - name: Durham University, UK
    index: 5
+ - name: Steward Observatory, University of Arizona
+   index: 6
 date: 08 April 2020
 bibliography: paper.bib
 ---
@@ -56,7 +61,7 @@ Release v1.0 of ``PypeIt`` is designed to be used by both advanced
 spectroscopists with prior data reduction expertise and new
 astronomers. It is highly configurable and designed to be applied to
 any standard slit-imaging spectrograph. It has already enabled
-several scientific publications [@hsyu2018; @eilers2020].
+several scientific publications [@hsyu2018; @eilers2020; @wang2020].
 
 It is our plan to expand ``PypeIt`` to include the majority of
 spectrographs on the largest ground-based optical and near-infrared
