@@ -338,8 +338,8 @@ class ProcessImagesPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-            'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
-            'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
+                   'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
+                   'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
             'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
@@ -779,11 +779,11 @@ class AlignPar(ParSet):
 
         # Instantiate the parameter set
         super(AlignPar, self).__init__(list(pars.keys()),
-                                           values=list(pars.values()),
-                                           defaults=list(defaults.values()),
-                                           options=list(options.values()),
-                                           dtypes=list(dtypes.values()),
-                                           descr=list(descr.values()))
+                                            values=list(pars.values()),
+                                            defaults=list(defaults.values()),
+                                            options=list(options.values()),
+                                            dtypes=list(dtypes.values()),
+                                            descr=list(descr.values()))
         self.validate()
 
     @classmethod
@@ -1068,6 +1068,92 @@ class Coadd2DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+
+
+class CubePar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant
+    to cube generation (primarily for IFU data).
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, slit_spec=None, cube_spat_num=None, cube_wave_num=None,
+                 cube_wave_min=None, cube_wave_max=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        # Cube Parameters
+        defaults['slit_spec'] = True
+        dtypes['slit_spec'] = [bool]
+        descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
+                             'If the data uses fibres for all spaxels, set this to False.'
+
+        defaults['cube_spat_num'] = None
+        dtypes['cube_spat_num'] = [int, float]
+        descr['cube_spat_num'] = 'Number of pixels in the spatial dimension. If None, the number of' \
+                                 'pixels in the spatial direction of the slit will be used. If you' \
+                                 'are reducing fibre IFU data, this parameter will be ignored'
+
+        defaults['cube_wave_num'] = None
+        dtypes['cube_wave_num'] = [int, float]
+        descr['cube_wave_num'] = 'Number of pixels in the wavelength dimension. If None, the number' \
+                                 'of pixels in the spectral direction on the raw science frame will' \
+                                 'be used.'
+
+        defaults['cube_wave_min'] = None
+        dtypes['cube_wave_min'] = float
+        descr['cube_wave_min'] = 'Minimum wavelength to use. If None, default is minimum wavelength' \
+                                 'based on wavelength solution of all spaxels'
+
+        defaults['cube_wave_max'] = None
+        dtypes['cube_wave_max'] = float
+        descr['cube_wave_max'] = 'Maximum wavelength to use. If None, default is maximum wavelength' \
+                                 'based on wavelength solution of all spaxels'
+
+
+        # Instantiate the parameter set
+        super(CubePar, self).__init__(list(pars.keys()),
+                                      values=list(pars.values()),
+                                      defaults=list(defaults.values()),
+                                      options=list(options.values()),
+                                      dtypes=list(dtypes.values()),
+                                      descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+
+        # Basic keywords
+        parkeys = ['slit_spec', 'cube_spat_num', 'cube_wave_num', 'cube_wave_min', 'cube_wave_max']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ExtractionPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
+
 
 class FluxCalibratePar(ParSet):
     """
@@ -2684,7 +2770,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None, extraction=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2712,20 +2798,24 @@ class ReducePar(ParSet):
         dtypes['extraction'] = [ ParSet, dict ]
         descr['extraction'] = 'Parameters for extraction algorithms'
 
+        defaults['cube'] = CubePar()
+        dtypes['cube'] = [ ParSet, dict ]
+        descr['cube'] = 'Parameters for cube generation algorithms'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
-                                              values=list(pars.values()),
-                                              defaults=list(defaults.values()),
-                                              options=list(options.values()),
-                                              dtypes=list(dtypes.values()),
-                                              descr=list(descr.values()))
+                                             values=list(pars.values()),
+                                             defaults=list(defaults.values()),
+                                             options=list(options.values()),
+                                             dtypes=list(dtypes.values()),
+                                             descr=list(descr.values()))
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -2738,6 +2828,8 @@ class ReducePar(ParSet):
         kwargs[pk] = SkySubPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'extraction'
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'cube'
+        kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 
@@ -2872,7 +2964,8 @@ class SkySubPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None):
+    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
+                 user_regions=None, ref_slit=None, joint_fit=None, load_mask=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2906,6 +2999,31 @@ class SkySubPar(ParSet):
         dtypes['no_poly'] = bool
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
+        defaults['user_regions'] = None
+        dtypes['user_regions'] = str
+        descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
+                                'the code to identify the sky regions automatically, set this variable to' \
+                                'an empty string. If you wish to set the sky regions, The text should be' \
+                                'a comma separated list of percentages to apply to _all_ slits' \
+                                ' For example: The following string   :10,35:65,80:   would select the' \
+                                'first 10%, the inner 30%, and the final 20% of _all_ slits.'
+
+        defaults['load_mask'] = False
+        dtypes['load_mask'] = bool
+        descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note,' \
+                             'if you set this to True, you must first run the pypeit_skysub_regions GUI' \
+                             'to manually select and store the regions to file.'
+
+        defaults['ref_slit'] = -1
+        dtypes['ref_slit'] = int
+        descr['ref_slit'] = 'Reference slit to be used for relative sky and flux calibration.' \
+                            'You need to set joint_fit=True for the reference slit to be used.' \
+                            'If this value is set to a negative number, the reference slit will' \
+                            'be set to the slit that contains the most flux from the standard star.'
+
+        defaults['joint_fit'] = False
+        dtypes['joint_fit'] = bool
+        descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits.'
 
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
@@ -2921,7 +3039,7 @@ class SkySubPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly']
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'ref_slit', 'joint_fit']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3124,7 +3242,11 @@ class CalibrationsPar(ParSet):
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
-        defaults['alignframe'] = FrameGroupPar(frametype='align')
+        defaults['alignframe'] = FrameGroupPar(frametype='align',
+                                               process=ProcessImagesPar(satpix='nothing',
+                                                                        sigrej=-1,
+                                                                        use_pixelflat=False,
+                                                                        use_illumflat=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
@@ -3622,13 +3744,13 @@ class PypeItPar(ParSet):
     def reset_all_processimages_par(self, **kwargs):
         """
         Set all of the ProcessImagesPar objects to have the input setting
-        
+
         e.g.
-        
+
         par.reset_all_processimages_par(use_illumflat=False)
-        
+
         Args:
-            **kwargs: 
+            **kwargs:
         """
         # Calibrations
         for _key in self['calibrations'].keys():
