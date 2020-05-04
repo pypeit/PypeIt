@@ -57,11 +57,11 @@ def read_fluxfile(ifile):
     # Parse the fluxing block
     spec1dfiles = []
     sensfiles_in = []
-    s, e = par.util._find_pypeit_block(lines, 'flux')
+    s, e = par.util._find_pypeit_block(lines, 'data')
     if s >= 0 and e < 0:
-        msgs.error("Missing 'flux end' in {0}".format(ifile))
+        msgs.error("Missing 'data end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
-        msgs.error("Missing flux block in in {0}. Check the input format for the .flux file".format(ifile))
+        msgs.error("Missing data block in in {0}. Check the input format for the .flux file".format(ifile))
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
@@ -96,21 +96,21 @@ def parser(options=None):
                         help="R|File to guide fluxing process.\n"
                              "This file must have the following format: \n"
                              "\n"
-                             "flux read\n"
+                             "data read\n"
                              "  spec1dfile1 sensfile\n"
                              "  spec1dfile2\n"
                              "     ...    \n"
                              "     ...    \n"
-                             "flux end\n"
+                             "data end\n"
                              "\n"
                              "    OR   \n"
                              "\n"
-                             "flux read\n"
+                             "data read\n"
                              "  spec1dfile1 sensfile1\n"
                              "  spec1dfile2 sensfile2\n"
                              "  spec1dfile3 sensfile3\n"
                              "     ...    \n"
-                             "flux end\n"
+                             "data end\n"
                              "\n"
                              "That is, you must specify either a sensfile for all spec1dfiles on the first line, or \n"
                              "create a two column list of spec1dfiles and corresponding sensfiles\n"

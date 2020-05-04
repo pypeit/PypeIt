@@ -67,11 +67,11 @@ def read_coaddfile(ifile):
     # Parse the fluxing block
     spec1dfiles = []
     objids_in = []
-    s, e = par.util._find_pypeit_block(lines, 'coadd1d')
+    s, e = par.util._find_pypeit_block(lines, 'data')
     if s >= 0 and e < 0:
-        msgs.error("Missing 'coadd1d end' in {0}".format(ifile))
+        msgs.error("Missing 'data end' in {0}".format(ifile))
     elif (s < 0) or (s==e):
-        msgs.error("Missing coadd1d read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
+        msgs.error("Missing data read or [coadd1d] block in in {0}. Check the input format for the .coadd1d file".format(ifile))
     else:
         for ctr, line in enumerate(lines[s:e]):
             prs = line.split(' ')
@@ -150,21 +150,21 @@ def parser(options=None):
                              "   coaddfile='output_filename.fits'\n"
                              "   sensfuncfile = 'sensfunc.fits' # Required only for Echelle\n"
                              "\n"
-                             "   coadd1d read\n"
+                             "   data read\n"
                              "     spec1dfile1 objid1\n"
                              "     spec1dfile2 objid2\n"
                              "     spec1dfile3 objid3\n"
                              "        ...    \n"
-                             "   coadd1d end\n"
+                             "   data end\n"
                              "\n"
                              "         OR the coadd1d read/end block can look like \n"
                              "\n"
-                             "  coadd1d read\n"
+                             "  data read\n"
                              "     spec1dfile1 objid \n"
                              "     spec1dfile2 \n"
                              "     spec1dfile3 \n"
                              "     ...    \n"
-                             "  coadd1d end\n"
+                             "  data end\n"
                              "\n"
                              "That is the coadd1d block must either be a two column list of spec1dfiles and objids,\n"
                              "or you can specify a single objid for all spec1dfiles on the first line\n"
