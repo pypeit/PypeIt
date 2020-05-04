@@ -163,6 +163,8 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[extraction]]``: `ExtractionPar Keywords`_
 
+        ``[[cube]]``: `CubePar Keywords`_
+
     ``[flexure]``: `FlexurePar Keywords`_
 
     ``[fluxcalib]``: `FluxCalibratePar Keywords`_
@@ -207,28 +209,29 @@ CalibrationsPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.CalibrationsPar`
 
-==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
-Key                 Type                                                 Options  Default                            Description                                                                                                                                                                              
-==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
-``alignframe``      :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                    
-``alignment``       :class:`pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                         
-``arcframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
-``biasframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
-``bpm_usebias``     bool                                                 ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                    
-``darkframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
-``flatfield``       :class:`pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
-``illumflatframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                               
-``master_dir``      str                                                  ..       ``Masters``                        If provided, it should be the name of the folder to write master files. NOT A PATH.                                                                                                      
-``pinholeframe``    :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                        
-``pixelflatframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                      
-``setup``           str                                                  ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
-``slitedges``       :class:`pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                             
-``standardframe``   :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                        
-``tiltframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                
-``tilts``           :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                
-``traceframe``      :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                        
-``wavelengths``     :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
-==================  ===================================================  =======  =================================  =========================================================================================================================================================================================
+===================  ===================================================  =======  =================================  =========================================================================================================================================================================================
+Key                  Type                                                 Options  Default                            Description                                                                                                                                                                              
+===================  ===================================================  =======  =================================  =========================================================================================================================================================================================
+``alignframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the align frames                                                                                                                                    
+``alignment``        :class:`pypeit.par.pypeitpar.AlignPar`               ..       `AlignPar Keywords`_               Define the procedure for the alignment of traces                                                                                                                                         
+``arcframe``         :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength calibration                                                                                                                          
+``biasframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the bias correction                                                                                                                                 
+``bpm_usebias``      bool                                                 ..       False                              Make a bad pixel mask from bias frames? Bias frames must be provided.                                                                                                                    
+``darkframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the dark-current correction                                                                                                                         
+``flatfield``        :class:`pypeit.par.pypeitpar.FlatFieldPar`           ..       `FlatFieldPar Keywords`_           Parameters used to set the flat-field procedure                                                                                                                                          
+``illumflatframe``   :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the illumination flat                                                                                                                               
+``master_dir``       str                                                  ..       ``Masters``                        If provided, it should be the name of the folder to write master files. NOT A PATH.                                                                                                      
+``pinholeframe``     :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pinholes                                                                                                                                        
+``pixelflatframe``   :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the pixel flat                                                                                                                                      
+``raise_chk_error``  bool                                                 ..       True                               Raise an error if the calibration check fails                                                                                                                                            
+``setup``            str                                                  ..       ..                                 If masters='force', this is the setup name to be used: e.g., C_02_aa .  The detector number is ignored but the other information must match the Master Frames in the master frame folder.
+``slitedges``        :class:`pypeit.par.pypeitpar.EdgeTracePar`           ..       `EdgeTracePar Keywords`_           Slit-edge tracing parameters                                                                                                                                                             
+``standardframe``    :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the spectrophotometric standard observations                                                                                                        
+``tiltframe``        :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for the wavelength tilts                                                                                                                                
+``tilts``            :class:`pypeit.par.pypeitpar.WaveTiltsPar`           ..       `WaveTiltsPar Keywords`_           Define how to trace the slit tilts using the trace frames                                                                                                                                
+``traceframe``       :class:`pypeit.par.pypeitpar.FrameGroupPar`          ..       `FrameGroupPar Keywords`_          The frames and combination rules for images used for slit tracing                                                                                                                        
+``wavelengths``      :class:`pypeit.par.pypeitpar.WavelengthSolutionPar`  ..       `WavelengthSolutionPar Keywords`_  Parameters used to derive the wavelength solution                                                                                                                                        
+===================  ===================================================  =======  =================================  =========================================================================================================================================================================================
 
 
 ----
@@ -527,10 +530,29 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.ReducePar`
 ==============  ===========================================  =======  =========================  =====================================================
 Key             Type                                         Options  Default                    Description                                          
 ==============  ===========================================  =======  =========================  =====================================================
+``cube``        :class:`pypeit.par.pypeitpar.CubePar`        ..       `CubePar Keywords`_        Parameters for cube generation algorithms            
 ``extraction``  :class:`pypeit.par.pypeitpar.ExtractionPar`  ..       `ExtractionPar Keywords`_  Parameters for extraction algorithms                 
 ``findobj``     :class:`pypeit.par.pypeitpar.FindObjPar`     ..       `FindObjPar Keywords`_     Parameters for the find object and tracing algorithms
 ``skysub``      :class:`pypeit.par.pypeitpar.SkySubPar`      ..       `SkySubPar Keywords`_      Parameters for sky subtraction algorithms            
 ==============  ===========================================  =======  =========================  =====================================================
+
+
+----
+
+CubePar Keywords
+----------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.CubePar`
+
+=================  ==========  =======  =======  ============================================================================================================================================================================================
+Key                Type        Options  Default  Description                                                                                                                                                                                 
+=================  ==========  =======  =======  ============================================================================================================================================================================================
+``cube_spat_num``  int, float  ..       ..       Number of pixels in the spatial dimension. If None, the number ofpixels in the spatial direction of the slit will be used. If youare reducing fibre IFU data, this parameter will be ignored
+``cube_wave_max``  float       ..       ..       Maximum wavelength to use. If None, default is maximum wavelengthbased on wavelength solution of all spaxels                                                                                
+``cube_wave_min``  float       ..       ..       Minimum wavelength to use. If None, default is minimum wavelengthbased on wavelength solution of all spaxels                                                                                
+``cube_wave_num``  int, float  ..       ..       Number of pixels in the wavelength dimension. If None, the numberof pixels in the spectral direction on the raw science frame willbe used.                                                  
+``slit_spec``      bool        ..       True     If the data use slits in one spatial direction, set this to True.If the data uses fibres for all spaxels, set this to False.                                                                
+=================  ==========  =======  =======  ============================================================================================================================================================================================
 
 
 ----
@@ -586,14 +608,18 @@ SkySubPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.SkySubPar`
 
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                             
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                               
-``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
-``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                          
-``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                           
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                        
+===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================
+``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                                                                                                          
+``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                           
+``joint_fit``        bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits.                                                                                                                                                                                                                                                                                                                                         
+``load_mask``        bool        ..       False    Load a user-defined sky regions mask to be used for the sky regions. Note,if you set this to True, you must first run the pypeit_skysub_regions GUIto manually select and store the regions to file.                                                                                                                                                                                                               
+``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                                                                                                     
+``ref_slit``         int         ..       -1       Reference slit to be used for relative sky and flux calibration.You need to set joint_fit=True for the reference slit to be used.If this value is set to a negative number, the reference slit willbe set to the slit that contains the most flux from the standard star.                                                                                                                                          
+``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                      
+``user_regions``     str         ..       ..       A user-defined sky regions mask can be set using this keyword. To allowthe code to identify the sky regions automatically, set this variable toan empty string. If you wish to set the sky regions, The text should bea comma separated list of percentages to apply to _all_ slits For example: The following string   :10,35:65,80:   would select thefirst 10%, the inner 30%, and the final 20% of _all_ slits.
+===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -780,6 +806,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = None, 30
           [[[process]]]
@@ -852,6 +884,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = None, 30
           [[[process]]]
@@ -928,6 +966,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = None, 30
           [[[process]]]
@@ -1022,8 +1066,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -1132,8 +1179,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -1232,8 +1282,12 @@ Alterations to the default parameters are::
               use_overscan = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
@@ -1313,6 +1367,12 @@ Alterations to the default parameters are::
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -1384,6 +1444,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[alignment]]
           locations = 0.1, 0.3, 0.5, 0.7, 0.9
       [[traceframe]]
@@ -1399,6 +1465,9 @@ Alterations to the default parameters are::
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+      [[flatfield]]
+          tweak_slits_thresh = 0.0
+          slit_illum_pad = 2
       [[slitedges]]
           fit_order = 4
   [scienceframe]
@@ -1408,6 +1477,9 @@ Alterations to the default parameters are::
           sigclip = 4.0
           objlim = 1.5
   [reduce]
+      [[skysub]]
+          bspline_spacing = 0.5
+          joint_fit = True
       [[extraction]]
           skip_optimal = True
 
@@ -1452,6 +1524,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -1527,6 +1605,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -1593,6 +1677,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -1655,6 +1745,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -1723,7 +1819,11 @@ Alterations to the default parameters are::
               use_overscan = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_overscan = False
@@ -1799,6 +1899,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -1862,6 +1968,12 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1947,6 +2059,8 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               overscan_method = median
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -2061,8 +2175,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2183,6 +2300,10 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               overscan_method = median
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               overscan_method = median
@@ -2266,8 +2387,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           exprng = None, 30
@@ -2368,8 +2492,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2468,8 +2595,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2553,6 +2683,12 @@ Alterations to the default parameters are::
               sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -2619,6 +2755,12 @@ Alterations to the default parameters are::
               sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -2681,6 +2823,12 @@ Alterations to the default parameters are::
               combine = median
               satpix = nothing
               sig_lohi = 10.0, 10.0
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2763,8 +2911,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2876,8 +3027,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2964,6 +3118,12 @@ Alterations to the default parameters are::
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -3043,6 +3203,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3116,6 +3282,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3186,6 +3358,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3258,6 +3436,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3337,8 +3521,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -3429,8 +3616,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -3512,6 +3702,12 @@ Alterations to the default parameters are::
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -3588,6 +3784,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -3662,7 +3864,11 @@ Alterations to the default parameters are::
               use_overscan = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_overscan = False

@@ -1104,24 +1104,24 @@ class CubePar(ParSet):
                              'If the data uses fibres for all spaxels, set this to False.'
 
         defaults['cube_spat_num'] = None
-        dtypes['cube_spat_num'] = [float, None]
+        dtypes['cube_spat_num'] = [int, float]
         descr['cube_spat_num'] = 'Number of pixels in the spatial dimension. If None, the number of' \
                                  'pixels in the spatial direction of the slit will be used. If you' \
                                  'are reducing fibre IFU data, this parameter will be ignored'
 
         defaults['cube_wave_num'] = None
-        dtypes['cube_wave_num'] = [float, None]
+        dtypes['cube_wave_num'] = [int, float]
         descr['cube_wave_num'] = 'Number of pixels in the wavelength dimension. If None, the number' \
                                  'of pixels in the spectral direction on the raw science frame will' \
                                  'be used.'
 
         defaults['cube_wave_min'] = None
-        dtypes['cube_wave_min'] = [float, None]
+        dtypes['cube_wave_min'] = float
         descr['cube_wave_min'] = 'Minimum wavelength to use. If None, default is minimum wavelength' \
                                  'based on wavelength solution of all spaxels'
 
         defaults['cube_wave_max'] = None
-        dtypes['cube_wave_max'] = [float, None]
+        dtypes['cube_wave_max'] = float
         descr['cube_wave_max'] = 'Maximum wavelength to use. If None, default is maximum wavelength' \
                                  'based on wavelength solution of all spaxels'
 
@@ -2999,7 +2999,7 @@ class SkySubPar(ParSet):
         dtypes['no_poly'] = bool
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
-        defaults['user_regions'] = ''
+        defaults['user_regions'] = None
         dtypes['user_regions'] = str
         descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
                                 'the code to identify the sky regions automatically, set this variable to' \
