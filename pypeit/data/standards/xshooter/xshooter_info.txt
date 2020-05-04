@@ -7,7 +7,7 @@
 #Model atmosphere spectra of six spectrophotometric standard stars observable from
 #the southern hemisphere were selected as reference spectra using X-shooter observations.
 #They are hot white dwarfs (WD) or subdwarfs (sdO) with independent flux information.
-#The flux distribution over the full X-shooter range 3000 – 25000Å is tabulated.
+#The flux distribution over the full X-shooter range 3000 – 25000A is tabulated.
 #The fluxes are sampled (at 0.1A [< 1000A] and 0.2A [>10000A]).
 #The flux tabluations are in units of (ergs cm-2 s-1 A-1).
 #http://www.eso.org/sci/observing/tools/standards/spectra/Xshooterspec.html
