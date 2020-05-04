@@ -1,6 +1,6 @@
 
 
-1.0.2dev
+1.0.3dev
 --------
 
  - Add illumflat frametype
@@ -15,6 +15,13 @@
  - Fluxing docs
  - Fix flexure and heliocentric bugs
  - Identify GUI updates
+
+1.0.2 (30 Apr 2020)
+-------------------
+
+ - Various doc hotfixes
+ - wavelength algorithm hotfix, such that they must now generate an
+   entry for every slit, bad or good.
 
 1.0.1 (13 Apr 2020)
 -------------------
