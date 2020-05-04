@@ -87,7 +87,7 @@ def main(args):
                                   format='ascii.fixed_width')
             objects = np.unique(meta_tbl['name'])
             for jj in range(len(objects)):
-                spec1d_info.append(spec1dfiles[ii] + ' '+ meta_tbl['name'][jj])
+                spec1d_info.append(spec1dfiles[ii] + ' '+ objects['name'][jj])
         make_pypeit_file(coadd1d_file, spectrograph, spec1d_info, cfg_lines=cfg_lines, setup_mode=True)
 
         ## tellfit pypeit file
