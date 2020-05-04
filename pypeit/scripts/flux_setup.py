@@ -85,7 +85,8 @@ def main(args):
         for ii in range(len(spec1dfiles)):
             meta_tbl = Table.read(os.path.join(args.sci_path, spec1dfiles[ii]).replace('.fits', '.txt'),
                                   format='ascii.fixed_width')
-            objects = np.unique(meta_tbl['name'])
+            _, indx = np.unique(meta_tbl['name'],return_index=True)
+            objects = meta_tbl[indx]
             for jj in range(len(objects)):
                 spec1d_info.append(spec1dfiles[ii] + ' '+ objects['name'][jj])
         make_pypeit_file(coadd1d_file, spectrograph, spec1d_info, cfg_lines=cfg_lines, setup_mode=True)
