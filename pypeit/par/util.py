@@ -17,7 +17,6 @@ from configobj import ConfigObj
 
 from pypeit import msgs
 
-from IPython import embed
 
 #-----------------------------------------------------------------------
 # Parameter utility functions

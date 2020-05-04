@@ -83,8 +83,9 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         # Flats
         # Do not illumination correct. We should also not be flat fielding given the bars.
         # TODO Implement imaging flats for MOSFIRE. Do test with/without illumination flats.
-        par['calibrations']['standardframe']['process']['illumflatten'] = False
-        par['scienceframe']['process']['illumflatten'] = False
+        # Turn of illumflat
+        turn_off = dict(use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -95,16 +96,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
-
-
-        # Overscan but not bias
-        #  This seems like a kludge of sorts
-        par['calibrations']['biasframe']['useframe'] = 'none'
-        # No overscan
-        par['scienceframe']['process']['overscan'] ='none'
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]

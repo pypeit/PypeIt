@@ -1515,6 +1515,7 @@ class HolyGrail:
                 oklist = self._ok_mask.tolist()
                 oklist.pop(slit)
                 self._ok_mask = np.array(oklist)
+                self._all_final_fit[str(slit)] = None
                 continue
             # Setup up the line detection dicts
             self._det_weak[str(slit)] = [self._all_tcent_weak[self._icut_weak].copy(),self._all_ecent_weak[self._icut_weak].copy()]

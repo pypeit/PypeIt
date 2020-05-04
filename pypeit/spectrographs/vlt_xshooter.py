@@ -172,7 +172,7 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
             # The overscan region below contains only zeros
             # ToDo should we just set it as empty?
             #  JXP says yes
-            oscansec        = np.atleast_1d('[4:2044,1:3]'), # These are all unbinned pixels.
+            #oscansec        = np.atleast_1d('[4:2044,1:3]'), # These are all unbinned pixels.
             )
         return detector_container.DetectorContainer(**detector_dict)
 
@@ -183,6 +183,20 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         """
         par = VLTXShooterSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'vlt_xshooter_nir'
+
+        # Turn off illumflat
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+        # Require dark images to be subtracted from the flat images used for tracing, pixelflats, and illumflats
+        par['calibrations']['traceframe']['process']['use_darkimage'] = True
+        par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
+        par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
+
+        # Is this needed below?
+        par['scienceframe']['process']['sigclip'] = 20.0
+        par['scienceframe']['process']['satpix'] = 'nothing'
+        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
+
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slitedges']['edge_thresh'] = 50.
@@ -221,16 +235,9 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
         # Flats
-        par['calibrations']['standardframe']['process']['illumflatten'] = False
-        par['scienceframe']['process']['illumflatten'] = False
+        #par['calibrations']['standardframe']['process']['illumflatten'] = False
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.90
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.10
-
-
-        # Is this needed below?
-        par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] = 'nothing'
-        # TODO tune up LA COSMICS parameters here for X-shooter as tellurics are being excessively masked
 
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
@@ -244,13 +251,13 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
         # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
         # images.
-        par['calibrations']['biasframe']['useframe'] = 'bias'
-        par['calibrations']['traceframe']['process']['bias'] = 'force'
-        par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
-        par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
-        par['calibrations']['standardframe']['process']['bias'] = 'skip'
-        par['scienceframe']['process']['bias'] = 'skip'
+        #par['calibrations']['biasframe']['useframe'] = 'bias'
+        #par['calibrations']['traceframe']['process']['bias'] = 'force'
+        #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        #par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        #par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        #par['scienceframe']['process']['bias'] = 'skip'
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
@@ -470,12 +477,19 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['rdx']['spectrograph'] = 'vlt_xshooter_vis'
 
         # Adjustments to parameters for VIS
-        par['calibrations']['arcframe']['process']['overscan'] = 'median'
-        # X-SHOOTER arcs/tilts are also have different binning with bias frames
-        par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
-        # Don't use the biases for the arcs or flats since it appears to be a different amplifier readout
-        par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        turn_on = dict(use_biasimage=False, use_overscan=True, overscan_method='median', use_darkimage=False, use_illumflat=False, use_pixelflat=False)
+        par.reset_all_processimages_par(**turn_on)
+        # X-SHOOTER arcs/tilts are also have different binning with bias frames, so don't use bias frames
+        # Don't use the biases for any calibrations since it appears to be a different amplifier readout
+        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
+        # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
+        # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
+        par['scienceframe']['process']['use_biasimage']=True
+        par['scienceframe']['process']['use_illumflat']=True
+        par['scienceframe']['process']['use_pixelflat']=True
+        par['calibrations']['standardframe']['process']['use_illumflat']=True
+        par['calibrations']['standardframe']['process']['use_pixelflat']=True
+        #par['scienceframe']['useframe'] ='overscan'
 
         par['calibrations']['slitedges']['edge_thresh'] = 8.0
         par['calibrations']['slitedges']['fit_order'] = 8
@@ -521,10 +535,6 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [3,3] # Mask 3 edges pixels since the slit is short, insted of default (5,5)
         par['reduce']['findobj']['find_npoly_cont'] = 0       # Continnum order for determining thresholds
         par['reduce']['findobj']['find_cont_fit'] = False # Don't attempt to fit a continuum to the trace rectified image
-
-        # Right now we are using the overscan and not biases becuase the standards are read with a different read mode and we don't
-        # yet have the option to use different sets of biases for different standards, or use the overscan for standards but not for science frames
-        par['scienceframe']['useframe'] ='overscan'
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
@@ -717,11 +727,11 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['length_range'] = 0.3
 
-        par['calibrations']['arcframe']['process']['overscan'] = 'median'
-        par['calibrations']['traceframe']['process']['overscan'] = 'median'
+        par['calibrations']['arcframe']['process']['overscan_method'] = 'median'
+        par['calibrations']['traceframe']['process']['overscan_method'] = 'median'
         # X-SHOOTER UVB arcs/tilts have different binning with bias frames
-        par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        par['calibrations']['arcframe']['process']['use_biasimage'] = False
+        par['calibrations']['tiltframe']['process']['use_biasimage'] = False
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr_XSHOOTER_UVB']

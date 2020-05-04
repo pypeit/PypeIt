@@ -1,4 +1,21 @@
 
+
+1.0.3 (04 May 2020)
+-------------------
+
+ - Add illumflat frametype
+ - Enable dark image subtraction
+ - Refactor of Calibrations (remove cache, add get_dark)
+ - Enable calibration-only run
+ - Clean up flat, bias handling
+ - Make re-use masters the default mode of run_pypeit
+ - Require Python 3.7
+ - Fixed a bug in NIRES order finding. 
+ - Add NOT/ALFOSC
+ - Fluxing docs
+ - Fix flexure and heliocentric bugs
+ - Identify GUI updates
+
 1.0.2 (30 Apr 2020)
 -------------------
 

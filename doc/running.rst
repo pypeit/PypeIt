@@ -15,6 +15,9 @@ It assumes:
 
 3. You edited the :doc:`pypeit_file` as desired.
 
+4. You have removed any (likely all) calibration file from the
+Masters/ folder that are stale/old versions/etc.
+
 
 
 
@@ -35,18 +38,23 @@ Here is the script `usage`
 (warning:  this doc may be somewhat out of date;  use `run_pypeit -h` to
 see the very latest)::
 
-    usage: run_pypeit [-h] [-v VERBOSITY] [-t] [-r SORT_DIR] [-m] [-s] [-o]
-                      [-d DETECTOR]
-                      pypeit_file
+    usage: run_pypeit [-h] [-v VERBOSITY] [-t] [-r REDUX_PATH] [-m] [-s] [-o]
+                  [-d DETECTOR] [-c]
+                  pypeit_file
 
-    ##  PypeIt : The Python Spectroscopic Data Reduction Pipeline v0.12.3dev
+    ##  PypeIt : The Python Spectroscopic Data Reduction Pipeline v1.0.2dev
     ##
-    ##  Available pipelines include (OUTDATED):
-    ##   armed, arms
-    ##  Available spectrographs include (OUTDATED):
-    ##   keck_nires, shane_kast_red, tng_dolores, apf_levy,
-    ##   keck_lris_blue, shane_kast_blue, keck_lris_red, keck_hires,
-    ##   shane_kast_red_ret, wht_isis_blue, keck_nirspec, keck_deimos
+    ##  Available spectrographs include:
+    ##   keck_deimos, keck_lris_blue, keck_lris_red, keck_nires,
+    ##   keck_nirspec_low, keck_mosfire, keck_hires_red, keck_kcwi,
+    ##   shane_kast_blue, shane_kast_red, shane_kast_red_ret,
+    ##   tng_dolores, wht_isis_blue, wht_isis_red, vlt_xshooter_uvb,
+    ##   vlt_xshooter_vis, vlt_xshooter_nir, vlt_fors2, gemini_gnirs,
+    ##   gemini_flamingos1, gemini_flamingos2, gemini_gmos_south_ham,
+    ##   gemini_gmos_north_e2v, gemini_gmos_north_ham, magellan_fire,
+    ##   magellan_fire_long, magellan_mage, lbt_mods1r, lbt_mods1b,
+    ##   lbt_mods2r, lbt_mods2b, lbt_luci1, lbt_luci2, mmt_binospec,
+    ##   mdm_osmos_mdm4k
 
     positional arguments:
       pypeit_file           PypeIt reduction file (must have .pypeit extension)
@@ -57,10 +65,12 @@ see the very latest)::
                             Verbosity level between 0 [none] and 2 [all]
       -t, --hdrframetype    Use file headers and the instument-specific keywords
                             to determinethe type of each frame
-      -r SORT_DIR, --sort_dir SORT_DIR
-                            Directory used to store the sorted files. Default is
-                            to omit writing these files.
-      -m, --use_masters     Load previously generated MasterFrames
+      -r REDUX_PATH, --redux_path REDUX_PATH
+                            Path to directory for the reduction. Only advised for
+                            testing
+      -m, --do_not_reuse_masters
+                            Do not load previously generated MasterFrames, even
+                            ones made during the run.
       -s, --show            Show reduction steps via plots (which will block
                             further execution until clicked on) and outputs to
                             ginga. Requires remote control ginga session via
@@ -70,6 +80,8 @@ see the very latest)::
                             Detector to limit reductions on. If the output files
                             exist and -o is used, the outputs for the input
                             detector will be replaced.
+      -c, --calib_only      Only run on calibrations
+
 
 Standard Call
 -------------
@@ -102,12 +114,12 @@ then remove them and run without `-o`.
 -m
 ++
 
-This `-m` or `--use_masters` flag tells PypeIt to use any existing
-calibration frames (referred to as :doc:`masters`) instead of
-re-creating them.
+This `-m` or `--do_not_use_masters` flag tells PypeIt to **avoid**
+using any existing
+calibration frames (referred to as :doc:`masters`) instead
+of loading from disk.
 
-This can *greatly* speed up the code so is
-recommended once you trust they have been generated properly.
+Using this can *greatly* slow down the code.
 
 -s
 ++

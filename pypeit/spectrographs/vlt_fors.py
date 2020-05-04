@@ -47,7 +47,7 @@ class VLTFORSSpectrograph(spectrograph.Spectrograph):
         #   IF YOU CHANGE THIS, YOU WILL NEED TO DEAL WITH THE OVERSCAN GOING ALONG ROWS
         for key in par['calibrations'].keys():
             if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'median'
+                par['calibrations'][key]['process']['overscan_method'] = 'median'
 
         # Adjustments to slit and tilts for NIR
         par['calibrations']['slitedges']['edge_thresh'] = 50.
@@ -267,10 +267,10 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         par = self.default_pypeit_par() if inp_par is None else inp_par
         # TODO: Should we allow the user to override these?
 
-        detector = self.get_meta_value(scifile, 'detector')
-        self.set_detector(detector)
+        #detector = self.get_meta_value(scifile, 'detector')
+        #self.set_detector(detector)
         # Wavelengths
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
 
         if self.get_meta_value(scifile, 'dispname') == 'GRIS_300I':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300I.fits'
@@ -278,6 +278,9 @@ class VLTFORS2Spectrograph(VLTFORSSpectrograph):
         elif self.get_meta_value(scifile, 'dispname') == 'GRIS_300V':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'vlt_fors2_300V.fits'
             par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        if 'lSlit' in self.get_meta_value(scifile, 'decker'):
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         return par
 

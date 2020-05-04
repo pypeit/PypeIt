@@ -7,7 +7,7 @@
 This script generates files to setup a PypeIt run
 """
 import argparse
-from pypeit.spectrographs.util import valid_spectrographs
+from pypeit import defs
 
 def parser(options=None):
     # TODO: Add argument that specifies the log file
@@ -19,7 +19,7 @@ def parser(options=None):
     #                   help='PypeIt file to use')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
-                                ', '.join(valid_spectrographs())))
+                                ', '.join(defs.pypeit_spectrographs)))
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
     parser.add_argument('-d', '--output_path', default=None,
@@ -45,9 +45,7 @@ def parser(options=None):
 def main(args):
 
     import os
-    import pdb as debugger
 
-    from pypeit import msgs
     from pypeit.pypeitsetup import PypeItSetup
 
     # Check that the spectrograph is provided if using a file root
@@ -55,7 +53,7 @@ def main(args):
         if args.spectrograph is None:
             raise ValueError('Must provide spectrograph identifier with file root.')
         # Check that input spectrograph is supported
-        instruments_served = valid_spectrographs()
+        instruments_served = defs.pypeit_spectrographs
         if args.spectrograph not in instruments_served:
             raise ValueError('Instrument \'{0}\' unknown to PypeIt.\n'.format(args.spectrograph)
                              + '\tOptions are: {0}\n'.format(', '.join(instruments_served))
