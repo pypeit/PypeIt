@@ -47,7 +47,14 @@ And a typical call::
 
     pypeit_chk_calibs -s not_alfosc -r /PypeIt-development-suite/RAW_DATA/not_alfosc/grism4/ALDc2
 
-Enjoy
+After a running stream of detailed notes, it prints a table of results
+to the screen::
+
+    setups passfail     scifiles
+    ------ -------- ---------------
+         A    False ALDc200205.fits
+      None     True
+
 
 .. _pypeit-setup:
 

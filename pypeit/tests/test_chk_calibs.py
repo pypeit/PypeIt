@@ -23,5 +23,5 @@ def test_chk_calibs_not():
     pargs = chk_calibs.parser(['-r', droot, '-s', 'not_alfosc'])
     answers = chk_calibs.main(pargs)
 
-    assert np.all(answers), 'One or more failures!'
+    assert np.all(answers['passfail']), 'One or more failures!'
 

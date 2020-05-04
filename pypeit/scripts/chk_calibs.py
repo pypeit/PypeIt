@@ -28,9 +28,20 @@ def parser(options=None):
 
 
 def main(args):
+    """
+
+    Args:
+        args:
+
+    Returns:
+        astropy.table.Table:
+
+    """
 
     import os
     import numpy as np
+
+    from astropy import table
 
     from pypeit.pypeitsetup import PypeItSetup
     from pypeit import calibrations
@@ -64,7 +75,11 @@ def main(args):
 
     # Unique configurations
     setups, indx = ps.fitstbl.get_configuration_names(return_index=True)
-    answers = []
+
+    answers = table.Table()
+    answers['setups'] = setups
+    passes, scifiles = [], []
+
     for setup, i in zip(setups, indx):
         msgs.info('=======================================================================')
         msgs.info('Working on setup: {}'.format(setup))
@@ -95,15 +110,26 @@ def main(args):
         # Print science frames
         if np.any(in_cfg & is_science):
             msgs.info("Your science frames are: {}".format(ps.fitstbl['filename'][in_cfg & is_science]))
+            scifiles.append(','.join(ps.fitstbl['filename'][in_cfg & is_science]))
         else:
             msgs.warn("This setup has no science frames!")
+            scifiles.append('')
         # Check!
         passed = calibrations.check_for_calibs(par, ps.fitstbl, raise_error=False,
                                                cut_cfg=in_cfg)
         if not passed:
             msgs.warn("Setup {} did not pass the calibration check!".format(setup))
         #
-        answers.append(passed)
+        passes.append(passed)
 
     msgs.info('========================== ALL DONE =======================================')
-    return np.asarray(answers)
+    print('========================== RESULTS =======================================')
+    print('=================================================================')
+    #
+    answers['passfail'] = passes
+    answers['scifiles'] = scifiles
+    # Print
+    print(answers)
+    print('=================================================================')
+    # Return
+    return answers
