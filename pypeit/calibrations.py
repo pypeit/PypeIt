@@ -871,7 +871,7 @@ class IFUCalibrations(Calibrations):
         return ['bias', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats', 'wave']
 
 
-def check_for_calibs(par, fitstbl, raise_error=True):
+def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     """
     Perform a somewhat quick and dirty check to see if the user
     has provided all of the calibration frametype's to reduce
@@ -884,16 +884,22 @@ def check_for_calibs(par, fitstbl, raise_error=True):
             PypeIt run.
         raise_error (:obj:`bool`, optional):
             If True, crash out
+        cut_cfg (`numpy.ndarray`_, optional):
+            Also cut on this restricted configuration (mainly for chk_calibs)
+    Returns:
+        bool: True if we passed all checks
     """
+    if cut_cfg is None:
+        cut_cfg = np.ones(len(fitstbl), dtype=bool)
+    pass_calib = True
     # Find the science frames
     is_science = fitstbl.find_frames('science')
     # Frame indices
     frame_indx = np.arange(len(fitstbl))
 
-    pass_calib = True
     for i in range(fitstbl.n_calib_groups):
         in_grp = fitstbl.find_calib_group(i)
-        grp_science = frame_indx[is_science & in_grp]
+        grp_science = frame_indx[is_science & in_grp & cut_cfg]
         u_combid = np.unique(fitstbl['comb_id'][grp_science])
         for j, comb_id in enumerate(u_combid):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
@@ -930,3 +936,4 @@ def check_for_calibs(par, fitstbl, raise_error=True):
 
     if pass_calib:
         msgs.info("Congrats!!  You passed the calibrations inspection!!")
+    return pass_calib

@@ -30,6 +30,7 @@ def parser(options=None):
 def main(args):
 
     import os
+    import numpy as np
 
     from pypeit.pypeitsetup import PypeItSetup
     from pypeit import calibrations
@@ -57,11 +58,13 @@ def main(args):
 
     # Run the setup
     ps.run(setup_only=True)#, write_bkg_pairs=args.background)
+    is_science = ps.fitstbl.find_frames('science')
 
     msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.spectrograph))
 
     # Unique configurations
     setups, indx = ps.fitstbl.get_configuration_names(return_index=True)
+    answers = []
     for setup, i in zip(setups, indx):
         msgs.info('=======================================================================')
         msgs.info('Working on setup: {}'.format(setup))
@@ -89,8 +92,18 @@ def main(args):
         #   - Build the full set, merging with any user-provided
         #     parameters
         par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines)
+        # Print science frames
+        if np.any(in_cfg & is_science):
+            msgs.info("Your science frames are: {}".format(ps.fitstbl['filename'][in_cfg & is_science]))
+        else:
+            msgs.warn("This setup has no science frames!")
         # Check!
-        calibrations.check_for_calibs(par, ps.fitstbl,
-                                      raise_error=False)
+        passed = calibrations.check_for_calibs(par, ps.fitstbl, raise_error=False,
+                                               cut_cfg=in_cfg)
+        if not passed:
+            msgs.warn("Setup {} did not pass the calibration check!".format(setup))
+        #
+        answers.append(passed)
 
     msgs.info('========================== ALL DONE =======================================')
+    return np.asarray(answers)
