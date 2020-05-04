@@ -1,11 +1,12 @@
 
 
-1.0.2dev
+1.0.4dev
 --------
 
- - Add a script (pypeit_flux_setup) for creating fluxing,
-   coadd1d and tellfit pypeit files
- - Add telluric fitting script, pypeit_tellfit
+
+1.0.3 (04 May 2020)
+-------------------
+
  - Add illumflat frametype
  - Enable dark image subtraction
  - Refactor of Calibrations (remove cache, add get_dark)
@@ -18,6 +19,13 @@
  - Fluxing docs
  - Fix flexure and heliocentric bugs
  - Identify GUI updates
+
+1.0.2 (30 Apr 2020)
+-------------------
+
+ - Various doc hotfixes
+ - wavelength algorithm hotfix, such that they must now generate an
+   entry for every slit, bad or good.
 
 1.0.1 (13 Apr 2020)
 -------------------

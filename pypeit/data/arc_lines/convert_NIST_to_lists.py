@@ -23,6 +23,7 @@ def parser(options=None):
         description='Build the PypeIt line lists from NIST tables')
     parsefunc.add_argument("-w", "--write", default=False, action='store_true', help="Actually write files?")
     parsefunc.add_argument("--skip_stop", default=False, action='store_true', help="Skip warning stop?")
+    parsefunc.add_argument("-r", "--relint", type=float, default=1000.0, help="Set the relative intensity threshold")
     parsefunc.add_argument("line", default='', help="Name of ion")
 
     if options is None:
@@ -120,7 +121,7 @@ def load_line_list(line):
     return line_list
 
 
-def main(args=None, relIntThreshold=1000):
+def main(args=None):
     """ This script convert an input NIST table into a line list that can be used by PypeIt
 
     Parameters
@@ -135,6 +136,7 @@ def main(args=None, relIntThreshold=1000):
     # Grab arguments
     pargs = parser(options=args)
     line = pargs.line
+    relIntThreshold = pargs.relint
 
     print("=============================================================")
     print("This script is for EXPERTS ONLY")
