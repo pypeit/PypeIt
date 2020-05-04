@@ -693,7 +693,7 @@ class Calibrations(object):
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
             self.wv_calib.is_synced(self.slits)
-            self.slits.mask_wavetilts(self.wv_calib)
+            self.slits.mask_wvcalib(self.wv_calib)
         else:
             # Instantiate
             self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
@@ -704,7 +704,6 @@ class Calibrations(object):
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
             self.wv_calib.to_master_file(masterframe_name)
-            embed(header='706 of calibrations')
 
         # Return
         return self.wv_calib

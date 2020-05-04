@@ -657,7 +657,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                                upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
                                                minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
                                                use_mad=False, sticky=False)
-    fitmask = pypeitFit.gpm.reshape(tilts_dspat.shape)
+    fitmask = pypeitFit.gpm.reshape(tilts_dspat.shape).astype(bool)
     # Compute a rejection mask that we will use later. These are
     # locations that were fit but were rejectedK
     rej_mask = tot_mask & np.invert(fitmask)
@@ -757,7 +757,8 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     tilt_fit_dict = dict(nspec=nspec, nspat=nspat, ngood_lines=np.sum(use_tilt),
                          npix_fit=np.sum(tot_mask), npix_rej=np.sum(np.invert(fitmask)),
                          coeff2=pypeitFit.fitc, spec_order=spec_order, spat_order=spat_order,
-                         minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, func=func2d)
+                         minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0, func=func2d,
+                         pypeitFit=pypeitFit)
 
     # Now do some QA
     # TODO: I think we should do the QA outside of core functions.
@@ -831,8 +832,12 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat) - _spat_shift
     spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
-    tilts = utils.func_val(coeff2, spec_img / xnspecmin1, func2d, x2=spat_img / xnspatmin1,
-                           minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
+    #
+    pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
+                                  minx2=0.0, maxx2=1.0, func=func2d)
+    tilts = pypeitFit.val(spec_img / xnspecmin1, x2=spat_img / xnspatmin1)
+    #tilts = utils.func_val(coeff2, spec_img / xnspecmin1, func2d, x2=spat_img / xnspatmin1,
+    #                       minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
     # wavelength solution fitting
     return np.fmax(np.fmin(tilts, 1.2), -0.2)
@@ -841,6 +846,29 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
 # This method needs to match the name in pypeit.core.qa.set_qa_filename()
 def arc_tilts_2d_qa(tilts_dspat, tilts, tilts_model, tot_mask, rej_mask, spat_order, spec_order, rms, fwhm,
                  slitord_id=0, setup='A', outfile=None, show_QA=False, out_dir=None):
+    """
+
+    ..todo.. this method needs docs
+
+    Args:
+        tilts_dspat:
+        tilts:
+        tilts_model:
+        tot_mask:
+        rej_mask:
+        spat_order:
+        spec_order:
+        rms:
+        fwhm:
+        slitord_id:
+        setup:
+        outfile:
+        show_QA:
+        out_dir:
+
+    Returns:
+
+    """
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'Helvetica'
 

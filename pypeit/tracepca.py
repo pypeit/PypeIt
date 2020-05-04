@@ -30,6 +30,8 @@ class TracePCA:
     :func:`pypeit.core.pca.fit_pca_coefficients`, and
     :func:`pypeit.core.pca.pca_predict`.
 
+    ..todo.. All of the attributes need docs
+
     Args:
         trace_cen (`numpy.ndarray`_, optional):
             A floating-point array with the spatial location of each
@@ -150,6 +152,7 @@ class TracePCA:
         self.upper = None
         self.maxrej = None
         self.maxiter = None
+        self.pypeitFits = None  # list of PypeItFit objects
 
     def build_interpolator(self, order, ivar=None, weights=None, function='polynomial', lower=3.0,
                            upper=3.0, maxrej=1, maxiter=25, minx=None, maxx=None, debug=False):
@@ -166,7 +169,7 @@ class TracePCA:
         self.upper = upper
         self.maxrej = maxrej
         self.maxiter = maxiter
-        self.pca_bpm, self.fit_coeff, self.minx, self.maxx \
+        self.pca_bpm, self.fit_coeff, self.minx, self.maxx, self.pypeitFits \
                 = pca.fit_pca_coefficients(self.pca_coeffs, order, ivar=ivar, weights=weights,
                                            function=self.function, lower=lower, upper=upper,
                                            minx=minx, maxx=maxx, maxrej=maxrej, maxiter=maxiter,
@@ -200,8 +203,9 @@ class TracePCA:
             raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
         if self.fit_coeff is None:
             msgs.error('PCA coefficients have not been modeled; run model_coeffs first.')
-        return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
-                               function=self.function, minx=self.minx, maxx=self.maxx).T
+        return pca.pca_predict(x, self.pypeitFits, self.pca_components, self.pca_mean, x).T
+        #return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
+        #                       function=self.function, minx=self.minx, maxx=self.maxx).T
 
     def _output_dtype(self):
         """

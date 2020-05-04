@@ -203,7 +203,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             Show plots useful for debugging.
 
     Returns:
-        Returns four objects:
+        Returns five objects:
             - A boolean `numpy.ndarray`_ masking data (`coeff`) that
               were rejected during the polynomial fitting. Shape is the
               same as the input `coeff`.
@@ -212,8 +212,10 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
               of the 1D array is the number of coefficients fit to the
               PCA-component coefficients. The number of function
               coefficients is typically :math:`N_{\rm coeff} = o+1`.
-            - The minimum and maximum coordinate values used to rescale
+            - The minimum
+            - and maximum coordinate values used to rescale
               the abscissa during the fitting.
+            - A `list` of `:class:pypeit.core.fitting.PypeItFit` objects
     """
     # Check the input
     #   - Get the shape of the input data to fit
@@ -263,6 +265,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     # interpolated to other coordinates.
 
     inmask = np.ones_like(coo, dtype=bool)
+    pypeitFits = []
     for i in range(npca):
         #coeff_used[:,i], fit_coeff[i] \
         pypeitFit = fitting.robust_fit(coo, _coeff[:,i], _order[i], inmask=inmask,
@@ -272,6 +275,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
                                            maxrej=maxrej, sticky=False, use_mad=_ivar is None,
                                            minx=minx, maxx=maxx)
         coeff_used[:,i], fit_coeff[i] = pypeitFit.gpm, pypeitFit.fitc
+        pypeitFits.append(pypeitFit)
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)
@@ -297,11 +301,10 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     # Return arrays that match the shape of the input data
     if coeff.ndim == 1:
         return np.invert(coeff_used)[0], fit_coeff[0], minx, maxx
-    return np.invert(coeff_used), fit_coeff, minx, maxx
+    return np.invert(coeff_used), fit_coeff, minx, maxx, pypeitFits
 
 
-def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, maxx=None,
-                function='legendre'):
+def pca_predict(x, pypeitFits, pca_components, pca_mean, mean):
     r"""
     Use a model of the PCA coefficients to predict vectors at the
     specified coordinates.
@@ -312,11 +315,8 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, ma
             coefficients and produce the PCA model. As used within
             PypeIt, this is typically the spatial pixel coordinate or
             echelle order number.
-        pca_coeff_fits (:obj:`list`, `numpy.ndarray`_): 
-            A `list` of `numpy.ndarray`_ objects (or a single
-            `numpy.ndarray`_), one per PCA component where the length
-            of the 1D array is the number of coefficients fit to the
-            PCA-component coefficients.
+        pypeitFits (:obj:`list`):
+            List of PypeItFit objects
         pca_mean (`numpy.ndarray`_):
             The mean offset of the PCA decomposotion for each pixel.
             Shape is :math:`(N_{\rm pix},)`.
@@ -346,7 +346,8 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, ma
     npca = pca_components.shape[0]
     c = np.zeros((_x.size, npca), dtype=float)
     for i in range(npca):
-        c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function, minx=minx, maxx=maxx)
+        c[:,i] = pypeitFits[i].val(_x)#, function, minx=minx, maxx=maxx)
+        #c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function, minx=minx, maxx=maxx)
     # Calculate the predicted vectors and return them
     vectors = np.dot(c, pca_components) + pca_mean[None,:] + _mean[:,None]
     return vectors if isinstance(x, np.ndarray) else vectors[0,:]

@@ -324,6 +324,8 @@ class BuildWaveTilts(object):
         """
         Fit the tilts
 
+        all_fit_dict and all_trace_dict are filled in place
+
         Args:
             trc_tilt_dict (dict): Contains information from tilt tracing
             slit_cen (ndarray): (nspec,) Central trace for this slit
@@ -340,10 +342,7 @@ class BuildWaveTilts(object):
                 Show additional plots useful for debugging.
 
         Returns:
-           (tilts, coeffs)
-            tilts: ndarray (nspec, nspat)
-               tilts image
-            coeff: ndarray (spat_order + 1, spec_order+1)
+            `numpy.ndarray`_: coeff: ndarray (spat_order + 1, spec_order+1)
                Array containing the coefficients for the 2d legendre polynomial fit
         """
         # Index

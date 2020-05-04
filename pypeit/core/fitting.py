@@ -15,7 +15,6 @@ from pypeit.core import pydl
 from pypeit import bspline
 from pypeit import msgs
 from pypeit.datamodel import DataContainer
-from pypeit import utils
 
 from IPython import embed
 
@@ -75,7 +74,6 @@ class PypeItFit(DataContainer):
         # Do it
         return super(PypeItFit, self).to_hdu(**_d)
 
-
     def val(self, x, x2=None): #, minx=None, maxx=None, minx2=None, maxx2=None):
         """
         Return the evaluated fit
@@ -95,9 +93,9 @@ class PypeItFit(DataContainer):
                 return np.polynomial.polynomial.polyval2d(x, x2, self.fitc)
             elif self.func[:-2] in ["legendre", "chebyshev"]:
                 # Scale x-direction
-                xv = utils.scale_minmax(x, minx=self.minx, maxx=self.maxx)
+                xv = scale_minmax(x, minx=self.minx, maxx=self.maxx)
                 # Scale x2-direction
-                x2v = utils.scale_minmax(x2, minx=self.minx2, maxx=self.maxx2)
+                x2v = scale_minmax(x2, minx=self.minx2, maxx=self.maxx2)
                 if self.func[:-2] == "legendre":
                     return np.polynomial.legendre.legval2d(xv, x2v, self.fitc)
                 elif self.func[:-2] == "chebyshev":
@@ -131,14 +129,14 @@ class PypeItFit(DataContainer):
             return interpolate.splev(x, self.fitc, ext=1)
         elif self.func == "gaussian":
             if len(self.fitc) == 2:
-                return utils.gauss_2deg(x, self.fitc[0], self.fitc[1])
+                return gauss_2deg(x, self.fitc[0], self.fitc[1])
             elif len(self.fitc) == 3:
-                return utils.gauss_3deg(x, self.fitc[0], self.fitc[1], self.fitc[2])
+                return gauss_3deg(x, self.fitc[0], self.fitc[1], self.fitc[2])
             else:
                 msgs.error("Not ready for this type of gaussian")
         elif self.func == "moffat":
             if len(self.fitc) == 3:
-                return utils.moffat(x, self.fitc[0], self.fitc[1], self.fitc[2])
+                return moffat(x, self.fitc[0], self.fitc[1], self.fitc[2])
             else:
                 msgs.error("Not ready for this type of Moffat")
         else:
@@ -846,9 +844,9 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     if w is not None:
         w = np.asarray(w) + 0.0
         if w.ndim != 1:
-            msgs.bug("utils.polyfit2d - Expected 1D vector for weights")
+            msgs.bug("fitting.polyfit2d - Expected 1D vector for weights")
         if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
-            msgs.bug("utils.polyfit2d - Expected x, y and weights to have same length")
+            msgs.bug("fitting.polyfit2d - Expected x, y and weights to have same length")
         z = z * w
         vander = vander * w[:,np.newaxis]
     # Reshape

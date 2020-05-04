@@ -26,9 +26,15 @@ def test_wavefit():
     if os.path.isfile(out_file):
         os.remove(out_file)
     pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float))
+    #
+    ions = np.asarray(['CdI', 'HgI'])
+    ion_bits = np.zeros(len(ions), dtype=wv_fitting.WaveFit.bitmask.minimum_dtype())
+    for kk,ion in enumerate(ions):
+        ion_bits[kk] = wv_fitting.WaveFit.bitmask.turn_on(ion_bits[kk], ion)
+    # Do it
     waveFit = wv_fitting.WaveFit(pypeitfit=pypeitFit, pixel_fit=np.arange(10).astype(float),
                                  wave_fit=np.linspace(1.,10.,10), sigrej=3.,
-                                 ions=np.asarray(['CdI', 'HgI']))
+                                 ion_bits=ion_bits)
 
     # Write
     waveFit.to_file(out_file)

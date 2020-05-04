@@ -3,8 +3,8 @@
 import numpy as np
 import inspect
 
-from pypeit import utils
 from pypeit.core.wavecal import autoid
+from pypeit.core.wavecal import defs
 from pypeit.core import fitting
 from pypeit import msgs
 
@@ -32,7 +32,7 @@ class WaveFit(datamodel.DataContainer):
         'pixel_fit': dict(otype=np.ndarray, atype=np.floating, desc='Pixel values of arc lines'),
         'wave_fit': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength IDs assigned'),
         'xnorm': dict(otype=float, desc='Normalization for fit'),
-        'ions': dict(otype=np.ndarray, atype=str, desc='Ion names'),
+        'ion_bits': dict(otype=np.ndarray, atype=np.integer, desc='Ion bit values for the Ion names'),
         'cen_wave': dict(otype=float, desc='Central wavelength'),
         'cen_disp': dict(otype=float, desc='Approximate wavelength dispersion'),
         'spec': dict(otype=np.ndarray, atype=np.floating, desc='Arc spectrum'),
@@ -43,7 +43,9 @@ class WaveFit(datamodel.DataContainer):
         'rms': dict(otype=float, desc='RMS of the solution'),
     }
 
-    def __init__(self, pypeitfit=None, pixel_fit=None, wave_fit=None, ions=None,
+    bitmask = defs.LinesBitMask()
+
+    def __init__(self, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None):
         # Parse
@@ -91,6 +93,21 @@ class WaveFit(datamodel.DataContainer):
         _d['force_to_bintbl'] = True
         # Do it
         return super(WaveFit, self).to_hdu(**_d)
+
+    @property
+    def ions(self):
+        """
+
+        Returns:
+            `numpy.ndarray`_:  Array of the ion label for each line as recorded in ion_bits
+
+        """
+        ionlist = []
+        for ionbit in self.ion_bits:
+            ionlist += self.bitmask.flagged_bits(ionbit)
+        # Return
+        return np.asarray(ionlist)
+
 
 
 def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
@@ -340,13 +357,14 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     cen_wave_min1 = pypeitFit.val((float(nspec)/2 - 1.0)/xnspecmin1)#, func, minx=fmin, maxx=fmax)
     cen_disp = cen_wave - cen_wave_min1
 
+    # Ions bit
+    ion_bits = np.zeros(len(ions), dtype=WaveFit.bitmask.minimum_dtype())
+    for kk,ion in enumerate(ions):
+        ion_bits[kk] = WaveFit.bitmask.turn_on(ion_bits[kk], ion)
+
     # DataContainer time
-    #final_fit = dict(fitc=fit, function=func, pixel_fit=xfit, wave_fit=yfit, weights=wfit, ions=ions,
-    #                 fmin=fmin, fmax=fmax, xnorm = xnspecmin1, nspec=nspec, cen_wave = cen_wave, cen_disp = cen_disp,
-    #                 xrej=xrej, yrej=yrej, mask=(mask == 0), spec=spec, wave_soln = wave_soln, nrej=sigrej_final,
-    #                 shift=0., tcent=tcent, rms=rms_pix)
     final_fit = WaveFit(pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, #weights=wfit,
-                        ions=ions, xnorm=xnspecmin1, #nspec=nspec,
+                        ion_bits=ion_bits, xnorm=xnspecmin1, #nspec=nspec,
                         cen_wave=cen_wave, cen_disp=cen_disp,
                        #xrej=xrej, yrej=yrej, mask=(mask == 0),
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,

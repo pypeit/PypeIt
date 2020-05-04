@@ -431,6 +431,7 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
     return res, yfit
 
 
+# TODO -- This class needs to become a DataContainer
 class TraceSet(object):
     """Implements the idea of a trace set.
 
@@ -466,6 +467,8 @@ class TraceSet(object):
     yfit : array-like
         When initialized with x,y positions, this contains the fitted y
         values.
+    pypeitFits : list
+        Holds the fits
     """
     #_func_map = {'poly': fpoly, 'legendre': flegendre,
     #                'chebyshev': fchebyshev}
@@ -573,6 +576,7 @@ class TraceSet(object):
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
+            self.pypeitFits = []
             for iTrace in range(self.nTrace):
                 xvec = self.xnorm(xpos[iTrace, :], do_jump)
                 if invvar is None:
@@ -590,6 +594,7 @@ class TraceSet(object):
                                                                 maxdev=self.maxdev,maxrej=None,groupdim=None,
                                                                 groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
                 ycurfit_djs = pypeitFit.val(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
+                self.pypeitFits.append(pypeitFit)
 
                 # Load
                 self.yfit[iTrace, :] = ycurfit_djs #ycurfit
@@ -624,7 +629,8 @@ class TraceSet(object):
         for iTrace in range(self.nTrace):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
             #legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
-            ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
+            #ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
+            ypos[iTrace, :] =  self.pypeitFits[iTrace].val(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
 #            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 

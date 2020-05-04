@@ -654,6 +654,7 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     Returns:
         `numpy.ndarray`_: The wavelength image.
     """
+    raise IOError("MOVE THIS!")
     # Setup
     #ok_slits = slits.mask == 0
     bpm = slits.mask.astype(bool)
