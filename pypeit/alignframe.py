@@ -211,7 +211,7 @@ class TraceAlignment(object):
                             'PYPELINE': self.spectrograph.pypeline}
             msgs.info("Fitting alignment traces in slit {0:d}".format(slit_idx))
             align_traces, _ = extract.objfind(
-                self.rawalignimg.image, slitid_img_init == slit_idx,
+                self.rawalignimg.image, slitid_img_init == slit_spat,
                 left[:, slit_idx], right[:, slit_idx],
                 ir_redux=False, ncoeff=self.alignpar['trace_npoly'],
                 specobj_dict=specobj_dict, sig_thresh=self.alignpar['sig_thresh'],

@@ -337,7 +337,10 @@ class Calibrations(object):
         # Instantiate
         alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph, self.par['alignment'],
                                               det=self.det, binning=binning, qa_path=self.qa_path, msbpm=self.msbpm)
+        # Run
         self.alignments = alignment.run(show=self.show)
+        # Save to Masters
+        self.alignments.to_master_file(masterframe_filename)
 
         return self.alignments
 
