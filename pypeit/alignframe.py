@@ -161,9 +161,6 @@ class TraceAlignment(object):
         self.rawalignimg = rawalignimg
         self.slits = slits
 
-        # Check synced
-        self.rawalignimg.is_synced(self.slits)
-
         # Optional parameters
         self.bpm = rawalignimg.mask if msbpm is None else msbpm
         self.qa_path = qa_path

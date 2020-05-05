@@ -67,6 +67,7 @@ class Calibrations(object):
         msbias (:class:`pypeit.images.buildimage.BiasImage`):
         msdark (:class:`pypeit.images.buildimage.DarkImage`):
         msbpm (`numpy.ndarray`_):
+        alignments (:class:`pypeit.alignframe.Alignments`):
         wv_calib (:obj:`dict`):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
@@ -150,8 +151,7 @@ class Calibrations(object):
 
         self.msarc = None
         self.mstilt = None
-        self.msalign = None
-        self.alignment = None
+        self.alignments = None
         self.msbias = None
         self.msdark = None
         self.msbpm = None
