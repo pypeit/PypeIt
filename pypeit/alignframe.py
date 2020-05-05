@@ -76,32 +76,6 @@ class Alignments(datamodel.DataContainer):
         if not np.array_equal(self.spat_id, slits.spat_id):
             msgs.error("Your alignment solutions are out of sync with your slits.  Remove Masters and start from scratch")
 
-
-    @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
-        # Grab everything but the bspline's
-        _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
-        # Now the bsplines
-        list_of_bsplines = []
-        spat_ids = []
-        for ihdu in hdu:
-            if 'BSPLINE' in ihdu.name:
-                ibspl = bspline.bspline.from_hdu(ihdu)
-                if ibspl.version != bspline.bspline.version:
-                    msgs.warn("Your bspline is out of date!!")
-                list_of_bsplines.append(ibspl)
-                # Grab SPAT_ID for checking
-                i0 = ihdu.name.find('ID-')
-                i1 = ihdu.name.find('_BSP')
-                spat_ids.append(int(ihdu.name[i0+3:i1]))
-        # Check
-        if spat_ids != _d['spat_id'].tolist():
-            msgs.error("Bad parsing of the MasterFlat")
-        # Finish
-        _d['spat_bsplines'] = np.asarray(list_of_bsplines)
-        return _d, dm_version_passed, dm_type_passed
-
     def show(self, slits=None):
         """
         Simple wrapper to show_alignment()
