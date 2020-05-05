@@ -301,82 +301,45 @@ class Calibrations(object):
         """
         Load or generate the alignment frame
 
-        Requirements:
-           master_key, det, par
+        Requires: :attr:`slits`, :attr:`det`, :attr:`par`
 
         Returns:
-            ndarray or str: :attr:`align`
+            :class:`pypeit.alignframe.Alignments`:
 
         """
         # Check for existing data
         if not self._chk_objs(['msbpm', 'slits']):
-            msgs.error("Don't have all the objects")
+            msgs.warn('Must have the bpm and slits to make the alignments!  Skipping and may crash down the line')
+            self.alignments = alignframe.Alignments(None, None, None, None, None, None, None)
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
         align_files, self.master_key_dict['align'] = self._prep_calibrations('align')
-        masterframe_name = masterframe.construct_file_name(
-            buildimage.AlignImage, self.master_key_dict['align'], master_dir=self.master_dir)
+
+        masterframe_filename = masterframe.construct_file_name(alignframe.Alignments,
+                                                               self.master_key_dict['align'],
+                                                               master_dir=self.master_dir)
 
         # Reuse master frame?
-        if os.path.isfile(masterframe_name) and self.reuse_masters:
-            self.msalign = buildimage.AlignImage.from_file(masterframe_name)
-        elif len(align_files) == 0:
-            msgs.warn("No frametype=align files to build alignment image")
-            return
-        else:  # Build
-            self.msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                          self.par['alignframe'],
-                                                          align_files, bias=self.msbias, bpm=self.msbpm)
-            # Save to Masters
-            self.msalign.to_master_file(masterframe_name)
+        if os.path.isfile(masterframe_filename) and self.reuse_masters:
+            self.alignments = alignframe.Alignments.from_file(masterframe_filename)
+            self.alignments.is_synced(self.slits)
+            return self.alignments
 
-            # Load the MasterFrame (if it exists and is desired)?
-            #self.msalign = self.alignFrame.load()
-            #if self.msalign is None:  # Otherwise build it
-            #    msgs.info("Preparing a master {0:s} frame".format(self.alignFrame.master_type))
-            #    self.msalign = self.alignFrame.build_image(bias=self.msbias, bpm=self.msbpm)
-            #    # Need to set head0 here, since a master align frame loaded from file will have head0 set.
-            #    self.msalign.head0 = self.alignFrame.build_master_header(steps=self.alignFrame.process_steps,
-            #                                                         raw_files=self.alignFrame.file_list)
-            #   # Save to Masters
-            #    if self.save_masters:
-            #        self.alignFrame.save()
-            # Save to Masters
-            # if self.save_masters:
-            #     self.msalign.to_master_file(masterframe_name)
-            #  TODO :: This may be what is needed if broken:
-            # self.msalign.to_master_file(self.master_dir, self.master_key_dict['align'],  # Naming
-            #                            self.spectrograph.spectrograph,  # Header
-            #                            steps=self.msalign.process_steps,
-            #                            raw_files=align_files)
+        msalign = buildimage.buildimage_fromlist(self.spectrograph, self.det, self.par['alignframe'], align_files,
+                                                 bias=self.msbias, bpm=self.msbpm)
 
-            # Store the alignment frame
-            # self._update_cache('align', 'align', self.msalign)
-
-        masterframe_name = masterframe.construct_file_name(alignframe.Alignment, self.master_key_dict['align'],
-                                                           master_dir=self.master_dir)
-
-        # Build the alignment dictionary
         # Extract some header info needed by the algorithm
         binning = self.spectrograph.get_meta_value(align_files[0], 'binning')
 
         # Instantiate
-        alignment = alignframe.Alignment(self.msalign, self.slits, self.spectrograph,
-                                         self.par['alignment'],
-                                         det=self.det, binning=binning,
-                                         master_key=self.master_key_dict['align'],
-                                         qa_path=self.qa_path, msbpm=self.msbpm)
-        # Master
-        self.align_dict = alignment.load(masterframe_name)
-        if self.align_dict is None:
-            # Trace and save the profiles
-            self.align_dict = alignment.run(self.show)
-            alignment.save(masterframe_name)
+        alignment = alignframe.TraceAlignment(msalign, self.slits, self.spectrograph, self.par['alignment'],
+                                              det=self.det, binning=binning, qa_path=self.qa_path, msbpm=self.msbpm)
+        self.alignments = alignment.run(show=self.show)
 
-        return self.msalign, self.align_dict
+        return self.alignments
 
     def get_bias(self):
         """

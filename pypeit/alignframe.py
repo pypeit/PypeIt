@@ -38,13 +38,16 @@ class Alignments(datamodel.DataContainer):
 
     datamodel = {
         'alignframe':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined alignment frames'),
+        'nspec':  dict(otype=int, desc='The number of spectral elements'),
+        'nalign': dict(otype=int, desc='Number of alignment traces in each slit'),
+        'nslits':  dict(otype=int, desc='The number of slits'),
         'traces': dict(otype=np.ndarray, atype=np.floating, desc='Traces of the alignment frame'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'nalign': dict(otype=int, desc='Number of alignment traces in each slit'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
     }
 
-    def __init__(self, alignframe=None, traces=None, nalign=None, PYP_SPEC=None, spat_id=None):
+    def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
+                 traces=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -110,7 +113,7 @@ class Alignments(datamodel.DataContainer):
 
         """
         # Show
-        show_alignment(self.alignframe, align_traces=self.traces, slits=slits)
+        show_alignment(self.alignframe.image, align_traces=self.traces, slits=slits)
 
 
 class TraceAlignment(object):
@@ -186,7 +189,7 @@ class TraceAlignment(object):
         """
         return self.rawalignimg.shape[0] if self.slits is None else self.slits.nspec
 
-    def build_traces(self, show_peaks=False, show_trace=False, debug=False):
+    def build_traces(self, show_peaks=False, debug=False):
         """
         Main routine to generate the align profile traces in all slits
 
@@ -224,9 +227,6 @@ class TraceAlignment(object):
                 msgs.error("Alignment tracing has failed on slit {0:d}".format(slit_idx))
             align_prof['{0:d}'.format(slit_idx)] = align_traces.copy()
 
-        if show_trace:
-            show_alignment(self.rawalignimg.image, align_traces=align_prof, slits=self.slits)
-
         # Steps
         self.steps.append(inspect.stack()[0][3])
 
@@ -244,9 +244,8 @@ class TraceAlignment(object):
 
         Returns
         -------
-        profile_info : list
-            A list of the alignment profile information. The elements of the list include:
-            [spatial traces, TODO :: INCLUDE ALL ELEMENTS NEEDED HERE FOR THE DATA CONTAINER]
+        align_traces : :obj:`numpy.ndarray`
+            Spatial traces (3D array of shape [nspec, ntraces, nslits])
         """
         nbars = len(self.alignpar['locations'])
         # Generate an array containing the centroid of all bars
@@ -259,36 +258,35 @@ class TraceAlignment(object):
                 align_traces[:, bar, sl] = align_prof[sls][bar].TRACE_SPAT
         return align_traces
 
-    def run(self, show_trace=False):
+    def run(self, show=False):
         """
         Main driver for alignment profile tracing
 
         Args:
-            skip_QA (bool, optional):
-                Skip the QA?
+            show (bool, optional):
+                Show the alignment traces?
 
         Returns:
-            dict, ndarray:  wv_calib dict and maskslits bool array
+            :class:`pypeit.alignframe.Alignments`:
 
         """
         ###############
         # Fill up the calibrations and generate QA
-        align_prof = self.build_traces(show_trace=show_trace)
+        align_prof = self.build_traces()
 
         # Prepare the dictionary items for the data container
         align_traces = self.generate_traces(align_prof)
 
-        return Alignments(# TODO :: FILL THIS IN)
+        if show:
+            show_alignment(self.rawalignimg.image, align_traces=align_traces, slits=self.slits)
 
-
-
-
-
-
-
-
-
-
+        return Alignments(alignframe=self.rawalignimg.image,
+                          nspec=self.nspec,
+                          nalign=align_traces.shape[1],
+                          nslits=self.nslits,
+                          traces=align_traces,
+                          PYP_SPEC=self.PYP_SPEC,
+                          spat_id=self.slits.spat_id)
 
 
 def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
@@ -298,14 +296,10 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     Parameters
     ----------
 
-    attr : str
-        image - plot the master align frame
-    image : ndarray
+    alignframe: ndarray
         Image to be plotted (i.e. the master align frame)
-    align_traces : list
+    align_traces : list, optional
         The align traces
-    chname : str
-        The channel name sent to ginga
     slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
         properties of the slits, including traces.
     clear : bool
@@ -329,4 +323,3 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
         for spec in align_traces:
             color = 'magenta' if spec.hand_extract_flag else 'orange'
             ginga.show_trace(viewer, channel, spec.TRACE_SPAT, trc_name="", color=color)
-    return
