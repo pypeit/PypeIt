@@ -9,12 +9,141 @@ import inspect
 import numpy as np
 from IPython import embed
 
-import astropy.io.fits as fits
-
-from pypeit import masterframe, io
 from pypeit import ginga, msgs
-from pypeit.core import extract, arc, load
+#from pypeit.core import extract, arc, load
 from pypeit.par.pypeitpar import AlignPar
+
+
+from pypeit import utils
+from pypeit import bspline
+
+from pypeit.par import pypeitpar
+from pypeit import datamodel
+from pypeit import masterframe
+from pypeit.core import flat
+from pypeit.core import tracewave
+from pypeit.core import basis
+from pypeit import slittrace
+
+
+class Alignment(datamodel.DataContainer):
+    """
+    Simple DataContainer for the alignment output
+
+    All of the items in the datamodel are required for instantiation,
+      although they can be None (but shouldn't be)
+
+    """
+    minimum_version = '1.1.0'
+    version = '1.1.0'
+
+    # I/O
+    output_to_disk = None  # This writes all items that are not None
+    hdu_prefix = None
+
+    # Master fun
+    master_type = 'Alignment'
+    master_file_format = 'fits'
+
+    datamodel = {
+        'alignframe':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined alignment frames'),
+        'traces': dict(otype=np.ndarray, atype=np.floating, desc='Traces of the alignment frame'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+        'nalign': dict(otype=int, desc='Number of alignment traces in each slit'),
+        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
+    }
+
+    def __init__(self, alignframe=None, traces=None, nalign=None, PYP_SPEC=None, spat_id=None):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+    def _init_internals(self):
+        # Master stuff
+        self.master_key = None
+        self.master_dir = None
+
+    def _validate(self):
+        # TBC - need to check that all alignment traces have been correctly traced
+        pass
+
+    def is_synced(self, slits):
+        """
+        Confirm the slits in the alignment are the same as that in SlitTraceSet
+
+        Barfs if not
+
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+
+        """
+        if not np.array_equal(self.spat_id, slits.spat_id):
+            msgs.error("Your alignment solutions are out of sync with your slits.  Remove Masters and start from scratch")
+
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
+               hdu_prefix=None):
+        # Grab everything but the bspline's
+        _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
+        # Now the bsplines
+        list_of_bsplines = []
+        spat_ids = []
+        for ihdu in hdu:
+            if 'BSPLINE' in ihdu.name:
+                ibspl = bspline.bspline.from_hdu(ihdu)
+                if ibspl.version != bspline.bspline.version:
+                    msgs.warn("Your bspline is out of date!!")
+                list_of_bsplines.append(ibspl)
+                # Grab SPAT_ID for checking
+                i0 = ihdu.name.find('ID-')
+                i1 = ihdu.name.find('_BSP')
+                spat_ids.append(int(ihdu.name[i0+3:i1]))
+        # Check
+        if spat_ids != _d['spat_id'].tolist():
+            msgs.error("Bad parsing of the MasterFlat")
+        # Finish
+        _d['spat_bsplines'] = np.asarray(list_of_bsplines)
+        return _d, dm_version_passed, dm_type_passed
+
+    def show(self, slits=None):
+        """
+        Simple wrapper to show_alignment()
+
+        Parameters
+        ----------
+
+        Returns:
+
+        """
+        # Show
+        show_alignment(self.alignframe, align_traces=self.traces, slits=slits)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class Alignment():
@@ -341,3 +470,44 @@ class Alignment():
             txt = txt[:-2] + ']'  # Trim the trailing comma
         txt += '>'
         return txt
+
+
+def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
+    """
+    Show one of the class internals
+
+    Parameters
+    ----------
+
+    attr : str
+        image - plot the master align frame
+    image : ndarray
+        Image to be plotted (i.e. the master align frame)
+    align_traces : list
+        The align traces
+    chname : str
+        The channel name sent to ginga
+    slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
+        properties of the slits, including traces.
+    clear : bool
+        Clear the plotting window in ginga?
+
+    Returns
+    -------
+
+    """
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    ch_name = 'alignment'
+    viewer, channel = ginga.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
+
+    # Display the slit edges
+    if slits is not None and viewer is not None:
+        left, right, mask = slits.select_edges()
+        ginga.show_slits(viewer, channel, left, right)
+
+    # Display the alignment traces
+    if align_traces is not None and viewer is not None:
+        for spec in align_traces:
+            color = 'magenta' if spec.hand_extract_flag else 'orange'
+            ginga.show_trace(viewer, channel, spec.TRACE_SPAT, trc_name="", color=color)
+    return
