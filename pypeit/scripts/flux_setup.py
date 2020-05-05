@@ -67,6 +67,7 @@ def main(args):
 
         ## fluxing pypeit file
         spectrograph = par[0].header['PYP_SPEC']
+        pypeline = par[0].header['PYPELINE']
         flux_file = '{:}.flux'.format(spectrograph)
         cfg_lines = ['[fluxcalib]']
         cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
@@ -85,7 +86,12 @@ def main(args):
         coadd1d_file = '{:}.coadd1d'.format(spectrograph)
         cfg_lines = ['[coadd1d]']
         cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
-        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name\n']
+        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name']
+        if pypeline == 'Echelle':
+            cfg_lines += ['  wave_method = velocity # creates a uniformly space grid in log10(lambda)\n']
+        else:
+            cfg_lines += ['  wave_method = linear # creates a uniformly space grid in lambda\n']
+
         cfg_lines += ['# This file includes all extracted objects. You need to figure out which object you want to \n'+\
                       '# coadd before running pypeit_coadd_1dspec!!!']
         spec1d_info = []
