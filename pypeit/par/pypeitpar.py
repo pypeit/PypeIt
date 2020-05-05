@@ -1734,7 +1734,8 @@ class TellFitPar(ParSet):
 
         defaults['model'] = 'exp'
         dtypes['model'] = str
-        descr['model'] = 'object model function'
+        descr['model'] = 'different type polynomial model. poly, square, exp corresponding to normal polynomial,'\
+                         'squared polynomial, or exponentiated polynomial'
 
         defaults['polyorder'] = 3
         dtypes['polyorder'] = int
