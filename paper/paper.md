@@ -47,21 +47,23 @@ complete list of the input parameters and available functionality -
 is provided as online documentation hosted by [Read the
 Docs](https://pypeit.readthedocs.io), which is regularly updated.
 
+This v1.0 release of ``PypeIt`` is designed to be used by both advanced
+spectroscopists with prior data reduction expertise and new
+astronomers. It is highly configurable and designed to be applied to
+any standard slit-imaging spectrograph, and can accomodate longslit, multislit, as well 
+as cross-dispersed echelle spectra. It has already enabled
+several scientific publications [@hsyu2018; @eilers2020; @wang2020].
+
 After the creation of a custom input/configuration file, the pipeline
 runs end-to-end to convert raw spectroscopic images into calibrated,
 science-ready spectra. It also includes scripts to flux calibrate and
-combine multiple exposures. ``PypeIt`` produces a series of
+combine multiple exposures, as well as software for performing telluric
+corrections. ``PypeIt`` produces a series of
 calibration-related outputs and includes scripts and automatically
 generated plots for quality assurance inspection. The final outputs
-are FITS files with rigid data models that hold the two-dimensional
+are FITS files with rigid well-documented data models that hold the two-dimensional
 (includes spatial information) and one-dimensional spectral
 extractions.
-
-Release v1.0 of ``PypeIt`` is designed to be used by both advanced
-spectroscopists with prior data reduction expertise and new
-astronomers. It is highly configurable and designed to be applied to
-any standard slit-imaging spectrograph. It has already enabled
-several scientific publications [@hsyu2018; @eilers2020; @wang2020].
 
 It is our plan to expand ``PypeIt`` to include the majority of
 spectrographs on the largest ground-based optical and near-infrared
@@ -75,8 +77,9 @@ conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 We acknowledge intellectual contributions from TO BE FILLED IN. 
 
 PypeIt has been financially supported by the University of California
-Observatories. During this work, R.~J.~C. was supported by a Royal
-Society University Research Fellowship, and acknowledges support from
-STFC (ST/P000541/1, ST/T000244/1).
+Observatories. J.~F.~H. also acknowledges support from 
+the University of California, Santa Barbara. During work on 
+``PypeIt``,  R.~J.~C. was supported by a Royal Society University Research Fellowship, 
+and acknowledges support from STFC (ST/P000541/1, ST/T000244/1).
 
 # References
