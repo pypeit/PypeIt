@@ -617,6 +617,7 @@ class PypeIt(object):
         sciImg = buildimage.buildimage_fromlist(
             self.spectrograph, det, frame_par,
             sci_files, bias=self.caliBrate.msbias, bpm=self.caliBrate.msbpm,
+            dark=self.caliBrate.msdark,
             flatimages=self.caliBrate.flatimages,
             slits=self.caliBrate.slits,  # For flexure correction
             ignore_saturation=False)
