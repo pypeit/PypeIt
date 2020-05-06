@@ -10,6 +10,7 @@ authors:
     orcid: 0000-0002-7738-6875
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
   - name: Joseph F. Hennawi
+    orcid: 0000-0002-7054-4332
     affiliation: 3
   - name: Kyle B. Westfall
     orcid: 0000-0003-1809-6920
