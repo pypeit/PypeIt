@@ -309,8 +309,7 @@ class Calibrations(object):
         """
         # Check for existing data
         if not self._chk_objs(['msbpm', 'slits']):
-            msgs.warn('Must have the bpm and slits to make the alignments!  Skipping and may crash down the line')
-            self.alignments = alignframe.Alignments(None, None, None, None, None, None, None)
+            msgs.error('Must have the bpm and slits to make the alignments!')
 
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
