@@ -31,16 +31,15 @@ def read_tellfile(ifile):
     The top is a config block that sets ParSet parameters
       The spectrograph is not required
 
-    Args:
-        ifile: str
-          Name of the flux file
+    Parameters
+    ----------
+    ifile: str
+        Name of the flux file
 
-    Returns:
-        spectrograph: Spectrograph
-        cfg_lines: list
-          Config lines to modify ParSet values
-        flux_dict: dict
-          Contains spec1d_files
+    Returns
+    -------
+    cfg_lines: list
+        Config lines to modify ParSet values
     """
 
     # Read in the pypeit reduction file
@@ -58,7 +57,7 @@ def parser(options=None):
     parser.add_argument("spec1dfile", type=str,
                         help="spec1d file for the standard that will be used to compute sensitivity function")
     parser.add_argument("--objmodel", type=str, default=None, choices=['qso', 'star', 'poly'],
-                        help="R|science object model used in the fitting"
+                        help="R|science object model used in the fitting.\n"
                         "The options are:\n"
                         "\n"
                         "    qso  = For quasars. You might need to set redshift, bal_mask in the tell file.\n"
@@ -82,8 +81,6 @@ def parser(options=None):
                         "         objmodel = qso\n"
                         "         redshift = 7.6\n"
                         "         bal_mask = 10825,12060\n"
-                        "         pca_lower = 1200.\n"
-                        "         pca_upper = 3100.\n"
                         "OR\n"
                         "    [tellfit]\n"
                         "         objmodel = star\n"
@@ -109,7 +106,8 @@ def parser(options=None):
 
 
 def main(args):
-    """ Executes telluric correction.
+    """
+    Executes telluric correction.
     """
 
     # Determine the spectrograph
@@ -153,25 +151,36 @@ def main(args):
     if par['tellfit']['objmodel']=='qso':
         # run telluric.qso_telluric to get the final results
         TelQSO = telluric.qso_telluric(args.spec1dfile, par['tellfit']['tell_grid'], par['tellfit']['pca_file'],
-                                       par['tellfit']['redshift'], modelfile, outfile,
+                                       par['tellfit']['redshift'], modelfile, outfile, npca=par['tellfit']['npca'],
+                                       pca_lower=par['tellfit']['pca_lower'], pca_upper=par['tellfit']['pca_upper'],
+                                       bounds_norm=par['tellfit']['bounds_norm'],
+                                       tell_norm_thresh=par['tellfit']['tell_norm_thresh'],
+                                       only_orders=par['tellfit']['only_orders'],
                                        bal_mask=par['tellfit']['bal_mask'],
                                        debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     elif par['tellfit']['objmodel']=='star':
         TelStar = telluric.star_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
-                                         polyorder=par['tellfit']['polyorder'],
                                          star_type=par['tellfit']['star_type'],
                                          star_mag=par['tellfit']['star_mag'],
                                          star_ra=par['tellfit']['star_ra'],
                                          star_dec=par['tellfit']['star_dec'],
                                          func=par['tellfit']['func'], model=par['tellfit']['model'],
+                                         polyorder=par['tellfit']['polyorder'],
+                                         only_orders=par['tellfit']['only_orders'],
                                          mask_abs_lines=par['tellfit']['mask_abs_lines'],
+                                         delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
+                                         minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     elif par['tellfit']['objmodel']=='poly':
         TelPoly = telluric.poly_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
+                                         z_obj=par['tellfit']['redshift'],
+                                         func=par['tellfit']['func'], model=par['tellfit']['model'],
                                          polyorder=par['tellfit']['polyorder'],
                                          fit_region_mask=par['tellfit']['fit_region_mask'],
-                                         func=par['tellfit']['func'], model=par['tellfit']['model'],
                                          mask_lyman_a=par['tellfit']['mask_lyman_a'],
+                                         delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
+                                         minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
+                                         only_orders=par['tellfit']['only_orders'],
                                          debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     else:
         msgs.error("Object model is not supported yet. Please choose one of 'qso', 'star', 'poly'.")
