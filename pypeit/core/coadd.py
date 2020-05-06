@@ -2639,6 +2639,8 @@ def get_wave_ind(wave_grid, wave_min, wave_max):
     """
     Utility routine used by coadd2d to determine the starting and ending indices of a wavelength grid.
 
+    ..todo.. Make this doc string Google or numpy but not both
+
     Args:
         wave_grid: float ndarray
           Wavelength grid.
@@ -2707,6 +2709,8 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 def get_spat_bins(thismask_stack, trace_stack):
     """
 
+    ..todo.. Explain what this method does
+
     Parameters
     ----------
     thismask_stack : array of shape (nimgs, nspec, nspat)
@@ -2761,6 +2765,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     The rectification uses nearest grid point interpolation to avoid
     covariant errors.  Dithering is supported as all images are centered
     relative to a set of reference traces in trace_stack.
+
+    ..todo.. -- These docs appear out-of-date
 
     Args:
         trace_stack (`numpy.ndarray`_):
@@ -2851,6 +2857,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
+    # TODO -- If weights is a numpy.ndarray, how can this not crash?
+    #   Maybe the doc string above is inaccurate?
     if 'uniform' in weights:
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)

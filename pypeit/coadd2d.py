@@ -13,22 +13,17 @@ import numpy as np
 from scipy import ndimage
 from matplotlib import pyplot as plt
 
-from astropy.io import fits
-
 from pypeit import msgs
-from pypeit import masterframe
-from pypeit.wavetilts import WaveTilts
 from pypeit import specobjs
 from pypeit import slittrace
 from pypeit import reduce
 from pypeit.images import pypeitimage
 from pypeit.core import extract
-from pypeit.core import coadd, pixels
+from pypeit.core import coadd
 from pypeit.core import parse
-from pypeit.spectrographs import util
-from pypeit.tests import tstutils
 from pypeit import calibrations
 from pypeit import spec2dobj
+from pypeit.core.moment import moment1d
 
 
 class CoAdd2D(object):
@@ -207,6 +202,15 @@ class CoAdd2D(object):
 
 
     def coadd(self, only_slits=None):
+        """
+        ..todo.. We need a proper doc string
+
+        Args:
+            only_slits:
+
+        Returns:
+
+        """
 
         only_slits = [only_slits] if (only_slits is not None and
                                       isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
@@ -236,6 +240,7 @@ class CoAdd2D(object):
             else:
                 weights = self.use_weights
             # Perform the 2d coadd
+            embed(header='248 of coadd2d')
             coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
                                            self.stack_dict['sciivar_stack'],
                                            self.stack_dict['skymodel_stack'],
@@ -509,18 +514,41 @@ class CoAdd2D(object):
                 - dsamp (float): The pixel sampling for wavelength grid
                   created.
         """
+        if self.par['coadd2d']['use_slits']:
+            nobjs_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
+            waves = np.zeros((self.nspec, nobjs_tot))
+            gpm = np.zeros_like(waves, dtype=bool)
+            indx = 0
+            # Loop on the exposures
+            for waveimg, slitmask, slits in zip(self.stack_dict['waveimg_stack'],
+                                                self.stack_dict['slitmask_stack'],
+                                                self.stack_dict['slits_list']):
+                # Loop on the slits
+                for kk, spat_id in enumerate(slits.spat_id):
+                    mask = slitmask == spat_id
+                    TRACE_SPAT = slits.center[:,kk]
+                    row = np.arange(TRACE_SPAT.size)
+                    box_radius = 3.
+                    box_denom = moment1d(waveimg * mask > 0.0, TRACE_SPAT, 2 * box_radius, row=row)[0]
+                    wave_box = moment1d(waveimg * mask, TRACE_SPAT, 2 * box_radius,
+                                    row=row)[0] / (box_denom + (box_denom == 0.0))
+                    waves[:, indx] = wave_box
+                    # TODO -- This looks a bit risky
+                    gpm[:, indx] = wave_box > 0.
+                    indx += 1
+        else:
+            nobjs_tot = np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum()
+            waves = np.zeros((self.nspec, nobjs_tot))
+            gpm = np.zeros_like(waves, dtype=bool)
+            indx = 0
+            for spec_this in self.stack_dict['specobjs_list']:
+                for spec in spec_this:
+                    waves[:, indx] = spec.OPT_WAVE
+                    # TODO -- OPT_MASK is likely to become a bpm with int values
+                    gpm[:, indx] = spec.OPT_MASK
+                    indx += 1
 
-        nobjs_tot = np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum()
-        waves = np.zeros((self.nspec, nobjs_tot))
-        masks = np.zeros_like(waves, dtype=bool)
-        indx = 0
-        for spec_this in self.stack_dict['specobjs_list']:
-            for spec in spec_this:
-                waves[:, indx] = spec.OPT_WAVE
-                masks[:, indx] = spec.OPT_MASK
-                indx += 1
-
-        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=masks, **kwargs_wave)
+        wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=gpm, **kwargs_wave)
 
         return wave_grid, wave_grid_mid, dsamp
 
@@ -565,7 +593,7 @@ class CoAdd2D(object):
                 skymodel_stack = np.zeros_like(sciimg_stack, dtype=float)
                 sciivar_stack = np.zeros_like(sciimg_stack, dtype=float)
                 mask_stack = np.zeros_like(sciimg_stack, dtype=float)
-                slitmask_stack = np.zeros_like(sciimg_stack, dtype=float)
+                slitmask_stack = np.zeros_like(sciimg_stack, dtype=int)
 
             sciimg_stack[ifile, :, :] = spec2DObj.sciimg
             waveimg_stack[ifile, :, :] = spec2DObj.waveimg
