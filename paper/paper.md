@@ -21,6 +21,9 @@ authors:
   - name: Feige Wang
     orcid: 0000-0002-7633-431X
     affiliation: 6
+  - name: Tiffany Hsyu
+    orcid: 0000-0002-0462-3139
+    affiliation: 1
 affiliations:
  - name: University of California, Santa Cruz
    index: 1
