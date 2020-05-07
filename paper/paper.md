@@ -24,6 +24,9 @@ authors:
   - name: Tiffany Hsyu
     orcid: 0000-0002-0462-3139
     affiliation: 1
+  - name: Emanuele Paolo Farina
+    orcid: 0000-0002-6822-2254
+    affiliation: 7
 affiliations:
  - name: University of California, Santa Cruz
    index: 1
@@ -37,6 +40,8 @@ affiliations:
    index: 5
  - name: Steward Observatory, University of Arizona
    index: 6
+ - name: Max Planck Institut f\"ur Astrophysik
+   index: 7
 date: 08 April 2020
 bibliography: paper.bib
 ---
