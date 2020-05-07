@@ -83,7 +83,8 @@ conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 # Acknowledgements
 
-We acknowledge intellectual contributions from TO BE FILLED IN. 
+We acknowledge intellectual contributions from Scott Burles,
+Rob Simcoe, and David Schlegel.
 
 PypeIt has been financially supported by the University of California
 Observatories. J.~F.~H. also acknowledges support from 
