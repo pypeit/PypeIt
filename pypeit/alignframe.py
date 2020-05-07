@@ -4,17 +4,13 @@ Module for generating an Alignment image to map constant spatial locations
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
-import os
 import inspect
 import numpy as np
 from IPython import embed
 
 from pypeit import ginga, msgs
 from pypeit.core import extract
-from pypeit.par.pypeitpar import AlignPar
-from pypeit import bspline
 from pypeit import datamodel
-from pypeit import masterframe
 
 
 class Alignments(datamodel.DataContainer):
