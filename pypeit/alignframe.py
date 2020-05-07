@@ -87,7 +87,7 @@ class Alignments(datamodel.DataContainer):
 
         """
         # Show
-        show_alignment(self.alignframe.image, align_traces=self.traces, slits=slits)
+        show_alignment(self.alignframe, align_traces=self.traces, slits=slits)
 
 
 class TraceAlignment(object):
@@ -291,6 +291,11 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
 
     # Display the alignment traces
     if align_traces is not None and viewer is not None:
-        for spec in align_traces:
-            color = 'magenta' if spec.hand_extract_flag else 'orange'
-            ginga.show_trace(viewer, channel, spec.TRACE_SPAT, trc_name="", color=color)
+        for bar in range(align_traces.shape[1]):
+            for slt in range(align_traces.shape[2]):
+                # Alternate the colors of the slits
+                color = 'orange'
+                if slt%2 == 0:
+                    color = 'magenta'
+                # Display the trace
+                ginga.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)
