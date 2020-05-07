@@ -242,6 +242,7 @@ def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bksp
         raise ValueError("Crashing out of bspline fitting")
     return tck
 
+
 def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lower=5, maxiter=25,
                     nord=4, bkpt=None, fullbkpt=None, relative=None, kwargs_bspline={},
                     kwargs_reject={}, quiet=False):

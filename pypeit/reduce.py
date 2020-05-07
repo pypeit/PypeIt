@@ -345,8 +345,8 @@ class Reduce(object):
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
 
         # Wavelengths (on unmasked slits)
-        self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
-                                               self.wv_calib, spat_flexure=self.spat_flexure_shift)
+        self.waveimg = self.wv_calib.build_waveimg(self.spectrograph, self.tilts, self.slits,
+                                               spat_flexure=self.spat_flexure_shift)
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
