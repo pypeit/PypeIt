@@ -248,7 +248,7 @@ class FlatField(object):
 
     def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts):
 
-        # Defatuls
+        # Defaults
         self.spectrograph = spectrograph
         # FieldFlattening parameters
         self.flatpar = flatpar
