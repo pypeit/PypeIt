@@ -128,7 +128,7 @@ pypeit_flux_setup
 =================
 
 This setups files for fluxing, coadding and telluric corrections.
-See :doc:`flux`, :doc:`coadd1d`, and :doc:`telluric` for details::
+See :doc:`fluxing`, :doc:`coadd1d`, and :doc:`telluric` for details::
 
     unix> pypeit_flux_setup -h
     usage: pypeit_flux_setup sci_path [-h] [--objmodel]
