@@ -3,6 +3,7 @@ Module to run tests on scripts
 """
 import os
 import shutil
+import numpy as np
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
@@ -10,7 +11,7 @@ matplotlib.use('agg')  # For Travis
 from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec
+from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
@@ -184,6 +185,51 @@ def test_coadd1d_2():
 
     # Clean up
     os.remove(parfile)
-    os.remove(coadd_ofile)
+
+def test_tellfit():
+    """
+    Test telluric correction
+    """
+    parfile = 'telluric.par'
+    if os.path.isfile(parfile):
+        os.remove(parfile)
+    tellfit_ifile = data_path('pisco_coadd.fits')
+    tellfit_ofile = data_path('pisco_coadd_tellcorr.fits')
+    if os.path.isfile(tellfit_ofile):
+        os.remove(tellfit_ofile)
+
+    tellfit.main(tellfit.parser([tellfit_ifile, '-r', '7.5','--objmodel','qso']))
+
+    hdu = fits.open(tellfit_ofile)
+    assert np.sum(hdu[1].data['telluric']) > 0.
+
+    # Clean up
+    os.remove(parfile)
+    os.remove(tellfit_ofile)
+
+def test_flux_setup():
+    """
+    Test pypeit_flux_setup script
+    """
+    flux_file = data_path('gemini_gnirs.flux')
+    coadd1d_file = data_path('gemini_gnirs.coadd1d')
+    tellfit_file = data_path('gemini_gnirs.tell')
+    if os.path.isfile(flux_file):
+        os.remove(flux_file)
+    if os.path.isfile(coadd1d_file):
+        os.remove(coadd1d_file)
+    if os.path.isfile(tellfit_file):
+        os.remove(tellfit_file)
+
+    flux_setup.main(flux_setup.parser([data_path('Science')]))
+
+    assert os.path.exits(flux_file)
+    assert os.path.exits(coadd1d_file)
+    assert os.path.exits(tellfit_file)
+
+    # Clean up
+    os.remove(flux_file)
+    os.remove(coadd1d_file)
+    os.remove(tellfit_file)
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib
