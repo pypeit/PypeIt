@@ -178,15 +178,15 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype == 'standard':
-            return good_exp & ((fitstbl['idname'] == 'object')|(fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
         if ftype == 'dark':
             return good_exp & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
             return fitstbl['idname'] == 'domeflat'
         if ftype in 'science':
-            return good_exp & ((fitstbl['idname'] == 'object')|(fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
         if ftype in ['arc', 'tilt']:
-            return good_exp & ((fitstbl['idname'] == 'object')|(fitstbl['idname'] == 'Object'))
+            return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
         return np.zeros(len(fitstbl), dtype=bool)
 
 

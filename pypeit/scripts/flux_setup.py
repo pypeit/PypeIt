@@ -23,11 +23,11 @@ def parser(options=None):
                         help="R|Science object model used in the telluric fitting.\n"
                         "The options are:\n"
                         "\n"
-                        "    qso  = For quasars. You might need to set redshift, bal_mask in the tell file.\n"
+                        "    qso  = For quasars. You might need to set redshift, bal_wv_min_mx in the tell file.\n"
                         "\n"
                         "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
                         "\n"
-                        "    poly = For other type object, You might need to set fit_region_mask, \n"
+                        "    poly = For other type object, You might need to set fit_wv_min_mx, \n"
                         "           and norder in the tell_file."
                         )
 
@@ -40,7 +40,9 @@ def parser(options=None):
 
 def main(args):
     """
-      Prepare fluxing, coadd1d files.
+      This setups PypeIt files for fluxing, coadding and telluric corrections.
+      It will produce three files named as your_spectragraph.flux, your_spectragraph.coadd1d,
+      and your_spectragraph.tell
     """
     allfiles = os.listdir(args.sci_path)
     allfiles = np.sort(allfiles)
@@ -118,7 +120,7 @@ def main(args):
         if args.objmodel == 'qso':
             cfg_lines += ['  objmodel = qso']
             cfg_lines += ['  redshift = 0.0']
-            cfg_lines += ['  bal_mask = 10000.,11000.']
+            cfg_lines += ['  bal_wv_min_mx = 10000.,11000.']
         elif args.objmodel == 'star':
             cfg_lines += ['  objmodel = star']
             cfg_lines += ['  star_type = A0']
@@ -126,7 +128,7 @@ def main(args):
         elif args.objmodel == 'poly':
             cfg_lines += ['  objmodel = poly']
             cfg_lines += ['  polyorder = 5']
-            cfg_lines += ['  fit_region_mask = 9000.0,9500.0']
+            cfg_lines += ['  fit_wv_min_mx = 9000.0,9500.0']
 
         with open(tellfit_file, 'w') as f:
             f.write('# Auto-generated PypeIt file\n')

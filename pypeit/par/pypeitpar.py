@@ -1639,10 +1639,10 @@ class TellFitPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_mask=None,
+    def __init__(self, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_wv_min_mx=None,
                  bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
                  star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
-                 func=None, model=None, polyorder=None, fit_region_mask=None, mask_lyman_a=None,
+                 func=None, model=None, polyorder=None, fit_wv_min_mx=None, mask_lyman_a=None,
                  delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
 
         # Grab the parameter names and values from the function arguments
@@ -1684,9 +1684,9 @@ class TellFitPar(ParSet):
         dtypes['npca'] = int
         descr['npca'] = 'Number of pca'
 
-        defaults['bal_mask'] = None
-        dtypes['bal_mask'] = [list, numpy.ndarray]
-        descr['bal_mask'] = 'Broad absorption line feature mask. If there are several BAL features, ' \
+        defaults['bal_wv_min_mx'] = None
+        dtypes['bal_wv_min_mx'] = [list, numpy.ndarray]
+        descr['bal_wv_min_mx'] = 'Min/max wavelength of broad absorption features. If there are several BAL features, ' \
                             'the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, ' \
                             'wave_max_bal2,...]. These masked pixels will be ignored during the fitting.'
 
@@ -1750,10 +1750,10 @@ class TellFitPar(ParSet):
         descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
 
         ### Start parameters for poly_telluric
-        defaults['fit_region_mask'] = None
-        dtypes['fit_region_mask'] = list
-        descr['fit_region_mask'] = "Pixels within this mask will be used during the fitting. The format"\
-                                   "is the same with bal_mask, but this mask is good pixel masks."
+        defaults['fit_wv_min_mx'] = None
+        dtypes['fit_wv_min_mx'] = list
+        descr['fit_wv_min_mx'] = "Pixels within this mask will be used during the fitting. The format"\
+                                   "is the same with bal_wv_min_mx, but this mask is good pixel masks."
 
         defaults['mask_lyman_a'] = True
         dtypes['mask_lyman_a'] = bool
@@ -1771,10 +1771,10 @@ class TellFitPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_mask', 'bounds_norm',
+        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_wv_min_mx', 'bounds_norm',
                    'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
                    'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
-                   'func','model','polyorder','fit_region_mask','mask_lyman_a',
+                   'func','model','polyorder','fit_wv_min_mx','mask_lyman_a',
                    'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])

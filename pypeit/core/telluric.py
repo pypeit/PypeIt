@@ -1261,7 +1261,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     return meta_table, out_table
 
-def create_bal_mask(wave, bal_mask):
+def create_bal_mask(wave, bal_wv_min_mx):
     """
     Example of a utility function for creating a BAL mask for QSOs with BAL features. Can also be used to mask other
     features that the user does not want to fit.
@@ -1277,14 +1277,14 @@ def create_bal_mask(wave, bal_mask):
        Good pixel (non-bal pixels) mask for the fits.
 
     """
-    if np.size(bal_mask) % 2 !=0:
-        msgs.error('bal_mask must be a list/array with even numbers.')
+    if np.size(bal_wv_min_mx) % 2 !=0:
+        msgs.error('bal_wv_min_mx must be a list/array with even numbers.')
 
     bal_bpm = np.zeros_like(wave, dtype=bool)
-    nbal = int(np.size(bal_mask) / 2)
-    if isinstance(bal_mask, list):
-        bal_mask = np.array(bal_mask)
-    wav_min_max = np.reshape(bal_mask,(nbal,2))
+    nbal = int(np.size(bal_wv_min_mx) / 2)
+    if isinstance(bal_wv_min_mx, list):
+        bal_wv_min_mx = np.array(bal_wv_min_mx)
+    wav_min_max = np.reshape(bal_wv_min_mx,(nbal,2))
     for ibal in range(nbal):
         bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
 
@@ -1292,7 +1292,7 @@ def create_bal_mask(wave, bal_mask):
 
 
 
-def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_mask=None,
+def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_wv_min_mx=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
@@ -1329,7 +1329,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     pca_upper: float
         Wavelength upper bounds of the PCA model
 
-    bal_mask : list
+    bal_wv_min_mx : list
         Broad absorption line feature mask. If there are several BAL features, the format
         for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...].
         These masked pixels will be ignored during the fitting.
@@ -1397,14 +1397,10 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
     header = fits.getheader(spec1dfile) # clean this up!
     # Mask the IGM and mask wavelengths that extend redward of our PCA
-    qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +
-                                                                    z_qso))
-    # TODO this 3100 is hard wired now, but make the QSO PCA a PypeIt product and determine it from the file
-    if bal_mask is not None:
-        bal_gpm = create_bal_mask(wave, bal_mask)
-        mask_tot = mask & qsomask & bal_gpm
-    else:
-        mask_tot = mask & qsomask
+    qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +z_qso))
+
+    # Mask BAL if there is any BAL absorptions.
+    mask_tot = mask & qsomask & create_bal_mask(wave, bal_wv_min_mx) if bal_wv_min_mx is not None else mask & qsomask
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model, eval_qso_model,
@@ -1539,7 +1535,7 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
-                  fit_region_mask=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
+                  fit_wv_min_mx=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
                   minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=5,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
@@ -1578,8 +1574,8 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     else:
         mask_tot = mask
 
-    if fit_region_mask is not None:
-        mask_region = create_bal_mask(wave, fit_region_mask)
+    if fit_wv_min_mx is not None:
+        mask_region = create_bal_mask(wave, fit_wv_min_mx)
         mask_tot = mask_tot & np.invert(mask_region)
 
     # parameters lowered for testing

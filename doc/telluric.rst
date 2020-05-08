@@ -38,7 +38,7 @@ three different object models ::
     [tellfit]
          objmodel = qso
          redshift = 7.0
-         bal_mask = 10825,12060
+         bal_wv_min_mx = 10825,12060
 
     OR
 
@@ -54,7 +54,7 @@ three different object models ::
     [tellfit]
          objmodel = poly
          polyorder = 3
-         fit_region_mask = 9000, 9500
+         fit_wv_min_mx = 9000, 9500
 
 See `Parameters`_ for details.
 
@@ -136,17 +136,17 @@ qso model
 
 The two main parameters for a qso model are::
 
-  redshift and bal_mask
+  redshift and bal_wv_min_mx
 
 redshift
 ++++++++
 
 The redshift of your science object you want to correct telluric absorption
 
-bal_mask
-++++++++
+bal_wv_min_mx
++++++++++++++
 
-You can set a bal_mask if your quasar/AGN is a broad absorption line quasar.
+You can set a bal_wv_min_mx if your quasar/AGN is a broad absorption line quasar.
 It is a list with even float numbers in the format of (in case of two absorption troughs)::
 
     bal1_wave_min, bal1_wave_max, bal2_wave_min, bal2_wave_max
@@ -175,18 +175,18 @@ poly model
 
 The main parameters for a poly model are::
 
-  poly_order and fit_region_mask
+  poly_order and fit_wv_min_mx
 
 poly_order
 ++++++++++
 The polynomial order you want to use for modeling your object
 
-fit_region_mask
-+++++++++++++++
+fit_wv_min_mx
++++++++++++++
 
 You can specify a list of specific regions used for the fitting, if not
 set it will simply use the whole spectrum. The format for this parameter
-is exactly same with the `bal_mask`_ defined above.
+is exactly same with the `bal_wv_min_mx`_ defined above.
 
 
 Show your final telluric corrected spectrum
