@@ -67,28 +67,50 @@ def main(args):
 
         ## fluxing pypeit file
         spectrograph = par[0].header['PYP_SPEC']
+        pypeline = par[0].header['PYPELINE']
         flux_file = '{:}.flux'.format(spectrograph)
         cfg_lines = ['[fluxcalib]']
         cfg_lines += ['  extinct_correct = False # Set to True if your SENSFUNC derived with the UVIS algorithm\n']
         cfg_lines += ['# Please add your SENSFUNC file name below before running pypeit_flux_calib']
         make_pypeit_file(flux_file, spectrograph, spec1dfiles, cfg_lines=cfg_lines, setup_mode=True)
-
+        fin = open(flux_file, "rt")
+        data = fin.read()
+        data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
+        data = data.replace('data', 'flux')
+        fin.close()
+        fin = open(flux_file, "wt")
+        fin.write(data)
+        fin.close()
 
         ## coadd1d pypeit file
         coadd1d_file = '{:}.coadd1d'.format(spectrograph)
         cfg_lines = ['[coadd1d]']
         cfg_lines += ['  coaddfile = YOUR_OUTPUT_FILE_NAME # Please set your output file name']
-        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name\n']
+        cfg_lines += ['  sensfuncfile = YOUR_SENSFUNC_FILE # Please set your SENSFUNC file name']
+        if pypeline == 'Echelle':
+            cfg_lines += ['  wave_method = velocity # creates a uniformly space grid in log10(lambda)\n']
+        else:
+            cfg_lines += ['  wave_method = linear # creates a uniformly space grid in lambda\n']
+
         cfg_lines += ['# This file includes all extracted objects. You need to figure out which object you want to \n'+\
                       '# coadd before running pypeit_coadd_1dspec!!!']
         spec1d_info = []
         for ii in range(len(spec1dfiles)):
             meta_tbl = Table.read(os.path.join(args.sci_path, spec1dfiles[ii]).replace('.fits', '.txt'),
                                   format='ascii.fixed_width')
-            objects = np.unique(meta_tbl['name'])
+            _, indx = np.unique(meta_tbl['name'],return_index=True)
+            objects = meta_tbl[indx]
             for jj in range(len(objects)):
-                spec1d_info.append(spec1dfiles[ii] + ' '+ meta_tbl['name'][jj])
+                spec1d_info.append(spec1dfiles[ii] + ' '+ objects['name'][jj])
         make_pypeit_file(coadd1d_file, spectrograph, spec1d_info, cfg_lines=cfg_lines, setup_mode=True)
+        fin = open(coadd1d_file, "rt")
+        data = fin.read()
+        data = data.replace('spec1d_', os.path.join(args.sci_path,'spec1d_'))
+        data = data.replace('data', 'coadd1d')
+        fin.close()
+        fin = open(coadd1d_file, "wt")
+        fin.write(data)
+        fin.close()
 
         ## tellfit pypeit file
         tellfit_file = '{:}.tell'.format(spectrograph)
