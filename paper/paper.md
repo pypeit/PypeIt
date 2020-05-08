@@ -55,17 +55,48 @@ developers [@mike; @mase]. The reduction procedure - including a
 complete list of the input parameters and available functionality -
 is provided as online documentation hosted by [Read the
 Docs](https://pypeit.readthedocs.io), which is regularly updated.
+In what follows, we provide a brief description of the algorithms,
+but refer the interested reader to the online documentation. 
+
+Release v1.0.3 serves the following spectrographs:
+Gemini/GNIRS, Gemini/GMOS, Gemini/FLAMINGOS 2, Lick/Kast, Magellan/MagE,
+Magellan/Fire, MDM/OSMOS, Keck/DEIMOS (600ZD, 830G, 1200G), Keck/LRIS,
+Keck/MOSFIRE (J and Y gratings tested), Keck/NIRES, Keck/NIRSPEC
+(low-dispersion), LBT/Luci-I, Luci-II, LBT/MODS (beta), NOT/ALFOSC (grism4),
+VLT/X-Shooter (VIS, NIR), VLT/FORS2 (300I, 300V), WHT/ISIS.
 
 This v1.0 release of ``PypeIt`` is designed to be used by both advanced
-spectroscopists with prior data reduction expertise and new
-astronomers. It is highly configurable and designed to be applied to
-any standard slit-imaging spectrograph, and can accomodate longslit, multislit, as well 
-as cross-dispersed echelle spectra. It has already enabled
-several scientific publications [@hsyu2018; @eilers2020; @wang2020].
+spectroscopists with prior data reduction expertise and astronomers with
+no prior experience of data reduction. It is highly configurable and
+designed to be applied to any standard slit-imaging spectrograph, and
+can accomodate longslit, multislit, as well as cross-dispersed echelle
+spectra. It has already enabled several scientific publications
+[@hsyu2018; @eilers2020; @wang2020].
 
 After the creation of a custom input/configuration file, the pipeline
 runs end-to-end to convert raw spectroscopic images into calibrated,
-science-ready spectra. It also includes scripts to flux calibrate and
+science-ready spectra. In what follows, we describe several key steps
+of the data reduction procedure:
+
+(1) bias, dark, bpm,
+
+(2) slits traces
+
+(3) Master arc, wavelength calibration, identify GUI
+
+(4) tilts image
+
+(5) pixelflat, spatial slit map
+
+(6) spatial and spectral flexure correction
+
+(7) reference frame heliocentric, barycentric
+
+(8) advanced sky subtraction routines, including a modified version of the Kelson algorithm.
+
+(9) boxcar + optimal extraction
+
+PypeIt also includes scripts to flux calibrate and
 combine multiple exposures, as well as software for performing telluric
 corrections. ``PypeIt`` produces a series of
 calibration-related outputs and includes scripts and automatically
@@ -76,8 +107,18 @@ extractions.
 
 It is our plan to expand ``PypeIt`` to include the majority of
 spectrographs on the largest ground-based optical and near-infrared
-telescopes, ideally with help from the broader community. Join us [on
-GitHub](https://github.com/pypeit/PypeIt). By using this software, we
+telescopes, ideally with help from the broader community. We are
+currently working towards implementing the following additional
+spectrographs:
+Keck/DEIMOS (all gratings)
+Keck/KCWI,
+Keck/MOSFIRE (all gratings),
+Keck/NIRSPEC (new detector + high resolution),
+Magellan/IMACS,
+MMT/BinoSpec. We are also open to receiving
+requests to support additional spectroscopic
+instrumentation.
+Join us [on GitHub](https://github.com/pypeit/PypeIt). By using this software, we
 politely request that you abide by our [code of
 conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
