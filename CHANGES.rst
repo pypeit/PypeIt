@@ -5,6 +5,8 @@
  - Add a script (pypeit_flux_setup) for creating fluxing,
    coadd1d and tellfit pypeit files
  - Add telluric fitting script, pypeit_tellfit
+ - Refactor WaveCalib into a DataContainer
+ - Refactor fitting
 
 
 1.0.3 (04 May 2020)
