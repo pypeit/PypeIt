@@ -1,4 +1,8 @@
 """ Module for finding patterns in arc line spectra
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+
 """
 import numpy as np
 import inspect

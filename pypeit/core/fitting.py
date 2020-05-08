@@ -1,7 +1,8 @@
 """ Module for fitting codes
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../../links.rst
+.. include:: ../links.rst
+
 """
 import numpy as np
 import inspect
