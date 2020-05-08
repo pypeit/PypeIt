@@ -31,6 +31,7 @@ class ArcImage(pypeitimage.PypeItImage):
     master_type = 'Arc'
     master_file_format = 'fits'
 
+
 class AlignImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Arc Image
