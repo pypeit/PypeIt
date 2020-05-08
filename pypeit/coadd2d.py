@@ -240,7 +240,6 @@ class CoAdd2D(object):
             else:
                 weights = self.use_weights
             # Perform the 2d coadd
-            embed(header='248 of coadd2d')
             coadd_dict = coadd.compute_coadd2d(ref_trace_stack, self.stack_dict['sciimg_stack'],
                                            self.stack_dict['sciivar_stack'],
                                            self.stack_dict['skymodel_stack'],
@@ -255,7 +254,10 @@ class CoAdd2D(object):
 
 
     def create_pseudo_image(self, coadd_list):
-        """ THIS UNDOCUMENTED CODE PROBABLY SHOULD GENERATE AND RETURN
+        """
+        ..todo.. see below
+
+        THIS UNDOCUMENTED CODE PROBABLY SHOULD GENERATE AND RETURN
         STANDARD PYPEIT OBJCTS INSTEAD OF SOME UNDEFINED DICT"""
 
 
@@ -463,6 +465,16 @@ class CoAdd2D(object):
 #    '''
 
     def snr_report(self, snr_bar, slitid=None):
+        """
+        ..todo.. I need a doc string
+
+        Args:
+            snr_bar:
+            slitid:
+
+        Returns:
+
+        """
 
         # Print out a report on the SNR
         msg_string = msgs.newline() + '-------------------------------------'
@@ -478,6 +490,15 @@ class CoAdd2D(object):
         msgs.info(msg_string)
 
     def get_good_slits(self, only_slits):
+        """
+        ..todo.. I need a doc string
+
+        Args:
+            only_slits:
+
+        Returns:
+
+        """
 
         only_slits = [only_slits] if (only_slits is not None and
                                         isinstance(only_slits, (int, np.int, np.int64, np.int32))) else only_slits
@@ -485,6 +506,16 @@ class CoAdd2D(object):
         return good_slits
 
     def offset_slit_cen(self, slitid, offsets):
+        """
+        ..todo.. I need a doc string
+
+        Args:
+            slitid:
+            offsets:
+
+        Returns:
+
+        """
         ref_trace_stack = np.zeros((self.stack_dict['slits_list'][0].nspec, len(offsets)),
                                    dtype=float)
         for iexp, slits in enumerate(self.stack_dict['slits_list']):
@@ -810,6 +841,16 @@ class MultiSlitCoAdd2D(CoAdd2D):
     # TODO add an option here to actually use the reference trace for cases where they are on the same slit and it is
     # single slit???
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
+        """
+
+        Args:
+            slitid:
+            offsets:
+            objid:
+
+        Returns:
+
+        """
 
         return self.offset_slit_cen(slitid, offsets)
 
@@ -848,6 +889,9 @@ class EchelleCoAdd2D(CoAdd2D):
         self.snr_bar_bri = None
         if offsets is None:
             self.objid_bri, self.slitid_bri, self.snr_bar_bri = self.get_brightest_obj(self.stack_dict['specobjs_list'], self.nslits)
+        else:
+            # TODO -- Check the input offsets list matches the science images
+            pass
 
         self.use_weights = self.parse_weights(weights)
 
