@@ -516,6 +516,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """Set the WCS for this spectrograph
         """
         # TODO :: Need to set all of these!!
+        msgs.error("Should be using astropy.wcs")
         ra = None
         dec = None
         wave0 = None

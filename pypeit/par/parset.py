@@ -44,8 +44,8 @@ import os
 import warnings
 import textwrap
 import sys
-if sys.version > '3':
-    long = int
+
+from IPython import embed
 
 import numpy
 

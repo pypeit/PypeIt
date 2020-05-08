@@ -56,7 +56,6 @@ def main(args):
 
     # Load the image data
     frame = info.load_frame(sciIdx)
-    print(frame.shape)
 
     # Load the slits information
     slits = utils.get_slits(mkey, mdir)

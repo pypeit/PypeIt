@@ -1179,7 +1179,8 @@ def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=
 
     Returns
     -------
-        ndarray : Boolean mask containing sky regions
+    mask : numpy.ndarray
+        Boolean mask containing sky regions
     """
     # Initialise the sky regions - For each slit, generate a mask of size `resolution`.
     # i.e. the spatial coordinate is sampled by `resolution` elements.

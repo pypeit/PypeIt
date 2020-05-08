@@ -484,8 +484,8 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
     spat = np.arange(nspat)
     for islit in range(nslits):
         # Check if this slit is to be extracted
-        if slitIDs is not None:
-            if islit not in slitIDs: continue
+        if slitIDs is not None and islit not in slitIDs:
+            continue
         # Check if this slit is masked
         if slit_bpm is not None and slit_bpm[islit]:
             msgs.info('Ignoring masked slit {}'.format(islit))

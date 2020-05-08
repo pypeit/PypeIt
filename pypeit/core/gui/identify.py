@@ -383,7 +383,8 @@ class Identify(object):
                 i.remove()
             except TypeError:
                 i[0].remove()
-        for i in self.gsttexts: i.remove()
+        for i in self.gsttexts:
+            i.remove()
         self.gstlines = []
         self.gsttexts = []
         # Must have ghost mode on, plotting in wavelength, and have an estimated wavelength solution
@@ -407,8 +408,10 @@ class Identify(object):
     def draw_lines(self):
         """Draw the lines and annotate with their IDs
         """
-        for i in self.annlines: i.remove()
-        for i in self.anntexts: i.remove()
+        for i in self.annlines:
+            i.remove()
+        for i in self.anntexts:
+            i.remove()
         self.annlines = []
         self.anntexts = []
         # Decide if pixels or wavelength is being plotted
@@ -623,21 +626,24 @@ class Identify(object):
                        specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN"):
         """Check if the user wants to store this solution in the reid arxiv
 
-        Args:
-            final_fit : dict
-                Dict of wavelength calibration solutions (see self.get_results())
-            master_dir : str
-                Master directory
-            binspec : int
-                Spectral binning
-            rmstol : float
-                RMS tolerance allowed for the wavelength solution to be stored in the archive
-            specname : str
-                Spectrograph name
-            gratname : str
-                Grating name
-            dispangl : str
-                Dispersor Angle (expressed as a name/string)
+        Parameters
+        ----------
+
+        final_fit : dict
+            Dict of wavelength calibration solutions (see self.get_results())
+        master_dir : str
+            Master directory
+        binspec : int
+            Spectral binning
+        rmstol : float
+            RMS tolerance allowed for the wavelength solution to be stored in the archive
+        specname : str
+            Spectrograph name
+        gratname : str
+            Grating name
+        dispangl : str
+            Dispersor Angle (expressed as a name/string)
+
         """
         if 'rms' not in final_fit.keys():
             msgs.warn("No wavelength solution available")
@@ -744,9 +750,7 @@ class Identify(object):
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
-                        if self._ghostmode:
-                            pass
-                        else:
+                        if not self._ghostmode:
                             if self._start > self._end:
                                 tmp = self._start
                                 self._start = self._end
