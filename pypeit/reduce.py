@@ -623,7 +623,8 @@ class Reduce(object):
 
         """
 
-        if self.par['flexure']['spec_method'] != 'skip':
+        # TODO -- Turn this back on once we have a poper bspline fitter
+        if self.par['flexure']['spec_method'] != 'skip' and False:
             # Measure
             flex_list = flexure.spec_flexure_obj(sobjs, self.slits.slitord_id, self.reduce_bpm,
                                                  self.par['flexure']['spec_method'],

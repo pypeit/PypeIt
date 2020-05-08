@@ -20,6 +20,7 @@ from pypeit import utils
 from pypeit.core import arc
 from pypeit import ginga
 from pypeit.core import qa
+from pypeit.core import fitting
 
 from IPython import embed
 
@@ -245,13 +246,14 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
     bspline_par = dict(everyn=everyn)
-    mask, ct = utils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
-                                    function='bspline', sigma=3., bspline_par=bspline_par)
-    obj_sky_cont = utils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
+    # TODO - Replace with the other bspline fitter as this no longer works!
+    pypeitFit_obj = fitting.robust_fit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
+                                    function='bspline', lower=3., upper=3., bspline_par=bspline_par)
+    obj_sky_cont = pypeitFit_obj.val(obj_skyspec.wavelength.value)
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
-    mask, ct_arx = utils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3,
-                                        function='bspline', sigma=3., bspline_par=bspline_par)
-    arx_sky_cont = utils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
+    pypeitFit_sky= fitting.robust_fit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3,
+                                        function='bspline', lower=3., upper=3., bspline_par=bspline_par)
+    arx_sky_cont = pypeitFit_sky.val(arx_skyspec.wavelength.value)
     arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
     # Consider sharpness filtering (e.g. LowRedux)
@@ -270,11 +272,11 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
 
     #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
     if np.any(np.isfinite(corr[subpix_grid.astype(np.int)])):
-        fit = utils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
+        fit = fitting.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
         success = True
         max_fit = -0.5 * fit[1] / fit[2]
     else:
-        fit = utils.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
+        fit = fitting.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
         success = False
         max_fit = 0.0
         msgs.warn('Flexure compensation failed for one of your objects')

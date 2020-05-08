@@ -692,6 +692,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     # plt.grid()
     plt.show()
 
+
 def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
                    cont_mask_neg=False, qa_title='', npoly=None, debug_peak_find=False, debug=False):
     """
@@ -772,9 +773,11 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
         cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
         if npoly is not None:
             # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-            pypeitFit = fitting.robust_fit(spec_vec[cont_mask], cont_med, npoly, function='polynomial', maxiter=25,
-                                                 upper=3.0, lower=3.0, minx=0.0, maxx=float(nspec-1))
-            cont_now = pypeitFit.val(spec_vec)
+            pypeitFit = fitting.robust_fit(spec_vec[cont_mask].astype(float), cont_med,
+                                           npoly, function='polynomial', maxiter=25,
+                                           upper=3.0, lower=3.0, minx=0.0,
+                                           maxx=float(nspec-1))
+            cont_now = pypeitFit.val(spec_vec.astype(float))
         else:
             cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
 

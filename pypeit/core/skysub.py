@@ -19,7 +19,7 @@ from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
 from pypeit.core import fitting
 from pypeit import msgs, utils, ginga, bspline, slittrace
-from pypeit.core.moment import moment1d
+from pypeit.core import fitting
 
 def skysub_npoly(thismask):
     """
@@ -138,7 +138,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
             lskyset, outmask, lsky_fit, red_chi, exit_status \
-                    = utils.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+                    = fitting.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
                                             ingpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
                                             kwargs_bspline={'bkspace':bsp},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
@@ -158,7 +158,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     # Perform the full fit now
     msgs.info("Full fit in global sky sub.")
     skyset, outmask, yfit, _, exit_status \
-            = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+            = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
                                     upper=sigrej, lower=sigrej, maxiter=maxiter,
                                     kwargs_bspline={'bkspace':bsp},
                                     kwargs_reject={'groupbadpix':True, 'maxrej': 10})
@@ -173,7 +173,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         poly_basis = np.ones_like(sky)
         # Perform the full fit now
         skyset, outmask, yfit, _, exit_status \
-                = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+                = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
                                         upper=sigrej, lower=sigrej, maxiter=maxiter,
                                         kwargs_bspline={'bkspace': bsp},
                                         kwargs_reject={'groupbadpix': False, 'maxrej': 10})
@@ -269,7 +269,7 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
 
     if ngood > 0:
         sset1, outmask_good1, yfit1, red_chi1, exit_status \
-                = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
+                = fitting.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
                                         fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
                                         relative=relative,
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -288,7 +288,7 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
     msgs.info('Iter     Chi^2     Rejected Pts')
     if np.any(mask1):
         sset, outmask_good, yfit, red_chi, exit_status \
-                = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good,:],
+                = fitting.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good,:],
                                         ingpm=mask1, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
                                         relative=relative,
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 1})
