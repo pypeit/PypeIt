@@ -1550,8 +1550,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             thisobj.hand_extract_det = hand_extract_det[iobj]
             thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
             thisobj.hand_extract_flag = True
+            # SPAT_FRACPOS
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            #
             thisobj.SPAT_FRACPOS = float(f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False)) # interpolate from ximg
             thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp),fluxconv_cont) # interpolate from fluxconv
             # assign the trace
@@ -1996,6 +1996,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                                                      minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
             # TODO This QA needs some work
+            show_pca = True
             if show_pca:
                 frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
                 plt.plot(order_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
@@ -2054,6 +2055,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     ivar_box = np.zeros((nspec, norders, nobj))
     mask_box = np.zeros((nspec, norders, nobj))
     SNR_arr = np.zeros((norders, nobj))
+    slitfracpos_arr = np.zeros((norders, nobj))
+    embed(header='2058 of extract')
     for iobj in range(nobj):
         for iord in range(norders):
             iorder_vec = order_vec[iord]
@@ -2065,6 +2068,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
 
+            # TODO -- We probably shouldn't be operating on a SpecObjs but instead a SpecObj
             flux_tmp  = moment1d(image*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                  row=sobjs_align[indx][0].trace_spec)[0]
             var_tmp  = moment1d(varimg*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
@@ -2083,6 +2087,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             # ToDO assign this to sobjs_align for use in the extraction
             SNR_arr[iord,iobj] = med_sn
             sobjs_align[indx][0].ech_snr = med_sn
+            # For hand extractions
+            slitfracpos_arr[iord,iobj] = sobjs_align[indx][0].SPAT_FRACPOS
 
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
@@ -2090,8 +2096,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     sobjs_trim = specobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
+    hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in hand_extract_dict['hand_extract_spat']]
     for iobj in range(nobj):
-        if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr):
+        if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr) \
+                or (int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac):
             keep_obj[iobj] = True
             ikeep = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
             sobjs_keep = sobjs_align[ikeep].copy()
