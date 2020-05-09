@@ -253,7 +253,7 @@ def conv_telluric(tell_model, dloglam, res):
     conv_model = scipy.signal.convolve(tell_model,g,mode='same')
     return conv_model
 
-def shift_telluric(tell_model, loglam, dloglam, shift):
+def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
     Routine to apply a shift to the telluric model. Note that the shift can be sub-pixel, i.e this routine interpolates.
 
@@ -270,14 +270,15 @@ def shift_telluric(tell_model, loglam, dloglam, shift):
             tell_dict as tell_dict['dloglam']
         shift (float):
             Desired shift.  Note that this shift can be sub-pixel.
-
+        stretch (float):
+            Desired stretch.
     Returns:
         shifted_model (`numpy.ndarray`_):
             Shifted telluric model. Shape = same size as input tell_model.
 
     """
-
-    loglam_shift = loglam + shift*dloglam
+    loglam_shift = loglam[0] + np.arange(len(loglam)) * dloglam * stretch + shift * dloglam
+    #loglam_shift = loglam + shift*dloglam
     tell_model_shift = np.interp(loglam_shift, loglam, tell_model)
     return tell_model_shift
 
@@ -286,16 +287,16 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
     Routine to evaluate the telluric model at an arbitrary location in
     the theta_tell parameter space.  The full atmosphere model lives in
-    either a 5 or 6 dimensional parameter space, which is the size of
+    either a 5 or 7 dimensional parameter space, which is the size of
     the theta_tell input parameter vector.
 
     If len(theta_tell) == 5 the parameters are:
 
         pressure, temperature, humidity, airmass, resln = theta_tell
 
-    If len(theta_tell) == 6 the parameters are:
+    If len(theta_tell) == 7 the parameters are:
 
-        pressure, temperature, humidity, airmass, resln, shift = theta_tell
+        pressure, temperature, humidity, airmass, resln, shift, stretch = theta_tell
 
     This routine performs the following steps:
 
@@ -306,8 +307,8 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
        2. convolution of the atmosphere model to the resolution set by
           resln.
 
-       3. Optionally, if len(theta_tell) == 6, application of a shift to
-          telluric model. If len(theta_tell) == 5, no shift is applied
+       3. Optionally, if len(theta_tell) == 7, application of a shift and
+          a stretch to telluric model. If len(theta_tell) == 5, no shift is applied
           and only the first two steps are performed.
 
     Args:
@@ -347,8 +348,9 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_final)
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad + 1], tell_dict['dloglam'], theta_tell[4])
 
-    if ntheta == 6:
-        tellmodel_out = shift_telluric(tellmodel_conv, np.log10(tell_dict['wave_grid'][ind_lower_pad: ind_upper_pad+1]), tell_dict['dloglam'], theta_tell[5])
+    if ntheta == 7:
+        tellmodel_out = shift_telluric(tellmodel_conv, np.log10(tell_dict['wave_grid'][ind_lower_pad: ind_upper_pad+1]), tell_dict['dloglam'],
+                                       theta_tell[5],theta_tell[6])
         return tellmodel_out[tell_pad_tuple[0]:ind_upper_final]
     else:
         return tellmodel_conv[tell_pad_tuple[0]:ind_upper_final]
@@ -384,8 +386,8 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
     obj_model_func = arg_dict['obj_model_func']
     flux_ivar = arg_dict['ivar']
 
-    theta_obj = theta[:-6]
-    theta_tell = theta[-6:]
+    theta_obj = theta[:-7]
+    theta_tell = theta[-7:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
@@ -415,8 +417,8 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
             This is actually two concatenated paramter vectors, one for
             the object and one for the telluric, i.e::
 
-                theta_obj = theta[:-6]
-                theta_tell = theta[-6:]
+                theta_obj = theta[:-7]
+                theta_tell = theta[-7:]
 
             The telluric model theta_tell is currently hard wired to be six dimensional::
 
@@ -479,8 +481,8 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
     result = scipy.optimize.differential_evolution(tellfit_chi2, bounds, args=(flux, thismask, arg_dict,), seed=seed,
                                                    **kwargs_opt)
 
-    theta_obj  = result.x[:-6]
-    theta_tell = result.x[-6:]
+    theta_obj  = result.x[:-7]
+    theta_tell = result.x[-7:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
@@ -1648,13 +1650,14 @@ class Telluric(object):
     optimization. The bounds for the telluric are set by the grid and initialized without user involvement. But for the
     object model, the bounds depend on the nature of the object model, which is why init_obj_model must be provided.
 
-    The telluric model is governed by six parameters:
+    The telluric model is governed by seven parameters:
 
-        pressure, temperature, humidity, airmass, resln, shift
+        pressure, temperature, humidity, airmass, resln, shift, stretch
 
-    Where resln is the resolution of the spectrograph and shift is a shift in pixels. The airmass of the object
-    will be used to initalize the fit (this helps with initalizing the object model), but the models are sufficiently
-    flexible that often the best fit airmass actually differs from the airmass of the spectrum.
+    Where resln is the resolution of the spectrograph and shift is a shift in pixels. The stretch is a stretch oon the
+    pixel scale. The airmass of the object will be used to initalize the fit (this helps with initalizing the object
+    model), but the models are sufficiently flexible that often the best fit airmass actually differs from the airmass
+    of the spectrum.
 
     This code can be run on stacked spectra covering a large range of airmasses and will still provide good results.
     The resulting airmass will be an effective value, and as per above may not have much relation to the true airmass
@@ -1718,6 +1721,9 @@ class Telluric(object):
         pix_shift_bounds (tuple of floats): default = (-5.0, 5.0)
             Bounds for the pixel shift optimization in telluric model fit in units of pixels. The atmosphere
             will be allowed to shift within this range during the fit.
+        pix_stretch_bounds (tuple of floats): default = (0.9, 1.1)
+            Bounds for the pixel scale stretch optimization in telluric model fit in units of pixels. The atmosphere
+            will be allowed to stretch within this range during the fit.
         maxiter (int): default = 3
             Maximum number of iterations for the telluric + object model fitting. The code performs multiple
             iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels.
@@ -1776,7 +1782,7 @@ class Telluric(object):
     def __init__(self, wave, flux, ivar, mask, telgridfile, obj_params, init_obj_model, eval_obj_model,
                  ech_orders=None,
                  sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
-                 resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
+                 resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0), pix_stretch_bounds=(0.9,1.1),
                  maxiter=3, sticky=True, lower=3.0, upper=3.0,
                  seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False, debug=False):
 
@@ -1802,6 +1808,7 @@ class Telluric(object):
         self.sn_clip = sn_clip
         self.resln_frac_bounds = resln_frac_bounds
         self.pix_shift_bounds = pix_shift_bounds
+        self.pix_stretch_bounds = pix_stretch_bounds
         self.maxiter = maxiter
         self.sticky = sticky
         self.lower = lower
@@ -1912,8 +1919,8 @@ class Telluric(object):
                 inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
                 maxiter=self.maxiter, lower=self.lower, upper=self.upper, sticky=self.sticky,
                 tol=self.tol, popsize=self.popsize, recombination=self.recombination, polish=self.polish, disp=self.disp)
-            self.theta_obj_list[iord] = self.result_list[iord].x[:-6]
-            self.theta_tell_list[iord] = self.result_list[iord].x[-6:]
+            self.theta_obj_list[iord] = self.result_list[iord].x[:-7]
+            self.theta_tell_list[iord] = self.result_list[iord].x[-7:]
             self.obj_model_list[iord], modelmask = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
             self.tellmodel_list[iord] = eval_telluric(self.theta_tell_list[iord], self.tell_dict,
                                                       ind_lower=self.ind_lower[iord],ind_upper=self.ind_upper[iord])
@@ -2020,13 +2027,14 @@ class Telluric(object):
         out_table['WAVE'] = np.zeros((self.norders, self.nspec_in))
         out_table['TELLURIC'] = np.zeros((self.norders, self.nspec_in))
         out_table['OBJ_MODEL'] = np.zeros((self.norders, self.nspec_in))
-        out_table['TELL_THETA'] = np.zeros((self.norders, 6))
+        out_table['TELL_THETA'] = np.zeros((self.norders, 7))
         out_table['TELL_PRESS'] = np.zeros(self.norders)
         out_table['TELL_TEMP'] = np.zeros(self.norders)
         out_table['TELL_H2O'] = np.zeros(self.norders)
         out_table['TELL_AIRMASS'] = np.zeros(self.norders)
         out_table['TELL_RESLN'] = np.zeros(self.norders)
         out_table['TELL_SHIFT'] = np.zeros(self.norders)
+        out_table['TELL_STRETCH'] = np.zeros(self.norders)
         out_table['OBJ_THETA'] = np.zeros((self.norders, self.max_ntheta_obj))
         out_table['CHI2'] = np.zeros(self.norders)
         out_table['SUCCESS'] = np.zeros(self.norders, dtype=bool)
@@ -2067,6 +2075,7 @@ class Telluric(object):
         self.out_table['TELL_AIRMASS'][iord] = self.theta_tell_list[iord][3]
         self.out_table['TELL_RESLN'][iord] = self.theta_tell_list[iord][4]
         self.out_table['TELL_SHIFT'][iord] = self.theta_tell_list[iord][5]
+        self.out_table['TELL_STRETCH'][iord] = self.theta_tell_list[iord][6]
         ntheta_iord = len(self.theta_obj_list[iord])
         self.out_table['OBJ_THETA'][iord][0:ntheta_iord+1] = self.theta_obj_list[iord]
         self.out_table['CHI2'][iord] = self.result_list[iord].fun
@@ -2154,7 +2163,7 @@ class Telluric(object):
         tell_guess = (np.median(self.tell_dict['pressure_grid']),
                       np.median(self.tell_dict['temp_grid']),
                       np.median(self.tell_dict['h2o_grid']),
-                      self.airmass_guess, self.resln_guess, 0.0)
+                      self.airmass_guess, self.resln_guess, 0.0, 1.0)
 
         return tell_guess
 
@@ -2170,7 +2179,7 @@ class Telluric(object):
                        (self.tell_dict['h2o_grid'].min(), self.tell_dict['h2o_grid'].max()),
                        (self.tell_dict['airmass_grid'].min(), self.tell_dict['airmass_grid'].max()),
                        (self.resln_guess * self.resln_frac_bounds[0], self.resln_guess * self.resln_frac_bounds[1]),
-                       self.pix_shift_bounds]
+                       self.pix_shift_bounds, self.pix_stretch_bounds]
 
         return bounds_tell
 
