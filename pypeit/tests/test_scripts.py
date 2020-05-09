@@ -186,6 +186,7 @@ def test_coadd1d_2():
     # Clean up
     os.remove(parfile)
 
+@dev_suite_required
 def test_tellfit():
     """
     Test telluric correction
@@ -205,8 +206,10 @@ def test_tellfit():
 
     # Clean up
     os.remove(parfile)
+    os.remove(tellfit_ifile)
     os.remove(tellfit_ofile)
 
+@dev_suite_required
 def test_flux_setup():
     """
     Test pypeit_flux_setup script
