@@ -590,6 +590,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def order_spat_pos(self):
+        """
+        ..todo.. I need a doc string
+
+        Returns:
+
+        """
         ord_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
                                  0.41289127, 0.4733839 , 0.53072208, 0.58509916,
                                  0.63671413, 0.685754, 0.73236772, 0.77676367,

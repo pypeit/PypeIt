@@ -401,6 +401,7 @@ class CoAdd2D(object):
         # normally, but this is not possible for coadds
         redux.tilts = pseudo_dict['tilts']
         redux.waveimg = pseudo_dict['waveimg']
+        redux.binning = self.binning
 
         # Masking
         #  TODO: This is incorrect here JXP and an ugly hack. You need to treat the masking of the slits objects
@@ -413,7 +414,7 @@ class CoAdd2D(object):
         redux.reduce_bpm = reduce_bpm
 
         if show:
-            redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
+            redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
         # Object finding
         sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks)
         # Local sky-subtraction
