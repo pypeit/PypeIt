@@ -349,12 +349,12 @@ class CoAdd2D(object):
             slit_width = np.sum(inmask_pseudo*(slitmask_pseudo == spat_id),axis=1)
             slit_width_img = np.outer(slit_width, np.ones(nspat_pseudo))
             med_slit_width = np.median(slit_width_img[slitmask_pseudo == spat_id])
-            # TODO -- inline docs
+            # TODO -- need inline docs
             nspec_eff = np.sum(slit_width > min_slit_frac*med_slit_width)
             nsmooth = int(np.fmax(np.ceil(nspec_eff*0.02),10))
             slit_width_sm = ndimage.filters.median_filter(slit_width, size=nsmooth, mode='reflect')
             igood = (slit_width_sm > min_slit_frac*med_slit_width)
-            # TODO -- inline docs
+            # TODO -- need inline docs
             spec_min[slit_idx] = spec_vec_pseudo[igood].min()
             spec_max[slit_idx] = spec_vec_pseudo[igood].max()
             bad_pix = (slit_width_img < min_slit_frac*med_slit_width) & (slitmask_pseudo == spat_id)
@@ -370,6 +370,17 @@ class CoAdd2D(object):
                     wave_mask=wave_mask, wave_mid=wave_mid, wave_min=wave_min, wave_max=wave_max)
 
     def reduce(self, pseudo_dict, show=None, show_peaks=None):
+        """
+        ..todo.. Please document me
+
+        Args:
+            pseudo_dict:
+            show:
+            show_peaks:
+
+        Returns:
+
+        """
 
         show = self.show if show is None else show
         show_peaks = self.show_peaks if show_peaks is None else show_peaks
@@ -393,6 +404,8 @@ class CoAdd2D(object):
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
 
+        #embed(header='407 of coadd2d')
+
         redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
         #redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, pseudo_dict['slits'],
@@ -404,10 +417,9 @@ class CoAdd2D(object):
         redux.binning = self.binning
 
         # Masking
-        #  TODO: This is incorrect here JXP and an ugly hack. You need to treat the masking of the slits objects
-        #   from every exposure, come up with an aggregate mask (if it is masked on one slit, mask the slit for all) and that should
-        #   be propagated into the slits object in the psuedo_dict
-        #   Good luck with that JFH.
+        #  TODO: Treat the masking of the slits objects
+        #   from every exposure, come up with an aggregate mask (if it is masked on one slit,
+        #   mask the slit for all) and that should be propagated into the slits object in the psuedo_dict
         slits = self.stack_dict['slits_list'][0]
         reduce_bpm = (slits.mask > 0) & (np.invert(slits.bitmask.flagged(
             slits.mask, flag=slits.bitmask.exclude_for_reducing)))
@@ -416,7 +428,13 @@ class CoAdd2D(object):
         if show:
             redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
         # Object finding
-        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks)
+        # HACK ME!
+        #from pypeit.par import pypeitpar
+        #self.par['reduce']['extraction']['manual'] = [pypeitpar.ManualExtractionPar(spec=0.712, spat=0.5, fwhm=3., det=1)]
+        hand_extract_dict = dict(hand_extract_spec=[0.2], hand_extract_spat=[0.712], hand_extract_det=[1],
+                                 hand_extract_fwhm=[3.])
+        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks, manual_extract_dict=hand_extract_dict)
+
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs = redux.local_skysub_extract(

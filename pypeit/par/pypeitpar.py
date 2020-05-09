@@ -1553,8 +1553,6 @@ class TelluricPar(ParSet):
 
 class ManualExtractionPar(ParSet):
     """
-    DEPRECATED!!
-
     A parameter set holding the arguments for how to perform the
     manual extraction of a spectrum.
 
@@ -1594,15 +1592,16 @@ class ManualExtractionPar(ParSet):
         dtypes['frame'] = str
         descr['frame'] = 'The name of the fits file for a manual extraction'
 
-        dtypes['spec'] = [list, float, int]
+        dtypes['spec'] = list
         descr['spec'] = 'List of spectral positions to hand extract '
 
-        dtypes['spat'] = [list, float, int]
+        dtypes['spat'] = list
         descr['spat'] = 'List of spatial positions to hand extract '
 
-        dtypes['det'] = [list, int]
+        dtypes['det'] = list
         descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list.  Negative values indicated negative images.'
-        dtypes['fwhm'] = [list, int,float]
+
+        dtypes['fwhm'] = list
         descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will be used for all members of that list'
 
         # Instantiate the parameter set
@@ -2961,6 +2960,7 @@ class ExtractionPar(ParSet):
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
         # Check the manual input
+        # TODO -- Get Manual in the readthedocs
         if manual is not None:
             if not isinstance(manual, (ParSet, dict, list)):
                 raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
