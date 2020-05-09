@@ -129,8 +129,8 @@ def define_additional_meta(nlamps=20):
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'arm': dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
-                       'idname': dict(dtype=str,
-                                      comment='Instrument supplied frametype (e.g. bias)')}
+                       'dither': dict(dtype=float, comment='Dither amount in arcsec'),
+                       'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)')}
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
                 = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')

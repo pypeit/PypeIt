@@ -67,6 +67,8 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         meta['dispname'] = dict(ext=0, card=None, default='default')
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
+        # Dithering
+        meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y')
 
         # Ingest
         self.meta = meta
@@ -87,8 +89,26 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
+        """
+        Additional configuration keys
+
+        Returns:
+            list
+
+        """
         return ['arm']
 
+    def pypeit_file_keys(self):
+        """
+        Add additional keys
+
+        Returns:
+            list:
+
+        """
+        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
+        pypeit_keys += ['dither']
+        return pypeit_keys
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -300,7 +320,14 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
+        """
+        Add additional keys
+
+        Returns:
+            list:
+
+        """
+        pypeit_keys = super(VLTXShooterNIRSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
 
