@@ -901,7 +901,7 @@ def get_tell_from_file(sensfile, waves, masks, iord=None):
 
 
 def robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=None, mask_ref=None, ref_percentile=70.0, min_good=0.05,
-                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=1.0,
+                        maxiters=5, sigrej=3.0, max_factor=10.0, snr_do_not_rescale=0.5,
                         verbose=False):
     """
     Robustly determine the ratio between input spectrum flux and reference spectrum flux_ref. The code will perform
