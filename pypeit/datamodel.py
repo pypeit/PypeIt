@@ -951,6 +951,9 @@ class DataContainer:
                                 else eval(_hdu[e].header[key.upper()])
             # Parse BinTableHDUs
             if isinstance(_hdu[e], fits.BinTableHDU):
+                # Datamodel checking
+                dm_type_passed &= hdu.header['DMODCLS'] == cls.__name__
+                dm_version_passed &= hdu.header['DMODVER'] == cls.version
                 # If the length of the table is 1, assume the table
                 # data had to be saved as a single row because of shape
                 # differences.
@@ -1159,10 +1162,10 @@ class DataContainer:
         d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if chk_version:
-            if not dm_version_passed:
-                raise IOError("Bad datamodel version in your hdu's")
             if not dm_type_passed:
-                raise IOError("Bad datamodel type in your hdu's")
+                msgs.error("One or more bad datamodel type in your hdu's")
+            if not dm_version_passed:
+                msgs.error("One or more bad datamodel version in your hdu's")
         # Finish
         self = super().__new__(cls)
         DataContainer.__init__(self, d)
