@@ -137,6 +137,7 @@ def main(args):
     # Update with configuration specific parameters (which requires science file) and initialize spectrograph
     spectrograph_cfg_lines = spectrograph.config_specific_par(spec2d_files[0]).to_config()
     parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=parset.to_config())
+    embed(header='140 of coadd_2dspec')
 
     # If detector was passed as an argument override whatever was in the coadd2d_file
     if args.det is not None:

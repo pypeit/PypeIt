@@ -65,7 +65,8 @@ Show a series of matplotlib plots to the screen.
 --basename
 ++++++++++
 
-Unclear what happens if you don't set this..
+Provides the basename for the spec1d and spec2d files.
+If not provided, defaults to a portion of the input spec2d filenames.
 
 --debug
 +++++++

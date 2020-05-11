@@ -15,6 +15,10 @@
 [scienceframe]
     [[process]]
         n_lohi = 8, 8
+[reduce]
+  [[extraction]]
+     [[[manual]]]
+        spec = 2.
 
 # Setup
 setup read
