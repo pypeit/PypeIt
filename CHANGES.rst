@@ -1,4 +1,37 @@
 
+
+1.0.4dev
+--------
+
+
+1.0.3 (04 May 2020)
+-------------------
+
+ - Add illumflat frametype
+ - Enable dark image subtraction
+ - Refactor of Calibrations (remove cache, add get_dark)
+ - Enable calibration-only run
+ - Clean up flat, bias handling
+ - Make re-use masters the default mode of run_pypeit
+ - Require Python 3.7
+ - Fixed a bug in NIRES order finding. 
+ - Add NOT/ALFOSC
+ - Fluxing docs
+ - Fix flexure and heliocentric bugs
+ - Identify GUI updates
+
+1.0.2 (30 Apr 2020)
+-------------------
+
+ - Various doc hotfixes
+ - wavelength algorithm hotfix, such that they must now generate an
+   entry for every slit, bad or good.
+
+1.0.1 (13 Apr 2020)
+-------------------
+
+ - Various hot fixes
+
 1.0.0 (07 Apr 2020)
 -------------------
 
@@ -95,6 +128,24 @@
   algorithms.
 - Added support for additional near-IR spectrographs.
 - Restrict extrapolation in tilt fitting
+- Replaces usage of the `tslits_dict` dictionary with
+  `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
+  object is now the main master file used for passing around the slit
+  edges once the edges are determined by `EdgeTraceSet`.
+- Removes usage of `pypeit.pixels.tslits2mask` and replaces it with
+  `pypeit.slittrace.SlitTraceSet.slit_img`.
+- Significant changes to flat-fielding control flow.
+    - Added `rej_sticky`, `slit_trim`, `slit_pad`, `illum_iter`,
+      `illum_rej`, `twod_fit_npoly` parameters to FlatFieldPar.
+    - Illumination flat no longer removed if the user doesn't want to
+      apply it to the data.  The flat was always created, but all that
+      work was lost if the illumination correction wasn't requested.
+    - Replaced tweak edges method with a more direct algorithm.
+    - `pypeit.core.flat.fit_flat` moved to
+      `pypeit.flatfield.FlatField.fit`.
+- Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
+  sobel image to the ginga display.
+- Added `bspline_profile_qa` for generic QA of a bspline fit.
 - Implemented interactive sky region selection
 
 0.12.3 (13 Feb 2020)

@@ -63,12 +63,16 @@ def main(pargs):
     if pargs.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[scienceframe]']
-    cfg_lines += ['    processing_steps = orient,trim,apply_gain,flatten']
+    cfg_lines += ['    [[process]]']
+    cfg_lines += ['        mask_cr = False']
+    # Calibrations
+    cfg_lines += ['[baseprocess]']
+    cfg_lines += ['    use_biasimage = False']
     cfg_lines += ['[calibrations]']
     # Input pixel flat?
     if pargs.user_pixflat is not None:
         cfg_lines += ['    [[flatfield]]']
-        cfg_lines += ['        frame = {0}'.format(pargs.user_pixflat)]
+        cfg_lines += ['        pixelflat_file = {0}'.format(pargs.user_pixflat)]
     # Reduction restrictions
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
@@ -93,7 +97,7 @@ def main(pargs):
     file_bits = np.zeros(3, dtype=bm.minimum_dtype())
     file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'tilt'])
     file_bits[1] = bm.turn_on(file_bits[1],
-                              ['pixelflat', 'trace'] if pargs.user_pixflat is None else 'trace')
+                              ['pixelflat', 'trace', 'illumflat'] if pargs.user_pixflat is None else ['trace', 'illumflat'])
     file_bits[2] = bm.turn_on(file_bits[2], 'science')
 
     # PypeItSetup sorts according to MJD

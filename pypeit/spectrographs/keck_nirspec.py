@@ -91,28 +91,27 @@ class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'
 
+        # Should be we be illumflattening?
 
-        # Overscan but not bias
-        #  This seems like a kludge of sorts
-        par['calibrations']['biasframe']['useframe'] = 'none'
-        # No overscan
-        par['scienceframe']['process']['overscan'] ='none'
-        for key in par['calibrations'].keys():
-            if 'frame' in key:
-                par['calibrations'][key]['process']['overscan'] = 'none'
+        # Flats
+        turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
+        #turn_off = dict(use_biasimage=False, use_overscan=False)
+        #par.reset_all_processimages_par(**turn_off)
 
 
         # The settings below enable NIRSPEC dark subtraction from the traceframe and pixelflatframe, but enforce
         # that this bias won't be subtracted from other images. It is a hack for now, because eventually we want to
         # perform this operation with the dark frame class, and we want to attach individual sets of darks to specific
         # images.
-        par['calibrations']['biasframe']['useframe'] = 'bias'
-        par['calibrations']['traceframe']['process']['bias'] = 'force'
-        par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
-        par['calibrations']['arcframe']['process']['bias'] = 'skip'
-        par['calibrations']['tiltframe']['process']['bias'] = 'skip'
-        par['calibrations']['standardframe']['process']['bias'] = 'skip'
-        par['scienceframe']['process']['bias'] = 'skip'
+        #par['calibrations']['biasframe']['useframe'] = 'bias'
+        #par['calibrations']['traceframe']['process']['bias'] = 'force'
+        #par['calibrations']['pixelflatframe']['process']['bias'] = 'force'
+        #par['calibrations']['arcframe']['process']['bias'] = 'skip'
+        #par['calibrations']['tiltframe']['process']['bias'] = 'skip'
+        #par['calibrations']['standardframe']['process']['bias'] = 'skip'
+        #par['scienceframe']['process']['bias'] = 'skip'
 
 
         # Set the default exposure time ranges for the frame typing

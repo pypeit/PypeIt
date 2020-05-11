@@ -31,6 +31,7 @@ class ArcImage(pypeitimage.PypeItImage):
     master_type = 'Arc'
     master_file_format = 'fits'
 
+
 class AlignImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Arc Image
@@ -58,6 +59,20 @@ class BiasImage(pypeitimage.PypeItImage):
     output_to_disk = ('BIAS_IMAGE', 'BIAS_DETECTOR')
     hdu_prefix = 'BIAS_'
     master_type = 'Bias'
+    master_file_format = 'fits'
+
+
+class DarkImage(pypeitimage.PypeItImage):
+    """
+    Simple DataContainer for the Dark Image
+    """
+    # Set the version of this class
+    version = pypeitimage.PypeItImage.version
+
+    # Output to disk
+    output_to_disk = ('DARK_IMAGE', 'DARK_DETECTOR')
+    hdu_prefix = 'DARK_'
+    master_type = 'Dark'
     master_file_format = 'fits'
 
 
@@ -91,8 +106,20 @@ class TraceImage(pypeitimage.PypeItImage):
     hdu_prefix = 'TRACE_'
 
 
+class SkyRegions(pypeitimage.PypeItImage):
+    """
+    Simple DataContainer for the SkyRegions Image
+    """
+    # Peg the version of this class to that of PypeItImage
+    version = pypeitimage.PypeItImage.version
+
+    # Master fun
+    master_type = 'SkyRegions'
+    master_file_format = 'fits.gz'
+
+
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
-                        bias=None, bpm=None,
+                        bias=None, bpm=None, dark=None,
                         flatimages=None,
                         sigma_clip=False, sigrej=None, maxiters=5,
                         ignore_saturation=True, slits=None):
@@ -128,11 +155,10 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     # Check
     if not isinstance(frame_par, pypeitpar.FrameGroupPar):
         msgs.error('Provided ParSet for must be type FrameGroupPar.')
-    process_steps = procimg.set_process_steps(bias, frame_par)
+    #process_steps = procimg.set_process_steps(bias, frame_par)
     #
     combineImage = combineimage.CombineImage(spectrograph, det, frame_par['process'], file_list)
-    pypeitImage = combineImage.run(process_steps, bias, bpm=bpm,
-                                   #pixel_flat=pixel_flat, illum_flat_fit=illum_flat_fit,
+    pypeitImage = combineImage.run(bias=bias, bpm=bpm, dark=dark,
                                    flatimages=flatimages,
                                    sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
@@ -143,20 +169,24 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
     #   WARNING, any internals in pypeitImage are lost here
     if frame_par['frametype'] == 'bias':
         finalImage = BiasImage.from_pypeitimage(pypeitImage)
+    elif frame_par['frametype'] == 'dark':
+        finalImage = DarkImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'arc':
         finalImage = ArcImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'tilt':
         finalImage = TiltImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'trace':
         finalImage = TraceImage.from_pypeitimage(pypeitImage)
-    elif frame_par['frametype'] in ['pixelflat', 'science', 'standard']:
+    elif frame_par['frametype'] == 'align':
+        finalImage = AlignImage.from_pypeitimage(pypeitImage)
+    elif frame_par['frametype'] in ['pixelflat', 'science', 'standard', 'illumflat']:
         finalImage = pypeitImage
     else:
         finalImage = None
-        embed(header='193 of calibrationimage')
+        embed(header='193 of buildimage')
 
     # Internals
-    finalImage.process_steps = process_steps
+    finalImage.process_steps = pypeitImage.process_steps
     finalImage.files = file_list
     finalImage.rawheadlist = pypeitImage.rawheadlist
     finalImage.head0 = pypeitImage.head0

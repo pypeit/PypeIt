@@ -2,9 +2,9 @@
 
 .. _frame_types:
 
-**********
-Frame Type
-**********
+***********
+Frame Types
+***********
 
 .. index:: Frame_Type
 
@@ -27,6 +27,8 @@ Here are the frametype values allowed and adopted in PypeIt:
 ========= =============================================================
 Frametype Description
 ========= =============================================================
+aligmment Used to align spatial positions in multiple slits. This frame
+          is particularly useful for slit-based IFU, such as Keck KCWI.
 arc       Spectrum of one or more calibration arc lamps
 bias      Bias frame;  typically a 0s exposure with the shutter closed
 dark      Dark frame;  typically a >0s exposure to assess dark current (shutter closed)

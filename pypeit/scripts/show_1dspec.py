@@ -36,7 +36,11 @@ def main(args):
     """
 
     try:
+        # TODO: JFH There is a bug here. This should fault if this is not a specobj file, but it does not. So
+        # I've added this ugly hack
         sobjs = specobjs.SpecObjs.from_fitsfile(args.file)
+        if np.sum(sobjs.OPT_WAVE) is None:
+            raise ValueError("This is an ugly hack until the DataContainer bug is fixed")
     except:
         # place holder until coadd data model is sorted out
         wave, flux, flux_ivar, flux_mask, meta_spec, head = general_spec_reader(args.file)
@@ -51,7 +55,7 @@ def main(args):
             return
 
         if args.obj is not None:
-            exten = sobjs.name.index(args.obj)
+            exten = np.where(sobjs.NAME == args.obj)[0][0]
             if exten < 0:
                 msgs.error("Bad input object name: {:s}".format(args.obj))
         else:
@@ -63,7 +67,6 @@ def main(args):
                     msgs.error("Spectrum not extracted with OPT.  Try --extract=BOX")
 
         spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
-
 
     # Setup
     app = QApplication(sys.argv)

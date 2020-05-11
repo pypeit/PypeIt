@@ -70,8 +70,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             spatflip        = False,
             platescale      = 0.1185,
             darkcurr        = 4.19,
-            saturation      = 65535.,
-            nonlinear       = 0.95,  # Changed by JFH from 0.86 to 0.95
+            saturation      = 65535., # ADU
+            nonlinear       = 0.95,   # Changed by JFH from 0.86 to 0.95
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(1.226),
@@ -317,7 +317,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'closed')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & (fitstbl['idname'] == 'IntFlat') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pinhole', 'dark']:
@@ -434,7 +434,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Return
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
-        return self.get_detector_par(hdu, det if det is None else 1), \
+        return self.get_detector_par(hdu, det if det is not None else 1), \
                image, hdu, exptime, rawdatasec_img, oscansec_img
 
 #    def load_raw_frame(self, raw_file, det=None):

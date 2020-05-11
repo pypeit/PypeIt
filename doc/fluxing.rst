@@ -32,6 +32,8 @@ science object's counts per second to yield a fluxed science
 spectrum.
 
 The sensitivity function is written to disk as a FITS file.
+This function converts the extracted count spectrum
+to f_lambda units of 1e-17 erg/s/cm^2/Ang.
 
 pypeit_sensfunc
 ---------------
@@ -108,6 +110,18 @@ Here is an actual example::
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T021815.356.fits
       spec1d_UnknownFRBHostY_vlt_fors2_2018Dec05T023349.816.fits
     flux end
+
+If one wishes to modify the :ref:`pypeit_par:FluxCalibratePar Keywords`,
+add a Parameter block at the top of the file, e.g.::
+
+    [fluxcalib]
+       extrap_sens = True
+
+    flux read
+      spec1d_FORS2.2019-07-12T08:11:41.539-FRB190611Host_FORS2_2019Jul12T081141.539.fits VLT_FORS2_300I_sens.fits
+      spec1d_FORS2.2019-07-12T08:34:55.904-FRB190611Host_FORS2_2019Jul12T083455.904.fits
+    flux end
+
 
 pypeit_flux_calib
 -----------------

@@ -8,11 +8,12 @@ from matplotlib.colors import LinearSegmentedColormap, Normalize
 from matplotlib.cm import ScalarMappable
 import matplotlib.transforms as mtransforms
 from matplotlib.widgets import Button, Slider
+from linetools import utils as ltu
 
 from IPython import embed
 
 from pypeit.par import pypeitpar
-from pypeit.core.wavecal import fitting, waveio, wvutils
+from pypeit.core.wavecal import fitting, waveio, wvutils, templates
 from pypeit import utils, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
@@ -28,7 +29,10 @@ operations = dict({'cursor': "Select lines (LMB click)\n" +
                    'c' : "Clear automatically identified lines",
                    'd' : "Delete all line identifications (start from scratch)",
                    'f' : "Fit the wavelength solution",
+                   'g' : "Toggle ghost solution (show predicted line positions when wavelength is on the x-axis)",
+                   'h' : "Reset ghost parameters",
                    'l' : "Load saved line IDs from file",
+                   'm' : "Select a line",
                    'r' : "Refit a line",
                    's' : "Save current line IDs to a file",
                    'w' : "Toggle wavelength/pixels on the x-axis of the main panel",
@@ -45,7 +49,8 @@ class Identify(object):
     file.
     """
 
-    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=0, wv_calib=None):
+    def __init__(self, canvas, axes, spec, specres, detns, line_lists, par, lflag_color,
+                 slit=0, spatid='0', wv_calib=None):
         """Controls for the Identify task in PypeIt.
 
         The main goal of this routine is to interactively identify arc lines
@@ -71,6 +76,8 @@ class Identify(object):
             List of colors used for plotting
         slit : int
             The slit to be used for wavelength calibration
+        spatid : str
+            Spatial ID corresponding to slit
         wv_calib : :obj:`dict`, None, optional
             If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
         """
@@ -84,6 +91,7 @@ class Identify(object):
         self.plotx = self.specx.copy()
         # Detections, linelist, line IDs, and fitting params
         self._slit = slit
+        self._spatid = spatid
         self._detns = detns
         self._detnsy = self.get_ann_ypos()  # Get the y locations of the annotations
         self._line_lists = line_lists
@@ -125,6 +133,7 @@ class Identify(object):
         canvas.mpl_connect('button_press_event', self.button_press_callback)
         canvas.mpl_connect('key_press_event', self.key_press_callback)
         canvas.mpl_connect('button_release_event', self.button_release_callback)
+        canvas.mpl_connect('motion_notify_event', self.motion_notify_event)
         self.canvas = canvas
         self.background = self.canvas.copy_from_bbox(self.axes['main'].bbox)
 
@@ -137,10 +146,19 @@ class Identify(object):
         self._fitr = None  # Matplotlib shaded fit region (for refitting lines)
         self._fitregions = np.zeros(self.specdata.size, dtype=np.int)  # Mask of the pixels to be included in a fit
         self._addsub = 0   # Adding a region (1) or removing (0)
+        self._msedown = False  # Is the mouse button being held down (i.e. dragged)
         self._respreq = [False, None]  # Does the user need to provide a response before any other operation will be permitted? Once the user responds, the second element of this array provides the action to be performed.
         self._qconf = False  # Confirm quit message
         self._changes = False
         self._wavepix = 1   # Show wavelength (0) or pixels (1) on the x-axis of the main panel
+        # Setup ghost properties
+        # The ghost params correspond to the central wavelength and dispersion, as measured at the middle pixel of the display
+        self._ghosttrans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
+        self._ghostmode = False  # Display a ghost wavelength solution
+        self._ghostdown = False
+        self._ghostparam = [0.0, 1.0]  # Ghost params [shift, scale] = [wavecen, disp]
+        self.gstlines = []
+        self.gsttexts = []
 
         # If an initial solution is available, load it
         if wv_calib is not None:
@@ -149,6 +167,120 @@ class Identify(object):
 
         # Draw the spectrum
         self.replot()
+
+    @classmethod
+    def initialise(cls, arccen, slits, slit=0, par=None, wv_calib_all=None, wavelim=None, nonlinear_counts=None):
+        """Initialise the 'Identify' window for real-time wavelength calibration
+
+        .. todo::
+
+            * Implement multislit functionality
+
+        Parameters
+        ----------
+        arccen : ndarray
+            Arc spectrum
+        slits : :class:`SlitTraceSet`
+            Data container with slit trace information
+        slit : int, optional
+            The slit to be used for wavelength calibration
+        par : :obj:`int`, optional
+            The slit to be used for wavelength calibration
+        wv_calib_all : :obj:`dict`, None, optional
+            If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
+        wavelim : :obj:`list`, None, optional
+            A two element list containing the desired minimum and maximum wavelength of the linelist
+
+        Returns
+        -------
+        object : :class:`Identify`
+            Returns an instance of the :class:`Identify` class, which contains the results of the fit
+        """
+
+        # Double check that a WavelengthSolutionPar was input
+        par = pypeitpar.WavelengthSolutionPar() if par is None else par
+
+        # If a wavelength calibration has been performed already, load it:
+        msgs.info("Slit ID = {0:d}  (SPAT ID = {1:d})".format(slit, slits.spat_id[slit]))
+        wv_calib = wv_calib_all[str(slits.spat_id[slit])] if wv_calib_all is not None else None
+
+        # Extract the lines that are detected in arccen
+        thisarc = arccen[:, slit]
+        tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
+                                                            nonlinear_counts=nonlinear_counts)
+        detns = tdetns[icut]
+
+        # Load line lists
+        if 'ThAr' in par['lamps']:
+            line_lists_all = waveio.load_line_lists(par['lamps'])
+            line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
+        else:
+            line_lists = waveio.load_line_lists(par['lamps'])
+
+        # Trim the wavelength scale if requested
+        if wavelim is not None:
+            ww = np.ones(len(line_lists), dtype=bool)
+            if wavelim[0] is not None:
+                ww &= line_lists['wave'] > wavelim[0]
+            if wavelim[1] is not None:
+                ww &= line_lists['wave'] < wavelim[1]
+            line_lists = line_lists[ww]
+
+        # Create a Line2D instance for the arc spectrum
+        spec = Line2D(np.arange(thisarc.size), thisarc,
+                      linewidth=1, linestyle='solid', color='k',
+                      drawstyle='steps-mid', animated=True)
+
+        # Add the main figure axis
+        fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
+        plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.65)
+        ax.add_line(spec)
+        ax.set_ylim((0.0, 1.1 * spec.get_ydata().max()))
+
+        # Add two residual fitting axes
+        axfit = fig.add_axes([0.7, .5, .28, 0.35])
+        axres = fig.add_axes([0.7, .1, .28, 0.35])
+        # Residuals
+        lflag_color = ['grey', 'blue', 'yellow', 'red']
+        residcmap = LinearSegmentedColormap.from_list("my_list", lflag_color, N=len(lflag_color))
+        resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
+                               c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
+        axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
+        axres.axhline(0.0, color='r', linestyle='-')  # Zero level
+        axres.set_xlim((0, thisarc.size - 1))
+        axres.set_ylim((-0.3, 0.3))
+        axres.set_xlabel('Pixel')
+        axres.set_ylabel('Residuals (Pix)')
+
+        # pixel vs wavelength
+        respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
+                               c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
+        resfit = Line2D(np.arange(thisarc.size), np.zeros(thisarc.size), linewidth=1, linestyle='-', color='r')
+        axfit.add_line(resfit)
+        axfit.set_xlim((0, thisarc.size - 1))
+        axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
+        axfit.set_xlabel('Pixel')
+        axfit.set_ylabel('Wavelength')
+
+        # Add an information GUI axis
+        axinfo = fig.add_axes([0.15, .92, .7, 0.07])
+        axinfo.get_xaxis().set_visible(False)
+        axinfo.get_yaxis().set_visible(False)
+        axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
+                    horizontalalignment='center', verticalalignment='center')
+        axinfo.set_xlim((0, 1))
+        axinfo.set_ylim((0, 1))
+        specres = dict(pixels=respts, model=resfit, resid=resres)
+
+        axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
+        # Initialise the identify window and display to screen
+        fig.canvas.set_window_title('PypeIt - Identify')
+        ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit,
+                         spatid=str(slits.spat_id[slit]), wv_calib=wv_calib)
+        plt.show()
+
+        # Now return the results
+        return ident
 
     def print_help(self):
         """Print the keys and descriptions that can be used for Identification
@@ -179,6 +311,7 @@ class Identify(object):
         self.toggle_wavepix()
         self.draw_residuals()
         self.draw_lines()
+        self.draw_ghost()
         self.canvas.draw()
 
     def linelist_update(self, val):
@@ -242,11 +375,43 @@ class Identify(object):
         if toggled:
             self.axes['main'].set_xlim([self.plotx.min(), self.plotx.max()])
 
+    def draw_ghost(self):
+        """Draw tick marks at the location of the ghost
+        """
+        for i in self.gstlines:
+            try:
+                i.remove()
+            except TypeError:
+                i[0].remove()
+        for i in self.gsttexts:
+            i.remove()
+        self.gstlines = []
+        self.gsttexts = []
+        # Must have ghost mode on, plotting in wavelength, and have an estimated wavelength solution
+        if not self._ghostmode or self._wavepix != 0 or self._fitdict['fitc'] is None:
+            return
+
+        xmn, xmx = self.axes['main'].get_xlim()
+        cent = 0.5*(xmn+xmx)
+        plotx = cent + (self._lines + self._ghostparam[0] - cent)*self._ghostparam[1]
+
+        # Plot the lines
+        w = np.where((plotx > xmn) & (plotx < xmx))[0]
+        for i in range(w.size):
+            self.gstlines.append(self.axes['main'].plot([plotx[w[i]], plotx[w[i]]], [0.45, 0.55],
+                                                        color='g', transform=self._ghosttrans))
+            txt = "{0:.2f}".format(self._lines[w[i]])
+            self.gsttexts.append(
+                self.axes['main'].annotate(txt, (plotx[w[i]], 0.6), rotation=90.0, alpha=0.5,
+                                 color='g', ha='center', xycoords=self._ghosttrans))
+
     def draw_lines(self):
         """Draw the lines and annotate with their IDs
         """
-        for i in self.annlines: i.remove()
-        for i in self.anntexts: i.remove()
+        for i in self.annlines:
+            i.remove()
+        for i in self.anntexts:
+            i.remove()
         self.annlines = []
         self.anntexts = []
         # Decide if pixels or wavelength is being plotted
@@ -296,6 +461,11 @@ class Identify(object):
             for i in self._fitdict["res_stats"]:
                 i.remove()
             self._fitdict["res_stats"] = []
+
+            # Update the line IDs
+            for ii in range(self._fitdict['pixel_fit'].size):
+                idx = np.argmin(np.abs(self._detns-self._fitdict['pixel_fit'][ii]))
+                self._lineids[idx] = self._fitdict['wave_fit'][ii]
 
             # Extract the fitting info
             wave_soln = self._fitdict['wave_soln']
@@ -347,6 +517,7 @@ class Identify(object):
         self.draw_fitregions(trans)
         self.axes['main'].draw_artist(self.spec)
         self.draw_lines()
+        self.draw_ghost()
 
     def draw_fitregions(self, trans):
         """Refresh the fit regions
@@ -436,22 +607,76 @@ class Identify(object):
             gd_det = np.where((self._lineflg == 1) | (self._lineflg == 2))[0]
             bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
             try:
-                n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
+                #n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
                 final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det,
                                                       self._lineids[gd_det], self._line_lists, bdisp,
-                                                      verbose=False, n_first=self.par['n_first'],
+                                                      verbose=False, n_first=self._fitdict["polyorder"],
                                                       match_toler=self.par['match_toler'],
                                                       func=self.par['func'],
-                                                      n_final=n_final,
+                                                      n_final=self._fitdict["polyorder"], input_only=True,
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])
             except TypeError:
                 wvcalib = None
-                #wvcalib[str(self._slit)] = None
             else:
                 wvcalib = copy.deepcopy(final_fit)
-                #wvcalib[str(self._slit)] = copy.deepcopy(final_fit)
         return wvcalib
+
+    def store_solution(self, final_fit, master_dir, binspec, rmstol=0.15,
+                       specname="SPECNAME", gratname="UNKNOWN", dispangl="UNKNOWN"):
+        """Check if the user wants to store this solution in the reid arxiv
+
+        Parameters
+        ----------
+
+        final_fit : dict
+            Dict of wavelength calibration solutions (see self.get_results())
+        master_dir : str
+            Master directory
+        binspec : int
+            Spectral binning
+        rmstol : float
+            RMS tolerance allowed for the wavelength solution to be stored in the archive
+        specname : str
+            Spectrograph name
+        gratname : str
+            Grating name
+        dispangl : str
+            Dispersor Angle (expressed as a name/string)
+
+        """
+        if 'rms' not in final_fit.keys():
+            msgs.warn("No wavelength solution available")
+            return
+        elif final_fit['rms'] < rmstol:
+            ans = ''
+            while ans != 'y' and ans != 'n':
+                ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
+            if ans == 'y':
+                outroot = templates.pypeit_identify_record(final_fit, binspec, specname, gratname, dispangl, outdir=master_dir)
+                msgs.info("\nYour wavelength solution has been stored here:" + msgs.newline() +
+                          os.path.join(master_dir, outroot) + msgs.newline() + msgs.newline() +
+                          "If you would like to move this to the PypeIt database, please move this file into the directory:" +
+                          msgs.newline() + templates.outpath + msgs.newline() + msgs.newline() +
+                          "Please consider sending your solution to the PypeIt team!" + msgs.newline())
+        else:
+            print("Final fit RMS: {0:0.3f} is larger than the allowed tolerance: {1:0.3f}".format(final_fit['rms'], rmstol))
+            print("Set the variable --rmstol on the command line to allow a more flexible RMS tolerance")
+            ans = ''
+            while ans != 'y' and ans != 'n':
+                ans = input("Would you like to store the line IDs? (y/n): ")
+            if ans == 'y':
+                self.save_IDs()
+        ans = ''
+        while ans != 'y' and ans != 'n':
+            ans = input("Would you like to store a JSON file of the final fit (developers only)? (y/n): ")
+        if ans == 'y':
+            outdict = dict()
+            outdict[self._spatid] = copy.deepcopy(final_fit)
+            jdict = ltu.jsonify(outdict)
+            outname = 'waveids.json'
+            ltu.savejson(outname, jdict, easy_to_read=True, overwrite=True)
+            msgs.info("Wrote: {:s}".format(outname))
 
     def button_press_callback(self, event):
         """What to do when the mouse button is pressed
@@ -467,8 +692,25 @@ class Identify(object):
             self._addsub = 1
         elif event.button == 3:
             self._addsub = 0
+        if event.inaxes == self.axes["main"]:
+            self._msedown = True
         axisID = self.get_axisID(event)
         self._start = self.get_ind_under_point(event)
+        self._startdata = event.xdata
+        self._oldghostscl = self._ghostparam[1]
+
+    def motion_notify_event(self, event):
+        if event.inaxes is None:
+            return
+        self._middata = event.xdata
+        if self._ghostmode and self._msedown:
+            self.update_ghosts()
+            # Now plot
+            trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
+            self.canvas.restore_region(self.background)
+            self.draw_fitregions(trans)
+            # Now replot everything
+            self.replot()
 
     def button_release_callback(self, event):
         """What to do when the mouse button is released
@@ -479,6 +721,7 @@ class Identify(object):
         Returns:
             None
         """
+        self._msedown = False
         if event.inaxes is None:
             return
         if event.inaxes == self.axes['info']:
@@ -503,21 +746,16 @@ class Identify(object):
                 self._end = self.get_ind_under_point(event)
                 if self._end == self._start:
                     # The mouse button was pressed (not dragged)
-                    self._detns_idx = self.get_detns()
-                    if self._fitdict['coeff'] is not None:
-                        # Find closest line
-                        waveest = self.fitsol_value(idx=self._detns_idx)
-                        widx = np.argmin(np.abs(waveest-self._lines))
-                        self.linelist_update(widx)
-                        self._slidell.set_val(self._slideval)
+                    self.operations('m', axisID, event)
                 elif self._end != self._start:
                     # The mouse button was dragged
                     if axisID == 0:
-                        if self._start > self._end:
-                            tmp = self._start
-                            self._start = self._end
-                            self._end = tmp
-                        self.update_regions()
+                        if not self._ghostmode:
+                            if self._start > self._end:
+                                tmp = self._start
+                                self._start = self._end
+                                self._end = tmp
+                            self.update_regions()
         # Now plot
         trans = mtransforms.blended_transform_factory(self.axes['main'].transData, self.axes['main'].transAxes)
         self.canvas.restore_region(self.background)
@@ -541,9 +779,9 @@ class Identify(object):
         if event.inaxes == self.axes['info']:
             return
         axisID = self.get_axisID(event)
-        self.operations(event.key, axisID)
+        self.operations(event.key, axisID, event)
 
-    def operations(self, key, axisID):
+    def operations(self, key, axisID, event):
         """Canvas operations
 
         Args:
@@ -611,6 +849,20 @@ class Identify(object):
             self.replot()
         elif key == 'l':
             self.load_IDs()
+        elif key == 'm':
+            self._end = self.get_ind_under_point(event)
+            self._detns_idx = self.get_detns()
+            # Estimate the wavelength, if a solution is available
+            if self._fitdict['coeff'] is not None:
+                # Find closest line
+                waveest = self.fitsol_value(idx=self._detns_idx)
+                widx = np.argmin(np.abs(waveest - self._lines))
+                self.linelist_update(widx)
+                self._slidell.set_val(self._slideval)
+                # Print to the information panel
+                self.update_infobox(message="Pixel position = {0:.1f}  Estimated wavelength = {1:.3f}".format(
+                    self._detns[self._detns_idx], waveest), yesno=False)
+            self.replot()
         elif key == 'q':
             if self._changes:
                 self.update_infobox(message="WARNING: There are unsaved changes!!\nPress q again to exit", yesno=False)
@@ -631,6 +883,7 @@ class Identify(object):
             self.replot()
         elif key == 'z':
             self.delete_line_id()
+            self.operations('f', axisID, event)
         elif key == '+':
             if self._fitdict["polyorder"] < 10:
                 self._fitdict["polyorder"] += 1
@@ -647,6 +900,15 @@ class Identify(object):
                 self.replot()
             else:
                 self.update_infobox(message="Polynomial order must be >= 1", yesno=False)
+        elif key == 'g':
+            if self._wavepix == 0:
+                self._ghostmode = not self._ghostmode
+                self.replot()
+            else:
+                self.update_infobox(message="To enable ghost mode, you need to identify some lines.\nYou also need to set wavelength as the x-axis scale", yesno=False)
+        elif key == 'h':
+            self._ghostparam = [0.0, 1.0]
+            self.replot()
         self.canvas.draw()
 
     def auto_id(self):
@@ -755,14 +1017,14 @@ class Identify(object):
             xpix = self._detns[gd_det] / self._fitdict["scale"]
             ylam = self._lineids[gd_det]
             self._fitdict["coeff"] = np.polyfit(xpix, ylam, ord)
-            bdisp = self.fitsol_deriv(self.specdata.size / 2)  # Angstroms/pixel at the centre of the spectrum
+            bdisp = self.fitsol_deriv(self.specdata.size / (2*self._fitdict["scale"]))  # Angstroms/pixel at the centre of the spectrum
             # Then try a detailed fit
             try:
                 final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det[0],
                                                       self._lineids[gd_det[0]], self._line_lists, bdisp,
                                                       verbose=False, n_first=min(2, self._fitdict["polyorder"]),
                                                       match_toler=self.par['match_toler'],
-                                                      func=self.par['func'],
+                                                      func=self.par['func'], input_only=True,
                                                       n_final=self._fitdict["polyorder"],
                                                       sigrej_first=self.par['sigrej_first'],
                                                       sigrej_final=self.par['sigrej_final'])
@@ -813,6 +1075,35 @@ class Identify(object):
         """
         self._fitregions[self._start:self._end] = self._addsub
 
+    def update_ghosts(self):
+        """Update the ghosts
+        """
+        if self._addsub == 0:  # RMB
+            # Stretching factor
+            xmn, xmx = self.axes['main'].get_xlim()
+            self._ghostparam[1] = self._oldghostscl*(1.0 + (self._middata - self._startdata) / (xmx - xmn))
+        else:  # LMB
+            if self._wavepix == 0:
+                # Plotting wavelength
+                self._ghostparam[0] = self._middata - self._startdata
+            elif self._fitdict['fitc'] is not None:
+                # Plotting pixels and have a wavelength solution
+                xnorm = self._fitdict['xnorm']
+
+                # Calculate the estimated wavelength of the detections
+                specy = utils.func_val(self._fitdict['fitc'],
+                                       np.array([self._startdata, self._middata]) / xnorm,
+                                       self._fitdict["function"],
+                                       minx=self._fitdict['fmin'],
+                                       maxx=self._fitdict['fmax'])
+                self._ghostparam[0] = specy[1] - specy[0]
+            else:
+                # Plotting pixels, but don't have a wavelength solution
+                scale = (np.max(self._lines) - np.min(self._lines))/self.specx.size # Angstroms per pixel
+                self._ghostparam[0] = (self._middata - self._startdata) * scale # Calculate the shift in Angstroms
+            # grad_orig = self.specx.size / (np.max(self._lines) - np.min(self._lines))
+            # plotx = self._ghostparam[1] * grad_orig * (self._lines - np.min(self._lines) + self._ghostparam[0])
+
     def load_IDs(self, wv_calib=None, fname='waveid.ascii'):
         """Load line IDs
         """
@@ -849,114 +1140,3 @@ class Identify(object):
         ascii_io.write(data, fname, format='fixed_width')
         msgs.info("Line IDs saved as:" + msgs.newline() + fname)
         self.update_infobox(message="Line IDs saved as: {0:s}".format(fname), yesno=False)
-
-
-def initialise(arccen, slit=0, par=None, wv_calib_all=None, wavelim=None):
-    """Initialise the 'Identify' window for real-time wavelength calibration
-
-    .. todo::
-
-        * Implement multislit functionality
-
-    Parameters
-    ----------
-    arccen : ndarray
-        Arc spectrum
-    slit : int, optional
-        The slit to be used for wavelength calibration
-    par : :obj:`int`, optional
-        The slit to be used for wavelength calibration
-    wv_calib_all : :obj:`dict`, None, optional
-        If a best-fitting solution exists, and you wish to load it, provide the wv_calib dictionary.
-    wavelim : :obj:`list`, None, optional
-        A two element list containing the desired minimum and maximum wavelength of the linelist
-
-    Returns
-    -------
-    object
-        Returns an instance of the Identify class, which contains the results of the fit
-    """
-
-    # Double check that a WavelengthSolutionPar was input
-    par = pypeitpar.WavelengthSolutionPar() if par is None else par
-
-    # If a wavelength calibration has been performed already, load it:
-    wv_calib = wv_calib_all[str(slit)] if wv_calib_all is not None else None
-
-    # Extract the lines that are detected in arccen
-    thisarc = arccen[:, slit]
-    tdetns, _, _, icut, _ = wvutils.arc_lines_from_spec(thisarc, sigdetect=par['sigdetect'],
-                                                        nonlinear_counts=par['nonlinear_counts'])
-    detns = tdetns[icut]
-
-    # Load line lists
-    if 'ThAr' in par['lamps']:
-        line_lists_all = waveio.load_line_lists(par['lamps'])
-        line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
-    else:
-        line_lists = waveio.load_line_lists(par['lamps'])
-
-    # Trim the wavelength scale if requested
-    if wavelim is not None:
-        ww = np.ones(line_lists.size, dtype=bool)
-        if wavelim[0] is not None:
-            ww &= line_lists['wave'] > wavelim[0]
-        if wavelim[1] is not None:
-            ww &= line_lists['wave'] < wavelim[1]
-        line_lists = line_lists[ww]
-
-    # Create a Line2D instance for the arc spectrum
-    spec = Line2D(np.arange(thisarc.size), thisarc,
-                  linewidth=1, linestyle='solid', color='k',
-                  drawstyle='steps', animated=True)
-
-    # Add the main figure axis
-    fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")
-    plt.subplots_adjust(bottom=0.05, top=0.85, left=0.05, right=0.65)
-    ax.add_line(spec)
-    ax.set_ylim((0.0, 1.1*spec.get_ydata().max()))
-
-    # Add two residual fitting axes
-    axfit = fig.add_axes([0.7, .5, .28, 0.35])
-    axres = fig.add_axes([0.7, .1, .28, 0.35])
-    # Residuals
-    lflag_color = ['grey', 'blue', 'yellow', 'red']
-    residcmap = LinearSegmentedColormap.from_list("my_list", lflag_color, N=len(lflag_color))
-    resres = axres.scatter(detns, np.zeros(detns.size), marker='x',
-                            c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    axres.axhspan(-0.1, 0.1, alpha=0.5, color='grey')  # Residuals of 0.1 pixels
-    axres.axhline(0.0, color='r', linestyle='-')  # Zero level
-    axres.set_xlim((0, thisarc.size - 1))
-    axres.set_ylim((-0.3, 0.3))
-    axres.set_xlabel('Pixel')
-    axres.set_ylabel('Residuals (Pix)')
-
-    # pixel vs wavelength
-    respts = axfit.scatter(detns, np.zeros(detns.size), marker='x',
-                            c=np.zeros(detns.size), cmap=residcmap, norm=Normalize(vmin=0.0, vmax=3.0))
-    resfit = Line2D(np.arange(thisarc.size), np.zeros(thisarc.size), linewidth=1, linestyle='-', color='r')
-    axfit.add_line(resfit)
-    axfit.set_xlim((0, thisarc.size - 1))
-    axfit.set_ylim((-0.3, 0.3))  # This will get updated as lines are identified
-    axfit.set_xlabel('Pixel')
-    axfit.set_ylabel('Wavelength')
-
-    # Add an information GUI axis
-    axinfo = fig.add_axes([0.15, .92, .7, 0.07])
-    axinfo.get_xaxis().set_visible(False)
-    axinfo.get_yaxis().set_visible(False)
-    axinfo.text(0.5, 0.5, "Press '?' to list the available options", transform=axinfo.transAxes,
-             horizontalalignment='center', verticalalignment='center')
-    axinfo.set_xlim((0, 1))
-    axinfo.set_ylim((0, 1))
-    specres = dict(pixels=respts, model=resfit, resid=resres)
-
-    axes = dict(main=ax, fit=axfit, resid=axres, info=axinfo)
-    # Initialise the identify window and display to screen
-    fig.canvas.set_window_title('PypeIt - Identify')
-    ident = Identify(fig.canvas, axes, spec, specres, detns, line_lists, par, lflag_color, slit=slit, wv_calib=wv_calib)
-    plt.show()
-
-    # Now return the results
-    return ident
-

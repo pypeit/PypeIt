@@ -29,6 +29,7 @@ def deimos_flat_files():
 def test_process(deimos_flat_files):
     keck_deimos = load_spectrograph('keck_deimos')
     par = keck_deimos.default_pypeit_par()
+    par['calibrations']['traceframe']['process']['use_biasimage'] = False
     # Instantiate
     traceImage = buildimage.buildimage_fromlist(keck_deimos, 1, par['calibrations']['traceframe'],
                                                 deimos_flat_files)

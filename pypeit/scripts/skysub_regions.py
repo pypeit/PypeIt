@@ -11,20 +11,12 @@ Run above the Science/ folder.
 
 import os
 import argparse
-import numpy as np
-from configobj import ConfigObj
 
-from astropy.table import Table
-
-from pypeit import msgs
-from pypeit import slittrace
 from pypeit.core.gui.skysub_regions import SkySubGUI
-from pypeit.core import procimg
-from pypeit.par.util import parse_pypeit_file
-from pypeit.par import PypeItPar
-from pypeit.masterframe import MasterFrame
-from pypeit.spectrographs.util import load_spectrograph
-from pypeit.metadata import PypeItMetaData
+from pypeit.core import flexure
+from pypeit.scripts import utils
+from pypeit import masterframe
+from pypeit.images import buildimage
 
 
 def parser(options=None):
@@ -36,97 +28,56 @@ def parser(options=None):
 
     parser.add_argument('file', type = str, default=None, help='PypeIt file')
     parser.add_argument('--det', default=1, type=int, help="Detector")
+    parser.add_argument('-o', '--overwrite', default=False, action='store_true',
+                        help='Overwrite any existing files/directories')
+    parser.add_argument('-i', '--initial', default=False, action='store_true',
+                        help='Use initial slit edges?')
+    parser.add_argument('-f', '--flexure', default=False, action='store_true',
+                        help='Use flexure corrected slit edges?')
+    parser.add_argument('-s', '--standard', default=False, action='store_true',
+                        help='List standard stars as well?')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def get_science_frame(usrdata):
-    """Find all of the indices that correspond to science frames
-    """
-    sciidx = np.array([], dtype=np.int)
-    cntr = 0
-    print("\nList of science frames:")
-    for tt in range(len(usrdata)):
-        ftype = usrdata['frametype'][tt].split(",")
-        for ff in range(len(ftype)):
-            if ftype[ff] == "science":
-                sciidx = np.append(sciidx, tt)
-                print("  ({0:d}) {1:s}".format(cntr+1, usrdata['filename'][tt]))
-                cntr += 1
-                break
-    # Determine which science frame the user wants
-    if cntr == 1:
-        msgs.info("Only one science frame listed in .pypeit file - using that frame")
-        idx = sciidx[0]
-    else:
-        ans = ''
-        while True:
-            ans = input(" Which frame would you like to select [1-{0:d}]: ".format(cntr))
-            try:
-                ans = int(ans)
-                if 1 <= ans <= cntr:
-                    idx = sciidx[ans-1]
-                    break
-            except ValueError:
-                pass
-            msgs.info("That is not a valid option!")
-    return idx
-
-
 def main(args):
 
-    # Load fits file
-    cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(args.file, runtime=False)
+    # Generate a utilities class
+    info = utils.Utilities(args.file, args.det)
 
-    # Get the raw fits file name
-    sciIdx = get_science_frame(usrdata)
-    fname = data_files[sciIdx]
+    # Interactively select a science frame
+    sciIdx = info.select_science_frame(standard=args.standard)
 
-    # Load the spectrograph
-    cfg = ConfigObj(cfg_lines)
-    spectrograph_name = cfg['rdx']['spectrograph']
-    spectrograph = load_spectrograph(spectrograph_name, ifile=data_files[sciIdx])
-    msgs.info('Loaded spectrograph {0}'.format(spectrograph.spectrograph))
-    spectrograph_cfg_lines = spectrograph.config_specific_par(fname).to_config()
-    par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=cfg_lines)
+    # Load the spectrograph and parset
+    info.load_spectrograph_parset(sciIdx)
 
-    # Get the master key
-    file_base = os.path.basename(fname)
-    ftdict = dict({file_base: 'science'})
-    fitstbl = PypeItMetaData(spectrograph, par, files=[data_files[sciIdx]], usrdata=Table(usrdata[sciIdx]), strict=True)
-    fitstbl.finalize_usr_build(ftdict, setups[0])
-    mkey = fitstbl.master_key(0, det=args.det)
+    # Get the master key and directory
+    mdir, mkey = info.get_master_dirkey()
 
-    # Load the frame data
-    rawimage, _, _, datasec, _ = spectrograph.get_rawimage(fname, args.det)
-    rawimage = procimg.trim_frame(rawimage, datasec < 1)
-    frame = spectrograph.orient_image(rawimage, args.det)
+    # Load the image data
+    frame = info.load_frame(sciIdx)
 
-    # Set paths
-    if par['calibrations']['caldir'] == 'default':
-        mdir = os.path.join(par['rdx']['redux_path'], 'Masters')
-    else:
-        mdir = par['calibrations']['caldir']
-
-    if not os.path.exists(mdir):
-        mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
-        msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
-        mdir = mdir_base
-
-    # Load the slits
-    slits = slittrace.SlitTraceSet.from_master(mkey, mdir)
+    # Load the slits information
+    slits = utils.get_slits(mkey, mdir)
+    spat_flexure = None
+    if args.flexure:
+        spat_flexure = flexure.spat_flexure_shift(frame, slits)
 
     # Derive an appropriate output filename
+    file_base = info.get_basename(sciIdx)
     prefix = os.path.splitext(file_base)
     if prefix[1] == ".gz":
-        prefix = os.path.splitext(prefix[0])[0]
+        outname = os.path.splitext(prefix[0])[0]
     else:
-        prefix = prefix[0]
-    outname = "{0:s}_skyregions.fits".format(prefix)
+        outname = prefix[0]
+    ext = buildimage.SkyRegions.master_file_format
+    regfile = masterframe.construct_file_name(buildimage.SkyRegions, master_key=mkey, master_dir=mdir)
+    regfile = regfile.replace(".{0:s}".format(ext), "_{0:s}.{1:s}".format(outname, ext))
+    #outname = "{0:s}/MasterSkyRegions_{1:s}_{2:s}.fits.gz".format(mdir, mkey, outname)
 
     # Finally, initialise the GUI
-    skyreg = SkySubGUI.initialize(args.det, frame, slits, outname=outname, runtime=False,
-                                  printout=True)
+    skyreg = SkySubGUI.initialize(args.det, frame, slits, info.spectrograph.pypeline, outname=regfile, overwrite=args.overwrite,
+                                  runtime=False, printout=True, initial=args.initial, flexure=spat_flexure)
 
     # Get the results
     skyreg.get_result()

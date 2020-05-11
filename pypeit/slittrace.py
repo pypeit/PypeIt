@@ -198,7 +198,7 @@ class SlitTraceSet(datamodel.DataContainer):
             # TODO: May want nspat to be a required argument given the
             # only other option is this kludge, which should basically
             # never be useful.
-            self.nspat = np.amax(np.append(self.left_init, self.right_init))
+            self.nspat = int(np.amax(np.append(self.left_init, self.right_init)))
         if self.spat_id is None:
             self.spat_id = np.round(self.center[int(np.round(0.5 * self.nspec)), :]).astype(int)
         if self.PYP_SPEC is None:
@@ -281,6 +281,13 @@ class SlitTraceSet(datamodel.DataContainer):
 
     @property
     def slitord_id(self):
+        """
+        Return array of slit_spatId (MultiSlit, IFU) or ech_order (Echelle) values
+
+        Returns:
+            `numpy.ndarray`_:
+
+        """
         if self.pypeline in ['MultiSlit', 'IFU']:
             return self.spat_id
         elif self.pypeline in ['Echelle']:
@@ -346,7 +353,7 @@ class SlitTraceSet(datamodel.DataContainer):
         slit.
 
         The output image has the same shape as the original trace
-        image. Each pixel Each pixel in the image is set to the index
+        image. Each pixel in the image is set to the index
         of its associated slit (i.e, the pixel value is
         :math:`0..N_{\rm slit}-1`). Pixels not associated with any
         slit are given values of -1.
@@ -623,8 +630,8 @@ class SlitTraceSet(datamodel.DataContainer):
         #    if wv_calib[str(spat_id)] is None:
         #        self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
         for islit in range(self.nslits):
-            if wv_calib[str(self.slitord_id[islit])] is None:
-                self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
+            if wv_calib[str(self.slitord_id[islit])] is None or len(wv_calib[str(self.slitord_id[islit])]) == 0:
+                    self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):
         """

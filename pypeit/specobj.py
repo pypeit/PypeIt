@@ -37,7 +37,7 @@ class SpecObj(datamodel.DataContainer):
 
     Args:
         pypeline (str): Name of the PypeIt pypeline method
-            Allowed options are:  MultiSlit, Echelle
+            Allowed options are:  MultiSlit, Echelle, IFU
         DET (int): Detector number
         copy_dict (dict, optional): Used to set the entire internal dict of the object.
             Only used in the copy() method so far.
@@ -332,7 +332,7 @@ class SpecObj(datamodel.DataContainer):
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
-                         airmass=None, longitude=None, latitude=None):
+                         airmass=None, longitude=None, latitude=None, extrap_sens=False):
         """
         Apply a sensitivity function to our spectrum
 
@@ -350,6 +350,8 @@ class SpecObj(datamodel.DataContainer):
             latitude:
                 latitude in degree for observatory
                 Used for extinction correction
+            extrap_sens (bool, optional):
+                Extrapolate the sensitivity function (instead of crashing out)
 
         """
         # Loop on extraction modes
@@ -373,7 +375,11 @@ class SpecObj(datamodel.DataContainer):
             try:
                 sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=True)(wave[wave_mask])
             except ValueError:
-                msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                if extrap_sens:
+                    sensfunc_obs[wave_mask] = interpolate.interp1d(wave_sens, sensfunc, bounds_error=False)(wave[wave_mask])
+                    msgs.warn("our data extends beyond the bounds of your sensfunc. You should be adjusting the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate further and recreate your sensfunc. But we are extrapolating per your direction. Good luck!")
+                else:
+                    msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
                            "further and recreate your sensfunc.")
 

@@ -18,8 +18,8 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa
-from pypeit.core.wavecal import autoid, waveio, templates
-from pypeit.core.gui import identify as gui_identify
+from pypeit.core.wavecal import autoid, waveio
+from pypeit.core.gui.identify import Identify
 from pypeit import utils
 from pypeit import datamodel
 
@@ -105,7 +105,7 @@ class WaveCalib(object):
         self.bpm = msbpm
         if self.bpm is None:
             if msarc is not None:  # Can be None for load;  will remove this for DataContainer
-                self.bpm = msarc.mask 
+                self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
@@ -214,25 +214,13 @@ class WaveCalib(object):
             final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            # TODO: Move this loop to the GUI initalise method
             embed()
             for slit_idx in ok_mask_idx:
-                arcfitter = gui_identify.initialise(arccen, slit=slit_idx, par=self.par)
+                arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
-                if final_fit[str(slit_idx)] is not None:
-                    ans = 'y'
-                    # ans = ''
-                    # while ans != 'y' and ans != 'n':
-                    #     ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
-                    if ans == 'y' and final_fit[str(slit_idx)]['rms'] < self.par['rms_threshold']:
-                        # Store the results in the user reid arxiv
-                        specname = self.spectrograph.spectrograph
-                        gratname = "UNKNOWN"  # input("Please input the grating name: ")
-                        dispangl = "UNKNOWN"  # input("Please input the dispersion angle: ")
-                        templates.pypeit_identify_record(final_fit[str(slit_idx)], self.binspectral, specname, gratname, dispangl)
-                        msgs.info("Your wavelength solution has been stored")
-                        msgs.info("Please consider sending your solution to the PYPEIT team!")
-
+                arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
+                                         specname=self.spectrograph.spectrograph,
+                                         gratname="UNKNOWN", dispangl="UNKNOWN")
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
@@ -252,10 +240,10 @@ class WaveCalib(object):
 
         # Convert keys to spatial system
         self.wv_calib = {}
+        tmp = copy.deepcopy(final_fit)
         for idx in range(self.slits.nslits):
             if str(idx) in final_fit.keys():
                 self.wv_calib[str(self.slits.slitord_id[idx])] = final_fit.pop(str(idx))
-                #self.wv_calib[str(self.slits.spat_id[idx])] = final_fit.pop(str(idx))
 
         # Update mask
         self.update_wvmask()
@@ -268,10 +256,8 @@ class WaveCalib(object):
             for slit_idx in ok_mask_idx:
                 outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
-                try:
-                    autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
-                except:
-                    embed(header='269 of wavecalib')
+                autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])], outfile=outfile)
+
 
         # Return
         self.steps.append(inspect.stack()[0][3])
@@ -334,13 +320,15 @@ class WaveCalib(object):
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
-    def extract_arcs(self):
+    def extract_arcs(self, slitIDs=None):
         """
         Extract the arcs down each slit/order
 
         Wrapper to arc.get_censpec()
 
         Args:
+            slitIDs (:obj:`list`, optional):
+                A list of the slit IDs to extract (if None, all slits will be extracted)
 
         Returns:
             tuple: Returns the following:
@@ -353,7 +341,7 @@ class WaveCalib(object):
         """
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm)
+            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm, slitIDs=slitIDs)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
@@ -531,6 +519,9 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     """
     Main algorithm to build the wavelength image
 
+    Only applied to good slits, which means any non-flagged or flagged
+     in the exclude_for_reducing list
+
     Args:
         spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
@@ -544,9 +535,13 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
         `numpy.ndarray`_: The wavelength image.
     """
     # Setup
-    ok_slits = slits.mask == 0
+    #ok_slits = slits.mask == 0
+    bpm = slits.mask.astype(bool)
+    bpm &= np.invert(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
+    ok_slits = np.invert(bpm)
+    #
     image = np.zeros_like(tilts)
-    slitmask = slits.slit_img(flexure=spat_flexure)
+    slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
     par = wv_calib['par']
     slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
@@ -560,6 +555,8 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     # Unpack some 2-d fit parameters if this is echelle
     for slit_spat in slits.spat_id[ok_slits]:
         thismask = (slitmask == slit_spat)
+        if not np.any(thismask):
+            msgs.error("Something failed in wavelengths or masking..")
         if par['echelle']:
             # TODO: Put this in `SlitTraceSet`?
             order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
@@ -580,7 +577,6 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
                                              iwv_calib['function'],
                                              minx=iwv_calib['fmin'],
                                              maxx=iwv_calib['fmax'])
-
     # Return
     return image
 

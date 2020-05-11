@@ -988,7 +988,10 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
     # NOTE: keck_run_july changes: Added down-weighting of masked parts
     # of the trace.
     # TODO: This feels arbitrary
-    trace_fit_ivar[_trace_bpm] = 0.1
+#    trace_fit_ivar[_trace_bpm] = 0.1
+    trace_fit_ivar[_trace_bpm] = 0.01
+    # JFH Changed this parameter from 0.1 to 0.01 to fix problem with NIRES slit extrapolation. In the future
+    # we may need to make this parameter, but don't touch this number unless you know what you are doing.
 
     for i in range(niter):
         # First recenter the trace using the previous trace fit/data.
@@ -1079,7 +1082,7 @@ def fit_trace(flux, trace_cen, order, ivar=None, bpm=None, trace_bpm=None, weigh
             # locations and lower weight
             if np.any(bpm_fit[:,i]):
                 plt.scatter(trace_coo[i,bpm_fit[:,i]], cen[bpm_fit[:,i],i], marker='o',
-                            color='0.3', s=30, label='Input masked, fit')
+                            color='cornflowerblue', s=30, label='Input masked, fit')
 
             # Plot data masked on input and included in fit using input
             # locations and lower weight, but rejected by the fit

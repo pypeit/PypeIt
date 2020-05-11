@@ -5,6 +5,8 @@ import os
 import glob
 import shutil
 
+from IPython import embed
+
 import numpy as np
 
 import pytest
@@ -14,6 +16,7 @@ from pypeit.pypmsgs import PypeItError
 from pypeit.par.util import parse_pypeit_file
 from pypeit.scripts import setup
 from pypeit.tests.tstutils import dev_suite_required
+from pypeit import pypeit
 
 
 def data_path(filename):
@@ -36,15 +39,13 @@ def test_run_setup():
                           '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
     setup.main(pargs)
 
-    '''
-    setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
-    # Load
-    with open(setup_file, 'r') as infile:
-        setup_dict = yaml.load(infile)
-    # Test
-    assert '01' in setup_dict['A'].keys()
-    assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
-    '''
+    #setup_file = glob.glob(data_path('setup_files/shane_kast_blue*.setups'))[0]
+    ## Load
+    #with open(setup_file, 'r') as infile:
+    #    setup_dict = yaml.load(infile)
+    ## Test
+    #assert '01' in setup_dict['A'].keys()
+    #assert setup_dict['A']['--']['disperser']['name'] == '600/4310'
     # Failures
     pargs2 = setup.parser(['-r', droot, '-s', 'shane_kast_blu', '-c=all',
                               '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
@@ -328,5 +329,32 @@ def test_setup_gemini_gnirs():
     # Clean-up
     shutil.rmtree(setup_dir)
 
+@dev_suite_required
+def test_setup_not_alfosc():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/not_alfosc/grism4')
+    droot += '/ALD'
+    pargs = setup.parser(['-r', droot, '-s', 'not_alfosc'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'not_alfosc*'))
+    ext = [f.split('.')[-1] for f in files]
+    assert np.all([e in ext for e in expected]), \
+        'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Build a PypeIt file
+    pargs = setup.parser(['-r', droot, '-s', 'not_alfosc', '-c', 'A', '-d', data_path('')])
+    setup.main(pargs)
+    pypeit_file = data_path('not_alfosc_A/not_alfosc_A.pypeit')
+    pypeIt = pypeit.PypeIt(pypeit_file, calib_only=True)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+    shutil.rmtree(data_path('not_alfosc_A'))
+
 # TODO: Add other instruments!
+
 

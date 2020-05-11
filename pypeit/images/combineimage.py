@@ -1,4 +1,7 @@
 """ Class to generate an image from one or more files (and other pieces).
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 
 import inspect
@@ -50,35 +53,27 @@ class CombineImage(object):
         if self.nfiles == 0:
             msgs.error('Combineimage requires a list of files to instantiate')
 
-    def run(self, process_steps, bias,
-            flatimages=None,
-            #pixel_flat=None, illum_flat_fit=None,
-            ignore_saturation=False, sigma_clip=True, bpm=None, sigrej=None, maxiters=5,
-            slits=None):
+    def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None):
         """
         Generate a PypeItImage from a list of images
-
-        Mainly a wrapper to coadd2d.weighted_combine()
 
         This may also generate the ivar, crmask, rn2img and mask
 
         Args:
-            process_steps (list):
-            bias (np.ndarray or None):
-                Bias image or instruction
-            pixel_flat (np.ndarray, optional):
-                Flat image
-            illum_flat (np.ndarray, optional):
-                Illumination image
+            bias (:class:`pypeit.images.buildimage.BiasImage`, optional): Bias image
+            flatimages (:class:`pypeit.flatfield.FlatImages`, optional):  For flat fielding
+            dark (:class:`pypeit.images.buildimage.DarkImage`, optional): Dark image
+            slits (:class:`pypeit.slittrace.SlitTraceSet`, optional): Slit object
             sigma_clip (bool, optional):
                 Perform sigma clipping
             sigrej (int or float, optional): Rejection threshold for sigma clipping.
                  Code defaults to determining this automatically based on the number of images provided.
             maxiters (int, optional):
                 Number of iterations for the clipping
-            bpm (np.ndarray, optional):
+            bpm (`numpy.ndarray`_, optional):
                 Bad pixel mask.  Held in ImageMask
-            ignore_saturation (bool, optional):
+            ignore_saturation (:obj:`bool`, optional):
                 If True, turn off the saturation flag in the individual images before stacking
                 This avoids having such values set to 0 which for certain images (e.g. flat calibrations)
                 can have unintended consequences.
@@ -94,8 +89,9 @@ class CombineImage(object):
             # Load raw image
             rawImage = rawimage.RawImage(ifile, self.spectrograph, self.det)
             # Process
-            pypeitImage = rawImage.process(process_steps, self.par, bias=bias, bpm=bpm,
-                                                  flatimages=flatimages, slits=slits)
+            pypeitImage = rawImage.process(self.par, bias=bias, bpm=bpm, dark=dark,
+                                           flatimages=flatimages, slits=slits)
+            #embed(header='96 of combineimage')
             # Are we all done?
             if nimages == 1:
                 return pypeitImage
@@ -167,9 +163,10 @@ class CombineImage(object):
                                                     PYP_SPEC=pypeitImage.PYP_SPEC)
         # Internals
         final_pypeitImage.rawheadlist = pypeitImage.rawheadlist
+        final_pypeitImage.process_steps = pypeitImage.process_steps
 
         nonlinear_counts = self.spectrograph.nonlinear_counts(pypeitImage.detector,
-                                                              apply_gain='apply_gain' in process_steps)
+                                                              apply_gain=self.par['apply_gain'])
         final_pypeitImage.build_mask(saturation=nonlinear_counts)
         # Return
         return final_pypeitImage

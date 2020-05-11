@@ -2,36 +2,12 @@
 """
 import numpy as np
 
-from pypeit import msgs
 from pypeit import spectrographs
+from pypeit import msgs
 from IPython import embed
 
 # TODO: Allow the spectrographs to be identified by their camera?  Won't
 # work for 'shane_kast_red' and 'shane_kast_red_ret'.
-
-
-def valid_spectrographs():
-    """
-    Return a list of allowed spectrograph names
-
-    Returns:
-        list:  Allowed spectrograph names
-
-    """
-    # TODO: Is there a more clever way to do this?  If we change these
-    # names, we could do something like what's done in
-    # pypeit.instantiate_me.
-    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
-            'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
-            'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores', 'wht_isis_blue',
-            'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir', 'vlt_fors2',
-            'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2', 'gemini_gmos_south_ham',
-            'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
-            'magellan_fire', 'magellan_fire_long', 'magellan_mage',
-            'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'lbt_luci1', 'lbt_luci2',
-            'mmt_binospec', 'mdm_osmos_mdm4k']
-    # There are no such spectrographs defined
-            #'keck_hires_blue']
 
 
 def load_spectrograph(spectrograph):
@@ -164,6 +140,9 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'mdm_osmos_mdm4k':
         return spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
+
+    if spectrograph == 'not_alfosc':
+        return spectrographs.not_alfosc.NOTALFOSCSpectrograph()
 
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 

@@ -24,11 +24,10 @@ def parser(options=None):
     parser.add_argument('-t', '--hdrframetype', default=False, action='store_true',
                         help='Use file headers and the instument-specific keywords to determine'
                              'the type of each frame')
-    parser.add_argument('-r', '--sort_dir', default=None,
-                        help='Directory used to store the sorted files.  Default is to omit '
-                             'writing these files.')
-    parser.add_argument('-m', '--use_masters', default=False, action='store_true',
-                        help='Load previously generated MasterFrames')
+    parser.add_argument('-r', '--redux_path', default=None,
+                        help='Path to directory for the reduction.  Only advised for testing')
+    parser.add_argument('-m', '--do_not_reuse_masters', default=False, action='store_true',
+                        help='Do not load previously generated MasterFrames, even ones made during the run.')
     parser.add_argument('-s', '--show', default=False, action='store_true',
                         help='Show reduction steps via plots (which will block further execution until clicked on) '
                              'and outputs to ginga. Requires remote control ginga session via "ginga --modules=RC &"')
@@ -41,6 +40,8 @@ def parser(options=None):
 #    group.add_argument('-c', '--calcheck', default=False, action='store_true',
 #                       help='Run pypeit only as a check on the calibrations')
     group.add_argument('-d', '--detector', default=None, help='Detector to limit reductions on.  If the output files exist and -o is used, the outputs for the input detector will be replaced.')
+    parser.add_argument('-c', '--calib_only', default=False, action='store_true',
+                         help='Only run on calibrations')
 
 #    parser.add_argument('-q', '--quick', default=False, help='Quick reduction',
 #                        action='store_true')
@@ -76,7 +77,10 @@ def main(args):
 
     # Instantiate the main pipeline reduction object
     pypeIt = pypeit.PypeIt(args.pypeit_file, verbosity=args.verbosity,
-                           reuse_masters=args.use_masters, overwrite=args.overwrite,
+                           reuse_masters=~args.do_not_reuse_masters,
+                           overwrite=args.overwrite,
+                           redux_path=args.redux_path,
+                           calib_only=args.calib_only,
                            logname=logname, show=args.show)
 
     # JFH I don't see why this is an optional argument here. We could allow the user to modify an infinite number of parameters
@@ -86,7 +90,10 @@ def main(args):
         msgs.info("Restricting reductions to detector={}".format(args.detector))
         pypeIt.par['rdx']['detnum'] = int(args.detector)
 
-    pypeIt.reduce_all()
+    if args.calib_only:
+        pypeIt.calib_all()
+    else:
+        pypeIt.reduce_all()
     msgs.info('Data reduction complete')
     # QA HTML
     msgs.info('Generating QA HTML')

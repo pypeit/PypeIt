@@ -33,7 +33,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
 * `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
-* `yaml <https://pyyaml.org/>`_ -- version 5.1
+* `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
@@ -41,7 +41,7 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 
 If you are using Anaconda, you can check the presence of these packages with::
 
-	conda list "^python$|numpy|astropy$|scipy$|matplotlib|numba|PyQT|ginga|yaml|h5py"
+	conda list "^python$|numpy|astropy$|scipy$|matplotlib|numba|PyQT|ginga|pyyaml|h5py"
 
 If the packages have been installed, this command should print out all the packages and their version numbers.
 
@@ -74,6 +74,9 @@ This will push the code into your Python distribution.
 PypeIt
 ======
 
+pip
+---
+
 Read all of the text in this sub-section before choosing how you
 wish to install `PypeIt`.
 
@@ -82,8 +85,15 @@ we recommend that you install PypeIt with `pip`::
 
     pip install pypeit
 
-Nuff said.  If you have not yet satisfied all the requirements, PypeIt will fail
-when you first attempt to run it.   Try it::
+Nuff said, or so we thought because this does not seem to work on all
+OS systems. If that includes you then do::
+
+    pip install git+https://github.com/pypeit/PypeIt.git
+
+And if that fails, let us know.
+
+If you have not yet satisfied all the requirements, PypeIt will fail
+when you first attempt to run it.   Try::
 
     run_pypeit -h
 
@@ -96,6 +106,9 @@ where path is to wherever `pip` installed the code.  Or you can download the
 `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`_ file
 and run on it directly.
 
+git clone
+---------
+
 However, if you are going to use development branches (common, we fear)
 then you will need to install via GitHub::
 
@@ -106,6 +119,30 @@ And we then recommend you install with::
     python setup.py develop
 
 Again, do a test run as above to check you have all the requirements.
+
+C code
+------
+
+Significant speed gains in PypeIt can be enabled via compilation of
+the C code version of the b-spline fitting code. Compilation of the C
+code should happen automatically when you execute `pip install` or
+`python setup.py`. You can check that the C code was compiled
+successfully by running the `pypeit_c_enabled` script. What you
+should see is::
+
+    $ pypeit_c_enabled
+    Successfully imported bspline C utilities.
+
+If no message is printed, the C code could not be imported.
+
+Some notes if you have problems installing the C code:
+
+    - the code will still run successfully by falling back to slower,
+      pure-python implementations
+    - to successfully compile the C code, you may need to update
+      `gcc` and/or `Xcode` for Mac users
+    - for some Mac users, you may also need to update your OS if
+      you're using a particularly old version (e.g., 10.10 Yosemite)
 
 Testing the Installation
 ========================
