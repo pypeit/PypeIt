@@ -404,7 +404,6 @@ class CoAdd2D(object):
         caliBrate = calibrations.Calibrations(None, self.par['calibrations'], self.spectrograph, None)
         caliBrate.slits = pseudo_dict['slits']
 
-        #embed(header='407 of coadd2d')
 
         redux=reduce.Reduce.get_instance(sciImage, self.spectrograph, parcopy, caliBrate,
                                          'science_coadd2d', ir_redux=self.ir_redux, det=self.det, show=show)
@@ -427,12 +426,15 @@ class CoAdd2D(object):
 
         if show:
             redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
+
         # Object finding
         # HACK ME!
         #from pypeit.par import pypeitpar
         #self.par['reduce']['extraction']['manual'] = [pypeitpar.ManualExtractionPar(spec=0.712, spat=0.5, fwhm=3., det=1)]
-        hand_extract_dict = dict(hand_extract_spec=[0.2], hand_extract_spat=[0.712], hand_extract_det=[1],
-                                 hand_extract_fwhm=[3.])
+        #hand_extract_dict = dict(hand_extract_spec=[0.2], hand_extract_spat=[0.712], hand_extract_det=[1],
+        #                         hand_extract_fwhm=[3.])
+        hand_extract_dict = dict(hand_extract_spec=[0.2], hand_extract_spat=[0.160], hand_extract_det=[1],
+                                 hand_extract_fwhm=[3.]) # neg
         sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks, manual_extract_dict=hand_extract_dict)
 
         # Local sky-subtraction
