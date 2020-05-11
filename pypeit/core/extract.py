@@ -1871,15 +1871,18 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         except TypeError:
             std_in = None
 
-        # Hand
-        new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-        for ss, f_spat, f_spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
+        # Deal with hand extract -- Turn relative into absolute
+        if hand_extract_dict is not None:
+            new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
+            for ss, f_spat, f_spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
                                       hand_extract_dict['hand_extract_spat'],
                                       hand_extract_dict['hand_extract_spec']):
-            ispec = int(f_spec * nspec)
-            new_hand_extract_dict['hand_extract_spec'][ss] = ispec
-            new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
-                slit_righ[ispec,iord]-slit_left[ispec,iord])
+                ispec = int(f_spec * nspec)
+                new_hand_extract_dict['hand_extract_spec'][ss] = ispec
+                new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
+                    slit_righ[ispec,iord]-slit_left[ispec,iord])
+        else:
+            new_hand_extract_dict = None
 
         # Run
         sobjs_slit, skymask_objfind[gpmmask] = \
