@@ -3,6 +3,13 @@
 1.0.4dev
 --------
 
+ - Coadd2D bug fixes
+ - Coadd2D without spec1d files
+ - Coadd2D offsets
+ - Coadd2D docs
+ - Manual extraction for Echelle
+
+
 
 1.0.3 (04 May 2020)
 -------------------

@@ -861,6 +861,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
     # single slit???
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
         """
+        ..todo..  I need a doc string
 
         Args:
             slitid:
