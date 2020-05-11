@@ -2056,7 +2056,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     mask_box = np.zeros((nspec, norders, nobj))
     SNR_arr = np.zeros((norders, nobj))
     slitfracpos_arr = np.zeros((norders, nobj))
-    embed(header='2058 of extract')
     for iobj in range(nobj):
         for iord in range(norders):
             iorder_vec = order_vec[iord]
