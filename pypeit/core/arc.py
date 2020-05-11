@@ -433,7 +433,7 @@ def resize_spec(spec_from, nspec_to):
 
 
 def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_counts=1e10,
-                slit_bpm=None):
+                slit_bpm=None, slitIDs=None):
     """
     Extract a boxcar spectrum down the center of the slit
 
@@ -457,6 +457,8 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
             spatial direction used to extract the arc.
         nonlinear_counts (:obj:`float`, optional):
             Values exceeding this input value are masked as bad.
+        slitIDs (:obj:`list`, optional):
+            A list of the slit IDs to extract (if None, all slits will be extracted)
 
     Returns:
         Returns three numpy.ndarray objects:
@@ -480,6 +482,10 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
     nspat = arcimg.shape[1]
     spat = np.arange(nspat)
     for islit in range(nslits):
+        # Check if this slit is to be extracted
+        if slitIDs is not None and islit not in slitIDs:
+            continue
+        # Check if this slit is masked
         if slit_bpm is not None and slit_bpm[islit]:
             msgs.info('Ignoring masked slit {}'.format(islit))
             # TODO -- Avoid using NaNs

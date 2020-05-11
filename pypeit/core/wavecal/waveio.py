@@ -268,8 +268,13 @@ def load_line_lists(lines, unknown=False, skip=False, all=False, NIST=False):
             line_file = line_path+'{:s}_lines.dat'.format(line)
         if not os.path.isfile(line_file):
             if not skip:
+                line_files = glob.glob(line_path + '*_lines.dat')
+                all_list = [os.path.split(ll)[1].replace("_lines.dat", "") for ll in line_files]
+                msgs.warn("Input line {:s} is not included in arclines".format(line))
+                msgs.info("Please choose from the following list:" + msgs.newline() +
+                          ",".join(all_list))
                 import pdb; pdb.set_trace()
-                raise IOError("Input line {:s} is not included in arclines".format(line))
+                raise IOError("Cannot continue without list")
         else:
             lists.append(load_line_list(line_file, NIST=NIST))
     # Stack

@@ -44,8 +44,8 @@ import os
 import warnings
 import textwrap
 import sys
-if sys.version > '3':
-    long = int
+
+from IPython import embed
 
 import numpy
 
@@ -824,7 +824,7 @@ class ParSet(object):
                 # Don't write Nones
                 continue
             if isinstance(value, ParSet):
-                if verbose:
+                if not quiet:
                     warnings.warn('ParSets within ParSets are not written to headers!  '
                                   'Skipping {0}.'.format(key))
                 continue

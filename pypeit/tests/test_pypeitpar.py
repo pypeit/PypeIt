@@ -35,6 +35,9 @@ def test_coadd1d():
 def test_coadd2d():
     pypeitpar.Coadd2DPar()
 
+def test_cube():
+    pypeitpar.CubePar()
+
 def test_fluxcalibrate():
     pypeitpar.FluxCalibratePar()
 

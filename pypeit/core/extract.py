@@ -200,6 +200,9 @@ def extract_boxcar(sciimg, ivar, mask, waveimg, skyimg, rn2_img, box_radius, spe
 
     spec_vec = np.arange(nspec)
     spat_vec = np.arange(nspat)
+    if spec.trace_spec is None:
+        spec.trace_spec = spec_vec
+
     # TODO This makes no sense for difference imaging? Not sure we need NIVAR anyway
     var_no = np.abs(skyimg - np.sqrt(2.0) * np.sqrt(rn2_img)) + rn2_img
 
@@ -1083,7 +1086,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         thismask:  boolean ndarray
             Boolean mask image specifying the pixels which lie on the
             slit/order to search for objects on.  The convention is:
-            True = on the slit/order, False  = off the slit/order
+            True = on the slit/order, False = off the slit/order
         slit_left:  float ndarray
             Left boundary of slit/order to be extracted (given as
             floating pt pixels). This a 1-d array with shape (nspec, 1)
