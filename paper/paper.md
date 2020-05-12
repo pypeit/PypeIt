@@ -62,9 +62,9 @@ the most up-to-date information.
 Release v1.0.3 serves the following spectrographs:
 Gemini/GNIRS, Gemini/GMOS, Gemini/FLAMINGOS 2, Lick/Kast, Magellan/MagE,
 Magellan/Fire, MDM/OSMOS, Keck/DEIMOS (600ZD, 830G, 1200G), Keck/LRIS,
-Keck/MOSFIRE (J and Y gratings tested), Keck/NIRES, Keck/NIRSPEC
+Keck/MOSFIRE (Y, J, K gratings tested), Keck/NIRES, Keck/NIRSPEC
 (low-dispersion), LBT/Luci-I, Luci-II, LBT/MODS (beta), NOT/ALFOSC (grism4),
-VLT/X-Shooter (VIS, NIR), VLT/FORS2 (300I, 300V), WHT/ISIS.
+VLT/X-Shooter (VIS, NIR), VLT/FORS2 (300I, 300V). 
 
 This v1.0 release of ``PypeIt`` is designed to be used by both advanced
 spectroscopists with prior data reduction expertise and astronomers with
@@ -74,40 +74,32 @@ can accomodate longslit, multislit, as well as cross-dispersed echelle
 spectra. It has already enabled several scientific publications
 [@hsyu2018; @eilers2018; @eilers2020; @wang2020; @yang2020a; @yang2020b].
 
-In order to successful reduce your data with ``PypeIt``, we recommend that
+In order to successfully reduce your data with ``PypeIt``, we recommend that
 you obtain the following calibration frames as a minimum, using these
 guidelines:
 
-(i) Flat frames (at least 1 frame, and ideally more than 5) to be used for slit edge tracing and relative
-pixel efficiency correction. These frames should be acquired with
-the same slit width and setup as your science frames.
+(i) Flat frames (at least 1 frame, and ideally more than 5) to be used for slit/order edge tracing and relative
+pixel efficiency correction. These frames should be acquired with the same slit width and setup as your science frames.
 
-(ii) Arc frames (at least 1 frame, and ideally ~3 to improve S/N of weak lines) to be used for wavelength calibration. Please see
-the online ``PypeIt`` documentation for suggestions about the choice of
-lamps that you should use for your instrument/setup. These frames
-should be acquired with the same slit width and setup as your
-science frames.
+(ii) Arc frames (at least 1 frame, and ideally ~3 to improve S/N of weak lines) to be used for wavelength calibration.  Please see the online ``PypeIt`` documentation for suggestions about the choice of lamps that you should use for your instrument/setup. These frames should be acquired with the same slit width and setup as your science frames.
+For the near-IR PypeIt uses sky lines for wavelength calibration so arcs are not required. 
 
 Depending on your science goal, and the instrument being used, you may
 also require the following optional frames:
 
-(iii) Bias frames (ideally 10 frames) should be acquired with a 0 second exposure
+(iii) Bias or Dark frames (ideally 10 frames) should be acquired with a 0 second exposure
 with the shutter closed, while dark frames (ideally 3 frames) should be acquired
 with the shutter closed, ideally with an exposure time of equal
 duration to your science frames.
 
 (iv) Twilight sky frames (ideally 3 frames) using a slit width of equal size to your
-science frames. These frames are generally useful if you are using
-blue setups, or if the halogen lamp provided with the instrument does
-not produce a significant flux of blue photons.
+science frames. These frames are used to construct slit illumination functions for situations where the internal or dome flats: either produce a different illumination function than the sky (i.e. often for internals) or suffer from insufficient counts (often an issue in the blue). 
 
 (v) Pixel flat frames (ideally more than 3) which are taken with the
 detectors uniformly illuminated (or, with a slit width larger than that
 taken with the science frames).
 
-(vi) Standard star frames (at least 1 frame, ideally 3) to calibrate
-your spectrum (depending on your science goal, this may be a flux,
-color, or velocity standard).
+(vi) Standard star frames (at least 1 frame, ideally 3) to calibrate your spectrum (depending on your science goal, this may be a flux, telluric, color, or velocity standard).
 
 After the creation of a custom input/configuration file, the pipeline
 runs end-to-end to convert raw spectroscopic images into calibrated,
@@ -133,7 +125,7 @@ calibration frames.
 slit is uniformly illuminated by either a halogen lamp or a spectrum
 of the twilight sky (especially for blue setups).
 
-(4) A master arc frame is used for wavelength calibration and to
+(4) A master arc frame (or the science data in the near-IR) is used for wavelength calibration and to
 generate a map of the wavelength solution across the entire detector.
 This accounts for the spectral tilt across the slit. ``PypeIt`` contains
 an archive of wavelength solutions that are used to determine the
@@ -151,14 +143,13 @@ trace image is also used to calculate the spatial flexure of
 each frame relative to the master flat frame.
 
 (6) The above calibrations are applied to every science and standard star frame.
-``PypeIt`` simultaneously performs the object extraction and sky
-subtraction, using an improved version of the `@kelson2003` approach.
-A two-dimensional model of the sky is first constructed using the spectral
+``PypeIt`` jointly performs the object extraction and b-spline `@kelson2003` sky
+subtraction.  A two-dimensional model of the sky is first constructed using the spectral
 tilt map, including a robust fit to separate the signal of the
 science target from the sky background emission. This sky
 model is locally refined around the science target during
 spectrum extraction. The algorithm we have developed for ``PypeIt``
-reaches the Poisson limit (see Figure \autoref{fig:skysub}).
+achieves Poisson limited sky-subtraction (see Figure \autoref{fig:skysub}).
 ``PypeIt`` then performs a boxcar and an
 optimal extraction to generate 1D science spectra. The final
 output of this procedure is a series of fully reduced one- and
@@ -194,8 +185,10 @@ currently working towards implementing the following additional
 spectrographs:
 Keck/DEIMOS (all gratings)
 Keck/KCWI,
-Keck/MOSFIRE (all gratings),
+Keck/MOSFIRE (all setups),
 Keck/NIRSPEC (new detector + high resolution),
+Keck/ESI, 
+Keck/HIRES, 
 Magellan/IMACS,
 MMT/BinoSpec,
 VLT/UVES.
@@ -207,8 +200,7 @@ conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 # Acknowledgements
 
-We acknowledge intellectual contributions from Scott Burles,
-Rob Simcoe, and David Schlegel.
+We acknowledge intellectual contributions from Scott Burles, Rob Simcoe, and David Schlegel.
 
 ``PypeIt`` has been financially supported by the University of California
 Observatories. J. F. H. also acknowledges support from 
