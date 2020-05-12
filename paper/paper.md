@@ -24,7 +24,7 @@ authors:
   - name: Tiffany Hsyu
     orcid: 0000-0002-0462-3139
     affiliation: 1
-- name: Frederick B. Davies 
+  - name: Frederick B. Davies 
     orcid: 0000-0003-0821-3644
     affiliation: "2, 7"
   - name: Emanuele Paolo Farina
