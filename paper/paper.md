@@ -20,13 +20,16 @@ authors:
     affiliation: 5
   - name: Feige Wang
     orcid: 0000-0002-7633-431X
-    affiliation: 6
+    affiliation: "2, 6"
+  - name: Frederick B. Davies 
+    orcid: 0000-0003-0821-3644
+    affiliation: "2, 7"
+  - name: Emanuele Paolo Farina
+    orcid: 0000-0002-6822-2254
+    affiliation: "2, 8"
   - name: Tiffany Hsyu
     orcid: 0000-0002-0462-3139
     affiliation: 1
-  - name: Emanuele Paolo Farina
-    orcid: 0000-0002-6822-2254
-    affiliation: 7
 affiliations:
  - name: University of California, Santa Cruz
    index: 1
@@ -40,8 +43,10 @@ affiliations:
    index: 5
  - name: Steward Observatory, University of Arizona
    index: 6
- - name: Max Planck Institut f\"ur Astrophysik
+ - name: Lawrence Berkeley National Laboratory
    index: 7
+ - name: Max Planck Institut f\"ur Astrophysik
+   index: 8
 date: 08 April 2020
 bibliography: paper.bib
 ---
