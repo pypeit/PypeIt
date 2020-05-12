@@ -21,15 +21,15 @@ authors:
   - name: Feige Wang
     orcid: 0000-0002-7633-431X
     affiliation: "2, 6"
-  - name: Frederick B. Davies 
+  - name: Tiffany Hsyu
+    orcid: 0000-0002-0462-3139
+    affiliation: 1
+- name: Frederick B. Davies 
     orcid: 0000-0003-0821-3644
     affiliation: "2, 7"
   - name: Emanuele Paolo Farina
     orcid: 0000-0002-6822-2254
     affiliation: "2, 8"
-  - name: Tiffany Hsyu
-    orcid: 0000-0002-0462-3139
-    affiliation: 1
 affiliations:
  - name: University of California, Santa Cruz
    index: 1
