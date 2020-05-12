@@ -158,7 +158,8 @@ tilt map, including a robust fit to separate the signal of the
 science target from the sky background emission. This sky
 model is locally refined around the science target during
 spectrum extraction. The algorithm we have developed for ``PypeIt``
-reaches the Poisson limit (see Figure \autoref{fig:skysub}).``PypeIt`` then performs a boxcar and an
+reaches the Poisson limit (see Figure \autoref{fig:skysub}).
+``PypeIt`` then performs a boxcar and an
 optimal extraction to generate 1D science spectra. The final
 output of this procedure is a series of fully reduced one- and
 two-dimensional spectra. 
