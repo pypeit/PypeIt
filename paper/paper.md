@@ -201,8 +201,8 @@ MMT/BinoSpec,
 VLT/UVES.
 We are also open to receiving requests to support additional
 spectroscopic instrumentation.
-Join us [on GitHub](https://github.com/pypeit/PypeIt). By using this software, we
-politely request that you abide by our [code of
+Join us [on GitHub](https://github.com/pypeit/PypeIt). We ask those interested in developing and 
+enhancing PypeIt to agree to our [code of
 conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 
 # Acknowledgements
