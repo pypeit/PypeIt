@@ -818,7 +818,7 @@ class Coadd1DPar(ParSet):
                  sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
-                 mag_type=None, filter=None, filter_mag=None, filter_mask=None):
+                 mag_type=None, filter=None, filter_mag=None, filter_mask=None, extrap_sens=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -844,6 +844,11 @@ class Coadd1DPar(ParSet):
         descr['flux_value'] = 'If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the ' \
                               'spec1d files. If False, it will coadd the counts.'
 
+        # Fluxed?
+        defaults['extrap_sens'] = False
+        dtypes['extrap_sens'] = bool
+        descr['extrap_sens'] = 'If True (default), the code will barf in Echelle mode if one tries to use ' \
+                               'sensfunc beyond its allowed space.'
 
         # Mask edge pixels?
         defaults['nmaskedge'] = 2
@@ -986,7 +991,7 @@ class Coadd1DPar(ParSet):
                    'samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile',
-                   'filter', 'mag_type', 'filter_mag', 'filter_mask']
+                   'filter', 'mag_type', 'filter_mag', 'filter_mask', 'extrap_sens']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

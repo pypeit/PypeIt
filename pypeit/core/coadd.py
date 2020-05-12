@@ -794,7 +794,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
 
 
 
-def sensfunc_weights(sensfile, waves, debug=False):
+def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
     """
     Get the weights based on the sensfunc
 
@@ -836,9 +836,17 @@ def sensfunc_weights(sensfile, waves, debug=False):
                 sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
                                                            bounds_error=True)(waves_stack[wave_mask, iord, iexp])
             except ValueError:
-                msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                if extrap_sens:
+                    sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
+                                                               bounds_error=False, fill_value=9e99)(
+                        waves_stack[wave_mask, iord, iexp])
+                    msgs.warn("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                               "You may wish to adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
+                               "further and recreate your sensfunc.")
+                else:
+                    msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                           "further and recreate your sensfunc.")
+                           "further and recreate your sensfunc.  Or set extrap_sens=True.")
             weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:
@@ -2286,18 +2294,21 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
+
 def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method='log10',
                  dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0, scale_method='auto',
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
-                 show_exp=False, show=False, verbose=False):
+                 show_exp=False, show=False, verbose=False, extrap_sens=False):
     """
     Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
     three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
     (straight combine of stacked individual orders), spec1d_stack_XX.fits (a giant stack of all exposures and all orders).
     In most cases, you should use spec1d_stack_XX.fits for your scientific analyses since it reject most outliers.
+
+    ..todo.. -- Clean up the doc formatting
 
     Args:
         waves (ndarray):
@@ -2394,6 +2405,8 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
             Show interactive QA plots for the rescaling of the spectra so that the overlap regions match from order to order
         show: bool, default=False,
              Show key QA plots or not
+        extrap_sens (bool, optional):
+            If True, allow the sensitivity function to extrapolate (and ignore it)
 
     Returns:
         tuple: Returns the following:
@@ -2455,7 +2468,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]
     rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
     weights_exp = np.tile(rms_sn_per_exp**2, (nspec, norder, 1))
-    weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
+    weights_sens = sensfunc_weights(sensfile, waves, debug=debug, extrap_sens=extrap_sens)
     weights = weights_exp*weights_sens
     #
     # Old code below for ivar weights if the sensfile was not passed in
@@ -2592,7 +2605,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     ## Stack with an altnernative method: combine the stacked individual order spectra directly. This is deprecated
     merge_stack = False
     if merge_stack:
-        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug)
+        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug, extrap_sens=extrap_sens)
         wave_merge, flux_merge, ivar_merge, mask_merge, nused_merge = compute_stack(
             wave_grid, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders, order_weights)
         if show_order_stacks:
