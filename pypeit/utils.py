@@ -1689,13 +1689,13 @@ def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial'
 
     # Setup the initial mask
     if inmask is None:
-        inmask = np.ones(xarray.size, dtype=bool)
+        inmask = np.ones_like(xarray, dtype=bool)
 
     if weights is None:
         if invvar is not None:
             weights = np.copy(invvar)
         else:
-            weights = np.ones(xarray.size,dtype=float)
+            weights = np.ones_like(xarray,dtype=float)
 
     # Iterate, and mask out new values on each iteration
     ct = guesses
