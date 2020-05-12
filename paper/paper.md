@@ -152,16 +152,25 @@ each frame relative to the master flat frame.
 
 (6) The above calibrations are applied to every science and standard star frame.
 ``PypeIt`` simultaneously performs the object extraction and sky
-subtraction, using an improved version of the [@kelson2003] approach.
+subtraction, using an improved version of the `@kelson2003` approach.
 A two-dimensional model of the sky is first constructed using the spectral
 tilt map, including a robust fit to separate the signal of the
 science target from the sky background emission. This sky
 model is locally refined around the science target during
-spectrum extraction. ``PypeIt`` then performs a boxcar and an
+spectrum extraction. The algorithm we have developed for ``PypeIt``
+reaches the Poisson limit (see Figure \autoref{fig:skysub}).``PypeIt`` then performs a boxcar and an
 optimal extraction to generate 1D science spectra. The final
 output of this procedure is a series of fully reduced one- and
-two-dimensional spectra.
- 
+two-dimensional spectra. 
+
+![PypeIt sky subtraction reaches the Poisson limit. This image shows several two-dimensional
+Keck/DEIMOS spectra (1200G grating). From left to right:
+(1) Raw science frame,
+(2) Processed science frame after a model of the sky emission has been removed,
+(3) Same as previous, but relative to the noise to highlight object spectrum and sky residuals
+(4) Same as previous, but a model of the object is also removed. This produces a final processed 2D frame at the Poisson limit.
+\label{fig:skysub}](skysub.png)
+
 (7) As a final step, the wavelength solution of the one-dimensional
 extracted spectra are corrected for spectral flexure with
 reference to the sky emission lines. The wavelength solution
