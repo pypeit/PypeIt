@@ -10,6 +10,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
+from pypeit.images import detector_container
 
 ## FW ToDo: I subtract the overscan when reading data rather than pasrse it to procimg.py since procimg does not
 ##    support subtracting overscan in both x and y-axis
@@ -27,6 +28,43 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.MMTTelescopePar()
         self.camera = 'BINOSPEC'
         self.numhead = 11
+
+    def get_detector_par(self, hdu, det):
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'CCD_SUM')
+
+        # Detector 1
+        detector_dict1 = dict(
+                            binning         = binning,
+                            det             = 1,
+                            dataext         = 1,
+                            specaxis        = 0,
+                            specflip        = False,
+                            spatflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.24,
+                            darkcurr        = 3.0, ##ToDO: To Be update
+                            saturation      = 65535.,
+                            nonlinear       = 0.95,  #ToDO: To Be update
+                            mincounts       = -1e10,
+                            numamplifiers   = 4,
+                            gain            = np.atleast_1d([1.085,1.046,1.042,0.975]),
+                            ronoise         = np.atleast_1d([3.2,3.2,3.2,3.2]),
+                            )
+        # Detector 2
+        detector_dict2 = detector_dict1.copy()
+        detector_dict2.update(dict(
+            det=2,
+            dataext=2,
+            gain=np.atleast_1d([1.028,1.163,1.047,1.045]),
+            ronoise=np.atleast_1d([3.6,3.6,3.6,3.6])
+        ))
+
+        # Instantiate
+        detector_dicts = [detector_dict1, detector_dict2]
+        return detector_container.DetectorContainer(**detector_dicts[det])
 
     def init_meta(self):
         """
@@ -167,12 +205,12 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading BINOSPEC file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
-        head0 = hdu[0].header
         head1 = hdu[1].header
 
         # TOdO Store these parameters in the DetectorPar.
-        # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-        numamp = 4
+        # Number of amplifiers
+        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...
         binning = head1['CCDSUM']
@@ -240,7 +278,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return np.fliplr(np.flipud(array)), hdu, exptime, np.fliplr(np.flipud(rawdatasec_img)), np.fliplr(np.flipud(oscansec_img))
+        return detector_par, np.fliplr(np.flipud(array)), hdu, exptime, np.fliplr(np.flipud(rawdatasec_img)), \
+               np.fliplr(np.flipud(oscansec_img))
 
 
 def binospec_read_amp(inp, ext):
