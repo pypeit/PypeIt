@@ -1158,15 +1158,17 @@ class IFUReduce(Reduce):
             ndarray: An image containing the appropriate scaling
         """
         msgs.info('Performing a joint flat-field response using all slits')
+        embed()
         # Grab some parameters
         trim = 0  #self.par['calibrations']['flatfield']['slit_trim']
         spec_samp_fine = self.par['calibrations']['flatfield']['spec_samp_coarse']
-        # Get the data needed
-        rawflat = self.caliBrate.flatimages.procflat.copy()
+        # The science frame has been corrected for the illumflat, so correct the rawflat
+        illum_flat = self.caliBrate.flatimages.fit2illumflat(self.slits, initial=True, flexure_shift=self.spat_flexure_shift).copy()
+        rawflat = self.caliBrate.flatimages.procflat.copy() / illum_flat
+        # Grab the BPM and the slit images
         gpm = np.logical_not(self.caliBrate.msbpm)
         slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
         trimmed_slitid_img = self.slits.slit_img(pad=-trim, initial=True, flexure=self.spat_flexure_shift)
-        blaze_model = np.ones_like(rawflat)
         # Find all good slits, and create a mask of pixels to include (True=include)
         wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
         # Obtain the minimum and maximum wavelength of all slits
@@ -1180,6 +1182,12 @@ class IFUReduce(Reduce):
         # Go through the slits and calculate the overlapping flux
         relscl_model = np.ones_like(rawflat)
         scalefact = 1.0
+        # Scale each slit so the median flux (for overlapping wavelengths) is roughly the same
+
+        # TODO :: Need to account for tilt in the scalefactor. Since this is an IFU routine, we can probably just
+        # consider a reference slit, and only use the wavelength range that is consistent among
+        # all slits.
+
         for slit_idx in range(1, self.slits.spat_id.size):
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
             onslit_a_olap = (slitid_img_init == self.slits.spat_id[swslt[slit_idx-1]]) & gpm & \
@@ -1190,50 +1198,11 @@ class IFUReduce(Reduce):
                             (self.waveimg < mnmx_wv[swslt[slit_idx-1], 1])
 
             # Take the median of the overlapping regions
-            print(scalefact, np.median(rawflat[onslit_a_olap])/np.median(rawflat[onslit_b_olap]))
             scalefact *= np.median(rawflat[onslit_a_olap])/np.median(rawflat[onslit_b_olap])
             relscl_model[onslit_b] = scalefact
 
-        # Test how well the above code does
-        # TODO :: DELETE THE DEBUGGING CODE BELOW BEFORE MERGING!!
-        if False:
-            plate_scale = self.get_platescale(None)
-            plt.subplot(211)
-            flat_modl = self.caliBrate.flatimages.flat_model
-            flat_ivar = np.ones_like(flat_modl)
-            glob_skym = np.zeros_like(flat_modl)
-            rn2img = self.sciImg.rn2img
-            for slit_idx in range(0, self.slits.spat_id.size):
-                print(1, slit_idx)
-                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
-                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
-                # Do a boxcar extraction - assume standard is in the middle of the slit
-                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                       self.waveimg, glob_skym, rn2img,
-                                       60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
-                                       relspec)
-                plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
-            plt.plot(wave, flux, 'k--', linewidth=3)
-            plt.subplot(212)
-            flat_modl = self.caliBrate.flatimages.flat_model*relscl_model
-            flat_ivar = np.ones_like(flat_modl)
-            glob_skym = np.zeros_like(flat_modl)
-            rn2img = self.sciImg.rn2img
-            for slit_idx in range(0, self.slits.spat_id.size):
-                print(2, slit_idx)
-                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
-                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
-                # Do a boxcar extraction - assume standard is in the middle of the slit
-                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                       self.waveimg, glob_skym, rn2img,
-                                       60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
-                                       relspec)
-                plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
-            plt.plot(wave, flux, 'k--', linewidth=3)
-            plt.show()
-
-
-
+        # Perform a simultaneous fit to all pixels in all slits to get a "global" shape of the blaze function.
+        # This ensures that the final fit smoothly covers the full wavelength range covered on the detected.
         # Get the pixels containing good slits
         spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
         # Apply the relative scaling
@@ -1265,6 +1234,48 @@ class IFUReduce(Reduce):
                                     nord=4, upper=logrej, lower=logrej,
                                     kwargs_bspline={'bkspace': spec_samp_fine},
                                     kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+
+        # Test how well the above code does
+        # TODO :: DELETE THE DEBUGGING CODE BELOW BEFORE MERGING!!
+        if False:
+            wave = np.linspace(self.waveimg[self.waveimg != 0].min(), self.waveimg.max(), 10000)
+            flux = np.exp(spec_bspl.value(wave))[0]
+            plate_scale = self.get_platescale(None)
+            plt.subplot(211)
+            flat_modl = self.caliBrate.flatimages.flat_model
+            flat_ivar = np.ones_like(flat_modl)
+            glob_skym = np.zeros_like(flat_modl)
+            rn2img = self.sciImg.rn2img
+            for slit_idx in range(0, self.slits.spat_id.size):
+                print(1, slit_idx)
+                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
+                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
+                # Do a boxcar extraction - assume standard is in the middle of the slit
+                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+                                       self.waveimg, glob_skym, rn2img,
+                                       60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                       relspec)
+                plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
+            plt.plot(wave, flux, 'k--', linewidth=3)
+            plt.subplot(212)
+            flat_modl = self.caliBrate.flatimages.flat_model*relscl_model
+            flat_ivar = np.ones_like(flat_modl)
+            glob_skym = np.zeros_like(flat_modl)
+            rn2img = self.sciImg.rn2img
+            for slit_idx in range(0, self.slits.spat_id.size):
+                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
+                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
+                # Do a boxcar extraction - assume standard is in the middle of the slit
+                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
+                                       self.waveimg, glob_skym, rn2img,
+                                       60.0,#self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
+                                       relspec)
+                plt.plot(relspec.BOX_WAVE, relspec.BOX_COUNTS / relspec.BOX_NPIX)
+            plt.plot(wave, flux, 'k--', linewidth=3)
+            plt.show()
+
+
+
 
         msgs.info("Generating relative response model image")
         scale_model = np.ones_like(self.caliBrate.flatimages.procflat)

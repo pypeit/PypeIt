@@ -214,6 +214,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
+        par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
 
         # Don't do optimal extraction for 3D data.
         par['reduce']['extraction']['skip_optimal'] = True
