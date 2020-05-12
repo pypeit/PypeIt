@@ -72,7 +72,7 @@ no prior experience of data reduction. It is highly configurable and
 designed to be applied to any standard slit-imaging spectrograph, and
 can accomodate longslit, multislit, as well as cross-dispersed echelle
 spectra. It has already enabled several scientific publications
-[@hsyu2018; @eilers2018; @eilers2020; @wang2020; @yang2020a; @yang2020b].
+[@hsyu2018; @eilers2018; @eilers2020; @wang2020].
 
 In order to successful reduce your data with ``PypeIt``, we recommend that
 you obtain the following calibration frames as a minimum, using these
