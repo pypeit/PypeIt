@@ -1158,9 +1158,8 @@ class IFUReduce(Reduce):
             ndarray: An image containing the appropriate scaling
         """
         msgs.info('Performing a joint flat-field response using all slits')
-        embed()
         # Grab some parameters
-        trim = 0  #self.par['calibrations']['flatfield']['slit_trim']
+        trim = 3  #self.par['calibrations']['flatfield']['slit_trim']
         spec_samp_fine = self.par['calibrations']['flatfield']['spec_samp_coarse']
         # The science frame has been corrected for the illumflat, so correct the rawflat
         illum_flat = self.caliBrate.flatimages.fit2illumflat(self.slits, initial=True, flexure_shift=self.spat_flexure_shift).copy()
@@ -1168,7 +1167,7 @@ class IFUReduce(Reduce):
         # Grab the BPM and the slit images
         gpm = np.logical_not(self.caliBrate.msbpm)
         slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
-        trimmed_slitid_img = self.slits.slit_img(pad=-trim, initial=True, flexure=self.spat_flexure_shift)
+        slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True, flexure=self.spat_flexure_shift)
         # Find all good slits, and create a mask of pixels to include (True=include)
         wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
         # Obtain the minimum and maximum wavelength of all slits
@@ -1187,19 +1186,32 @@ class IFUReduce(Reduce):
         # TODO :: Need to account for tilt in the scalefactor. Since this is an IFU routine, we can probably just
         # consider a reference slit, and only use the wavelength range that is consistent among
         # all slits.
+        embed()
 
+        # Get the minimum and maximum wavelengths that are covered in *all* slits.
+        minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
+        # Prepare slit 0
+        onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
+        onslit_a_olap = onslit_a & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw)
+        wsort = np.argsort(self.waveimg[onslit_a_olap])
+        sclspl = interp1d(self.waveimg[onslit_a_olap][wsort], rawflat[onslit_a_olap][wsort],
+                          kind='linear', bounds_error=False, fill_value="extrapolate")
         for slit_idx in range(1, self.slits.spat_id.size):
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
-            onslit_a_olap = (slitid_img_init == self.slits.spat_id[swslt[slit_idx-1]]) & gpm & \
-                            (self.waveimg > mnmx_wv[swslt[slit_idx], 0]) & \
-                            (self.waveimg < mnmx_wv[swslt[slit_idx], 1])
-            onslit_b      = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
-            onslit_b_olap = onslit_b & (self.waveimg > mnmx_wv[swslt[slit_idx-1], 0]) & gpm & \
-                            (self.waveimg < mnmx_wv[swslt[slit_idx-1], 1])
-
-            # Take the median of the overlapping regions
-            scalefact *= np.median(rawflat[onslit_a_olap])/np.median(rawflat[onslit_b_olap])
-            relscl_model[onslit_b] = scalefact
+            onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
+            onslit_b_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+            onslit_b_olap = onslit_b & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw)
+            speca = sclspl(self.waveimg[onslit_b_olap])
+            # Fit a low order polynomial
+            # _, coeff = utils.robust_polyfit((self.waveimg[onslit_b_olap]-minw)/(maxw-minw),
+            #                                 speca/rawflat[onslit_b_olap], 2, function="legendre", minx=0, maxx=1)
+            # TODO :: Need to do a simple median reject first
+            xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
+            yfit = speca / rawflat[onslit_b_olap]
+            msk = (yfit > 1/3) & (yfit < 3)
+            coeff = utils.func_fit(xfit[msk], yfit[msk], "legendre", 1, minx=0, maxx=1)
+            relscl_model[onslit_b_init] = utils.func_val(coeff, (self.waveimg[onslit_b_init]-minw)/(maxw-minw),
+                                                         "legendre", minx=0, maxx=1)
 
         # Perform a simultaneous fit to all pixels in all slits to get a "global" shape of the blaze function.
         # This ensures that the final fit smoothly covers the full wavelength range covered on the detected.
@@ -1214,7 +1226,7 @@ class IFUReduce(Reduce):
         ivar_log = gpm_log.astype(float)/0.5**2
         # Only include the trimmed set of pixels in the flat-field
         # fit along the spectral direction.
-        spec_gpm = np.isin(trimmed_slitid_img, wgd) & gpm_log  # & (rawflat < nonlinear_counts)
+        spec_gpm = np.isin((slitid_img_trim), wgd) & gpm_log  # & (rawflat < nonlinear_counts)
         spec_nfit = np.sum(spec_gpm)
         spec_ntot = np.sum(spec_tot)
         msgs.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
@@ -1263,6 +1275,7 @@ class IFUReduce(Reduce):
             glob_skym = np.zeros_like(flat_modl)
             rn2img = self.sciImg.rn2img
             for slit_idx in range(0, self.slits.spat_id.size):
+                print(2, slit_idx)
                 relspec = specobj.SpecObj("IFU", self.det, SLITID=slit_idx)
                 relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit_idx] + self.slits_right[:, slit_idx])
                 # Do a boxcar extraction - assume standard is in the middle of the slit
@@ -1279,6 +1292,7 @@ class IFUReduce(Reduce):
 
         msgs.info("Generating relative response model image")
         scale_model = np.ones_like(self.caliBrate.flatimages.procflat)
+        blaze_model = np.ones_like(self.caliBrate.flatimages.procflat)
         if exit_status > 1:
             msgs.warn("Joint blaze fit failed")
         else:
