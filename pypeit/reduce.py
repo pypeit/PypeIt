@@ -1149,13 +1149,20 @@ class IFUReduce(Reduce):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
         self.initialise_slits(initial=True)
 
-    def build_scaleimg(self):
+    def build_scaleimg(self, debug=False):
         """
         Generate a relative scaling image for slit-based IFU.
         All slits are scaled relative to ref_slit
-        TODO :: Consider including this routine in FlatImages
+
+        Parameters
+        ----------
+        debug : bool
+            Debug the routine
+
         Returns:
             ndarray: An image containing the appropriate scaling
+
+        TODO :: Consider including this routine in FlatImages
         """
         msgs.info('Performing a joint flat-field response using all slits')
         # Grab some parameters
@@ -1178,16 +1185,9 @@ class IFUReduce(Reduce):
             mnmx_wv[slit_idx, 1] = np.max(self.waveimg[onslit_init])
         # Sort by increasing minimum wavelength
         swslt = np.argsort(mnmx_wv[:,0])
+
         # Go through the slits and calculate the overlapping flux
         relscl_model = np.ones_like(rawflat)
-        scalefact = 1.0
-        # Scale each slit so the median flux (for overlapping wavelengths) is roughly the same
-
-        # TODO :: Need to account for tilt in the scalefactor. Since this is an IFU routine, we can probably just
-        # consider a reference slit, and only use the wavelength range that is consistent among
-        # all slits.
-        embed()
-
         # Get the minimum and maximum wavelengths that are covered in *all* slits.
         minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
         # Prepare slit 0
@@ -1203,13 +1203,11 @@ class IFUReduce(Reduce):
             onslit_b_olap = onslit_b & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw)
             speca = sclspl(self.waveimg[onslit_b_olap])
             # Fit a low order polynomial
-            # _, coeff = utils.robust_polyfit((self.waveimg[onslit_b_olap]-minw)/(maxw-minw),
-            #                                 speca/rawflat[onslit_b_olap], 2, function="legendre", minx=0, maxx=1)
-            # TODO :: Need to do a simple median reject first
             xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
             yfit = speca / rawflat[onslit_b_olap]
+            # Rough outlier rejection
             msk = (yfit > 1/3) & (yfit < 3)
-            coeff = utils.func_fit(xfit[msk], yfit[msk], "legendre", 1, minx=0, maxx=1)
+            coeff = utils.func_fit(xfit[msk], yfit[msk], "legendre", 2, minx=0, maxx=1)
             relscl_model[onslit_b_init] = utils.func_val(coeff, (self.waveimg[onslit_b_init]-minw)/(maxw-minw),
                                                          "legendre", minx=0, maxx=1)
 
@@ -1247,9 +1245,41 @@ class IFUReduce(Reduce):
                                     kwargs_bspline={'bkspace': spec_samp_fine},
                                     kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
-        # Test how well the above code does
-        # TODO :: DELETE THE DEBUGGING CODE BELOW BEFORE MERGING!!
-        if False:
+        # Redo the scale model, now using the bspline fit
+        scale_model = np.ones_like(self.caliBrate.flatimages.procflat)
+        for slit_idx in range(0, self.slits.spat_id.size):
+            msgs.info("Generating relative response model image for slit {0:d}".format(slit_idx))
+            # Only use the overlapping regions of the slits, where the same wavelength range is covered
+            onslit = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
+            onslit_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+            onslit_gpm = onslit & gpm
+            # Fit a low order polynomial
+            minw, maxw = mnmx_wv[slit_idx, 0], mnmx_wv[slit_idx, 1]
+            xfit = (self.waveimg[onslit_gpm] - minw) / (maxw - minw)
+            yfit = np.exp(spec_bspl.value(self.waveimg[onslit_gpm])[0]) / rawflat[onslit_gpm]
+            srtd = np.argsort(xfit)
+            inmsk = (yfit > 1 / 5) & (yfit < 5)
+            # Rough outlier rejection
+            slit_bspl, _, _, _, exit_status \
+                = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit), np.ones_like(xfit),
+                                        nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
+                                        kwargs_bspline={'bkspace': spec_samp_fine},
+                                        kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+            # TODO : Should probably mask a slit if it fails... but given this is IFU, we're going
+            # to assume we don't need to mask slits...
+            if exit_status > 1:
+                msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
+            else:
+                scale_model[onslit_init] = slit_bspl.value((self.waveimg[onslit_init] - minw) / (maxw - minw))[0]
+
+        if debug:
+            import astropy.io.fits as fits
+            hdu = fits.PrimaryHDU(scale_model)
+            hdu.writeto('scale_model.fits', overwrite=True)
+
+            embed()
+            from matplotlib import pyplot as plt
+            # Test how well the above code does
             wave = np.linspace(self.waveimg[self.waveimg != 0].min(), self.waveimg.max(), 10000)
             flux = np.exp(spec_bspl.value(wave))[0]
             plate_scale = self.get_platescale(None)
@@ -1287,128 +1317,7 @@ class IFUReduce(Reduce):
             plt.plot(wave, flux, 'k--', linewidth=3)
             plt.show()
 
-
-
-
-        msgs.info("Generating relative response model image")
-        scale_model = np.ones_like(self.caliBrate.flatimages.procflat)
-        blaze_model = np.ones_like(self.caliBrate.flatimages.procflat)
-        if exit_status > 1:
-            msgs.warn("Joint blaze fit failed")
-        else:
-            blaze_model[...] = 1.
-            blaze_model[spec_tot] = np.exp(spec_bspl.value(self.waveimg[spec_tot])[0])
-            # Now take out the median scaling
-            blaze_model /= relscl_model
-            # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
-            corr_model = self.caliBrate.flatimages.fit2illumflat(self.slits, initial=True, flexure_shift=self.spat_flexure_shift)
-            corr_model *= self.caliBrate.flatimages.pixelflat
-            scale_model = self.caliBrate.flatimages.procflat/corr_model
-            scale_model /= blaze_model
-        embed()
-        import astropy.io.fits as fits
-        hdu = fits.PrimaryHDU(scale_model)
-        hdu.writeto('scale_model.fits', overwrite=True)
         return scale_model
-
-    def build_scaleimg_old(self, ref_slit, trim=10):
-        """
-        Generate a relative scaling image for slit-based IFU.
-        All slits are scaled relative to ref_slit
-        Args:
-            ref_slit (int):
-                The slit index to be used as a reference
-            trim (int):
-                Trim the pixels towards the edge of the spectrum
-                to avoid edge effects
-        Returns:
-            ndarray: An image containing the appropriate scaling
-        """
-        # Get the plate scale
-        plate_scale = self.get_platescale(None)
-        # Find the slits with the minimum and maximum wavelength
-        mawave = np.ma.masked_array(self.waveimg, mask=self.waveimg == 0)
-        ypixmn, minidx = np.unravel_index(np.ma.argmin(mawave), mawave.shape)
-        ypixmx, maxidx = np.unravel_index(np.ma.argmax(mawave), mawave.shape)
-        wmin = np.where((self.slits_left[ypixmn, :] <= minidx) & (minidx <= self.slits_right[ypixmn, :]))[0]
-        wmax = np.where((self.slits_left[ypixmx, :] <= maxidx) & (maxidx <= self.slits_right[ypixmx, :]))[0]
-        # Check that only one slit satisfies these conditions
-        if wmin.size != 1:
-            msgs.warn("Multiple slits satisfying minimum condition - taking only the first!")
-        if wmax.size != 1:
-            msgs.warn("Multiple slits satisfying maximum condition - taking only the first!")
-
-        # Construct an array of slits to use
-        ref_slits = np.array([ref_slit, wmin[0], wmax[0]])
-
-        # Get the relative scaling (use standard star profile, if available)
-        flat_modl = self.caliBrate.flatimages.flat_model
-        flat_ivar = np.ones_like(flat_modl)
-        glob_skym = np.zeros_like(flat_modl)
-        rn2img = self.sciImg.rn2img  # This is an approximation, probably fine
-
-        msgs.info("Building relative scale image")
-        nspec = self.slits_left.shape[0]
-        scale_dict = dict(scale=np.zeros((nspec, ref_slits.size)), wavescl=np.zeros((nspec, ref_slits.size)))
-        if self.objtype == 'standard' or self.std_outfile is None:  # Standard star trace is not available
-            # Initialise a SpecObj
-            for ss, slit in enumerate(ref_slits):
-                relspec = specobj.SpecObj("IFU", self.det, SLITID=slit)
-                relspec.TRACE_SPAT = 0.5 * (self.slits_left[:, slit] + self.slits_right[:, slit])
-                # Do a boxcar extraction - assume standard is in the middle of the slit
-                extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                       self.waveimg, glob_skym, rn2img,
-                                       self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
-                                       relspec)
-                # Interpolate over the bad pixels
-                ww = np.where(relspec.BOX_NPIX == np.max(relspec.BOX_NPIX))
-                xspl, yspl = relspec.BOX_WAVE[ww], relspec.BOX_COUNTS[ww] / relspec.BOX_NPIX[ww]
-                fspl = interp1d(xspl, yspl, kind='cubic', bounds_error=False, fill_value="extrapolate")
-                scale_dict['scale'][:, ss] = fspl(relspec.BOX_WAVE)
-                scale_dict['wavescl'][:, ss] = relspec.BOX_WAVE.copy()
-        elif self.objtype in ['science', 'science_coadd2d']:
-            sobjs = specobjs.SpecObjs.from_fitsfile(self.std_outfile)
-            # Does the detector match?
-            this_det = sobjs.DET == self.det
-            if np.any(this_det):
-                sobjs_det = sobjs[this_det]
-                relspec = sobjs_det.get_std()
-                msgs.work("Need to find the slit that contains the brightest standard star")
-                embed()
-                for ss, slit in enumerate(ref_slits):
-                    # Do optimal extraction
-                    extract.extract_boxcar(flat_modl, flat_ivar, self.sciImg.fullmask == 0,
-                                           self.waveimg, glob_skym, rn2img,
-                                           self.par['reduce']['extraction']['boxcar_radius'] / plate_scale,
-                                           relspec)
-                    scale_dict['scale'][:, ss] = relspec.OPT_COUNTS.copy()
-                    scale_dict['wavescl'][:, ss] = relspec.OPT_WAVE.copy()
-
-        # Now generate an interpolation polynomial for the relative scaling
-        #
-        # Create a spline representation of the reference spectrum
-        refspl = interp1d(scale_dict['wavescl'][:, 0], scale_dict['scale'][:, 0],
-                          kind='cubic', bounds_error=False, fill_value="extrapolate")
-        # Start with the lower wavelength, and scale to the reference spectrum
-        wmn = np.where(scale_dict['wavescl'][:, 1] < scale_dict['wavescl'][trim:-trim, 0].min())
-        sclfct_mn = refspl(scale_dict['wavescl'][:, 1][wmn[0].max()])/scale_dict['scale'][:, 1][wmn[0].max()]
-        wavearr = scale_dict['wavescl'][:, 1][wmn]
-        fluxarr = scale_dict['scale'][:, 1][wmn] * sclfct_mn
-        # Now include the reference spectrum
-        wavearr = np.append(wavearr, scale_dict['wavescl'][trim:-trim, 0])
-        fluxarr = np.append(fluxarr, scale_dict['scale'][trim:-trim, 0])
-        # Now append the upper wavelength, and scale to the reference spectrum
-        wmx = np.where(scale_dict['wavescl'][:, 2] > scale_dict['wavescl'][trim:-trim, 0].max())
-        sclfct_mx = refspl(scale_dict['wavescl'][:, 2][wmx[0].min()])/scale_dict['scale'][:, 2][wmx[0].min()]
-        wavearr = np.append(wavearr, scale_dict['wavescl'][:, 2][wmx])
-        fluxarr = np.append(fluxarr, scale_dict['scale'][:, 2][wmx] * sclfct_mx)
-
-        # Create the final interpolating polynomial, and apply it to the wavelength image
-        refspl = interp1d(wavearr, fluxarr, kind='cubic', bounds_error=False, fill_value="extrapolate")
-        scale_model = refspl(self.waveimg)
-
-        # Now return
-        return self.caliBrate.flatimages.flat_model/scale_model
 
     def get_platescale(self, dummy):
         """
@@ -1423,10 +1332,18 @@ class IFUReduce(Reduce):
         plate_scale = self.sciImg.detector.platescale
         return plate_scale
 
-    def resample_cube(self):
-        pass
-
     def load_skyregions(self):
+        """
+        Load or generate the sky regions
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        skymask_init :  numpy.ndarray
+            A boolean array of sky pixels (True is pixel is a sky region)
+        """
         skymask_init = None
         if self.par['reduce']['skysub']['load_mask']:
             # Check if a master Sky Regions file exists for this science frame
@@ -1461,6 +1378,7 @@ class IFUReduce(Reduce):
             # Generate image
             skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
                                                 resolution=resolution)
+        embed()
         return skymask_init
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
