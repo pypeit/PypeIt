@@ -1151,8 +1151,16 @@ class IFUReduce(Reduce):
 
     def build_scaleimg(self, debug=False):
         """
-        Generate a relative scaling image for slit-based IFU.
-        All slits are scaled relative to ref_slit
+        Generate a relative scaling image for a slit-based IFU.
+        All slits are scaled relative to the zeroth slit. There
+        are three stages in this approach:
+        (1) Get a quick, rough scaling between the orders using a low order polynomial
+        (2) Using this rough scale, perform a joint b-spline fit to all slits. This
+            step ensures that a single functional form is used in step 3 to fit all
+            slits. It also ensures that the model covers the min and max wavelength
+            range of all slits.
+        (3) Calculate the relative scale of each slit, using the joint model
+            calculated in step (2).
 
         Parameters
         ----------
@@ -1164,9 +1172,9 @@ class IFUReduce(Reduce):
 
         TODO :: Consider including this routine in FlatImages
         """
-        msgs.info('Performing a joint flat-field response using all slits')
+        msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
-        trim = 3  #self.par['calibrations']['flatfield']['slit_trim']
+        trim = self.par['calibrations']['flatfield']['slit_trim']
         spec_samp_fine = self.par['calibrations']['flatfield']['spec_samp_coarse']
         # The science frame has been corrected for the illumflat, so correct the rawflat
         illum_flat = self.caliBrate.flatimages.fit2illumflat(self.slits, initial=True, flexure_shift=self.spat_flexure_shift).copy()
@@ -1186,6 +1194,7 @@ class IFUReduce(Reduce):
         # Sort by increasing minimum wavelength
         swslt = np.argsort(mnmx_wv[:,0])
 
+        ### STEP 1
         # Go through the slits and calculate the overlapping flux
         relscl_model = np.ones_like(rawflat)
         # Get the minimum and maximum wavelengths that are covered in *all* slits.
@@ -1194,8 +1203,10 @@ class IFUReduce(Reduce):
         onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
         onslit_a_olap = onslit_a & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw)
         wsort = np.argsort(self.waveimg[onslit_a_olap])
+        # Generate a simple spline for the first slit
         sclspl = interp1d(self.waveimg[onslit_a_olap][wsort], rawflat[onslit_a_olap][wsort],
                           kind='linear', bounds_error=False, fill_value="extrapolate")
+        # Now roughly calculate the flux scale relative to the first slit
         for slit_idx in range(1, self.slits.spat_id.size):
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
             onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
@@ -1211,8 +1222,9 @@ class IFUReduce(Reduce):
             relscl_model[onslit_b_init] = utils.func_val(coeff, (self.waveimg[onslit_b_init]-minw)/(maxw-minw),
                                                          "legendre", minx=0, maxx=1)
 
-        # Perform a simultaneous fit to all pixels in all slits to get a "global" shape of the blaze function.
-        # This ensures that the final fit smoothly covers the full wavelength range covered on the detected.
+        ### STEP 2
+        # Perform a simultaneous fit to all pixels in all slits to get a "global" shape of the flat spectrum.
+        # This ensures that the final fit smoothly covers the full wavelength range covered on the detector.
         # Get the pixels containing good slits
         spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
         # Apply the relative scaling
@@ -1245,10 +1257,11 @@ class IFUReduce(Reduce):
                                     kwargs_bspline={'bkspace': spec_samp_fine},
                                     kwargs_reject={'groupbadpix': True, 'maxrej': 5})
 
+        ### STEP 3
         # Redo the scale model, now using the bspline fit
         scale_model = np.ones_like(self.caliBrate.flatimages.procflat)
         for slit_idx in range(0, self.slits.spat_id.size):
-            msgs.info("Generating relative response model image for slit {0:d}".format(slit_idx))
+            msgs.info("Generating model relative response image for slit {0:d}".format(slit_idx))
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
             onslit = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
             onslit_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
@@ -1258,14 +1271,14 @@ class IFUReduce(Reduce):
             xfit = (self.waveimg[onslit_gpm] - minw) / (maxw - minw)
             yfit = np.exp(spec_bspl.value(self.waveimg[onslit_gpm])[0]) / rawflat[onslit_gpm]
             srtd = np.argsort(xfit)
-            inmsk = (yfit > 1 / 5) & (yfit < 5)
             # Rough outlier rejection
+            inmsk = (yfit > 1 / 5) & (yfit < 5)
             slit_bspl, _, _, _, exit_status \
                 = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit), np.ones_like(xfit),
                                         nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
                                         kwargs_bspline={'bkspace': spec_samp_fine},
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 5})
-            # TODO : Should probably mask a slit if it fails... but given this is IFU, we're going
+            # TODO : Perhaps mask a slit if it fails... but given this is IFU, we're going
             # to assume we don't need to mask slits...
             if exit_status > 1:
                 msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
