@@ -120,7 +120,7 @@ def main(args):
         if args.objmodel == 'qso':
             cfg_lines += ['  objmodel = qso']
             cfg_lines += ['  redshift = 0.0']
-            cfg_lines += ['  bal_wv_min_mx = 10000.,11000.']
+            cfg_lines += ['  bal_wv_min_max = 10000.,11000.']
         elif args.objmodel == 'star':
             cfg_lines += ['  objmodel = star']
             cfg_lines += ['  star_type = A0']
@@ -128,7 +128,7 @@ def main(args):
         elif args.objmodel == 'poly':
             cfg_lines += ['  objmodel = poly']
             cfg_lines += ['  polyorder = 5']
-            cfg_lines += ['  fit_wv_min_mx = 9000.0,9500.0']
+            cfg_lines += ['  fit_wv_min_max = 17000.0,22000.0']
 
         with open(tellfit_file, 'w') as f:
             f.write('# Auto-generated PypeIt file\n')
