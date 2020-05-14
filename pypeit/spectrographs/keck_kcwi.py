@@ -223,7 +223,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['reduce']['cube']['slit_spec'] = True
 
         # Sky subtraction parameters
-        #par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['no_poly'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.5
         par['reduce']['skysub']['joint_fit'] = True
         par['reduce']['skysub']['ref_slit'] = -1
@@ -427,6 +427,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 sec = head0[section+"{0:1d}".format(i+1)]
 
                 # Convert the data section from a string to a slice
+                # TODO :: I fear something has changed here... and the BPM is flipped (ot not flipped) for different amp modes.
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
                                           include_end=include_last, require_dim=2,
                                           binning=binning_raw)

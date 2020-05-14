@@ -543,6 +543,7 @@ class Reduce(object):
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             wavenorm = self.waveimg / np.max(self.waveimg)
             # Find sky
+            embed()
             # TODO :: JXP removed the left and right (non trimmed) edges (see above). This might not allow the whole slit to be used
             scalefact = scaleImg + (scaleImg == 0)
             self.global_sky[thismask] \
@@ -1381,7 +1382,7 @@ class IFUReduce(Reduce):
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
         elif self.par['reduce']['skysub']['user_regions'] != '':
-            msgs.info("Generating skysub mask based on the user defined regions: {0:s}".format(
+            msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(
                 self.par['reduce']['skysub']['user_regions']))
             # This doesn't need to be a user parameter
             resolution = int(10.0*np.max(self.slits_right-self.slits_left))
@@ -1391,7 +1392,6 @@ class IFUReduce(Reduce):
             # Generate image
             skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
                                                 resolution=resolution)
-        embed()
         return skymask_init
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
