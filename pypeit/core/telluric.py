@@ -1025,9 +1025,6 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     return obj_dict, bounds_obj
 
 # Polynomial evaluation function.
-# JFH This appears to just use the initial polynomial fit throughout and is not varying it. We probably want a
-# a routine that also tries to vary the polynomial??  This behavior is more akin to what molecfit does. If it works
-# okay we should leave it in.
 def eval_poly_model(theta, obj_dict):
     """
     Routine to evaluate a star spectrum model as a true model spectrum times a polynomial.
@@ -1048,8 +1045,10 @@ def eval_poly_model(theta, obj_dict):
        Good pixel mask indicating where the model is valid
 
     """
+    polymodel = coadd.poly_model_eval(theta, obj_dict['func'], obj_dict['model'],
+                                      obj_dict['wave'], obj_dict['wave_min'], obj_dict['wave_max'])
 
-    return obj_dict['polymodel'], (obj_dict['polymodel'] > 0.0)
+    return polymodel, (polymodel > 0.0)
 
 
 
