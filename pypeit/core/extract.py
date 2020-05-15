@@ -1875,6 +1875,23 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     for iord in range(norders):
         slit_spat_pos[iord, :] = (np.interp(slit_spec_pos, spec_vec, slit_left[:,iord]), np.interp(slit_spec_pos, spec_vec, slit_righ[:,iord]))
 
+
+    # Hand prep
+    if hand_extract_dict is not None:
+        f_spats = []
+        for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
+                              hand_extract_dict['hand_extract_spat'],
+                              hand_extract_dict['hand_extract_spec']):
+            # Find the input slit
+            ispec = int(spec)
+            ispat = int(spat)
+            slit = slitmask[ispec, ispat]
+            # Fractions
+            iord_hand = gdslit_spat.tolist().index(slit)
+            f_spat = (spat - slit_left[ispec, iord_hand]) / (
+                slit_righ[ispec, iord_hand] - slit_left[ispec, iord_hand])
+            f_spats.append(f_spat)
+
     # create the ouptut images skymask and objmask
     skymask_objfind = np.copy(allmask)
     # Loop over orders and find objects
@@ -1896,19 +1913,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         # Deal with hand extract
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-            for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
+            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
                                       hand_extract_dict['hand_extract_spat'],
-                                      hand_extract_dict['hand_extract_spec']):
-                #ispec = int(f_spec * nspec)
-                # Find the input slit
+                                      hand_extract_dict['hand_extract_spec'], f_spats):
+                #
                 ispec = int(spec)
-                ispat = int(spat)
-                slit = slitmask[ispec, ispat]
-                # Fractions
-                iord_hand = gdslit_spat.tolist().index(slit)
-                f_spat = (spat - slit_left[ispec, iord_hand])/(
-                        slit_righ[ispec, iord_hand]-slit_left[ispec, iord_hand])
-                        #
                 new_hand_extract_dict['hand_extract_spec'][ss] = ispec
                 new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
                     slit_righ[ispec,iord]-slit_left[ispec,iord])
@@ -2129,8 +2138,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     sobjs_trim = specobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
-    hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in hand_extract_dict['hand_extract_spat']]
-    embed(header='2133 of extract')
+    hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in f_spats]
     for iobj in range(nobj):
         if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr) \
                 or (int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac):
