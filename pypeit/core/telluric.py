@@ -1025,9 +1025,6 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     return obj_dict, bounds_obj
 
 # Polynomial evaluation function.
-# JFH This appears to just use the initial polynomial fit throughout and is not varying it. We probably want a
-# a routine that also tries to vary the polynomial??  This behavior is more akin to what molecfit does. If it works
-# okay we should leave it in.
 def eval_poly_model(theta, obj_dict):
     """
     Routine to evaluate a star spectrum model as a true model spectrum times a polynomial.
@@ -1048,8 +1045,10 @@ def eval_poly_model(theta, obj_dict):
        Good pixel mask indicating where the model is valid
 
     """
+    polymodel = coadd.poly_model_eval(theta, obj_dict['func'], obj_dict['model'],
+                                      obj_dict['wave'], obj_dict['wave_min'], obj_dict['wave_max'])
 
-    return obj_dict['polymodel'], (obj_dict['polymodel'] > 0.0)
+    return polymodel, (polymodel > 0.0)
 
 
 
@@ -1263,7 +1262,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     return meta_table, out_table
 
-def create_bal_mask(wave, bal_wv_min_mx):
+def create_bal_mask(wave, bal_wv_min_max):
     """
     Example of a utility function for creating a BAL mask for QSOs with BAL features. Can also be used to mask other
     features that the user does not want to fit.
@@ -1279,14 +1278,14 @@ def create_bal_mask(wave, bal_wv_min_mx):
        Good pixel (non-bal pixels) mask for the fits.
 
     """
-    if np.size(bal_wv_min_mx) % 2 !=0:
-        msgs.error('bal_wv_min_mx must be a list/array with even numbers.')
+    if np.size(bal_wv_min_max) % 2 !=0:
+        msgs.error('bal_wv_min_max must be a list/array with even numbers.')
 
     bal_bpm = np.zeros_like(wave, dtype=bool)
-    nbal = int(np.size(bal_wv_min_mx) / 2)
-    if isinstance(bal_wv_min_mx, list):
-        bal_wv_min_mx = np.array(bal_wv_min_mx)
-    wav_min_max = np.reshape(bal_wv_min_mx,(nbal,2))
+    nbal = int(np.size(bal_wv_min_max) / 2)
+    if isinstance(bal_wv_min_max, list):
+        bal_wv_min_max = np.array(bal_wv_min_max)
+    wav_min_max = np.reshape(bal_wv_min_max,(nbal,2))
     for ibal in range(nbal):
         bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
 
@@ -1294,7 +1293,7 @@ def create_bal_mask(wave, bal_wv_min_mx):
 
 
 
-def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_wv_min_mx=None,
+def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_wv_min_max=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
@@ -1331,7 +1330,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     pca_upper: float
         Wavelength upper bounds of the PCA model
 
-    bal_wv_min_mx : list
+    bal_wv_min_max : list
         Broad absorption line feature mask. If there are several BAL features, the format
         for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...].
         These masked pixels will be ignored during the fitting.
@@ -1402,7 +1401,7 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +z_qso))
 
     # Mask BAL if there is any BAL absorptions.
-    mask_tot = mask & qsomask & create_bal_mask(wave, bal_wv_min_mx) if bal_wv_min_mx is not None else mask & qsomask
+    mask_tot = mask & qsomask & create_bal_mask(wave, bal_wv_min_max) if bal_wv_min_max is not None else mask & qsomask
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model, eval_qso_model,
@@ -1537,8 +1536,8 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
-                  fit_wv_min_mx=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
-                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=5,
+                  fit_wv_min_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
+                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=3,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
@@ -1576,8 +1575,8 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     else:
         mask_tot = mask
 
-    if fit_wv_min_mx is not None:
-        mask_region = create_bal_mask(wave, fit_wv_min_mx)
+    if fit_wv_min_max is not None:
+        mask_region = create_bal_mask(wave, fit_wv_min_max)
         mask_tot = mask_tot & np.invert(mask_region)
 
     # parameters lowered for testing
@@ -1607,9 +1606,9 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         plt.plot(wave, flux*mask_corr, drawstyle='steps-mid', color='0.7', label='uncorrected data', alpha=0.5, zorder=3)
         plt.plot(wave, sig_corr*mask_corr, drawstyle='steps-mid', color='b', label='noise', alpha=0.3, zorder=1)
         #plt.plot(wave, poly_model, color='cornflowerblue', linewidth=1.0, label='polynomial model', zorder=7, alpha=0.7)
-        plt.plot(wave, poly_model.max()*1.1*telluric, color='magenta', drawstyle='steps-mid', label='telluric', alpha=0.3)
-        plt.ylim(-np.median(sig_corr[mask_corr]).max(), 1.5*poly_model.max())
-        plt.xlim(wave[wave > 1.0].min(), wave[wave > 1.0].max())
+        plt.plot(wave, poly_model[mask_corr].max()*0.9*telluric, color='magenta', drawstyle='steps-mid', label='telluric', alpha=0.3)
+        plt.ylim(-np.median(sig_corr[mask_corr]).max(), 1.5*flux_corr[mask_corr].max())
+        plt.xlim(wave[mask_corr].min(), wave[mask_corr].max())
         plt.legend()
         plt.xlabel('Wavelength')
         plt.ylabel('Flux')
@@ -1991,7 +1990,7 @@ class Telluric(object):
         plt.plot(wave_now[rejmask], flux_now[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
         plt.plot(wave_now[np.invert(mask_now)], flux_now[np.invert(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
                  label='originally masked')
-        plt.ylim(-0.1 * model_now.max(), 1.3 * model_now.max())
+        plt.ylim(-0.1 * model_now[mask_now].max(), 1.3 * model_now[mask_now].max())
         plt.legend()
         plt.xlabel('Wavelength')
         plt.ylabel('Flux or Counts')
