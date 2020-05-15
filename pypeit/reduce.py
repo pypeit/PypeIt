@@ -540,19 +540,17 @@ class Reduce(object):
         if self.par['reduce']['skysub']['joint_fit']:
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
-            inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
-            wavenorm = self.waveimg / np.max(self.waveimg)
+            inmask = ((self.sciImg.fullmask == 0) & thismask & skymask_now).astype(np.bool)
             # Find sky
-            embed()
             # TODO :: JXP removed the left and right (non trimmed) edges (see above). This might not allow the whole slit to be used
             scalefact = scaleImg + (scaleImg == 0)
             self.global_sky[thismask] \
-                = skysub.global_skysub(self.sciImg.image/scalefact, self.sciImg.ivar, wavenorm,
+                = skysub.global_skysub(self.sciImg.image/scalefact, self.sciImg.ivar, self.waveimg,
                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
-                                       pos_mask=(not self.ir_redux), show_fit=True)#show_fit)
+                                       pos_mask=(not self.ir_redux), use_wave=True, show_fit=True)#show_fit)
             # Apply the scaling factor to the sky image
             self.global_sky *= scaleImg
             # Mask if something went wrong
@@ -1287,10 +1285,36 @@ class IFUReduce(Reduce):
                 scale_model[onslit_init] = slit_bspl.value((self.waveimg[onslit_init] - minw) / (maxw - minw))[0]
 
         if debug:
+            # This code generates the wavy patterns seen in KCWI
+            debug_model = np.ones_like(self.caliBrate.flatimages.procflat)
+            blaze_model = np.ones_like(self.caliBrate.flatimages.procflat)
+            if exit_status > 1:
+                msgs.warn("Joint blaze fit failed")
+            else:
+                blaze_model[...] = 1.
+                blaze_model[spec_tot] = np.exp(spec_bspl.value(self.waveimg[spec_tot])[0])
+                # Now take out the relative scaling
+                blaze_model /= scale_model
+                # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
+                corr_model = self.caliBrate.flatimages.fit2illumflat(self.slits, initial=True, flexure_shift=self.spat_flexure_shift)
+                corr_model *= self.caliBrate.flatimages.pixelflat
+                debug_model = self.caliBrate.flatimages.procflat/corr_model
+                debug_model /= blaze_model
             import astropy.io.fits as fits
-            hdu = fits.PrimaryHDU(scale_model)
-            hdu.writeto('scale_model.fits', overwrite=True)
+            hdu = fits.PrimaryHDU(debug_model)
+            hdu.writeto('debug_model.fits', overwrite=True)
 
+            # Shift to approximately constant wavelength
+            shift_image = np.ones_like(self.caliBrate.flatimages.procflat)
+            #ratio = ratio of twilight to internal flats
+            for slit_idx in range(0, self.slits.spat_id.size):
+                # Only use the overlapping regions of the slits, where the same wavelength range is covered
+                onslit_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+                onslit_olap = np.where(onslit_init & (self.waveimg >= minw) & (self.waveimg <= maxw))
+                shifted = (onslit_olap[0]-onslit_olap[0].min(), onslit_olap[1],)
+                shift_image[shifted] = ratio[onslit_olap]
+
+        if debug:
             embed()
             from matplotlib import pyplot as plt
             # Test how well the above code does
@@ -1456,7 +1480,8 @@ class IFUReduce(Reduce):
         scaleImg *= skyfactor
 
         # Recalculate the global sky subtract based on flatfield model
-        self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
+        # TODO :: Need to uncomment this when the above is fixed
+        #self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
 
         from pypeit.io import write_to_fits
         write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
