@@ -971,6 +971,25 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     return (profile_model, xnew, fwhmfit, med_sn2)
 
 
+def parse_manual(manual_par):
+    if isinstance(manual_par['det'], list):
+        spat_spec = manual_par['spat_spec'].split(',')
+        det = [int(obj) for obj in manual_par['det'].split(',')]
+        fwhm = [float(obj) for obj in manual_par['fwhm'].split(',')]
+    else:
+        spat_spec = [manual_par['spat_spec']]
+        det = [manual_par['det']]
+        fwhm = [manual_par['fwhm']]
+    # Deal with spat_spec
+    spats, specs = [], []
+    for ispat_spec in spat_spec:
+        ps = ispat_spec.split(':')
+        spats.append(float(ps[0]))
+        specs.append(float(ps[1]))
+    # Return
+    return spats, specs, det, fwhm
+
+
 def parse_hand_dict(hand_extract_dict):
     """ Utility routine for objfind to parse the hand_extract_dict dictionary for hand selected apertures
 
@@ -1874,19 +1893,29 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         except TypeError:
             std_in = None
 
-        # Deal with hand extract -- Turn relative into absolute
+        # Deal with hand extract
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
-            for ss, f_spat, f_spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
+            for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
                                       hand_extract_dict['hand_extract_spat'],
                                       hand_extract_dict['hand_extract_spec']):
-                ispec = int(f_spec * nspec)
+                #ispec = int(f_spec * nspec)
+                # Find the input slit
+                ispec = int(spec)
+                ispat = int(spat)
+                slit = slitmask[ispec, ispat]
+                # Fractions
+                iord_hand = gdslit_spat.tolist().index(slit)
+                f_spat = (spat - slit_left[ispec, iord_hand])/(
+                        slit_righ[ispec, iord_hand]-slit_left[ispec, iord_hand])
+                        #
                 new_hand_extract_dict['hand_extract_spec'][ss] = ispec
                 new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
                     slit_righ[ispec,iord]-slit_left[ispec,iord])
         else:
             new_hand_extract_dict = None
 
+        embed(header='1900 of extract')
         # Run
         sobjs_slit, skymask_objfind[gpmmask] = \
             objfind(image, gpmmask, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],

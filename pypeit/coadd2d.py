@@ -430,12 +430,12 @@ class CoAdd2D(object):
         # Object finding
         # HACK ME!
         #from pypeit.par import pypeitpar
-        #self.par['reduce']['extraction']['manual'] = [pypeitpar.ManualExtractionPar(spec=0.712, spat=0.5, fwhm=3., det=1)]
-        #hand_extract_dict = dict(hand_extract_spec=[0.2], hand_extract_spat=[0.712], hand_extract_det=[1],
-        #                         hand_extract_fwhm=[3.])
-        hand_extract_dict = dict(hand_extract_spec=[0.2], hand_extract_spat=[0.160], hand_extract_det=[1],
-                                 hand_extract_fwhm=[3.]) # neg
-        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks, manual_extract_dict=hand_extract_dict)
+        if self.par['reduce']['extraction']['manual']['spat_spec'] is not None:
+            spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
+            hand_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,
+                                     hand_extract_det=dets, hand_extract_fwhm=fwhms)
+        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks,
+                                                           manual_extract_dict=hand_extract_dict)
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local

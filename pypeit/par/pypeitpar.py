@@ -1680,13 +1680,13 @@ class ManualExtractionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['spat_spec'] = list
+        dtypes['spat_spec'] = [list, str]
         descr['spat_spec'] = 'List of spatial:spectral positions to hand extract, e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
 
-        dtypes['det'] = list
+        dtypes['det'] = [list, int]
         descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.'
 
-        dtypes['fwhm'] = list
+        dtypes['fwhm'] = [list, float]
         descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec_spat'
 
         # Instantiate the parameter set
@@ -1716,8 +1716,9 @@ class ManualExtractionPar(ParSet):
             p1 = self.data['spat_spec']
             p2 = self.data['det']
             p3 = self.data['fwhm']
-            assert len(p1) == len(p2), 'Wrong length for det'
-            assert len(p1) == len(p3), 'Wrong length for fwhm'
+            if isinstance(p1, list):
+                assert len(p1) == len(p2), 'Wrong length for det'
+                assert len(p1) == len(p3), 'Wrong length for fwhm'
 
 
 class ReduxPar(ParSet):
