@@ -1915,7 +1915,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         else:
             new_hand_extract_dict = None
 
-        embed(header='1900 of extract')
         # Run
         sobjs_slit, skymask_objfind[gpmmask] = \
             objfind(image, gpmmask, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],

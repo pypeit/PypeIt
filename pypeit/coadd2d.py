@@ -434,6 +434,8 @@ class CoAdd2D(object):
             spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
             hand_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,
                                      hand_extract_det=dets, hand_extract_fwhm=fwhms)
+        else:
+            hand_extract_dict = None
         sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks,
                                                            manual_extract_dict=hand_extract_dict)
 
