@@ -1666,7 +1666,7 @@ class ManualExtractionPar(ParSet):
 
 
     """
-    def __init__(self, frame=None, spec=None, spat = None, det = None, fwhm = None):
+    def __init__(self, spat_spec=None, det=None, fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1680,20 +1680,14 @@ class ManualExtractionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['frame'] = str
-        descr['frame'] = 'The name of the fits file for a manual extraction'
-
-        dtypes['spec'] = list
-        descr['spec'] = 'List of spectral positions to hand extract '
-
-        dtypes['spat'] = list
-        descr['spat'] = 'List of spatial positions to hand extract '
+        dtypes['spat_spec'] = list
+        descr['spat_spec'] = 'List of spatial:spectral positions to hand extract, e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
 
         dtypes['det'] = list
-        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list.  Negative values indicated negative images.'
+        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.'
 
         dtypes['fwhm'] = list
-        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will be used for all members of that list'
+        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec_spat'
 
         # Instantiate the parameter set
         super(ManualExtractionPar, self).__init__(list(pars.keys()),
@@ -1705,7 +1699,7 @@ class ManualExtractionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = [ 'frame', 'spec','spat','det','fwhm']
+        parkeys = ['spat_spec','det','fwhm']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -1718,7 +1712,12 @@ class ManualExtractionPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        if self.data['spat_spec'] is not None:
+            p1 = self.data['spat_spec']
+            p2 = self.data['det']
+            p3 = self.data['fwhm']
+            assert len(p1) == len(p2), 'Wrong length for det'
+            assert len(p1) == len(p3), 'Wrong length for fwhm'
 
 
 class ReduxPar(ParSet):
@@ -2812,6 +2811,7 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
 
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
                                              values=list(pars.values()),
@@ -3084,11 +3084,11 @@ class ExtractionPar(ParSet):
 
         # Check the manual input
         # TODO -- Get Manual in the readthedocs
-        if manual is not None:
-            if not isinstance(manual, (ParSet, dict, list)):
-                raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
-            _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
-            pars['manual'] = _manual
+        #if manual is not None:
+        #    if not isinstance(manual, (ParSet, dict, list)):
+        #        raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
+        #    _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
+        #    pars['manual'] = _manual
 
         # Initialize the other used specifications for this parameter
         # set
@@ -3131,8 +3131,10 @@ class ExtractionPar(ParSet):
                              'Turning this off may help with bright emission lines.'
 
 
-        dtypes['manual'] = list
-        descr['manual'] = 'List of manual extraction parameter sets'
+        defaults['manual'] = ManualExtractionPar()
+        dtypes['manual'] = [ ParSet, dict ]
+        descr['manual'] = 'Parameters for manual extraction'
+
 
         # Instantiate the parameter set
         super(ExtractionPar, self).__init__(list(pars.keys()),
@@ -3158,7 +3160,12 @@ class ExtractionPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
+        #kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
+
+        # Keywords that are ParSets
+        pk = 'manual'
+        kwargs[pk] = ManualExtractionPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     def validate(self):

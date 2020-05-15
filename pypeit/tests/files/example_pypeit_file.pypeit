@@ -18,7 +18,9 @@
 [reduce]
   [[extraction]]
      [[[manual]]]
-        spec = 2.
+        spat_spec = 120.:1200,134.:1200
+        det = 1,2
+        fwhm = 3.,3.
 
 # Setup
 setup read
