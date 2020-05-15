@@ -146,7 +146,6 @@ class EchelleFC(FluxCalibrate):
                                          extrap_sens = self.par['extrap_sens'],
                                          longitude=self.spectrograph.telescope['longitude'],
                                          latitude=self.spectrograph.telescope['latitude'],
-                                         extrap_sens=self.par['extrap_sens'],
                                          airmass=float(sobjs.header['AIRMASS']))
             elif indx.size == 0:
                 msgs.info('Unable to flux calibrate order = {:} as it is not in your sensitivity function. '

@@ -2130,6 +2130,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
     hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in hand_extract_dict['hand_extract_spat']]
+    embed(header='2133 of extract')
     for iobj in range(nobj):
         if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr) \
                 or (int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac):
