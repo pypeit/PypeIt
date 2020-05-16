@@ -145,17 +145,14 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
         ## Do not perform global sky subtraction for standard stars
-        ## FW: The slit is too wide and the target usually close to the center where is the boundary
-        ## two detectors. global_sky will cause some problem sometime.
         par['reduce']['skysub']['global_sky_std']  = False
 
         # Flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_method'] = 'boxcar'
 
+        # cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 3.0
         par['scienceframe']['process']['objlim'] = 0.5
-        #par['scienceframe']['process']['satpix'] ='nothing'
-        #par['scienceframe']['process']['overscan'] ='median'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 100]
@@ -163,6 +160,57 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
         return par
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        if det == 1:
+            msgs.info("Using hard-coded BPM for det=1 on BINOSPEC")
+
+            # TODO: Fix this
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[1].header['CCDSUM']
+            hdu.close()
+
+            # Apply the mask
+            xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
+            bpm_img[2498 // xbin, 2057 // ybin:4112 // ybin] = 1
+            bpm_img[2162 // xbin, 2057 // ybin:4112 // ybin] = 1
+
+        elif det == 2:
+            msgs.info("Using hard-coded BPM for det=2 on BINOSPEC")
+
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[1].header['CCDSUM']
+            hdu.close()
+
+            # Apply the mask
+            xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
+            bpm_img[2429 // xbin, 0:2056 // ybin] = 1
+            bpm_img[2147 // xbin, 2057 // ybin:4112 // ybin] = 1
+            bpm_img[1135 // xbin, 0:2056 // ybin] = 1
+
+        return bpm_img
 
     def configuration_keys(self):
         return ['dispname']
