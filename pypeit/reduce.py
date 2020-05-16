@@ -870,6 +870,7 @@ class MultiSlitReduce(Reduce):
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
                                 debug_all=debug)
             sobjs.add_sobj(sobjs_slit)

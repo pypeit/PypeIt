@@ -3007,7 +3007,7 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, find_min_max=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3080,6 +3080,12 @@ class FindObjPar(ParSet):
         dtypes['skip_second_find'] = bool
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
+        defaults['find_min_max'] = None
+        dtypes['find_min_max'] = list
+        descr['find_min_max'] = 'It defines the minimum and maximum of your object in the spectral direction on the'\
+                                'detector. It only used for object finding. This parameter is helpful if your object only'\
+                                'has emission lines or at high redshift and the trace only shows in part of the detector.'
+
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -3098,7 +3104,7 @@ class FindObjPar(ParSet):
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_min_max']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
