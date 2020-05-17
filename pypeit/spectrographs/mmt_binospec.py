@@ -12,8 +12,6 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 
-## FW ToDo: I subtract the overscan when reading data rather than pasrse it to procimg.py since procimg does not
-##    support subtracting overscan in both x and y-axis
 
 class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     """
@@ -45,7 +43,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
                             ygap            = 0.,
                             ysize           = 1.,
                             platescale      = 0.24,
-                            darkcurr        = 3.0, ##ToDO: To Be update
+                            darkcurr        = 3.0, #ToDO: To Be update
                             saturation      = 65535.,
                             nonlinear       = 0.95,  #ToDO: To Be update
                             mincounts       = -1e10,
@@ -388,8 +386,8 @@ def binospec_read_amp(inp, ext):
     xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
     datasec = '[{:}:{:},{:}:{:}]'.format(xdata1 - 1, xdata2, ydata1-1, ydata2)
 
-    ## Overscan X-axis
-    ## Since pypeit can only subtract overscan along one axis, I'm subtract the overscan here using median method.
+    #TODO: Since pypeit can only subtract overscan along one axis, I'm subtract the overscan here using median method.
+    # Overscan X-axis
     if xdata1 > 1:
         overscanx = temp[2:xdata1-1, :]
         overscanx_vec = np.median(overscanx, axis=0)
