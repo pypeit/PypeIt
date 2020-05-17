@@ -151,7 +151,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['flexure']['spec_method'] = 'boxcar'
 
         # cosmic ray rejection parameters for science frames
-        par['scienceframe']['process']['sigclip'] = 3.0
+        par['scienceframe']['process']['sigclip'] = 5.0
         par['scienceframe']['process']['objlim'] = 0.5
 
         # Set the default exposure time ranges for the frame typing
@@ -193,22 +193,29 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
             # Apply the mask
             xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
-            bpm_img[2498 // xbin, 2057 // ybin:4112 // ybin] = 1
-            bpm_img[2162 // xbin, 2057 // ybin:4112 // ybin] = 1
+            bpm_img[2447 // xbin, 2056 // ybin:4112 // ybin] = 1
+            bpm_img[2111 // xbin, 2056 // ybin:4112 // ybin] = 1
 
         elif det == 2:
             msgs.info("Using hard-coded BPM for det=2 on BINOSPEC")
 
             # Get the binning
             hdu = fits.open(filename)
-            binning = hdu[1].header['CCDSUM']
+            binning = hdu[5].header['CCDSUM']
             hdu.close()
 
             # Apply the mask
             xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
-            bpm_img[2429 // xbin, 0:2056 // ybin] = 1
-            bpm_img[2147 // xbin, 2057 // ybin:4112 // ybin] = 1
-            bpm_img[1135 // xbin, 0:2056 // ybin] = 1
+            #ToDo: Need to double check the  BPM for detector 2
+            ## Identified by FW from flat observations
+            bpm_img[3336 // xbin, 0:2056 // ybin] = 1
+            bpm_img[3337 // xbin, 0:2056 // ybin] = 1
+            bpm_img[4056 // xbin, 0:2056 // ybin] = 1
+            bpm_img[3011 // xbin, 2057 // ybin:4112 // ybin] = 1
+            ## Got from IDL pipeline
+            #bpm_img[2378 // xbin, 0:2056 // ybin] = 1
+            #bpm_img[2096 // xbin, 2057 // ybin:4112 // ybin] = 1
+            #bpm_img[1084 // xbin, 0:2056 // ybin] = 1
 
         return bpm_img
 
