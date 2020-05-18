@@ -119,6 +119,9 @@ of the following :doc:`frametype`:
  - pixelflat -- Flat fielding (see below if you **not** provided)
  - science -- Science exposure
 
+**Warning:** The code will *not* run if your :doc:`pypeit_file` includes
+entries with *None*.  You must remove or modify those.
+
 FlatField
 +++++++++
 
