@@ -2039,7 +2039,6 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                                                      minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
             # TODO This QA needs some work
-            show_pca = True
             if show_pca:
                 frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
                 plt.plot(order_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
