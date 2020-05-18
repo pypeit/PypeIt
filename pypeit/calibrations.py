@@ -7,6 +7,7 @@ Class for guiding calibration object generation in PypeIt
 import os
 
 from abc import ABCMeta
+from collections import Counter
 
 from IPython import embed
 
@@ -507,20 +508,30 @@ class Calibrations(object):
 
         # TODO -- Allow for separate pixelflat and illumflat images
         # Generate the image
-        stacked_flat = None
-        if len(illum_image_files) > 0:
-            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                          self.par['illumflatframe'],
-                                                          illum_image_files, dark=self.msdark,
-                                                          bias=self.msbias, bpm=self.msbpm)
-        if stacked_flat is None and len(pixflat_image_files) > 0:
-            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+        illum_flat, pix_flat = None, None
+        # Check if the image files are the same
+        pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
+        if len(pixflat_image_files) > 0:
+            pix_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
                                                                self.par['pixelflatframe'],
                                                                pixflat_image_files, dark=self.msdark,
                                                                bias=self.msbias, bpm=self.msbpm)
-        if stacked_flat is not None:
+        # Only build illum_flat if the input files are different
+        if (not pix_is_illum) and len(illum_image_files) > 0:
+            illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                          self.par['illumflatframe'],
+                                                          illum_image_files, dark=self.msdark,
+                                                          bias=self.msbias, bpm=self.msbpm)
+        # Make sure we have a pix flat
+        if pix_flat is None and illum_flat is not None:
+            # Assign the pixel flat to be the stacked flat
+            pix_flat = illum_flat
+            illum_flat = None # we only have one flat, so use the same image for pixel and illum flat.
+
+        # Check if one should be used and not the other
+        if pix_flat is not None:
             # Create pixelflat and illumination flat from illumination flat stack
-            flatField = flatfield.FlatField(stacked_flat, self.spectrograph,
+            flatField = flatfield.FlatField(pix_flat, illum_flat, self.spectrograph,
                                             self.par['flatfield'], self.slits, self.wavetilts)
             # Run
             self.flatimages = flatField.run(show=self.show)

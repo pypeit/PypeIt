@@ -215,8 +215,10 @@ class FlatField(object):
     For the primary methods, see :func:`run`.
 
     Args:
-        rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        rawpixflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
             Processed, combined set of pixelflat images
+        rawillumflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`, None):
+            Processed, combined set of illumflat images
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             The `Spectrograph` instance that sets the instrument used to
             take the observations.  See usage by
@@ -230,7 +232,8 @@ class FlatField(object):
             The current wavelength tilt traces; see
 
     Attributes:
-        rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        rawpixflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
+        rawillumflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`, None):
         mspixelflat (`numpy.ndarray`_):
             Normalized flat
         msillumflat (`numpy.ndarray`_):
@@ -246,7 +249,7 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts):
+    def __init__(self, rawpixflatimg, rawillumflatimg, spectrograph, flatpar, slits, wavetilts):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -261,7 +264,8 @@ class FlatField(object):
         self.wavetilts.is_synced(self.slits)
 
         # Attributes unique to this Object
-        self.rawflatimg = rawflatimg      # Un-normalized pixel flat as a PypeItImage
+        self.rawpixflatimg = rawpixflatimg      # Un-normalized pixel flat as a PypeItImage
+        self.rawillumflatimg = rawillumflatimg      # Un-normalized illumination flat as a PypeItImage
         self.mspixelflat = None     # Normalized pixel flat
         self.msillumflat = None     # Illumination flat
         self.flat_model = None      # Model flat
@@ -303,7 +307,7 @@ class FlatField(object):
 #        Returns:
 #            pypeitimage.PypeItImage:  The image with the unnormalized pixel-flat data.
 #        """
-#        if self.rawflatimg is None or force:
+#        if self.rawpixflatimg is None or force:
 #            # Process steps
 #            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
 #            if trim:
@@ -316,9 +320,9 @@ class FlatField(object):
 #            #    self.process_steps += ['crmask']
 #            self.steps.append(inspect.stack()[0][3])
 #            # Do it
-#            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
+#            self.rawpixflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
 #                                                                 ignore_saturation=True)
-#        return self.rawflatimg
+#        return self.rawpixflatimg
 
     # TODO: Need to add functionality to use a different frame for the
     # ilumination flat, e.g. a sky flat
@@ -353,7 +357,11 @@ class FlatField(object):
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated
         # internally.
-        # TODO -- Move the infinitely long fit() code back here?
+        if self.rawillumflatimg is not None:
+            msgs.info("Generating illumination profile from master illumflat")
+            # Generate the illumination profile first
+            self.fit(illumflat=True, debug=debug)
+        # Generate the pixel flat (and illumination flat, if not already made)
         self.fit(debug=debug)
 
         if show:
@@ -368,7 +376,7 @@ class FlatField(object):
                 bpmflats[bpm] = self.slits.bitmask.turn_on(bpmflats[bpm], flag)
 
         # Return
-        return FlatImages(procflat=self.rawflatimg.image,
+        return FlatImages(procflat=self.rawpixflatimg.image,
                           pixelflat=self.mspixelflat,
                           flat_model=self.flat_model,
                           spat_bsplines=np.asarray(self.list_of_spat_bsplines),
@@ -385,14 +393,14 @@ class FlatField(object):
                 Match the WCS of the flat-field images
         """
         # Get the slits
-        show_flats(self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model,
+        show_flats(self.mspixelflat, self.msillumflat, self.rawpixflatimg.image, self.flat_model,
                    wcs_match=wcs_match, slits=self.slits)
 
-    def fit(self, debug=False):
+    def fit(self, illumflat=False, debug=False):
         """
         Construct a model of the flat-field image.
 
-        For this method to work, :attr:`rawflatimg` must have been
+        For this method to work, :attr:`rawpixflatimg` must have been
         previously constructed; see :func:`build_pixflat`.
 
         The method loops through all slits provided by the :attr:`slits`
@@ -475,6 +483,8 @@ class FlatField(object):
             - 3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
 
         Args:
+            illumflat (:obj:`bool`, optional):
+                If true, the illumination flat will be generated
             debug (:obj:`bool`, optional):
                 Show plots useful for debugging. This will block
                 further execution of the code until the plot windows
@@ -485,8 +495,9 @@ class FlatField(object):
         # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
         # TODO: JXP This definitely needs breaking up..
 
-        # Init
-        self.list_of_spat_bsplines = []
+        # Initialise with a series of bad splines (for when slits go wrong)
+        if self.list_of_spat_bsplines is None:
+            self.list_of_spat_bsplines = [bspline.bspline(None) for all in self.slits.spat_id]
 
         # Set parameters (for convenience;
         spec_samp_fine = self.flatpar['spec_samp_fine']
@@ -504,11 +515,11 @@ class FlatField(object):
         saturated_slits = self.flatpar['saturated_slits']
 
         # Setup images
-        nspec, nspat = self.rawflatimg.image.shape
-        rawflat = self.rawflatimg.image
+        nspec, nspat = self.rawpixflatimg.image.shape
+        rawflat = self.rawpixflatimg.image
         # Good pixel mask
-        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
-                1-self.rawflatimg.bpm).astype(bool)
+        gpm = np.ones_like(rawflat, dtype=bool) if self.rawpixflatimg.bpm is None else (
+                1-self.rawpixflatimg.bpm).astype(bool)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))
@@ -517,7 +528,7 @@ class FlatField(object):
         ivar_log = gpm_log.astype(float)/0.5**2
 
         # Other setup
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawpixflatimg.detector)
 
         # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits
@@ -558,7 +569,6 @@ class FlatField(object):
             # Is this a good slit??
             if self.slits.mask[slit_idx] != 0:
                 msgs.info('Skipping bad slit: {}'.format(slit_spat))
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             msgs.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
@@ -602,7 +612,6 @@ class FlatField(object):
                     # Should never get here
                     raise NotImplementedError('Unknown behavior for saturated slits: {0}'.format(
                                               saturated_slits))
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # Demand at least 10 pixels per row (on average) per degree
@@ -685,7 +694,6 @@ class FlatField(object):
                 msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
                           'slit {0} and continuing!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # Debugging/checking spectral fit
@@ -823,13 +831,16 @@ class FlatField(object):
             if exit_status <= 1:
                 # TODO -- JFH -- Check this is ok for flexure!!
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
-                self.list_of_spat_bsplines.append(spat_bspl)
+                # Only save the bspline if we are generating an illumflat (or if we only have a rawpixflatimg)
+                if illumflat or self.rawillumflatimg is None:
+                    self.list_of_spat_bsplines.append(spat_bspl)
+                    # No need to proceed further if we just need the illumination profile
+                    continue
             else:
                 # Save the nada
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
                           'included in flat-field model for slit {0}!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # ----------------------------------------------------------
