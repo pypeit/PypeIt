@@ -10,7 +10,7 @@
  - Coadd2D without spec1d files
  - Coadd2D offsets
  - Coadd2D docs
- - Manual extraction for Echelle
+ - Manual extraction
 
 
 
