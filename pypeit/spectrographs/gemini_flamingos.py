@@ -9,6 +9,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.images import detector_container
 from pypeit.spectrographs import spectrograph
+from pkg_resources import resource_filename
 
 
 class GeminiFLAMINGOSSpectrograph(spectrograph.Spectrograph):
@@ -155,6 +156,12 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [10,10]
         # Do not correct for flexure
         par['flexure']['spec_method'] = 'skip'
+
+        # Sensitivity function parameters
+        par['sensfunc']['algorithm'] = 'IR'
+        par['sensfunc']['polyorder'] = 8
+        # ToDo: replace the telluric grid file for Gemini-S site.
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
 
         return par
 
