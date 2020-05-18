@@ -1284,6 +1284,7 @@ class IFUReduce(Reduce):
             else:
                 scale_model[onslit_init] = slit_bspl.value((self.waveimg[onslit_init] - minw) / (maxw - minw))[0]
 
+        debug=True
         if debug:
             # This code generates the wavy patterns seen in KCWI
             debug_model = np.ones_like(self.caliBrate.flatimages.procflat)

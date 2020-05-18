@@ -3,13 +3,7 @@ This script displays the flat images in an RC Ginga window.
 """
 import argparse
 
-from astropy.io import fits
-
 from pypeit import flatfield
-from pypeit import slittrace
-from pypeit import masterframe
-from pypeit import msgs
-from IPython import embed
 
 
 def parser(options=None):
