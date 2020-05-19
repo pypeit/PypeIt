@@ -449,7 +449,7 @@ def find_standard(specobj_list):
 
 def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude, ech_orders=None,
              mask_abs_lines=True, telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,
-             trans_thresh=0.9,polycorrect=True, debug=False):
+             trans_thresh=0.9,polycorrect=True, polyfunc=False, debug=False):
     """
     Function to generate the sensitivity function. This function fits
     a bspline to the 2.5*log10(flux_std/flux_counts). The break
@@ -522,7 +522,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
             wave_arr[:,iord], counts_arr[:,iord], ivar_arr[:,iord], mask_arr[:,iord], exptime, airmass, std_dict,
             longitude, latitude, mask_abs_lines=mask_abs_lines, telluric=telluric, polyorder=polyorder,
             balm_mask_wid=balm_mask_wid, nresln=nresln, resolution=resolution, trans_thresh=trans_thresh,
-            polycorrect=polycorrect, debug=debug)
+            polycorrect=polycorrect, polyfunc=polyfunc, debug=debug)
         wave_min[iord] = wave_arr[wave_arr[:,iord] > 1.0, iord].min()
         wave_max[iord] = wave_arr[wave_arr[:,iord] > 1.0, iord].max()
 
@@ -552,7 +552,7 @@ def sensfunc(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict,
 # JFH TODO This code needs to be cleaned up. The telluric option should probably be removed. Logic is not easy to follow.
 def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_dict, longitude, latitude,
                   mask_abs_lines=True, telluric=False, polyorder=4, balm_mask_wid=5., nresln=20., resolution=3000.,
-                  trans_thresh=0.9,polycorrect=True, debug=False):
+                  trans_thresh=0.9, polycorrect=True, polyfunc=False, debug=False):
 
     """
 
@@ -669,7 +669,7 @@ def sensfunc_eval(wave, counts, counts_ivar, counts_mask, exptime, airmass, std_
         wave_star, flux_star, ivar_star, mask_bad, flux_true, mask_balm=mask_balm,
         mask_tell=mask_tell, maxiter=35, upper=3.0, lower=3.0, polyorder=polyorder,
         balm_mask_wid=balm_mask_wid, nresln=nresln,telluric=telluric, resolution=resolution,
-        polycorrect=polycorrect, debug=debug, show_QA=False)
+        polycorrect=polycorrect, polyfunc=polyfunc, debug=debug, show_QA=False)
 
     if debug:
         plt.plot(wave_star[mask_sens], flux_true[mask_sens], color='k',lw=2, label='Reference Star')
@@ -812,7 +812,7 @@ def get_mask(wave_star,flux_star, ivar_star, mask_star, mask_abs_lines=True, mas
 
 def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask_tell=None,
                  maxiter=35, upper=2.0, lower=2.0, polyorder=5, balm_mask_wid=50., nresln=20., telluric=True,
-                 resolution=2700., polycorrect=True, debug=False, show_QA=False):
+                 resolution=2700., polycorrect=True, debug=False, polyfunc=False, show_QA=False):
     """
     Generate a sensitivity function based on observed flux and standard spectrum.
 
@@ -992,7 +992,10 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
             msgs.warn('No polynomial corrections performed on Hydrogen Recombination line regions')
 
     # Calculate sensfunc
-    sensfunc = 10.0 ** (0.4 * magfunc)
+    if polyfunc:
+        sensfunc = 10.0 ** (0.4 * magfunc_poly)
+    else:
+        sensfunc = 10.0 ** (0.4 * magfunc)
 
     if debug:
         plt.figure()

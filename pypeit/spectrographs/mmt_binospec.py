@@ -12,6 +12,7 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 
+from pkg_resources import resource_filename
 
 class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     """
@@ -157,6 +158,11 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['polyorder'] = 7
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
         return par
 
     def bpm(self, filename, det, shape=None, msbias=None):

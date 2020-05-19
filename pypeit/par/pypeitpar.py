@@ -1347,8 +1347,8 @@ class SensfuncUVISPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, telluric=None,
-                 polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
+                 telluric_correct=None, telluric=None, polycorrect=None,
+                 polyfunc=None, nresln=None, resolution=None, trans_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1400,6 +1400,10 @@ class SensfuncUVISPar(ParSet):
         dtypes['polycorrect'] = bool
         descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
 
+        defaults['polyfunc'] = False
+        dtypes['polyfunc'] = bool
+        descr['polyfunc'] = 'Whether you want to use the polynomial fit as your final SENSFUNC'
+
 
         defaults['nresln'] = 20
         dtypes['nresln'] = [int, float]
@@ -1428,7 +1432,7 @@ class SensfuncUVISPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file',
-                   'std_obj_id', 'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
+                   'std_obj_id', 'telluric', 'polyfunc','polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
