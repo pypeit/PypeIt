@@ -505,8 +505,6 @@ class Calibrations(object):
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
 
-
-        # TODO -- Allow for separate pixelflat and illumflat images
         # Generate the image
         illum_flat, pix_flat = None, None
         # Check if the image files are the same
@@ -526,7 +524,7 @@ class Calibrations(object):
         if pix_flat is None and illum_flat is not None:
             # Assign the pixel flat to be the stacked flat
             pix_flat = illum_flat
-            illum_flat = None # we only have one flat, so use the same image for pixel and illum flat.
+            illum_flat = None  # we only have one flat, so use the same image for pixel and illum flat.
 
         # Check if one should be used and not the other
         if pix_flat is not None:
