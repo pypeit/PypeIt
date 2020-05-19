@@ -514,12 +514,16 @@ class FlatField(object):
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
 
+        rawflatimg = self.rawpixflatimg
+        if illumflat:
+            rawflatimg = self.rawillumflatimg
+
         # Setup images
-        nspec, nspat = self.rawpixflatimg.image.shape
-        rawflat = self.rawpixflatimg.image
+        nspec, nspat = rawflatimg.image.shape
+        rawflat = rawflatimg.image
         # Good pixel mask
-        gpm = np.ones_like(rawflat, dtype=bool) if self.rawpixflatimg.bpm is None else (
-                1-self.rawpixflatimg.bpm).astype(bool)
+        gpm = np.ones_like(rawflat, dtype=bool) if rawflatimg.bpm is None else (
+                1-rawflatimg.bpm).astype(bool)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))
@@ -528,7 +532,7 @@ class FlatField(object):
         ivar_log = gpm_log.astype(float)/0.5**2
 
         # Other setup
-        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawpixflatimg.detector)
+        nonlinear_counts = self.spectrograph.nonlinear_counts(rawflatimg.detector)
 
         # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits
@@ -833,9 +837,10 @@ class FlatField(object):
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 # Only save the bspline if we are generating an illumflat (or if we only have a rawpixflatimg)
                 if illumflat or self.rawillumflatimg is None:
-                    self.list_of_spat_bsplines.append(spat_bspl)
+                    self.list_of_spat_bsplines[slit_idx] = spat_bspl
                     # No need to proceed further if we just need the illumination profile
-                    continue
+                    if illumflat:
+                        continue
             else:
                 # Save the nada
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
