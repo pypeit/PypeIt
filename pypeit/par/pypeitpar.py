@@ -3374,6 +3374,7 @@ class CalibrationsPar(ParSet):
 
         defaults['darkframe'] = FrameGroupPar(frametype='dark',
                                               process=ProcessImagesPar(use_biasimage=False,
+                                                                       use_overscan=False,
                                                                        apply_gain=False,
                                                                        use_pixelflat = False,
                                                                        use_illumflat = False))

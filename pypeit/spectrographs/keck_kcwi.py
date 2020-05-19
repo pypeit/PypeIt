@@ -181,7 +181,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_kcwi'
-        # Set wave tilts order
+
+        # Make sure the overscan is subtracted from the dark
+        par['calibrations']['darkframe']['use_overscan'] = True
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
