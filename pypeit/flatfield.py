@@ -208,9 +208,16 @@ class FlatImages(datamodel.DataContainer):
         show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model,
                    wcs_match=wcs_match, slits=slits)
 
+
 class FlatField(object):
     """
     Builds pixel-level flat-field and the illumination flat-field.
+    rawpixflatimg *must* be provided. If rawillumflatimg is None,
+    the illumination and pixel-level corrections will be derived
+    from rawpixflatimg. If rawillumflatimg is a PypeItImage, the
+    illumination correction will be performed with the illumflat
+    and the pixel-level corrections will be derived from the
+    rawpixflatimg frame.
 
     For the primary methods, see :func:`run`.
 
