@@ -994,6 +994,7 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
     # Calculate sensfunc
     if polyfunc:
         sensfunc = 10.0 ** (0.4 * magfunc_poly)
+        magfunc = magfunc_poly
     else:
         sensfunc = 10.0 ** (0.4 * magfunc)
 
