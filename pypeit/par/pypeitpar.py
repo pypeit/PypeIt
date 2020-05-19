@@ -3158,7 +3158,7 @@ class SkySubPar(ParSet):
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
         defaults['user_regions'] = None
-        dtypes['user_regions'] = str
+        dtypes['user_regions'] = [str, list]
         descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
                                 'the code to identify the sky regions automatically, set this variable to' \
                                 'an empty string. If you wish to set the sky regions, The text should be' \
@@ -3374,7 +3374,6 @@ class CalibrationsPar(ParSet):
 
         defaults['darkframe'] = FrameGroupPar(frametype='dark',
                                               process=ProcessImagesPar(use_biasimage=False,
-                                                                       use_overscan=False,
                                                                        apply_gain=False,
                                                                        use_pixelflat = False,
                                                                        use_illumflat = False))

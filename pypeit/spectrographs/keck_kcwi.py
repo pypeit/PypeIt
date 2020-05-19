@@ -23,6 +23,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def __init__(self):
         # Get it started
+        # TODO :: Might need to change the tolerance of disperser angle in pypeit setup (two BH2 nights where sufficiently different that this was important).
         super(KeckKCWISpectrograph, self).__init__()
         self.spectrograph = 'keck_kcwi'
         self.telescope = telescopes.KeckTelescopePar()
@@ -120,8 +121,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200.fits'
             par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
-            par['calibrations']['wavelengths']['n_first'] = 2
-            par['calibrations']['wavelengths']['n_final'] = 6
+            # par['calibrations']['wavelengths']['n_first'] = 4
+            # par['calibrations']['wavelengths']['n_final'] = 6
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
