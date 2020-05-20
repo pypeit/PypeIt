@@ -979,6 +979,10 @@ class FlatField(object):
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
 
+        # No need to continue if we're just doing the spatial illumination
+        if illumflat:
+            return
+
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
         # Set the pixelflat to 1.0 within trim pixels of all the slit edges
@@ -992,7 +996,7 @@ class FlatField(object):
 
         # Finally, using the above products, calculate the relative spectral illumination, if requested
         if self.flatpar['slit_illum_relative']:
-            self.spec_illum = self.spectral_illumination(debug=debug)
+            self.spec_illum = self.spectral_illumination(twod_gpm_fit, debug=debug)
 
     def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, gpm, debug=False):
         """
@@ -1054,7 +1058,7 @@ class FlatField(object):
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spectral_illumination(self, debug=False):
+    def spectral_illumination(self, gpm, debug=False):
         """
         Generate a relative scaling image for a slit-based IFU.
         All slits are scaled relative to the zeroth slit. There
@@ -1088,7 +1092,9 @@ class FlatField(object):
         spec_samp_fine = self.flatpar['spec_samp_coarse']
         rawflat = self.rawpixflatimg.image.copy() / self.msillumflat.copy()
         # Grab the BPM and the slit images
-        gpm = np.logical_not(self.build_mask())
+        gpm = np.ones_like(rawflat, dtype=bool) if self.rawpixflatimg.bpm is None else (
+                1 - self.rawpixflatimg.bpm).astype(bool)
+        #gpm = np.logical_not(self.build_mask())
         slitid_img_init = self.slits.slit_img(pad=0, initial=True)
         slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True)
         # Find all good slits, and create a mask of pixels to include (True=include)

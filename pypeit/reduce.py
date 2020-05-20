@@ -343,6 +343,7 @@ class Reduce(object):
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
 
         # Wavelengths (on unmasked slits)
+        msgs.info("Generating wavelength image")
         self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
                                                self.wv_calib, spat_flexure=self.spat_flexure_shift)
 
