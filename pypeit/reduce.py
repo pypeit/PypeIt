@@ -347,6 +347,14 @@ class Reduce(object):
         self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
                                                self.wv_calib, spat_flexure=self.spat_flexure_shift)
 
+        # If this is a slit-based IFU, perform a relative scaling of the IFU slits
+        scaleImg = 1.0
+        if self.par['reduce']['cube']['slit_spec']:
+            msgs.info("Calculating relative scaling for slit-based IFU")
+            # Use the reference slit, stitched either side with slits that extend to the minimum and maximum wavelength
+            # TODO :: put this in the flatfield code... for sure...
+            scaleImg = self.build_scaleimg()
+
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
@@ -354,9 +362,17 @@ class Reduce(object):
                               show=self.reduce_show & (not self.std_redux),
                               manual_extract_dict=manual_extract_dict)
 
+        # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
+        skymask_init, usersky = self.load_skyregions(skymask_init)
+
+        # Define the trim regions for different pypelines
+        if self.spectrograph.pypeline == "IFU":
+            trim_edg = (0, 0)
+        else:
+            trim_edg = (3, 3)
+
         # Global sky subtract
-        self.initial_sky = \
-            self.global_skysub(skymask=skymask_init).copy()
+        self.initial_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=trim_edg).copy()
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
@@ -373,7 +389,7 @@ class Reduce(object):
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
             if (self.std_redux or self.par['reduce']['extraction']['skip_optimal'] or
-                    self.par['reduce']['findobj']['skip_second_find']):
+                    self.par['reduce']['findobj']['skip_second_find'] or usersky):
                 self.global_sky = self.initial_sky.copy()
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask,
@@ -528,21 +544,11 @@ class Reduce(object):
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
-        # Select the edges to use: Selects the edges tweaked by the
-        # illumination profile if they're present; otherwise, it
-        # selects the original edges from EdgeTraceSet. To always
-        # select the latter, use the method with `original=True`.
-        # TODO -- JXP removed these from KCWI4..
-        #original = True if ((trim_edg[0] == 0) and (trim_edg[1] == 0)) else False
-        #left, right = self.slits.select_edges(original=original)
-        #left, right = self.slits.select_edges()
-
         if self.par['reduce']['skysub']['joint_fit']:
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
             inmask = ((self.sciImg.fullmask == 0) & thismask & skymask_now).astype(np.bool)
             # Find sky
-            # TODO :: JXP removed the left and right (non trimmed) edges (see above). This might not allow the whole slit to be used
             scalefact = scaleImg + (scaleImg == 0)
             self.global_sky[thismask] \
                 = skysub.global_skysub(self.sciImg.image/scalefact, self.sciImg.ivar, self.waveimg,
@@ -550,7 +556,7 @@ class Reduce(object):
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
-                                       pos_mask=(not self.ir_redux), use_wave=True, show_fit=True)#show_fit)
+                                       pos_mask=(not self.ir_redux), use_wave=True, show_fit=show_fit)
             # Apply the scaling factor to the sky image
             self.global_sky *= scaleImg
             # Mask if something went wrong
@@ -607,6 +613,61 @@ class Reduce(object):
         """
 
         return None, None, None, None, None
+
+    def load_skyregions(self, skymask_init):
+        """
+        Load or generate the sky regions
+
+        Parameters
+        ----------
+        skymask_init :  numpy.ndarray
+            A boolean array of sky pixels (True is pixel is a sky region)
+
+        Returns
+        -------
+        skymask_init :  numpy.ndarray
+            A boolean array of sky pixels (True is pixel is a sky region)
+        usersky : bool
+            If the user has defined the sky, set this variable to True (otherwise False).
+        """
+        usersky = False
+        if self.par['reduce']['skysub']['load_mask']:
+            # Check if a master Sky Regions file exists for this science frame
+            file_base = os.path.basename(self.sciImg.files[0])
+            prefix = os.path.splitext(file_base)
+            if prefix[1] == ".gz":
+                sciName = os.path.splitext(prefix[0])[0]
+            else:
+                sciName = prefix[0]
+
+            # Setup the master frame name
+            master_dir = self.caliBrate.master_dir
+            master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
+
+            regfile = masterframe.construct_file_name(buildimage.SkyRegions,
+                                                      master_key=master_key,
+                                                      master_dir=master_dir)
+            # Check if a file exists
+            if os.path.exists(regfile):
+                msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
+                skymask_init = fits.getdata(regfile).astype(np.bool)
+                usersky = True
+            else:
+                msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
+        elif len(self.par['reduce']['skysub']['user_regions']) != 0:
+            skyregtxt = self.par['reduce']['skysub']['user_regions']
+            if type(skyregtxt) is list:
+                skyregtxt = ",".join(skyregtxt)
+            msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(skyregtxt))
+            # The resolution probably doesn't need to be a user parameter
+            resolution = int(10.0*np.max(self.slits_right-self.slits_left))
+            # Get the regions
+            status, regions = skysub.read_userregions(skyregtxt, resolution=resolution)
+            # Generate image
+            skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
+                                                resolution=resolution)
+            usersky = True
+        return skymask_init, usersky
 
     def spec_flexure_correct(self, sobjs, basename):
         """ Correct for spectral flexure
@@ -1284,7 +1345,6 @@ class IFUReduce(Reduce):
             else:
                 scale_model[onslit_init] = slit_bspl.value((self.waveimg[onslit_init] - minw) / (maxw - minw))[0]
 
-        debug=True
         if debug:
             # This code generates the wavy patterns seen in KCWI
             debug_model = np.ones_like(self.caliBrate.flatimages.procflat)
@@ -1370,133 +1430,3 @@ class IFUReduce(Reduce):
         """
         plate_scale = self.sciImg.detector.platescale
         return plate_scale
-
-    def load_skyregions(self):
-        """
-        Load or generate the sky regions
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        skymask_init :  numpy.ndarray
-            A boolean array of sky pixels (True is pixel is a sky region)
-        """
-        skymask_init = None
-        if self.par['reduce']['skysub']['load_mask']:
-            # Check if a master Sky Regions file exists for this science frame
-            file_base = os.path.basename(self.sciImg.files[0])
-            prefix = os.path.splitext(file_base)
-            if prefix[1] == ".gz":
-                sciName = os.path.splitext(prefix[0])[0]
-            else:
-                sciName = prefix[0]
-
-            # Setup the master frame name
-            master_dir = self.caliBrate.master_dir
-            master_key = self.caliBrate.fitstbl.master_key(0, det=self.det) + "_" + sciName
-
-            regfile = masterframe.construct_file_name(buildimage.SkyRegions,
-                                                      master_key=master_key,
-                                                      master_dir=master_dir)
-            # Check if a file exists
-            if os.path.exists(regfile):
-                msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
-                skymask_init = fits.getdata(regfile).astype(np.bool)
-            else:
-                msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
-        elif self.par['reduce']['skysub']['user_regions'] != '':
-            msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(
-                self.par['reduce']['skysub']['user_regions']))
-            # This doesn't need to be a user parameter
-            resolution = int(10.0*np.max(self.slits_right-self.slits_left))
-            # Get the regions
-            status, regions = skysub.read_userregions(self.par['reduce']['skysub']['user_regions'],
-                                                      resolution=resolution)
-            # Generate image
-            skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
-                                                resolution=resolution)
-        return skymask_init
-
-    def run(self, basename=None, ra=None, dec=None, obstime=None,
-            std_trace=None, manual_extract_dict=None, show_peaks=False,
-            ref_slit=None):
-        """
-        Primary code flow for PypeIt reductions
-        Args:
-            basename (str, optional):
-                Required if flexure correction is to be applied
-            ra (str, optional):
-                Required if helio-centric correction is to be applied
-            dec (str, optional):
-                Required if helio-centric correction is to be applied
-            obstime (:obj:`astropy.time.Time`, optional):
-                Required if helio-centric correction is to be applied
-            std_trace (np.ndarray, optional):
-                Trace of the standard star
-            manual_extract_dict (dict, optional):
-            show_peaks (bool, optional):
-                Show peaks in find_objects methods
-            ref_slit (int, optional):
-                Slit index to be used as reference for relative transmission calibration
-                TODO :: This is not currently used - is it even needed, given that it's a relative calibration?
-                Need to think about whether we need to use the exact same pixels for the relative calibration
-                (i.e. using the pixels that the standard star falls on, since the spatial illumflat is not constant).
-        Returns:
-            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
-        """
-        # Deal with dynamic calibrations
-        # Tilts
-        self.waveTilts.is_synced(self.slits)
-        #   Deal with Flexure
-        if self.par['calibrations']['tiltframe']['process']['spat_flexure_correct']:
-            _spat_flexure = 0. if self.spat_flexure_shift is None else self.spat_flexure_shift
-            # If they both shifted the same, there will be no reason to shift the tilts
-            tilt_flexure_shift = _spat_flexure - self.waveTilts.spat_flexure
-        else:
-            tilt_flexure_shift = self.spat_flexure_shift
-        self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
-
-        # Wavelengths (on unmasked slits)
-        self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
-                                               self.wv_calib, spat_flexure=self.spat_flexure_shift)
-
-        # If this is a slit-based IFU, perform a relative scaling of the IFU slits
-        scaleImg = 1.0
-        if self.par['reduce']['cube']['slit_spec']:
-            msgs.info("Calculating relative scaling for slit-based IFU")
-            # Use the reference slit, stitched either side with slits that extend to the minimum and maximum wavelength
-            scaleImg = self.build_scaleimg()
-
-        # Check if the user has a pre-defined sky regions file
-        skymask_init = self.load_skyregions()
-
-        # Global sky subtract based on flatfield model
-        self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
-
-        # Recalculate the scaling based on the sky spectra
-        skyfactor = 1.0  # TODO :: Need to calculate a constant (or low order polynomial) scaling factor using the sky for all slits relative to the reference slit
-        scaleImg *= skyfactor
-
-        # Recalculate the global sky subtract based on flatfield model
-        # TODO :: Need to uncomment this when the above is fixed
-        #self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=(0, 0), show_fit=False).copy()
-
-        from pypeit.io import write_to_fits
-        write_to_fits(self.sciImg.image, "science.fits", overwrite=True)
-        write_to_fits(self.global_sky, "initial_sky.fits", overwrite=True)
-        write_to_fits(self.sciImg.image-self.global_sky, "skysub_science.fits", overwrite=True)
-        msgs.error("SUCCESSFUL -- UP TO HERE!")
-
-        # Resample data onto desired grid
-        # TODO :: still need to implement this step...
-
-        # TODO -- Should we move these to redux.run()?
-        # Heliocentric
-        radec = ltu.radec_to_coord((ra, dec))
-        self.helio_correct(self.sobjs, radec, obstime)
-
-        # Return
-        return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs

@@ -1116,7 +1116,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     return skymodel, objmodel, ivarmodel, outmask, sobjs
 
 
-def read_userregions(text, resolution=1000):
+def read_userregions(skyreg, resolution=1000):
     """ Parse the sky regions defined by the user. The text should
         be a comma separated list of percentages to apply to all slits
         Example: The following string   :10,35:65,80:
@@ -1124,7 +1124,7 @@ def read_userregions(text, resolution=1000):
 
     Parameters
     ----------
-    text : str
+    skyreg : str
         The sky region definition.
     resolution: int, optional
         The percentage regions will be scaled to the specified resolution. The
@@ -1142,8 +1142,8 @@ def read_userregions(text, resolution=1000):
     status = 0
     regions = []
     try:
-        tspl = text.split(",")
-        for tt in tspl:
+        skyreg = skyreg.split(",")
+        for tt in skyreg:
             if ":" not in tt:
                 # Poor region definition - it should contain a semi-colon'
                 status = 2

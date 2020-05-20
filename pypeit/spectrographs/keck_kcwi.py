@@ -116,7 +116,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         headarr = self.get_headarr(scifile)
 
         # Templates
-        print(self.get_meta_value(headarr, 'dispname'))
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
             par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200.fits'
@@ -183,7 +182,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'keck_kcwi'
 
         # Make sure the overscan is subtracted from the dark
-        par['calibrations']['darkframe']['use_overscan'] = True
+        par['calibrations']['darkframe']['process']['use_overscan'] = True
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
