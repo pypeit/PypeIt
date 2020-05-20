@@ -464,7 +464,8 @@ class FlatFieldPar(ParSet):
     def __init__(self, method=None, pixelflat_file=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
-                 illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None):
+                 illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
+                 slit_illum_relative=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -547,6 +548,11 @@ class FlatFieldPar(ParSet):
                                   'the slit-illumination profile. Single value applied to both ' \
                                   'edges.'
 
+        defaults['slit_illum_relative'] = False
+        dtypes['slit_illum_relative'] = [bool]
+        descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination' \
+                                       'for a multi-slit setup.'
+
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
         descr['illum_iter'] = 'The number of rejection iterations to perform when constructing ' \
@@ -592,8 +598,8 @@ class FlatFieldPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
-                   'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
-                   'twod_fit_npoly', 'saturated_slits']
+                   'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
+                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -644,7 +650,6 @@ class FlatFieldPar(ParSet):
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
         #if self.data['tweak_slits'] and not self.data['illumflatten']:
         #    raise ValueError('In order to tweak slits illumflatten must be set to True')
-
 
 
 class FlexurePar(ParSet):

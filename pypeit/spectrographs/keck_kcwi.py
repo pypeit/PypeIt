@@ -201,6 +201,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['slit_illum_pad'] = 2  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
