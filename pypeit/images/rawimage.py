@@ -232,12 +232,20 @@ class RawImage(object):
                 viewer, ch = ginga.show_image(orig_image, chname='orig_image')
                 ginga.show_slits(viewer, ch, left, right)  # , slits.id)
 
+        # Apply the relative spectral illumination
+        spec_illum = 1.0
+        if self.par['use_specillum']:
+            if flatimages is None or flatimages.spec_illum is None:
+                msgs.error("Spectral illumination correction desired but not generated/provided.")
+            else:
+                spec_illum = flatimages.spec_illum.copy()
+
         # Flat field -- We cannot do illumination flat without a pixel flat (yet)
         if self.par['use_pixelflat'] or self.par['use_illumflat']:
             if flatimages is None or flatimages.pixelflat is None:
                 msgs.error("Flat fielding desired but not generated/provided.")
             else:
-                self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
+                self.flatten(flatimages.pixelflat*spec_illum, illum_flat=illum_flat, bpm=self.bpm)
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)

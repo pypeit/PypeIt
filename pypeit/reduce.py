@@ -349,14 +349,6 @@ class Reduce(object):
         self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
                                                self.wv_calib, spat_flexure=self.spat_flexure_shift)
 
-        # If this is a slit-based IFU, perform a relative scaling of the IFU slits
-        scaleImg = 1.0
-        if self.par['calibrations']['flatfield']['slit_illum_relative']:
-            # Grab the relative spectral illumination
-            scaleImg = self.caliBrate.flatimages.spec_illum.copy()
-            if scaleImg is None:
-                scaleImg = 1.0
-
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
@@ -374,8 +366,8 @@ class Reduce(object):
             trim_edg = (3, 3)
 
         # Global sky subtract
-        self.initial_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=trim_edg).copy()
-        # TODO :: update scaleImg, given the sky??
+        self.initial_sky = self.global_skysub(skymask=skymask_init, trim_edg=trim_edg).copy()
+        # TODO :: make minor correction to scaleImg, given the sky, and send this to the next call of global_skysub??
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
@@ -395,8 +387,8 @@ class Reduce(object):
                     self.par['reduce']['findobj']['skip_second_find'] or usersky):
                 self.global_sky = self.initial_sky.copy()
             else:
-                self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=self.skymask,
-                                                     trim_edg = trim_edg, show=self.reduce_show)
+                self.global_sky = self.global_skysub(skymask=self.skymask,
+                                                     trim_edg=trim_edg, show=self.reduce_show)
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
@@ -518,7 +510,11 @@ class Reduce(object):
         Args:
             scaleImg (np.ndarray, float, None):
                 A 2D image that scales the science frame to provide
-                uniform relative sky response across multiple slits
+                uniform relative sky response across multiple slits.
+                The spectral illumination profile stored by flatimages
+                is already applied in rawimage.py, so scaleImg should
+                only be a minor correction to the spectral illumination
+                profile.
             skymask (np.ndarray, None):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
@@ -530,6 +526,9 @@ class Reduce(object):
             numpy.ndarray: image of the the global sky model
 
         """
+        if scaleImg is None:
+            # Apply no scale
+            scaleImg = 1.0
         # Prep
         self.global_sky = np.zeros_like(self.sciImg.image)
         # Parameters for a standard star

@@ -187,7 +187,7 @@ class ProcessImagesPar(ParSet):
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
-                 use_pixelflat=None, use_illumflat=None,
+                 use_pixelflat=None, use_illumflat=None, use_specillum=None,
                  spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
@@ -253,6 +253,11 @@ class ProcessImagesPar(ParSet):
         defaults['use_illumflat'] = True
         dtypes['use_illumflat'] = bool
         descr['use_illumflat'] = 'Use the illumination flat to correct for the illumination profile of each slit.'
+
+        defaults['use_specillum'] = False
+        dtypes['use_specillum'] = bool
+        descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct the spectral' \
+                                 'illumination profile of each slit.'
 
         # Flexure
         defaults['spat_flexure_correct'] = False
@@ -338,7 +343,7 @@ class ProcessImagesPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
+                   'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
                    'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
             'rmcompact', 'sigclip', 'sigfrac', 'objlim']
