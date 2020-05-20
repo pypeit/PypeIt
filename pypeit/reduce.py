@@ -349,11 +349,11 @@ class Reduce(object):
 
         # If this is a slit-based IFU, perform a relative scaling of the IFU slits
         scaleImg = 1.0
-        if self.par['reduce']['cube']['slit_spec']:
-            msgs.info("Calculating relative scaling for slit-based IFU")
-            # Use the reference slit, stitched either side with slits that extend to the minimum and maximum wavelength
-            # TODO :: put this in the flatfield code... for sure...
-            scaleImg = self.build_scaleimg()
+        if self.par['calibrations']['flatfield']['slit_illum_relative']:
+            # Grab the relative spectral illumination
+            scaleImg = self.caliBrate.flatimages.spec_illum
+            if scaleImg is None:
+                scaleImg = 1.0
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \

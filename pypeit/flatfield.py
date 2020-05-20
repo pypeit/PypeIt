@@ -51,6 +51,7 @@ class FlatImages(datamodel.DataContainer):
         'procflat':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined flats'),
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'spec_illum': dict(otype=np.ndarray, atype=np.floating, desc='Relative spectral illumination'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'bpmflats': dict(otype=np.ndarray, atype=np.integer,
                          desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
@@ -59,7 +60,7 @@ class FlatImages(datamodel.DataContainer):
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
     }
 
-    def __init__(self, procflat=None, pixelflat=None, bpmflats=None,
+    def __init__(self, procflat=None, pixelflat=None, spec_illum=None, bpmflats=None,
                  flat_model=None, spat_bsplines=None, PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -205,7 +206,7 @@ class FlatImages(datamodel.DataContainer):
             slits.mask_flats(self)
             illumflat = self.fit2illumflat(slits)
         # Show
-        show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model,
+        show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model, self.spec_illum,
                    wcs_match=wcs_match, slits=slits)
 
 
@@ -1035,7 +1036,7 @@ class FlatField(object):
                spat_flat_fit, spat_flat_data_raw
 
 
-def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits=None):
+def show_flats(pixelflat, illumflat, procflat, flat_model, spec_illum, wcs_match=True, slits=None):
     """
     Interface to ginga to show a set of flat images
 
@@ -1044,6 +1045,7 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits
         illumflat (`numpy.ndarray`_ or None):
         procflat (`numpy.ndarray`_):
         flat_model (`numpy.ndarray`_):
+        spec_illum (`numpy.ndarray`_ or None):
         wcs_match (bool, optional):
         slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
 
@@ -1056,9 +1058,9 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits
         gpm = mask == 0
     # Loop me
     clear = True
-    for img, name, cut in zip([pixelflat, illumflat, procflat, flat_model],
-                         ['pixelflat', 'illumflat', 'flat', 'flat_model'],
-                         [(0.9, 1.1), (0.9, 1.1), None, None]):
+    for img, name, cut in zip([pixelflat, illumflat, procflat, flat_model, spec_illum],
+                         ['pixelflat', 'illumflat', 'flat', 'flat_model', 'spec_illum'],
+                         [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)]):
         if img is None:
             continue
         # TODO: Add an option that shows the relevant stuff in a
