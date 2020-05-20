@@ -237,7 +237,7 @@ class Reduce(object):
         # Return
         return manual_extract_dict
 
-    def extract(self, global_sky, sobjs_obj):
+    def extract(self, global_sky, sobjs_obj, scaleImg=1.0):
         """
         Main method to extract spectra from the ScienceImage
 
@@ -246,6 +246,8 @@ class Reduce(object):
                 Sky estimate
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
+            scaleImg (:obj:`numpy.ndarray`, float):
+                relative scale to be applied to the science frame.
         """
         # This holds the objects, pre-extraction
         self.sobjs_obj = sobjs_obj
@@ -373,6 +375,7 @@ class Reduce(object):
 
         # Global sky subtract
         self.initial_sky = self.global_skysub(scaleImg=scaleImg, skymask=skymask_init, trim_edg=trim_edg).copy()
+        # TODO :: update scaleImg, given the sky??
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
@@ -392,8 +395,8 @@ class Reduce(object):
                     self.par['reduce']['findobj']['skip_second_find'] or usersky):
                 self.global_sky = self.initial_sky.copy()
             else:
-                self.global_sky = self.global_skysub(skymask=self.skymask,
-                                                     show=self.reduce_show)
+                self.global_sky = self.global_skysub(scaleImg=scaleImg, skymask=self.skymask,
+                                                     trim_edg = trim_edg, show=self.reduce_show)
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
@@ -1198,7 +1201,7 @@ class EchelleReduce(Reduce):
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
 
-class IFUReduce(Reduce):
+class IFUReduce(MultiSlitReduce, Reduce):
     """
     Child of Reduce for IFU reductions
 
@@ -1209,15 +1212,16 @@ class IFUReduce(Reduce):
         super(IFUReduce, self).__init__(sciImg, spectrograph, par, caliBrate, objtype, **kwargs)
         self.initialise_slits(initial=True)
 
-    def get_platescale(self, dummy):
+    def find_objects_pypeline(self, image, std_trace=None,
+                              show_peaks=False, show_fits=False, show_trace=False,
+                              show=False, debug=False,
+                              manual_extract_dict=None):
         """
-        Return the platescale for IFU.
-        The input argument is ignored
-        Args:
-            dummy (:class:`pypeit.specobj.SpecObj`):
-                ignored
-        Returns:
-            float:
+        See MultiSlitReduce for slit-based IFU reductions
         """
-        plate_scale = self.sciImg.detector.platescale
-        return plate_scale
+        if self.par['reduce']['cube']['slit_spec']:
+            return super().find_objects_pypeline(image, std_trace=std_trace,
+                                                 show_peaks=show_peaks, show_fits=show_fits, show_trace=show_trace,
+                                                 show=show, debug=debug, manual_extract_dict=manual_extract_dict)
+        else:
+            return None, None, None
