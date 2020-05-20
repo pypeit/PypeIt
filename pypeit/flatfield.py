@@ -22,6 +22,7 @@ from pypeit import bspline
 from pypeit.par import pypeitpar
 from pypeit import datamodel
 from pypeit import masterframe
+from pypeit import wavecalib
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
@@ -259,7 +260,7 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawpixflatimg, rawillumflatimg, spectrograph, flatpar, slits, wavetilts, waveimg):
+    def __init__(self, rawpixflatimg, rawillumflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -269,7 +270,7 @@ class FlatField(object):
         # Input data
         self.slits = slits
         self.wavetilts = wavetilts
-        self.waveimg = waveimg
+        self.wv_calib = wv_calib
 
         # Worth a check
         self.wavetilts.is_synced(self.slits)
@@ -1075,6 +1076,12 @@ class FlatField(object):
         -------
         ndarray: An image containing the appropriate scaling
         """
+        # Generate a wavelength image
+        msgs.info("Generating wavelength image")
+        flex = self.wavetilts.spat_flexure
+        slitmask = self.slits.slit_img(initial=True, flexure=flex)
+        tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+        waveimg = wavecalib.build_waveimg(self.spectrograph, tilts, self.slits, self.wv_calib, spat_flexure=flex)
         msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']
@@ -1090,8 +1097,8 @@ class FlatField(object):
         mnmx_wv = np.zeros((self.slits.nslits, 2))
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
             onslit_init = (slitid_img_init == slit_spat)
-            mnmx_wv[slit_idx, 0] = np.min(self.waveimg[onslit_init])
-            mnmx_wv[slit_idx, 1] = np.max(self.waveimg[onslit_init])
+            mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
+            mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
         # Sort by increasing minimum wavelength
         swslt = np.argsort(mnmx_wv[:, 0])
 
@@ -1102,26 +1109,26 @@ class FlatField(object):
         minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
         # Prepare slit 0
         onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
-        onslit_a_olap = onslit_a & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw)
-        wsort = np.argsort(self.waveimg[onslit_a_olap])
+        onslit_a_olap = onslit_a & gpm & (waveimg >= minw) & (waveimg <= maxw)
+        wsort = np.argsort(waveimg[onslit_a_olap])
         # Generate a simple spline for the first slit
-        sclspl = interpolate.interp1d(self.waveimg[onslit_a_olap][wsort], rawflat[onslit_a_olap][wsort],
+        sclspl = interpolate.interp1d(waveimg[onslit_a_olap][wsort], rawflat[onslit_a_olap][wsort],
                                       kind='linear', bounds_error=False, fill_value="extrapolate")
         # Now roughly calculate the flux scale relative to the first slit
         for slit_idx in range(1, self.slits.spat_id.size):
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
             onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
             onslit_b_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
-            onslit_b_olap = onslit_b & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw)
-            speca = sclspl(self.waveimg[onslit_b_olap])
+            onslit_b_olap = onslit_b & gpm & (waveimg >= minw) & (waveimg <= maxw)
+            speca = sclspl(waveimg[onslit_b_olap])
             # Fit a low order polynomial
-            xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
+            xfit = (waveimg[onslit_b_olap] - minw) / (maxw - minw)
             yfit = speca / rawflat[onslit_b_olap]
             # Rough outlier rejection
             msk = (yfit > 1/3) & (yfit < 3)
             coeff = utils.func_fit(xfit[msk], yfit[msk], "legendre", 2, minx=0, maxx=1)
             relscl_model[onslit_b_init] = utils.func_val(coeff,
-                                                         (self.waveimg[onslit_b_init] - minw) / (maxw - minw),
+                                                         (waveimg[onslit_b_init] - minw) / (maxw - minw),
                                                          "legendre", minx=0, maxx=1)
 
         ### STEP 2
@@ -1146,7 +1153,7 @@ class FlatField(object):
         # Sort the pixels by their spectral coordinate.
         # TODO: Include ivar and sorted gpm in outputs?
         spec_gpm, spec_srt, spec_coo_data, spec_flat_data \
-            = flat.sorted_flat_data(flat_log, self.waveimg, gpm=spec_gpm)
+            = flat.sorted_flat_data(flat_log, waveimg, gpm=spec_gpm)
         spec_ivar_data = ivar_log[spec_gpm].ravel()[spec_srt]
         spec_gpm_data = gpm_log[spec_gpm].ravel()[spec_srt]
 
@@ -1170,8 +1177,8 @@ class FlatField(object):
             onslit_gpm = onslit & gpm
             # Fit a low order polynomial
             minw, maxw = mnmx_wv[slit_idx, 0], mnmx_wv[slit_idx, 1]
-            xfit = (self.waveimg[onslit_gpm] - minw) / (maxw - minw)
-            yfit = np.exp(spec_bspl.value(self.waveimg[onslit_gpm])[0]) / rawflat[onslit_gpm]
+            xfit = (waveimg[onslit_gpm] - minw) / (maxw - minw)
+            yfit = np.exp(spec_bspl.value(waveimg[onslit_gpm])[0]) / rawflat[onslit_gpm]
             srtd = np.argsort(xfit)
             # Rough outlier rejection
             inmsk = (yfit > 1/5) & (yfit < 5)
@@ -1184,7 +1191,7 @@ class FlatField(object):
             if exit_status > 1:
                 msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
             else:
-                scale_model[onslit_init] = slit_bspl.value((self.waveimg[onslit_init] - minw) / (maxw - minw))[0]
+                scale_model[onslit_init] = slit_bspl.value((waveimg[onslit_init] - minw) / (maxw - minw))[0]
 
         if debug:
             # This code generates the wavy patterns seen in KCWI
@@ -1194,7 +1201,7 @@ class FlatField(object):
                 msgs.warn("Joint blaze fit failed")
             else:
                 blaze_model[...] = 1.
-                blaze_model[spec_tot] = np.exp(spec_bspl.value(self.waveimg[spec_tot])[0])
+                blaze_model[spec_tot] = np.exp(spec_bspl.value(waveimg[spec_tot])[0])
                 # Now take out the relative scaling
                 blaze_model /= scale_model
                 # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
@@ -1209,11 +1216,11 @@ class FlatField(object):
             # Shift to approximately constant wavelength
             shift_image = np.ones_like(self.rawpixflatimg.image.copy())
             # ratio = ratio of twilight to internal flats
-            ratio = 1  # placeholder... need to load "ratio" image from file
+            ratio = np.ones_like(self.rawpixflatimg.image.copy())  # placeholder... need to load "ratio" image from file
             for slit_idx in range(0, self.slits.spat_id.size):
                 # Only use the overlapping regions of the slits, where the same wavelength range is covered
                 onslit_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
-                onslit_olap = np.where(onslit_init & (self.waveimg >= minw) & (self.waveimg <= maxw))
+                onslit_olap = np.where(onslit_init & (waveimg >= minw) & (waveimg <= maxw))
                 shifted = (onslit_olap[0] - onslit_olap[0].min(), onslit_olap[1],)
                 shift_image[shifted] = ratio[onslit_olap]
 

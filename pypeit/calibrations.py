@@ -531,13 +531,8 @@ class Calibrations(object):
         # Check if one should be used and not the other
         if pix_flat is not None:
             # Create pixelflat and illumination flat from illumination flat stack
-            flex = self.wavetilts.spat_flexure
-            slitmask = self.slits.slit_img(initial=True, spat_flexure=flex)
-            tilts = self.wavetilts.fit2tiltimg(slitmask, spat_flexure=flex)
-            waveimg = wavecalib.build_waveimg(self.spectrograph, self.wavetilts, self.slits,
-                                              self.wv_calib, spat_flexure=flex)
             flatField = flatfield.FlatField(pix_flat, illum_flat, self.spectrograph,
-                                            self.par['flatfield'], self.slits, self.wavetilts, waveimg)
+                                            self.par['flatfield'], self.slits, self.wavetilts, self.wv_calib)
             # Run
             self.flatimages = flatField.run(show=self.show)
 
