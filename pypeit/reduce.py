@@ -367,7 +367,6 @@ class Reduce(object):
 
         # Global sky subtract
         self.initial_sky = self.global_skysub(skymask=skymask_init, trim_edg=trim_edg).copy()
-        # TODO :: make minor correction to scaleImg, given the sky, and send this to the next call of global_skysub??
 
         # Second pass object finding on sky-subtracted image
         if (not self.std_redux) and (not self.par['reduce']['findobj']['skip_second_find']):
