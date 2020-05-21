@@ -500,7 +500,7 @@ class Reduce(object):
          """
         return None, None, None
 
-    def global_skysub(self, scaleImg=None, skymask=None, update_crmask=True, trim_edg=(3,3),
+    def global_skysub(self, skymask=None, update_crmask=True, trim_edg=(3,3),
                       show_fit=False, show=False, show_objs=False):
         """
         Perform global sky subtraction, slit by slit
@@ -508,13 +508,6 @@ class Reduce(object):
         Wrapper to skysub.global_skysub
 
         Args:
-            scaleImg (np.ndarray, float, None):
-                A 2D image that scales the science frame to provide
-                uniform relative sky response across multiple slits.
-                The spectral illumination profile stored by flatimages
-                is already applied in rawimage.py, so scaleImg should
-                only be a minor correction to the spectral illumination
-                profile.
             skymask (np.ndarray, None):
                 A 2D image indicating sky regions (1=sky)
             update_crmask (bool, optional):
@@ -526,9 +519,6 @@ class Reduce(object):
             numpy.ndarray: image of the the global sky model
 
         """
-        if scaleImg is None:
-            # Apply no scale
-            scaleImg = 1.0
         # Prep
         self.global_sky = np.zeros_like(self.sciImg.image)
         # Parameters for a standard star
@@ -551,19 +541,65 @@ class Reduce(object):
             thismask = (self.slitmask != 0)
             inmask = ((self.sciImg.fullmask == 0) & thismask & skymask_now).astype(np.bool)
             # Find sky
-            scalefact = scaleImg + (scaleImg == 0)
             self.global_sky[thismask] \
-                = skysub.global_skysub(self.sciImg.image/scalefact, self.sciImg.ivar, self.waveimg,
+                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.waveimg,
                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
                                        pos_mask=(not self.ir_redux), use_wave=True, show_fit=show_fit)
-            # Apply the scaling factor to the sky image
-            self.global_sky *= scaleImg
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 msgs.error("Cannot perform joint global sky fit")
+            msgs.info("Recalculating the relative spectral illumination using the sky regions")
+            # First grab the slit properties
+            trim = self.par['calibrations']['flatfield']['slit_trim']
+            bkspace = self.par['calibrations']['flatfield']['spec_samp_coarse']
+            slitid_img_init = self.slits.slit_img(pad=0, initial=True)
+            slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True)
+            scaleImg = np.ones_like(self.sciImg.image)
+            rel_skyillum = self.sciImg.image/self.global_sky
+            # loop through all slits and calculate the relative illumination in all slits
+            for slit_idx, spatid in enumerate(self.slits.spat_id):
+                msgs.info("Generating model relative response image for slit {0:d} using sky".format(slit_idx))
+                # Only use the overlapping regions of the slits, where the same wavelength range is covered
+                onslit = (slitid_img_trim == spatid)
+                onslit_init = (slitid_img_init == spatid)
+                onslit_gpm = onslit & thismask
+                # Fit a low order polynomial
+                xfit = self.waveimg[onslit_gpm]
+                yfit = rel_skyillum[onslit_gpm]
+                srtd = np.argsort(xfit)
+                # Rough outlier rejection
+                inmsk = (yfit > 1 / 5) & (yfit < 5)
+                slit_bspl, _, _, _, exit_status \
+                    = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit), np.ones_like(xfit),
+                                            nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
+                                            kwargs_bspline={'bkspace': bkspace},
+                                            kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+                # TODO : Perhaps mask a slit if it fails...
+                if exit_status > 1:
+                    msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
+                else:
+                    scaleImg[onslit_init] = slit_bspl.value(self.waveimg[onslit_init])[0]
+
+            # Correct the relative illumination of the science frame
+            # TODO :: scaleImg *really* should be saved to the Spec2D data model.
+            msgs.info("Correcting science frame for relative spectral illumination")
+            scaleFact = scaleImg + (scaleImg == 0)
+            sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleFact, self.sciImg.fullmask,
+                                            varframe=utils.inverse(self.sciImg.ivar.copy()))
+            self.sciImg.image = sciImg.copy()
+            self.sciImg.ivar = utils.inverse(varImg)
+            # Repeat the sky subtraction
+            msgs.info("Repeating global sky subtraction")
+            self.global_sky[thismask] \
+                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.waveimg,
+                                       thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                       sigrej=sigrej, trim_edg=trim_edg,
+                                       bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                       no_poly=self.par['reduce']['skysub']['no_poly'],
+                                       pos_mask=(not self.ir_redux), use_wave=True, show_fit=show_fit)
         else:
             # Loop on slits
             for slit_idx in gdslits:
