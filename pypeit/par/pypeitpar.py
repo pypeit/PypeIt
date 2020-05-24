@@ -1661,7 +1661,7 @@ class TellFitPar(ParSet):
 
         defaults['tell_grid'] = None
         dtypes['tell_grid'] = str
-        descr['tell_grid'] = 'pca pickle file. needed when you use qso_telluric'
+        descr['tell_grid'] = 'telluric grid file. needed when you use qso_telluric'
 
         defaults['only_orders'] = None
         dtypes['only_orders'] = int
