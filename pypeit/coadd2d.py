@@ -427,9 +427,10 @@ class CoAdd2D(object):
         if show:
             redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
 
-        # Object finding
+        # Object finding, this hack appears inevitable for the moment, since we need to be able to call find_objects
+        # outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
+        # 2d coadd reduce
         # HACK ME!
-        #from pypeit.par import pypeitpar
         if self.par['reduce']['extraction']['manual']['spat_spec'] is not None:
             spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
             hand_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,
@@ -568,7 +569,7 @@ class CoAdd2D(object):
                 - dsamp (float): The pixel sampling for wavelength grid
                   created.
         """
-        if self.par['coadd2d']['use_slits']:
+        if self.par['coadd2d']['use_slits4wvgrid']:
             nobjs_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
             waves = np.zeros((self.nspec, nobjs_tot))
             gpm = np.zeros_like(waves, dtype=bool)

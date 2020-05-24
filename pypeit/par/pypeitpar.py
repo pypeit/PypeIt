@@ -1023,7 +1023,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None, weights=None, use_slits=None):
+    def __init__(self, offsets=None, weights=None, use_slits4wvgrid=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1042,9 +1042,9 @@ class Coadd2DPar(ParSet):
         descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels).'
 
         # Offsets
-        defaults['use_slits'] = False
-        dtypes['use_slits'] = bool
-        descr['use_slits'] = 'If True, use the slits to set the trace down the center'
+        defaults['use_slits4wvgrid'] = False
+        dtypes['use_slits4wvgrid'] = bool
+        descr['use_slits4wvgrid'] = 'If True, use the slits to set the trace down the center'
 
         # TODO -- Provide all the weights options here
         # Weights
@@ -1063,7 +1063,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['offsets', 'weights', 'use_slits']
+        parkeys = ['offsets', 'weights', 'use_slits4wvgrid']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
