@@ -97,14 +97,18 @@ def main(args):
     frame = (sciimg - skymodel) * (mask == 0)
 
     mdir = head0['PYPMFDIR']
+    mkey = head0['FRAMMKEY']
+    mast_key = '{0}_{1:02d}'.format(mkey, args.det)
     if not os.path.exists(mdir):
         mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
         msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
         mdir = mdir_base
 
     # Assumes a MasterSlit file has been written
-    slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
+    #slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
                                                mdir)
+    # Load the slits information
+    slits = slittrace.SlitTraceSet.from_master(mast_key, mdir)
 
     # Object traces
     left, right, mask = slits.select_edges()
@@ -118,6 +122,11 @@ def main(args):
         hdulist_1d = []
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
+
+    msgs.error("This code needs to be refactored since tslits_dict was removed...")
+    import pdb
+    pdb.set_trace()
+    tslits_dict['objtrc'] = parse_traces(hdulist_1d, det_nm)
     obj_trace = parse_traces(hdulist_1d, 'DET{:s}'.format(sdet))
 
     # TODO :: Need to include standard star trace in the spec2d files
@@ -147,3 +156,4 @@ def main(args):
     gui.object_find.initialise(args.det, frame, left, right, obj_trace, trace_models, None,
                                printout=True, slit_ids=slits.id)
 
+    ofgui = gui_object_find.initialise(args.det, frame, tslits_dict, None, printout=True, slit_ids=slits.id)

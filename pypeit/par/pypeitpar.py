@@ -338,8 +338,8 @@ class ProcessImagesPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient',
                    'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-            'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
-            'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
+                   'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
+                   'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
             'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
@@ -779,11 +779,11 @@ class AlignPar(ParSet):
 
         # Instantiate the parameter set
         super(AlignPar, self).__init__(list(pars.keys()),
-                                           values=list(pars.values()),
-                                           defaults=list(defaults.values()),
-                                           options=list(options.values()),
-                                           dtypes=list(dtypes.values()),
-                                           descr=list(descr.values()))
+                                            values=list(pars.values()),
+                                            defaults=list(defaults.values()),
+                                            options=list(options.values()),
+                                            dtypes=list(dtypes.values()),
+                                            descr=list(descr.values()))
         self.validate()
 
     @classmethod
@@ -1068,6 +1068,92 @@ class Coadd2DPar(ParSet):
         Check the parameters are valid for the provided method.
         """
         pass
+
+
+class CubePar(ParSet):
+    """
+    The parameter set used to hold arguments for functionality relevant
+    to cube generation (primarily for IFU data).
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, slit_spec=None, cube_spat_num=None, cube_wave_num=None,
+                 cube_wave_min=None, cube_wave_max=None):
+
+        # Grab the parameter names and values from the function
+        # arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
+
+        # Initialize the other used specifications for this parameter
+        # set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        options = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        # Fill out parameter specifications.  Only the values that are
+        # *not* None (i.e., the ones that are defined) need to be set
+
+        # Cube Parameters
+        defaults['slit_spec'] = True
+        dtypes['slit_spec'] = [bool]
+        descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
+                             'If the data uses fibres for all spaxels, set this to False.'
+
+        defaults['cube_spat_num'] = None
+        dtypes['cube_spat_num'] = [int, float]
+        descr['cube_spat_num'] = 'Number of pixels in the spatial dimension. If None, the number of' \
+                                 'pixels in the spatial direction of the slit will be used. If you' \
+                                 'are reducing fibre IFU data, this parameter will be ignored'
+
+        defaults['cube_wave_num'] = None
+        dtypes['cube_wave_num'] = [int, float]
+        descr['cube_wave_num'] = 'Number of pixels in the wavelength dimension. If None, the number' \
+                                 'of pixels in the spectral direction on the raw science frame will' \
+                                 'be used.'
+
+        defaults['cube_wave_min'] = None
+        dtypes['cube_wave_min'] = float
+        descr['cube_wave_min'] = 'Minimum wavelength to use. If None, default is minimum wavelength' \
+                                 'based on wavelength solution of all spaxels'
+
+        defaults['cube_wave_max'] = None
+        dtypes['cube_wave_max'] = float
+        descr['cube_wave_max'] = 'Maximum wavelength to use. If None, default is maximum wavelength' \
+                                 'based on wavelength solution of all spaxels'
+
+
+        # Instantiate the parameter set
+        super(CubePar, self).__init__(list(pars.keys()),
+                                      values=list(pars.values()),
+                                      defaults=list(defaults.values()),
+                                      options=list(options.values()),
+                                      dtypes=list(dtypes.values()),
+                                      descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+
+        # Basic keywords
+        parkeys = ['slit_spec', 'cube_spat_num', 'cube_wave_num', 'cube_wave_min', 'cube_wave_max']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for ExtractionPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
+
 
 class FluxCalibratePar(ParSet):
     """
@@ -1544,6 +1630,164 @@ class TelluricPar(ParSet):
         # scipy.optimize.differential_evoluiton probalby checks this.
 
 
+class TellFitPar(ParSet):
+    """
+    A parameter set holding the arguments for sensitivity function computation using the UV algorithm, see
+    sensfunc.SensFuncUV
+
+    For a table with the current keywords, defaults, and descriptions,
+    see :ref:`pypeitpar`.
+    """
+
+    def __init__(self, objmodel=None, redshift=None, delta_redshift=None, pca_file=None, npca=None, bal_wv_min_max=None,
+                 bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
+                 star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
+                 func=None, model=None, polyorder=None, fit_wv_min_max=None, mask_lyman_a=None,
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
+
+        # Grab the parameter names and values from the function arguments
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        pars = OrderedDict([(k, values[k]) for k in args[1:]])
+
+        # Initialize the other used specifications for this parameter set
+        defaults = OrderedDict.fromkeys(pars.keys())
+        dtypes = OrderedDict.fromkeys(pars.keys())
+        descr = OrderedDict.fromkeys(pars.keys())
+
+        defaults['tell_grid'] = None
+        dtypes['tell_grid'] = str
+        descr['tell_grid'] = 'pca pickle file. needed when you use qso_telluric'
+
+        defaults['only_orders'] = None
+        dtypes['only_orders'] = int
+        descr['only_orders'] = "order number if you only want to fit a single order"
+
+        defaults['objmodel'] = None
+        dtypes['objmodel'] = str
+        descr['objmodel'] = 'which object model you want to use for telluric fit'
+
+        defaults['redshift'] = 0.0
+        dtypes['redshift'] = [int, float]
+        descr['redshift'] = 'redshift for your object model'
+
+        ### Start parameters for qso_telluric
+        defaults['delta_redshift'] = 0.1
+        dtypes['delta_redshift'] = [int, float]
+        descr['delta_redshift'] = 'variable redshift range during the fit'
+
+        defaults['pca_file'] = os.path.join(resource_filename('pypeit', 'data/telluric/'),
+                                            'qso_pca_1200_3100.pckl')
+        dtypes['pca_file'] = str
+        descr['pca_file'] = 'pca pickle file. needed when you use qso_telluric'
+
+        defaults['npca'] = 8
+        dtypes['npca'] = int
+        descr['npca'] = 'Number of pca'
+
+        defaults['bal_wv_min_max'] = None
+        dtypes['bal_wv_min_max'] = [list, numpy.ndarray]
+        descr['bal_wv_min_max'] = 'Min/max wavelength of broad absorption features. If there are several BAL features, ' \
+                            'the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, ' \
+                            'wave_max_bal2,...]. These masked pixels will be ignored during the fitting.'
+
+        defaults['bounds_norm'] = [0.1, 3.0]
+        dtypes['bounds_norm'] = list
+        descr['bounds_norm'] = "Normalization bounds for scaling the initial object model"
+
+        defaults['tell_norm_thresh'] = 0.9
+        dtypes['tell_norm_thresh'] = [int, float]
+        descr['tell_norm_thresh'] = "Threshold of telluric absorption region"
+
+        defaults['pca_lower'] = 1220.0
+        dtypes['pca_lower'] = [int, float]
+        descr['pca_lower'] = "minimum wavelength for the pca model"
+
+        defaults['pca_upper'] = 3100.0
+        dtypes['pca_upper'] = [int, float]
+        descr['pca_upper'] = "maximum wavelength for the pca model"
+
+        ### Start parameters for star_telluric
+        defaults['star_type'] = None
+        dtypes['star_type'] = str
+        descr['star_type'] = 'stellar type'
+
+        defaults['star_mag'] = None
+        dtypes['star_mag'] = [float, int]
+        descr['star_mag'] = 'AB magnitude in V band'
+
+        defaults['star_ra'] = None
+        dtypes['star_ra'] = float
+        descr['star_ra'] = 'Object right-ascension in decimal deg'
+
+        defaults['star_dec'] = None
+        dtypes['star_dec'] = float
+        descr['star_dec'] = 'Object declination in decimal deg'
+
+        defaults['mask_abs_lines'] = True
+        dtypes['mask_abs_lines'] = bool
+        descr['mask_abs_lines'] = 'Mask stellar absorption line?'
+
+        ### parameters for both star_telluric and poly_telluric
+        defaults['func'] = 'legendre'
+        dtypes['func'] = str
+        descr['func'] = 'object polynomial model function'
+
+        defaults['model'] = 'exp'
+        dtypes['model'] = str
+        descr['model'] = 'different type polynomial model. poly, square, exp corresponding to normal polynomial,'\
+                         'squared polynomial, or exponentiated polynomial'
+
+        defaults['polyorder'] = 3
+        dtypes['polyorder'] = int
+        descr['polyorder'] = "polynomial order for the object model"
+
+        defaults['delta_coeff_bounds'] = [-20.0, 20.0]
+        dtypes['delta_coeff_bounds'] = list
+        descr['delta_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
+
+        defaults['minmax_coeff_bounds'] = [-5.0, 5.0]
+        dtypes['minmax_coeff_bounds'] = list
+        descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
+
+        ### Start parameters for poly_telluric
+        defaults['fit_wv_min_max'] = None
+        dtypes['fit_wv_min_max'] = list
+        descr['fit_wv_min_max'] = "Pixels within this mask will be used during the fitting. The format"\
+                                   "is the same with bal_wv_min_max, but this mask is good pixel masks."
+
+        defaults['mask_lyman_a'] = True
+        dtypes['mask_lyman_a'] = bool
+        descr['mask_lyman_a'] = 'Mask the blueward of Lyman-alpha line during the fitting?'
+
+
+        # Instantiate the parameter set
+        super(TellFitPar, self).__init__(list(pars.keys()),
+                                          values=list(pars.values()),
+                                          defaults=list(defaults.values()),
+                                          dtypes=list(dtypes.values()),
+                                          descr=list(descr.values()))
+        self.validate()
+
+    @classmethod
+    def from_dict(cls, cfg):
+        k = numpy.array([*cfg.keys()])
+        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_wv_min_max', 'bounds_norm',
+                   'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
+                   'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
+                   'func','model','polyorder','fit_wv_min_max','mask_lyman_a',
+                   'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
+
+        badkeys = numpy.array([pk not in parkeys for pk in k])
+        if numpy.any(badkeys):
+            raise ValueError('{0} not recognized key(s) for TellFitPar.'.format(k[badkeys]))
+
+        kwargs = {}
+        for pk in parkeys:
+            kwargs[pk] = cfg[pk] if pk in k else None
+        return cls(**kwargs)
+
+    def validate(self):
+        pass
 
 class ManualExtractionPar(ParSet):
     """
@@ -2684,7 +2928,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None, extraction=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2712,20 +2956,24 @@ class ReducePar(ParSet):
         dtypes['extraction'] = [ ParSet, dict ]
         descr['extraction'] = 'Parameters for extraction algorithms'
 
+        defaults['cube'] = CubePar()
+        dtypes['cube'] = [ ParSet, dict ]
+        descr['cube'] = 'Parameters for cube generation algorithms'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
-                                              values=list(pars.values()),
-                                              defaults=list(defaults.values()),
-                                              options=list(options.values()),
-                                              dtypes=list(dtypes.values()),
-                                              descr=list(descr.values()))
+                                             values=list(pars.values()),
+                                             defaults=list(defaults.values()),
+                                             options=list(options.values()),
+                                             dtypes=list(dtypes.values()),
+                                             descr=list(descr.values()))
         self.validate()
 
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -2738,6 +2986,8 @@ class ReducePar(ParSet):
         kwargs[pk] = SkySubPar.from_dict(cfg[pk]) if pk in k else None
         pk = 'extraction'
         kwargs[pk] = ExtractionPar.from_dict(cfg[pk]) if pk in k else None
+        pk = 'cube'
+        kwargs[pk] = CubePar.from_dict(cfg[pk]) if pk in k else None
 
         return cls(**kwargs)
 
@@ -2872,7 +3122,8 @@ class SkySubPar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None):
+    def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
+                 user_regions=None, ref_slit=None, joint_fit=None, load_mask=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -2906,6 +3157,31 @@ class SkySubPar(ParSet):
         dtypes['no_poly'] = bool
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
+        defaults['user_regions'] = None
+        dtypes['user_regions'] = str
+        descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
+                                'the code to identify the sky regions automatically, set this variable to' \
+                                'an empty string. If you wish to set the sky regions, The text should be' \
+                                'a comma separated list of percentages to apply to _all_ slits' \
+                                ' For example: The following string   :10,35:65,80:   would select the' \
+                                'first 10%, the inner 30%, and the final 20% of _all_ slits.'
+
+        defaults['load_mask'] = False
+        dtypes['load_mask'] = bool
+        descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note,' \
+                             'if you set this to True, you must first run the pypeit_skysub_regions GUI' \
+                             'to manually select and store the regions to file.'
+
+        defaults['ref_slit'] = -1
+        dtypes['ref_slit'] = int
+        descr['ref_slit'] = 'Reference slit to be used for relative sky and flux calibration.' \
+                            'You need to set joint_fit=True for the reference slit to be used.' \
+                            'If this value is set to a negative number, the reference slit will' \
+                            'be set to the slit that contains the most flux from the standard star.'
+
+        defaults['joint_fit'] = False
+        dtypes['joint_fit'] = bool
+        descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits.'
 
         # Instantiate the parameter set
         super(SkySubPar, self).__init__(list(pars.keys()),
@@ -2921,7 +3197,7 @@ class SkySubPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly']
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'ref_slit', 'joint_fit']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3124,7 +3400,11 @@ class CalibrationsPar(ParSet):
         dtypes['pinholeframe'] = [ ParSet, dict ]
         descr['pinholeframe'] = 'The frames and combination rules for the pinholes'
 
-        defaults['alignframe'] = FrameGroupPar(frametype='align')
+        defaults['alignframe'] = FrameGroupPar(frametype='align',
+                                               process=ProcessImagesPar(satpix='nothing',
+                                                                        sigrej=-1,
+                                                                        use_pixelflat=False,
+                                                                        use_illumflat=False))
         dtypes['alignframe'] = [ ParSet, dict ]
         descr['alignframe'] = 'The frames and combination rules for the align frames'
 
@@ -3288,7 +3568,7 @@ class PypeItPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, rdx=None, calibrations=None, scienceframe=None, reduce=None,
-                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None):
+                 flexure=None, fluxcalib=None, coadd1d=None, coadd2d=None, sensfunc=None, tellfit=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -3360,6 +3640,11 @@ class PypeItPar(ParSet):
         defaults['sensfunc'] = SensFuncPar()
         dtypes['sensfunc'] = [ParSet, dict]
         descr['sensfunc'] = 'Par set to control sensitivity function computation.  Only used in the after-burner script.'
+
+        # Telluric Fit
+        defaults['tellfit'] = TellFitPar()
+        dtypes['tellfit'] = [ParSet, dict]
+        descr['tellfit'] = 'Par set to control telluric fitting.  Only used in the after-burner script.'
 
 
         # Instantiate the parameter set
@@ -3561,7 +3846,7 @@ class PypeItPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         allkeys = ['rdx', 'calibrations', 'scienceframe', 'reduce', 'flexure', 'fluxcalib',
-                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess']
+                   'coadd1d', 'coadd2d', 'sensfunc', 'baseprocess', 'tellfit']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for PypeItPar.'.format(k[badkeys]))
@@ -3609,6 +3894,12 @@ class PypeItPar(ParSet):
                         if pk in cfg['rdx'].keys() and cfg['rdx']['sensfunc'] else None
         kwargs[pk] = SensFuncPar.from_dict(cfg[pk]) if pk in k else default
 
+        # Allow tellfit to be turned on using cfg['rdx']
+        pk = 'tellfit'
+        default = TellFitPar() \
+                        if pk in cfg['rdx'].keys() and cfg['rdx']['tellfit'] else None
+        kwargs[pk] = TellFitPar.from_dict(cfg[pk]) if pk in k else default
+
         if 'baseprocess' not in k:
             return cls(**kwargs)
 
@@ -3622,13 +3913,13 @@ class PypeItPar(ParSet):
     def reset_all_processimages_par(self, **kwargs):
         """
         Set all of the ProcessImagesPar objects to have the input setting
-        
+
         e.g.
-        
+
         par.reset_all_processimages_par(use_illumflat=False)
-        
+
         Args:
-            **kwargs: 
+            **kwargs:
         """
         # Calibrations
         for _key in self['calibrations'].keys():
