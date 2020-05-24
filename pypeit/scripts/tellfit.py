@@ -134,11 +134,13 @@ def main(args):
 
     if args.tell_grid is not None:
         par['tellfit']['tell_grid'] = args.tell_grid
-    elif par['sensfunc']['IR']['telgridfile'] is not None:
-        par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
-    else:
-        msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
-        par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+    if par['tellfit']['tell_grid'] is None:
+        if par['sensfunc']['IR']['telgridfile'] is not None:
+            par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
+        else:
+            msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
+            par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))
