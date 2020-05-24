@@ -1537,7 +1537,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
     if hand_extract_dict is not None:
         # First Parse the hand_dict
-        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict( hand_extract_dict)
+        hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
         hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
                                                   np.rint(hand_extract_spat).astype(int)]))[0]
@@ -1706,7 +1706,7 @@ def remap_orders(xinit, spec_min_max, inverse=False):
     return xinit_remap
 
 
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det,
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
                 inmask=None, spec_min_max=None,
                 fof_link=1.5, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
@@ -1883,8 +1883,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                               hand_extract_dict['hand_extract_spat'],
                               hand_extract_dict['hand_extract_spec']):
             # Find the input slit
-            ispec = int(spec)
-            ispat = int(spat)
+            ispec = np.clip(np.round(spec),0,nspec-1)  #int(spec)
+            ispat = np.clip(np.round(spat),0,nspec-1)  #int(spat)
             slit = slitmask[ispec, ispat]
             # Fractions
             iord_hand = gdslit_spat.tolist().index(slit)
@@ -1900,8 +1900,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     gdorders = np.arange(norders)[np.invert(maskslits)]
     for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
-        gpmmask = slitmask == gdslit_spat[iord]
-        inmask_iord = inmask & gpmmask
+        thisslit_gpm = slitmask == gdslit_spat[iord]
+        inmask_iord = inmask & thisslit_gpm
         specobj_dict['SLITID'] = iord
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = order_vec[iord]
@@ -1910,7 +1910,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         except TypeError:
             std_in = None
 
-        # Deal with hand extract
+        # TODO JFH: Fix this ugliness. The way this code works, you should only need to create a single hand object,
+        # not one at every location on the order
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
             for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
@@ -1925,8 +1926,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             new_hand_extract_dict = None
 
         # Run
-        sobjs_slit, skymask_objfind[gpmmask] = \
-            objfind(image, gpmmask, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
+        sobjs_slit, skymask_objfind[thisslit_gpm] = \
+            objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, extrap_npoly=extrap_npoly, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
                     hand_extract_dict=new_hand_extract_dict, ir_redux=ir_redux,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
@@ -2137,6 +2138,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     sobjs_trim = specobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
+    # TODO JFH: Fix this ugly and dangerous hack that was added to accomodate hand apertures 
     hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in f_spats]
     for iobj in range(nobj):
         if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr) \
