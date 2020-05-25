@@ -35,6 +35,7 @@ class LinesBitMask(BitMask):
     """
     version = '1.0.0'
 
+    # TODO Full of bugs
     def __init__(self):
         mask = dict([
             ('ArI', 'Argon I'),
@@ -45,6 +46,8 @@ class LinesBitMask(BitMask):
             ('CdI', 'Comment'),
             ('ZnI', 'Comment'),
             ('HeI', 'Comment'),
+            ('OH', 'Comment'),
+            ('UNKNWN', 'Comment'),
             ('OH_R24000', 'Comment'),
             ('OH_triplespec', 'Comment'),
             ('CuI', 'Comment'),
