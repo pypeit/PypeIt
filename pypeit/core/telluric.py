@@ -1400,11 +1400,9 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
     qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +
                                                                     z_qso))
     # TODO this 3100 is hard wired now, but make the QSO PCA a PypeIt product and determine it from the file
+    mask_tot = mask & qsomask
     if bal_mask is not None:
-        bal_gpm = create_bal_mask(wave, bal_mask)
-        mask_tot = mask & qsomask & bal_gpm
-    else:
-        mask_tot = mask & qsomask
+        mask_tot &= create_bal_mask(wave, bal_mask)
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model, eval_qso_model,
@@ -1579,8 +1577,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         mask_tot = mask
 
     if fit_region_mask is not None:
-        mask_region = create_bal_mask(wave, fit_region_mask)
-        mask_tot = mask_tot & np.invert(mask_region)
+        mask_tot &= np.invert(create_bal_mask(wave, fit_region_mask))
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params,
