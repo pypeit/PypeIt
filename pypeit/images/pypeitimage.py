@@ -345,7 +345,9 @@ class PypeItImage(datamodel.DataContainer):
         new_sciImg.files = self.files + other.files
 
         #TODO: KW properly handle adding the bits
-        crmask_diff = new_sciImg.build_crmask(par)
+        #crmask_diff = new_sciImg.build_crmask(par)
+        # JFH changed to below because this was not respecting the desire not to mask_crs
+        crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
         # Note that the following uses the saturation and mincounts held in
