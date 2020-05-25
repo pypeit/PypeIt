@@ -24,8 +24,10 @@ from pypeit import bspline
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
+
 from IPython import embed
 
 def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
@@ -540,11 +542,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     indsp = (wave >= wave_min) & (wave <= wave_max) & \
              np.isfinite(flux_sm) & \
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
-    b_answer, bmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
+    b_answer, bmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    b_answer, bmask2  = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
+    b_answer, bmask2  = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
+    c_answer, cmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
                                      kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
     try:
@@ -690,7 +692,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     si = inside[np.argsort(sigma_x.flat[inside])]
     sr = si[::-1]
 
-    bset, bmask = pydl.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
+    bset, bmask = fitting.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
                                    nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
@@ -765,7 +767,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+        mode_shift_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
                                                norm_ivar.flat[inside], profile_basis,
                                                maxiter=1, kwargs_bspline={'nbkpts':nbkpts})
         # Check to see if the mode fit failed, if so punt and return a Gaussian
@@ -789,7 +791,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+        mode_stretch_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
                                                  norm_ivar.flat[inside], profile_basis, maxiter=1,
                                                  fullbkpt=mode_shift_set.breakpoints)
         if not np.any(mode_stretch_out[1]):
@@ -826,7 +828,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, dtype=bool)
-            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
+            bset_out = fitting.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
                                              norm_ivar.flat[inside[ss]],pb[ss], nord=4,
                                              bkpt=bkpt[keep], maxiter=2)
             if not np.any(bset_out[1]):
@@ -852,7 +854,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
+    bset_out = fitting.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
                                      norm_ivar.flat[ss[inside]], pb.flat[ss[inside]], nord=4,
                                      bkpt=bkpt, upper=10, lower=10)
     bset = bset_out[0]
@@ -2031,19 +2033,19 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             frac_mean_good = np.mean(slit_frac_good, 0)
             # Perform a  linear fit to fractional slit position
             #TODO Do this as a S/N weighted fit similar to what is now in the pca_trace algorithm?
-            msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
+            #msk_frac, poly_coeff_frac = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
+            pypeitFit = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
                                                                  function='polynomial', maxiter=20, lower=2, upper=2,
                                                                  use_mad= True, sticky=False,
                                                                  minx = order_vec.min(), maxx=order_vec.max())
             frac_mean_new = np.zeros(norders)
-            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, order_vec[badorder], 'polynomial',
-                                                     minx = order_vec.min(),maxx=order_vec.max())
+            frac_mean_new[badorder] = pypeitFit.val(order_vec[badorder])#, minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
             # TODO This QA needs some work
             if show_pca:
-                frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
-                plt.plot(order_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(msk_frac)], frac_mean_new[goodorder][np.invert(msk_frac)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                frac_mean_fit = pypeitFit.val(order_vec)
+                plt.plot(order_vec[goodorder][pypeitFit.gpm], frac_mean_new[goodorder][pypeitFit.gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
+                plt.plot(order_vec[goodorder][np.invert(pypeitFit.gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')

@@ -1116,6 +1116,10 @@ class DataContainer:
                 else:
                     hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
                                             force_to_bintbl=force_to_bintbl)]
+                    #except:
+                    #    import pdb; pdb.set_trace()
+                    #    embed(header='1121 of datamodel')
+                    #    msgs.error("bad")
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
         # Prefixes
@@ -1287,7 +1291,7 @@ class DataContainer:
                 rdict[attr] = True
             else:
                 rdict[attr] = False
-        repr += ' images={}'.format(rdict)
+        repr += ' items={}'.format(rdict)
         repr = repr + '>'
         return repr
 

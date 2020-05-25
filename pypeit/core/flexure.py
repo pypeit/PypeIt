@@ -20,6 +20,7 @@ from pypeit import utils
 from pypeit.core import arc
 from pypeit import ginga
 from pypeit.core import qa
+from pypeit.core import fitting
 
 from IPython import embed
 
@@ -244,14 +245,23 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     # Deal with underlying continuum
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
-    bspline_par = dict(everyn=everyn)
-    mask, ct = utils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
-                                    function='bspline', sigma=3., bspline_par=bspline_par)
-    obj_sky_cont = utils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
+    #bspline_par = dict(everyn=everyn)
+    #pypeitFit_obj = fitting.robust_fit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
+    #                                function='bspline', lower=3., upper=3., bspline_par=bspline_par)
+    #obj_sky_cont = pypeitFit_obj.val(obj_skyspec.wavelength.value)
+    pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
+                                       nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
+                                       maxiter = 15, upper = 3.0, lower = 3.0)
+    obj_sky_cont = pypeitFit_obj.value(obj_skyspec.wavelength.value)
+
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
-    mask, ct_arx = utils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3,
-                                        function='bspline', sigma=3., bspline_par=bspline_par)
-    arx_sky_cont = utils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
+    pypeitFit_sky, _ = fitting.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
+                                       nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
+                                       maxiter = 15, upper = 3.0, lower = 3.0)
+    arx_sky_cont = pypeitFit_sky.value(arx_skyspec.wavelength.value)
+    #pypeitFit_sky= fitting.robust_fit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3,
+    #                                    function='bspline', lower=3., upper=3., bspline_par=bspline_par)
+    #arx_sky_cont = pypeitFit_sky.val(arx_skyspec.wavelength.value)
     arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
     # Consider sharpness filtering (e.g. LowRedux)
@@ -270,11 +280,11 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
 
     #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
     if np.any(np.isfinite(corr[subpix_grid.astype(np.int)])):
-        fit = utils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
+        fit = fitting.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
         success = True
         max_fit = -0.5 * fit[1] / fit[2]
     else:
-        fit = utils.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
+        fit = fitting.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
         success = False
         max_fit = 0.0
         msgs.warn('Flexure compensation failed for one of your objects')

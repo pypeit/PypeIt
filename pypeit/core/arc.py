@@ -14,7 +14,8 @@ from pypeit import msgs
 from pypeit import utils
 #from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wvutils
-from pypeit.core.wavecal import fitting
+from pypeit.core.wavecal import wv_fitting
+from pypeit.core import fitting
 from IPython import embed
 
 
@@ -77,11 +78,11 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     # Fit the product of wavelength and order number with a 2d legendre polynomial
     all_wv_order = all_wv * all_orders
-    fitmask, coeff2 = utils.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
+    fitmask, coeff2 = fitting.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
                                                function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
                                                minx=min_spec,maxx=max_spec, minx2=min_order, maxx2=max_order,
                                                use_mad=True, sticky=False)
-    wv_order_mod = utils.func_val(coeff2, all_pix/xnspecmin1, func2d, x2=all_orders,
+    wv_order_mod = fitting.func_val(coeff2, all_pix/xnspecmin1, func2d, x2=all_orders,
                                                minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
     resid = (wv_order_mod[fitmask]-all_wv_order[fitmask])
     fin_rms = np.std(resid)
@@ -691,6 +692,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     # plt.grid()
     plt.show()
 
+
 def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
                    cont_mask_neg=False, qa_title='', npoly=None, debug_peak_find=False, debug=False):
     """
@@ -771,9 +773,11 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
         cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
         if npoly is not None:
             # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-            msk, poly = utils.robust_polyfit_djs(spec_vec[cont_mask], cont_med, npoly, function='polynomial', maxiter=25,
-                                                 upper=3.0, lower=3.0, minx=0.0, maxx=float(nspec-1))
-            cont_now = utils.func_val(poly, spec_vec, 'polynomial')
+            pypeitFit = fitting.robust_fit(spec_vec[cont_mask].astype(float), cont_med,
+                                           npoly, function='polynomial', maxiter=25,
+                                           upper=3.0, lower=3.0, minx=0.0,
+                                           maxx=float(nspec-1))
+            cont_now = pypeitFit.val(spec_vec.astype(float))
         else:
             cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
 
@@ -1080,11 +1084,12 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 #            continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
-            ampl[p] = popt[0]
-            cent[p] = popt[1]
-            widt[p] = popt[2]
-            centerr[p] = pcov[1, 1]
+            pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
+            #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
+            ampl[p] = pypeitFit.fitc[0]
+            cent[p] = pypeitFit.fitc[1]
+            widt[p] = pypeitFit.fitc[2]
+            centerr[p] = pypeitFit.fitcov[1, 1]
             #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
             #b[p]    = popt[0]
             #ampl[p] = popt[1]
@@ -1180,7 +1185,7 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
 
     # Debug
     disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
-    final_fit = fitting.iterative_fitting(censpec, tcent, idx_str, ids,
+    final_fit = wv_fitting.iterative_fitting(censpec, tcent, idx_str, ids,
                                           llist, disp, verbose=False, n_final=n_final)
     # Return
     return final_fit

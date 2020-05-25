@@ -61,7 +61,7 @@ class PypeItImage(datamodel.DataContainer):
     minimum_useful_version = '1.0.0'
     version = '1.0.1'
     #
-    datamodel_v100 = {
+    datamodel = {
         'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
         'rn2img': dict(otype=np.ndarray, atype=np.floating, desc='Read noise squared image'),
@@ -73,7 +73,6 @@ class PypeItImage(datamodel.DataContainer):
         'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
     }
-    datamodel = datamodel_v100.copy()
 
     # For masking
     bitmask = imagebitmask.ImageBitMask()

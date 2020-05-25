@@ -8,11 +8,11 @@ Submodules
 
    pypeit.core.wavecal.autoid
    pypeit.core.wavecal.defs
-   pypeit.core.wavecal.fitting
    pypeit.core.wavecal.kdtree_generator
    pypeit.core.wavecal.patterns
    pypeit.core.wavecal.templates
    pypeit.core.wavecal.waveio
+   pypeit.core.wavecal.wv_fitting
    pypeit.core.wavecal.wvutils
 
 Module contents

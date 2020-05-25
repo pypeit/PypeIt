@@ -17,7 +17,7 @@ from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
-from pypeit.core.wavecal import fitting
+from pypeit.core.wavecal import wv_fitting
 
 from pypeit import debugger
 
@@ -512,7 +512,7 @@ def main(flg):
             # Reidentify
             detections, spec_cont_sub, patt_dict = autoid.reidentify(fx, fx, wv, llist, 1)
             # Fit
-            final_fit = fitting.fit_slit(fx, patt_dict, detections, llist)
+            final_fit = wv_fitting.fit_slit(fx, patt_dict, detections, llist)
             # Output
             outfile=os.path.join(outpath, 'MagE_order{:2d}_IDs.pdf'.format(order))
             autoid.arc_fit_qa(final_fit, outfile=outfile, ids_only=True)

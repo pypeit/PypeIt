@@ -5,6 +5,8 @@
  - Add a script (pypeit_flux_setup) for creating fluxing,
    coadd1d and tellfit pypeit files
  - Add telluric fitting script, pypeit_tellfit
+ - Refactor WaveCalib into a DataContainer
+ - Refactor fitting
 
  - Coadd2D bug fixes
  - Coadd2D without spec1d files

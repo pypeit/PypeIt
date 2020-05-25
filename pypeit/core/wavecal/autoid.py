@@ -17,7 +17,7 @@ from pypeit.par import pypeitpar
 from pypeit.core.wavecal import kdtree_generator
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import patterns
-from pypeit.core.wavecal import fitting
+from pypeit.core.wavecal import wv_fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core import arc
 
@@ -26,32 +26,30 @@ from pypeit import utils
 
 from pypeit import msgs
 from pypeit import debugger
+
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
 
 
-def arc_fit_qa(fit, outfile=None, ids_only=False, title=None):
+def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     """
     QA for Arc spectrum
 
-    Parameters
-    ----------
-    setup: str
-      For outfile
-    fit : dict
-    arc_spec : ndarray
-      Arc spectrum
-    outfile : str, optional
-      Name of output file
-      or 'show' to show on screen
-    """
+    Args:
+        waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`:
+        outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
+        ids_only (bool, optional):
+        title (:obj:`str`, optional):
 
+    Returns:
+
+    """
     plt.rcdefaults()
     plt.rcParams['font.family']= 'times new roman'
 
-    arc_spec = fit['spec']
+    arc_spec = waveFit['spec']
 
     # Begin
     plt.close('all')
@@ -76,19 +74,21 @@ def arc_fit_qa(fit, outfile=None, ids_only=False, title=None):
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     ysep = ymax*0.03
-    mask = fit['mask']
-    pixel_fit = fit['pixel_fit'][mask]
-    wave_fit = fit['wave_fit'][mask]
-    ions = fit['ions'][mask]
-    xnorm = fit['xnorm']
-    for kk, x in enumerate(pixel_fit):
+    #mask = fit['mask']
+    #pixel_fit = fit['pixel_fit'][mask]
+    #wave_fit = fit['wave_fit'][mask]
+    #ions = fit['ions'][mask]
+    #xnorm = fit['xnorm']
+    for kk, x in enumerate(waveFit.pixel_fit):
         ind_left = np.fmax(int(x)-2, 0)
         ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
         yline = np.max(arc_spec[ind_left:ind_righ])
         # Tick mark
         ax_spec.plot([x,x], [yline+ysep*0.25, yline+ysep], 'g-')
         # label
-        ax_spec.text(x, yline+ysep*1.3,'{:s} {:g}'.format(ions[kk], wave_fit[kk]), ha='center', va='bottom',size=idfont,
+        ax_spec.text(x, yline+ysep*1.3,'{:s} {:g}'.format(waveFit.ions[kk],
+                                                          waveFit.wave_fit[kk]),
+                     ha='center', va='bottom',size=idfont,
                      rotation=90., color='green')
     ax_spec.set_xlim(0., len(arc_spec))
     ax_spec.set_ylim(1.05*ymin, ymax*1.2)
@@ -109,30 +109,34 @@ def arc_fit_qa(fit, outfile=None, ids_only=False, title=None):
     # Arc Fit
     ax_fit = plt.subplot(gs[0, 1])
     # Points
-    ax_fit.scatter(pixel_fit,wave_fit, marker='x')
-    if len(fit['xrej']) > 0:
-        ax_fit.scatter(fit['xrej'], fit['yrej'], marker='o',
-            edgecolor='gray', facecolor='none')
+    ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
+    # Rejections?
+    bpm = np.invert(waveFit.pypeitfit.gpm)
+    if np.any(bpm):
+        xrej = waveFit.pixel_fit[bpm]
+        yrej = waveFit.wave_fit[bpm]
+        ax_fit.scatter(xrej, yrej, marker='o', edgecolor='gray', facecolor='none')
     # Solution
     xval = np.arange(len(arc_spec))
-    wave_soln = fit['wave_soln'] #utils.func_val(fit['fitc'], xval, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    ax_fit.plot(xval, wave_soln, 'r-')
+    #wave_soln = fit['wave_soln'] #utils.func_val(fit['fitc'], xval, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+    ax_fit.plot(xval, waveFit.wave_soln, 'r-')
     xmin, xmax = 0., len(arc_spec)
     ax_fit.set_xlim(xmin, xmax)
-    ymin,ymax = np.min(wave_soln)*.95,  np.max(wave_soln)*1.05
+    ymin,ymax = np.min(waveFit.wave_soln)*.95,  np.max(waveFit.wave_soln)*1.05
     ax_fit.set_ylim((ymin, ymax))
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
     # Stats
-    wave_soln_fit = utils.func_val(fit['fitc'], pixel_fit/xnorm, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
-    rms = np.sqrt(np.sum((wave_fit-wave_soln_fit)**2)/len(pixel_fit)) # Ang
-    dwv_pix = np.median(np.abs(wave_soln-np.roll(wave_soln,1)))
+    #wave_soln_fit = utils.func_val(fit['fitc'], pixel_fit/xnorm, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+    wave_soln_fit = waveFit.pypeitfit.val(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
+    rms = np.sqrt(np.sum((waveFit.wave_fit-wave_soln_fit)**2)/len(waveFit.pixel_fit)) # Ang
+    dwv_pix = np.median(np.abs(waveFit.wave_soln-np.roll(waveFit.wave_soln,1)))
     ax_fit.text(0.1*len(arc_spec), 0.90*ymin+(ymax-ymin),r'$\Delta\lambda$={:.3f}$\AA$ (per pix)'.format(dwv_pix), size='small')
     ax_fit.text(0.1*len(arc_spec), 0.80*ymin+(ymax-ymin),'RMS={:.3f} (pixels)'.format(rms/dwv_pix), size='small')
     # Arc Residuals
     ax_res = plt.subplot(gs[1,1])
-    res = wave_fit-wave_soln_fit
-    ax_res.scatter(pixel_fit, res/dwv_pix, marker='x')
+    res = waveFit.wave_fit-wave_soln_fit
+    ax_res.scatter(waveFit.pixel_fit, res/dwv_pix, marker='x')
     ax_res.plot([xmin,xmax], [0.,0], 'k--')
     ax_res.set_xlim(xmin, xmax)
     ax_res.set_xlabel('Pixel')
@@ -320,7 +324,7 @@ def basic(spec, lines, wv_cen, disp, sigdetect=20.,nonlinear_counts = 1e10,
     # Fit
     NIST_lines = line_lists['NIST'] > 0
     ifit = np.where(mask)[0]
-    final_fit = fitting.iterative_fitting(spec, all_tcent, ifit,
+    final_fit = wv_fitting.iterative_fitting(spec, all_tcent, ifit,
                                           IDs, line_lists[NIST_lines], disp, plot_fil=plot_fil)
     # Return
     status = 1
@@ -499,7 +503,7 @@ def semi_brute(spec, lines, wv_cen, disp, sigdetect=30., nonlinear_counts = 1e10
         if len(add_weak) > 0:
             cut_tcent = np.concatenate([cut_tcent, np.array(add_weak)])
         # Fit
-        final_fit = fitting.iterative_fitting(spec, cut_tcent, ifit,
+        final_fit = wv_fitting.iterative_fitting(spec, cut_tcent, ifit,
                                               np.array(best_dict['IDs'])[ifit], line_lists[NIST_lines],
                                               disp, plot_fil=plot_fil, verbose=verbose,
                                               match_toler=match_toler, func=func, n_first=n_first, sigrej_first=sigrej_first,
@@ -958,7 +962,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             continue
         # Fit
         try:
-            final_fit = fitting.iterative_fitting(ispec, dets, gd_det,
+            final_fit = wv_fitting.iterative_fitting(ispec, dets, gd_det,
                                               IDs[gd_det], line_lists, bdisp,
                                               verbose=False, n_first=par['n_first'],
                                               match_toler=par['match_toler'],
@@ -967,6 +971,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
                                               sigrej_first=par['sigrej_first'],
                                               sigrej_final=par['sigrej_final'])
         except TypeError:
+            embed(header='974 of autoid')
             wvcalib[str(slit)] = None
         else:
             wvcalib[str(slit)] = copy.deepcopy(final_fit)
@@ -1218,7 +1223,7 @@ class ArchiveReid:
 
             # Perform the fit
             n_final = wvutils.parse_param(self.par, 'n_final', slit)
-            final_fit = fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)],
+            final_fit = wv_fitting.fit_slit(self.spec_cont_sub[:, slit], self.all_patt_dict[str(slit)],
                                          self.detections[str(slit)],
                                          self.tot_line_list, match_toler=self.match_toler,func=self.func, n_first=self.n_first,
                                          sigrej_first=self.sigrej_first, n_final=n_final,sigrej_final=self.sigrej_final)
@@ -2560,7 +2565,7 @@ class HolyGrail:
         #        weights = np.ones(tcent.size)
         # Fit
         try:
-            final_fit = fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
+            final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
                                                   patt_dict['bdisp'],
                                                   match_toler=self._match_toler, func=self._func, n_first=self._n_first,

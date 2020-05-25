@@ -1,6 +1,6 @@
 """ Module for arcline definitions
 """
-from astropy.table import Table
+from pypeit.bitmask import BitMask
 
 # TODO: This doesn't belong here.
 def instruments():
@@ -27,6 +27,39 @@ def instruments():
     instr_dict['GMOS'] = 2**6
     #
     return instr_dict
+
+
+class LinesBitMask(BitMask):
+    """
+    Bits for arc lines
+    """
+    version = '1.0.0'
+
+    def __init__(self):
+        mask = dict([
+            ('ArI', 'Argon I'),
+            ('HgI', 'Comment'),
+            ('KrI', 'Comment'),
+            ('NeI', 'Comment'),
+            ('XeI', 'Comment'),
+            ('CdI', 'Comment'),
+            ('ZnI', 'Comment'),
+            ('HeI', 'Comment'),
+            ('OH_R24000', 'Comment'),
+            ('OH_triplespec', 'Comment'),
+            ('CuI', 'Comment'),
+            ('ArII', 'Comment'),
+            ('OH_XSHOOTER', 'Comment'),
+            ('OH_GNIRS', 'Comment'),
+            ('OH_NIRES', 'Comment'),
+            ('ThAr_XSHOOTER_VIS', 'Comment'),
+            ('OH_GMOS', 'Comment'),
+            ('OH_MODS', 'Comment'),
+            ('ThAr_MagE', 'Comment'),
+            ('OH_FIRE_Echelle', 'Comment'),
+            ('Ar_IR_GNIRS', 'Comment'),
+        ])
+        super(LinesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
 
 def lines():

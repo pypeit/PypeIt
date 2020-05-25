@@ -345,8 +345,8 @@ class Reduce(object):
         self.tilts = self.waveTilts.fit2tiltimg(self.slitmask, flexure=tilt_flexure_shift)
 
         # Wavelengths (on unmasked slits)
-        self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
-                                               self.wv_calib, spat_flexure=self.spat_flexure_shift)
+        self.waveimg = self.wv_calib.build_waveimg(self.spectrograph, self.tilts, self.slits,
+                                               spat_flexure=self.spat_flexure_shift)
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
@@ -623,7 +623,8 @@ class Reduce(object):
 
         """
 
-        if self.par['flexure']['spec_method'] != 'skip':
+        # TODO -- Turn this back on once we have a poper bspline fitter
+        if self.par['flexure']['spec_method'] != 'skip' and False:
             # Measure
             flex_list = flexure.spec_flexure_obj(sobjs, self.slits.slitord_id, self.reduce_bpm,
                                                  self.par['flexure']['spec_method'],
@@ -1153,11 +1154,17 @@ class IFUReduce(Reduce):
 
     def build_scaleimg(self):
         """
-        Generate a relative scaling image for slit-based IFU.
-        All slits are scaled relative to ref_slit
-        TODO :: Consider including this routine in FlatImages
+        Generate a relative scaling image for slit-based IFU. All
+        slits are scaled relative to ref_slit
+
+        .. todo::
+
+            - Consider including this routine in FlatImages
+
         Returns:
-            ndarray: An image containing the appropriate scaling
+            `numpy.ndarray`_: An image containing the appropriate
+            scaling
+
         """
         msgs.info('Performing a joint flat-field response using all slits')
         # Grab some parameters
@@ -1290,16 +1297,20 @@ class IFUReduce(Reduce):
 
     def build_scaleimg_old(self, ref_slit, trim=10):
         """
-        Generate a relative scaling image for slit-based IFU.
-        All slits are scaled relative to ref_slit
+        Generate a relative scaling image for slit-based IFU. All
+        slits are scaled relative to ref_slit
+        
         Args:
             ref_slit (int):
                 The slit index to be used as a reference
             trim (int):
                 Trim the pixels towards the edge of the spectrum
                 to avoid edge effects
+
         Returns:
-            ndarray: An image containing the appropriate scaling
+            `numpy.ndarray`_: An image containing the appropriate
+            scaling
+
         """
         # Get the plate scale
         plate_scale = self.get_platescale(None)
@@ -1444,7 +1455,8 @@ class IFUReduce(Reduce):
             std_trace=None, manual_extract_dict=None, show_peaks=False,
             ref_slit=None):
         """
-        Primary code flow for PypeIt reductions
+        Primary code flow for PypeIt reductions.
+
         Args:
             basename (str, optional):
                 Required if flexure correction is to be applied
@@ -1457,16 +1469,24 @@ class IFUReduce(Reduce):
             std_trace (np.ndarray, optional):
                 Trace of the standard star
             manual_extract_dict (dict, optional):
+                Dictionary used for manual extraction.
             show_peaks (bool, optional):
                 Show peaks in find_objects methods
             ref_slit (int, optional):
-                Slit index to be used as reference for relative transmission calibration
-                TODO :: This is not currently used - is it even needed, given that it's a relative calibration?
-                Need to think about whether we need to use the exact same pixels for the relative calibration
-                (i.e. using the pixels that the standard star falls on, since the spatial illumflat is not constant).
+                Slit index to be used as reference for relative
+                transmission calibration. TODO :: This is not
+                currently used - is it even needed, given that it's a
+                relative calibration? Need to think about whether we
+                need to use the exact same pixels for the relative
+                calibration (i.e. using the pixels that the standard
+                star falls on, since the spatial illumflat is not
+                constant).
+
         Returns:
-            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
+            :obj:`tuple`: skymodel (ndarray), objmodel (ndarray),
+            ivarmodel (ndarray), outmask (ndarray), sobjs (SpecObjs).
+            See main doc string for description.
+
         """
         # Deal with dynamic calibrations
         # Tilts
