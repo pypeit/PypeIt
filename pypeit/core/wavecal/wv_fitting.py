@@ -368,7 +368,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     # DataContainer time
     final_fit = WaveFit(pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, #weights=wfit,
-                        ion_bits=ion_bits, xnorm=xnspecmin1, #nspec=nspec,
+                        ion_bits=ion_bits, xnorm=xnspecmin1, #, nspec=nspec,
                         cen_wave=cen_wave, cen_disp=cen_disp,
                        #xrej=xrej, yrej=yrej, mask=(mask == 0),
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,

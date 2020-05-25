@@ -2148,7 +2148,7 @@ class WavelengthSolutionPar(ParSet):
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
         dtypes['rms_threshold'] = [float, list, numpy.ndarray]
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit'
+        descr['rms_threshold'] = 'Minimum RMS in pixels for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit'
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float

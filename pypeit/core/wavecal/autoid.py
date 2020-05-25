@@ -1480,7 +1480,7 @@ class HolyGrail:
                             if len(final_fit['pixel_fit']) > len(best_final_fit['pixel_fit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                             # Decide if an early return is acceptable
-                            nlft = np.sum(best_final_fit['tcent'] < best_final_fit['nspec']/2.0)
+                            nlft = np.sum(best_final_fit['tcent'] < best_final_fit['spec'].size/2.0)
                             nrgt = best_final_fit['tcent'].size-nlft
                             if np.sum(best_final_fit['pixel_fit'] < 0.5)/nlft > idthresh and\
                                 np.sum(best_final_fit['pixel_fit'] >= 0.5) / nrgt > idthresh:
@@ -2673,10 +2673,11 @@ class HolyGrail:
             else:
                 signtxt = 'anitcorrelate'
             # Report
-            centwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5,
-                                      self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
-            tempwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5 + 1.0/self._npix,
-                                      self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
+            centwave = self._all_final_fit[st].pypeitfit.val(0.5)
+            tempwave = self._all_final_fit[st].pypeitfit.val(0.5 + 1.0/self._npix)
+            #centwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5,self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
+            #tempwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5 + 1.0/self._npix,
+            #                          self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
             centdisp = abs(centwave-tempwave)
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +
