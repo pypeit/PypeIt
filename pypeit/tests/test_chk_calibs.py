@@ -25,3 +25,12 @@ def test_chk_calibs_not():
 
     assert np.all(answers['passfail']), 'One or more failures!'
 
+@dev_suite_required
+def test_chk_calibs_deimos():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_deimos/*/')
+    pargs = chk_calibs.parser(['-r', droot, '-s', 'keck_deimos'])
+    answers = chk_calibs.main(pargs)
+
+    assert np.all(answers['passfail']), 'One or more failures!'
+
+

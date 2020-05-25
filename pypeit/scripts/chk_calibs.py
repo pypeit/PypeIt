@@ -87,7 +87,7 @@ def main(args):
         # Get the setup lines
         cfg = ps.fitstbl.get_setup(i, config_only=False)
         in_cfg = ps.fitstbl['setup'] == setup
-        # TODO -- Make the snippet below, which is also in the init of PypeIt a method somehwere
+        # TODO -- Make the snippet below, which is also in the init of PypeIt a method somewhere
         config_specific_file = None
 
         data_files = [os.path.join(row['directory'], row['filename']) for row in ps.fitstbl[in_cfg]]
@@ -102,7 +102,10 @@ def main(args):
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
-        spectrograph_cfg_lines = ps.spectrograph.config_specific_par(config_specific_file).to_config()
+        try:
+            spectrograph_cfg_lines = ps.spectrograph.config_specific_par(config_specific_file).to_config()
+        except:
+            import pdb; pdb.set_trace()
 
         #   - Build the full set, merging with any user-provided
         #     parameters
