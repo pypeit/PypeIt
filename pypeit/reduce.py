@@ -405,8 +405,7 @@ class Reduce(object):
             if not self.std_redux:
                 self.spec_flexure_correct(self.sobjs, basename)
             # Heliocentric
-            radec = ltu.radec_to_coord((ra, dec))
-            self.helio_correct(self.sobjs, radec, obstime)
+            self.helio_correct(self.sobjs, ra, dec, obstime)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -578,7 +577,7 @@ class Reduce(object):
                 if np.sum(self.global_sky[thismask]) == 0.:
                     self.reduce_bpm[slit_idx] = True
 
-        if update_crmask:
+        if update_crmask and self.par['scienceframe']['process']['mask_cr']:
             # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                    subtract_img=self.global_sky)
@@ -636,7 +635,7 @@ class Reduce(object):
         else:
             msgs.info('Skipping flexure correction.')
 
-    def helio_correct(self, sobjs, radec, obstime):
+    def helio_correct(self, sobjs, ra, dec, obstime):
         """ Perform a heliocentric correction
 
         Wrapper to wave.geomotion_correct()
@@ -655,6 +654,7 @@ class Reduce(object):
             # TODO change this keyword to refframe instead of frame
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['frame']))
             # Good slitord
+            radec = ltu.radec_to_coord((ra, dec))
             gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
             vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, gd_slitord,
                                                    self.spectrograph.telescope['longitude'],
