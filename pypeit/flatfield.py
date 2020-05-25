@@ -212,12 +212,6 @@ class FlatImages(datamodel.DataContainer):
 class FlatField(object):
     """
     Builds pixel-level flat-field and the illumination flat-field.
-    rawpixflatimg *must* be provided. If rawillumflatimg is None,
-    the illumination and pixel-level corrections will be derived
-    from rawpixflatimg. If rawillumflatimg is a PypeItImage, the
-    illumination correction will be performed with the illumflat
-    and the pixel-level corrections will be derived from the
-    rawpixflatimg frame.
 
     For the primary methods, see :func:`run`.
 
@@ -318,7 +312,7 @@ class FlatField(object):
 #        Returns:
 #            pypeitimage.PypeItImage:  The image with the unnormalized pixel-flat data.
 #        """
-#        if self.rawpixflatimg is None or force:
+#        if self.rawflatimg is None or force:
 #            # Process steps
 #            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
 #            if trim:
@@ -331,9 +325,9 @@ class FlatField(object):
 #            #    self.process_steps += ['crmask']
 #            self.steps.append(inspect.stack()[0][3])
 #            # Do it
-#            self.rawpixflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
+#            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
 #                                                                 ignore_saturation=True)
-#        return self.rawpixflatimg
+#        return self.rawflatimg
 
     # TODO: Need to add functionality to use a different frame for the
     # ilumination flat, e.g. a sky flat
@@ -405,7 +399,7 @@ class FlatField(object):
         """
         Construct a model of the flat-field image.
 
-        For this method to work, :attr:`rawpixflatimg` must have been
+        For this method to work, :attr:`rawflatimg` must have been
         previously constructed; see :func:`build_pixflat`.
 
         The method loops through all slits provided by the :attr:`slits`
@@ -519,14 +513,12 @@ class FlatField(object):
         npoly = self.flatpar['twod_fit_npoly']
         saturated_slits = self.flatpar['saturated_slits']
 
-        rawflatimg = self.rawflatimg
-
         # Setup images
-        nspec, nspat = rawflatimg.image.shape
-        rawflat = rawflatimg.image
+        nspec, nspat = self.rawflatimg.image.shape
+        rawflat = self.rawflatimg.image
         # Good pixel mask
-        gpm = np.ones_like(rawflat, dtype=bool) if rawflatimg.bpm is None else (
-                1-rawflatimg.bpm).astype(bool)
+        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
+                1-self.rawflatimg.bpm).astype(bool)
 
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflat, 1.0))
@@ -535,7 +527,7 @@ class FlatField(object):
         ivar_log = gpm_log.astype(float)/0.5**2
 
         # Other setup
-        nonlinear_counts = self.spectrograph.nonlinear_counts(rawflatimg.detector)
+        nonlinear_counts = self.spectrograph.nonlinear_counts(self.rawflatimg.detector)
 
         # TODO -- JFH -- CONFIRM THIS SHOULD BE ON INIT
         # It does need to be *all* of the slits
