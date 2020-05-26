@@ -774,10 +774,10 @@ def main(flg):
     # MMT/MMIRS
     if flg & (2**30):
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
-        iroot = ['mmt_mmirs_HK_zJ.json']
-        outroot=['mmt_mmirs_HK_zJ.fits']
+        iroot = ['mmt_mmirs_HK_zJ.json','mmt_mmirs_J_zJ.json','mmt_mmirs_K3000_Kspec.json']
+        outroot=['mmt_mmirs_HK_zJ.fits','mmt_mmirs_J_zJ.fits','mmt_mmirs_K3000_Kspec.fits']
         binspec = 1
-        slits = [1020]
+        slits = [1020,1020,1020]
         lcut = []
         for ii in range(len(iroot)):
             wfile = os.path.join(reid_path, iroot[ii])
