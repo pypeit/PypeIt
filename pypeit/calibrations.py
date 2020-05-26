@@ -529,7 +529,7 @@ class Calibrations(object):
             # Initialise the pixel flat
             illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts,
-                                                 spat_illum_only=True, self.wv_calib)
+                                                 self.wv_calib, spat_illum_only=True)
             # Generate
             illumflatImages = illumFlatField.run(show=self.show)
 

@@ -1166,10 +1166,10 @@ class FlatField(object):
         # Grab some parameters
         trim = self.flatpar['slit_trim']
         spec_samp_fine = self.flatpar['spec_samp_coarse']
-        rawflat = self.rawpixflatimg.image.copy() / self.msillumflat.copy()
+        rawflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
         # Grab the BPM and the slit images
-        gpm = np.ones_like(rawflat, dtype=bool) if self.rawpixflatimg.bpm is None else (
-                1 - self.rawpixflatimg.bpm).astype(bool)
+        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
+                1 - self.rawflatimg.bpm).astype(bool)
         #gpm = np.logical_not(self.build_mask())
         slitid_img_init = self.slits.slit_img(pad=0, initial=True)
         slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True)
@@ -1250,7 +1250,7 @@ class FlatField(object):
 
         ### STEP 3
         # Redo the scale model, now using the bspline fit
-        scale_model = np.ones_like(self.rawpixflatimg.image)
+        scale_model = np.ones_like(self.rawflatimg.image)
         for slit_idx in range(0, self.slits.spat_id.size):
             msgs.info("Generating model relative response image for slit {0:d}".format(slit_idx))
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
@@ -1277,8 +1277,8 @@ class FlatField(object):
 
         if debug:
             # This code generates the wavy patterns seen in KCWI
-            debug_model = np.ones_like(self.rawpixflatimg.image)
-            blaze_model = np.ones_like(self.rawpixflatimg.image)
+            debug_model = np.ones_like(self.rawflatimg.image)
+            blaze_model = np.ones_like(self.rawflatimg.image)
             if exit_status > 1:
                 msgs.warn("Joint blaze fit failed")
             else:
@@ -1289,16 +1289,16 @@ class FlatField(object):
                 # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
                 corr_model = self.msillumflat
                 corr_model *= self.mspixelflat
-                debug_model = self.rawpixflatimg.image.copy() / corr_model
+                debug_model = self.rawflatimg.image.copy() / corr_model
                 debug_model /= blaze_model
             import astropy.io.fits as fits
             hdu = fits.PrimaryHDU(debug_model)
             hdu.writeto('debug_model.fits', overwrite=True)
 
             # Shift to approximately constant wavelength
-            shift_image = np.ones_like(self.rawpixflatimg.image.copy())
+            shift_image = np.ones_like(self.rawflatimg.image.copy())
             # ratio = ratio of twilight to internal flats
-            ratio = np.ones_like(self.rawpixflatimg.image.copy())  # placeholder... need to load "ratio" image from file
+            ratio = np.ones_like(self.rawflatimg.image.copy())  # placeholder... need to load "ratio" image from file
             for slit_idx in range(0, self.slits.spat_id.size):
                 # Only use the overlapping regions of the slits, where the same wavelength range is covered
                 onslit_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
