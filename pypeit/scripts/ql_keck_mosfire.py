@@ -35,15 +35,31 @@ from pypeit.core.parse import get_dnum
 from astropy.stats import sigma_clipped_stats
 import warnings
 
+
+
+# A trick from stackoverflow to allow multi-line output in the help:
+#https://stackoverflow.com/questions/3853722/python-argparse-how-to-insert-newline-in-the-help-text
+class SmartFormatter(argparse.HelpFormatter):
+
+    def _split_lines(self, text, width):
+        if text.startswith('R|'):
+            return text[2:].splitlines()
+        # this is the RawTextHelpFormatter._split_lines
+        return argparse.HelpFormatter._split_lines(self, text, width)
+
 def parser(options=None):
 
-    parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of MOSFIRE files (A-B)')
+    parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of MOSFIRE files (A-B)', formatter_class=SmartFormatter)
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
     parser.add_argument('-A','--Afiles', type=str, nargs='+', help='list of frames at dither position A, i.e. -A A1.fits A2.fits')
     parser.add_argument('-B','--Bfiles', type=str, nargs='+', help='list of frames at dither position B  i.e. -B B1.fits B2.fits')
     parser.add_argument('--samp_fact', default=1.0, type=float,
                         help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument('--box_radius', type=float, help='Set the radius for the boxcar extraction')
+    parser.add_argument('--offset', type=float, default=None,
+                        help='R|Override the automatic offsets determined from the headers. Offset is in pixels.\n'
+                        'This option is useful if a standard dither pattern was not executed.\n'
+                        'The offset convention is such that a negative offset will move the (negative) B image to the left')
     parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                         help="Location where reduction outputs should be stored.")
     parser.add_argument('--embed', default=False, help='Upon completion embed in ipython shell',
@@ -188,8 +204,8 @@ def main(pargs):
     slit_masterframe_name = os.path.join(master_dir, 'MasterSlits_A_3_01.fits.gz')
     tilts_masterframe_name = os.path.join(master_dir, 'MasterTilts_A_2_01.fits')
     wvcalib_masterframe_name = os.path.join(master_dir, 'MasterWaveCalib_A_2_01.fits')
-    std_outfile =os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
-                              'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
+    std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
+                               'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
 
     # Read in the msbpm
     det = 1 # MOSFIRE has a single detector
@@ -284,7 +300,28 @@ def main(pargs):
     # Parse the offset information out of the headers. TODO in the future get this out of fitstable
     dither_pattern_A, dither_id_A, offset_arcsec_A = parse_dither_pattern(A_files, spectrograph.primary_hdrext)
     dither_pattern_B, dither_id_B, offset_arcsec_B = parse_dither_pattern(B_files, spectrograph.primary_hdrext)
-    offsets_pixels = (np.array([0.0,np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)]))/sciImg.detector.platescale
+    # Print out a report on the offsets
+    msg_string = msgs.newline()  +     '****************************************************'
+    msg_string += msgs.newline() +     ' Summary of offsets for dither pattern:   {:s}'.format(dither_pattern_A[0])
+    msg_string += msgs.newline() +     '****************************************************'
+    msg_string += msgs.newline() +     'Position     filename         arcsec    pixels    '
+    msg_string += msgs.newline() +     '----------------------------------------------------'
+    for iexp, file in enumerate(A_files):
+        msg_string += msgs.newline() + '    A    {:s}   {:6.2f}    {:6.2f}'.format(
+            os.path.basename(file), offset_arcsec_A[iexp], offset_arcsec_A[iexp]/sciImg.detector.platescale)
+    for iexp, file in enumerate(B_files):
+        msg_string += msgs.newline() + '    B    {:s}   {:6.2f}    {:6.2f}'.format(
+            os.path.basename(file), offset_arcsec_B[iexp], offset_arcsec_B[iexp]/sciImg.detector.platescale)
+    msg_string += msgs.newline() +     '****************************************************'
+    msgs.info(msg_string)
+
+    offsets_dith_pix = (np.array([0.0,np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)]))/sciImg.detector.platescale
+    if pargs.offset is not None:
+        offsets_pixels = np.array([0.0, pargs.offset])
+        msgs.info('Using user specified offsets instead: {:5.2f}'.format(pargs.offset))
+    else:
+        offsets_pixels = offsets_dith_pix
+
 
     spec2d_list = [spec2DObj_A, spec2DObj_B]
     # Instantiate Coadd2d
@@ -296,7 +333,9 @@ def main(pargs):
     # Create the pseudo images
     pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
 
-    # Now display the images
+    ##########################
+    # Now display the images #
+    ##########################
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
     # Bug in ginga prevents me from using cuts here for some reason
     #mean, med, sigma = sigma_clipped_stats(pseudo_dict['imgminsky'][pseudo_dict['inmask']], sigma_lower=5.0,sigma_upper=5.0)
