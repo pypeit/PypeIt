@@ -198,13 +198,10 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
 
-        #if self.get_meta_value(scifile, 'dispname') == 'JH_G5801':
-        #    par['calibrations']['wavelengths']['method'] = 'full_template'
-        #    par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_JH_JH.fits'
-        #elif self.get_meta_value(scifile, 'dispname') == 'HK_G5802':
-        #    par['calibrations']['wavelengths']['method'] = 'full_template'
-        #    par['calibrations']['wavelengths']['reid_arxiv'] = 'Flamingos2_HK_HK.fits'
-        # Return
+        if (self.get_meta_value(scifile, 'dispname')=='HK') and (self.get_meta_value(scifile, 'dichroic')=='zJ'):
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'mmt_mmirs_HK_zJ.fits'
+
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
