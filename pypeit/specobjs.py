@@ -327,6 +327,29 @@ class SpecObjs(object):
             self.remove_sobj(index)
 
 
+    def make_neg_pos(self):
+        """
+        Purge negative objects from specobjs for IR reductions
+
+        """
+        # Assign the sign and the objids
+        if self.nobj > 0:
+            if self[0].PYPELINE == 'Echelle':
+                index = self.ECH_OBJID < 0
+            elif self[0].PYPELINE == 'MultiSlit':
+                index = self.OBJID < 0
+            else:
+                msgs.error("Should not get here")
+            try:
+                self[index].OPT_COUNTS *= -1
+            except TypeError:
+                pass
+            try:
+                self[index].BOX_COUNTS *= -1
+            except TypeError:
+                pass
+
+
     def slitorder_indices(self, slitorder):
         """
         Return the set of indices matching the input slit/order

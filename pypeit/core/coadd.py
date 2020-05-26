@@ -2769,7 +2769,7 @@ def get_spat_bins(thismask_stack, trace_stack):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, weights='uniform'):
+                    thismask_stack, waveimg_stack, wave_grid, weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -2916,13 +2916,14 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     nspec_coadd, nspat_coadd = imgminsky.shape
     spat_img_coadd, spec_img_coadd = np.meshgrid(np.arange(nspat_coadd), np.arange(nspec_coadd))
 
-    if np.any(np.invert(outmask)):
+    if np.any(np.invert(outmask)) and interp_dspat:
         points_good = np.stack((spec_img_coadd[outmask], spat_img_coadd[outmask]), axis=1)
         points_bad = np.stack((spec_img_coadd[np.invert(outmask)],
                                 spat_img_coadd[np.invert(outmask)]), axis=1)
         values_dspat = dspat[outmask]
+        # JFH Changed to nearest on 5-26-20 because cubic is incredibly slow
         dspat_bad = scipy.interpolate.griddata(points_good, values_dspat, points_bad,
-                                               method='cubic')
+                                               method='nearest')
         dspat[np.invert(outmask)] = dspat_bad
         # Points outside the convex hull of the data are set to nan. We
         # identify those and simply assume them values from the
@@ -2932,6 +2933,9 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         if np.any(nanpix):
             dspat_img_fake = spat_img_coadd + dspat_mid[0]
             dspat[nanpix] = dspat_img_fake[nanpix]
+    else:
+        dspat_img_fake = spat_img_coadd + dspat_mid[0]
+        dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
 
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,

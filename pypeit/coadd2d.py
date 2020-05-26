@@ -43,7 +43,7 @@ class CoAdd2D(object):
     # Superclass factory method generates the subclass instance
     @classmethod
     def get_instance(cls, spec2dfiles, spectrograph, par, det=1, offsets=None, weights='auto',
-                     sn_smooth_npix=None, ir_redux=False, master_dir=None, show=False,
+                     sn_smooth_npix=None, ir_redux=False, show=False,
                      show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
         Instantiate the CoAdd2d subclass appropriate for the provided spectrograph.
@@ -63,19 +63,19 @@ class CoAdd2D(object):
         return next(c for c in cls.__subclasses__() 
                     if c.__name__ == (spectrograph.pypeline + 'CoAdd2D'))(
                         spec2dfiles, spectrograph, par, det=det, offsets=offsets, weights=weights,
-                        sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, master_dir=master_dir,
+                        sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux,
                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                         **kwargs_wave)
 
-    def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto',
-                 sn_smooth_npix=None, ir_redux=False, master_dir=None, show=False,
+    def __init__(self, spec2d, spectrograph, par, det=1, offsets=None, weights='auto',
+                 sn_smooth_npix=None, ir_redux=False, show=False,
                  show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
 
         Parameters
         ----------
             spec2d_files (list):
-               List of spec2d files
+               List of spec2d files or a list of Spec2dObj objects
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
                 The instrument used to collect the data to be reduced.
             par (:class:`pypeit.par.parset.ParSet`):
@@ -96,9 +96,6 @@ class CoAdd2D(object):
             ir_redux (bool): optional, default=False
                 Is this an near-IR reduction, True=yes. This parameter is passed to pypeit.reduce for determining the
                 reduction steps.
-            master_dir (:obj:`str`, optional):
-                Directory for the coadding master frames. If None,
-                set by ``os.getcwd()``.
             show (bool): optional, default=False
                 Show results to ginga
             show_peaks (bool): optional, default=False
@@ -119,14 +116,14 @@ class CoAdd2D(object):
         if offsets is not None and 'auto' in weights:
             msgs.error("Automatic weights cannot be computed for input offsets. "
                        "Set weights='uniform' or input an array of weights with shape (nexp,)")
-        self.spec2d_files = spec2d_files
+        self.spec2d = spec2d
         self.spectrograph = spectrograph
         self.par = par
         self.det = det
         self.offsets = offsets
         self.weights = weights
         self.ir_redux = ir_redux
-        self.master_dir = os.getcwd() if master_dir is None else master_dir
+        #self.master_dir = os.getcwd() if master_dir is None else master_dir
         self.show = show
         self.show_peaks = show_peaks
         self.debug_offsets = debug_offsets
@@ -140,7 +137,7 @@ class CoAdd2D(object):
 
 
         # Load the stack_dict
-        self.stack_dict = self.load_coadd2d_stacks(self.spec2d_files)
+        self.stack_dict = self.load_coadd2d_stacks(self.spec2d)
         self.pypeline = self.spectrograph.pypeline
 
         # Check that there are the same number of slits on every exposure
@@ -201,7 +198,7 @@ class CoAdd2D(object):
         return rms_sn, weights.T
 
 
-    def coadd(self, only_slits=None):
+    def coadd(self, only_slits=None, interp_dspat=True):
         """
         ..todo.. We need a proper doc string
 
@@ -247,7 +244,7 @@ class CoAdd2D(object):
                                            self.stack_dict['tilts_stack'],
                                                thismask_stack,
                                            self.stack_dict['waveimg_stack'],
-                                           self.wave_grid, weights=weights)
+                                           self.wave_grid, weights=weights, interp_dspat=interp_dspat)
             coadd_list.append(coadd_dict)
 
         return coadd_list
@@ -569,9 +566,12 @@ class CoAdd2D(object):
                 - dsamp (float): The pixel sampling for wavelength grid
                   created.
         """
-        if self.par['coadd2d']['use_slits4wvgrid']:
-            nobjs_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
-            waves = np.zeros((self.nspec, nobjs_tot))
+        nobjs_tot = int(np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum())
+        # TODO: Do we need this flag since we can determine whether or not we have specobjs from nobjs_tot?
+        #  This all seems a bit hacky
+        if self.par['coadd2d']['use_slits4wvgrid'] or nobjs_tot==0:
+            nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
+            waves = np.zeros((self.nspec, nslits_tot*3))
             gpm = np.zeros_like(waves, dtype=bool)
             indx = 0
             # Loop on the exposures
@@ -581,18 +581,20 @@ class CoAdd2D(object):
                 # Loop on the slits
                 for kk, spat_id in enumerate(slits.spat_id):
                     mask = slitmask == spat_id
-                    TRACE_SPAT = slits.center[:,kk]
-                    row = np.arange(TRACE_SPAT.size)
+                    slits_left, slits_righ, _ = slits.select_edges()
+                    # Create apertures at 5%, 50%, and 95% of the slit width to cover the full range of wavelengths
+                    # on this slit
+                    trace_spat = slits_left +  np.outer((slits_righ - slits_left),[0.05,0.5,0.95])
+                    row = np.arange(trace_spat.shape[0])
                     box_radius = 3.
-                    box_denom = moment1d(waveimg * mask > 0.0, TRACE_SPAT, 2 * box_radius, row=row)[0]
-                    wave_box = moment1d(waveimg * mask, TRACE_SPAT, 2 * box_radius,
+                    box_denom = moment1d(waveimg * mask > 0.0, trace_spat, 2 * box_radius, row=row)[0]
+                    wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))
-                    waves[:, indx] = wave_box
+                    waves[:, indx:indx+3] = wave_box
                     # TODO -- This looks a bit risky
-                    gpm[:, indx] = wave_box > 0.
-                    indx += 1
+                    gpm[:, indx: indx+3] = wave_box > 0.
+                    indx += 3
         else:
-            nobjs_tot = np.array([len(spec) for spec in self.stack_dict['specobjs_list']]).sum()
             waves = np.zeros((self.nspec, nobjs_tot))
             gpm = np.zeros_like(waves, dtype=bool)
             indx = 0
@@ -604,10 +606,9 @@ class CoAdd2D(object):
                     indx += 1
 
         wave_grid, wave_grid_mid, dsamp = coadd.get_wave_grid(waves, masks=gpm, **kwargs_wave)
-
         return wave_grid, wave_grid_mid, dsamp
 
-    def load_coadd2d_stacks(self, spec2d_files):
+    def load_coadd2d_stacks(self, spec2d):
         """
         Routine to read in required images for 2d coadds given a list of spec2d files.
 
@@ -633,16 +634,25 @@ class CoAdd2D(object):
         #head2d_list = []
         specobjs_list = []
         slits_list = []
-        nfiles =len(spec2d_files)
+        nfiles =len(spec2d)
         detectors_list = []
-        for ifile, f in enumerate(spec2d_files):
-            # Spec2d
-            spec2DObj = spec2dobj.Spec2DObj.from_file(f, self.det)
+        for ifile, f in enumerate(spec2d):
+            if isinstance(f, spec2dobj.Spec2DObj):
+                # If spec2d is a list of objects
+                s2dobj = f
+            else:
+                # If spec2d is a list of files, option to also use spec1ds
+                s2dobj = spec2dobj.Spec2DObj.from_file(f, self.det)
+                spec1d_file = f.replace('spec2d', 'spec1d')
+                if os.path.isfile(spec1d_file):
+                    sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
+                    this_det = sobjs.DET == self.det
+                    specobjs_list.append(sobjs[this_det])
             # TODO the code should run without a spec1d file, but we need to implement that
-            slits_list.append(spec2DObj.slits)
-            detectors_list.append(spec2DObj.detector)
+            slits_list.append(s2dobj.slits)
+            detectors_list.append(s2dobj.detector)
             if ifile == 0:
-                sciimg_stack = np.zeros((nfiles,) + spec2DObj.sciimg.shape, dtype=float)
+                sciimg_stack = np.zeros((nfiles,) + s2dobj.sciimg.shape, dtype=float)
                 waveimg_stack = np.zeros_like(sciimg_stack, dtype=float)
                 tilts_stack = np.zeros_like(sciimg_stack, dtype=float)
                 skymodel_stack = np.zeros_like(sciimg_stack, dtype=float)
@@ -650,23 +660,18 @@ class CoAdd2D(object):
                 mask_stack = np.zeros_like(sciimg_stack, dtype=float)
                 slitmask_stack = np.zeros_like(sciimg_stack, dtype=int)
 
-            sciimg_stack[ifile, :, :] = spec2DObj.sciimg
-            waveimg_stack[ifile, :, :] = spec2DObj.waveimg
-            skymodel_stack[ifile, :, :] = spec2DObj.skymodel
-            sciivar_stack[ifile, :, :] = spec2DObj.ivarmodel
-            mask_stack[ifile, :, :] = spec2DObj.bpmmask
+            sciimg_stack[ifile, :, :] = s2dobj.sciimg
+            waveimg_stack[ifile, :, :] = s2dobj.waveimg
+            skymodel_stack[ifile, :, :] = s2dobj.skymodel
+            sciivar_stack[ifile, :, :] = s2dobj.ivarmodel
+            mask_stack[ifile, :, :] = s2dobj.bpmmask
             # TODO -- Set back after done testing
-            slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=spec2DObj.sci_spat_flexure)
+            slitmask_stack[ifile, :, :] = s2dobj.slits.slit_img(flexure=s2dobj.sci_spat_flexure)
             #slitmask_stack[ifile, :, :] = spec2DObj.slits.slit_img(flexure=0.)
-            _spat_flexure = 0. if spec2DObj.sci_spat_flexure is None else spec2DObj.sci_spat_flexure
+            _spat_flexure = 0. if s2dobj.sci_spat_flexure is None else s2dobj.sci_spat_flexure
             #_tilt_flexure_shift = _spat_flexure - spec2DObj.tilts.spat_flexure if spec2DObj.tilts.spat_flexure is not None else _spat_flexure
-            tilts_stack[ifile,:,:] = spec2DObj.tilts #.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=_tilt_flexure_shift)
-            # Spec1d
-            spec1d_file = f.replace('spec2d', 'spec1d')
-            if os.path.isfile(spec1d_file):
-                sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
-                this_det = sobjs.DET == self.det
-                specobjs_list.append(sobjs[this_det])
+            tilts_stack[ifile,:,:] = s2dobj.tilts #.fit2tiltimg(slitmask_stack[ifile, :, :], flexure=_tilt_flexure_shift)
+
 
         return dict(specobjs_list=specobjs_list, slits_list=slits_list,
                     slitmask_stack=slitmask_stack,
@@ -698,9 +703,9 @@ class MultiSlitCoAdd2D(CoAdd2D):
 
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
-                 ir_redux=False, master_dir=None, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                 ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         super(MultiSlitCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
-                                        sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, master_dir=master_dir, par=par,
+                                        sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                         show=show, show_peaks=show_peaks, debug_offsets=debug_offsets,
                                         debug=debug, **kwargs_wave)
 
@@ -899,9 +904,9 @@ class EchelleCoAdd2D(CoAdd2D):
 
     """
     def __init__(self, spec2d_files, spectrograph, par, det=1, offsets=None, weights='auto', sn_smooth_npix=None,
-                 ir_redux=False, master_dir=None, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
+                 ir_redux=False, show=False, show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         super(EchelleCoAdd2D, self).__init__(spec2d_files, spectrograph, det=det, offsets=offsets, weights=weights,
-                                      sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, master_dir=master_dir, par=par,
+                                      sn_smooth_npix=sn_smooth_npix, ir_redux=ir_redux, par=par,
                                       show=show, show_peaks=show_peaks, debug_offsets=debug_offsets, debug=debug,
                                       **kwargs_wave)
 

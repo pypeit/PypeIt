@@ -30,19 +30,24 @@ from pypeit import slittrace
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import reduce
 from pypeit import calibrations
+from pypeit import ginga
+from pypeit.core.parse import get_dnum
+from astropy.stats import sigma_clipped_stats
 import warnings
 
 def parser(options=None):
 
     parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of MOSFIRE files (A-B)')
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
-    parser.add_argument('fileA', type=str, help='A frame')
-    parser.add_argument('fileB', type=str, help='B frame')
-    parser.add_argument('-b', '--box_radius', type=float, help='Set the radius for the boxcar extraction')
+    parser.add_argument('-A','--Afiles', type=str, nargs='+', help='list of frames at dither position A, i.e. -A A1.fits A2.fits')
+    parser.add_argument('-B','--Bfiles', type=str, nargs='+', help='list of frames at dither position B  i.e. -B B1.fits B2.fits')
     parser.add_argument('--samp_fact', default=1.0, type=float,
                         help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument('--box_radius', type=float, help='Set the radius for the boxcar extraction')
     parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                         help="Location where reduction outputs should be stored.")
+    parser.add_argument('--embed', default=False, help='Upon completion embed in ipython shell',
+                        action='store_true')
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
 
@@ -158,15 +163,14 @@ def parse_dither_pattern(file_list, ext):
 
 def main(pargs):
 
+
     # Build the fitstable since we currently need it for output. This should not be the case!
-    A_files = [os.path.join(pargs.full_rawpath, pargs.fileA)]
-    B_files = [os.path.join(pargs.full_rawpath, pargs.fileB)]
+    A_files = [os.path.join(pargs.full_rawpath, file) for file in pargs.Afiles]
+    B_files = [os.path.join(pargs.full_rawpath, file) for file in pargs.Bfiles]
     data_files = A_files + B_files
     ps = pypeitsetup.PypeItSetup(A_files, path='./', spectrograph_name='keck_mosfire')
     ps.build_fitstbl()
     fitstbl = ps.fitstbl
-
-
 
     # Read in the spectrograph, config the parset
     spectrograph = load_spectrograph('keck_mosfire')
@@ -187,12 +191,10 @@ def main(pargs):
     std_outfile =os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
                               'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
 
-    sci_files = [os.path.join(pargs.full_rawpath, pargs.fileA)]
-    bg_files  = [os.path.join(pargs.full_rawpath, pargs.fileB)]
-
     # Read in the msbpm
     det = 1 # MOSFIRE has a single detector
-    msbpm = spectrograph.bpm(sci_files[0], det)
+    sdet = get_dnum(det, prefix=False)
+    msbpm = spectrograph.bpm(A_files[0], det)
     # Read in the slits
     slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
     # Reset the bitmask
@@ -218,11 +220,11 @@ def main(pargs):
         std_trace=None
 
     # Build Science image
-    sciImg = buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], sci_files, bpm=msbpm,
+    sciImg = buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], A_files, bpm=msbpm,
                                             slits=slits, ignore_saturation=False)
 
     # Background Image?
-    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det,  parset['scienceframe'], bg_files, bpm=msbpm,
+    sciImg = sciImg.sub(buildimage.buildimage_fromlist(spectrograph, det,  parset['scienceframe'], B_files, bpm=msbpm,
                                                        slits=slits,ignore_saturation=False), parset['scienceframe']['process'])
     # Build the Calibrate object
     caliBrate = calibrations.Calibrations(None, parset['calibrations'], spectrograph, None)
@@ -238,52 +240,89 @@ def main(pargs):
 
     manual_extract_dict = None
     skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = redux.run(
-        std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=pargs.show)
+        std_trace=std_trace, return_negative=True, manual_extract_dict=manual_extract_dict, show_peaks=pargs.show)
 
     # TODO -- Do this upstream
     # Tack on detector
     for sobj in sobjs:
         sobj.DETECTOR = sciImg.detector
 
-    # Construct the Spec2DObj
-    spec2DObj = spec2dobj.Spec2DObj(det=det,
-                                    sciimg=sciImg.image,
-                                    ivarraw=sciImg.ivar,
-                                    skymodel=skymodel,
-                                    objmodel=objmodel,
-                                    ivarmodel=ivarmodel,
-                                    waveimg=waveImg,
-                                    bpmmask=outmask,
-                                    detector=sciImg.detector,
-                                    sci_spat_flexure=sciImg.spat_flexure,
-                                    tilts=tilts,
-                                    slits=copy.deepcopy(caliBrate.slits))
-    spec2DObj.process_steps = sciImg.process_steps
+    # Construct the Spec2DObj with the positive image
+    spec2DObj_A = spec2dobj.Spec2DObj(det=det,
+                                      sciimg=sciImg.image,
+                                      ivarraw=sciImg.ivar,
+                                      skymodel=skymodel,
+                                      objmodel=objmodel,
+                                      ivarmodel=ivarmodel,
+                                      waveimg=waveImg,
+                                      bpmmask=outmask,
+                                      detector=sciImg.detector,
+                                      sci_spat_flexure=sciImg.spat_flexure,
+                                      tilts=tilts,
+                                      slits=copy.deepcopy(caliBrate.slits))
+    spec2DObj_A.process_steps = sciImg.process_steps
     all_spec2d = spec2dobj.AllSpec2DObj()
     all_spec2d['meta']['ir_redux'] = True
-    all_spec2d[det] = spec2DObj
-    # Write to disk
-    outfile2d, outfile1d = save_exposure(fitstbl, 0, spectrograph, science_path, parset, caliBrate, all_spec2d, sobjs)
+    all_spec2d[det] = spec2DObj_A
+    # Save image A but with all the objects extracted, i.e. positive and negative
+    #outfile2d, outfile1d = save_exposure(fitstbl, 0, spectrograph, science_path, parset, caliBrate, all_spec2d, sobjs)
 
-    embed()
-    # Instantiate Coadd2d
-    coadd = coadd2d.CoAdd2D.get_instance(outfile2d, spectrograph, parset, det=det,
-                                         offsets=parset['coadd2d']['offsets'],
-                                         weights='uniform', ir_redux=True,
-                                         debug=pargs.show,
-                                         samp_fact=pargs.samp_fact, master_dir=master_dir)
+    # Construct the Spec2DObj with the negative image
+    spec2DObj_B= spec2dobj.Spec2DObj(det=det,
+                                     sciimg=-sciImg.image,
+                                     ivarraw=sciImg.ivar,
+                                     skymodel=-skymodel,
+                                     objmodel=-objmodel,
+                                     ivarmodel=ivarmodel,
+                                     waveimg=waveImg,
+                                     bpmmask=outmask,
+                                     detector=sciImg.detector,
+                                     sci_spat_flexure=sciImg.spat_flexure,
+                                     tilts=tilts,
+                                     slits=copy.deepcopy(caliBrate.slits))
+
     # Parse the offset information out of the headers. TODO in the future get this out of fitstable
     dither_pattern_A, dither_id_A, offset_arcsec_A = parse_dither_pattern(A_files, spectrograph.primary_hdrext)
     dither_pattern_B, dither_id_B, offset_arcsec_B = parse_dither_pattern(B_files, spectrograph.primary_hdrext)
+    offsets_pixels = (np.array([0.0,np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)]))/sciImg.detector.platescale
 
-
-
+    spec2d_list = [spec2DObj_A, spec2DObj_B]
+    # Instantiate Coadd2d
+    coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=det,
+                                         offsets=offsets_pixels, weights='uniform', ir_redux=True,
+                                         debug=pargs.show, samp_fact=pargs.samp_fact)
     # Coadd the slits
-    coadd_dict_list = coadd.coadd(only_slits=None)  # TODO implement only_slits later
+    coadd_dict_list = coadd.coadd(only_slits=None, interp_dspat=False)  # TODO implement only_slits later
     # Create the pseudo images
     pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
 
+    # Now display the images
+    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    # Bug in ginga prevents me from using cuts here for some reason
+    #mean, med, sigma = sigma_clipped_stats(pseudo_dict['imgminsky'][pseudo_dict['inmask']], sigma_lower=5.0,sigma_upper=5.0)
+    #cut_min = mean - 4.0 * sigma
+    #cut_max = mean + 4.0 * sigma
+    chname_skysub='skysub-det{:s}'.format(sdet)
+    # Clear all channels at the beginning
+    # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
+    viewer, ch = ginga.show_image(pseudo_dict['imgminsky'], chname=chname_skysub, waveimg=pseudo_dict['waveimg'],
+                                   clear=True) # cuts=(cut_min, cut_max),
+    slit_left, slit_righ, _ = pseudo_dict['slits'].select_edges()
+    slit_id = slits.slitord_id[0]
+    ginga.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slit_id)
 
+    # SKRESIDS
+    chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
+    image = pseudo_dict['imgminsky']*np.sqrt(pseudo_dict['sciivar']) * pseudo_dict['inmask']  # sky residual map
+    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=pseudo_dict['waveimg'],
+                                  cuts=(-5.0, 5.0),)
+    ginga.show_slits(viewer, ch, slit_left, slit_righ, slit_ids=slits.slitord_id[0])
+    shell = viewer.shell()
+    out = shell.start_global_plugin('WCSMatch')
+    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
+
+    if pargs.embed:
+        embed()
 
     return 0
 

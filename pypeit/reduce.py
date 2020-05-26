@@ -257,8 +257,7 @@ class Reduce(object):
 
             # This will hold the extracted objects
             self.sobjs = self.sobjs_obj.copy()
-            # Only extract positive objects
-            self.sobjs.purge_neg()
+            # Purge out the negative objects if this was a near-IR reduction unless negative objects are requested
 
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
@@ -273,6 +272,7 @@ class Reduce(object):
                                                global_sky, self.sciImg.rn2img,
                                                self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)
+
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
             self.ivarmodel = np.copy(self.sciImg.ivar)
@@ -284,6 +284,8 @@ class Reduce(object):
                                           model_noise=(not self.ir_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
+
+
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
@@ -303,7 +305,7 @@ class Reduce(object):
         pass
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
-            std_trace=None, manual_extract_dict=None, show_peaks=False):
+            std_trace=None, manual_extract_dict=None, show_peaks=False, return_negative=False):
         """
         Primary code flow for PypeIt reductions
 
@@ -382,6 +384,9 @@ class Reduce(object):
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
+            if self.ir_redux:
+                self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
+
         else:  # No objects, pass back what we have
             self.skymodel = self.initial_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
@@ -391,10 +396,6 @@ class Reduce(object):
             self.outmask = self.sciImg.fullmask
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
-
-        # Purge out the negative objects if this was a near-IR reduction.
-        if self.ir_redux:
-            self.sobjs.purge_neg()
 
         # Finish up
         if self.sobjs.nobj == 0:
