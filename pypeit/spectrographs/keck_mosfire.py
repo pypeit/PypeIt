@@ -46,7 +46,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.193,
+            platescale      = 0.1798,
             darkcurr        = 0.8,
             saturation      = 1e9, # ADU, this is hacked for now
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
