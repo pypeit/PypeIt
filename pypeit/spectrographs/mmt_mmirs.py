@@ -3,8 +3,10 @@ Module for MMT MMIRS
 """
 import glob
 import numpy as np
+from scipy.signal import savgol_filter
 from astropy.time import Time
 from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -103,7 +105,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             mincounts       = -1e10,
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.95),
-            ronoise         = np.atleast_1d(3.140000),
+            ronoise         = np.atleast_1d(3.14),
             datasec         = np.atleast_1d('[:,:]'),
             oscansec        = np.atleast_1d('[:,:]')
             )
@@ -124,7 +126,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['pixelflatframe']['process']['use_darkimage'] = True
         #par['calibrations']['illumflatframe']['process']['use_darkimage'] = True
         #par['scienceframe']['process']['use_darkimage'] = True
-        #par['scienceframe']['process']['use_illumflat'] = True
+        par['scienceframe']['process']['use_illumflat'] = True
 
         # Wavelengths
         # 1D wavelength solution with arc lines
@@ -151,7 +153,15 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['darkframe']['exprng'] = [30, None]
         par['scienceframe']['exprng'] = [30, None]
 
-        # Scienceimage parameters
+        # dark
+        par['calibrations']['darkframe']['process']['apply_gain'] = True
+
+        # cosmic ray rejection
+        par['scienceframe']['process']['sigclip'] = 5.0
+        par['scienceframe']['process']['objlim'] = 2.0
+        par['scienceframe']['process']['grow'] = 0.5
+
+        # Science reduction
         par['reduce']['findobj']['sig_thresh'] = 5.0
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
@@ -205,7 +215,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         if ftype in ['pinhole', 'bias']:
             # No pinhole or bias frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             return good_exp & (fitstbl['idname'] == 'flat')
         if ftype == 'standard':
             return good_exp & (fitstbl['idname'] == 'object')
@@ -217,6 +227,40 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['idname'] == 'dark')
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        msgs.info("Using hard-coded BPM for det=1 on MMIRS")
+
+        # Get the binning
+        hdu = fits.open(filename)
+        binning = hdu[1].header['CCDSUM']
+        hdu.close()
+
+        # Apply the mask
+        xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
+        bpm_img[:, 187 // ybin] = 1
+
+        return bpm_img
 
     def get_rawimage(self, raw_file, det):
         """
@@ -256,9 +300,16 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         datasec = head1['DATASEC']
         x1, x2, y1, y2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
 
-        data = hdu[1].data.astype('float64')  - hdu[2].data.astype('float64')
+        # ToDo: I am currently using the standard double correlated frame, that is a difference between
+        # the first and final read-outs. In the future need to explore up-the-ramp fitting.
+        if len(hdu)>2:
+            data = mmirs_read_amp(hdu[1].data.astype('float64')) - mmirs_read_amp(hdu[2].data.astype('float64'))
+        else:
+            data = mmirs_read_amp(hdu[1].data.astype('float64'))
         array = data[x1-1:x2,y1-1:y2]
 
+        ## ToDo: This is a hack. Need to solve this issue. I cut at 998 due to the HK zero order contaminating
+        ## the blue part of the zJ+HK spectrum. For other setup, you do not need to cut the detector.
         if (head1['FILTER']=='zJ') and (head1['DISPERSE']=='HK'):
             array = array[:int(998/ybin),:]
         rawdatasec_img = np.ones_like(array,dtype='int')
@@ -269,3 +320,37 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         # Return, transposing array back to orient the overscan properly
         return detector_par, np.flipud(array), hdu, exptime, np.flipud(rawdatasec_img),\
                np.flipud(np.flipud(oscansec_img))
+
+def mmirs_read_amp(img, namps=32):
+    '''
+    MMIRS has 32 reading out channels. Need to deal with this issue a little bit. I am not using the pypeit overscan
+    subtraction since we need to do the up-the-ramp fitting in the future.
+    Imported from MMIRS IDL pipeline refpix.pro
+    '''
+
+    # number of channels for reading out
+    if namps is None:
+        namps = 32
+
+    data_shape = np.shape(img)
+    ampsize = int(data_shape[0] / namps)
+
+    refpix1 = np.array([1, 2, 3])
+    refpix2 = np.arange(4) + data_shape[0] - 4
+    refpix_all = np.hstack([[0, 1, 2, 3], np.arange(4) + data_shape[0] - 4])
+    refvec = np.sum(img[:, refpix_all], axis=1) / np.size(refpix_all)
+    svec = savgol_filter(refvec, 11, polyorder=5)
+
+    refvec_2d = np.reshape(np.repeat(svec, data_shape[0], axis=0), data_shape)
+    img_out = img - refvec_2d
+
+    for amp in range(namps):
+        img_out_ref = img_out[np.hstack([refpix1, refpix2]), :]
+        ref1, med1, std1 = sigma_clipped_stats(img_out_ref[:, amp * ampsize + 2 * np.arange(int(ampsize / 2))],
+                                               sigma=3)
+        ref2, med2, std2 = sigma_clipped_stats(img_out_ref[:, amp * ampsize + 2 * np.arange(int(ampsize / 2)) + 1],
+                                               sigma=3)
+        ref12 = (ref1 + ref2) / 2.
+        img_out[:, amp * ampsize:(amp + 1) * ampsize] -= ref12
+
+    return img_out

@@ -151,7 +151,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
 
         # cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0
-        par['scienceframe']['process']['objlim'] = 0.5
+        par['scienceframe']['process']['objlim'] = 2.0
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 100]
