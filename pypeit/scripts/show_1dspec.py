@@ -50,9 +50,9 @@ def main(args):
     # Check Extraction
     if args.extract == 'OPT':
         if sobjs[exten]['OPT_WAVE'] is None: #not in sobjs[exten]._data.keys():
-                msgs.error("Spectrum not extracted with OPT.  Try --extract=BOX")
+                msgs.error("Spectrum not extracted with OPT.  Try --extract BOX")
 
-        spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
+    spec = sobjs[exten].to_xspec1d(extraction=args.extract, fluxed=args.flux)
 
     # Setup
     app = QApplication(sys.argv)
