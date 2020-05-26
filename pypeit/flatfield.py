@@ -148,6 +148,11 @@ class FlatImages(datamodel.DataContainer):
             else:
                 self[key] = flatimgs[key]
 
+        # Rebuild the data container
+        d = dict([(k, self.flatimages[k]) for k in self.flatimages.keys()])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
     @property
     def procflat(self, frametype='pixel'):
         if frametype == 'pixel':
@@ -464,7 +469,9 @@ class FlatField(object):
             # Illumination correction only
             return FlatImages(illumflat_raw=self.rawflatimg.image,
                               illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
-                              illumflat_bpm=bpmflats)
+                              illumflat_bpm=bpmflats,
+                              PYP_SPEC=self.spectrograph.spectrograph,
+                              spat_id=self.slits.spat_id)
         else:
             # Pixel and illumination correction only
             return FlatImages(pixelflat_raw=self.rawflatimg.image,

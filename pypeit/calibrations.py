@@ -535,6 +535,7 @@ class Calibrations(object):
 
             # Merge the illum flat with the pixel flat
             if pixel_flat is not None:
+                msgs.info("Merging illumflat parameters into FlatImages")
                 self.flatimages.merge_with(illumflatImages)
             else:
                 self.flatimages = illumflatImages
