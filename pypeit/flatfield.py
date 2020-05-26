@@ -69,7 +69,7 @@ class FlatImages(datamodel.DataContainer):
     def __init__(self, PYP_SPEC=None, spat_id=None,
                  illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
                  pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
-                 pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_specillum=None):
+                 pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
