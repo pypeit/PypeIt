@@ -22,6 +22,7 @@ from pypeit import pypeitsetup
 from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import spec2dobj
+from pypeit import coadd2d
 from pypeit.core import framematch
 from pypeit import specobjs
 from pypeit.images import buildimage
@@ -38,6 +39,8 @@ def parser(options=None):
     parser.add_argument('fileA', type=str, help='A frame')
     parser.add_argument('fileB', type=str, help='B frame')
     parser.add_argument('-b', '--box_radius', type=float, help='Set the radius for the boxcar extraction')
+    parser.add_argument('--samp_fact', default=1.0, type=float,
+                        help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
     parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                         help="Location where reduction outputs should be stored.")
     parser.add_argument("--show", default=False, action="store_true",
@@ -122,6 +125,8 @@ def save_exposure(fitstbl, frame, spectrograph, science_path, par, caliBrate, al
         # Info
         outfiletxt = os.path.join(science_path, 'spec1d_{:s}.txt'.format(basename))
         all_specobjs.write_info(outfiletxt, spectrograph.pypeline)
+    else:
+        outfile1d = None
 
     # 2D spectra
     outfile2d = os.path.join(science_path, 'spec2d_{:s}.fits'.format(basename))
@@ -133,16 +138,35 @@ def save_exposure(fitstbl, frame, spectrograph, science_path, par, caliBrate, al
                                            subheader=subheader)
     # Write
     all_spec2d.write_to_fits(outfile2d, pri_hdr=pri_hdr, update_det=par['rdx']['detnum'])
+    return outfile2d, outfile1d
+
+def parse_dither_pattern(file_list, ext):
+
+    nfiles = len(file_list)
+    offset_arcsec = np.zeros(nfiles)
+    dither_pattern = []
+    dither_id = []
+    for ifile, file in enumerate(file_list):
+        hdr = fits.getheader(file, ext)
+        dither_pattern.append(hdr['PATTERN'])
+        dither_id.append(hdr['FRAMEID'])
+        offset_arcsec[ifile] = hdr['YOFFSET']
+
+    return dither_pattern, dither_id, offset_arcsec
 
 
 
 def main(pargs):
 
     # Build the fitstable since we currently need it for output. This should not be the case!
-    data_files = [os.path.join(pargs.full_rawpath, pargs.fileA), os.path.join(pargs.full_rawpath,pargs.fileB)]
-    ps = pypeitsetup.PypeItSetup([data_files[0]], path='./', spectrograph_name='keck_mosfire')
+    A_files = [os.path.join(pargs.full_rawpath, pargs.fileA)]
+    B_files = [os.path.join(pargs.full_rawpath, pargs.fileB)]
+    data_files = A_files + B_files
+    ps = pypeitsetup.PypeItSetup(A_files, path='./', spectrograph_name='keck_mosfire')
     ps.build_fitstbl()
     fitstbl = ps.fitstbl
+
+
 
     # Read in the spectrograph, config the parset
     spectrograph = load_spectrograph('keck_mosfire')
@@ -221,7 +245,6 @@ def main(pargs):
     for sobj in sobjs:
         sobj.DETECTOR = sciImg.detector
 
-
     # Construct the Spec2DObj
     spec2DObj = spec2dobj.Spec2DObj(det=det,
                                     sciimg=sciImg.image,
@@ -239,63 +262,28 @@ def main(pargs):
     all_spec2d = spec2dobj.AllSpec2DObj()
     all_spec2d['meta']['ir_redux'] = True
     all_spec2d[det] = spec2DObj
-    # TODO -- Should we reset/regenerate self.slits.mask for a new exposure
-    save_exposure(fitstbl, 0, spectrograph, science_path, parset, caliBrate, all_spec2d, sobjs)
+    # Write to disk
+    outfile2d, outfile1d = save_exposure(fitstbl, 0, spectrograph, science_path, parset, caliBrate, all_spec2d, sobjs)
+
     embed()
+    # Instantiate Coadd2d
+    coadd = coadd2d.CoAdd2D.get_instance(outfile2d, spectrograph, parset, det=det,
+                                         offsets=parset['coadd2d']['offsets'],
+                                         weights='uniform', ir_redux=True,
+                                         debug=pargs.show,
+                                         samp_fact=pargs.samp_fact, master_dir=master_dir)
+    # Parse the offset information out of the headers. TODO in the future get this out of fitstable
+    dither_pattern_A, dither_id_A, offset_arcsec_A = parse_dither_pattern(A_files, spectrograph.primary_hdrext)
+    dither_pattern_B, dither_id_B, offset_arcsec_B = parse_dither_pattern(B_files, spectrograph.primary_hdrext)
 
 
-    #
-    # TODO -- Get the type_bits from  'science'
-    bm = framematch.FrameTypeBitMask()
-    file_bits = np.zeros(2, dtype=bm.minimum_dtype())
-    file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'science', 'tilt'])
-    file_bits[1] = bm.turn_on(file_bits[0], ['arc', 'science', 'tilt'])
 
-    ps.fitstbl.set_frame_types(file_bits)
-    ps.fitstbl.set_combination_groups()
-    # Extras
-    ps.fitstbl['setup'] = 'A'
-    # A-B
-    ps.fitstbl['bkg_id'] = [2,1]
+    # Coadd the slits
+    coadd_dict_list = coadd.coadd(only_slits=None)  # TODO implement only_slits later
+    # Create the pseudo images
+    pseudo_dict = coadd.create_pseudo_image(coadd_dict_list)
 
 
-    # Config the run
-    cfg_lines = ['[rdx]']
-    cfg_lines += ['    spectrograph = {0}'.format('keck_mosfire')]
-    cfg_lines += ['    redux_path = {0}'.format(os.path.join(os.getcwd(),'keck_mosfire_A'))]
-    # Calibrations
-    cfg_lines += ['[baseprocess]']
-    cfg_lines += ['    use_pixelflat = False']
-    cfg_lines += ['    use_illumflat = False']
-    cfg_lines += ['[calibrations]']
-    cfg_lines += ['    master_dir = {0}'.format(master_dir)]
-    cfg_lines += ['    raise_chk_error = False']
-    cfg_lines += ['[scienceframe]']
-    cfg_lines += ['    [[process]]']
-    cfg_lines += ['        mask_cr = False']
-    cfg_lines += ['[reduce]']
-    cfg_lines += ['    [[extraction]]']
-    cfg_lines += ['        skip_optimal = True']
-    if pargs.box_radius is not None: # Boxcar radius
-        cfg_lines += ['        boxcar_radius = {0}'.format(pargs.box_radius)]
-    cfg_lines += ['    [[findobj]]']
-    cfg_lines += ['        skip_second_find = True']
-
-    # Write
-    ofiles = ps.fitstbl.write_pypeit('', configs=['A'], write_bkg_pairs=True, cfg_lines=cfg_lines)
-    if len(ofiles) > 1:
-        msgs.error("Bad things happened..")
-
-    # Instantiate the main pipeline reduction object
-    pypeIt = pypeit.PypeIt(ofiles[0], verbosity=2,
-                           reuse_masters=True, overwrite=True,
-                           logname='nires_proc_AB.log', show=False)
-    # Run
-    pypeIt.reduce_all()
-    msgs.info('Data reduction complete')
-    # QA HTML
-    msgs.info('Generating QA HTML')
-    pypeIt.build_qa()
 
     return 0
 
