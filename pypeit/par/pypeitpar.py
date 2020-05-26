@@ -1234,7 +1234,8 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
+                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
                  star_dec=None, mask_abs_lines=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1358,8 +1359,8 @@ class SensfuncUVISPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, telluric=None,
-                 polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
+                 telluric_correct=None, telluric=None, polycorrect=None,
+                 polyfunc=None, nresln=None, resolution=None, trans_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1411,6 +1412,10 @@ class SensfuncUVISPar(ParSet):
         dtypes['polycorrect'] = bool
         descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
 
+        defaults['polyfunc'] = False
+        dtypes['polyfunc'] = bool
+        descr['polyfunc'] = 'Whether you want to use the polynomial fit as your final SENSFUNC'
+
 
         defaults['nresln'] = 20
         dtypes['nresln'] = [int, float]
@@ -1439,7 +1444,7 @@ class SensfuncUVISPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file',
-                   'std_obj_id', 'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
+                   'std_obj_id', 'telluric', 'polyfunc','polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -1667,7 +1672,7 @@ class TellFitPar(ParSet):
 
         defaults['tell_grid'] = None
         dtypes['tell_grid'] = str
-        descr['tell_grid'] = 'pca pickle file. needed when you use qso_telluric'
+        descr['tell_grid'] = 'telluric grid file. needed when you use qso_telluric'
 
         defaults['only_orders'] = None
         dtypes['only_orders'] = int
@@ -3018,7 +3023,7 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, find_min_max=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3091,6 +3096,12 @@ class FindObjPar(ParSet):
         dtypes['skip_second_find'] = bool
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
+        defaults['find_min_max'] = None
+        dtypes['find_min_max'] = list
+        descr['find_min_max'] = 'It defines the minimum and maximum of your object in the spectral direction on the'\
+                                'detector. It only used for object finding. This parameter is helpful if your object only'\
+                                'has emission lines or at high redshift and the trace only shows in part of the detector.'
+
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -3109,7 +3120,7 @@ class FindObjPar(ParSet):
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_min_max']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

@@ -780,6 +780,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
                                            npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                            maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                            ncoeff=3, sig_thresh=self.par['reduce']['findobj']['sig_thresh'], nperslit=1,
+                                           find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                            show_trace=self.debug_offsets, show_peaks=self.debug_offsets)
             sobjs.add_sobj(sobjs_exp)
             traces_rect[:, iexp] = sobjs_exp.TRACE_SPAT

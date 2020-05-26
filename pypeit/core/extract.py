@@ -558,7 +558,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     ind_nonzero = (sn2 > 0)
     nonzero = np.sum(ind_nonzero)
     if(nonzero >0):
-        (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
+        ## Select the top 30% data for estimating the med_sn2. This ensures the code still fit line only object and/or
+        ## high redshift quasars which might only have signal in part of the spectrum.
+        sn2_percentile = np.percentile(sn2,70)
+        (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
     else:
         med_sn2 = 0.0
 
@@ -1088,7 +1091,7 @@ def create_skymask_fwhm(sobjs, thismask):
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
+            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False, qa_title='objfind'):
 
     """
@@ -1120,9 +1123,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             Input mask image.
         spec_min_max: tuple of float or int, (2), default=None.
             This is tuple of two elements which defines the minimum and
-            maximum of the slit in the spectral direction on the
+            maximum of the SLIT in the spectral direction on the
             detector. If not passed in it will be determined
             automatically from the thismask
+        find_min_max: tuple of int, (2), default=None. It defines the minimum and maximum of your OBJECT
+                      in the spectral direction on the detector. It is only used for object finding.
+                      This parameter is helpful if your object only has emission lines or at high redshift
+                      and the trace only shows in part of the detector.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
         maxdev (float): default=2.0
@@ -1270,6 +1277,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                          fwgt=totmask.astype(float))[0]
     mask_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0] < 0.3
+    if find_min_max is not None:
+        find_spec_min,find_spec_max = int(find_min_max[0]), int(find_min_max[1])
+        flux_spec = flux_spec[find_spec_min:find_spec_max,:]
+        mask_spec = mask_spec[find_spec_min:find_spec_max,:]
+
     flux_mean, flux_median, flux_sig \
             = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma=3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)

@@ -771,6 +771,18 @@ def main(flg):
         lcut = [4350.0, 8000.0]
         build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
 
+    # MMT/MMIRS
+    if flg & (2**30):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['mmt_mmirs_HK_zJ.json']
+        outroot=['mmt_mmirs_HK_zJ.fits']
+        binspec = 1
+        slits = [1020]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
+
 # Command line execution
 if __name__ == '__main__':
     flg = 0
@@ -837,7 +849,10 @@ if __name__ == '__main__':
     #flg += 2**28
 
     # Keck KCWI
-    flg += 2**29
+    #flg += 2**29
+
+    # MMT MMIRS
+    flg += 2**30
 
     main(flg)
 
