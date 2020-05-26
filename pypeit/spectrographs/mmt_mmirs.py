@@ -170,7 +170,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 6
+        par['sensfunc']['polyorder'] = 8
         # ToDo: replace the telluric grid file for MMT site.
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
