@@ -62,6 +62,8 @@ def parser(options=None):
                         'The offset convention is such that a negative offset will move the (negative) B image to the left')
     parser.add_argument("--redux_path", type=str, default=os.getcwd(),
                         help="Location where reduction outputs should be stored.")
+    parser.add_argument("--master_dir", type=str, default=os.getenv('MOSFIRE_MASTERS'),
+                        help="Location of PypeIt Master files used for the reduction.")
     parser.add_argument('--embed', default=False, help='Upon completion embed in ipython shell',
                         action='store_true')
     parser.add_argument("--show", default=False, action="store_true",
@@ -196,19 +198,33 @@ def main(pargs):
     science_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['scidir'])
 
     # Calibration Master directory
-    master_dir = os.getenv('MOSFIRE_MASTERS')
-    if master_dir is None:
+    if pargs.master_dir is None:
         msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
 
     # Define some hard wired master files here to be later parsed out of the directory
-    slit_masterframe_name = os.path.join(master_dir, 'MasterSlits_A_3_01.fits.gz')
-    tilts_masterframe_name = os.path.join(master_dir, 'MasterTilts_A_2_01.fits')
-    wvcalib_masterframe_name = os.path.join(master_dir, 'MasterWaveCalib_A_2_01.fits')
-    std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
-                               'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
+    slit_masterframe_name = os.path.join(pargs.master_dir, 'MasterSlits_A_3_01.fits.gz')
+    tilts_masterframe_name = os.path.join(pargs.master_dir, 'MasterTilts_A_2_01.fits')
+    wvcalib_masterframe_name = os.path.join(pargs.master_dir, 'MasterWaveCalib_A_2_01.fits')
+    # For now don't require a standard
+    std_outfile=None
+    #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
+    #                           'spec1d_m191118_0064-GD71_MOSFIRE_2019Nov18T104704.507.fits')
+    # make the get_std from pypeit a utility function or class method
+    det = 1 # MOSFIRE has a single detector
+    if std_outfile is not None:
+        # Get the standard trace if need be
+        sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
+        this_det = sobjs.DET == det
+        if np.any(this_det):
+            sobjs_det = sobjs[this_det]
+            sobjs_std = sobjs_det.get_std()
+            std_trace = None if sobjs_std is None else sobjs_std.TRACE_SPAT.flatten()
+        else:
+            std_trace = None
+    else:
+        std_trace = None
 
     # Read in the msbpm
-    det = 1 # MOSFIRE has a single detector
     sdet = get_dnum(det, prefix=False)
     msbpm = spectrograph.bpm(A_files[0], det)
     # Read in the slits
@@ -224,16 +240,6 @@ def main(pargs):
     tilts_obj.is_synced(slits)
     slits.mask_wavetilts(tilts_obj)
 
-    # Get the standard trace if need be
-    sobjs = specobjs.SpecObjs.from_fitsfile(std_outfile)
-    this_det = sobjs.DET == det
-    # make the get_std from pypeit a utility function or class method
-    if np.any(this_det):
-        sobjs_det = sobjs[this_det]
-        sobjs_std = sobjs_det.get_std()
-        std_trace = None if sobjs_std is None else sobjs_std.TRACE_SPAT.flatten()
-    else:
-        std_trace=None
 
     # Build Science image
     sciImg = buildimage.buildimage_fromlist(spectrograph, det, parset['scienceframe'], A_files, bpm=msbpm,
