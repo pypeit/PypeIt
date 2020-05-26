@@ -48,19 +48,26 @@ class FlatImages(datamodel.DataContainer):
     master_file_format = 'fits'
 
     datamodel = {
-        'procflat':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined flats'),
-        'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
-        'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'bpmflats': dict(otype=np.ndarray, atype=np.integer,
-                         desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
-        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
-                              desc='B-spline models for Illumination flat'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
+        'pixelflat_raw': dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined pixel flats'),
+        'pixelflat_norm': dict(otype=np.ndarray, atype=np.floating, desc='Normalized pixel flat'),
+        'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                                        desc='B-spline models for pixel flat'),
+        'pixelflat_bpm': dict(otype=np.ndarray, atype=np.integer,
+                              desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
+        'illumflat_raw': dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined illum flats'),
+        'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                                        desc='B-spline models for illum flat'),
+        'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
+                              desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
     }
 
-    def __init__(self, procflat=None, pixelflat=None, bpmflats=None,
-                 flat_model=None, spat_bsplines=None, PYP_SPEC=None, spat_id=None):
+    def __init__(self, PYP_SPEC=None, spat_id=None,
+                 illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
+                 pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
+                 pixelflat_model=None, pixelflat_spat_bsplines=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -123,6 +130,82 @@ class FlatImages(datamodel.DataContainer):
                 d[0][key] = self[key]
         # Return
         return d
+
+    def merge_with(self, flatimgs):
+        """
+        Merge flatimgs into the current :class:`pypeit.flatfield.FlatImages` class.
+
+        Parameters
+        ----------
+        flatimgs : :class:`pypeit.flatfield.FlatImages`
+        """
+        for key in flatimgs.keys():
+            # Skip None
+            if flatimgs[key] is None:
+                continue
+            else:
+                self[key] = flatimgs[key]
+
+    @property
+    def procflat(self, frametype='pixel'):
+        if frametype == 'pixel':
+            return self.pixelflat_raw
+        elif frametype == 'illum':
+            return self.illumflat_raw
+        else:
+            # Return the default option, but warn of the invalid type
+            msgs.warn("Frametype {0:s} not allowed for FlatImages. Allowed values include:" +
+                      msgs.newline() + "pixel, illum")
+            msgs.info("Assuming  frametype=pixel")
+            return self.pixelflat_raw
+
+    @property
+    def pixelflat(self, frametype='pixel'):
+        if frametype == 'pixel':
+            return self.pixelflat_norm
+        else:
+            # Return the default option, but warn of the invalid type
+            msgs.warn("Model flat is not generated for FlatImage of frametype {0:s}. Allowed values include:" +
+                      msgs.newline() + "pixel")
+            msgs.info("Assuming  frametype=pixel")
+            return self.pixelflat_norm
+
+    @property
+    def flat_model(self, type='pixel'):
+        if type == 'pixel':
+            return self.pixelflat_model
+        else:
+            # Return the default option, but warn of the invalid type
+            msgs.warn("Model flat is not generated for FlatImage of type {0:s}. Allowed values include:" +
+                      msgs.newline() + "pixel")
+            msgs.info("Assuming  type=pixel")
+            return self.pixelflat_model
+
+    @property
+    def bpmflats(self, frametype='pixel'):
+        if frametype == 'pixel':
+            return self.pixelflat_bpm
+        elif frametype == 'illum':
+            return self.illumflat_bpm
+        else:
+            # Return the default option, but warn of the invalid type
+            msgs.warn("Frametype {0:s} not allowed for FlatImages. Allowed values include:" +
+                      msgs.newline() + "pixel, illum")
+            msgs.info("Assuming  frametype=pixel")
+            return self.pixelflat_bpm
+
+    @property
+    def spat_bsplines(self, frametype='illum'):
+        if frametype == 'pixel' or self.illumflat_spat_bsplines is None:
+            return self.pixelflat_spat_bsplines
+        elif frametype == 'illum':
+            return self.illumflat_spat_bsplines
+        else:
+            # Return the default option, but warn of the invalid type
+            msgs.warn("Frametype {0:s} not allowed for FlatImages. Allowed values include:" +
+                      msgs.newline() + "pixel, illum")
+            msgs.info("Assuming  frametype=pixel")
+            return self.pixelflat_spat_bsplines
 
     def fit2illumflat(self, slits, initial=False, flexure_shift=None):
         """
@@ -375,13 +458,20 @@ class FlatField(object):
                 bpmflats[bpm] = self.slits.bitmask.turn_on(bpmflats[bpm], flag)
 
         # Return
-        return FlatImages(procflat=self.rawflatimg.image,
-                          pixelflat=self.mspixelflat,
-                          flat_model=self.flat_model,
-                          spat_bsplines=np.asarray(self.list_of_spat_bsplines),
-                          bpmflats=bpmflats,
-                          PYP_SPEC=self.spectrograph.spectrograph,
-                          spat_id=self.slits.spat_id)
+        if self.spat_illum_only:
+            # Illumination correction only
+            return FlatImages(illumflat_raw=self.rawflatimg.image,
+                              illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                              illumflat_bpm=bpmflats)
+        else:
+            # Pixel and illumination correction only
+            return FlatImages(pixelflat_raw=self.rawflatimg.image,
+                              pixelflat_norm=self.mspixelflat,
+                              pixelflat_model=self.flat_model,
+                              pixelflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                              pixelflat_bpm=bpmflats,
+                              PYP_SPEC=self.spectrograph.spectrograph,
+                              spat_id=self.slits.spat_id)
 
     def show(self, wcs_match=True):
         """

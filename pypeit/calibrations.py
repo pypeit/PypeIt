@@ -499,7 +499,6 @@ class Calibrations(object):
         #   3.  Load any user-supplied images to over-ride any built
 
         # Load MasterFrame?
-        # TODO - if generating one big "master" container for all flats, need to think about this here
         if os.path.isfile(masterframe_filename) and self.reuse_masters:
             self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
             self.flatimages.is_synced(self.slits)
@@ -519,7 +518,7 @@ class Calibrations(object):
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts)
             # Generate
-            self.pixelflatImages = pixelFlatField.run(show=self.show)
+            self.flatimages = pixelFlatField.run(show=self.show)
 
         # Only build illum_flat if the input files are different from the pixel flat
         if (not pix_is_illum) and len(illum_image_files) > 0:
@@ -532,27 +531,18 @@ class Calibrations(object):
                                                  self.par['flatfield'], self.slits, self.wavetilts,
                                                  spat_illum_only=True)
             # Generate
-            self.illumflatImages = illumFlatField.run(show=self.show)
+            illumflatImages = illumFlatField.run(show=self.show)
 
-        # Check if one should be used and not the other
-        # TODO - if generating one big "master" container for all flats, need to think about this here
-        if pixel_flat is None and illum_flat is None:
-            self.flatimages = flatfield.FlatImages()
-        elif illum_flat is None:
-            # Only have a pixel flat, save to Masters
-            self.flatimages = self.pixelflatImages
-            self.flatimages.to_master_file(masterframe_filename)
-            # Save slits too, in case they were tweaked
-            self.slits.to_master_file()
-        elif pixel_flat is None:
-            # Only have an illum flat, save to Masters
-            self.flatimages = self.illumflatImages
-            self.flatimages.to_master_file(masterframe_filename)
-            # Save slits too, in case they were tweaked
-            self.slits.to_master_file()
-        else:
-            # We have a pixel and illum flat, so fill in data container
-            pass
+            # Merge the illum flat with the pixel flat
+            if pixel_flat is not None:
+                self.flatimages.merge_with(illumflatImages)
+            else:
+                self.flatimages = illumflatImages
+
+        # Save flat images
+        self.flatimages.to_master_file(masterframe_filename)
+        # Save slits too, in case they were tweaked
+        self.slits.to_master_file()
 
         # 3) Load user-supplied images
         #  NOTE:  This is the *final* images, not just a stack
@@ -568,7 +558,7 @@ class Calibrations(object):
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
             with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
-                self.flatimages.pixelflat = hdu[self.det].data
+                self.flatimages.pixelflat_norm = hdu[self.det].data
 
         # Return
         return self.flatimages
