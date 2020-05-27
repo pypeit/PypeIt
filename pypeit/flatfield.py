@@ -133,25 +133,26 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
-    def merge_with(self, flatimgs):
-        """
-        Merge flatimgs into the current :class:`pypeit.flatfield.FlatImages` class.
-
-        Parameters
-        ----------
-        flatimgs : :class:`pypeit.flatfield.FlatImages`
-        """
-        for key in flatimgs.keys():
-            # Skip None
-            if flatimgs[key] is None:
-                continue
-            else:
-                self[key] = flatimgs[key]
-
-        # Rebuild the data container
-        d = dict([(k, self.flatimages[k]) for k in self.flatimages.keys()])
-        # Setup the DataContainer
-        datamodel.DataContainer.__init__(self, d=d)
+    # def merge_with(self, flatimgs):
+    #     """
+    #     Merge flatimgs into the current :class:`pypeit.flatfield.FlatImages` class.
+    #
+    #     Parameters
+    #     ----------
+    #     flatimgs : :class:`pypeit.flatfield.FlatImages`
+    #
+    #     Parameters
+    #     ----------
+    #     :class:`pypeit.flatfield.FlatImages` : A new instance of the FlatImages class with merged properties.
+    #     """
+    #     for key in flatimgs.keys():
+    #         # Skip None
+    #         if flatimgs[key] is None:
+    #             continue
+    #         else:
+    #             self[key] = flatimgs[key]
+    #     # Regenerate the data container
+    #     return FlatImages(**self)
 
     @property
     def procflat(self, frametype='pixel'):
