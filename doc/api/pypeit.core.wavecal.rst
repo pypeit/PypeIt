@@ -5,6 +5,7 @@ Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.core.wavecal.autoid
    pypeit.core.wavecal.defs

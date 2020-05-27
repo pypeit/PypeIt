@@ -118,6 +118,7 @@ Calibrations
    wave_calib
    wavetilts
    fluxing
+   telluric
 
 MasterFrames
 ++++++++++++
