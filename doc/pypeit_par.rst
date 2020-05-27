@@ -2162,7 +2162,7 @@ Alterations to the default parameters are::
           model_full_slit = True
   [sensfunc]
       algorithm = IR
-      polyorder = 8
+      polyorder = 11
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
