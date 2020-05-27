@@ -55,6 +55,8 @@ def parser(options=None):
     parser.add_argument('-B','--Bfiles', type=str, nargs='+', help='list of frames at dither position B  i.e. -B B1.fits B2.fits')
     parser.add_argument('--samp_fact', default=1.0, type=float,
                         help="Make the wavelength grid finer (samp_fact > 1.0) or coarser (samp_fact < 1.0) by this sampling factor")
+    parser.add_argument("--mask_cr", default=False, action='store_true',
+                        help="This option turns on cosmic ray rejection. This improves the reduction but doubles runtime.")
     parser.add_argument('--box_radius', type=float, help='Set the radius for the boxcar extraction')
     parser.add_argument('--offset', type=float, default=None,
                         help='R|Override the automatic offsets determined from the headers. Offset is in pixels.\n'
@@ -89,9 +91,10 @@ def config_lines(pargs):
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    [[wavelengths]]']
     cfg_lines += ['        frame = observed']
-    cfg_lines += ['[scienceframe]']
-    cfg_lines += ['    [[process]]']
-    cfg_lines += ['        mask_cr = False']
+    if not pargs.mask_cr:
+        cfg_lines += ['[scienceframe]']
+        cfg_lines += ['    [[process]]']
+        cfg_lines += ['        mask_cr = False']
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['        skip_optimal = True']
