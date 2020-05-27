@@ -276,6 +276,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     flg_continue = True
     flg_penultimate = False
     fmin, fmax = 0.0, 1.0
+    maxiter = 25
     # Note the number of parameters is actually n_order and not n_order+1
     while flg_continue:
         if flg_penultimate:
@@ -285,7 +286,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         #mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_first,
         #                                 minx=fmin, maxx=fmax, verbose=verbose, weights=wfit)
         pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
-                                       lower=sigrej_first, upper=sigrej_first,
+                                       lower=sigrej_first, upper=sigrej_first, maxiter=maxiter,
                                        minx=fmin, maxx=fmax, weights=wfit)
 
         rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0]/xnspecmin1,

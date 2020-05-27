@@ -2393,7 +2393,7 @@ class HolyGrail:
             nm = histimg.max() - histimg.min()
             ticks = np.arange(this_hist.min(),this_hist.max() + 1,1)
             cbar = fx.colorbar(cimg, ax=ax_image,ticks = ticks,drawedges = True, extend ='both',
-                               spacing = 'proporational',orientation ='horizontal')
+                               spacing = 'proportional',orientation ='horizontal')
             cbar.set_ticklabels(ticks)
             cbar.set_label('# of Occurences')
             ax_image.set_xlabel('Central Wavelength (Angstroms)')
