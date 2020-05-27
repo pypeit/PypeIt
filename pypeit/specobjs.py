@@ -560,6 +560,8 @@ class SpecObjs(object):
             # Check -- If sobj had only 1 array, the BinTableHDU test will fail
             assert len(shdu) == 1, 'Bad data model!!'
             assert isinstance(shdu[0], fits.hdu.table.BinTableHDU), 'Bad data model2'
+            #shdu[0].header['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
+            #shdu[0].header['DMODVER'] = (self.version, 'Datamodel version')
             # Name
             shdu[0].name = sobj.NAME
             # Extension
