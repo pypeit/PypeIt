@@ -37,7 +37,7 @@ class SpecObj(datamodel.DataContainer):
 
     Args:
         pypeline (str): Name of the PypeIt pypeline method
-            Allowed options are:  MultiSlit, Echelle
+            Allowed options are:  MultiSlit, Echelle, IFU
         DET (int): Detector number
         copy_dict (dict, optional): Used to set the entire internal dict of the object.
             Only used in the copy() method so far.

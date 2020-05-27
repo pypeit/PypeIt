@@ -31,6 +31,7 @@ class ArcImage(pypeitimage.PypeItImage):
     master_type = 'Arc'
     master_file_format = 'fits'
 
+
 class AlignImage(pypeitimage.PypeItImage):
     """
     Simple DataContainer for the Arc Image
@@ -105,6 +106,18 @@ class TraceImage(pypeitimage.PypeItImage):
     hdu_prefix = 'TRACE_'
 
 
+class SkyRegions(pypeitimage.PypeItImage):
+    """
+    Simple DataContainer for the SkyRegions Image
+    """
+    # Peg the version of this class to that of PypeItImage
+    version = pypeitimage.PypeItImage.version
+
+    # Master fun
+    master_type = 'SkyRegions'
+    master_file_format = 'fits.gz'
+
+
 def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                         bias=None, bpm=None, dark=None,
                         flatimages=None,
@@ -164,6 +177,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
         finalImage = TiltImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] == 'trace':
         finalImage = TraceImage.from_pypeitimage(pypeitImage)
+    elif frame_par['frametype'] == 'align':
+        finalImage = AlignImage.from_pypeitimage(pypeitImage)
     elif frame_par['frametype'] in ['pixelflat', 'science', 'standard', 'illumflat']:
         finalImage = pypeitImage
     else:

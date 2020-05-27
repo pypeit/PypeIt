@@ -124,11 +124,12 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
-    def fit2illumflat(self, slits, flexure_shift=None):
+    def fit2illumflat(self, slits, initial=False, flexure_shift=None):
         """
 
         Args:
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            initial (bool, optional):
             flexure_shift (float, optional):
 
         Returns:
@@ -142,9 +143,10 @@ class FlatImages(datamodel.DataContainer):
                 continue
             # Skip those without a bspline
             # DO it
-            _slitid_img = slits.slit_img(slitidx=slit_idx, flexure=flexure_shift)
+            _slitid_img = slits.slit_img(slitidx=slit_idx, initial=initial, flexure=flexure_shift)
             onslit = _slitid_img == slits.spat_id[slit_idx]
             spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx,
+                                                      initial=initial,
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=flexure_shift)
 
@@ -246,7 +248,7 @@ class FlatField(object):
 
     def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts):
 
-        # Defatuls
+        # Defaults
         self.spectrograph = spectrograph
         # FieldFlattening parameters
         self.flatpar = flatpar

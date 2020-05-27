@@ -253,7 +253,7 @@ def conv_telluric(tell_model, dloglam, res):
     conv_model = scipy.signal.convolve(tell_model,g,mode='same')
     return conv_model
 
-def shift_telluric(tell_model, loglam, dloglam, shift):
+def shift_telluric(tell_model, loglam, dloglam, shift, stretch):
     """
     Routine to apply a shift to the telluric model. Note that the shift can be sub-pixel, i.e this routine interpolates.
 
@@ -270,14 +270,15 @@ def shift_telluric(tell_model, loglam, dloglam, shift):
             tell_dict as tell_dict['dloglam']
         shift (float):
             Desired shift.  Note that this shift can be sub-pixel.
-
+        stretch (float):
+            Desired stretch.
     Returns:
         shifted_model (`numpy.ndarray`_):
             Shifted telluric model. Shape = same size as input tell_model.
 
     """
-
-    loglam_shift = loglam + shift*dloglam
+    loglam_shift = loglam[0] + np.arange(len(loglam)) * dloglam * stretch + shift * dloglam
+    #loglam_shift = loglam + shift*dloglam
     tell_model_shift = np.interp(loglam_shift, loglam, tell_model)
     return tell_model_shift
 
@@ -286,16 +287,16 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     """
     Routine to evaluate the telluric model at an arbitrary location in
     the theta_tell parameter space.  The full atmosphere model lives in
-    either a 5 or 6 dimensional parameter space, which is the size of
+    either a 5 or 7 dimensional parameter space, which is the size of
     the theta_tell input parameter vector.
 
     If len(theta_tell) == 5 the parameters are:
 
         pressure, temperature, humidity, airmass, resln = theta_tell
 
-    If len(theta_tell) == 6 the parameters are:
+    If len(theta_tell) == 7 the parameters are:
 
-        pressure, temperature, humidity, airmass, resln, shift = theta_tell
+        pressure, temperature, humidity, airmass, resln, shift, stretch = theta_tell
 
     This routine performs the following steps:
 
@@ -306,8 +307,8 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
        2. convolution of the atmosphere model to the resolution set by
           resln.
 
-       3. Optionally, if len(theta_tell) == 6, application of a shift to
-          telluric model. If len(theta_tell) == 5, no shift is applied
+       3. Optionally, if len(theta_tell) == 7, application of a shift and
+          a stretch to telluric model. If len(theta_tell) == 5, no shift is applied
           and only the first two steps are performed.
 
     Args:
@@ -347,8 +348,9 @@ def eval_telluric(theta_tell, tell_dict, ind_lower=None, ind_upper=None):
     tell_pad_tuple = (ind_lower - ind_lower_pad, ind_upper_final)
     tellmodel_conv = conv_telluric(tellmodel_hires[ind_lower_pad:ind_upper_pad + 1], tell_dict['dloglam'], theta_tell[4])
 
-    if ntheta == 6:
-        tellmodel_out = shift_telluric(tellmodel_conv, np.log10(tell_dict['wave_grid'][ind_lower_pad: ind_upper_pad+1]), tell_dict['dloglam'], theta_tell[5])
+    if ntheta == 7:
+        tellmodel_out = shift_telluric(tellmodel_conv, np.log10(tell_dict['wave_grid'][ind_lower_pad: ind_upper_pad+1]), tell_dict['dloglam'],
+                                       theta_tell[5],theta_tell[6])
         return tellmodel_out[tell_pad_tuple[0]:ind_upper_final]
     else:
         return tellmodel_conv[tell_pad_tuple[0]:ind_upper_final]
@@ -384,8 +386,8 @@ def tellfit_chi2(theta, flux, thismask, arg_dict):
     obj_model_func = arg_dict['obj_model_func']
     flux_ivar = arg_dict['ivar']
 
-    theta_obj = theta[:-6]
-    theta_tell = theta[-6:]
+    theta_obj = theta[:-7]
+    theta_tell = theta[-7:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
@@ -415,8 +417,8 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
             This is actually two concatenated paramter vectors, one for
             the object and one for the telluric, i.e::
 
-                theta_obj = theta[:-6]
-                theta_tell = theta[-6:]
+                theta_obj = theta[:-7]
+                theta_tell = theta[-7:]
 
             The telluric model theta_tell is currently hard wired to be six dimensional::
 
@@ -479,8 +481,8 @@ def tellfit(flux, thismask, arg_dict, **kwargs_opt):
     result = scipy.optimize.differential_evolution(tellfit_chi2, bounds, args=(flux, thismask, arg_dict,), seed=seed,
                                                    **kwargs_opt)
 
-    theta_obj  = result.x[:-6]
-    theta_tell = result.x[-6:]
+    theta_obj  = result.x[:-7]
+    theta_tell = result.x[-7:]
     tell_model = eval_telluric(theta_tell, arg_dict['tell_dict'],
                                ind_lower=arg_dict['ind_lower'], ind_upper=arg_dict['ind_upper'])
     obj_model, modelmask = obj_model_func(theta_obj, arg_dict['obj_dict'])
@@ -579,6 +581,7 @@ def general_spec_reader(specfile, ret_flam=False):
         except:
             spectrograph = load_spectrograph('shane_kast_blue')
         spect_dict = spectrograph.parse_spec_header(head)
+        head['PYP_SPEC'] = spectrograph.spectrograph
     except:
         # Load
         onespec = coadd1d.OneSpec.from_file(specfile)
@@ -587,7 +590,7 @@ def general_spec_reader(specfile, ret_flam=False):
         counts = onespec.flux
         counts_ivar = onespec.ivar
         counts_mask = onespec.mask.astype(bool)
-        spect_dict = onespec.spec_meta
+        spect_dict = onespec.spect_meta
         head = onespec.head0
 
     # Build this
@@ -595,6 +598,46 @@ def general_spec_reader(specfile, ret_flam=False):
     meta_spec['core'] = spect_dict
 
     return wave, counts, counts_ivar, counts_mask, meta_spec, head
+
+def save_coadd1d_tofits(outfile, wave, flux, ivar, mask, spectrograph=None, telluric=None, obj_model=None,
+        header=None, ex_value='OPT', overwrite=True):
+    """
+    Write final spectrum to disk.
+
+    Args:
+        outfile (str):
+           File to output telluric corrected spectrum to.
+        wave (`numpy.ndarray`_): wavelength in units of Angstrom
+        flux (`numpy.ndarray`_): flux array
+        ivar (`numpy.ndarray`_): inverse variance array.
+        mask (`numpy.ndarray`_): good pixel mask for your spectrum.
+        spectrograph (str): spectrograph name
+        telluric (`numpy.ndarray`_): telluric model
+        obj_model (`numpy.ndarray`_): object model used for telluric fitting
+        header (`astropy.io.fits.Header`): Primary header
+        ex_value (str): extraction mode, OPT or BOX
+        overwrite (bool):
+           Overwrite existing file?
+    """
+
+    wave_mask = wave > 1.0
+    # Generate the DataContainer
+    onespec = coadd1d.OneSpec(wave[wave_mask],
+                      flux[wave_mask],
+                      PYP_SPEC=spectrograph,
+                      ivar=ivar[wave_mask],
+                      mask=mask[wave_mask].astype(int),
+                      ext_mode=ex_value,
+                      fluxed=True)
+    onespec.head0 = header
+
+    # Add on others
+    if telluric is not None:
+        onespec.telluric = telluric[wave_mask]
+    if obj_model is not None:
+        onespec.obj_model = obj_model[wave_mask]
+    # Write
+    onespec.to_file(outfile, overwrite=overwrite)
 
 ############################
 #  Object model functions  #
@@ -982,9 +1025,6 @@ def init_poly_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     return obj_dict, bounds_obj
 
 # Polynomial evaluation function.
-# JFH This appears to just use the initial polynomial fit throughout and is not varying it. We probably want a
-# a routine that also tries to vary the polynomial??  This behavior is more akin to what molecfit does. If it works
-# okay we should leave it in.
 def eval_poly_model(theta, obj_dict):
     """
     Routine to evaluate a star spectrum model as a true model spectrum times a polynomial.
@@ -1005,8 +1045,10 @@ def eval_poly_model(theta, obj_dict):
        Good pixel mask indicating where the model is valid
 
     """
+    polymodel = coadd.poly_model_eval(theta, obj_dict['func'], obj_dict['model'],
+                                      obj_dict['wave'], obj_dict['wave_min'], obj_dict['wave_max'])
 
-    return obj_dict['polymodel'], (obj_dict['polymodel'] > 0.0)
+    return polymodel, (polymodel > 0.0)
 
 
 
@@ -1220,7 +1262,7 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
 
     return meta_table, out_table
 
-def create_bal_mask(wave):
+def create_bal_mask(wave, bal_wv_min_max):
     """
     Example of a utility function for creating a BAL mask for QSOs with BAL features. Can also be used to mask other
     features that the user does not want to fit.
@@ -1233,21 +1275,116 @@ def create_bal_mask(wave):
     Returns
     -------
     gpm : array shape, (nspec,)
-       Good pixel mask for the fits.
+       Good pixel (non-bal pixels) mask for the fits.
 
     """
+    if np.size(bal_wv_min_max) % 2 !=0:
+        msgs.error('bal_wv_min_max must be a list/array with even numbers.')
 
-    # example of a BAL mask
-    bal_mask =  (wave > 12000.0) & (wave < 12100)
-    return np.invert(bal_mask)
+    bal_bpm = np.zeros_like(wave, dtype=bool)
+    nbal = int(np.size(bal_wv_min_max) / 2)
+    if isinstance(bal_wv_min_max, list):
+        bal_wv_min_max = np.array(bal_wv_min_max)
+    wav_min_max = np.reshape(bal_wv_min_max,(nbal,2))
+    for ibal in range(nbal):
+        bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
+
+    return np.invert(bal_bpm)
 
 
 
-def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca = 8, create_bal_mask=None,
+def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile, npca=8, bal_wv_min_max=None,
                  delta_zqso=0.1, bounds_norm=(0.1, 3.0), tell_norm_thresh=0.9, sn_clip=30.0, only_orders=None,
                  tol=1e-3, popsize=30, recombination=0.7, pca_lower=1220.0,
                  pca_upper=3100.0, polish=True, disp=False, debug_init=False, debug=False,
                  show=False):
+    """
+    Telluric correction for a QSO list object.
+
+    Parameters
+    ----------
+    spec1dfile : str
+        File name of the input 1D spectrum
+
+    telgridfile : str
+        File name of the giant telluric grid file.
+
+    pca_file: str
+        File name of the QSO PCA model pickle file.
+
+    z_qso : float
+        Redshift of you QSO.
+
+    telloutfile : str
+        Output file name of the best-fit telluric model.
+
+    outfile : str
+        Output file name of the telluric corrected spectrum.
+
+    npca : int
+        Numer of pca components.
+
+    pca_lower: float
+        Wavelength lower bounds of the PCA model
+
+    pca_upper: float
+        Wavelength upper bounds of the PCA model
+
+    bal_wv_min_max : list
+        Broad absorption line feature mask. If there are several BAL features, the format
+        for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...].
+        These masked pixels will be ignored during the fitting.
+
+    delta_zqso : float
+        The QSO redshift can vary within delta_zqso
+
+    bounds_norm : tuple
+
+    tell_norm_thresh :float
+
+    sn_clip : float, optional, default=30.0,
+        Errors are capped during rejection so that the S/N is never greater than sn_clip. This prevents overly aggressive
+        rejection in high S/N ratio spectrum which neverthless differ at a level greater than the implied S/N due to
+        systematics, which in this case is most likely the inadequecy of our telluric model to fit the data at the
+        the precision set by very high S/N ratio
+
+    only_orders : array of int, optional, default = None
+        Only fit these specific orders
+
+    tol (float): default = 1e-3
+        Relative tolerance for converage of the differential evolution optimization. See
+        scipy.optimize.differential_evolution for details.
+
+    popsize (int): default = 30
+        A multiplier for setting the total population size for the differential evolution optimization. See
+        scipy.optimize.differential_evolution for details.
+
+    recombination : float, optional, default = 0.7
+        The recombination constant for the differential evolution optimization. This should be in the range [0, 1].
+        See scipy.optimize.differential_evolution for details.
+
+    polish : bool, optional, default=True
+        If True then differential evolution will perform an additional optimizatino at the end to polish the best fit
+        at the end, which can improve the optimization slightly. See scipy.optimize.differential_evolution for details.
+    disp : bool, optional, default=True
+        Argument for scipy.optimize.differential_evolution which will  display status messages to the screen
+        indicating the status of the optimization. See above for a description of the output and how to know
+        if things are working well.
+
+    debug_init : bool, optional, default=False
+        Show plots to the screen useful for debugging model initialization
+
+    debug : bool, optional, default=False
+        Show plots to the screen useful for debugging the telluric/object model fits.
+
+    Returns
+    -------
+    meta_table : astropy.table.Table object
+        Table containing meta data for the telluric/object model fit
+
+    out_table: astropy.table.Table. object
+        Table containing the values for telluric model parameters and object model parameters.
+    """
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
     if debug:
@@ -1255,19 +1392,16 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
 
     obj_params = dict(pca_file=pca_file, npca=npca, z_qso=z_qso, delta_zqso=delta_zqso, bounds_norm=bounds_norm,
                       tell_norm_thresh=tell_norm_thresh,
-                      output_meta_keys=('pca_file', 'npca', 'z_qso', 'delta_zqso','bounds_norm', 'tell_norm_thresh'))
+                      output_meta_keys=('pca_file', 'npca', 'z_qso', 'delta_zqso','bounds_norm', 'tell_norm_thresh'),
+                      debug_init=debug_init)
 
     wave, flux, ivar, mask, meta_spec, header = general_spec_reader(spec1dfile, ret_flam=True)
     header = fits.getheader(spec1dfile) # clean this up!
     # Mask the IGM and mask wavelengths that extend redward of our PCA
-    qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +
-                                                                    z_qso))
-    # TODO this 3100 is hard wired now, but make the QSO PCA a PypeIt product and determine it from the file
-    if create_bal_mask is not None:
-        bal_mask = create_bal_mask(wave)
-        mask_tot = mask & qsomask & bal_mask
-    else:
-        mask_tot = mask & qsomask
+    qsomask = (wave > (1.0 + z_qso)*pca_lower) & (wave < pca_upper*(1.0 +z_qso))
+
+    # Mask BAL if there is any BAL absorptions.
+    mask_tot = mask & qsomask & create_bal_mask(wave, bal_wv_min_max) if bal_wv_min_max is not None else mask & qsomask
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params, init_qso_model, eval_qso_model,
@@ -1306,8 +1440,9 @@ def qso_telluric(spec1dfile, telgridfile, pca_file, z_qso, telloutfile, outfile,
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=pca_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=pca_model,header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
@@ -1394,14 +1529,15 @@ def star_telluric(spec1dfile, telgridfile, telloutfile, outfile, star_type=None,
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=star_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=star_model,header=header, ex_value='OPT', overwrite=True)
 
     return TelObj
 
 def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func='legendre', model='exp', polyorder=3,
-                  fit_region_min=None, fit_region_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
-                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=5,
+                  fit_wv_min_max=None, mask_lyman_a=True, delta_coeff_bounds=(-20.0, 20.0),
+                  minmax_coeff_bounds=(-5.0, 5.0), only_orders=None, sn_clip=30.0, tol=1e-3, popsize=30, maxiter=3,
                   recombination=0.7, polish=True, disp=False, debug_init=False, debug=False, show=False):
 
     # Turn on disp for the differential_evolution if debug mode is turned on.
@@ -1439,15 +1575,9 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
     else:
         mask_tot = mask
 
-    if fit_region_min is not None:
-        if np.size(fit_region_min) != np.size(fit_region_max):
-            msgs.error('fit_region_min should have the same size with fit_region_max.')
-        else:
-            mask_region = np.zeros_like(mask_tot,dtype=bool)
-            for ii in range(np.size(fit_region_min)):
-                mask_ii = (wave>fit_region_min[ii]) & (wave<fit_region_max[ii])
-                mask_region[mask_ii] = True
-            mask_tot = mask_tot & mask_region
+    if fit_wv_min_max is not None:
+        mask_region = create_bal_mask(wave, fit_wv_min_max)
+        mask_tot = mask_tot & np.invert(mask_region)
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params,
@@ -1476,16 +1606,17 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         plt.plot(wave, flux*mask_corr, drawstyle='steps-mid', color='0.7', label='uncorrected data', alpha=0.5, zorder=3)
         plt.plot(wave, sig_corr*mask_corr, drawstyle='steps-mid', color='b', label='noise', alpha=0.3, zorder=1)
         #plt.plot(wave, poly_model, color='cornflowerblue', linewidth=1.0, label='polynomial model', zorder=7, alpha=0.7)
-        plt.plot(wave, poly_model.max()*1.1*telluric, color='magenta', drawstyle='steps-mid', label='telluric', alpha=0.3)
-        plt.ylim(-np.median(sig_corr[mask_corr]).max(), 1.5*poly_model.max())
-        plt.xlim(wave[wave > 1.0].min(), wave[wave > 1.0].max())
+        plt.plot(wave, poly_model[mask_corr].max()*0.9*telluric, color='magenta', drawstyle='steps-mid', label='telluric', alpha=0.3)
+        plt.ylim(-np.median(sig_corr[mask_corr]).max(), 1.5*flux_corr[mask_corr].max())
+        plt.xlim(wave[mask_corr].min(), wave[mask_corr].max())
         plt.legend()
         plt.xlabel('Wavelength')
         plt.ylabel('Flux')
         plt.show()
 
-    save.save_coadd1d_to_fits(outfile, wave, flux_corr, ivar_corr, mask_corr, telluric=telluric, obj_model=poly_model,
-                              header=header, ex_value='OPT', overwrite=True)
+    # save the telluric corrected spectrum
+    save_coadd1d_tofits(outfile, wave, flux_corr, ivar_corr, mask_corr, spectrograph=header['PYP_SPEC'],
+                        telluric=telluric, obj_model=poly_model,header=header, ex_value='OPT', overwrite=True)
 
 
     return TelObj
@@ -1518,13 +1649,14 @@ class Telluric(object):
     optimization. The bounds for the telluric are set by the grid and initialized without user involvement. But for the
     object model, the bounds depend on the nature of the object model, which is why init_obj_model must be provided.
 
-    The telluric model is governed by six parameters:
+    The telluric model is governed by seven parameters:
 
-        pressure, temperature, humidity, airmass, resln, shift
+        pressure, temperature, humidity, airmass, resln, shift, stretch
 
-    Where resln is the resolution of the spectrograph and shift is a shift in pixels. The airmass of the object
-    will be used to initalize the fit (this helps with initalizing the object model), but the models are sufficiently
-    flexible that often the best fit airmass actually differs from the airmass of the spectrum.
+    Where resln is the resolution of the spectrograph and shift is a shift in pixels. The stretch is a stretch oon the
+    pixel scale. The airmass of the object will be used to initalize the fit (this helps with initalizing the object
+    model), but the models are sufficiently flexible that often the best fit airmass actually differs from the airmass
+    of the spectrum.
 
     This code can be run on stacked spectra covering a large range of airmasses and will still provide good results.
     The resulting airmass will be an effective value, and as per above may not have much relation to the true airmass
@@ -1588,6 +1720,9 @@ class Telluric(object):
         pix_shift_bounds (tuple of floats): default = (-5.0, 5.0)
             Bounds for the pixel shift optimization in telluric model fit in units of pixels. The atmosphere
             will be allowed to shift within this range during the fit.
+        pix_stretch_bounds (tuple of floats): default = (0.9, 1.1)
+            Bounds for the pixel scale stretch optimization in telluric model fit in units of pixels. The atmosphere
+            will be allowed to stretch within this range during the fit.
         maxiter (int): default = 3
             Maximum number of iterations for the telluric + object model fitting. The code performs multiple
             iterations rejecting outliers at each step. The fit is then performed anew to the remaining good pixels.
@@ -1646,7 +1781,7 @@ class Telluric(object):
     def __init__(self, wave, flux, ivar, mask, telgridfile, obj_params, init_obj_model, eval_obj_model,
                  ech_orders=None,
                  sn_clip=30.0, airmass_guess=1.5, resln_guess=None,
-                 resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0),
+                 resln_frac_bounds=(0.5, 1.5), pix_shift_bounds=(-5.0, 5.0), pix_stretch_bounds=(0.9,1.1),
                  maxiter=3, sticky=True, lower=3.0, upper=3.0,
                  seed=777, tol=1e-3, popsize=30, recombination=0.7, polish=True, disp=False, debug=False):
 
@@ -1672,6 +1807,7 @@ class Telluric(object):
         self.sn_clip = sn_clip
         self.resln_frac_bounds = resln_frac_bounds
         self.pix_shift_bounds = pix_shift_bounds
+        self.pix_stretch_bounds = pix_stretch_bounds
         self.maxiter = maxiter
         self.sticky = sticky
         self.lower = lower
@@ -1782,8 +1918,8 @@ class Telluric(object):
                 inmask=self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord],
                 maxiter=self.maxiter, lower=self.lower, upper=self.upper, sticky=self.sticky,
                 tol=self.tol, popsize=self.popsize, recombination=self.recombination, polish=self.polish, disp=self.disp)
-            self.theta_obj_list[iord] = self.result_list[iord].x[:-6]
-            self.theta_tell_list[iord] = self.result_list[iord].x[-6:]
+            self.theta_obj_list[iord] = self.result_list[iord].x[:-7]
+            self.theta_tell_list[iord] = self.result_list[iord].x[-7:]
             self.obj_model_list[iord], modelmask = self.eval_obj_model(self.theta_obj_list[iord], self.obj_dict_list[iord])
             self.tellmodel_list[iord] = eval_telluric(self.theta_tell_list[iord], self.tell_dict,
                                                       ind_lower=self.ind_lower[iord],ind_upper=self.ind_upper[iord])
@@ -1854,7 +1990,7 @@ class Telluric(object):
         plt.plot(wave_now[rejmask], flux_now[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
         plt.plot(wave_now[np.invert(mask_now)], flux_now[np.invert(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
                  label='originally masked')
-        plt.ylim(-0.1 * model_now.max(), 1.3 * model_now.max())
+        plt.ylim(-0.1 * model_now[mask_now].max(), 1.3 * model_now[mask_now].max())
         plt.legend()
         plt.xlabel('Wavelength')
         plt.ylabel('Flux or Counts')
@@ -1890,13 +2026,14 @@ class Telluric(object):
         out_table['WAVE'] = np.zeros((self.norders, self.nspec_in))
         out_table['TELLURIC'] = np.zeros((self.norders, self.nspec_in))
         out_table['OBJ_MODEL'] = np.zeros((self.norders, self.nspec_in))
-        out_table['TELL_THETA'] = np.zeros((self.norders, 6))
+        out_table['TELL_THETA'] = np.zeros((self.norders, 7))
         out_table['TELL_PRESS'] = np.zeros(self.norders)
         out_table['TELL_TEMP'] = np.zeros(self.norders)
         out_table['TELL_H2O'] = np.zeros(self.norders)
         out_table['TELL_AIRMASS'] = np.zeros(self.norders)
         out_table['TELL_RESLN'] = np.zeros(self.norders)
         out_table['TELL_SHIFT'] = np.zeros(self.norders)
+        out_table['TELL_STRETCH'] = np.zeros(self.norders)
         out_table['OBJ_THETA'] = np.zeros((self.norders, self.max_ntheta_obj))
         out_table['CHI2'] = np.zeros(self.norders)
         out_table['SUCCESS'] = np.zeros(self.norders, dtype=bool)
@@ -1937,6 +2074,7 @@ class Telluric(object):
         self.out_table['TELL_AIRMASS'][iord] = self.theta_tell_list[iord][3]
         self.out_table['TELL_RESLN'][iord] = self.theta_tell_list[iord][4]
         self.out_table['TELL_SHIFT'][iord] = self.theta_tell_list[iord][5]
+        self.out_table['TELL_STRETCH'][iord] = self.theta_tell_list[iord][6]
         ntheta_iord = len(self.theta_obj_list[iord])
         self.out_table['OBJ_THETA'][iord][0:ntheta_iord+1] = self.theta_obj_list[iord]
         self.out_table['CHI2'][iord] = self.result_list[iord].fun
@@ -2024,7 +2162,7 @@ class Telluric(object):
         tell_guess = (np.median(self.tell_dict['pressure_grid']),
                       np.median(self.tell_dict['temp_grid']),
                       np.median(self.tell_dict['h2o_grid']),
-                      self.airmass_guess, self.resln_guess, 0.0)
+                      self.airmass_guess, self.resln_guess, 0.0, 1.0)
 
         return tell_guess
 
@@ -2040,7 +2178,7 @@ class Telluric(object):
                        (self.tell_dict['h2o_grid'].min(), self.tell_dict['h2o_grid'].max()),
                        (self.tell_dict['airmass_grid'].min(), self.tell_dict['airmass_grid'].max()),
                        (self.resln_guess * self.resln_frac_bounds[0], self.resln_guess * self.resln_frac_bounds[1]),
-                       self.pix_shift_bounds]
+                       self.pix_shift_bounds, self.pix_stretch_bounds]
 
         return bounds_tell
 

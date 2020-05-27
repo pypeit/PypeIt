@@ -44,8 +44,8 @@ import os
 import warnings
 import textwrap
 import sys
-if sys.version > '3':
-    long = int
+
+from IPython import embed
 
 import numpy
 
@@ -122,14 +122,15 @@ class ParSet(object):
         cfg_comment (str): 
             Comment to be placed at the top-level of the configuration
             section written based on the contents of this parameter set.
-        prefix (str):
-            Class Prefix for header keywords when writing the parset to an
-            `astropy.io.fits.Header` object.
-
     """
+
     # Set prefix for writing parameters to a fits header to a class
     # attribute.
     prefix = 'PAR'
+    """
+    Class Prefix for header keywords when writing the parset to an
+    `astropy.io.fits.Header`_ object.
+    """
 
     def __init__(self, pars, values=None, defaults=None, options=None, dtypes=None, can_call=None,
                  descr=None, cfg_section=None, cfg_comment=None):
@@ -824,7 +825,7 @@ class ParSet(object):
                 # Don't write Nones
                 continue
             if isinstance(value, ParSet):
-                if verbose:
+                if not quiet:
                     warnings.warn('ParSets within ParSets are not written to headers!  '
                                   'Skipping {0}.'.format(key))
                 continue
