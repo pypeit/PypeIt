@@ -506,7 +506,7 @@ class Calibrations(object):
             return self.flatimages
 
         # Generate the image
-        illumflatImages, pixelflatImages = None, None
+        illumflatImages, self.flatimages = None, None
         # Check if the image files are the same
         pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
         if len(pixflat_image_files) > 0:
@@ -518,7 +518,7 @@ class Calibrations(object):
             pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
                                                  self.par['flatfield'], self.slits, self.wavetilts, self.wv_calib)
             # Generate
-            pixelflatImages = pixelFlatField.run(show=self.show)
+            self.flatimages = pixelFlatField.run(show=self.show)
 
         # Only build illum_flat if the input files are different from the pixel flat
         if (not pix_is_illum) and len(illum_image_files) > 0:
@@ -534,20 +534,20 @@ class Calibrations(object):
             illumflatImages = illumFlatField.run(show=self.show)
 
         # Merge the illum flat with the pixel flat
-        if pixelflatImages is not None:
+        if self.flatimages  is not None:
             msgs.info("Merging illumflat parameters into FlatImages")
-            #pixelflatImages.merge_with(illumflatImages)
-            self.flatimages = flatfield.FlatImages(PYP_SPEC=pixelflatImages.PYP_SPEC,
-                                                   spat_id=pixelflatImages.spat_id,
-                                                   pixelflat_raw=pixelflatImages.pixelflat_raw,
-                                                   pixelflat_norm=pixelflatImages.pixelflat_norm,
-                                                   pixelflat_model=pixelflatImages.pixelflat_model,
-                                                   pixelflat_spat_bsplines=pixelflatImages.pixelflat_spat_bsplines,
-                                                   pixelflat_bpm=pixelflatImages.pixelflat_bpm,
-                                                   pixelflat_spec_illum=pixelflatImages.pixelflat_spec_illum,
-                                                   illumflat_raw=illumflatImages.illumflat_raw,
-                                                   illumflat_spat_bsplines=illumflatImages.illumflat_spat_bsplines,
-                                                   illumflat_bpm=illumflatImages.illumflat_bpm)
+            self.flatimages.merge_with(illumflatImages)
+            # self.flatimages = flatfield.FlatImages(pixelflat_raw=pixelflatImages.pixelflat_raw,
+            #                                        pixelflat_norm=pixelflatImages.pixelflat_norm,
+            #                                        pixelflat_model=pixelflatImages.pixelflat_model,
+            #                                        pixelflat_spat_bsplines=pixelflatImages.pixelflat_spat_bsplines,
+            #                                        pixelflat_bpm=pixelflatImages.pixelflat_bpm,
+            #                                        pixelflat_spec_illum=pixelflatImages.pixelflat_spec_illum,
+            #                                        illumflat_raw=illumflatImages.illumflat_raw,
+            #                                        illumflat_spat_bsplines=illumflatImages.illumflat_spat_bsplines,
+            #                                        illumflat_bpm=illumflatImages.illumflat_bpm,
+            #                                        PYP_SPEC=pixelflatImages.PYP_SPEC,
+            #                                        spat_id=pixelflatImages.spat_id)
         else:
             # No pixel flat, but there might be an illumflat
             self.flatimages = illumflatImages

@@ -49,8 +49,6 @@ class FlatImages(datamodel.DataContainer):
     master_file_format = 'fits'
 
     datamodel = {
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
         'pixelflat_raw': dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined pixel flats'),
         'pixelflat_norm': dict(otype=np.ndarray, atype=np.floating, desc='Normalized pixel flat'),
         'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
@@ -64,17 +62,20 @@ class FlatImages(datamodel.DataContainer):
                                         desc='B-spline models for illum flat'),
         'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
                               desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
+        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
     }
 
-    def __init__(self, PYP_SPEC=None, spat_id=None,
+    def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
+                 pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None,
                  illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
-                 pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
-                 pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None):
+                 PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
+        self.frametype = None
 
     def _init_internals(self):
         # Master stuff
@@ -83,9 +84,12 @@ class FlatImages(datamodel.DataContainer):
 
     def _validate(self):
         #
-        if self.spat_bsplines is not None and len(self.spat_bsplines) > 0:
-            if len(self.spat_id) != len(self.spat_bsplines):
-                msgs.error("Bsplines are out of sync with the slit IDs")
+        if self.pixelflat_spat_bsplines is not None and len(self.pixelflat_spat_bsplines) > 0:
+            if len(self.spat_id) != len(self.pixelflat_spat_bsplines):
+                msgs.error("Pixelflat Bsplines are out of sync with the slit IDs")
+        if self.illumflat_spat_bsplines is not None and len(self.illumflat_spat_bsplines) > 0:
+            if len(self.spat_id) != len(self.illumflat_spat_bsplines):
+                msgs.error("Illumflat Bsplines are out of sync with the slit IDs")
 
     def is_synced(self, slits):
         """
@@ -161,13 +165,19 @@ class FlatImages(datamodel.DataContainer):
     #         else:
     #             self[key] = flatimgs[key]
     #     # Regenerate the data container
-    #     return FlatImages(**self)
+    #     d = dict([(k, self[k]) for k in self.keys()])
+    #     # Setup the DataContainer
+    #     datamodel.DataContainer.__init__(self, d=d)
+    #     #return FlatImages(**self)
+
+    def set_frametype(self, frametype="pixel"):
+        self.frametype = frametype
 
     @property
-    def procflat(self, frametype='pixel'):
-        if frametype == 'pixel':
+    def procflat(self):
+        if self.frametype is None or self.frametype == 'pixel':
             return self.pixelflat_raw
-        elif frametype == 'illum':
+        elif self.frametype == 'illum':
             return self.illumflat_raw
         else:
             # Return the default option, but warn of the invalid type
@@ -177,8 +187,8 @@ class FlatImages(datamodel.DataContainer):
             return self.pixelflat_raw
 
     @property
-    def pixelflat(self, frametype='pixel'):
-        if frametype == 'pixel':
+    def pixelflat(self):
+        if self.frametype is None or self.frametype == 'pixel':
             return self.pixelflat_norm
         else:
             # Return the default option, but warn of the invalid type
@@ -188,8 +198,8 @@ class FlatImages(datamodel.DataContainer):
             return self.pixelflat_norm
 
     @property
-    def flat_model(self, type='pixel'):
-        if type == 'pixel':
+    def flat_model(self):
+        if self.frametype is None or self.frametype == 'pixel':
             return self.pixelflat_model
         else:
             # Return the default option, but warn of the invalid type
@@ -199,10 +209,10 @@ class FlatImages(datamodel.DataContainer):
             return self.pixelflat_model
 
     @property
-    def bpmflats(self, frametype='pixel'):
-        if frametype == 'pixel':
+    def bpmflats(self):
+        if self.frametype is None or self.frametype == 'pixel':
             return self.pixelflat_bpm
-        elif frametype == 'illum':
+        elif self.frametype == 'illum':
             return self.illumflat_bpm
         else:
             # Return the default option, but warn of the invalid type
@@ -212,11 +222,12 @@ class FlatImages(datamodel.DataContainer):
             return self.pixelflat_bpm
 
     @property
-    def spat_bsplines(self, frametype='illum'):
-        if frametype == 'pixel' or self.illumflat_spat_bsplines is None:
-            return self.pixelflat_spat_bsplines
-        elif frametype == 'illum':
+    def spat_bsplines(self):
+        if self.illumflat_spat_bsplines is not None and \
+                (self.frametype is None or self.frametype == "illum"):
             return self.illumflat_spat_bsplines
+        elif self.frametype == 'pixel':
+            return self.pixelflat_spat_bsplines
         else:
             # Return the default option, but warn of the invalid type
             msgs.warn("Frametype {0:s} not allowed for FlatImages. Allowed values include:" +
@@ -237,7 +248,8 @@ class FlatImages(datamodel.DataContainer):
         """
         illumflat = np.ones_like(self.procflat)
         # Check the frametype, and load spatial bsplines
-        spat_bsplines = self.spat_bsplines(frametype=frametype)
+        self.set_frametype(frametype)
+        spat_bsplines = self.spat_bsplines()
         # Loop
         for slit_idx in range(slits.nslits):
             # Skip masked
