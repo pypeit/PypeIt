@@ -682,8 +682,12 @@ class Spectrograph(object):
 
         # Deal with 'special' cases
         if meta_key in ['ra', 'dec'] and value is not None:
-            ra, dec = meta.convert_radec(self.get_meta_value(headarr, 'ra', no_fussing=True),
-                                self.get_meta_value(headarr, 'dec', no_fussing=True))
+            try:
+                ra, dec = meta.convert_radec(self.get_meta_value(headarr, 'ra', no_fussing=True),
+                                    self.get_meta_value(headarr, 'dec', no_fussing=True))
+            except:
+                msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC')
+                ra, dec = 0.0, 0.0
             value = ra if meta_key == 'ra' else dec
 
         # JFH Added this bit of code to deal with situations where the header card is there but the wrong type, e.g.

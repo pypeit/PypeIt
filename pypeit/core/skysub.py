@@ -621,9 +621,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     # Set up the prof_nsigma
     if (prof_nsigma is None):
         prof_nsigma1 = np.full(len(sobjs), None)
-    elif len(prof_nsigma) == 1:
+    elif np.size(prof_nsigma) == 1:
         prof_nsigma1 = np.full(nobj, prof_nsigma)
-    elif len(prof_nsigma) == nobj:
+    elif np.size(prof_nsigma) == nobj:
         prof_nsigma1 = prof_nsigma
     else:
         raise ValueError('Invalid size for prof_nsigma.')

@@ -10,9 +10,9 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
+from pypeit.images import detector_container
 
-## FW ToDo: I subtract the overscan when reading data rather than pasrse it to procimg.py since procimg does not
-##    support subtracting overscan in both x and y-axis
+from pkg_resources import resource_filename
 
 class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
     """
@@ -27,6 +27,43 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.MMTTelescopePar()
         self.camera = 'BINOSPEC'
         self.numhead = 11
+
+    def get_detector_par(self, hdu, det):
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')
+
+        # Detector 1
+        detector_dict1 = dict(
+                            binning         = binning,
+                            det             = 1,
+                            dataext         = 1,
+                            specaxis        = 0,
+                            specflip        = False,
+                            spatflip        = False,
+                            xgap            = 0.,
+                            ygap            = 0.,
+                            ysize           = 1.,
+                            platescale      = 0.24,
+                            darkcurr        = 3.0, #ToDO: To Be update
+                            saturation      = 65535.,
+                            nonlinear       = 0.95,  #ToDO: To Be update
+                            mincounts       = -1e10,
+                            numamplifiers   = 4,
+                            gain            = np.atleast_1d([1.085,1.046,1.042,0.975]),
+                            ronoise         = np.atleast_1d([3.2,3.2,3.2,3.2]),
+                            )
+        # Detector 2
+        detector_dict2 = detector_dict1.copy()
+        detector_dict2.update(dict(
+            det=2,
+            dataext=2,
+            gain=np.atleast_1d([1.028,1.115,1.047,1.045]), #ToDo: FW measures 1.115 for amp2 but 1.163 in IDL pipeline
+            ronoise=np.atleast_1d([3.6,3.6,3.6,3.6])
+        ))
+
+        # Instantiate
+        detector_dicts = [detector_dict1, detector_dict2]
+        return detector_container.DetectorContainer(**detector_dicts[det])
 
     def init_meta(self):
         """
@@ -43,7 +80,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         meta['dec'] = dict(ext=1, card='DEC')
         meta['target'] = dict(ext=1, card='OBJECT')
         meta['decker'] = dict(ext=1, card=None, default='default')
-        meta['binning'] = dict(card=None, compound=True)
+        meta['dichroic'] = dict(ext=1, card=None, default='default')
+        meta['binning'] = dict(ext=1, card='CCDSUM', compound=True)
 
         meta['mjd'] = dict(ext=1, card='MJD')
         meta['exptime'] = dict(ext=1, card='EXPTIME')
@@ -86,7 +124,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Wavelengths
         # 1D wavelength solution
         par['calibrations']['wavelengths']['rms_threshold'] = 0.5
-        par['calibrations']['wavelengths']['sigdetect'] = 20.
+        par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -98,27 +136,92 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['tilts']['spec_order'] = 6
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Processing steps
+        turn_off = dict(use_biasimage=False, use_darkimage=False)
+        par.reset_all_processimages_par(**turn_off)
+
         # Extraction
         par['reduce']['skysub']['bspline_spacing'] = 0.8
         par['reduce']['extraction']['sn_gauss'] = 4.0
         ## Do not perform global sky subtraction for standard stars
-        ## FW: The slit is too wide and the target usually close to the center where is the boundary
-        ## two detectors. global_sky will cause some problem sometime.
         par['reduce']['skysub']['global_sky_std']  = False
 
         # Flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['spec_method'] = 'boxcar'
 
-        par['scienceframe']['process']['sigclip'] = 20.0
-        par['scienceframe']['process']['satpix'] ='nothing'
-        #par['scienceframe']['process']['overscan'] ='median'
+        # cosmic ray rejection parameters for science frames
+        par['scienceframe']['process']['sigclip'] = 5.0
+        par['scienceframe']['process']['objlim'] = 2.0
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 100]
         par['calibrations']['arcframe']['exprng'] = [20, None]
         par['calibrations']['darkframe']['exprng'] = [20, None]
         par['scienceframe']['exprng'] = [20, None]
+
+        # Sensitivity function parameters
+        par['sensfunc']['polyorder'] = 7
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
         return par
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        """ Generate a BPM
+
+        Parameters
+        ----------
+        det : int, REQUIRED
+        **null_kwargs:
+           Captured and never used
+
+        Returns
+        -------
+        badpix : ndarray
+
+        """
+        # Get the empty bpm: force is always True
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        if det == 1:
+            msgs.info("Using hard-coded BPM for det=1 on BINOSPEC")
+
+            # TODO: Fix this
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[1].header['CCDSUM']
+            hdu.close()
+
+            # Apply the mask
+            xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
+            bpm_img[2447 // xbin, 2056 // ybin:4112 // ybin] = 1
+            bpm_img[2111 // xbin, 2056 // ybin:4112 // ybin] = 1
+
+        elif det == 2:
+            msgs.info("Using hard-coded BPM for det=2 on BINOSPEC")
+
+            # Get the binning
+            hdu = fits.open(filename)
+            binning = hdu[5].header['CCDSUM']
+            hdu.close()
+
+            # Apply the mask
+            xbin, ybin = int(binning.split(' ')[0]), int(binning.split(' ')[1])
+            #ToDo: Need to double check the  BPM for detector 2
+            ## Identified by FW from flat observations
+            bpm_img[3336 // xbin, 0:2056 // ybin] = 1
+            bpm_img[3337 // xbin, 0:2056 // ybin] = 1
+            bpm_img[4056 // xbin, 0:2056 // ybin] = 1
+            bpm_img[3011 // xbin, 2057 // ybin:4112 // ybin] = 1
+            ## Got from IDL pipeline
+            #bpm_img[2378 // xbin, 0:2056 // ybin] = 1
+            #bpm_img[2096 // xbin, 2057 // ybin:4112 // ybin] = 1
+            #bpm_img[1084 // xbin, 0:2056 // ybin] = 1
+
+        return bpm_img
 
     def configuration_keys(self):
         return ['dispname']
@@ -134,7 +237,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['lampstat02'] == 'stowed') & (fitstbl['exptime'] <= 100.0)
         if ftype in ['arc', 'tilt']:
             return good_exp & (fitstbl['lampstat01'] == 'on')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             return good_exp & (fitstbl['lampstat01'] == 'off') & (fitstbl['lampstat02'] == 'deployed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
@@ -167,12 +270,12 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Read
         msgs.info("Reading BINOSPEC file: {:s}".format(fil[0]))
         hdu = fits.open(fil[0])
-        head0 = hdu[0].header
         head1 = hdu[1].header
 
         # TOdO Store these parameters in the DetectorPar.
-        # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-        numamp = 4
+        # Number of amplifiers
+        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...
         binning = head1['CCDSUM']
@@ -217,22 +320,22 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
             b1, b2, b3, b4 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
 
             if kk == 0:
-                array[b2:inx+b2,:iny] = data #* self.detector[det-1]['gain'][kk]
+                array[b2:inx+b2,:iny] = data #*1.028
                 rawdatasec_img[b2:inx+b2,:iny] = kk + 1
                 array[:b2,:iny] = overscan
                 oscansec_img[2:b2,:iny] = kk + 1
             elif kk == 1:
-                array[b2+inx:2*inx+b2,:iny] = np.flipud(data) #* self.detector[det-1]['gain'][kk]
+                array[b2+inx:2*inx+b2,:iny] = np.flipud(data) #* 1.115
                 rawdatasec_img[b2+inx:2*inx+b2:,:iny] = kk + 1
                 array[2*inx+b2:,:iny] = overscan
                 oscansec_img[2*inx+b2:,:iny] = kk + 1
             elif kk == 2:
-                array[b2+inx:2*inx+b2,iny:] = np.fliplr(np.flipud(data)) #* self.detector[det-1]['gain'][kk]
+                array[b2+inx:2*inx+b2,iny:] = np.fliplr(np.flipud(data)) #* 1.047
                 rawdatasec_img[b2+inx:2*inx+b2,iny:] = kk + 1
                 array[2*inx+b2:, iny:] = overscan
                 oscansec_img[2*inx+b2:, iny:] = kk + 1
             elif kk == 3:
-                array[b2:inx+b2,iny:] = np.fliplr(data) #* self.detector[det-1]['gain'][kk]
+                array[b2:inx+b2,iny:] = np.fliplr(data) #* 1.045
                 rawdatasec_img[b2:inx+b2,iny:] = kk + 1
                 array[:b2,iny:] = overscan
                 oscansec_img[2:b2,iny:] = kk + 1
@@ -240,7 +343,8 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return np.fliplr(np.flipud(array)), hdu, exptime, np.fliplr(np.flipud(rawdatasec_img)), np.fliplr(np.flipud(oscansec_img))
+        return detector_par, np.fliplr(np.flipud(array)), hdu, exptime, np.fliplr(np.flipud(rawdatasec_img)), \
+               np.fliplr(np.flipud(oscansec_img))
 
 
 def binospec_read_amp(inp, ext):
@@ -277,60 +381,37 @@ def binospec_read_amp(inp, ext):
         hdu = inp
     # get entire extension...
     temp = hdu[ext].data.transpose()
-    tsize = temp.shape
-    nxt = tsize[0]
-    nyt = tsize[1]
+    nxt = temp.shape[0]
+    nyt = temp.shape[1]
 
     # parse the DETSEC keyword to determine the size of the array.
     header = hdu[ext].header
-    #detsec = header['DETSEC']
-    #x1, x2, y1, y2 = np.array(parse.load_sections(detsec, fmt_iraf=False)).flatten()
 
     # parse the DATASEC keyword to determine the size of the science region (unbinned)
     datasec = header['DATASEC']
     xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(datasec, fmt_iraf=False)).flatten()
     datasec = '[{:}:{:},{:}:{:}]'.format(xdata1 - 1, xdata2, ydata1-1, ydata2)
 
+    #TODO: Since pypeit can only subtract overscan along one axis, I'm subtract the overscan here using median method.
     # Overscan X-axis
-    # Since pypeit can only subtract overscan along one axis, I'm subtract the overscan here using median method.
     if xdata1 > 1:
-        overscanx = temp[0:xdata1-1, :]
+        overscanx = temp[2:xdata1-1, :]
         overscanx_vec = np.median(overscanx, axis=0)
         temp = temp - overscanx_vec[None,:]
     data = temp[xdata1 - 1:xdata2, ydata1 -1 : ydata2]
 
-    # Overscan Y-axis
+    ## Overscan Y-axis
     if ydata2<nyt:
-        os1, os2 = ydata2, nyt-1
+        os1, os2 = ydata2+1, nyt-1
         overscany = temp[xdata1 - 1:xdata2, ydata2:os2]
         overscany_vec = np.median(overscany, axis=1)
         data = data -  overscany_vec[:,None]
 
+    # Overscan
     biassec = '[0:{:},{:}:{:}]'.format(xdata1-1, ydata1-1, ydata2)
     xos1, xos2, yos1, yos2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
     overscan = np.zeros_like(temp[xos1:xos2, yos1:yos2]) # Give a zero fake overscan at the edge of each amplifiers
+    #overscan = temp[xos1:xos2,yos1:yos2]
 
     return data, overscan, datasec, biassec
 
-
-#    # Subtract overscan along y-axis
-#    if ydata2<nyt-2:
-#        oscany = np.median(temp[:, ydata2:nyt],axis=1)
-#        #from scipy import signal
-#        #ossub = signal.savgol_filter(oscany, 65, 5)
-#        ossub = oscany.copy()
-#        temp = temp - ossub[:, None]
-#    # grab the components...
-#    data = temp[xdata1 - 1:xdata2, ydata1 -1 : ydata2]
-#
-#    # Overscan
-#    biassec = '[0:{:},{:}:{:}]'.format(xdata1-1, ydata1-1, ydata2)
-#    xdata1, xdata2, ydata1, ydata2 = np.array(parse.load_sections(biassec, fmt_iraf=False)).flatten()
-#    from IPython import embed
-#    embed()
-#    ## ToDO: Figure out the real overscan along x-axis
-#    overscan = temp[xdata1:xdata2, ydata1:ydata2]
-#    #overscan =np.zeros_like(temp[xdata1:xdata2, ydata1:ydata2]) + np.median(temp[xdata1:xdata2,:np.max([nyt-ydata2,50])])
-#
-#    # Return
-#    return data, overscan, datasec, biassec
