@@ -63,19 +63,24 @@ class FlatImages(datamodel.DataContainer):
         'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
                               desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
+        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id'),
+        'procflat': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
+        'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
+        'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
+        'bpmflats': dict(otype=np.ndarray, atype=np.integer, desc='testing'),
+        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc = 'testing'),
     }
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
                  pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None,
                  illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
-                 PYP_SPEC=None, spat_id=None):
+                 PYP_SPEC=None, spat_id=None,
+                 procflat=None, pixelflat=None, flat_model=None, bpmflats=None, spat_bsplines=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
-        self.frametype = None
 
     def _init_internals(self):
         # Master stuff
@@ -130,15 +135,15 @@ class FlatImages(datamodel.DataContainer):
             elif key == 'pixelflat_spat_bsplines':
                 for ss, spat_bspl in enumerate(self[key]):
                     # Naming
-                    spat_bspl.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
-                    dkey = 'pixbspl-{}'.format(self.spat_id[ss])
+                    spat_bspl.hdu_prefix = 'PIXELFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
+                    dkey = 'bspline-{}'.format(self.spat_id[ss])
                     # Save
                     d.append({dkey: spat_bspl})
             elif key == 'illumflat_spat_bsplines':
                 for ss, spat_bspl in enumerate(self[key]):
                     # Naming
-                    spat_bspl.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
-                    dkey = 'illbspl-{}'.format(self.spat_id[ss])
+                    spat_bspl.hdu_prefix = 'ILLUMFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
+                    dkey = 'bspline-{}'.format(self.spat_id[ss])
                     # Save
                     d.append({dkey: spat_bspl})
             else: # Add to header of the primary image
@@ -170,69 +175,27 @@ class FlatImages(datamodel.DataContainer):
     #     datamodel.DataContainer.__init__(self, d=d)
     #     #return FlatImages(**self)
 
-    def set_frametype(self, frametype="pixel"):
-        self.frametype = frametype
-
     @property
     def procflat(self):
-        if self.frametype is None or self.frametype == 'pixel':
-            return self.pixelflat_raw
-        elif self.frametype == 'illum':
-            return self.illumflat_raw
-        else:
-            # Return the default option, but warn of the invalid type
-            msgs.warn("Frametype {0:s} not allowed for FlatImages. Allowed values include:" +
-                      msgs.newline() + "pixel, illum")
-            msgs.info("Assuming  frametype=pixel")
-            return self.pixelflat_raw
+        return self.pixelflat_raw
 
     @property
     def pixelflat(self):
-        if self.frametype is None or self.frametype == 'pixel':
-            return self.pixelflat_norm
-        else:
-            # Return the default option, but warn of the invalid type
-            msgs.warn("Model flat is not generated for FlatImage of frametype {0:s}. Allowed values include:" +
-                      msgs.newline() + "pixel")
-            msgs.info("Assuming  frametype=pixel")
-            return self.pixelflat_norm
+        return self.pixelflat_norm
 
     @property
     def flat_model(self):
-        if self.frametype is None or self.frametype == 'pixel':
-            return self.pixelflat_model
-        else:
-            # Return the default option, but warn of the invalid type
-            msgs.warn("Model flat is not generated for FlatImage of type {0:s}. Allowed values include:" +
-                      msgs.newline() + "pixel")
-            msgs.info("Assuming  type=pixel")
-            return self.pixelflat_model
+        return self.pixelflat_model
 
     @property
     def bpmflats(self):
-        if self.frametype is None or self.frametype == 'pixel':
-            return self.pixelflat_bpm
-        elif self.frametype == 'illum':
-            return self.illumflat_bpm
-        else:
-            # Return the default option, but warn of the invalid type
-            msgs.warn("Frametype {0:s} not allowed for FlatImages. Allowed values include:" +
-                      msgs.newline() + "pixel, illum")
-            msgs.info("Assuming  frametype=pixel")
-            return self.pixelflat_bpm
+        return self.pixelflat_bpm
 
     @property
     def spat_bsplines(self):
-        if self.illumflat_spat_bsplines is not None and \
-                (self.frametype is None or self.frametype == "illum"):
+        if self.illumflat_spat_bsplines is not None:
             return self.illumflat_spat_bsplines
-        elif self.frametype == 'pixel':
-            return self.pixelflat_spat_bsplines
         else:
-            # Return the default option, but warn of the invalid type
-            msgs.warn("Frametype {0:s} not allowed for FlatImages. Allowed values include:" +
-                      msgs.newline() + "pixel, illum")
-            msgs.info("Assuming  frametype=pixel")
             return self.pixelflat_spat_bsplines
 
     def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
@@ -248,8 +211,10 @@ class FlatImages(datamodel.DataContainer):
         """
         illumflat = np.ones_like(self.procflat)
         # Check the frametype, and load spatial bsplines
-        self.set_frametype(frametype)
-        spat_bsplines = self.spat_bsplines()
+        if frametype == 'pixel':
+            spat_bsplines = self.pixelflat_spat_bsplines
+        else:
+            spat_bsplines = self.spat_bsplines
         # Loop
         for slit_idx in range(slits.nslits):
             # Skip masked
@@ -277,7 +242,7 @@ class FlatImages(datamodel.DataContainer):
         list_of_pixbsplines, list_of_illbsplines = [], []
         pixspat_ids, illspat_ids = [], []
         for ihdu in hdu:
-            if 'PIXBSPL' in ihdu.name:
+            if 'PIXELFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
                 ibspl = bspline.bspline.from_hdu(ihdu)
                 if ibspl.version != bspline.bspline.version:
                     msgs.warn("Your bspline is out of date!!")
@@ -286,7 +251,7 @@ class FlatImages(datamodel.DataContainer):
                 i0 = ihdu.name.find('ID-')
                 i1 = ihdu.name.find('_BSP')
                 pixspat_ids.append(int(ihdu.name[i0+3:i1]))
-            elif 'ILLBSPL' in ihdu.name:
+            if 'ILLUMFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
                 ibspl = bspline.bspline.from_hdu(ihdu)
                 if ibspl.version != bspline.bspline.version:
                     msgs.warn("Your bspline is out of date!!")
