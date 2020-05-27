@@ -140,7 +140,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['tracethresh'] = 5
-        par['calibrations']['tilts']['spat_order'] = 4
+        par['calibrations']['tilts']['spat_order'] = 7
+        par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['slitedges']['trace_thresh'] = 10.
         par['calibrations']['slitedges']['edge_thresh'] = 100.
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
