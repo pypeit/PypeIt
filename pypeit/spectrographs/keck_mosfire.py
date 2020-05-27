@@ -133,7 +133,6 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='TRUITIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['angle'] = dict(ext=0, card='GRATMODE')
         meta['dispname'] = dict(ext=0, card='OBSMODE')
         meta['idname'] = dict(card=None, compound=True)
         # Filter
