@@ -119,13 +119,22 @@ class FlatImages(datamodel.DataContainer):
             if self[key] is None:
                 continue
             # Array?
-            if self.datamodel[key]['otype'] == np.ndarray and key != 'spat_bsplines':
+            if self.datamodel[key]['otype'] == np.ndarray and \
+                    key != 'pixelflat_spat_bsplines' and \
+                    key != 'illumflat_spat_bsplines':
                 d.append({key: self[key]})
-            elif key == 'spat_bsplines':
+            elif key == 'pixelflat_spat_bsplines':
                 for ss, spat_bspl in enumerate(self[key]):
                     # Naming
                     spat_bspl.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
-                    dkey = 'bspline-{}'.format(self.spat_id[ss])
+                    dkey = 'pixbspl-{}'.format(self.spat_id[ss])
+                    # Save
+                    d.append({dkey: spat_bspl})
+            elif key == 'illumflat_spat_bsplines':
+                for ss, spat_bspl in enumerate(self[key]):
+                    # Naming
+                    spat_bspl.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
+                    dkey = 'illbspl-{}'.format(self.spat_id[ss])
                     # Save
                     d.append({dkey: spat_bspl})
             else: # Add to header of the primary image
@@ -215,7 +224,7 @@ class FlatImages(datamodel.DataContainer):
             msgs.info("Assuming  frametype=pixel")
             return self.pixelflat_spat_bsplines
 
-    def fit2illumflat(self, slits, initial=False, flexure_shift=None):
+    def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
         """
 
         Args:
@@ -227,6 +236,8 @@ class FlatImages(datamodel.DataContainer):
 
         """
         illumflat = np.ones_like(self.procflat)
+        # Check the frametype, and load spatial bsplines
+        spat_bsplines = self.spat_bsplines(frametype=frametype)
         # Loop
         for slit_idx in range(slits.nslits):
             # Skip masked
@@ -241,7 +252,7 @@ class FlatImages(datamodel.DataContainer):
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=flexure_shift)
 
-            illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+            illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
@@ -251,23 +262,35 @@ class FlatImages(datamodel.DataContainer):
         # Grab everything but the bspline's
         _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
         # Now the bsplines
-        list_of_bsplines = []
-        spat_ids = []
+        list_of_pixbsplines, list_of_illbsplines = [], []
+        pixspat_ids, illspat_ids = [], []
         for ihdu in hdu:
-            if 'BSPLINE' in ihdu.name:
+            if 'PIXBSPL' in ihdu.name:
                 ibspl = bspline.bspline.from_hdu(ihdu)
                 if ibspl.version != bspline.bspline.version:
                     msgs.warn("Your bspline is out of date!!")
-                list_of_bsplines.append(ibspl)
+                list_of_pixbsplines.append(ibspl)
                 # Grab SPAT_ID for checking
                 i0 = ihdu.name.find('ID-')
                 i1 = ihdu.name.find('_BSP')
-                spat_ids.append(int(ihdu.name[i0+3:i1]))
+                pixspat_ids.append(int(ihdu.name[i0+3:i1]))
+            elif 'ILLBSPL' in ihdu.name:
+                ibspl = bspline.bspline.from_hdu(ihdu)
+                if ibspl.version != bspline.bspline.version:
+                    msgs.warn("Your bspline is out of date!!")
+                list_of_illbsplines.append(ibspl)
+                # Grab SPAT_ID for checking
+                i0 = ihdu.name.find('ID-')
+                i1 = ihdu.name.find('_BSP')
+                illspat_ids.append(int(ihdu.name[i0 + 3:i1]))
         # Check
-        if spat_ids != _d['spat_id'].tolist():
-            msgs.error("Bad parsing of the MasterFlat")
+        if pixspat_ids != _d['spat_id'].tolist():
+            msgs.error("Bad parsing of pixelflat BSPLINE spat_id in the MasterFlat")
+        if illspat_ids != _d['spat_id'].tolist():
+            msgs.error("Bad parsing of illumflat BSPLINE spat_id in the MasterFlat")
         # Finish
-        _d['spat_bsplines'] = np.asarray(list_of_bsplines)
+        _d['pixelflat_spat_bsplines'] = np.asarray(list_of_pixbsplines)
+        _d['illumflat_spat_bsplines'] = np.asarray(list_of_illbsplines)
         return _d, dm_version_passed, dm_type_passed
 
     def show(self, slits=None, wcs_match=True):
