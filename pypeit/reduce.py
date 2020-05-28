@@ -1288,16 +1288,19 @@ class IFUReduce(Reduce):
 
     def build_scaleimg_old(self, ref_slit, trim=10):
         """
-        Generate a relative scaling image for slit-based IFU.
-        All slits are scaled relative to ref_slit
+        Generate a relative scaling image for slit-based IFU. All
+        slits are scaled relative to ref_slit.
+        
         Args:
             ref_slit (int):
                 The slit index to be used as a reference
             trim (int):
-                Trim the pixels towards the edge of the spectrum
-                to avoid edge effects
+                Trim the pixels towards the edge of the spectrum to
+                avoid edge effects
+        
         Returns:
-            ndarray: An image containing the appropriate scaling
+            `numpy.ndarray`_: An image containing the appropriate
+            scaling
         """
         # Get the plate scale
         plate_scale = self.get_platescale(None)
@@ -1442,7 +1445,8 @@ class IFUReduce(Reduce):
             std_trace=None, manual_extract_dict=None, show_peaks=False,
             ref_slit=None):
         """
-        Primary code flow for PypeIt reductions
+        Primary code flow for PypeIt reductions.
+        
         Args:
             basename (str, optional):
                 Required if flexure correction is to be applied
@@ -1455,16 +1459,25 @@ class IFUReduce(Reduce):
             std_trace (np.ndarray, optional):
                 Trace of the standard star
             manual_extract_dict (dict, optional):
+                Dictionary providing manual extraction parameters.
             show_peaks (bool, optional):
                 Show peaks in find_objects methods
             ref_slit (int, optional):
-                Slit index to be used as reference for relative transmission calibration
-                TODO :: This is not currently used - is it even needed, given that it's a relative calibration?
-                Need to think about whether we need to use the exact same pixels for the relative calibration
-                (i.e. using the pixels that the standard star falls on, since the spatial illumflat is not constant).
+                Slit index to be used as reference for relative
+                transmission calibration. TODO: This is not currently
+                used - is it even needed, given that it's a relative
+                calibration? Need to think about whether we need to
+                use the exact same pixels for the relative
+                calibration (i.e. using the pixels that the standard
+                star falls on, since the spatial illumflat is not
+                constant).
+            
         Returns:
-            tuple: skymodel (ndarray), objmodel (ndarray), ivarmodel (ndarray),
-               outmask (ndarray), sobjs (SpecObjs).  See main doc string for description
+            :obj:`tuple`: Returns ``skymodel`` (ndarray),
+            ``objmodel`` (ndarray), ``ivarmodel`` (ndarray),
+            ``outmask`` (ndarray), ``sobjs``
+            (:class:`~pypeit.specobjs.SpecObjs`). See main doc string
+            for description
         """
         # Deal with dynamic calibrations
         # Tilts

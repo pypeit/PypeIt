@@ -5,6 +5,7 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.core.gui
    pypeit.core.wavecal
@@ -13,6 +14,7 @@ Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.core.arc
    pypeit.core.basis

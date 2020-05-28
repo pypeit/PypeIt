@@ -179,6 +179,8 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[IR]]``: `TelluricPar Keywords`_
 
+    ``[tellfit]``: `TellFitPar Keywords`_
+
 
 ----
 
@@ -199,6 +201,7 @@ Key               Type                                            Options  Defau
 ``reduce``        :class:`pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
 ``scienceframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`     ..       `FrameGroupPar Keywords`_     The frames and combination rules for the science observations                                                                                                                                                                                                                         
 ``sensfunc``      :class:`pypeit.par.pypeitpar.SensFuncPar`       ..       `SensFuncPar Keywords`_       Par set to control sensitivity function computation.  Only used in the after-burner script.                                                                                                                                                                                           
+``tellfit``       :class:`pypeit.par.pypeitpar.TellFitPar`        ..       `TellFitPar Keywords`_        Par set to control telluric fitting.  Only used in the after-burner script.                                                                                                                                                                                                           
 ================  ==============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
 
 
@@ -754,6 +757,43 @@ Key                   Type        Options  Default  Description
 ====================  ==========  =======  =======  ============================================================================================================================================================================================================================
 
 
+----
+
+TellFitPar Keywords
+-------------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.TellFitPar`
+
+=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+Key                      Type           Options  Default                                                                               Description                                                                                                                                                                                                                             
+=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+``bal_wv_min_max``       list, ndarray  ..       ..                                                                                    Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...]. These masked pixels will be ignored during the fitting.
+``bounds_norm``          list           ..       0.1, 3.0                                                                              Normalization bounds for scaling the initial object model                                                                                                                                                                               
+``delta_coeff_bounds``   list           ..       -20.0, 20.0                                                                           Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``delta_redshift``       int, float     ..       0.1                                                                                   variable redshift range during the fit                                                                                                                                                                                                  
+``fit_wv_min_max``       list           ..       ..                                                                                    Pixels within this mask will be used during the fitting. The formatis the same with bal_wv_min_max, but this mask is good pixel masks.                                                                                                  
+``func``                 str            ..       ``legendre``                                                                          object polynomial model function                                                                                                                                                                                                        
+``mask_abs_lines``       bool           ..       True                                                                                  Mask stellar absorption line?                                                                                                                                                                                                           
+``mask_lyman_a``         bool           ..       True                                                                                  Mask the blueward of Lyman-alpha line during the fitting?                                                                                                                                                                               
+``minmax_coeff_bounds``  list           ..       -5.0, 5.0                                                                             Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``model``                str            ..       ``exp``                                                                               different type polynomial model. poly, square, exp corresponding to normal polynomial,squared polynomial, or exponentiated polynomial                                                                                                   
+``npca``                 int            ..       8                                                                                     Number of pca                                                                                                                                                                                                                           
+``objmodel``             str            ..       ..                                                                                    which object model you want to use for telluric fit                                                                                                                                                                                     
+``only_orders``          int            ..       ..                                                                                    order number if you only want to fit a single order                                                                                                                                                                                     
+``pca_file``             str            ..       ``/Users/westfall/Work/packages/pypeit/pypeit/data/telluric/qso_pca_1200_3100.pckl``  pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
+``pca_lower``            int, float     ..       1220.0                                                                                minimum wavelength for the pca model                                                                                                                                                                                                    
+``pca_upper``            int, float     ..       3100.0                                                                                maximum wavelength for the pca model                                                                                                                                                                                                    
+``polyorder``            int            ..       3                                                                                     polynomial order for the object model                                                                                                                                                                                                   
+``redshift``             int, float     ..       0.0                                                                                   redshift for your object model                                                                                                                                                                                                          
+``star_dec``             float          ..       ..                                                                                    Object declination in decimal deg                                                                                                                                                                                                       
+``star_mag``             float, int     ..       ..                                                                                    AB magnitude in V band                                                                                                                                                                                                                  
+``star_ra``              float          ..       ..                                                                                    Object right-ascension in decimal deg                                                                                                                                                                                                   
+``star_type``            str            ..       ..                                                                                    stellar type                                                                                                                                                                                                                            
+``tell_grid``            str            ..       ..                                                                                    pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
+``tell_norm_thresh``     int, float     ..       0.9                                                                                   Threshold of telluric absorption region                                                                                                                                                                                                 
+=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+
+
 
 Instrument-Specific Default Configuration
 +++++++++++++++++++++++++++++++++++++++++
@@ -1106,6 +1146,7 @@ Alterations to the default parameters are::
           fit_min_spec_length = 0.4
           left_right_pca = True
           trace_thresh = 10.0
+          fwhm_gaussian = 4.0
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
@@ -2121,7 +2162,7 @@ Alterations to the default parameters are::
           model_full_slit = True
   [sensfunc]
       algorithm = IR
-      polyorder = 8
+      polyorder = 11
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
@@ -2437,7 +2478,7 @@ Alterations to the default parameters are::
           model_full_slit = True
   [sensfunc]
       algorithm = IR
-      polyorder = 8
+      polyorder = 6
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
@@ -2647,6 +2688,11 @@ Alterations to the default parameters are::
           find_trim_edge = 10, 10
       [[skysub]]
           sky_sigrej = 5.0
+  [sensfunc]
+      algorithm = IR
+      polyorder = 8
+      [[IR]]
+          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-S GMOS-S (``gemini_gmos_south_ham``)
 -------------------------------------------
