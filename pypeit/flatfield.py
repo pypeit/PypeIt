@@ -1164,6 +1164,7 @@ class FlatField(object):
         -------
         ndarray: An image containing the appropriate scaling
         """
+        msgs.info("Deriving spectral illumination profile")
         # Generate a wavelength image
         msgs.info("Generating wavelength image")
         flex = self.wavetilts.spat_flexure
@@ -1198,6 +1199,7 @@ class FlatField(object):
         # Get the minimum and maximum wavelengths that are covered in *all* slits.
         minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
         # Prepare slit 0
+        # TODO :: Probably should do a bspline fit to slit 0
         onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
         onslit_a_olap = onslit_a & gpm & (waveimg >= minw) & (waveimg <= maxw)
         wsort = np.argsort(waveimg[onslit_a_olap])
@@ -1215,7 +1217,7 @@ class FlatField(object):
             xfit = (waveimg[onslit_b_olap] - minw) / (maxw - minw)
             yfit = speca / rawflat[onslit_b_olap]
             # Rough outlier rejection
-            msk = (yfit > 1/3) & (yfit < 3)
+            msk = (yfit > 1/5) & (yfit < 5)
             coeff = utils.func_fit(xfit[msk], yfit[msk], "legendre", 2, minx=0, maxx=1)
             relscl_model[onslit_b_init] = utils.func_val(coeff,
                                                          (waveimg[onslit_b_init] - minw) / (maxw - minw),
