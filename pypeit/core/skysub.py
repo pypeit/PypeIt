@@ -1233,8 +1233,9 @@ def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=
 
     # Now that we have sky region traces, utilise the SlitTraceSet to define the regions.
     # We will then use the slit_img task to create a mask of the sky regions.
-    regions = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
-                                     mask=slits.mask, specmin=spec_min, specmax=spec_max,
+    slmsk = np.zeros(left_edg.shape[1], dtype=np.int16)
+    slitreg = slittrace.SlitTraceSet(left_edg, righ_edg, pypeline, nspec=slits.nspec, nspat=slits.nspat,
+                                     mask=slmsk, specmin=spec_min, specmax=spec_max,
                                      binspec=slits.binspec, binspat=slits.binspat, pad=0)
     # Generate the mask, and return
-    return (regions.slit_img(use_spatial=False) >= 0).astype(np.int)
+    return (slitreg.slit_img(use_spatial=False) >= 0).astype(np.int)
