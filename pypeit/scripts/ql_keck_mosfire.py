@@ -205,9 +205,9 @@ def main(pargs):
         msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
 
     # Define some hard wired master files here to be later parsed out of the directory
-    slit_masterframe_name = os.path.join(pargs.master_dir, 'MasterSlits_A_3_01.fits.gz')
-    tilts_masterframe_name = os.path.join(pargs.master_dir, 'MasterTilts_A_2_01.fits')
-    wvcalib_masterframe_name = os.path.join(pargs.master_dir, 'MasterWaveCalib_A_2_01.fits')
+    slit_masterframe_name = os.path.join(pargs.master_dir, 'MasterSlits_E_15_01.fits.gz')
+    tilts_masterframe_name = os.path.join(pargs.master_dir, 'MasterTilts_E_1_01.fits')
+    wvcalib_masterframe_name = os.path.join(pargs.master_dir, 'MasterWaveCalib_E_1_01.fits')
     # For now don't require a standard
     std_outfile=None
     #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',

@@ -289,7 +289,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                                        lower=sigrej_first, upper=sigrej_first, maxiter=maxiter,
                                        minx=fmin, maxx=fmax, weights=wfit)
 
-        rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0]/xnspecmin1,
+        rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)#xfit[pypeitFit.gpm == 0]/xnspecmin1,
                                      #yfit[pypeitFit.gpm == 0],
                                      #weights=wfit[pypeitFit.gpm == 0])
         rms_pix = rms_ang/disp
@@ -345,7 +345,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     ions = all_idsion[ifit]
 #    ions = all_idsion[ifit][mask == 0]
     # Final RMS
-    rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0] / xnspecmin1,
+    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)#xfit[pypeitFit.gpm == 0] / xnspecmin1,
                                      #yfit[pypeitFit.gpm == 0],
                                      #weights=wfit[pypeitFit.gpm == 0])
 #    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, func,
