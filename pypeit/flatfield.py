@@ -1199,11 +1199,11 @@ class FlatField(object):
         # Get the minimum and maximum wavelengths that are covered in *all* slits.
         minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
         # Prepare slit 0
-        # TODO :: Probably should do a bspline fit to slit 0
+        # TODO :: Probably could do a bspline fit to slit 0... not sure about the small (< 1 pixel) extrapolation required
         onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
         onslit_a_olap = onslit_a & gpm & (waveimg >= minw) & (waveimg <= maxw)
         wsort = np.argsort(waveimg[onslit_a_olap])
-        # Generate a simple spline for the first slit
+        # Generate a simple, quick spline for the first slit
         sclspl = interpolate.interp1d(waveimg[onslit_a_olap][wsort], rawflat[onslit_a_olap][wsort],
                                       kind='linear', bounds_error=False, fill_value="extrapolate")
         # Now roughly calculate the flux scale relative to the first slit

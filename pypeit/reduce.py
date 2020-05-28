@@ -564,7 +564,7 @@ class Reduce(object):
                 # Only use the overlapping regions of the slits, where the same wavelength range is covered
                 onslit = (slitid_img_trim == spatid)
                 onslit_init = (slitid_img_init == spatid)
-                onslit_gpm = onslit & thismask
+                onslit_gpm = (onslit & inmask)
                 # Fit a low order polynomial
                 xfit = self.waveimg[onslit_gpm]
                 yfit = rel_skyillum[onslit_gpm]
