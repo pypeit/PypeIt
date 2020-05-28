@@ -342,11 +342,11 @@ class SpecObjs(object):
                 msgs.error("Should not get here")
             try:
                 self[index].OPT_COUNTS *= -1
-            except TypeError:
+            except (TypeError,ValueError):
                 pass
             try:
                 self[index].BOX_COUNTS *= -1
-            except TypeError:
+            except (TypeError,ValueError):
                 pass
 
 
