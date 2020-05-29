@@ -163,6 +163,8 @@ Current PypeItPar Parameter Hierarchy
 
         ``[[extraction]]``: `ExtractionPar Keywords`_
 
+        ``[[cube]]``: `CubePar Keywords`_
+
     ``[flexure]``: `FlexurePar Keywords`_
 
     ``[fluxcalib]``: `FluxCalibratePar Keywords`_
@@ -176,6 +178,8 @@ Current PypeItPar Parameter Hierarchy
         ``[[UVIS]]``: `SensfuncUVISPar Keywords`_
 
         ``[[IR]]``: `TelluricPar Keywords`_
+
+    ``[tellfit]``: `TellFitPar Keywords`_
 
 
 ----
@@ -197,6 +201,7 @@ Key               Type                                            Options  Defau
 ``reduce``        :class:`pypeit.par.pypeitpar.ReducePar`         ..       `ReducePar Keywords`_         Parameters determining sky-subtraction, object finding, and extraction                                                                                                                                                                                                                
 ``scienceframe``  :class:`pypeit.par.pypeitpar.FrameGroupPar`     ..       `FrameGroupPar Keywords`_     The frames and combination rules for the science observations                                                                                                                                                                                                                         
 ``sensfunc``      :class:`pypeit.par.pypeitpar.SensFuncPar`       ..       `SensFuncPar Keywords`_       Par set to control sensitivity function computation.  Only used in the after-burner script.                                                                                                                                                                                           
+``tellfit``       :class:`pypeit.par.pypeitpar.TellFitPar`        ..       `TellFitPar Keywords`_        Par set to control telluric fitting.  Only used in the after-burner script.                                                                                                                                                                                                           
 ================  ==============================================  =======  ============================  ======================================================================================================================================================================================================================================================================================
 
 
@@ -528,10 +533,29 @@ Class Instantiation: :class:`pypeit.par.pypeitpar.ReducePar`
 ==============  ===========================================  =======  =========================  =====================================================
 Key             Type                                         Options  Default                    Description                                          
 ==============  ===========================================  =======  =========================  =====================================================
+``cube``        :class:`pypeit.par.pypeitpar.CubePar`        ..       `CubePar Keywords`_        Parameters for cube generation algorithms            
 ``extraction``  :class:`pypeit.par.pypeitpar.ExtractionPar`  ..       `ExtractionPar Keywords`_  Parameters for extraction algorithms                 
 ``findobj``     :class:`pypeit.par.pypeitpar.FindObjPar`     ..       `FindObjPar Keywords`_     Parameters for the find object and tracing algorithms
 ``skysub``      :class:`pypeit.par.pypeitpar.SkySubPar`      ..       `SkySubPar Keywords`_      Parameters for sky subtraction algorithms            
 ==============  ===========================================  =======  =========================  =====================================================
+
+
+----
+
+CubePar Keywords
+----------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.CubePar`
+
+=================  ==========  =======  =======  ============================================================================================================================================================================================
+Key                Type        Options  Default  Description                                                                                                                                                                                 
+=================  ==========  =======  =======  ============================================================================================================================================================================================
+``cube_spat_num``  int, float  ..       ..       Number of pixels in the spatial dimension. If None, the number ofpixels in the spatial direction of the slit will be used. If youare reducing fibre IFU data, this parameter will be ignored
+``cube_wave_max``  float       ..       ..       Maximum wavelength to use. If None, default is maximum wavelengthbased on wavelength solution of all spaxels                                                                                
+``cube_wave_min``  float       ..       ..       Minimum wavelength to use. If None, default is minimum wavelengthbased on wavelength solution of all spaxels                                                                                
+``cube_wave_num``  int, float  ..       ..       Number of pixels in the wavelength dimension. If None, the numberof pixels in the spectral direction on the raw science frame willbe used.                                                  
+``slit_spec``      bool        ..       True     If the data use slits in one spatial direction, set this to True.If the data uses fibres for all spaxels, set this to False.                                                                
+=================  ==========  =======  =======  ============================================================================================================================================================================================
 
 
 ----
@@ -587,14 +611,18 @@ SkySubPar Keywords
 
 Class Instantiation: :class:`pypeit.par.pypeitpar.SkySubPar`
 
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                             
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
-``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                               
-``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations
-``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                          
-``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                           
-===================  ==========  =======  =======  ========================================================================================================================================================================================================================================================================================================================================
+===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================
+Key                  Type        Options  Default  Description                                                                                                                                                                                                                                                                                                                                                                                                        
+===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================
+``bspline_spacing``  int, float  ..       0.6      Break-point spacing for the bspline sky subtraction fits.                                                                                                                                                                                                                                                                                                                                                          
+``global_sky_std``   bool        ..       True     Global sky subtraction will be performed on standard stars. This should be turnedoff for example for near-IR reductions with narrow slits, since bright standards canfill the slit causing global sky-subtraction to fail. In these situations we go straight to local sky-subtraction since it is designed to deal with such situations                                                                           
+``joint_fit``        bool        ..       False    Perform a simultaneous joint fit to sky regions using all available slits.                                                                                                                                                                                                                                                                                                                                         
+``load_mask``        bool        ..       False    Load a user-defined sky regions mask to be used for the sky regions. Note,if you set this to True, you must first run the pypeit_skysub_regions GUIto manually select and store the regions to file.                                                                                                                                                                                                               
+``no_poly``          bool        ..       False    Turn off polynomial basis (Legendre) in global sky subtraction                                                                                                                                                                                                                                                                                                                                                     
+``ref_slit``         int         ..       -1       Reference slit to be used for relative sky and flux calibration.You need to set joint_fit=True for the reference slit to be used.If this value is set to a negative number, the reference slit willbe set to the slit that contains the most flux from the standard star.                                                                                                                                          
+``sky_sigrej``       float       ..       3.0      Rejection parameter for local sky subtraction                                                                                                                                                                                                                                                                                                                                                                      
+``user_regions``     str         ..       ..       A user-defined sky regions mask can be set using this keyword. To allowthe code to identify the sky regions automatically, set this variable toan empty string. If you wish to set the sky regions, The text should bea comma separated list of percentages to apply to _all_ slits For example: The following string   :10,35:65,80:   would select thefirst 10%, the inner 30%, and the final 20% of _all_ slits.
+===================  ==========  =======  =======  ===================================================================================================================================================================================================================================================================================================================================================================================================================
 
 
 ----
@@ -729,6 +757,43 @@ Key                   Type        Options  Default  Description
 ====================  ==========  =======  =======  ============================================================================================================================================================================================================================
 
 
+----
+
+TellFitPar Keywords
+-------------------
+
+Class Instantiation: :class:`pypeit.par.pypeitpar.TellFitPar`
+
+=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+Key                      Type           Options  Default                                                                               Description                                                                                                                                                                                                                             
+=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+``bal_wv_min_max``       list, ndarray  ..       ..                                                                                    Min/max wavelength of broad absorption features. If there are several BAL features, the format for this mask is [wave_min_bal1, wave_max_bal1,wave_min_bal2, wave_max_bal2,...]. These masked pixels will be ignored during the fitting.
+``bounds_norm``          list           ..       0.1, 3.0                                                                              Normalization bounds for scaling the initial object model                                                                                                                                                                               
+``delta_coeff_bounds``   list           ..       -20.0, 20.0                                                                           Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``delta_redshift``       int, float     ..       0.1                                                                                   variable redshift range during the fit                                                                                                                                                                                                  
+``fit_wv_min_max``       list           ..       ..                                                                                    Pixels within this mask will be used during the fitting. The formatis the same with bal_wv_min_max, but this mask is good pixel masks.                                                                                                  
+``func``                 str            ..       ``legendre``                                                                          object polynomial model function                                                                                                                                                                                                        
+``mask_abs_lines``       bool           ..       True                                                                                  Mask stellar absorption line?                                                                                                                                                                                                           
+``mask_lyman_a``         bool           ..       True                                                                                  Mask the blueward of Lyman-alpha line during the fitting?                                                                                                                                                                               
+``minmax_coeff_bounds``  list           ..       -5.0, 5.0                                                                             Paramters setting the polynomial coefficient bounds for telluric optimization.                                                                                                                                                          
+``model``                str            ..       ``exp``                                                                               different type polynomial model. poly, square, exp corresponding to normal polynomial,squared polynomial, or exponentiated polynomial                                                                                                   
+``npca``                 int            ..       8                                                                                     Number of pca                                                                                                                                                                                                                           
+``objmodel``             str            ..       ..                                                                                    which object model you want to use for telluric fit                                                                                                                                                                                     
+``only_orders``          int            ..       ..                                                                                    order number if you only want to fit a single order                                                                                                                                                                                     
+``pca_file``             str            ..       ``/Users/westfall/Work/packages/pypeit/pypeit/data/telluric/qso_pca_1200_3100.pckl``  pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
+``pca_lower``            int, float     ..       1220.0                                                                                minimum wavelength for the pca model                                                                                                                                                                                                    
+``pca_upper``            int, float     ..       3100.0                                                                                maximum wavelength for the pca model                                                                                                                                                                                                    
+``polyorder``            int            ..       3                                                                                     polynomial order for the object model                                                                                                                                                                                                   
+``redshift``             int, float     ..       0.0                                                                                   redshift for your object model                                                                                                                                                                                                          
+``star_dec``             float          ..       ..                                                                                    Object declination in decimal deg                                                                                                                                                                                                       
+``star_mag``             float, int     ..       ..                                                                                    AB magnitude in V band                                                                                                                                                                                                                  
+``star_ra``              float          ..       ..                                                                                    Object right-ascension in decimal deg                                                                                                                                                                                                   
+``star_type``            str            ..       ..                                                                                    stellar type                                                                                                                                                                                                                            
+``tell_grid``            str            ..       ..                                                                                    pca pickle file. needed when you use qso_telluric                                                                                                                                                                                       
+``tell_norm_thresh``     int, float     ..       0.9                                                                                   Threshold of telluric absorption region                                                                                                                                                                                                 
+=======================  =============  =======  ====================================================================================  ========================================================================================================================================================================================================================================
+
+
 
 Instrument-Specific Default Configuration
 +++++++++++++++++++++++++++++++++++++++++
@@ -781,6 +846,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = None, 30
           [[[process]]]
@@ -853,6 +924,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = None, 30
           [[[process]]]
@@ -929,6 +1006,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = None, 30
           [[[process]]]
@@ -1023,8 +1106,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -1060,6 +1146,7 @@ Alterations to the default parameters are::
           fit_min_spec_length = 0.4
           left_right_pca = True
           trace_thresh = 10.0
+          fwhm_gaussian = 4.0
       [[tilts]]
           tracethresh = 10.0
   [scienceframe]
@@ -1133,8 +1220,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -1233,8 +1323,12 @@ Alterations to the default parameters are::
               use_overscan = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_biasimage = False
@@ -1314,6 +1408,12 @@ Alterations to the default parameters are::
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -1385,6 +1485,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[alignment]]
           locations = 0.1, 0.3, 0.5, 0.7, 0.9
       [[traceframe]]
@@ -1400,6 +1506,9 @@ Alterations to the default parameters are::
       [[standardframe]]
           [[[process]]]
               mask_cr = True
+      [[flatfield]]
+          tweak_slits_thresh = 0.0
+          slit_illum_pad = 2
       [[slitedges]]
           fit_order = 4
   [scienceframe]
@@ -1409,6 +1518,9 @@ Alterations to the default parameters are::
           sigclip = 4.0
           objlim = 1.5
   [reduce]
+      [[skysub]]
+          bspline_spacing = 0.5
+          joint_fit = True
       [[extraction]]
           skip_optimal = True
 
@@ -1453,6 +1565,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -1528,6 +1646,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -1594,6 +1718,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -1656,6 +1786,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -1724,7 +1860,11 @@ Alterations to the default parameters are::
               use_overscan = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_overscan = False
@@ -1800,6 +1940,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -1863,6 +2009,12 @@ Alterations to the default parameters are::
       [[pixelflatframe]]
           [[[process]]]
               satpix = nothing
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -1948,6 +2100,8 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               overscan_method = median
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_pixelflat = False
               use_illumflat = False
@@ -2008,7 +2162,7 @@ Alterations to the default parameters are::
           model_full_slit = True
   [sensfunc]
       algorithm = IR
-      polyorder = 8
+      polyorder = 11
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits
 
@@ -2062,8 +2216,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2184,6 +2341,10 @@ Alterations to the default parameters are::
       [[alignframe]]
           [[[process]]]
               overscan_method = median
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               overscan_method = median
@@ -2267,8 +2428,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           exprng = None, 30
@@ -2314,7 +2478,7 @@ Alterations to the default parameters are::
           model_full_slit = True
   [sensfunc]
       algorithm = IR
-      polyorder = 8
+      polyorder = 6
       [[IR]]
           telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits
 
@@ -2369,8 +2533,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2469,8 +2636,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2518,6 +2688,11 @@ Alterations to the default parameters are::
           find_trim_edge = 10, 10
       [[skysub]]
           sky_sigrej = 5.0
+  [sensfunc]
+      algorithm = IR
+      polyorder = 8
+      [[IR]]
+          telgridfile = /Users/westfall/Work/packages/pypeit/pypeit/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits
 
 GEMINI-S GMOS-S (``gemini_gmos_south_ham``)
 -------------------------------------------
@@ -2552,6 +2727,12 @@ Alterations to the default parameters are::
               combine = median
               satpix = nothing
               sig_lohi = 10.0, 10.0
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2620,6 +2801,12 @@ Alterations to the default parameters are::
               sig_lohi = 10.0, 10.0
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -2682,6 +2869,12 @@ Alterations to the default parameters are::
               combine = median
               satpix = nothing
               sig_lohi = 10.0, 10.0
+              use_pixelflat = False
+              use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
@@ -2764,8 +2957,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2877,8 +3073,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -2965,6 +3164,12 @@ Alterations to the default parameters are::
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -3044,6 +3249,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3117,6 +3328,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3187,6 +3404,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3259,6 +3482,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           exprng = 0, None
           [[[process]]]
@@ -3338,8 +3567,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -3430,8 +3662,11 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_biasimage = False
               use_overscan = False
+              use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
           [[[process]]]
@@ -3513,6 +3748,12 @@ Alterations to the default parameters are::
               satpix = nothing
               use_pixelflat = False
               use_illumflat = False
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -3589,6 +3830,12 @@ Alterations to the default parameters are::
               use_illumflat = False
       [[pinholeframe]]
           exprng = 999999, None
+      [[alignframe]]
+          [[[process]]]
+              satpix = nothing
+              sigrej = -1
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_pixelflat = False
@@ -3663,7 +3910,11 @@ Alterations to the default parameters are::
               use_overscan = False
       [[alignframe]]
           [[[process]]]
+              satpix = nothing
+              sigrej = -1
               use_overscan = False
+              use_pixelflat = False
+              use_illumflat = False
       [[traceframe]]
           [[[process]]]
               use_overscan = False

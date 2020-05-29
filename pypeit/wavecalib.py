@@ -18,8 +18,8 @@ import linetools.utils
 from pypeit import msgs
 from pypeit import masterframe
 from pypeit.core import arc, qa
-from pypeit.core.wavecal import autoid, waveio, templates
-from pypeit.core.gui import identify as gui_identify
+from pypeit.core.wavecal import autoid, waveio
+from pypeit.core.gui.identify import Identify
 from pypeit import utils
 from pypeit import datamodel
 
@@ -66,8 +66,6 @@ class WaveCalib(object):
         master_key (:obj:`str`, optional):  For naming QA only
 
     Attributes:
-        frametype : str
-            Hard-coded to 'wv_calib'
         steps : list
             List of the processing steps performed
         wv_calib : dict
@@ -87,8 +85,12 @@ class WaveCalib(object):
             Specifies saturation level for the arc lines
         wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
     """
-    # Frametype is a class attribute
+
     frametype = 'wv_calib'
+    """
+    Frame type designation.
+    """
+
     master_type = 'WaveCalib'
     master_file_format = 'json'
 
@@ -214,25 +216,13 @@ class WaveCalib(object):
             final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            # TODO: Move this loop to the GUI initalise method
             embed()
             for slit_idx in ok_mask_idx:
-                arcfitter = gui_identify.initialise(arccen, slit=slit_idx, par=self.par)
+                arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
-                if final_fit[str(slit_idx)] is not None:
-                    ans = 'y'
-                    # ans = ''
-                    # while ans != 'y' and ans != 'n':
-                    #     ans = input("Would you like to store this wavelength solution in the archive? (y/n): ")
-                    if ans == 'y' and final_fit[str(slit_idx)]['rms'] < self.par['rms_threshold']:
-                        # Store the results in the user reid arxiv
-                        specname = self.spectrograph.spectrograph
-                        gratname = "UNKNOWN"  # input("Please input the grating name: ")
-                        dispangl = "UNKNOWN"  # input("Please input the dispersion angle: ")
-                        templates.pypeit_identify_record(final_fit[str(slit_idx)], self.binspectral, specname, gratname, dispangl)
-                        msgs.info("Your wavelength solution has been stored")
-                        msgs.info("Please consider sending your solution to the PYPEIT team!")
-
+                arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
+                                         specname=self.spectrograph.spectrograph,
+                                         gratname="UNKNOWN", dispangl="UNKNOWN")
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
@@ -332,13 +322,15 @@ class WaveCalib(object):
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
-    def extract_arcs(self):
+    def extract_arcs(self, slitIDs=None):
         """
         Extract the arcs down each slit/order
 
         Wrapper to arc.get_censpec()
 
         Args:
+            slitIDs (:obj:`list`, optional):
+                A list of the slit IDs to extract (if None, all slits will be extracted)
 
         Returns:
             tuple: Returns the following:
@@ -351,7 +343,7 @@ class WaveCalib(object):
         """
         # Do it on the slits not masked in self.slitmask
         arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
-            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm)
+            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm, slitIDs=slitIDs)
         # Step
         self.steps.append(inspect.stack()[0][3])
 
