@@ -92,6 +92,8 @@ example::
        star_type = A0
 
 Then run on the spec1d file as you would otherwise.
+For an A0 star, we use the Vega spectrum.  Otherwise,
+we use the Kurucz93 stellar SED.
 
 Alternative see `Adding a Standard Star`_.
 
