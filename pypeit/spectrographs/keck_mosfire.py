@@ -156,15 +156,18 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             if headarr[0].get('KOAIMTYP', None) is not None:
                 return headarr[0].get('KOAIMTYP')
             else:
-                FLATSPEC = int(headarr[0].get('FLATSPEC'))
-                PWSTATA7 = int(headarr[0].get('PWSTATA7'))
-                PWSTATA8 = int(headarr[0].get('PWSTATA8'))
-                if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                    return 'object'
-                elif FLATSPEC == 1:
-                    return 'flatlamp'
-                elif PWSTATA7 == 1 or PWSTATA8 == 1:
-                    return 'arclamp'
+                try:
+                    FLATSPEC = int(headarr[0].get('FLATSPEC'))
+                    PWSTATA7 = int(headarr[0].get('PWSTATA7'))
+                    PWSTATA8 = int(headarr[0].get('PWSTATA8'))
+                    if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+                        return 'object'
+                    elif FLATSPEC == 1:
+                        return 'flatlamp'
+                    elif PWSTATA7 == 1 or PWSTATA8 == 1:
+                        return 'arclamp'
+                except:
+                    return 'unknown'
         else:
             msgs.error("Not ready for this compound meta")
 
