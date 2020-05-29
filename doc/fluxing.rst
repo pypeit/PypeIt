@@ -72,6 +72,30 @@ The algorithm options are:
  - IR   = Should be used for data with lambbda > 7000A.
    Peforms joint fit for sensitivity function and telluric absorption using HITRAN models.
 
+--sens
+++++++
+
+Provide a file to guide the process.  Do this if your changes to
+the defaults are not accommodated by the script inputs.
+
+IR without a Standard
+---------------------
+
+If you wish to generate a sensitivity function on a standard
+start that is not part of the PypeIt database and are working
+in the IR, you can feed the stellar parameters.  Here is an
+example::
+
+    [sensfunc]
+       algorithm = IR
+       star_mag = 12.1
+       star_type = A0
+
+Then run on the spec1d file as you would otherwise.
+For an A0 star, we use the Vega spectrum.  Otherwise,
+we use the Kurucz93 stellar SED.
+
+Alternative see `Adding a Standard Star`_.
 
 Applying the Sensitivity Function
 =================================

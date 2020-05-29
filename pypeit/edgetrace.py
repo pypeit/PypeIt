@@ -2226,6 +2226,9 @@ class EdgeTraceSet(object):
     def is_synced(self):
         """
         Confirm slit edges are synced.
+
+        Returns:
+            bool:
         """
         if self.is_empty:
             return False
@@ -2233,7 +2236,10 @@ class EdgeTraceSet(object):
         gpm = np.invert(self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                                  exclude=self.bitmask.exclude_flags))
         side = np.clip(self.traceid[gpm], -1, 1)
-        return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
+        if len(side) == 0:
+            return False
+        else:
+            return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
 
     def check_synced(self, rebuild_pca=False):
         """
