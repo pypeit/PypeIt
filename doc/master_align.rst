@@ -48,7 +48,7 @@ If your image appears to be in err, here are the things to consider:
    that the slits are currently traced.
 
 Current Alignments Data Model
-===========================
+=============================
 
 Internally, the master image is held in
 :class:`pypeit.images.buildimage.AlignImage`
