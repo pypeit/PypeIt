@@ -324,6 +324,7 @@ def main(pargs):
     msg_string += msgs.newline() +     '****************************************************'
     msgs.info(msg_string)
 
+    #offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
     offsets_dith_pix = (np.array([0.0,np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)]))/sciImg.detector.platescale
     if pargs.offset is not None:
         offsets_pixels = np.array([0.0, pargs.offset])
