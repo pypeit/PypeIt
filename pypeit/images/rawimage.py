@@ -196,6 +196,8 @@ class RawImage(object):
         # Get started
         # Standard order
         #   -- May need to allow for other order some day..
+        if par['rm_pattern_noise']:
+            self.remove_pattnoise()
         if par['use_overscan']:
             self.subtract_overscan()
         if par['trim']:
@@ -363,6 +365,57 @@ class RawImage(object):
         # Do it
         self.image -= dark_image.image
         self.steps[step] = True
+
+    def remove_pattnoise(self):
+        import numpy as np
+        import astropy.io.fits as fits
+        from scipy.optimize import curve_fit
+
+        def cosfunc(x, am, fr, ph):
+            return am * np.cos(2.0 * np.pi * fr * x + ph)
+
+        datasec = fits.open("datasec_img.fits")[0].data
+        oscansec = fits.open("oscansec_img.fits")[0].data
+        sciimg = fits.open("science.fits")[0].data
+
+        # Calculate the output image dimensions of the signal
+        ww = np.where((oscansec == 2) | (datasec == 2))
+        sci_all = sciimg[ww].reshape((4112, ww[0].size // 4112))
+        signal_all = np.zeros((4112, ww[0].size // 4112))
+
+        ww = np.where(oscansec == 2)
+        arr = sciimg[ww].reshape((4112, oscansec[ww].shape[0] // 4112))
+        # Subtract the DC offset
+        arr -= np.median(arr, axis=1)[:, np.newaxis]
+
+        amp = np.fft.rfft(arr, axis=1)
+        freqs = np.fft.rfftfreq(arr.shape[1], 1)
+        idx = (np.arange(arr.shape[0]), np.argmax(np.abs(amp), axis=1))
+
+        amps = (np.abs(amp))[idx] * (2.0 / arr.shape[1])
+        phss = np.arctan2(amp.imag, amp.real)[idx]
+        frqs = idx[1]
+        # This does a pretty good job, but needs to be better
+        tmpsig = amps[:, np.newaxis] * np.cos(
+            2.0 * np.pi * frqs[:, np.newaxis] * np.linspace(0.0, 1.0, arr.shape[1])[np.newaxis, :] + phss[:,
+                                                                                                     np.newaxis])
+
+        # Use the above to as initial guess parameters in chi-squared minimisation
+        signal = np.zeros_like(tmpsig)
+        xdata, step = np.linspace(0.0, 1.0, arr.shape[1], retstep=True)
+        xdata_all = np.arange(signal_all.shape[1]) * step
+        frq_dist = np.zeros(arr.shape[0])
+        for ii in range(arr.shape[0]):
+            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]])
+            frq_dist[ii] = popt[1]
+        # Get the best estimate of the frequency
+        medfrq = np.median(frq_dist)
+        for ii in range(arr.shape[0]):
+            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], medfrq, phss[ii]], bounds=(
+            [-np.inf, medfrq * 0.99999999, -np.inf], [+np.inf, medfrq * 1.00000001, +np.inf]))
+            frq_dist[ii] = popt[1]
+            signal[ii, :] = cosfunc(xdata, *popt)
+            signal_all[ii, :] = cosfunc(xdata_all, *popt)
 
     def subtract_overscan(self, force=False):
         """
