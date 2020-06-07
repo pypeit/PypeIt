@@ -3,12 +3,14 @@
 
 import glob
 import numpy as np
+from IPython import embed
 
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
+from pypeit.core import procimg
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -447,8 +449,46 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
 
+        # Calculate the pattern frequency
+        hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
+
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def calc_pattern_freq(self, raw_img, rawdatasec_img, oscansec_img, hdu):
+        msgs.info("Calculating pattern noise frequency")
+        msgs.warn("PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1")
+
+        # Get a unique list of the amplifiers
+        unq_amps = np.sort(np.unique(oscansec_img[np.where(oscansec_img >= 1)]))
+        num_amps = unq_amps.size
+
+        # Loop through amplifiers and calculate the frequency
+        for amp in unq_amps:
+            # Grab the pixels where the amplifier has data
+            pixs = np.where((rawdatasec_img == amp) | (oscansec_img == amp))
+            rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
+            # Deal with the different locations of the overscan regions in 2- and 4- amp mode
+            if num_amps == 2:
+                cmin = 1+np.max(pixs[0])
+                frame = raw_img[cmin:, rmin:rmax].astype(np.float64)
+            elif num_amps == 4:
+                if amp in [0, 1]:
+                    pixalt = np.where((rawdatasec_img == amp+2) | (oscansec_img == amp+2))
+                    cmin = 1+np.max(pixs[0])
+                    cmax = np.min(pixalt[0])
+                else:
+                    pixalt = np.where((rawdatasec_img == amp-2) | (oscansec_img == amp-2))
+                    cmin = 1+np.min(pixalt[0])
+                    cmax = np.min(pixs[0])
+                frame = raw_img[cmin:cmax, rmin:rmax].astype(np.float64)
+            # Calculate the pattern frequency
+            freq = procimg.pattern_frequency(frame)
+            # Add the frequency to the zeroth header
+            hdu[0].header['PYPFRQ{0:02d}'.format(amp)] = freq
+
+        # Return the updated HDU
+        return hdu
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """

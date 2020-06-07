@@ -197,7 +197,7 @@ class RawImage(object):
         # Standard order
         #   -- May need to allow for other order some day..
         if par['rm_pattern_noise']:
-            self.remove_pattnoise()
+            self.subtract_pattern()
         if par['use_overscan']:
             self.subtract_overscan()
         if par['trim']:
@@ -366,57 +366,6 @@ class RawImage(object):
         self.image -= dark_image.image
         self.steps[step] = True
 
-    def remove_pattnoise(self):
-        import numpy as np
-        import astropy.io.fits as fits
-        from scipy.optimize import curve_fit
-
-        def cosfunc(x, am, fr, ph):
-            return am * np.cos(2.0 * np.pi * fr * x + ph)
-
-        datasec = fits.open("datasec_img.fits")[0].data
-        oscansec = fits.open("oscansec_img.fits")[0].data
-        sciimg = fits.open("science.fits")[0].data
-
-        # Calculate the output image dimensions of the signal
-        ww = np.where((oscansec == 2) | (datasec == 2))
-        sci_all = sciimg[ww].reshape((4112, ww[0].size // 4112))
-        signal_all = np.zeros((4112, ww[0].size // 4112))
-
-        ww = np.where(oscansec == 2)
-        arr = sciimg[ww].reshape((4112, oscansec[ww].shape[0] // 4112))
-        # Subtract the DC offset
-        arr -= np.median(arr, axis=1)[:, np.newaxis]
-
-        amp = np.fft.rfft(arr, axis=1)
-        freqs = np.fft.rfftfreq(arr.shape[1], 1)
-        idx = (np.arange(arr.shape[0]), np.argmax(np.abs(amp), axis=1))
-
-        amps = (np.abs(amp))[idx] * (2.0 / arr.shape[1])
-        phss = np.arctan2(amp.imag, amp.real)[idx]
-        frqs = idx[1]
-        # This does a pretty good job, but needs to be better
-        tmpsig = amps[:, np.newaxis] * np.cos(
-            2.0 * np.pi * frqs[:, np.newaxis] * np.linspace(0.0, 1.0, arr.shape[1])[np.newaxis, :] + phss[:,
-                                                                                                     np.newaxis])
-
-        # Use the above to as initial guess parameters in chi-squared minimisation
-        signal = np.zeros_like(tmpsig)
-        xdata, step = np.linspace(0.0, 1.0, arr.shape[1], retstep=True)
-        xdata_all = np.arange(signal_all.shape[1]) * step
-        frq_dist = np.zeros(arr.shape[0])
-        for ii in range(arr.shape[0]):
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]])
-            frq_dist[ii] = popt[1]
-        # Get the best estimate of the frequency
-        medfrq = np.median(frq_dist)
-        for ii in range(arr.shape[0]):
-            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], medfrq, phss[ii]], bounds=(
-            [-np.inf, medfrq * 0.99999999, -np.inf], [+np.inf, medfrq * 1.00000001, +np.inf]))
-            frq_dist[ii] = popt[1]
-            signal[ii, :] = cosfunc(xdata, *popt)
-            signal_all[ii, :] = cosfunc(xdata_all, *popt)
-
     def subtract_overscan(self, force=False):
         """
         Analyze and subtract the overscan from the image
@@ -434,6 +383,36 @@ class RawImage(object):
         temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
                                          method=self.par['overscan_method'],
                                          params=self.par['overscan_par'])
+        # Fill
+        self.steps[step] = True
+        self.image = temp
+
+    def subtract_pattern(self):
+        """
+        Analyze and subtract the pattern noise from the image
+        """
+        step = inspect.stack()[0][3]
+        # Check if already overscan subtracted
+        if self.steps[step]:
+            msgs.warn("Image was already pattern subtracted!")
+
+        # Grab the frequency, if it exists in the header
+        # For some instruments, PYPEITFRQ is added to the header in get_rawimage() in the spectrograph file
+        # See keck_kcwi.py for an example
+        frequency = []
+        try:
+            # Grab a list of all the amplifiers
+            amps = np.sort(np.unique(self.oscansec_img[np.where(self.oscansec_img > 0)]))
+            for amp in amps:
+                frequency.append(self.hdu[0].header['PYPFRQ{0:02d}'.format(amp)])
+        except KeyError:
+            frequency = None
+        # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
+        if len(frequency) == 0:
+            frequency = None
+        # Generate a new image with the pattern removed
+        temp = procimg.subtract_pattern(self.image, self.datasec_img, self.oscansec_img, frequency=frequency)
+
         # Fill
         self.steps[step] = True
         self.image = temp
