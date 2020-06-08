@@ -183,6 +183,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_kcwi'
 
+        # Subtract the detector pattern from all frames
+        #par['baseprocess']['use_pattern'] = True
+
         # Make sure the overscan is subtracted from the dark
         par['calibrations']['darkframe']['process']['use_overscan'] = True
 
@@ -221,11 +224,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
+        par['scienceframe']['process']['use_pattern'] = True    # Subtract off detector pattern
 
         # Don't do optimal extraction for 3D data.
         par['reduce']['extraction']['skip_optimal'] = True
 
-        # Make sure that this is listed as a slit spectrograph
+        # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
 
         # Sky subtraction parameters
@@ -450,14 +454,16 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 oscansec_img = pix_img.copy()
 
         # Calculate the pattern frequency
-        hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
+        #hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
-    def calc_pattern_freq(self, raw_img, rawdatasec_img, oscansec_img, hdu):
+    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
         msgs.info("Calculating pattern noise frequency")
         msgs.warn("PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1")
+        # Make a copy of te original frame
+        raw_img = frame.copy()
 
         # Get a unique list of the amplifiers
         unq_amps = np.sort(np.unique(oscansec_img[np.where(oscansec_img >= 1)]))

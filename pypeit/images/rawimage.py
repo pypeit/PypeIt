@@ -69,6 +69,7 @@ class RawImage(object):
         self.steps = dict(subtract_bias=False,
                           subtract_overscan=False,
                           subtract_dark=False,
+                          subtract_pattern=False,
                           trim=False,
                           orient=False,
                           apply_gain=False,
@@ -196,7 +197,7 @@ class RawImage(object):
         # Get started
         # Standard order
         #   -- May need to allow for other order some day..
-        if par['rm_pattern_noise']:
+        if par['use_pattern']:  # Note, this step *must* be done before use_overscan
             self.subtract_pattern()
         if par['use_overscan']:
             self.subtract_overscan()
@@ -405,10 +406,10 @@ class RawImage(object):
             amps = np.sort(np.unique(self.oscansec_img[np.where(self.oscansec_img > 0)]))
             for amp in amps:
                 frequency.append(self.hdu[0].header['PYPFRQ{0:02d}'.format(amp)])
+            # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
+            if len(frequency) == 0:
+                frequency = None
         except KeyError:
-            frequency = None
-        # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
-        if len(frequency) == 0:
             frequency = None
         # Generate a new image with the pattern removed
         temp = procimg.subtract_pattern(self.image, self.datasec_img, self.oscansec_img, frequency=frequency)

@@ -397,7 +397,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     return no_overscan
 
 
-def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1):
+def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1, debug=False):
     """
     Subtract a sinusoidal pattern from the input rawframe. The algorithm
     calculates the frequency of the signal, generates a model, and subtracts
@@ -431,6 +431,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     """
     # TODO :: REMOVE THIS EMBED BEFORE MERGE!!!
     embed()
+    msgs.info("Analyzing detector pattern")
 
     # Copy the data so that the subtraction is not done in place
     frame_orig = rawframe.copy()
@@ -444,7 +445,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         tmp_data = datasec_img.copy().T
 
     # Amplifiers
-    amps = np.unique(tmp_data[tmp_data > 0]).tolist()
+    amps = np.sort(np.unique(tmp_data[tmp_data > 0])).tolist()
 
     # Perform the overscan subtraction for each amplifier
     for aa, amp in enumerate(amps):
@@ -464,11 +465,14 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             use_fr = frequency
 
         # Extract overscan
-        overscan, _ = rect_slice_with_mask(rawframe, tmp_oscan, amp)
+        overscan, os_slice = rect_slice_with_mask(frame_orig, tmp_oscan, amp)
         # Extract overscan+data
-        oscandata, osd_slice = rect_slice_with_mask(rawframe, tmp_oscan+tmp_data, amp)
+        oscandata, osd_slice = rect_slice_with_mask(frame_orig, tmp_oscan+tmp_data, amp)
         # Subtract the DC offset
         overscan -= np.median(overscan, axis=1)[:, np.newaxis]
+
+        # Convert frequency to the size of the overscan region
+        use_fr *= overscan.shape[1]
 
         # Get a first guess of the amplitude and phase information
         amp = np.fft.rfft(overscan, axis=1)
@@ -480,15 +484,25 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         # Use the above to as initial guess parameters in chi-squared minimisation
         cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
         xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
-        xdata_all = np.arange(oscandata.shape[1]) * step
+        xdata_all = (np.arange(osd_slice[1].start, osd_slice[1].stop) - os_slice[1].start) * step
         model_pattern = np.zeros_like(oscandata)
         # Get the best estimate of the frequency
         for ii in range(overscan.shape[0]):
-            popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], use_fr, phss[ii]], bounds=(
-            [-np.inf, use_fr * 0.99999999, -np.inf], [+np.inf, use_fr * 1.00000001, +np.inf]))
+            popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], use_fr, phss[ii]],
+                                   bounds=([-np.inf, use_fr * 0.99999999, -np.inf], [+np.inf, use_fr * 1.00000001, +np.inf]))
             model_pattern[ii, :] = cosfunc(xdata_all, *popt)
 
+        msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr/overscan.shape[1]))
         outframe[tuple(osd_slice)] -= model_pattern
+
+    if debug:
+        import astropy.io.fits as fits
+        hdu = fits.PrimaryHDU(rawframe)
+        hdu.writeto("tst_raw.fits", overwrite=True)
+        hdu = fits.PrimaryHDU(outframe)
+        hdu.writeto("tst_sub.fits", overwrite=True)
+        hdu = fits.PrimaryHDU(rawframe - outframe)
+        hdu.writeto("tst_mod.fits", overwrite=True)
 
     # Transpose if the input frame if applied along a different axis
     if axis == 0:
@@ -551,7 +565,7 @@ def pattern_frequency(frame, axis=1):
     # Ignore masked values, and return the best estimate of the frequency
     ww = np.where(frq_dist > 0.0)
     medfrq = np.median(frq_dist[ww])
-    return medfrq
+    return medfrq/arr.shape[1]
 
 
 '''

@@ -188,7 +188,7 @@ class ProcessImagesPar(ParSet):
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
                  use_pixelflat=None, use_illumflat=None, use_specillum=None,
-                 spat_flexure_correct=None):
+                 use_pattern=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -218,7 +218,7 @@ class ProcessImagesPar(ParSet):
         dtypes['orient'] = bool
         descr['orient'] = 'Orient the raw image into the PypeIt frame'
 
-        # Bias, overscan, dark (i.e. detector "signal")
+        # Bias, overscan, dark, pattern (i.e. detector "signal")
         defaults['use_biasimage'] = True
         dtypes['use_biasimage'] = bool
         descr['use_biasimage'] = 'Use a bias image.  If True, one or more must be supplied in the PypeIt file.'
@@ -244,6 +244,11 @@ class ProcessImagesPar(ParSet):
         defaults['use_darkimage'] = False
         dtypes['use_darkimage'] = bool
         descr['use_darkimage'] = 'Subtract off a dark image.  If True, one or more darks must be provided.'
+
+        defaults['use_pattern'] = False
+        dtypes['use_pattern'] = bool
+        descr['use_pattern'] = 'Subtract off a detector pattern. This pattern is assumed to be sinusoidal' \
+                               'along one direction, with a frequency that is constant across the detector.'
 
         # Flats
         defaults['use_pixelflat'] = True
@@ -342,11 +347,11 @@ class ProcessImagesPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient',
-                   'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
+                   'use_biasimage', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
                    'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
                    'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-            'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
