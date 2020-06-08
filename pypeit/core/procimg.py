@@ -425,12 +425,12 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             will be determined from the overscan region.
         axis (int):
             Which axis should the pattern subtraction be applied?
+        debug (bool):
+            Debug the code (True means yes)
 
     Returns:
         :obj:`numpy.ndarray`: The input frame with the pattern subtracted
     """
-    # TODO :: REMOVE THIS EMBED BEFORE MERGE!!!
-    embed()
     msgs.info("Analyzing detector pattern")
 
     # Copy the data so that the subtraction is not done in place
@@ -447,18 +447,22 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     # Amplifiers
     amps = np.sort(np.unique(tmp_data[tmp_data > 0])).tolist()
 
-    # Perform the overscan subtraction for each amplifier
-    for aa, amp in enumerate(amps):
-        # Get the frequency to use for this amplifier
-        if frequency is None:
-            # need to calculate frequency
+    # Estimate the frequency in each amplifier (then average over all amps)
+    if frequency is None:
+        frq = np.zeros(len(amps))
+        for aa, amp in enumerate(amps):
             pixs = np.where(tmp_oscan == amp)
             cmin, cmax = np.min(pixs[0]), np.max(pixs[0])
             rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
             frame = frame_orig[cmin:cmax, rmin:rmax].astype(np.float64)
-            use_fr = pattern_frequency(frame)
-        elif isinstance(frequency, list):
-            # list, one for each amplifier
+            frq[aa] = pattern_frequency(frame)
+        frequency = np.mean(frq)
+
+    # Perform the overscan subtraction for each amplifier
+    for aa, amp in enumerate(amps):
+        # Get the frequency to use for this amplifier
+        if isinstance(frequency, list):
+            # if it's a list, then use a different frequency for each amplifier
             use_fr = frequency[aa]
         else:
             # float
@@ -496,6 +500,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         outframe[tuple(osd_slice)] -= model_pattern
 
     if debug:
+        embed()
         import astropy.io.fits as fits
         hdu = fits.PrimaryHDU(rawframe)
         hdu.writeto("tst_raw.fits", overwrite=True)
@@ -555,12 +560,27 @@ def pattern_frequency(frame, axis=1):
     # Use the above to as initial guess parameters in chi-squared minimisation
     cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
     xdata = np.linspace(0.0, 1.0, arr.shape[1])
+    # Calculate the amplitude distribution
+    amp_dist = np.zeros(arr.shape[0])
     frq_dist = np.zeros(arr.shape[0])
     # Loop over all rows to new independent values that can be averaged
     for ii in range(arr.shape[0]):
         if ii in msk:
             continue
         popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]])
+        amp_dist[ii] = popt[0]
+        frq_dist[ii] = popt[1]
+    ww = np.where(amp_dist > 0.0)
+    use_amp = np.median(amp_dist[ww])
+    use_frq = np.median(frq_dist[ww])
+    # Calculate the frequency distribution with a prior on the amplitude
+    frq_dist = np.zeros(arr.shape[0])
+    for ii in range(arr.shape[0]):
+        if ii in msk:
+            continue
+        popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
+                               bounds=([use_amp * 0.99999999, -np.inf, -np.inf],
+                                       [use_amp * 1.00000001, +np.inf, +np.inf]))
         frq_dist[ii] = popt[1]
     # Ignore masked values, and return the best estimate of the frequency
     ww = np.where(frq_dist > 0.0)
