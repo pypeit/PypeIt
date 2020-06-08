@@ -519,7 +519,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
 def pattern_frequency(frame, axis=1):
     """
     Using the supplied 2D array, calculate the pattern frequency
-    along axis.
+    along the specified axis.
 
     Args:
         frame (:obj:`numpy.ndarray`):
