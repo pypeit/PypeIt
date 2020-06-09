@@ -271,7 +271,7 @@ class FlatImages(datamodel.DataContainer):
         _d['illumflat_spat_bsplines'] = np.asarray(list_of_illbsplines)
         return _d, dm_version_passed, dm_type_passed
 
-    def show(self, slits=None, wcs_match=True):
+    def show(self, type, slits=None, wcs_match=True):
         """
         Simple wrapper to show_flats()
 
@@ -282,7 +282,7 @@ class FlatImages(datamodel.DataContainer):
         Returns:
 
         """
-        illumflat = None
+        illumflat_pixel, illumflat_illum = None, None
         # Try to grab the slits
         if slits is None:
             # Warning: This parses the filename, not the Header!
@@ -295,10 +295,31 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
         if slits is not None:
             slits.mask_flats(self)
-            illumflat = self.fit2illumflat(slits)
-        # Show
-        show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model, self.spec_illum,
-                   wcs_match=wcs_match, slits=slits)
+            illumflat_pixel = self.fit2illumflat(slits, frametype='pixel')
+            if self.illumflat_spat_bsplines is not None:
+                illumflat_illum = self.fit2illumflat(slits, frametype='illum')
+        # Decide which frames should be displayed
+        if type == 'pixel':
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw, self.pixelflat_model,
+                              self.pixelflat_spec_illum],
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw', 'pixelflat_model',
+                              'pixelflat_spec_illum'],
+                             [(0.9, 1.1), (0.9, 1.1), None, None,
+                              (0.8, 1.2)])
+        elif type == 'illum':
+            image_list = zip([illumflat_illum, self.illumflat_raw],
+                             ['illumflat_spat_illum', 'illumflat_raw'],
+                             [(0.9, 1.1), None])
+        else:
+            # Show everything that's available (anything that is None will not be displayed)
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw, self.pixelflat_model,
+                              self.pixelflat_spec_illum, illumflat_illum, self.illumflat_raw],
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw', 'pixelflat_model',
+                              'pixelflat_spec_illum', 'illumflat_spat_illum', 'illumflat_raw'],
+                             [(0.9, 1.1), (0.9, 1.1), None, None,
+                              (0.8, 1.2), (0.9, 1.1), None])
+        # Display frames
+        show_flats(image_list, wcs_match=wcs_match, slits=slits)
 
 
 class FlatField(object):
@@ -507,9 +528,11 @@ class FlatField(object):
             wcs_match (:obj:`bool`, optional):
                 Match the WCS of the flat-field images
         """
-        # Get the slits
-        show_flats(self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model,
-                   wcs_match=wcs_match, slits=self.slits)
+        # Prepare the images to show, their names and their cuts
+        image_list = zip([self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model],
+                         ['pixelflat', 'spat_illum', 'raw', 'model', 'spec_illum'],
+                         [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)])
+        show_flats(image_list, wcs_match=wcs_match, slits=self.slits)
 
     def fit(self, illumflat=False, debug=False):
         """
@@ -1320,7 +1343,7 @@ class FlatField(object):
         return scale_model
 
 
-def show_flats(pixelflat, illumflat, procflat, flat_model, spec_illum, wcs_match=True, slits=None):
+def show_flats(image_list, wcs_match=True, slits=None):
     """
     Interface to ginga to show a set of flat images
 
@@ -1342,15 +1365,13 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, spec_illum, wcs_match
         gpm = mask == 0
     # Loop me
     clear = True
-    for img, name, cut in zip([pixelflat, illumflat, procflat, flat_model, spec_illum],
-                         ['pixelflat', 'illumflat', 'flat', 'flat_model', 'spec_illum'],
-                         [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)]):
+    for img, name, cut in image_list:
         if img is None:
             continue
         # TODO: Add an option that shows the relevant stuff in a
         # matplotlib window.
         viewer, ch = ginga.show_image(img, chname=name, cuts=cut,
-                                  wcs_match=wcs_match, clear=clear)
+                                      wcs_match=wcs_match, clear=clear)
         if slits is not None:
             ginga.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
                              slit_ids=slits.spat_id[gpm])
