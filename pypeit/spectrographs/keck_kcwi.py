@@ -454,7 +454,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 oscansec_img = pix_img.copy()
 
         # Calculate the pattern frequency
-        #hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
+        hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
 
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img

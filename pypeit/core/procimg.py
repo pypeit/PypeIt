@@ -451,8 +451,8 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     if frequency is None:
         frq = np.zeros(len(amps))
         for aa, amp in enumerate(amps):
-            #pixs = np.where(tmp_oscan == amp)
-            pixs = np.where((tmp_oscan == amp) | (tmp_data ==  amp))
+            pixs = np.where(tmp_oscan == amp)
+            #pixs = np.where((tmp_oscan == amp) | (tmp_data ==  amp))
             cmin, cmax = np.min(pixs[0]), np.max(pixs[0])
             rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
             frame = frame_orig[cmin:cmax, rmin:rmax].astype(np.float64)
@@ -477,7 +477,8 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         overscan -= np.median(overscan, axis=1)[:, np.newaxis]
 
         # Convert frequency to the size of the overscan region
-        use_fr *= overscan.shape[1]
+        msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr))
+        use_fr *= (overscan.shape[1]-1)
 
         # Get a first guess of the amplitude and phase information
         amp = np.fft.rfft(overscan, axis=1)
@@ -491,16 +492,23 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
         xdata_all = (np.arange(osd_slice[1].start, osd_slice[1].stop) - os_slice[1].start) * step
         model_pattern = np.zeros_like(oscandata)
-        # Get the best estimate of the frequency
+        val = np.zeros(overscan.shape[0])
+        # Get the best estimate of the amplitude
         for ii in range(overscan.shape[0]):
             popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], use_fr, phss[ii]],
                                    bounds=([-np.inf, use_fr * 0.99999999, -np.inf], [+np.inf, use_fr * 1.00000001, +np.inf]))
+            val[ii] = popt[0]
             model_pattern[ii, :] = cosfunc(xdata_all, *popt)
-
-        msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr/overscan.shape[1]))
+        use_amp = np.median(val)
+        # Get the best estimate of the phase, and generate a model
+        for ii in range(overscan.shape[0]):
+            popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, use_fr, phss[ii]],
+                                   bounds=([use_amp * 0.99999999, use_fr * 0.99999999, -np.inf],
+                                           [use_amp * 1.00000001, use_fr * 1.00000001, +np.inf]))
+            model_pattern[ii, :] = cosfunc(xdata_all, *popt)
         outframe[tuple(osd_slice)] -= model_pattern
 
-    debug=True
+    debug = False
     if debug:
         embed()
         import astropy.io.fits as fits
@@ -555,7 +563,7 @@ def pattern_frequency(frame, axis=1):
     phss = np.arctan2(amp.imag, amp.real)[idx]
     frqs = idx[1]
 
-    # This does a reasonable job, but needs to be much better
+    # This does a reasonable job, but needs to be much better - a fit or CC would be best to get subpixel sampling.
     # posn = np.linspace(0.0, 1.0, arr.shape[1])[np.newaxis, :]
     # tmpsig = amps[:, np.newaxis] * np.cos(2.0 * np.pi * frqs[:, np.newaxis] * posn + phss[:, np.newaxis])
 
@@ -569,7 +577,9 @@ def pattern_frequency(frame, axis=1):
     for ii in range(arr.shape[0]):
         if ii in msk:
             continue
-        popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]])
+        popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]],
+                               bounds=([-np.inf, frqs[ii]-1, -np.inf],
+                                       [+np.inf, frqs[ii]+1, +np.inf]))
         amp_dist[ii] = popt[0]
         frq_dist[ii] = popt[1]
     ww = np.where(amp_dist > 0.0)
@@ -581,13 +591,13 @@ def pattern_frequency(frame, axis=1):
         if ii in msk:
             continue
         popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
-                               bounds=([use_amp * 0.99999999, -np.inf, -np.inf],
-                                       [use_amp * 1.00000001, +np.inf, +np.inf]))
+                               bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
+                                       [use_amp * 1.00000001, use_frq+1, +np.inf]))
         frq_dist[ii] = popt[1]
     # Ignore masked values, and return the best estimate of the frequency
     ww = np.where(frq_dist > 0.0)
     medfrq = np.median(frq_dist[ww])
-    return medfrq/arr.shape[1]
+    return medfrq/(arr.shape[1]-1)
 
 
 '''
