@@ -451,7 +451,8 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     if frequency is None:
         frq = np.zeros(len(amps))
         for aa, amp in enumerate(amps):
-            pixs = np.where(tmp_oscan == amp)
+            #pixs = np.where(tmp_oscan == amp)
+            pixs = np.where((tmp_oscan == amp) | (tmp_data ==  amp))
             cmin, cmax = np.min(pixs[0]), np.max(pixs[0])
             rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
             frame = frame_orig[cmin:cmax, rmin:rmax].astype(np.float64)
@@ -499,6 +500,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr/overscan.shape[1]))
         outframe[tuple(osd_slice)] -= model_pattern
 
+    debug=True
     if debug:
         embed()
         import astropy.io.fits as fits

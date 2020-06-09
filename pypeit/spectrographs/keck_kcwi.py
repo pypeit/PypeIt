@@ -460,8 +460,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
+        # TODO :: PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
         msgs.info("Calculating pattern noise frequency")
-        msgs.warn("PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1")
+
         # Make a copy of te original frame
         raw_img = frame.copy()
 

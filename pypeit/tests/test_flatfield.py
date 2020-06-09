@@ -60,15 +60,17 @@ def test_flatimages():
                         pixelflat_spec_illum=None,
                         illumflat_raw=tmp,
                         illumflat_spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
-                        spat_id=np.asarray([100, 200]))
+                        spat_id=np.asarray([100, 200]),
+                        PYP_SPEC="specname")
 
     flatImages = flatfield.FlatImages(**instant_dict)
     assert flatImages.pixelflat_model is None
     assert flatImages.pixelflat_spec_illum is None
+    assert flatImages.pixelflat_spat_bsplines is not None
 
     # I/O
     outfile = data_path('tst_flatimages.fits')
-    flatImages.to_file(outfile, overwrite=True)
+    flatImages.to_master_file(outfile)
     _flatImages = flatfield.FlatImages.from_file(outfile)
     # Test
     for key in instant_dict.keys():

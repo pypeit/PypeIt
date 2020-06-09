@@ -5,6 +5,7 @@ Implements the flat-field class.
 .. include:: ../links.rst
 """
 import os
+import copy
 import inspect
 import numpy as np
 
@@ -138,14 +139,14 @@ class FlatImages(datamodel.DataContainer):
                     spat_bspl.hdu_prefix = 'PIXELFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
                     dkey = 'bspline-{}'.format(self.spat_id[ss])
                     # Save
-                    d.append({dkey: spat_bspl})
+                    d.append(copy.deepcopy({dkey: spat_bspl}))
             elif key == 'illumflat_spat_bsplines':
                 for ss, spat_bspl in enumerate(self[key]):
                     # Naming
                     spat_bspl.hdu_prefix = 'ILLUMFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
                     dkey = 'bspline-{}'.format(self.spat_id[ss])
                     # Save
-                    d.append({dkey: spat_bspl})
+                    d.append(copy.deepcopy({dkey: spat_bspl}))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
