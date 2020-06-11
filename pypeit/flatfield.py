@@ -152,30 +152,6 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
-    # def merge_with(self, flatimgs):
-    #     """
-    #     Merge flatimgs into the current :class:`pypeit.flatfield.FlatImages` class.
-    #
-    #     Parameters
-    #     ----------
-    #     flatimgs : :class:`pypeit.flatfield.FlatImages`
-    #
-    #     Parameters
-    #     ----------
-    #     :class:`pypeit.flatfield.FlatImages` : A new instance of the FlatImages class with merged properties.
-    #     """
-    #     for key in flatimgs.keys():
-    #         # Skip None
-    #         if flatimgs[key] is None:
-    #             continue
-    #         else:
-    #             self[key] = flatimgs[key]
-    #     # Regenerate the data container
-    #     d = dict([(k, self[k]) for k in self.keys()])
-    #     # Setup the DataContainer
-    #     datamodel.DataContainer.__init__(self, d=d)
-    #     #return FlatImages(**self)
-
     @property
     def procflat(self):
         return self.pixelflat_raw
@@ -242,8 +218,10 @@ class FlatImages(datamodel.DataContainer):
         # Now the bsplines
         list_of_pixbsplines, list_of_illbsplines = [], []
         pixspat_ids, illspat_ids = [], []
+        has_pixel, has_illum = False, False
         for ihdu in hdu:
             if 'PIXELFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
+                has_pixel = True
                 ibspl = bspline.bspline.from_hdu(ihdu)
                 if ibspl.version != bspline.bspline.version:
                     msgs.warn("Your bspline is out of date!!")
@@ -253,6 +231,7 @@ class FlatImages(datamodel.DataContainer):
                 i1 = ihdu.name.find('_BSP')
                 pixspat_ids.append(int(ihdu.name[i0+3:i1]))
             if 'ILLUMFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
+                has_illum = True
                 ibspl = bspline.bspline.from_hdu(ihdu)
                 if ibspl.version != bspline.bspline.version:
                     msgs.warn("Your bspline is out of date!!")
@@ -262,9 +241,9 @@ class FlatImages(datamodel.DataContainer):
                 i1 = ihdu.name.find('_BSP')
                 illspat_ids.append(int(ihdu.name[i0 + 3:i1]))
         # Check
-        if pixspat_ids != _d['spat_id'].tolist():
+        if pixspat_ids != _d['spat_id'].tolist() and has_pixel:
             msgs.error("Bad parsing of pixelflat BSPLINE spat_id in the MasterFlat")
-        if illspat_ids != _d['spat_id'].tolist():
+        if illspat_ids != _d['spat_id'].tolist() and has_illum:
             msgs.error("Bad parsing of illumflat BSPLINE spat_id in the MasterFlat")
         # Finish
         _d['pixelflat_spat_bsplines'] = np.asarray(list_of_pixbsplines)
@@ -1379,3 +1358,57 @@ def show_flats(image_list, wcs_match=True, slits=None):
         if clear:
             clear = False
 
+
+def merge(pixelflat, illumflat):
+    """
+    Merge secondary into primary, and return a merged :class:`pypeit.flatfield.FlatImages` class.
+    If an element exists in both primary and secondary, the primary value is taken
+
+    Parameters
+    ----------
+    pixelflat : :class:`pypeit.flatfield.FlatImages`
+        The pixelflat instance of FlatImages
+    illumflat : :class:`pypeit.flatfield.FlatImages`
+        The illumflat instance of FlatImages
+
+    Returns
+    -------
+    :class:`pypeit.flatfield.FlatImages` : A new instance of the FlatImages class with merged properties.
+    """
+    # Initialise variables
+    pixelflat_raw, pixelflat_norm, pixelflat_model = None, None, None
+    pixelflat_spat_bsplines, pixelflat_bpm, pixelflat_spec_illum = None, None, None
+    PYP_SPEC, spat_id = None, None
+    illumflat_raw, illumflat_spat_bsplines, illumflat_bpm = None, None, None
+
+    # Cherry pick the values from each class
+    if pixelflat is not None:
+        pixelflat_raw = pixelflat.pixelflat_raw
+        pixelflat_norm = pixelflat.pixelflat_norm
+        pixelflat_model = pixelflat.pixelflat_model
+        pixelflat_spat_bsplines = pixelflat.pixelflat_spat_bsplines
+        pixelflat_bpm = pixelflat.pixelflat_bpm
+        pixelflat_spec_illum = pixelflat.pixelflat_spec_illum
+        PYP_SPEC = pixelflat.PYP_SPEC
+        spat_id = pixelflat.spat_id
+    if illumflat is not None:
+        illumflat_raw = illumflat.illumflat_raw
+        illumflat_spat_bsplines = illumflat.illumflat_spat_bsplines
+        illumflat_bpm = illumflat.illumflat_bpm
+        if PYP_SPEC is None:
+            PYP_SPEC = illumflat.PYP_SPEC
+        if spat_id is None:
+            spat_id = illumflat.spat_id
+
+    # Construct the merged class
+    return FlatImages(pixelflat_raw=pixelflat_raw,
+                      pixelflat_norm=pixelflat_norm,
+                      pixelflat_model=pixelflat_model,
+                      pixelflat_spat_bsplines=pixelflat_spat_bsplines,
+                      pixelflat_bpm=pixelflat_bpm,
+                      pixelflat_spec_illum=pixelflat_spec_illum,
+                      illumflat_raw=illumflat_raw,
+                      illumflat_spat_bsplines=illumflat_spat_bsplines,
+                      illumflat_bpm=illumflat_bpm,
+                      PYP_SPEC=PYP_SPEC,
+                      spat_id=spat_id)

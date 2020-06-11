@@ -536,18 +536,7 @@ class Calibrations(object):
         # Merge the illum flat with the pixel flat
         if pixelflatImages is not None:
             msgs.info("Merging illumflat parameters into FlatImages")
-            #self.flatimages.merge_with(illumflatImages)
-            self.flatimages = flatfield.FlatImages(pixelflat_raw=pixelflatImages.pixelflat_raw,
-                                                   pixelflat_norm=pixelflatImages.pixelflat_norm,
-                                                   pixelflat_model=pixelflatImages.pixelflat_model,
-                                                   pixelflat_spat_bsplines=pixelflatImages.pixelflat_spat_bsplines,
-                                                   pixelflat_bpm=pixelflatImages.pixelflat_bpm,
-                                                   pixelflat_spec_illum=pixelflatImages.pixelflat_spec_illum,
-                                                   illumflat_raw=illumflatImages.illumflat_raw,
-                                                   illumflat_spat_bsplines=illumflatImages.illumflat_spat_bsplines,
-                                                   illumflat_bpm=illumflatImages.illumflat_bpm,
-                                                   PYP_SPEC=pixelflatImages.PYP_SPEC,
-                                                   spat_id=pixelflatImages.spat_id)
+            self.flatimages = flatfield.merge(pixelflatImages, illumflatImages)
         else:
             # No pixel flat, but there might be an illumflat
             self.flatimages = illumflatImages

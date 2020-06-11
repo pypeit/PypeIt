@@ -495,16 +495,30 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
         val = np.zeros(overscan.shape[0])
         # Get the best estimate of the amplitude
         for ii in range(overscan.shape[0]):
-            popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], use_fr, phss[ii]],
-                                   bounds=([-np.inf, use_fr * 0.99999999, -np.inf], [+np.inf, use_fr * 1.00000001, +np.inf]))
+            try:
+                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], use_fr, phss[ii]],
+                                       bounds=([-np.inf, use_fr * 0.99999999, -np.inf], [+np.inf, use_fr * 1.00000001, +np.inf]))
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
             val[ii] = popt[0]
             model_pattern[ii, :] = cosfunc(xdata_all, *popt)
         use_amp = np.median(val)
         # Get the best estimate of the phase, and generate a model
         for ii in range(overscan.shape[0]):
-            popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, use_fr, phss[ii]],
-                                   bounds=([use_amp * 0.99999999, use_fr * 0.99999999, -np.inf],
-                                           [use_amp * 1.00000001, use_fr * 1.00000001, +np.inf]))
+            try:
+                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, use_fr, phss[ii]],
+                                       bounds=([use_amp * 0.99999999, use_fr * 0.99999999, -np.inf],
+                                               [use_amp * 1.00000001, use_fr * 1.00000001, +np.inf]))
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
             model_pattern[ii, :] = cosfunc(xdata_all, *popt)
         outframe[tuple(osd_slice)] -= model_pattern
 
@@ -534,6 +548,8 @@ def pattern_frequency(frame, axis=1):
     Args:
         frame (:obj:`numpy.ndarray`):
             2D array to measure the pattern frequency
+        axis (int, optional):
+            Which axis should the pattern frequency be measured?
 
     Returns:
         :obj:`float`: The frequency of the sinusoidal pattern.
@@ -563,10 +579,6 @@ def pattern_frequency(frame, axis=1):
     phss = np.arctan2(amp.imag, amp.real)[idx]
     frqs = idx[1]
 
-    # This does a reasonable job, but needs to be much better - a fit or CC would be best to get subpixel sampling.
-    # posn = np.linspace(0.0, 1.0, arr.shape[1])[np.newaxis, :]
-    # tmpsig = amps[:, np.newaxis] * np.cos(2.0 * np.pi * frqs[:, np.newaxis] * posn + phss[:, np.newaxis])
-
     # Use the above to as initial guess parameters in chi-squared minimisation
     cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
     xdata = np.linspace(0.0, 1.0, arr.shape[1])
@@ -577,9 +589,16 @@ def pattern_frequency(frame, axis=1):
     for ii in range(arr.shape[0]):
         if ii in msk:
             continue
-        popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]],
-                               bounds=([-np.inf, frqs[ii]-1, -np.inf],
-                                       [+np.inf, frqs[ii]+1, +np.inf]))
+        try:
+            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]],
+                                   bounds=([-np.inf, frqs[ii]-1, -np.inf],
+                                           [+np.inf, frqs[ii]+1, +np.inf]))
+        except ValueError:
+            msgs.warn("Input data invalid for pattern frequency fit of row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
+        except RuntimeError:
+            msgs.warn("Pattern frequency fit failed for row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
         amp_dist[ii] = popt[0]
         frq_dist[ii] = popt[1]
     ww = np.where(amp_dist > 0.0)
@@ -590,9 +609,16 @@ def pattern_frequency(frame, axis=1):
     for ii in range(arr.shape[0]):
         if ii in msk:
             continue
-        popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
-                               bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
-                                       [use_amp * 1.00000001, use_frq+1, +np.inf]))
+        try:
+            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
+                                   bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
+                                           [use_amp * 1.00000001, use_frq+1, +np.inf]))
+        except ValueError:
+            msgs.warn("Input data invalid for patern frequency fit of row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
+        except RuntimeError:
+            msgs.warn("Pattern frequency fit failed for row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
         frq_dist[ii] = popt[1]
     # Ignore masked values, and return the best estimate of the frequency
     ww = np.where(frq_dist > 0.0)
