@@ -242,11 +242,11 @@ class Reduce(object):
         Main method to extract spectra from the ScienceImage
 
         Args:
-            global_sky (ndarray):
+            global_sky (:obj:`numpy.ndarray`_):
                 Sky estimate
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
-            scaleImg (:obj:`numpy.ndarray`, float):
+            scaleImg (:obj:`numpy.ndarray`_, float):
                 relative scale to be applied to the science frame.
         """
         # This holds the objects, pre-extraction

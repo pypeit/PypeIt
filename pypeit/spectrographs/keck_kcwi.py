@@ -122,8 +122,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200.fits'
             par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
-            # par['calibrations']['wavelengths']['n_first'] = 4
-            # par['calibrations']['wavelengths']['n_final'] = 6
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
@@ -460,7 +458,38 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
 
     def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
-        # TODO :: PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
+        """Calculate the pattern frequency using the overscan region that
+        covers the overscan and data sections. Using a larger range allows
+        the frequency to be pinned down with high accuracy.
+
+        NOTE: The amplifiers are arranged as follows:
+
+        |   (0,ny)  --------- (nx,ny)
+        |           | 3 | 4 |
+        |           ---------
+        |           | 1 | 2 |
+        |     (0,0) --------- (nx, 0)
+
+        TODO :: PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
+
+        Parameters
+        ----------
+        frame : ndarray
+            Raw data frame to be used to estimate the pattern frequency
+        rawdatasec_img : ndarray
+            array the same shape as frame, used as a mask to identify the
+            data pixels (0 is no data, non-zero values indicate the amplifier number)
+        oscansec_img : ndarray
+            array the same shape as frame, used as a mask to identify the
+            overscan pixels (0 is no data, non-zero values indicate the amplifier number)
+        hdu : HDUList
+            Opened fits file.
+
+        Returns
+        -------
+        hdu : HDUList
+            The input HDUList, with header updated to include the frequency of each amplifier
+        """
         msgs.info("Calculating pattern noise frequency")
 
         # Make a copy of te original frame

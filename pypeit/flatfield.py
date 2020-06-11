@@ -1160,6 +1160,7 @@ class FlatField(object):
 
         Parameters
         ----------
+        gpm : `numpy.ndarray`_
         debug : bool
             Debug the routine
 
@@ -1179,10 +1180,10 @@ class FlatField(object):
         trim = self.flatpar['slit_trim']
         spec_samp_fine = self.flatpar['spec_samp_coarse']
         rawflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
-        # Grab the BPM and the slit images
-        gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
-                1 - self.rawflatimg.bpm).astype(bool)
-        #gpm = np.logical_not(self.build_mask())
+        # Grab the GPM and the slit images
+        if gpm is None:
+            gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
+                    1 - self.rawflatimg.bpm).astype(bool)
         slitid_img_init = self.slits.slit_img(pad=0, initial=True)
         slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True)
         # Find all good slits, and create a mask of pixels to include (True=include)
