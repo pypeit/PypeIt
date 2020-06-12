@@ -9,10 +9,9 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import matplotlib.transforms as mtransforms
 
-from pypeit import slittrace
 from pypeit import msgs
 from pypeit.core import skysub
-from pypeit.io import write_to_fits
+from pypeit.images import buildimage
 
 operations = dict({'cursor': "Add sky region (LMB drag)\n" +
                    "         Remove sky region (RMB drag)\n" +
@@ -38,7 +37,7 @@ class SkySubGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, outname, det, slits, axes, pypeline, printout=False,
+    def __init__(self, canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph, printout=False,
                  runtime=False, resolution=1000, initial=False, flexure=None, overwrite=False):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
@@ -63,7 +62,9 @@ class SkySubGUI(object):
             Dictionary of four Matplotlib axes instances (Main
             spectrum panel, two for residuals, one for information)
         pypeline : str
-            Name of the intrument pipeline
+            Name of the instrument pipeline
+        spectrograph : str
+            Name of the spectrograph
         printout : bool
             Should the results be printed to screen
         initial : bool, optional
@@ -83,6 +84,7 @@ class SkySubGUI(object):
         self.image = image
         self.frame = frame
         self.pypeline = pypeline
+        self.spectrograph = spectrograph
         self._outname = outname
         self._overwrite = overwrite
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
@@ -146,7 +148,8 @@ class SkySubGUI(object):
         self.reset_regions()
 
     @classmethod
-    def initialize(cls, det, frame, slits, pypeline, outname="skyregions.fits", overwrite=False, initial=False,
+    def initialize(cls, det, frame, slits, pypeline, spectrograph, outname="skyregions.fits",
+                   overwrite=False, initial=False,
                    flexure=None, runtime=False, printout=False):
         """
         Initialize the 'ObjFindGUI' window for interactive object tracing
@@ -161,6 +164,8 @@ class SkySubGUI(object):
             Object with the image coordinates of the slit edges
         pypeline : str
             Name of the reduction pipeline
+        spectrograph : str
+            Name of the spectrograph
         printout : bool
             Should the results be printed to screen
         runtime : bool
@@ -205,8 +210,8 @@ class SkySubGUI(object):
         axes = dict(main=ax, info=axinfo)
         # Initialise the object finding window and display to screen
         fig.canvas.set_window_title('PypeIt - Sky regions')
-        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, pypeline, printout=printout,
-                          runtime=runtime, initial=initial, flexure=flexure, overwrite=overwrite)
+        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph,
+                          printout=printout, runtime=runtime, initial=initial, flexure=flexure, overwrite=overwrite)
         plt.show()
 
         return srgui
@@ -571,11 +576,12 @@ class SkySubGUI(object):
             inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
             # Save the mask
             outfil = self._outname
-            if os.path.exists(self._outname):
+            if os.path.exists(self._outname) and not self._overwrite:
                 outfil = 'temp.fits'
                 msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
                 self._overwrite = True
-            write_to_fits(inmask, outfil, name="SKYREG", overwrite=self._overwrite)
+            msskyreg = buildimage.SkyRegions(image=inmask.astype(np.float), PYP_SPEC=self.spectrograph)
+            msskyreg.to_master_file(master_filename=outfil)
         return
 
     def recenter(self):

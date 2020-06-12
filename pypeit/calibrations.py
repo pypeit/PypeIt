@@ -377,7 +377,7 @@ class Calibrations(object):
         else:
             # Build it
             self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                    self.par['biasframe'], bias_files)
+                                                         self.par['biasframe'], bias_files)
             # Save it?
             self.msbias.to_master_file(masterframe_name)
 

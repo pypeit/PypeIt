@@ -1241,4 +1241,4 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right):
                                      mask=slmsk, specmin=spec_min, specmax=spec_max,
                                      binspec=slits.binspec, binspat=slits.binspat, pad=0)
     # Generate the mask, and return
-    return (slitreg.slit_img(use_spatial=False) >= 0).astype(np.int)
+    return (slitreg.slit_img(use_spatial=False) >= 0).astype(np.bool)

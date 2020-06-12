@@ -689,7 +689,8 @@ class Reduce(object):
             # Check if a file exists
             if os.path.exists(regfile):
                 msgs.info("Loading SkyRegions file for: {0:s} --".format(sciName) + msgs.newline() + regfile)
-                skymask_init = fits.getdata(regfile).astype(np.bool)
+                skyreg = buildimage.SkyRegions.from_file(regfile)
+                skymask_init = skyreg.image.astype(np.bool)
                 usersky = True
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
