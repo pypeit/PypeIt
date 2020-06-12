@@ -54,7 +54,7 @@ class CombineImage(object):
             msgs.error('Combineimage requires a list of files to instantiate')
 
     def run(self, bias=None, flatimages=None, ignore_saturation=False, sigma_clip=True,
-            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine='weightmean'):
+            bpm=None, sigrej=None, maxiters=5, slits=None, dark=None, combine_method='weightmean'):
         """
         Generate a PypeItImage from a list of images
 
@@ -77,7 +77,7 @@ class CombineImage(object):
                 If True, turn off the saturation flag in the individual images before stacking
                 This avoids having such values set to 0 which for certain images (e.g. flat calibrations)
                 can have unintended consequences.
-            combine (str):
+            combine_method (str):
                 Method to combine images
                 Allowed options are 'weightmean', 'median'
 
@@ -152,11 +152,11 @@ class CombineImage(object):
         img_list = [img_stack]
         var_stack = utils.inverse(ivar_stack)
         var_list = [var_stack, rn2img_stack]
-        if combine == 'weightmean':
+        if combine_method == 'weightmean':
             img_list_out, var_list_out, gpm, nused = combine.weighted_combine(
                 weights, img_list, var_list, (mask_stack == 0),
                 sigma_clip=sigma_clip, sigma_clip_stack=img_stack, sigrej=sigrej, maxiters=maxiters)
-        elif combine == 'median':
+        elif combine_method == 'median':
             img_list_out = [np.median(img_stack, axis=0)]
             var_list_out = [np.median(var_stack, axis=0)]
             var_list_out += [np.median(rn2img_stack, axis=0)]

@@ -163,7 +163,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                                    sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
                                    ignore_saturation=ignore_saturation, slits=slits,
-                                   combine=frame_par['process']['combine'])
+                                   combine_method=frame_par['process']['combine'])
     #
     # Decorate according to the type of calibration
     #   Primarily for handling MasterFrames
