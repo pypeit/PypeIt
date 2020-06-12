@@ -364,7 +364,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid methods for combining frames.
         """
-        return [ 'mean', 'median', 'weightmean' ]
+        return ['median', 'weightmean' ]
 
     @staticmethod
     def valid_saturation_handling():
