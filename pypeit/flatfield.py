@@ -218,7 +218,7 @@ class FlatImages(datamodel.DataContainer):
         # Now the bsplines
         list_of_pixbsplines, list_of_illbsplines = [], []
         pixspat_ids, illspat_ids = [], []
-        has_pixel, has_illum = False, False
+        has_pixel, has_illum = False, False   # Boolean flags to test if the input file has pixelflat and/or illumflat
         for ihdu in hdu:
             if 'PIXELFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
                 has_pixel = True
