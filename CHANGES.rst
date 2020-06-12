@@ -3,6 +3,9 @@
 1.0.5dev
 --------
 
+ - Add median combining code
+ - Make biasframes median combine by default
+
 
 
 1.0.4 (27 May 2020)
