@@ -693,19 +693,20 @@ class Reduce(object):
                 usersky = True
             else:
                 msgs.warn("SkyRegions file not found:" + msgs.newline() + regfile)
-        elif len(self.par['reduce']['skysub']['user_regions']) != 0:
-            skyregtxt = self.par['reduce']['skysub']['user_regions']
-            if type(skyregtxt) is list:
-                skyregtxt = ",".join(skyregtxt)
-            msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(skyregtxt))
-            # The resolution probably doesn't need to be a user parameter
-            resolution = int(10.0*np.max(self.slits_right-self.slits_left))
-            # Get the regions
-            status, regions = skysub.read_userregions(skyregtxt, resolution=resolution)
-            # Generate image
-            skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
-                                                resolution=resolution)
-            usersky = True
+        elif self.par['reduce']['skysub']['user_regions'] is not None:
+            if len(self.par['reduce']['skysub']['user_regions']) != 0:
+                skyregtxt = self.par['reduce']['skysub']['user_regions']
+                if type(skyregtxt) is list:
+                    skyregtxt = ",".join(skyregtxt)
+                msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(skyregtxt))
+                # The resolution probably doesn't need to be a user parameter
+                resolution = int(10.0*np.max(self.slits_right-self.slits_left))
+                # Get the regions
+                status, regions = skysub.read_userregions(skyregtxt, resolution=resolution)
+                # Generate image
+                skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
+                                                    resolution=resolution)
+                usersky = True
         return skymask_init, usersky
 
     def spec_flexure_correct(self, sobjs, basename):

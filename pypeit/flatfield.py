@@ -69,7 +69,7 @@ class FlatImages(datamodel.DataContainer):
         'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
         'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
         'bpmflats': dict(otype=np.ndarray, atype=np.integer, desc='testing'),
-        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc = 'testing'),
+        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='testing'),
     }
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
@@ -246,8 +246,10 @@ class FlatImages(datamodel.DataContainer):
         if illspat_ids != _d['spat_id'].tolist() and has_illum:
             msgs.error("Bad parsing of illumflat BSPLINE spat_id in the MasterFlat")
         # Finish
-        _d['pixelflat_spat_bsplines'] = np.asarray(list_of_pixbsplines)
-        _d['illumflat_spat_bsplines'] = np.asarray(list_of_illbsplines)
+        if has_pixel:
+            _d['pixelflat_spat_bsplines'] = np.asarray(list_of_pixbsplines)
+        if has_illum:
+            _d['illumflat_spat_bsplines'] = np.asarray(list_of_illbsplines)
         return _d, dm_version_passed, dm_type_passed
 
     def show(self, type, slits=None, wcs_match=True):
