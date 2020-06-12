@@ -1116,7 +1116,7 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     return skymodel, objmodel, ivarmodel, outmask, sobjs
 
 
-def read_userregions(skyreg, resolution=1000):
+def read_userregions(skyreg, nslits, resolution=1000):
     """ Parse the sky regions defined by the user. The text should
         be a comma separated list of percentages to apply to all slits
         Example: The following string   :10,35:65,80:
@@ -1126,6 +1126,8 @@ def read_userregions(skyreg, resolution=1000):
     ----------
     skyreg : str
         The sky region definition.
+    nslits : int
+        Number of slits on the detector
     resolution: int, optional
         The percentage regions will be scaled to the specified resolution. The
         resolution should probably correspond to the number of spatial pixels
@@ -1136,7 +1138,8 @@ def read_userregions(skyreg, resolution=1000):
     status: int
         Status of the region parsing (0 = Successful, 1,2 = fail)
     regions : list
-        A list of two elements converting the input percentage regions to the resolution value
+        A list of size nslits. Each element contains a numpy array (dtype=bool) of size resolution.
+        A True value indicates a value that is part of the sky region.
 
     """
     status = 0
@@ -1154,24 +1157,39 @@ def read_userregions(skyreg, resolution=1000):
                             resolution if len(tts[1]) == 0 else int(
                                 round((resolution - 1) * float(tts[1]) / 100.0))
                             ])
+        # Initialise the sky regions - For each slit, generate a mask of size `resolution`.
+        # i.e. the spatial coordinate is sampled by `resolution` elements.
+        skyreg = [np.zeros(resolution, dtype=np.bool) for all in range(nslits)]
+        # For all regions, set the skyreg mask to True for each region
+        for reg in regions:
+            # Do some checks
+            xmin, xmax = reg[0], reg[1]
+            if xmax < xmin:
+                xmin, xmax = xmax, xmin
+            if xmin < 0:
+                xmin = 0
+            if xmax > resolution:
+                xmax = resolution
+            # Apply to all slits
+            for sl in range(nslits):
+                skyreg[sl][xmin:xmax] = True
+
     except:
         status = 1
     # Return
-    return status, regions
+    return status, skyreg
 
 
-def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=1000):
+def generate_mask(pypeline, skyreg, slits, slits_left, slits_right):
     """Generate the mask of sky regions
 
     Parameters
     ----------
     pypeline : str
         Name of the pypeline being used (e.g. MultiSlit, Echelle, IFU, ...)
-    regions : list
-        A list of two elements converting the input percentage regions to the resolution value.
-        For example, if regions = [[10,100], [800,900]] and resolution=1000, this indicates that
-        the sky regions are from 1-10% of the slit width (i.e. 10/1000, 100/1000, expressed as
-        a percentage) and from 80%-90% of the slit width.
+    skyreg : list
+        A list of size nslits. Each element contains a numpy array (dtype=bool)
+        where a True value indicates a value that is part of the sky region.
     slits : :class:`SlitTraceSet`
         Data container with slit trace information
     slits_left : ndarray
@@ -1188,23 +1206,8 @@ def generate_mask(pypeline, regions, slits, slits_left, slits_right, resolution=
     mask : numpy.ndarray
         Boolean mask containing sky regions
     """
-    # Initialise the sky regions - For each slit, generate a mask of size `resolution`.
-    # i.e. the spatial coordinate is sampled by `resolution` elements.
-    skyreg = [np.zeros(resolution, dtype=np.bool) for all in range(slits.nslits)]
-    # For all regions, set the skyreg mask to True for each region
-    for reg in regions:
-        # Do some checks
-        xmin, xmax = reg[0], reg[1]
-        if xmax < xmin:
-            xmin, xmax = xmax, xmin
-        if xmin < 0:
-            xmin = 0
-        if xmax > resolution:
-            xmax = resolution
-        # Apply to all slits
-        for sl in range(slits.nslits):
-            skyreg[sl][xmin:xmax] = True
-
+    # Grab the resolution that was used to generate skyreg
+    resolution = skyreg[0].size
     # Using the left/right slit edge traces, generate a series of traces that mark the
     # sky region boundaries in each slit.
     nreg = 0

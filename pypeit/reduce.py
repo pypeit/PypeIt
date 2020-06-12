@@ -704,8 +704,7 @@ class Reduce(object):
                 # Get the regions
                 status, regions = skysub.read_userregions(skyregtxt, resolution=resolution)
                 # Generate image
-                skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right,
-                                                    resolution=resolution)
+                skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right)
                 usersky = True
         return skymask_init, usersky
 

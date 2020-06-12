@@ -2,6 +2,7 @@
 This script allows the user to manually select the sky background regions
 """
 
+import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -567,40 +568,15 @@ class SkySubGUI(object):
         # Only do this if the user wishes to save the result
         if self._use_updates:
             # Generate the mask
-            inmask = self.generate_mask()
+            inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
             # Save the mask
-            write_to_fits(inmask, self._outname, name="SKYREG", overwrite=self._overwrite)
+            outfil = self._outname
+            if os.path.exists(self._outname):
+                outfil = 'temp.fits'
+                msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
+                self._overwrite = True
+            write_to_fits(inmask, outfil, name="SKYREG", overwrite=self._overwrite)
         return
-
-    def generate_mask(self):
-        """Generate the mask of sky regions
-
-        Returns:
-            ndarray : Boolean mask containing sky regions
-        """
-        nreg = 0
-        left_edg, righ_edg = np.zeros((self.nspec, 0)), np.zeros((self.nspec, 0))
-        spec_min, spec_max = np.array([]), np.array([])
-        for sl in range(self._nslits):
-            diff = self.slits_right[:, sl] - self.slits_left[:, sl]
-            tmp = np.zeros(self._resolution+2)
-            tmp[1:-1] = self._skyreg[sl]
-            wl = np.where(tmp[1:] > tmp[:-1])[0]
-            wr = np.where(tmp[1:] < tmp[:-1])[0]
-            for rr in range(wl.size):
-                left = self.slits_left[:, sl] + wl[rr]*diff/(self._resolution-1.0)
-                righ = self.slits_left[:, sl] + wr[rr]*diff/(self._resolution-1.0)
-                left_edg = np.append(left_edg, left[:, np.newaxis], axis=1)
-                righ_edg = np.append(righ_edg, righ[:, np.newaxis], axis=1)
-                nreg += 1
-                spec_min = np.append(spec_min, self.slits.specmin[sl])
-                spec_max = np.append(spec_max, self.slits.specmax[sl])
-        # Instantiate the regions
-        regions = slittrace.SlitTraceSet(left_edg, righ_edg, self.pypeline, nspec=self.nspec, nspat=self.nspat,
-                                         mask=self.slits.mask, specmin=spec_min, specmax=spec_max,
-                                         binspec=self.slits.binspec, binspat=self.slits.binspat, pad=0)
-        # Generate the mask, and return
-        return (regions.slit_img(use_spatial=False) >= 0).astype(np.int)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()
