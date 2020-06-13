@@ -167,7 +167,13 @@ class FlatImages(datamodel.DataContainer):
 
     @property
     def bpmflats(self):
-        return self.pixelflat_bpm
+        if self.pixelflat_bpm is not None:
+            return self.pixelflat_bpm
+        elif self.illumflat_bpm is not None:
+            return self.illumflat_bpm
+        else:
+            msgs.warn("FlatImages contains no BPM - trying to generate one")
+            return np.zeros(self.procflat.shape, dtype=np.int)
 
     @property
     def spat_bsplines(self):
