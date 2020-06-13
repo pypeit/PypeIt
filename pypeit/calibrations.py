@@ -541,26 +541,19 @@ class Calibrations(object):
             # No pixel flat, but there might be an illumflat
             self.flatimages = illumflatImages
 
-        # Save flat images
-        self.flatimages.to_master_file(masterframe_filename)
-        # Save slits too, in case they were tweaked
-        self.slits.to_master_file()
-
         # 3) Load user-supplied images
         #  NOTE:  This is the *final* images, not just a stack
         #  And it will over-ride what is generated below (if generated)
         if self.par['flatfield']['pixelflat_file'] is not None:
-            # - Name is explicitly correct?
-            # THIS IS DONE IN PYPEITPAR
-            #if os.path.isfile(self.par['flatfield']['pixelflat_file']):
-            #    flat_file = self.par['flatfield']['pixelflat_file']
-            #else:
-            #    msgs.error('Could not find user-defined flatfield file: {0}'.format(
-            #        self.par['flatfield']['pixelflat_file']))
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
             with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
                 self.flatimages.pixelflat_norm = hdu[self.det].data
+
+        # Save flat images
+        self.flatimages.to_master_file(masterframe_filename)
+        # Save slits too, in case they were tweaked
+        self.slits.to_master_file()
 
         # Return
         return self.flatimages
