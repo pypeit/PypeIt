@@ -547,8 +547,6 @@ class Reduce(object):
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
                                        pos_mask=(not self.ir_redux), use_wave=True, show_fit=show_fit)
-        # # Repeat a couple of times
-        # for reps in range(2):
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 msgs.error("Cannot perform joint global sky fit")

@@ -186,12 +186,14 @@ class FlatImages(datamodel.DataContainer):
         Returns:
 
         """
-        illumflat = np.ones_like(self.procflat)
+        illumflat = np.ones_like(self.pixelflat)
         # Check the frametype, and load spatial bsplines
         if frametype == 'pixel':
             spat_bsplines = self.pixelflat_spat_bsplines
         else:
             spat_bsplines = self.spat_bsplines
+            if self.illumflat_spat_bsplines is not None:
+                illumflat = np.ones_like(self.illumflat_raw)
         # Loop
         for slit_idx in range(slits.nslits):
             # Skip masked
