@@ -65,11 +65,12 @@ class FlatImages(datamodel.DataContainer):
                               desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id'),
-        'procflat': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
-        'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
-        'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='testing'),
-        'bpmflats': dict(otype=np.ndarray, atype=np.integer, desc='testing'),
-        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='testing'),
+        # Properties of the class also need to be included in the data model
+        'procflat': dict(otype=np.ndarray, atype=np.floating, desc='Class property which returns <flat_type>_raw'),
+        'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Class property which returns <flat_type>_norm'),
+        'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Class property which returns <flat_type>_model'),
+        'bpmflats': dict(otype=np.ndarray, atype=np.integer, desc='Class property which returns <flat_type>_bpm'),
+        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='Class property which returns <flat_type>_spat_bsplines'),
     }
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
