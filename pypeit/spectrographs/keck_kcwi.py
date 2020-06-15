@@ -509,17 +509,18 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 cmin = 1+np.max(pixs[0])
                 frame = raw_img[cmin:, rmin:rmax].astype(np.float64)
             elif num_amps == 4:
-                if amp in [0, 1]:
+                if amp in [1, 2]:
                     pixalt = np.where((rawdatasec_img == amp+2) | (oscansec_img == amp+2))
                     cmin = 1+np.max(pixs[0])
-                    cmax = np.min(pixalt[0])
+                    cmax = (np.min(pixalt[0]) + cmin)//2  # Average of the bottom of the top amp, and top of the bottom amp
                 else:
                     pixalt = np.where((rawdatasec_img == amp-2) | (oscansec_img == amp-2))
-                    cmin = 1+np.min(pixalt[0])
-                    cmax = np.min(pixs[0])
+                    cmax = 1+np.min(pixs[0])
+                    cmin = (np.max(pixalt[0]) + cmax)//2
                 frame = raw_img[cmin:cmax, rmin:rmax].astype(np.float64)
             # Calculate the pattern frequency
             freq = procimg.pattern_frequency(frame)
+            msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
             # Add the frequency to the zeroth header
             hdu[0].header['PYPFRQ{0:02d}'.format(amp)] = freq
 
