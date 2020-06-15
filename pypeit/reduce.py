@@ -539,9 +539,12 @@ class Reduce(object):
             msgs.info("Performing joint global sky subtraction")
             thismask = (self.slitmask != 0)
             inmask = ((self.sciImg.fullmask == 0) & thismask & skymask_now).astype(np.bool)
+            # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
+            # the tilts frame, but conserves wavelength position in each slit)
+            tilt_wave = (self.waveimg - self.waveimg.min()) / (self.waveimg.max() - self.waveimg.min())
             # Find sky
             self.global_sky[thismask] \
-                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.waveimg,
+                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, tilt_wave,
                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
@@ -566,7 +569,7 @@ class Reduce(object):
                 onslit_init = (slitid_img_init == spatid)
                 onslit_gpm = (onslit & inmask)
                 # Fit a low order polynomial
-                xfit = self.waveimg[onslit_gpm]
+                xfit = tilt_wave[onslit_gpm]
                 yfit = rel_skyillum[onslit_gpm]
                 srtd = np.argsort(xfit)
                 # Rough outlier rejection
@@ -580,7 +583,7 @@ class Reduce(object):
                 if exit_status > 1:
                     msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
                 else:
-                    scaleImg[onslit_init] = slit_bspl.value(self.waveimg[onslit_init])[0]
+                    scaleImg[onslit_init] = slit_bspl.value(tilt_wave[onslit_init])[0]
 
             # Correct the relative illumination of the science frame
             # TODO :: scaleImg *really* should be saved to the Spec2D data model.
@@ -593,7 +596,7 @@ class Reduce(object):
             # Repeat the sky subtraction
             msgs.info("Repeating global sky subtraction")
             self.global_sky[thismask] \
-                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.waveimg,
+                = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, tilt_wave,
                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],

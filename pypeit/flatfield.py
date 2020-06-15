@@ -690,6 +690,7 @@ class FlatField(object):
         norm_spec = np.ones_like(rawflat)
         norm_spec_spat = np.ones_like(rawflat)
         twod_model = np.ones_like(rawflat)
+        twod_gpm_out = np.ones_like(rawflat, dtype=np.bool)
 
         # #################################################
         # Model each slit independently
@@ -1002,7 +1003,7 @@ class FlatField(object):
             poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
             # Perform the full 2d fit
-            twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
+            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
                                             poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
@@ -1061,6 +1062,8 @@ class FlatField(object):
                           'flat-field corrections included in model of slit {0}!'.format(slit_spat))
             else:
                 twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
+                twod_gpm_out[twod_gpm] = twod_gpm_fit[np.argsort(twod_srt)]
+
 
             # Construct the full flat-field model
             # TODO: Why is the 0.05 here for the illumflat compared to the 0.01 above?
@@ -1094,7 +1097,7 @@ class FlatField(object):
 
         # Finally, using the above products, calculate the relative spectral illumination, if requested
         if self.flatpar['slit_illum_relative']:
-            self.spec_illum = self.spectral_illumination(twod_gpm_fit, debug=debug)
+            self.spec_illum = self.spectral_illumination(twod_gpm_out, debug=debug)
 
     def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, gpm, debug=False):
         """

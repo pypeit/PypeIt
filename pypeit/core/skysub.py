@@ -48,7 +48,7 @@ def skysub_npoly(thismask):
 
 
 def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=None, bsp=0.6, sigrej=3.0, maxiter=35,
-                  trim_edg=(3,3), pos_mask=True, show_fit=False, no_poly=False, npoly=None, use_wave=False):
+                  trim_edg=(3,3), pos_mask=True, show_fit=False, no_poly=False, npoly=None):
     """
     Perform global sky subtraction on an input slit
 
@@ -87,8 +87,6 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             requires that the counts are positive which will not be the
             case for i.e. an A-B image. Thus the routine will fail if
             pos_mask is not set to False.
-        use_wave: boolean, default use_wave = False
-            If true, tilts is assumed to be the wavelength image (instead of the tilts image)
 
         show_fit: boolean, default show_fit = False
             Plot a fit of the sky pixels and model fit to the screen.
@@ -115,10 +113,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
 
     # Init
     (nspec, nspat) = image.shape
-    if use_wave:
-        piximg = tilts
-    else:
-        piximg = tilts * (nspec-1)
+    piximg = tilts * (nspec-1)
     if inmask is None:
         inmask = (ivar > 0.0) & thismask & np.isfinite(image) & np.isfinite(ivar)
     else:
