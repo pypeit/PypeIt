@@ -502,6 +502,14 @@ class Calibrations(object):
         if os.path.isfile(masterframe_filename) and self.reuse_masters:
             self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
             self.flatimages.is_synced(self.slits)
+            # Load user defined files
+            if self.par['flatfield']['pixelflat_file'] is not None:
+                # Load
+                msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
+                with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+                    self.flatimages = flatfield.merge(self.flatimages,
+                                                      flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
+            # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
 
@@ -541,6 +549,11 @@ class Calibrations(object):
             # No pixel flat, but there might be an illumflat
             self.flatimages = illumflatImages
 
+        # Save flat images
+        self.flatimages.to_master_file(masterframe_filename)
+        # Save slits too, in case they were tweaked
+        self.slits.to_master_file()
+
         # 3) Load user-supplied images
         #  NOTE:  This is the *final* images, not just a stack
         #  And it will over-ride what is generated below (if generated)
@@ -548,12 +561,8 @@ class Calibrations(object):
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
             with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
-                self.flatimages.pixelflat_norm = hdu[self.det].data
-
-        # Save flat images
-        self.flatimages.to_master_file(masterframe_filename)
-        # Save slits too, in case they were tweaked
-        self.slits.to_master_file()
+                self.flatimages = flatfield.merge(self.flatimages,
+                                                  flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
         # Return
         return self.flatimages

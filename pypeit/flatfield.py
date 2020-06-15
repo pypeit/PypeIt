@@ -1374,56 +1374,43 @@ def show_flats(image_list, wcs_match=True, slits=None):
             clear = False
 
 
-def merge(pixelflat, illumflat):
+def merge(init_cls, merge_cls):
     """
     Merge secondary into primary, and return a merged :class:`pypeit.flatfield.FlatImages` class.
     If an element exists in both primary and secondary, the primary value is taken
 
     Parameters
     ----------
-    pixelflat : :class:`pypeit.flatfield.FlatImages`
-        The pixelflat instance of FlatImages
-    illumflat : :class:`pypeit.flatfield.FlatImages`
-        The illumflat instance of FlatImages
+    init_cls : :class:`pypeit.flatfield.FlatImages`
+        Initial class (the elements of this class will be considered the default)
+    merge_cls : :class:`pypeit.flatfield.FlatImages`
+        The non-zero elements will be merged into init_cls.
 
     Returns
     -------
     :class:`pypeit.flatfield.FlatImages` : A new instance of the FlatImages class with merged properties.
     """
+    # Check the class to be merged in is not None
+    if merge_cls is None:
+        return init_cls
     # Initialise variables
-    pixelflat_raw, pixelflat_norm, pixelflat_model = None, None, None
-    pixelflat_spat_bsplines, pixelflat_bpm, pixelflat_spec_illum = None, None, None
-    PYP_SPEC, spat_id = None, None
-    illumflat_raw, illumflat_spat_bsplines, illumflat_bpm = None, None, None
-
+    # extract all elements that are prefixed with 'pixelflat_' or 'illumflat_'
+    keys = [a for a in list(init_cls.__dict__.keys()) if '_' in a and a.split('_')[0] in ['illumflat', 'pixelflat']]
+    dd = dict()
+    for key in keys:
+        dd[key] = None
     # Cherry pick the values from each class
-    if pixelflat is not None:
-        pixelflat_raw = pixelflat.pixelflat_raw
-        pixelflat_norm = pixelflat.pixelflat_norm
-        pixelflat_model = pixelflat.pixelflat_model
-        pixelflat_spat_bsplines = pixelflat.pixelflat_spat_bsplines
-        pixelflat_bpm = pixelflat.pixelflat_bpm
-        pixelflat_spec_illum = pixelflat.pixelflat_spec_illum
-        PYP_SPEC = pixelflat.PYP_SPEC
-        spat_id = pixelflat.spat_id
-    if illumflat is not None:
-        illumflat_raw = illumflat.illumflat_raw
-        illumflat_spat_bsplines = illumflat.illumflat_spat_bsplines
-        illumflat_bpm = illumflat.illumflat_bpm
-        if PYP_SPEC is None:
-            PYP_SPEC = illumflat.PYP_SPEC
-        if spat_id is None:
-            spat_id = illumflat.spat_id
+    dd['PYP_SPEC'] = merge_cls.PYP_SPEC if init_cls.PYP_SPEC is None else init_cls.PYP_SPEC
+    dd['spat_id'] = merge_cls.spat_id if init_cls.spat_id is None else init_cls.spat_id
+    for key in keys:
+        mrg = False
+        try:
+            exec("dd['{0:s}'] = init_cls.{0:s}".format(key), locals())
+            exec("mrg = dd['{0:s}'] is None".format(key), locals())
+            if mrg:
+                exec("dd['{0:s}'] = merge_cls.{0:s}".format(key), locals())
+        except AttributeError:
+            pass
 
     # Construct the merged class
-    return FlatImages(pixelflat_raw=pixelflat_raw,
-                      pixelflat_norm=pixelflat_norm,
-                      pixelflat_model=pixelflat_model,
-                      pixelflat_spat_bsplines=pixelflat_spat_bsplines,
-                      pixelflat_bpm=pixelflat_bpm,
-                      pixelflat_spec_illum=pixelflat_spec_illum,
-                      illumflat_raw=illumflat_raw,
-                      illumflat_spat_bsplines=illumflat_spat_bsplines,
-                      illumflat_bpm=illumflat_bpm,
-                      PYP_SPEC=PYP_SPEC,
-                      spat_id=spat_id)
+    return FlatImages(**dd)
