@@ -3007,7 +3007,7 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None,manual=None):#NOTE: manual added by Christopher SK. unsure if necessary
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3022,6 +3022,10 @@ class FindObjPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
+        defaults['manual'] = None
+        dtypes['manual'] = list
+        descr['manual'] = 'list of manual extraction parameter set'
+
         defaults['trace_npoly'] = 5
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of legendre polynomial fits to object traces.'
@@ -3098,7 +3102,7 @@ class FindObjPar(ParSet):
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find','manual']#NOTE: manual added by Christopher SK
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3277,7 +3281,7 @@ class ExtractionPar(ParSet):
         descr['use_2dmodel_mask'] = 'Mask pixels rejected during profile fitting when extracting.' \
                              'Turning this off may help with bright emission lines.'
 
-
+        defaults['manual'] = None
         dtypes['manual'] = list
         descr['manual'] = 'List of manual extraction parameter sets'
 
@@ -3305,7 +3309,9 @@ class ExtractionPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
+        #kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
+        #NOTE: Removing this deprecated line of code allows the use of manual under ExtractionPar in Pypeit file
+        #Changed by Christopher SK
         return cls(**kwargs)
 
     def validate(self):

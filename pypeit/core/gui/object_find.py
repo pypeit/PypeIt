@@ -131,9 +131,10 @@ class ObjectTraces:
         """Construct a string that can be placed in the .pypeit file to define new object traces
         """
         strall = ""
+        msgs.warn("Changing order of string to be consistent with code for manual extraction made by Christopher SK at line 133 in object_find.py: _pos_spat <-> _pos_spec")
         for ii in range(self.nobj):
             if self._add_rm[ii] == 1:
-                strall += ",{0:d}:{1:.1f}:{2:.1f}:{3:.1f}".format(self._det[ii], self._pos_spat[ii], self._pos_spec[ii], self._fwhm[ii])
+                strall += ",{0:d}:{1:.1f}:{2:.1f}:{3:.1f}".format(self._det[ii], self._pos_spec[ii], self._pos_spat[ii], self._fwhm[ii])
         strall += "\n"
         return strall[1:]
 
@@ -917,6 +918,10 @@ def initialise(det, frame, left, right, obj_trace, trace_models, sobjs, slit_ids
     mad = np.median(np.abs(frame-med))
     vmin = med-3*mad
     vmax = med+3*mad
+    if mad == 0:
+        #NOTE: Added conditional for cases where mad == 0, Christopher SK
+        vmin = med - 10
+        vmax = med + 10
 
     # Add the main figure axis
     fig, ax = plt.subplots(figsize=(16, 9), facecolor="white")

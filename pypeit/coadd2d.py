@@ -408,7 +408,22 @@ class CoAdd2D(object):
         if show:
             redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.mask == 0), chname = 'imgminsky', slits=True, clear=True)
         # Object finding
-        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks)
+         msgs.warn("added in manual extraction at line 371 in coadd2d.py")
+         man = parcopy['reduce']['extraction']['manual']
+         if man is not None:
+             det = np.zeros_like(man)
+             spec = np.zeros_like(man)
+             spat = np.zeros_like(man)
+             fwhm = np.zeros_like(man)
+             for i in range(len(man)):
+                 det[i],spec[i],spat[i],fwhm[i] = man[i].split(':')
+             mandict = {}
+             mandict['hand_extract_spec'] = np.array(spec,dtype=np.float)
+             mandict['hand_extract_det'] = np.array(det,dtype=np.int)
+             mandict['hand_extract_fwhm'] = np.array(fwhm,dtype=np.float)
+             mandict['hand_extract_spat'] = np.array(spat,dtype=np.float)
+        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks,manual_extract_dict=mandict)
+        #NOTE: added in manual extraction for 2d coadd Christopher SK
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
         skymodel_pseudo, objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs = redux.local_skysub_extract(

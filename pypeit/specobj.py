@@ -135,6 +135,14 @@ class SpecObj(datamodel.DataContainer):
         'ECH_NAME': dict(otype=str,
                          desc='Name of the object for echelle data. Same as NAME above but order numbers are '
                               'omitted giving a unique name per object.')
+
+        #NOTE: added by Christopher SK. I note that this is not keeping with the syntax of the abobe data elements
+        # but this was necessary for these data to pass checks in core/extract.py. nevertheless a renaming there 
+        # would clearly allow a renaming here and is likely desirable.
+        'hand_extract_spec': dict(otype=float, desc = 'Spectroscopic position of manual extraction'),
+        'hand_extract_spat': dict(otype=float, desc='Spatial position of manual extraction'),
+        'hand_extract_det': dict(otype=(int,np.int64), desc='The detector to perform manual extraction on'),
+        'hand_extract_fwhm': dict(otype=float, desc='FWHM of objects')                      
     }
 
     def __init__(self, PYPELINE, DET, OBJTYPE='unknown',

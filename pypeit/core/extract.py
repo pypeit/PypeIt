@@ -1486,12 +1486,25 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         else:
             sobjs[iobj].FWHM = fwhm
 
+    msgs.warn("adding in conditional at 1473 in extract.py")
+    if hand_extract_dict is not None: check_hand = np.where(np.array(thismask[np.rint(hand_extract_dict['hand_extract_spat']).astype(int), np.rint(hand_extract_dict['hand_extract_spat']).astype(int)]))[0]
+ 
+
 
     if (len(sobjs) == 0) & (hand_extract_dict is None):
         msgs.info('No objects found')
         skymask = create_skymask_fwhm(sobjs,thismask)
         return specobjs.SpecObjs(), skymask[thismask]
+    elif (len(sobjs) > 0) & (hand_extract_dict is None):
+        slitcheck = False
+    elif (len(sobjs) == 0) & (len(hand_extract_dict['hand_extract_spat'][check_hand])==0):
+        msgs.info('No objects found or Hand selected in slit')
+        skymask = create_skymask_fwhm(sobjs,thismask)
+        return specobjs.SpecObjs(), skymask[thismask]
+    elif (len(hand_extract_dict['hand_extract_spat'][check_hand])==0):
+        slitcheck = False
     else:
+        slitcheck = True
         msgs.info("Automatic finding routine found {0:d} objects".format(len(sobjs)))
 
     msgs.info('Fitting the object traces')
@@ -1516,7 +1529,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs[iobj].set_name()
 
     # Now deal with the hand apertures if a hand_extract_dict was passed in. Add these to the SpecObj objects
-    if hand_extract_dict is not None:
+    msgs.warn("Looking for manual extraction {}".format(hand_extract_dict))
+    if (hand_extract_dict is not None) & slitcheck:
+        msgs.warn("Is this happening? added at 1504 in extract.py by Christopher SK")
         # First Parse the hand_dict
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
@@ -1539,6 +1554,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
+            msgs.warn("adding in objects to data_model in specobj.py below line 91")
             thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
@@ -1546,8 +1562,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
             thisobj.hand_extract_flag = True
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.SPAT_FRACPOS = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False) # interpolate from ximg
-            thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp),fluxconv_cont) # interpolate from fluxconv
+            msgs.warn("changing SPAT_FRACPOS at 1540 in extract.py by Christoph SK")
+            fracpos = f_ximg(thisobj.hand_extract_spec,thisobj.hand_extract_spat,grid=False)
+            #thisobj.SPAT_FRACPOS = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False) # interpolate from ximg
+            thisobj.SPAT_FRACPOS = thisobj.hand_extract_spat/nsamp
+            thisobj.smash_peakflux = np.interp(fracpos*nsamp,np.arange(nsamp),fluxconv_cont) # interpolate from fluxconv
             # assign the trace
             spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
             shift = thisobj.hand_extract_spat - spat_0
@@ -1570,7 +1589,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     #    return (None, skymask, objmask)
 
     ## Okay now loop over all the regular aps and exclude any which within the fwhm of the hand_extract_APERTURES
-    if nobj_reg > 0 and hand_extract_dict is not None:
+    if nobj_reg > 0 and hand_extract_dict is not None and slitcheck:
         spat_pixpos = sobjs.SPAT_PIXPOS
         hand_flag = sobjs.hand_extract_flag
         spec_fwhm = sobjs.FWHM
@@ -1626,7 +1645,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     # If requested display the resulting traces on top of the image
     if show_trace:
         viewer, ch = ginga.show_image(image*(thismask*inmask))
-        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].SLITID)
+        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].SLITID)#NOTE: In v0.13.1 Christopher SK had to change this to slitid from SLITID, believed to be remedied
         for iobj in range(nobj):
             if sobjs[iobj].hand_extract_flag == False:
                 color = 'orange'

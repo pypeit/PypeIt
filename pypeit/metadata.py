@@ -127,6 +127,10 @@ class PypeItMetaData:
         self.configs = None
         self.calib_bitmask = None
 
+        #NOTE: Need to keep track of user objects, not sure if this does that (Christopher SK)
+        msgs.warn("Adding in at 131 in metadata.py")
+        self.usrobjs = self.par['reduce']['extraction']['manual']
+
     def _impose_types(self, columns, types):
         """
         Impose a set of types on certain columns.
@@ -234,19 +238,22 @@ class PypeItMetaData:
         """
 
         # Manual extract
-        if 'manual_extract' not in self.keys():
+        #if 'manual_extract' not in self.keys():
+        #    return None
+        if self.par['reduce']['extraction']['manual'] is None:
             return None
         # Warn me
         if len(frames) > 1:
             msgs.warn("Taking first science frame in stack for manual extraction")
         frame = frames[0]
         # Empty?
-        if self['manual_extract'][frame] == 'None':
-            return None
+        #if self['manual_extract'][frame] == 'None':
+        #    return None
 
         # Parse the input
         manual_extract_dict = {}
-        items = self['manual_extract'][frame].split(',')
+        #items = self['manual_extract'][frame].split(',')
+        items = self.par['reduce']['extraction']['manual']
         dets, spats, specs, fwhms = [], [], [], []
         for item in items:
             numbers = item.split(':')
