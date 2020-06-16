@@ -84,7 +84,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
               images with shape (nspec, nspat)
             - var_list_out: list: The list of ndarray propagated
               variance images with shape (nspec, nspat)
-            - gpm: bool ndarray, shape (nspec, nspat): Mask for
+            - gpm: bool ndarray, shape (nspec, nspat): Good pixel mask for
               combined image. True=Good, False=Bad
             - nused: int ndarray, shape (nspec, nspat): Image of
               integers indicating the number of images that contributed

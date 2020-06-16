@@ -169,7 +169,7 @@ class CombineImage(object):
                                                     ivar=utils.inverse(var_list_out[0]),
                                                     bpm=pypeitImage.bpm,
                                                     rn2img=var_list_out[1],
-                                                    crmask=np.invert(gpm),
+                                                    crmask=np.logical_not(gpm),
                                                     detector=pypeitImage.detector,
                                                     PYP_SPEC=pypeitImage.PYP_SPEC)
         # Internals
