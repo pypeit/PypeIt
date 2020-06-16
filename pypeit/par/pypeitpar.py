@@ -364,7 +364,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid methods for combining frames.
         """
-        return [ 'mean', 'median', 'weightmean' ]
+        return ['median', 'weightmean' ]
 
     @staticmethod
     def valid_saturation_handling():
@@ -3366,6 +3366,7 @@ class CalibrationsPar(ParSet):
         # Calibration Frames
         defaults['biasframe'] = FrameGroupPar(frametype='bias',
                                               process=ProcessImagesPar(apply_gain=False,
+                                                                       combine='median',
                                                                        use_biasimage=False,
                                                                        use_pixelflat=False,
                                                                        use_illumflat=False))
