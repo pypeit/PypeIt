@@ -116,9 +116,9 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     piximg = tilts * (nspec-1)
     if inmask is None:
         inmask = (ivar > 0.0) & thismask & np.isfinite(image) & np.isfinite(ivar)
-    else:
+    elif inmask.dtype != np.bool:
         # Check that it's of type bool
-        inmask = inmask.astype(np.bool)
+        msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
     # Sky pixels for fitting
     inmask_in = thismask & (ivar > 0.0) & inmask & np.invert(edgmask)
@@ -1111,11 +1111,14 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
     return skymodel, objmodel, ivarmodel, outmask, sobjs
 
 
-def read_userregions(skyreg, nslits, resolution=1000):
+def read_userregions(skyreg, nslits, maxslitlength):
     """ Parse the sky regions defined by the user. The text should
         be a comma separated list of percentages to apply to all slits
         Example: The following string   :10,35:65,80:
-        would select the first 10%, the inner 30%, and the final 20% of all slits
+        would select (in all slits):
+        (1) the leftmost 10% of the slit length,
+        (2) the inner 30% (from 35-65% of the slit length), and
+        (3) the final 20% of the slit length (from 80-100% of the slit length)
 
     Parameters
     ----------
@@ -1123,10 +1126,8 @@ def read_userregions(skyreg, nslits, resolution=1000):
         The sky region definition.
     nslits : int
         Number of slits on the detector
-    resolution: int, optional
-        The percentage regions will be scaled to the specified resolution. The
-        resolution should probably correspond to the number of spatial pixels
-        on the slit.
+    maxslitlength: float
+        The maximum slit length (in pixels).
 
     Returns
     -------
@@ -1137,6 +1138,8 @@ def read_userregions(skyreg, nslits, resolution=1000):
         A True value indicates a value that is part of the sky region.
 
     """
+    # Define the resolution of the sky region boundary to be at least a tenth of a pixel
+    resolution = int(10.0 * maxslitlength)
     status = 0
     regions = []
     try:

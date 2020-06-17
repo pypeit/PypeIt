@@ -543,10 +543,14 @@ class Calibrations(object):
 
         # Merge the illum flat with the pixel flat
         if pixelflatImages is not None:
-            msgs.info("Merging illumflat parameters into FlatImages")
+            # Combine the pixelflat and illumflat parameters into flatimages.
+            # This will merge the attributes of pixelflatImages that are not None
+            # with the attributes of illflatImages that are not None. Default is
+            # to take pixelflatImages.
             self.flatimages = flatfield.merge(pixelflatImages, illumflatImages)
         else:
-            # No pixel flat, but there might be an illumflat
+            # No pixel flat, but there might be an illumflat. This will mean that
+            # the attributes prefixed with 'pixelflat_' will all be None.
             self.flatimages = illumflatImages
 
         # Save flat images

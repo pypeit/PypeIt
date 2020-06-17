@@ -237,7 +237,7 @@ class Reduce(object):
         # Return
         return manual_extract_dict
 
-    def extract(self, global_sky, sobjs_obj, scaleImg=1.0):
+    def extract(self, global_sky, sobjs_obj):
         """
         Main method to extract spectra from the ScienceImage
 
@@ -246,8 +246,6 @@ class Reduce(object):
                 Sky estimate
             sobjs_obj (:class:`pypeit.specobjs.SpecObjs`):
                 List of SpecObj that have been found and traced
-            scaleImg (:obj:`numpy.ndarray`_, float):
-                relative scale to be applied to the science frame.
         """
         # This holds the objects, pre-extraction
         self.sobjs_obj = sobjs_obj
@@ -549,7 +547,7 @@ class Reduce(object):
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
-                                       pos_mask=(not self.ir_redux), use_wave=True, show_fit=show_fit)
+                                       pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 msgs.error("Cannot perform joint global sky fit")
@@ -601,7 +599,7 @@ class Reduce(object):
                                        sigrej=sigrej, trim_edg=trim_edg,
                                        bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
-                                       pos_mask=(not self.ir_redux), use_wave=True, show_fit=show_fit)
+                                       pos_mask=(not self.ir_redux), show_fit=show_fit)
         else:
             # Loop on slits
             for slit_idx in gdslits:
@@ -702,9 +700,9 @@ class Reduce(object):
                     skyregtxt = ",".join(skyregtxt)
                 msgs.info("Generating skysub mask based on the user defined regions   {0:s}".format(skyregtxt))
                 # The resolution probably doesn't need to be a user parameter
-                resolution = int(10.0*np.max(self.slits_right-self.slits_left))
+                maxslitlength = np.max(self.slits_right-self.slits_left)
                 # Get the regions
-                status, regions = skysub.read_userregions(skyregtxt, resolution=resolution)
+                status, regions = skysub.read_userregions(skyregtxt, self.slits.nslits, maxslitlength)
                 # Generate image
                 skymask_init = skysub.generate_mask(self.pypeline, regions, self.slits, self.slits_left, self.slits_right)
                 usersky = True

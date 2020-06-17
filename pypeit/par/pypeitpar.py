@@ -262,7 +262,7 @@ class ProcessImagesPar(ParSet):
         defaults['use_specillum'] = False
         dtypes['use_specillum'] = bool
         descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct the spectral' \
-                                 'illumination profile of each slit.'
+                                 'illumination profile of each slit. This is primarily used for IFUs.'
 
         # Flexure
         defaults['spat_flexure_correct'] = False
