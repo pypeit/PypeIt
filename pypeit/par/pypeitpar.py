@@ -781,9 +781,9 @@ class AlignPar(ParSet):
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of the polynomial to use when fitting the trace of a single bar'
 
-        defaults['trim_edge'] = [1, 1]
+        defaults['trim_edge'] = [0, 0]
         dtypes['trim_edge'] = list
-        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding alignment bars'
 
         defaults['sig_thresh'] = 1.0  # This must be low, because the routine will find the
         dtypes['sig_thresh'] = [int, float]
@@ -2975,6 +2975,10 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
 
+        defaults['trim_edge'] = CubePar()
+        dtypes['trim_edge'] = [ ParSet, dict ]
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky sub'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
                                              values=list(pars.values()),
@@ -2988,7 +2992,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction', 'cube']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -3138,7 +3142,7 @@ class SkySubPar(ParSet):
     """
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
-                 user_regions=None, ref_slit=None, joint_fit=None, load_mask=None):
+                 user_regions=None, joint_fit=None, load_mask=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3187,13 +3191,6 @@ class SkySubPar(ParSet):
                              'if you set this to True, you must first run the pypeit_skysub_regions GUI' \
                              'to manually select and store the regions to file.'
 
-        defaults['ref_slit'] = -1
-        dtypes['ref_slit'] = int
-        descr['ref_slit'] = 'Reference slit to be used for relative sky and flux calibration.' \
-                            'You need to set joint_fit=True for the reference slit to be used.' \
-                            'If this value is set to a negative number, the reference slit will' \
-                            'be set to the slit that contains the most flux from the standard star.'
-
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
         descr['joint_fit'] = 'Perform a simultaneous joint fit to sky regions using all available slits.'
@@ -3212,7 +3209,7 @@ class SkySubPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'ref_slit', 'joint_fit']
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'joint_fit']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
