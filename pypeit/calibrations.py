@@ -473,7 +473,7 @@ class Calibrations(object):
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  Skipping and may crash down the line')
-            self.flatimages = flatfield.FlatImages()
+            self.flatimages = flatfield.Flats()
             return
 
         # Slit and tilt traces are required to flat-field the data
@@ -481,7 +481,7 @@ class Calibrations(object):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            self.flatimages = flatfield.FlatImages()
+            self.flatimages = flatfield.Flats()
             return
 
         # Check internals
@@ -500,15 +500,16 @@ class Calibrations(object):
 
         # Load MasterFrame?
         if os.path.isfile(masterframe_filename) and self.reuse_masters:
-            self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
-            self.flatimages.is_synced(self.slits)
+            flatimages = flatfield.FlatImages.from_file(masterframe_filename)
+            flatimages.is_synced(self.slits)
             # Load user defined files
             if self.par['flatfield']['pixelflat_file'] is not None:
                 # Load
                 msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
                 with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
-                    self.flatimages = flatfield.merge(self.flatimages,
-                                                      flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
+                    nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
+                    flatimages = flatfield.merge(flatimages, nrm_image)
+            self.flatimages = flatfield.Flats(flatimages=flatimages)
             # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages

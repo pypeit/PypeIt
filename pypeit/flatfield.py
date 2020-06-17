@@ -35,7 +35,9 @@ class Flats:
     A utility container to extract the desired properties from FlatImages
     """
 
-    def __init__(self, flatimages):
+    def __init__(self, flatimages=None):
+        if flatimages is None:
+            flatimages = FlatImages()
         self.flatimages = flatimages
 
     @property
@@ -47,23 +49,13 @@ class Flats:
         else:
             msgs.error("Shape of FlatImages could not be determined")
 
-    @property
-    def procflat(self, frametype='pixel'):
+    def get_procflat(self, frametype='pixel'):
         if frametype == 'illum':
             return self.flatimages.illumflat_raw
         else:
             return self.flatimages.pixelflat_raw
 
-    @property
-    def pixelflat(self):
-        return self.flatimages.pixelflat_norm
-
-    @property
-    def flat_model(self):
-        return self.flatimages.pixelflat_model
-
-    @property
-    def bpmflats(self, frametype='pixel'):
+    def get_bpmflats(self, frametype='pixel'):
         # Check if both BPMs are none
         if self.flatimages.pixelflat_bpm is None and self.flatimages.illumflat_bpm is None:
             msgs.warn("FlatImages contains no BPM - trying to generate one")
@@ -79,11 +71,30 @@ class Flats:
             if self.flatimages.pixelflat_bpm is not None:
                 return self.flatimages.pixelflat_bpm
             else:
-                msgs.warn("illumflat has no BPM - using the illumflat BPM")
+                msgs.warn("pixelflat has no BPM - using the illumflat BPM")
                 return self.flatimages.illumflat_bpm
 
     @property
-    def spat_bsplines(self, frametype='illum'):
+    def pixelflat(self):
+        return self.flatimages.pixelflat_norm
+
+    @property
+    def flat_model(self):
+        return self.flatimages.pixelflat_model
+
+    @property
+    def bpmflats(self):
+        return self.get_bpmflats('pixel')
+
+    @property
+    def spat_bsplines(self):
+        if self.flatimages.illumflat_spat_bsplines is not None:
+            return self.flatimages.illumflat_spat_bsplines
+        else:
+            msgs.warn("illumflat has no spatial bspline fit - using the pixelflat")
+            return self.flatimages.pixelflat_spat_bsplines
+
+    def get_spat_bsplines(self, frametype='illum'):
         # Check if both spat bsplines are none
         if self.flatimages.pixelflat_spat_bsplines is None and self.flatimages.illumflat_spat_bsplines is None:
             msgs.error("FlatImages contains no spatial bspline fit")
@@ -115,9 +126,9 @@ class Flats:
         Returns:
 
         """
-        illumflat = np.ones_like(self.pixelflat)
+        illumflat = np.ones(self.shape)
         # Load spatial bsplines
-        spat_bsplines = self.spat_bsplines(frametype=frametype)
+        spat_bsplines = self.get_spat_bsplines(frametype=frametype)
 
         # Loop
         for slit_idx in range(slits.nslits):
@@ -132,7 +143,6 @@ class Flats:
                                                       initial=initial,
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=flexure_shift)
-
             illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
@@ -167,14 +177,14 @@ class Flats:
             if self.flatimages.illumflat_spat_bsplines is not None:
                 illumflat_illum = self.fit2illumflat(slits, frametype='illum')
         # Decide which frames should be displayed
-        if type == 'pixel':
+        if frametype == 'pixel':
             image_list = zip([self.flatimages.pixelflat_norm, illumflat_pixel, self.flatimages.pixelflat_raw,
                               self.flatimages.pixelflat_model, self.flatimages.pixelflat_spec_illum],
                              ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
                               'pixelflat_model', 'pixelflat_spec_illum'],
                              [(0.9, 1.1), (0.9, 1.1), None, None,
                               (0.8, 1.2)])
-        elif type == 'illum':
+        elif frametype == 'illum':
             image_list = zip([illumflat_illum, self.flatimages.illumflat_raw],
                              ['illumflat_spat_illum', 'illumflat_raw'],
                              [(0.9, 1.1), None])
@@ -1446,13 +1456,12 @@ def merge(init_cls, merge_cls):
     dd['spat_id'] = merge_cls.spat_id if init_cls.spat_id is None else init_cls.spat_id
     for key in keys:
         mrg = False
-        try:
-            exec("dd['{0:s}'] = init_cls.{0:s}".format(key), locals())
-            exec("mrg = merge_cls.{0:s} is not None".format(key), locals())
-            if mrg:
-                exec("dd['{0:s}'] = merge_cls.{0:s}".format(key), locals())
-        except AttributeError:
-            pass
-
+        val = None
+        namespace = dict({'val': val, 'init_cls':init_cls, 'merge_cls':merge_cls, 'mrg':mrg})
+        exec("val = init_cls.{0:s}".format(key), namespace)
+        exec("mrg = merge_cls.{0:s} is not None".format(key), namespace)
+        if namespace['mrg']:
+            exec("val = merge_cls.{0:s}".format(key), namespace)
+        dd[key] = namespace['val']
     # Construct the merged class
     return FlatImages(**dd)

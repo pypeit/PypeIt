@@ -606,7 +606,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
     def mask_flats(self, flatImages):
         """
-        Mask from a :class:`pypeit.flatfield.FlatImages` object
+        Mask from a :class:`pypeit.flatfield.Flats` object
 
         Args:
             flatImages (:class:`pypeit.flatfield.FlatImages`):
