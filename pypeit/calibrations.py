@@ -468,7 +468,7 @@ class Calibrations(object):
         :attr:`par`.
 
         Returns:
-            :class:`pypeit.flatfield.FlatImages`:
+            :class:`pypeit.flatfield.Flats`:
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):

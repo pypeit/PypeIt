@@ -182,7 +182,20 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'keck_kcwi'
 
         # Subtract the detector pattern from all frames
-        #par['baseprocess']['use_pattern'] = True
+        par['calibrations']['biasframe']['process']['use_pattern'] = True
+        par['calibrations']['darkframe']['process']['use_pattern'] = True
+        par['calibrations']['pixelflatframe']['process']['use_pattern'] = True
+        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
+        par['calibrations']['standardframe']['process']['use_pattern'] = True
+        par['scienceframe']['process']['use_pattern'] = True
+        # for key in par['calibrations'].keys():
+        #     if not isinstance(par['calibrations'][key], pypeitpar.FrameGroupPar):
+        #         continue
+        #     if 'process' in par['calibrations'][key].keys():
+        #         par['calibrations'][key]['process']['use_pattern'] = True
+        # for key in par.keys():
+        #     if 'process' in par[key].keys():
+        #         par[key]['process']['use_pattern'] = True
 
         # Make sure the overscan is subtracted from the dark
         par['calibrations']['darkframe']['process']['use_overscan'] = True
@@ -203,7 +216,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
         #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
-        par['calibrations']['flatfield']['slit_illum_pad'] = 2  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 0  # Make sure the full slit is used (i.e. no padding)
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
 
         # Set the default exposure time ranges for the frame typing
@@ -222,7 +236,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['use_pattern'] = True    # Subtract off detector pattern
+        #par['scienceframe']['process']['use_pattern'] = True    # Subtract off detector pattern
 
         # Don't do optimal extraction for 3D data.
         par['reduce']['extraction']['skip_optimal'] = True

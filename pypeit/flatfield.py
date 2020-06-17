@@ -33,6 +33,10 @@ from pypeit import slittrace
 class Flats:
     """
     A utility container to extract the desired properties from FlatImages
+
+    Args:
+        flatimages (:class:`pypeit.flatfield.FlatImages`):
+            An instance of FlatImages
     """
 
     def __init__(self, flatimages=None):
@@ -77,6 +81,10 @@ class Flats:
     @property
     def pixelflat(self):
         return self.flatimages.pixelflat_norm
+
+    @property
+    def spec_illum(self):
+        return self.flatimages.pixelflat_spec_illum
 
     @property
     def flat_model(self):

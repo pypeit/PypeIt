@@ -2943,7 +2943,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None, trim_edge=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2975,8 +2975,8 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
 
-        defaults['trim_edge'] = CubePar()
-        dtypes['trim_edge'] = [ ParSet, dict ]
+        defaults['trim_edge'] = [0, 0]
+        dtypes['trim_edge'] = list
         descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky sub'
 
         # Instantiate the parameter set
@@ -3999,7 +3999,7 @@ class PypeItPar(ParSet):
             self['scienceframe']['process'].data[k] = proc_par[k]
 
     # TODO: Perform extensive checking that the parameters are valid for
-    # a full run of PYPIT.  May not be necessary because validate will
+    # a full run of PypeIt.  May not be necessary because validate will
     # be called for all the sub parameter sets, but this can do higher
     # level checks, if necessary.
     def validate(self):
