@@ -30,9 +30,171 @@ from pypeit.core import basis
 from pypeit import slittrace
 
 
+class Flats:
+    """
+    A utility container to extract the desired properties from FlatImages
+    """
+
+    def __init__(self, flatimages):
+        self.flatimages = flatimages
+
+    @property
+    def shape(self):
+        if self.flatimages.pixelflat_raw is not None:
+            return self.flatimages.pixelflat_raw.shape
+        elif self.flatimages.illumflat_raw is not None:
+            return self.flatimages.illumflat_raw.shape
+        else:
+            msgs.error("Shape of FlatImages could not be determined")
+
+    @property
+    def procflat(self, frametype='pixel'):
+        if frametype == 'illum':
+            return self.flatimages.illumflat_raw
+        else:
+            return self.flatimages.pixelflat_raw
+
+    @property
+    def pixelflat(self):
+        return self.flatimages.pixelflat_norm
+
+    @property
+    def flat_model(self):
+        return self.flatimages.pixelflat_model
+
+    @property
+    def bpmflats(self, frametype='pixel'):
+        # Check if both BPMs are none
+        if self.flatimages.pixelflat_bpm is None and self.flatimages.illumflat_bpm is None:
+            msgs.warn("FlatImages contains no BPM - trying to generate one")
+            return np.zeros(self.shape, dtype=np.int)
+        # Now return the requested case, checking for None
+        if frametype == 'illum':
+            if self.flatimages.illumflat_bpm is not None:
+                return self.flatimages.illumflat_bpm
+            else:
+                msgs.warn("illumflat has no BPM - using the pixelflat BPM")
+                return self.flatimages.pixelflat_bpm
+        else:
+            if self.flatimages.pixelflat_bpm is not None:
+                return self.flatimages.pixelflat_bpm
+            else:
+                msgs.warn("illumflat has no BPM - using the illumflat BPM")
+                return self.flatimages.illumflat_bpm
+
+    @property
+    def spat_bsplines(self, frametype='illum'):
+        # Check if both spat bsplines are none
+        if self.flatimages.pixelflat_spat_bsplines is None and self.flatimages.illumflat_spat_bsplines is None:
+            msgs.error("FlatImages contains no spatial bspline fit")
+        # Now return the requested case, checking for None
+        if frametype == 'illum':
+            if self.flatimages.illumflat_spat_bsplines is not None:
+                return self.flatimages.illumflat_spat_bsplines
+            else:
+                msgs.warn("illumflat has no spatial bspline fit - using the pixelflat")
+                return self.flatimages.pixelflat_spat_bsplines
+        else:
+            if self.flatimages.pixelflat_spat_bsplines is not None:
+                return self.flatimages.pixelflat_spat_bsplines
+            else:
+                msgs.warn("pixelflat has no spatial bspline fit - using the illumflat")
+                return self.flatimages.illumflat_spat_bsplines
+
+    def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
+        """
+
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            frametype (str):
+                Should the pixel or illum flat spatial profile be generated? (options include: 'illum' or 'pixel').
+                The default is to use 'illum' unless frametype='pixel'.
+            initial (bool, optional):
+            flexure_shift (float, optional):
+
+        Returns:
+
+        """
+        illumflat = np.ones_like(self.pixelflat)
+        # Load spatial bsplines
+        spat_bsplines = self.spat_bsplines(frametype=frametype)
+
+        # Loop
+        for slit_idx in range(slits.nslits):
+            # Skip masked
+            if slits.mask[slit_idx] != 0:
+                continue
+            # Skip those without a bspline
+            # DO it
+            _slitid_img = slits.slit_img(slitidx=slit_idx, initial=initial, flexure=flexure_shift)
+            onslit = _slitid_img == slits.spat_id[slit_idx]
+            spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx,
+                                                      initial=initial,
+                                                      slitid_img=_slitid_img,
+                                                      flexure_shift=flexure_shift)
+
+            illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+        # TODO -- Update the internal one?  Or remove it altogether??
+        return illumflat
+
+    def show(self, frametype='all', slits=None, wcs_match=True):
+        """
+        Simple wrapper to show_flats()
+
+        Args:
+            frametype (str):
+                Which flats should be displayed? Must be one of 'illum', 'pixel', or 'all' (default)
+            slits:
+            wcs_match:
+
+        Returns:
+
+        """
+        illumflat_pixel, illumflat_illum = None, None
+        # Try to grab the slits
+        if slits is None:
+            # Warning: This parses the filename, not the Header!
+            master_key, master_dir = masterframe.grab_key_mdir(self.flatimages.filename, from_filename=True)
+            try:
+                slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
+                                                                        master_dir=master_dir)
+                slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
+            except:
+                msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
+        if slits is not None:
+            slits.mask_flats(self)
+            illumflat_pixel = self.fit2illumflat(slits, frametype='pixel')
+            if self.flatimages.illumflat_spat_bsplines is not None:
+                illumflat_illum = self.fit2illumflat(slits, frametype='illum')
+        # Decide which frames should be displayed
+        if type == 'pixel':
+            image_list = zip([self.flatimages.pixelflat_norm, illumflat_pixel, self.flatimages.pixelflat_raw,
+                              self.flatimages.pixelflat_model, self.flatimages.pixelflat_spec_illum],
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
+                              'pixelflat_model', 'pixelflat_spec_illum'],
+                             [(0.9, 1.1), (0.9, 1.1), None, None,
+                              (0.8, 1.2)])
+        elif type == 'illum':
+            image_list = zip([illumflat_illum, self.flatimages.illumflat_raw],
+                             ['illumflat_spat_illum', 'illumflat_raw'],
+                             [(0.9, 1.1), None])
+        else:
+            # Show everything that's available (anything that is None will not be displayed)
+            image_list = zip([self.flatimages.pixelflat_norm, illumflat_pixel, self.flatimages.pixelflat_raw,
+                              self.flatimages.pixelflat_model, self.flatimages.pixelflat_spec_illum,
+                              illumflat_illum, self.flatimages.illumflat_raw],
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
+                              'pixelflat_model', 'pixelflat_spec_illum',
+                              'illumflat_spat_illum', 'illumflat_raw'],
+                             [(0.9, 1.1), (0.9, 1.1), None, None,
+                              (0.8, 1.2), (0.9, 1.1), None])
+        # Display frames
+        show_flats(image_list, wcs_match=wcs_match, slits=slits)
+
+
 class FlatImages(datamodel.DataContainer):
     """
-    Simple DataContainer for the output from BuildWaveTilts
+    Simple DataContainer for the output from Flatfield
 
     All of the items in the datamodel are required for instantiation,
       although they can be None (but shouldn't be)
@@ -65,19 +227,12 @@ class FlatImages(datamodel.DataContainer):
                               desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id'),
-        # Properties of the class also need to be included in the data model
-        'procflat': dict(otype=np.ndarray, atype=np.floating, desc='Class property which returns <flat_type>_raw'),
-        'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Class property which returns <flat_type>_norm'),
-        'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Class property which returns <flat_type>_model'),
-        'bpmflats': dict(otype=np.ndarray, atype=np.integer, desc='Class property which returns <flat_type>_bpm'),
-        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline, desc='Class property which returns <flat_type>_spat_bsplines'),
     }
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
                  pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None,
                  illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
-                 PYP_SPEC=None, spat_id=None,
-                 procflat=None, pixelflat=None, flat_model=None, bpmflats=None, spat_bsplines=None):
+                 PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -153,72 +308,6 @@ class FlatImages(datamodel.DataContainer):
         # Return
         return d
 
-    @property
-    def procflat(self):
-        return self.pixelflat_raw
-
-    @property
-    def pixelflat(self):
-        return self.pixelflat_norm
-
-    @property
-    def flat_model(self):
-        return self.pixelflat_model
-
-    @property
-    def bpmflats(self):
-        if self.pixelflat_bpm is not None:
-            return self.pixelflat_bpm
-        elif self.illumflat_bpm is not None:
-            return self.illumflat_bpm
-        else:
-            msgs.warn("FlatImages contains no BPM - trying to generate one")
-            return np.zeros(self.procflat.shape, dtype=np.int)
-
-    @property
-    def spat_bsplines(self):
-        if self.illumflat_spat_bsplines is not None:
-            return self.illumflat_spat_bsplines
-        else:
-            return self.pixelflat_spat_bsplines
-
-    def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
-        """
-
-        Args:
-            slits (:class:`pypeit.slittrace.SlitTraceSet`):
-            initial (bool, optional):
-            flexure_shift (float, optional):
-
-        Returns:
-
-        """
-        illumflat = np.ones_like(self.pixelflat)
-        # Check the frametype, and load spatial bsplines
-        if frametype == 'pixel':
-            spat_bsplines = self.pixelflat_spat_bsplines
-        else:
-            spat_bsplines = self.spat_bsplines
-            if self.illumflat_spat_bsplines is not None:
-                illumflat = np.ones_like(self.illumflat_raw)
-        # Loop
-        for slit_idx in range(slits.nslits):
-            # Skip masked
-            if slits.mask[slit_idx] != 0:
-                continue
-            # Skip those without a bspline
-            # DO it
-            _slitid_img = slits.slit_img(slitidx=slit_idx, initial=initial, flexure=flexure_shift)
-            onslit = _slitid_img == slits.spat_id[slit_idx]
-            spat_coo = slits.spatial_coordinate_image(slitidx=slit_idx,
-                                                      initial=initial,
-                                                      slitid_img=_slitid_img,
-                                                      flexure_shift=flexure_shift)
-
-            illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
-        # TODO -- Update the internal one?  Or remove it altogether??
-        return illumflat
-
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
                hdu_prefix=None):
@@ -260,56 +349,6 @@ class FlatImages(datamodel.DataContainer):
         if has_illum:
             _d['illumflat_spat_bsplines'] = np.asarray(list_of_illbsplines)
         return _d, dm_version_passed, dm_type_passed
-
-    def show(self, type, slits=None, wcs_match=True):
-        """
-        Simple wrapper to show_flats()
-
-        Args:
-            slits:
-            wcs_match:
-
-        Returns:
-
-        """
-        illumflat_pixel, illumflat_illum = None, None
-        # Try to grab the slits
-        if slits is None:
-            # Warning: This parses the filename, not the Header!
-            master_key, master_dir = masterframe.grab_key_mdir(self.filename, from_filename=True)
-            try:
-                slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
-                                                                        master_dir=master_dir)
-                slits = slittrace.SlitTraceSet.from_file(slit_masterframe_name)
-            except:
-                msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
-        if slits is not None:
-            slits.mask_flats(self)
-            illumflat_pixel = self.fit2illumflat(slits, frametype='pixel')
-            if self.illumflat_spat_bsplines is not None:
-                illumflat_illum = self.fit2illumflat(slits, frametype='illum')
-        # Decide which frames should be displayed
-        if type == 'pixel':
-            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw, self.pixelflat_model,
-                              self.pixelflat_spec_illum],
-                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw', 'pixelflat_model',
-                              'pixelflat_spec_illum'],
-                             [(0.9, 1.1), (0.9, 1.1), None, None,
-                              (0.8, 1.2)])
-        elif type == 'illum':
-            image_list = zip([illumflat_illum, self.illumflat_raw],
-                             ['illumflat_spat_illum', 'illumflat_raw'],
-                             [(0.9, 1.1), None])
-        else:
-            # Show everything that's available (anything that is None will not be displayed)
-            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw, self.pixelflat_model,
-                              self.pixelflat_spec_illum, illumflat_illum, self.illumflat_raw],
-                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw', 'pixelflat_model',
-                              'pixelflat_spec_illum', 'illumflat_spat_illum', 'illumflat_raw'],
-                             [(0.9, 1.1), (0.9, 1.1), None, None,
-                              (0.8, 1.2), (0.9, 1.1), None])
-        # Display frames
-        show_flats(image_list, wcs_match=wcs_match, slits=slits)
 
 
 class FlatField(object):
@@ -468,7 +507,7 @@ class FlatField(object):
 
         # Fit it
         # NOTE: Tilts do not change and self.slits is updated internally.
-        self.fit(illumflat=self.spat_illum_only, debug=debug)
+        self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
@@ -524,7 +563,7 @@ class FlatField(object):
                          [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)])
         show_flats(image_list, wcs_match=wcs_match, slits=self.slits)
 
-    def fit(self, illumflat=False, debug=False):
+    def fit(self, spat_illum_only=False, debug=False):
         """
         Construct a model of the flat-field image.
 
@@ -611,8 +650,10 @@ class FlatField(object):
             - 3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
 
         Args:
-            illumflat (:obj:`bool`, optional):
-                If true, the illumination flat will be generated
+            spat_illum_only (:obj:`bool`, optional):
+                If true, only the spatial illumination profile will be calculated.
+                The 2D bspline fit will not be performed. This is primarily used
+                to build an illumflat.
             debug (:obj:`bool`, optional):
                 Show plots useful for debugging. This will block
                 further execution of the code until the plot windows
@@ -962,7 +1003,7 @@ class FlatField(object):
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
                 self.list_of_spat_bsplines[slit_idx] = spat_bspl
                 # No need to proceed further if we just need the illumination profile
-                if illumflat:
+                if spat_illum_only:
                     continue
             else:
                 # Save the nada
@@ -1081,7 +1122,7 @@ class FlatField(object):
             #  go bad?
 
         # No need to continue if we're just doing the spatial illumination
-        if illumflat:
+        if spat_illum_only:
             return
 
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
@@ -1159,7 +1200,7 @@ class FlatField(object):
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
-    def spectral_illumination(self, gpm, debug=False):
+    def spectral_illumination(self, gpm=None, debug=False):
         """
         Generate a relative scaling image for a slit-based IFU.
         All slits are scaled relative to the zeroth slit. There
@@ -1174,7 +1215,8 @@ class FlatField(object):
 
         Parameters
         ----------
-        gpm : `numpy.ndarray`_
+        gpm : `numpy.ndarray`_, None
+            Good pixel mask
         debug : bool
             Debug the routine
 
@@ -1376,8 +1418,8 @@ def show_flats(image_list, wcs_match=True, slits=None):
 
 def merge(init_cls, merge_cls):
     """
-    Merge secondary into primary, and return a merged :class:`pypeit.flatfield.FlatImages` class.
-    If an element exists in both primary and secondary, the primary value is taken
+    Merge merge_cls into init_cls, and return a merged :class:`pypeit.flatfield.FlatImages` class.
+    If an element exists in both init_cls and merge_cls, the merge_cls value is taken
 
     Parameters
     ----------
@@ -1406,7 +1448,7 @@ def merge(init_cls, merge_cls):
         mrg = False
         try:
             exec("dd['{0:s}'] = init_cls.{0:s}".format(key), locals())
-            exec("mrg = dd['{0:s}'] is None".format(key), locals())
+            exec("mrg = merge_cls.{0:s} is not None".format(key), locals())
             if mrg:
                 exec("dd['{0:s}'] = merge_cls.{0:s}".format(key), locals())
         except AttributeError:

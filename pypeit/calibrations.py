@@ -547,14 +547,14 @@ class Calibrations(object):
             # This will merge the attributes of pixelflatImages that are not None
             # with the attributes of illflatImages that are not None. Default is
             # to take pixelflatImages.
-            self.flatimages = flatfield.merge(pixelflatImages, illumflatImages)
+            flatimages = flatfield.merge(pixelflatImages, illumflatImages)
         else:
             # No pixel flat, but there might be an illumflat. This will mean that
             # the attributes prefixed with 'pixelflat_' will all be None.
-            self.flatimages = illumflatImages
+            flatimages = illumflatImages
 
         # Save flat images
-        self.flatimages.to_master_file(masterframe_filename)
+        flatimages.to_master_file(masterframe_filename)
         # Save slits too, in case they were tweaked
         self.slits.to_master_file()
 
@@ -565,9 +565,9 @@ class Calibrations(object):
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
             with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
-                self.flatimages = flatfield.merge(self.flatimages,
-                                                  flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
+                flatimages = flatfield.merge(flatimages, flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
+        self.flatimages = flatfield.Flats(flatimages=flatimages)
         # Return
         return self.flatimages
 
