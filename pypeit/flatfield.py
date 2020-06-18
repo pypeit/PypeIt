@@ -187,64 +187,64 @@ class FlatImages(datamodel.DataContainer):
         return _d, dm_version_passed, dm_type_passed
 
     def shape(self):
-        if self.flatimages.pixelflat_raw is not None:
-            return self.flatimages.pixelflat_raw.shape
-        elif self.flatimages.illumflat_raw is not None:
-            return self.flatimages.illumflat_raw.shape
+        if self.pixelflat_raw is not None:
+            return self.pixelflat_raw.shape
+        elif self.illumflat_raw is not None:
+            return self.illumflat_raw.shape
         else:
             msgs.error("Shape of FlatImages could not be determined")
 
     def get_procflat(self, frametype='pixel'):
         if frametype == 'illum':
-            return self.flatimages.illumflat_raw
+            return self.illumflat_raw
         else:
-            return self.flatimages.pixelflat_raw
+            return self.pixelflat_raw
 
     def get_bpmflats(self, frametype='pixel'):
         # Check if both BPMs are none
-        if self.flatimages.pixelflat_bpm is None and self.flatimages.illumflat_bpm is None:
+        if self.pixelflat_bpm is None and self.illumflat_bpm is None:
             msgs.warn("FlatImages contains no BPM - trying to generate one")
             return np.zeros(self.shape(), dtype=np.int)
         # Now return the requested case, checking for None
         if frametype == 'illum':
-            if self.flatimages.illumflat_bpm is not None:
-                return self.flatimages.illumflat_bpm
+            if self.illumflat_bpm is not None:
+                return self.illumflat_bpm
             else:
                 msgs.warn("illumflat has no BPM - using the pixelflat BPM")
-                return self.flatimages.pixelflat_bpm
+                return self.pixelflat_bpm
         else:
-            if self.flatimages.pixelflat_bpm is not None:
-                return self.flatimages.pixelflat_bpm
+            if self.pixelflat_bpm is not None:
+                return self.pixelflat_bpm
             else:
                 msgs.warn("pixelflat has no BPM - using the illumflat BPM")
-                return self.flatimages.illumflat_bpm
+                return self.illumflat_bpm
 
     def get_spat_bsplines(self, frametype='illum'):
         # Check if both spat bsplines are none
-        if self.flatimages.pixelflat_spat_bsplines is None and self.flatimages.illumflat_spat_bsplines is None:
+        if self.pixelflat_spat_bsplines is None and self.illumflat_spat_bsplines is None:
             msgs.error("FlatImages contains no spatial bspline fit")
         # Now return the requested case, checking for None
         if frametype == 'illum':
-            if self.flatimages.illumflat_spat_bsplines is not None:
-                return self.flatimages.illumflat_spat_bsplines
+            if self.illumflat_spat_bsplines is not None:
+                return self.illumflat_spat_bsplines
             else:
                 msgs.warn("illumflat has no spatial bspline fit - using the pixelflat")
-                return self.flatimages.pixelflat_spat_bsplines
+                return self.pixelflat_spat_bsplines
         else:
-            if self.flatimages.pixelflat_spat_bsplines is not None:
-                return self.flatimages.pixelflat_spat_bsplines
+            if self.pixelflat_spat_bsplines is not None:
+                return self.pixelflat_spat_bsplines
             else:
                 msgs.warn("pixelflat has no spatial bspline fit - using the illumflat")
-                return self.flatimages.illumflat_spat_bsplines
+                return self.illumflat_spat_bsplines
 
     def get_pixelflat(self):
-        return self.flatimages.pixelflat_norm
+        return self.pixelflat_norm
 
     def get_spec_illum(self):
-        return self.flatimages.pixelflat_spec_illum
+        return self.pixelflat_spec_illum
 
     def get_flat_model(self):
-        return self.flatimages.pixelflat_model
+        return self.pixelflat_model
 
     def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
         """
@@ -298,7 +298,7 @@ class FlatImages(datamodel.DataContainer):
         # Try to grab the slits
         if slits is None:
             # Warning: This parses the filename, not the Header!
-            master_key, master_dir = masterframe.grab_key_mdir(self.flatimages.filename, from_filename=True)
+            master_key, master_dir = masterframe.grab_key_mdir(self.filename, from_filename=True)
             try:
                 slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet, master_key,
                                                                         master_dir=master_dir)
@@ -308,25 +308,25 @@ class FlatImages(datamodel.DataContainer):
         if slits is not None:
             slits.mask_flats(self)
             illumflat_pixel = self.fit2illumflat(slits, frametype='pixel')
-            if self.flatimages.illumflat_spat_bsplines is not None:
+            if self.illumflat_spat_bsplines is not None:
                 illumflat_illum = self.fit2illumflat(slits, frametype='illum')
         # Decide which frames should be displayed
         if frametype == 'pixel':
-            image_list = zip([self.flatimages.pixelflat_norm, illumflat_pixel, self.flatimages.pixelflat_raw,
-                              self.flatimages.pixelflat_model, self.flatimages.pixelflat_spec_illum],
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw,
+                              self.pixelflat_model, self.pixelflat_spec_illum],
                              ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
                               'pixelflat_model', 'pixelflat_spec_illum'],
                              [(0.9, 1.1), (0.9, 1.1), None, None,
                               (0.8, 1.2)])
         elif frametype == 'illum':
-            image_list = zip([illumflat_illum, self.flatimages.illumflat_raw],
+            image_list = zip([illumflat_illum, self.illumflat_raw],
                              ['illumflat_spat_illum', 'illumflat_raw'],
                              [(0.9, 1.1), None])
         else:
             # Show everything that's available (anything that is None will not be displayed)
-            image_list = zip([self.flatimages.pixelflat_norm, illumflat_pixel, self.flatimages.pixelflat_raw,
-                              self.flatimages.pixelflat_model, self.flatimages.pixelflat_spec_illum,
-                              illumflat_illum, self.flatimages.illumflat_raw],
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw,
+                              self.pixelflat_model, self.pixelflat_spec_illum,
+                              illumflat_illum, self.illumflat_raw],
                              ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
                               'pixelflat_model', 'pixelflat_spec_illum',
                               'illumflat_spat_illum', 'illumflat_raw'],
