@@ -181,13 +181,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_kcwi'
 
-        # Subtract the detector pattern from all frames
+        # Subtract the detector pattern from certain frames
         par['calibrations']['biasframe']['process']['use_pattern'] = True
         par['calibrations']['darkframe']['process']['use_pattern'] = True
         par['calibrations']['pixelflatframe']['process']['use_pattern'] = True
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
+        # Subtract the detector pattern from all frames
         # for key in par['calibrations'].keys():
         #     if not isinstance(par['calibrations'][key], pypeitpar.FrameGroupPar):
         #         continue
@@ -246,7 +247,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Sky subtraction parameters
         par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 0.5
+        par['reduce']['skysub']['bspline_spacing'] = 0.2
         par['reduce']['skysub']['joint_fit'] = True
 
         return par

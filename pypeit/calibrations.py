@@ -473,7 +473,7 @@ class Calibrations(object):
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  Skipping and may crash down the line')
-            self.flatimages = flatfield.Flats()
+            self.flatimages = flatfield.FlatImages()
             return
 
         # Slit and tilt traces are required to flat-field the data
@@ -481,7 +481,7 @@ class Calibrations(object):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            self.flatimages = flatfield.Flats()
+            self.flatimages = flatfield.FlatImages()
             return
 
         # Check internals
@@ -509,7 +509,7 @@ class Calibrations(object):
                 with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
                     nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
                     flatimages = flatfield.merge(flatimages, nrm_image)
-            self.flatimages = flatfield.Flats(flatimages=flatimages)
+            self.flatimages = flatimages
             # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
@@ -568,7 +568,7 @@ class Calibrations(object):
             with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
                 flatimages = flatfield.merge(flatimages, flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
-        self.flatimages = flatfield.Flats(flatimages=flatimages)
+        self.flatimages = flatimages
         # Return
         return self.flatimages
 
