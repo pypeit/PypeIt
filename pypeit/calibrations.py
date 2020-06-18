@@ -555,9 +555,10 @@ class Calibrations(object):
             flatimages = illumflatImages
 
         # Save flat images
-        flatimages.to_master_file(masterframe_filename)
-        # Save slits too, in case they were tweaked
-        self.slits.to_master_file()
+        if flatimages is not None:
+            flatimages.to_master_file(masterframe_filename)
+            # Save slits too, in case they were tweaked
+            self.slits.to_master_file()
 
         # 3) Load user-supplied images
         #  NOTE:  This is the *final* images, not just a stack
