@@ -25,20 +25,22 @@ def test_userregions():
               [[100, 200]]
               ]
     resstat = [0, 0, 0, 0, 1, 2]
+    nslits = 2
     for rr, reg in enumerate(regions):
-        status, regs = skysub.read_userregions(reg, resolution=1000)
+        status, regs = skysub.read_userregions(reg, nslits, maxslitlength=1000)
         assert(regs == result[rr])
         assert(status == resstat[rr])
 
 
 def test_generatemask():
-    resolution = 1000
+    maxsl = 1000
+    nslits = 2
     reg = "80:"
     tstmsk = np.zeros((1000, 1000))
     tstmsk[:, 744:901] = 1
-    status, regs = skysub.read_userregions(reg, resolution=resolution)
+    status, regs = skysub.read_userregions(reg, nslits, maxslitlength=maxsl)
     slits = SlitTraceSet(left_init=np.full((1000, 1), 120, dtype=float),
                          right_init=np.full((1000, 1), 900, dtype=float), binspec=1, binspat=1,
                          pypeline='IFU', nspat=1000, PYP_SPEC='dummy')
-    skymask = skysub.generate_mask("IFU", regs, slits, slits.left_init, slits.right_init, resolution=resolution)
+    skymask = skysub.generate_mask("IFU", regs, slits, slits.left_init, slits.right_init)
     assert(np.array_equal(skymask, tstmsk))
