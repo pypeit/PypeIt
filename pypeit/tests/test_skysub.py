@@ -17,18 +17,22 @@ def test_userregions():
                ":10,35:65,80:",
                "10:20;",
                "10:20,"]
-    result = [[[0, 100]],
-              [[300, 599]],
-              [[799, 1000]],
-              [[0, 100], [350, 649], [799, 1000]],
+    result = [[np.array([], dtype=np.int), np.array([99], dtype=np.int)],
+              [np.array([299], dtype=np.int), np.array([598], dtype=np.int)],
+              [np.array([798], dtype=np.int), np.array([], dtype=np.int)],
+              [np.array([349, 798], dtype=np.int), np.array([99, 648], dtype=np.int)],
               [],
-              [[100, 200]]
+              [np.array([99], dtype=np.int), np.array([199], dtype=np.int)]
               ]
     resstat = [0, 0, 0, 0, 1, 2]
     nslits = 2
+    maxsl = 100
     for rr, reg in enumerate(regions):
-        status, regs = skysub.read_userregions(reg, nslits, maxslitlength=1000)
-        assert(regs == result[rr])
+        status, regs = skysub.read_userregions(reg, nslits, maxslitlength=maxsl)
+        if status != 1:
+            assert (len(regs) == nslits)
+            assert(np.array_equal(np.where(regs[0][1:] & ~regs[0][:-1])[0], result[rr][0]))
+            assert(np.array_equal(np.where(~regs[0][1:] & regs[0][:-1])[0], result[rr][1]))
         assert(status == resstat[rr])
 
 
@@ -44,3 +48,5 @@ def test_generatemask():
                          pypeline='IFU', nspat=1000, PYP_SPEC='dummy')
     skymask = skysub.generate_mask("IFU", regs, slits, slits.left_init, slits.right_init)
     assert(np.array_equal(skymask, tstmsk))
+
+test_userregions()
