@@ -25,6 +25,8 @@ The object model options are:
  - star = for stellar object.
  - poly = can be used for any other object by solving polynomial model.
 
+You will need to grab the related pickle file of the Gaussian Mixture
+model at `this link <https://drive.google.com/open?id=1x5d2_L8pwLDmvvoFUCa-vIoluv3GpowA>`_
 
 tellfit file
 ------------
