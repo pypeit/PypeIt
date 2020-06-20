@@ -106,14 +106,17 @@ class TraceAlignment(object):
         msbpm (ndarray, optional): Bad pixel mask image
 
     Attributes:
-        frametype : str
-            Hard-coded to 'align_prof'
-        steps : list
-            List of the processing steps performed
+        steps (:obj:`list`):
+            List of the processing steps performed.
     """
-    # Frametype is a class attribute
     version = '1.0.0'
+
+    # Frametype is a class attribute
     frametype = 'alignment'
+    """
+    Frame type designation.
+    """
+
     master_type = 'Alignment'
     master_file_format = 'fits'
 

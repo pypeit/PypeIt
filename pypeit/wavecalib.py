@@ -243,8 +243,6 @@ class BuildWaveCalib(object):
         master_key (:obj:`str`, optional):  For naming QA only
 
     Attributes:
-        frametype : str
-            Hard-coded to 'wv_calib'
         steps : list
             List of the processing steps performed
         wv_calib : dict
@@ -264,7 +262,7 @@ class BuildWaveCalib(object):
             Specifies saturation level for the arc lines
         wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
     """
-    # Frametype is a class attribute
+
     frametype = 'wv_calib'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,

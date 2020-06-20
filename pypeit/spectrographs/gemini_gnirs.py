@@ -308,6 +308,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         if '10/mmLBSX' in self.dispname:
             return np.array([0.050, 0.215, 0.442, 0.759])
         elif '32/mm' in self.dispname:
+            #ToDo: create self.date similar to self.dispname and use that to decide which numbers to use
             ## Old data, i.e. before 2011
             #return np.array([0.241211 , 0.3173828, 0.387695, 0.456054, 0.530273, 0.640625])
             ##New data

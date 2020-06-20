@@ -5,6 +5,7 @@ Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.spectrographs.gemini_flamingos
    pypeit.spectrographs.gemini_gmos

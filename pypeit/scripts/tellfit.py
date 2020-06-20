@@ -60,15 +60,16 @@ def parser(options=None):
                         help="R|science object model used in the fitting.\n"
                         "The options are:\n"
                         "\n"
-                        "    qso  = For quasars. You might need to set redshift, bal_mask in the tell file.\n"
+                        "    qso  = For quasars. You might need to set redshift, bal_wv_min_max in the tell file.\n"
                         "\n"
                         "    star  = For stars. You need to set star_type, star_ra, star_dec, and star_mag in the tell_file.\n"
                         "\n"
-                        "    poly = For other type object, You might need to set fit_region_mask, \n"
+                        "    poly = For other type object, You might need to set fit_wv_min_max, \n"
                         "           and norder in the tell_file."
                         )
     parser.add_argument("-g", "--tell_grid", type=str, help="Telluric grid. You should download the giant grid file\n"
-                        "to the pypeit/data/telluric folder.")
+                        "to the pypeit/data/telluric folder. It should only be passed if you want to overwrite \n"
+                        "the default tell_grid that is set via each spectrograph file")
     parser.add_argument("-p", "--pca_file", type=str, help="Quasar PCA pickle file with full path. The default pickle file \n"
                         "(qso_pca_1200_3100.pckl) should be stored in the pypeit/data/telluric folder. If you change the pickle \n"
                         "file, make sure to set the pca_lower and pca_upper in the tell_file to specify the \n"
@@ -80,7 +81,7 @@ def parser(options=None):
                         "    [tellfit]\n"
                         "         objmodel = qso\n"
                         "         redshift = 7.6\n"
-                        "         bal_mask = 10825,12060\n"
+                        "         bal_wv_min_max = 10825,12060\n"
                         "OR\n"
                         "    [tellfit]\n"
                         "         objmodel = star\n"
@@ -90,7 +91,7 @@ def parser(options=None):
                         "    [tellfit]\n"
                         "         objmodel = poly\n"
                         "         polyorder = 3\n"
-                        "         fit_region_mask = 9000.,9500.\n"
+                        "         fit_wv_min_max = 9000.,9500.\n"
                         "\n"
                         )
     parser.add_argument("-r", "--redshift", type=float, default=None, help="Object redshift")
@@ -156,7 +157,7 @@ def main(args):
                                        bounds_norm=par['tellfit']['bounds_norm'],
                                        tell_norm_thresh=par['tellfit']['tell_norm_thresh'],
                                        only_orders=par['tellfit']['only_orders'],
-                                       bal_mask=par['tellfit']['bal_mask'],
+                                       bal_wv_min_max=par['tellfit']['bal_wv_min_max'],
                                        debug_init=args.debug, disp=args.debug, debug=args.debug, show=args.plot)
     elif par['tellfit']['objmodel']=='star':
         TelStar = telluric.star_telluric(args.spec1dfile, par['tellfit']['tell_grid'], modelfile, outfile,
@@ -176,7 +177,7 @@ def main(args):
                                          z_obj=par['tellfit']['redshift'],
                                          func=par['tellfit']['func'], model=par['tellfit']['model'],
                                          polyorder=par['tellfit']['polyorder'],
-                                         fit_region_mask=par['tellfit']['fit_region_mask'],
+                                         fit_wv_min_max=par['tellfit']['fit_wv_min_max'],
                                          mask_lyman_a=par['tellfit']['mask_lyman_a'],
                                          delta_coeff_bounds=par['tellfit']['delta_coeff_bounds'],
                                          minmax_coeff_bounds=par['tellfit']['minmax_coeff_bounds'],
