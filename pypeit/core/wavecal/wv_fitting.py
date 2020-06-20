@@ -288,7 +288,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
                                        lower=sigrej_first, upper=sigrej_first,
                                        minx=fmin, maxx=fmax, weights=wfit)
 
-        rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0]/xnspecmin1,
+        try:
+            rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0]/xnspecmin1,
+        except:
+            embed(header='294 of wv_fitting')
                                      #yfit[pypeitFit.gpm == 0],
                                      #weights=wfit[pypeitFit.gpm == 0])
         rms_pix = rms_ang/disp
