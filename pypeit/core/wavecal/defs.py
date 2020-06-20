@@ -58,6 +58,7 @@ class LinesBitMask(BitMask):
             ('ThAr_MagE', 'Comment'),
             ('OH_FIRE_Echelle', 'Comment'),
             ('Ar_IR_GNIRS', 'Comment'),
+            ('UNKNWN', 'Comment'),
         ])
         super(LinesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 

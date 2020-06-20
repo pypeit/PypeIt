@@ -140,8 +140,7 @@ class WaveCalib(datamodel.DataContainer):
     def par(self):
         return json.loads(self.strpar)
 
-
-    def is_synced(self, slits):
+    def chk_synced(self, slits):
         """
         Confirm the slits in WaveCalib are aligned to that in SlitTraceSet
 
@@ -534,55 +533,6 @@ class BuildWaveCalib(object):
 
         return arccen, self.wvc_bpm
 
-    #def save(self, outfile=None, overwrite=True):
-    #    """
-    #    Save the wavelength calibration data to a master frame.
-#
-#        This is largely a wrapper for
-#        :func:`pypeit.core.wavecal.waveio.save_wavelength_calibration`.
-#
-#        Args:
-#            outfile (:obj:`str`, optional):
-#                Name for the output file.  Defaults to
-#                :attr:`file_path`.
-#            overwrite (:obj:`bool`, optional):
-#                Overwrite any existing file.
-#        """
-#        _outfile = outfile # self.master_file_path if outfile is None else outfile
-#        # Check if it exists
-#        if os.path.exists(_outfile) and not overwrite:
-#            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-#                      + 'Set overwrite=True to overwrite it.')
-#            return
-#
-#        # Report and save
-#
-#        # jsonify has the annoying property that it modifies the objects
-#        # when it jsonifies them so make a copy, which converts lists to
-#        # arrays, so we make a copy
-#        data_for_json = copy.deepcopy(self.wv_calib)
-#        gddict = linetools.utils.jsonify(data_for_json)
-#        linetools.utils.savejson(_outfile, gddict, easy_to_read=True, overwrite=True)
-#        msgs.info('Master frame written to {0}'.format(_outfile))
-
-    #def load(self, ifile):
-    #    """
-    #    Load a full (all slit) wavelength calibration.
-
-    #    This is largely a wrapper for
-    #    :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
-
-    #    Args:
-    #        ifile (:obj:`str`, optional):
-    #            Name of the master frame file.  Defaults to
-    #            :attr:`master_file_path`.
-
-    #    Returns:
-    #        dict or None: self.wv_calib
-    #    """
-    #    # Check on whether to reuse and whether the file exists
-    #    self.wv_calib = waveio.load_wavelength_calibration(ifile)
-    #    return self.wv_calib
 
     def update_wvmask(self):
         """
@@ -597,16 +547,6 @@ class BuildWaveCalib(object):
 
         """
         # Update mask based on wv_calib
-        #for key in self.wv_calib.keys():
-        #    if key in ['steps', 'par', 'fit2d', 'bpm']:
-        #        continue
-        #    if (self.wv_calib[key] is None) or (len(self.wv_calib[key]) == 0):
-        #        try:
-        #            idx = self.slits.spatid_to_zero(int(key))
-        #        except:
-        #            embed(header='428 of wavecalib')
-        #        self.wvc_bpm[idx] = True
-        #
         for kk, fit in enumerate(self.wv_calib.wv_fits):
             if fit is None:
                 self.wvc_bpm[kk] = True
