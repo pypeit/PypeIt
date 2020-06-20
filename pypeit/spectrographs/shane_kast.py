@@ -473,6 +473,7 @@ class ShaneKastRedRetSpectrograph(ShaneKastSpectrograph):
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['NeI', 'HgI', 'HeI', 'ArI']
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['sigdetect'] = 5.
 

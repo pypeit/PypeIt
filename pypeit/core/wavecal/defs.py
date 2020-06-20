@@ -49,6 +49,7 @@ class LinesBitMask(BitMask):
             ('OH_triplespec', 'Comment'),
             ('CuI', 'Comment'),
             ('ArII', 'Comment'),
+            ('OH', 'Comment'),
             ('OH_XSHOOTER', 'Comment'),
             ('OH_GNIRS', 'Comment'),
             ('OH_NIRES', 'Comment'),
