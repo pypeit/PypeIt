@@ -113,6 +113,10 @@ class SkyRegions(pypeitimage.PypeItImage):
     # Peg the version of this class to that of PypeItImage
     version = pypeitimage.PypeItImage.version
 
+    # I/O
+    output_to_disk = ('SKYREG_IMAGE')
+    hdu_prefix = 'SKYREG_'
+
     # Master fun
     master_type = 'SkyRegions'
     master_file_format = 'fits.gz'

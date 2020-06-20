@@ -2,16 +2,16 @@
 This script allows the user to manually select the sky background regions
 """
 
+import os
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Button
 import matplotlib.transforms as mtransforms
 
-from pypeit import slittrace
 from pypeit import msgs
 from pypeit.core import skysub
-from pypeit.io import write_to_fits
+from pypeit.images import buildimage
 
 operations = dict({'cursor': "Add sky region (LMB drag)\n" +
                    "         Remove sky region (RMB drag)\n" +
@@ -37,7 +37,7 @@ class SkySubGUI(object):
     file.
     """
 
-    def __init__(self, canvas, image, frame, outname, det, slits, axes, pypeline, printout=False,
+    def __init__(self, canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph, printout=False,
                  runtime=False, resolution=1000, initial=False, flexure=None, overwrite=False):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
@@ -62,7 +62,9 @@ class SkySubGUI(object):
             Dictionary of four Matplotlib axes instances (Main
             spectrum panel, two for residuals, one for information)
         pypeline : str
-            Name of the intrument pipeline
+            Name of the instrument pipeline
+        spectrograph : str
+            Name of the spectrograph
         printout : bool
             Should the results be printed to screen
         initial : bool, optional
@@ -82,6 +84,7 @@ class SkySubGUI(object):
         self.image = image
         self.frame = frame
         self.pypeline = pypeline
+        self.spectrograph = spectrograph
         self._outname = outname
         self._overwrite = overwrite
         self.nspec, self.nspat = frame.shape[0], frame.shape[1]
@@ -145,7 +148,8 @@ class SkySubGUI(object):
         self.reset_regions()
 
     @classmethod
-    def initialize(cls, det, frame, slits, pypeline, outname="skyregions.fits", overwrite=False, initial=False,
+    def initialize(cls, det, frame, slits, pypeline, spectrograph, outname="skyregions.fits",
+                   overwrite=False, initial=False,
                    flexure=None, runtime=False, printout=False):
         """
         Initialize the 'ObjFindGUI' window for interactive object tracing
@@ -160,6 +164,8 @@ class SkySubGUI(object):
             Object with the image coordinates of the slit edges
         pypeline : str
             Name of the reduction pipeline
+        spectrograph : str
+            Name of the spectrograph
         printout : bool
             Should the results be printed to screen
         runtime : bool
@@ -204,8 +210,8 @@ class SkySubGUI(object):
         axes = dict(main=ax, info=axinfo)
         # Initialise the object finding window and display to screen
         fig.canvas.set_window_title('PypeIt - Sky regions')
-        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, pypeline, printout=printout,
-                          runtime=runtime, initial=initial, flexure=flexure, overwrite=overwrite)
+        srgui = SkySubGUI(fig.canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph,
+                          printout=printout, runtime=runtime, initial=initial, flexure=flexure, overwrite=overwrite)
         plt.show()
 
         return srgui
@@ -567,40 +573,16 @@ class SkySubGUI(object):
         # Only do this if the user wishes to save the result
         if self._use_updates:
             # Generate the mask
-            inmask = self.generate_mask()
+            inmask = skysub.generate_mask(self.pypeline, self._skyreg, self.slits, self.slits_left, self.slits_right)
             # Save the mask
-            write_to_fits(inmask, self._outname, name="SKYREG", overwrite=self._overwrite)
+            outfil = self._outname
+            if os.path.exists(self._outname) and not self._overwrite:
+                outfil = 'temp.fits'
+                msgs.warn("File exists:\n{0:s}\nSaving regions to 'temp.fits'")
+                self._overwrite = True
+            msskyreg = buildimage.SkyRegions(image=inmask.astype(np.float), PYP_SPEC=self.spectrograph)
+            msskyreg.to_master_file(master_filename=outfil)
         return
-
-    def generate_mask(self):
-        """Generate the mask of sky regions
-
-        Returns:
-            ndarray : Boolean mask containing sky regions
-        """
-        nreg = 0
-        left_edg, righ_edg = np.zeros((self.nspec, 0)), np.zeros((self.nspec, 0))
-        spec_min, spec_max = np.array([]), np.array([])
-        for sl in range(self._nslits):
-            diff = self.slits_right[:, sl] - self.slits_left[:, sl]
-            tmp = np.zeros(self._resolution+2)
-            tmp[1:-1] = self._skyreg[sl]
-            wl = np.where(tmp[1:] > tmp[:-1])[0]
-            wr = np.where(tmp[1:] < tmp[:-1])[0]
-            for rr in range(wl.size):
-                left = self.slits_left[:, sl] + wl[rr]*diff/(self._resolution-1.0)
-                righ = self.slits_left[:, sl] + wr[rr]*diff/(self._resolution-1.0)
-                left_edg = np.append(left_edg, left[:, np.newaxis], axis=1)
-                righ_edg = np.append(righ_edg, righ[:, np.newaxis], axis=1)
-                nreg += 1
-                spec_min = np.append(spec_min, self.slits.specmin[sl])
-                spec_max = np.append(spec_max, self.slits.specmax[sl])
-        # Instantiate the regions
-        regions = slittrace.SlitTraceSet(left_edg, righ_edg, self.pypeline, nspec=self.nspec, nspat=self.nspat,
-                                         mask=self.slits.mask, specmin=spec_min, specmax=spec_max,
-                                         binspec=self.slits.binspec, binspat=self.slits.binspat, pad=0)
-        # Generate the mask, and return
-        return (regions.slit_img(use_spatial=False) >= 0).astype(np.int)
 
     def recenter(self):
         xlim = self.axes['main'].get_xlim()

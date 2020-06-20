@@ -53,22 +53,32 @@ def test_flatimages():
     # Create bspline
     spat_bspline1 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
     spat_bspline2 = bspline.bspline(x, bkspace=0.01*(np.max(x)-np.min(x)))
-    instant_dict = dict(procflat=tmp,
-                        pixelflat=np.ones_like(tmp),
-                        flat_model=None,
-                        spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
-                        spat_id=np.asarray([100, 200]))
+    instant_dict = dict(pixelflat_raw=tmp,
+                        pixelflat_norm=np.ones_like(tmp),
+                        pixelflat_model=None,
+                        pixelflat_spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
+                        pixelflat_spec_illum=None,
+                        illumflat_raw=tmp,
+                        illumflat_spat_bsplines=np.asarray([spat_bspline1, spat_bspline2]),
+                        spat_id=np.asarray([100, 200]),
+                        PYP_SPEC="specname")
 
     flatImages = flatfield.FlatImages(**instant_dict)
-    assert flatImages.flat_model is None
+    assert flatImages.pixelflat_model is None
+    assert flatImages.pixelflat_spec_illum is None
+    assert flatImages.pixelflat_spat_bsplines is not None
 
     # I/O
     outfile = data_path('tst_flatimages.fits')
-    flatImages.to_file(outfile, overwrite=True)
+    flatImages.to_master_file(outfile)
     _flatImages = flatfield.FlatImages.from_file(outfile)
     # Test
     for key in instant_dict.keys():
-        if key == 'spat_bsplines':
+        if key == 'pixelflat_spat_bsplines':
+            np.array_equal(flatImages[key][0].breakpoints,
+                           _flatImages[key][0].breakpoints)
+            continue
+        if key == 'illumflat_spat_bsplines':
             np.array_equal(flatImages[key][0].breakpoints,
                            _flatImages[key][0].breakpoints)
             continue
