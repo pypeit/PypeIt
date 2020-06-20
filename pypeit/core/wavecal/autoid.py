@@ -2564,19 +2564,15 @@ class HolyGrail:
         #        #weights = 1.0/ecent
         #        weights = np.ones(tcent.size)
         # Fit
-        try:
-            final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
+        final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
                                                   patt_dict['bdisp'],
                                                   match_toler=self._match_toler, func=self._func, n_first=self._n_first,
                                                   sigrej_first=self._sigrej_first,
                                                   n_final=self._n_final, sigrej_final=self._sigrej_final,
                                                   plot_fil = plot_fil, verbose = self._verbose)
-        except TypeError:
-            # A poor fitting result, this can be ignored.
-            return None
 
-        if plot_fil is not None:
+        if plot_fil is not None and final_fit is not None:
             print("Wrote: {:s}".format(plot_fil))
 
         # Return

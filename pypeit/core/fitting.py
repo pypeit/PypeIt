@@ -954,7 +954,7 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
             invvar, and the code will return an error if this is done.
 
     Returns:
-        PypeItFit:
+        PypeItFit or None:
     """
 
     # Setup the initial mask
@@ -973,14 +973,17 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
     iIter = 0
     qdone = False
     thismask = np.copy(inmask)
+    pypeitFit = None
     while (not qdone) and (iIter < maxiter):
         if np.sum(thismask) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
         if not np.any(thismask):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-            if ct is None:
-                ct = np.zeros(order + 1)
-            return thismask, ct
+            if pypeitFit is not None:
+                if ct is None:
+                    pypeitFit.fitc = np.zeros(order + 1)
+                pypeitFit.gpm = thismask.astype(int)
+            return pypeitFit
 
         pypeitFit = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct,
                       minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)

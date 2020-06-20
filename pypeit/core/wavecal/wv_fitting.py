@@ -187,17 +187,11 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
             imsk[kk] = False
     ifit = ifit[imsk]
     # Fit
-    try:
-        final_fit = iterative_fitting(spec, tcent, ifit,np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+    final_fit = iterative_fitting(spec, tcent, ifit,np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
                                       patt_dict['bdisp'],match_toler=match_toler, func=func, n_first=n_first,
                                       sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final,
                                       plot_fil=plot_fil, verbose=verbose)
-    except TypeError:
-        # A poor fitting result, this can be ignored.
-        msgs.warn('Fit failed for this slit')
-        return None
-
-    if plot_fil is not None:
+    if plot_fil is not None and final_fit is not None:
         print("Wrote: {:s}".format(plot_fil))
 
     # Return
@@ -287,13 +281,12 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                        lower=sigrej_first, upper=sigrej_first,
                                        minx=fmin, maxx=fmax, weights=wfit)
+        # Junk fit?
+        if pypeitFit is None:
+            msgs.warn("Bad fit!!")
+            return None
 
-        try:
-            rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0]/xnspecmin1,
-        except:
-            embed(header='294 of wv_fitting')
-                                     #yfit[pypeitFit.gpm == 0],
-                                     #weights=wfit[pypeitFit.gpm == 0])
+        rms_ang = pypeitFit.calc_fit_rms()
         rms_pix = rms_ang/disp
         if verbose:
             msgs.info('n_order = {:d}'.format(n_order) + ': RMS = {:g}'.format(rms_pix))

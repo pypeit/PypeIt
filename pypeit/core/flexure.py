@@ -249,6 +249,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     #pypeitFit_obj = fitting.robust_fit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
     #                                function='bspline', lower=3., upper=3., bspline_par=bspline_par)
     #obj_sky_cont = pypeitFit_obj.val(obj_skyspec.wavelength.value)
+    # FOR JFH OR Feige
     pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
                                        nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
                                        maxiter = 15, upper = 3.0, lower = 3.0)
