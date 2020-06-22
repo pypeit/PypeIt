@@ -163,6 +163,9 @@ class PypeItFit(DataContainer):
             xval = self.xval[self.gpm]
             yval = self.yval[self.gpm]
             weights = weights[self.gpm]
+        else:
+            xval = self.xval.copy()
+            yval = self.yval.copy()
         # Normalise
         weights /= np.sum(weights)
         values = self.val(xval)
@@ -523,7 +526,7 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
     """
     goodbk = sset.mask
     bkpt, _ = sset.value(sset.breakpoints[goodbk])
-    was_fit_and_masked = np.invert(gpm)
+    was_fit_and_masked = np.logical_not(gpm)
 
     plt.clf()
     ax = plt.gca()

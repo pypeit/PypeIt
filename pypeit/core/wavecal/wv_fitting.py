@@ -187,10 +187,10 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
             imsk[kk] = False
     ifit = ifit[imsk]
     # Fit
-    final_fit = iterative_fitting(spec, tcent, ifit,np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
-                                      patt_dict['bdisp'],match_toler=match_toler, func=func, n_first=n_first,
-                                      sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final,
-                                      plot_fil=plot_fil, verbose=verbose)
+    final_fit = iterative_fitting(spec, tcent, ifit, np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+                                  patt_dict['bdisp'],match_toler=match_toler, func=func, n_first=n_first,
+                                  sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final,
+                                  plot_fil=plot_fil, verbose=verbose)
     if plot_fil is not None and final_fit is not None:
         print("Wrote: {:s}".format(plot_fil))
 
@@ -322,7 +322,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
-    irej = np.where(np.invert(pypeitFit.gpm))[0]
+    irej = np.where(np.logical_not(pypeitFit.gpm))[0]
     if len(irej) > 0:
         xrej = xfit[irej]
         yrej = yfit[irej]

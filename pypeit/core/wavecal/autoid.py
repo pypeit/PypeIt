@@ -111,7 +111,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     # Points
     ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
     # Rejections?
-    bpm = np.invert(waveFit.pypeitfit.gpm)
+    bpm = np.logical_not(waveFit.pypeitfit.gpm)
     if np.any(bpm):
         xrej = waveFit.pixel_fit[bpm]
         yrej = waveFit.wave_fit[bpm]
@@ -1527,7 +1527,7 @@ class HolyGrail:
             self._det_stro[str(slit)] = [self._all_tcent[self._icut].copy(),self._all_ecent[self._icut].copy()]
 
             # Run brute force algorithm on the weak lines
-            best_patt_dict, best_final_fit = self.run_brute_loop(slit,self._det_weak[str(slit)])
+            best_patt_dict, best_final_fit = self.run_brute_loop(slit, self._det_weak[str(slit)])
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
@@ -1674,7 +1674,7 @@ class HolyGrail:
                                       lindex, indexm.shape[1], self._npix)
 
             msgs.info("Identifying the best solution")
-            patt_dict, final_fit = self.solve_slit(slit, psols, msols,self._det_weak[str(slit)], nselw=1, nseld=2)
+            patt_dict, final_fit = self.solve_slit(slit, psols, msols, self._det_weak[str(slit)], nselw=1, nseld=2)
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, patt_dict, final_fit)
@@ -1930,7 +1930,8 @@ class HolyGrail:
             if not patt_dict['acceptable']:
                 new_bad_slits = np.append(new_bad_slits, bs)
                 continue
-            final_fit = self.fit_slit(bs, patt_dict, bsdet)
+            final_fit = wv_fitting.fit_slit(self._spec[:, bs], patt_dict, bsdet, self._line_lists)
+            #final_fit = self.fit_slit(bs, patt_dict, bsdet)
             if final_fit is None:
                 # This pattern wasn't good enough
                 new_bad_slits = np.append(new_bad_slits, bs)
@@ -2445,7 +2446,8 @@ class HolyGrail:
                 continue
             # Fit the full set of lines with the derived patterns
             use_tcent, _ = self.get_use_tcent(tpatt_dict['sign'], tcent_ecent)
-            tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
+            tfinal_dict = wv_fitting.fit_slit(self._spec[:, slit], tpatt_dict, use_tcent, self._line_lists, verbose=True)
+            # tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
             if tfinal_dict is None:
                 # This pattern wasn't good enough
                 continue
@@ -2606,7 +2608,9 @@ class HolyGrail:
                             outfile=self._outroot + slittxt + '.pdf')
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
-            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], use_tcent, outroot=self._outroot, slittxt=slittxt)
+            best_final_fit = wv_fitting.fit_slit(self._spec[:, slit], self._all_patt_dict[str(slit)], use_tcent,
+                                                 self._line_lists, outroot=self._outroot, slittxt=slittxt)
+            #best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], use_tcent, outroot=self._outroot, slittxt=slittxt)
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 
     def report_prelim(self, slit, best_patt_dict, best_final_fit):
