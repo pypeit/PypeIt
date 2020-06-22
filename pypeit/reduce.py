@@ -1313,7 +1313,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         if update_crmask:
             # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
-                                   subtract_img=self.global_sky)
+                                     subtract_img=self.global_sky)
             # Update the fullmask
             self.sciImg.update_mask_cr(self.sciImg.crmask)
 

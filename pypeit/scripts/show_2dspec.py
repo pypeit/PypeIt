@@ -44,7 +44,7 @@ def parser(options=None):
                         action = "store_true")
     parser.add_argument('--embed', default=False, help='Upon completion embed in ipython shell',
                         action='store_true')
-    parser.add_argument('--ignore_extract_mask', default=False, help='Upon completion embed in ipython shell',
+    parser.add_argument('--ignore_extract_mask', default=False, help='Ignore the extraction mask',
                         action='store_true')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
@@ -102,15 +102,6 @@ def main(args):
 
     bitMask = ImageBitMask()
 
-    # Show the bitmask?
-    if args.showmask:
-        mask_in = spec2DObj.mask
-        # Unpack the bitmask
-        #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
-        #    = bitMask.unpack(mask)
-    else:
-        mask_in = None
-
     # Object traces from spec1d file
     spec1d_file = args.file.replace('spec2d', 'spec1d')
     if os.path.isfile(spec1d_file):
@@ -123,6 +114,12 @@ def main(args):
     ginga.connect_to_ginga(raise_err=True, allow_new=True)
 
     # Now show each image to a separate channel
+
+    # Show the bitmask?
+    mask_in = None
+    if args.showmask:
+        viewer, ch = ginga.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
+        #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
 
     # SCIIMG
     image = spec2DObj.sciimg  # Processed science image
