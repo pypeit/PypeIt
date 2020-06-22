@@ -2489,14 +2489,16 @@ class HolyGrail:
 
         # Check that a solution has been found
         if patt_dict['nmatch'] == 0 and self._verbose:
-            msgs.info('---------------------------------------------------' + msgs.newline() +
+            msgs.info(msgs.newline() +
+                      '---------------------------------------------------' + msgs.newline() +
                       'Initial report:' + msgs.newline() +
                       '  No matches! Try another algorithm' + msgs.newline() +
                       '---------------------------------------------------')
             return None
         elif self._verbose:
             # Report
-            msgs.info('---------------------------------------------------' + msgs.newline() +
+            msgs.info(msgs.newline() +
+                      '---------------------------------------------------' + msgs.newline() +
                       'Initial report:' + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of lines recovered    = {:d}'.format(self._all_tcent.size) + msgs.newline() +
@@ -2507,78 +2509,6 @@ class HolyGrail:
                       '  Best wave/disp                = {:g}'.format(patt_dict['bwv']/patt_dict['bdisp']) + msgs.newline() +
                       '---------------------------------------------------')
         return patt_dict
-
-    # JFH TODO This code should be removed from the class and replaced with the fit_slit function in fitting that I created
-    def fit_slit(self, slit, patt_dict, tcent, outroot=None, slittxt="Slit"):
-        """
-        Perform a fit to the wavelength solution
-
-        Parameters
-        ----------
-        slit : int
-            slit number
-        patt_dict : dict
-            dictionary of patterns
-        tcent: ndarray
-            List of the detections in this slit to be fit using the patt_dict
-        outroot : str
-            root directory to save QA
-        slittxt : str
-            Label used for QA
-
-        Returns
-        -------
-        final_fit : dict
-            A dictionary containing all of the information about the fit
-        """
-        # Check that patt_dict and tcent refer to each other
-        if patt_dict['mask'].shape != tcent.shape:
-            msgs.error('patt_dict and tcent do not refer to each other. Something is very wrong')
-
-        # Perform final fit to the line IDs
-        if self._thar:
-            NIST_lines = (self._line_lists['NIST'] > 0) & (np.char.find(self._line_lists['Source'].data, 'MURPHY') >= 0)
-        elif 'OH_R24000' in self._lines:
-            NIST_lines = self._line_lists['NIST'] == 0
-        else:
-            NIST_lines = self._line_lists['NIST'] > 0
-        ifit = np.where(patt_dict['mask'])[0]
-
-        if outroot is not None:
-            plot_fil = outroot + slittxt + '_fit.pdf'
-        else:
-            plot_fil = None
-        # Purge UNKNOWNS from ifit
-        imsk = np.ones(len(ifit), dtype=np.bool)
-        for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
-            if np.min(np.abs(self._line_lists['wave'][NIST_lines]-idwv)) > 0.01:
-                imsk[kk] = False
-        ifit = ifit[imsk]
-        # JFH removed this. Detections must be input as a parameter
-        # Allow for weaker lines in the fit
-        #if tcent is None:
-        #    tcent, ecent = self.get_use_tcent(patt_dict['sign'], weak=True)
-        #     weights = np.ones(tcent.size)
-        #else:
-        #    if ecent is None:
-        #        weights = np.ones(tcent.size)
-        #    else:
-        #        #weights = 1.0/ecent
-        #        weights = np.ones(tcent.size)
-        # Fit
-        final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
-                                                  np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
-                                                  patt_dict['bdisp'],
-                                                  match_toler=self._match_toler, func=self._func, n_first=self._n_first,
-                                                  sigrej_first=self._sigrej_first,
-                                                  n_final=self._n_final, sigrej_final=self._sigrej_final,
-                                                  plot_fil = plot_fil, verbose = self._verbose)
-
-        if plot_fil is not None and final_fit is not None:
-            print("Wrote: {:s}".format(plot_fil))
-
-        # Return
-        return final_fit
 
     def finalize_fit(self, detections):
         """
