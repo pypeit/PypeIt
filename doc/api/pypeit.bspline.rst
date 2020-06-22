@@ -5,6 +5,7 @@ Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.bspline.bspline
    pypeit.bspline.setup_package

@@ -606,7 +606,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
     def mask_flats(self, flatImages):
         """
-        Mask from a :class:`pypeit.flatfield.FlatImages` object
+        Mask from a :class:`pypeit.flatfield.Flats` object
 
         Args:
             flatImages (:class:`pypeit.flatfield.FlatImages`):
@@ -614,7 +614,7 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         # Loop on all the FLATFIELD BPM keys
         for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
-            bad_flats = self.bitmask.flagged(flatImages.bpmflats, flag)
+            bad_flats = self.bitmask.flagged(flatImages.get_bpmflats(), flag)
             if np.any(bad_flats):
                 self.mask[bad_flats] = self.bitmask.turn_on(self.mask[bad_flats], flag)
 

@@ -661,7 +661,7 @@ class bspline(datamodel.DataContainer):
 
         return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
-
+# TODO: I don't think we need to make this reproducible with the IDL version anymore, and can opt for speed instead.
 # TODO: Move this somewhere for more common access?
 # Faster than previous version but not as fast as if we could switch to
 # np.unique.

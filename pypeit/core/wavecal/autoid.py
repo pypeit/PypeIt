@@ -1480,7 +1480,7 @@ class HolyGrail:
                             if len(final_fit['pixel_fit']) > len(best_final_fit['pixel_fit']):
                                 best_patt_dict, best_final_fit = copy.deepcopy(patt_dict), copy.deepcopy(final_fit)
                             # Decide if an early return is acceptable
-                            nlft = np.sum(best_final_fit['tcent'] < best_final_fit['nspec']/2.0)
+                            nlft = np.sum(best_final_fit['tcent'] < best_final_fit['spec'].size/2.0)
                             nrgt = best_final_fit['tcent'].size-nlft
                             if np.sum(best_final_fit['pixel_fit'] < 0.5)/nlft > idthresh and\
                                 np.sum(best_final_fit['pixel_fit'] >= 0.5) / nrgt > idthresh:
@@ -2564,19 +2564,15 @@ class HolyGrail:
         #        #weights = 1.0/ecent
         #        weights = np.ones(tcent.size)
         # Fit
-        try:
-            final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
+        final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
                                                   np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
                                                   patt_dict['bdisp'],
                                                   match_toler=self._match_toler, func=self._func, n_first=self._n_first,
                                                   sigrej_first=self._sigrej_first,
                                                   n_final=self._n_final, sigrej_final=self._sigrej_final,
                                                   plot_fil = plot_fil, verbose = self._verbose)
-        except TypeError:
-            # A poor fitting result, this can be ignored.
-            return None
 
-        if plot_fil is not None:
+        if plot_fil is not None and final_fit is not None:
             print("Wrote: {:s}".format(plot_fil))
 
         # Return
@@ -2673,10 +2669,12 @@ class HolyGrail:
             else:
                 signtxt = 'anitcorrelate'
             # Report
-            centwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5,
-                                      self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
-            tempwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5 + 1.0/self._npix,
-                                      self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
+            #centwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5,
+            #                          self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
+            #tempwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5 + 1.0/self._npix,
+            #                          self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
+            centwave = self._all_final_fit[st].pypeitfit.val(0.5)
+            tempwave = self._all_final_fit[st].pypeitfit.val(0.5 + 1.0/self._npix)
             centdisp = abs(centwave-tempwave)
             msgs.info(msgs.newline() +
                       '---------------------------------------------------' + msgs.newline() +

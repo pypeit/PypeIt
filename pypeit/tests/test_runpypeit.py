@@ -43,7 +43,7 @@ def test_run_pypeit_calib_only():
                    'MasterBias_A_1_01.fits',
                    'MasterTilts_A_1_01.fits', 'MasterEdges_A_1_01.fits.gz',
                    'MasterFlat_A_1_01.fits',
-                   'MasterWaveCalib_A_1_01.json']
+                   'MasterWaveCalib_A_1_01.fits']
 
     # Just get a few files
     for ss, sub_files, masters in zip(range(3),

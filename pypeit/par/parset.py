@@ -122,14 +122,15 @@ class ParSet(object):
         cfg_comment (str): 
             Comment to be placed at the top-level of the configuration
             section written based on the contents of this parameter set.
-        prefix (str):
-            Class Prefix for header keywords when writing the parset to an
-            `astropy.io.fits.Header` object.
-
     """
+
     # Set prefix for writing parameters to a fits header to a class
     # attribute.
     prefix = 'PAR'
+    """
+    Class Prefix for header keywords when writing the parset to an
+    `astropy.io.fits.Header`_ object.
+    """
 
     def __init__(self, pars, values=None, defaults=None, options=None, dtypes=None, can_call=None,
                  descr=None, cfg_section=None, cfg_comment=None):

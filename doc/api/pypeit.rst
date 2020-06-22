@@ -5,6 +5,7 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.bspline
    pypeit.core
@@ -16,6 +17,7 @@ Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.alignframe
    pypeit.biasframe
@@ -24,6 +26,7 @@ Submodules
    pypeit.check_requirements
    pypeit.coadd1d
    pypeit.coadd2d
+   pypeit.compiler_version
    pypeit.datamodel
    pypeit.debugger
    pypeit.defs

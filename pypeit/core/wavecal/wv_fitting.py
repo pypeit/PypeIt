@@ -187,17 +187,11 @@ def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, sl
             imsk[kk] = False
     ifit = ifit[imsk]
     # Fit
-    try:
-        final_fit = iterative_fitting(spec, tcent, ifit,np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
+    final_fit = iterative_fitting(spec, tcent, ifit,np.array(patt_dict['IDs'])[ifit], line_lists[NIST_lines],
                                       patt_dict['bdisp'],match_toler=match_toler, func=func, n_first=n_first,
                                       sigrej_first=sigrej_first,n_final=n_final, sigrej_final=sigrej_final,
                                       plot_fil=plot_fil, verbose=verbose)
-    except TypeError:
-        # A poor fitting result, this can be ignored.
-        msgs.warn('Fit failed for this slit')
-        return None
-
-    if plot_fil is not None:
+    if plot_fil is not None and final_fit is not None:
         print("Wrote: {:s}".format(plot_fil))
 
     # Return
@@ -287,16 +281,18 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                        lower=sigrej_first, upper=sigrej_first,
                                        minx=fmin, maxx=fmax, weights=wfit)
+        # Junk fit?
+        if pypeitFit is None:
+            msgs.warn("Bad fit!!")
+            return None
 
-        rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0]/xnspecmin1,
-                                     #yfit[pypeitFit.gpm == 0],
-                                     #weights=wfit[pypeitFit.gpm == 0])
+        rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
         rms_pix = rms_ang/disp
         if verbose:
             msgs.info('n_order = {:d}'.format(n_order) + ': RMS = {:g}'.format(rms_pix))
 
         # Reject but keep originals (until final fit)
-        ifit = list(ifit[pypeitFit.gpm == 0]) + sv_ifit
+        ifit = list(ifit[pypeitFit.gpm]) + sv_ifit
         if not input_only:
             # Find new points from the linelist (should we allow removal of the originals?)
             twave = pypeitFit.val(tcent/xnspecmin1)#, func, minx=fmin, maxx=fmax)
@@ -326,7 +322,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
-    irej = np.where(pypeitFit.gpm == 1)[0]
+    irej = np.where(np.invert(pypeitFit.gpm))[0]
     if len(irej) > 0:
         xrej = xfit[irej]
         yrej = yfit[irej]
@@ -344,7 +340,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     ions = all_idsion[ifit]
 #    ions = all_idsion[ifit][mask == 0]
     # Final RMS
-    rms_ang = pypeitFit.calc_fit_rms()#xfit[pypeitFit.gpm == 0] / xnspecmin1,
+    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)#xfit[pypeitFit.gpm == 0] / xnspecmin1,
                                      #yfit[pypeitFit.gpm == 0],
                                      #weights=wfit[pypeitFit.gpm == 0])
 #    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, func,
