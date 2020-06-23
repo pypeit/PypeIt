@@ -737,7 +737,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
         cd22 = cdelt2 * np.cos(crota)
         crpix1 = 12.
-        crpix2 = maxslitlength / 2.
+        crpix2 = maxslitlength / 2.  # Check this is maxslitlength
         crpix3 = 1.
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
