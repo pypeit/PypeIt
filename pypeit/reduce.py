@@ -548,7 +548,7 @@ class Reduce(object):
         if update_crmask:
             # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
-                                   subtract_img=self.global_sky)
+                                     subtract_img=self.global_sky)
             # Update the fullmask
             self.sciImg.update_mask_cr(self.sciImg.crmask)
 
@@ -1218,14 +1218,14 @@ class IFUReduce(MultiSlitReduce, Reduce):
         else:
             sigrej = 3.0
 
-        gdslits = np.where(np.invert(self.reduce_bpm))[0]
+        gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
 
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
 
         if self.par['reduce']['skysub']['joint_fit']:
             msgs.info("Performing joint global sky subtraction")
-            thismask = (self.slitmask != 0)
+            thismask = (self.slitmask > 0)
             inmask = ((self.sciImg.fullmask == 0) & thismask & skymask_now).astype(np.bool)
             # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
             # the tilts frame, but conserves wavelength position in each slit)
@@ -1313,7 +1313,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         if update_crmask:
             # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
-                                   subtract_img=self.global_sky)
+                                     subtract_img=self.global_sky)
             # Update the fullmask
             self.sciImg.update_mask_cr(self.sciImg.crmask)
 
