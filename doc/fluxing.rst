@@ -82,7 +82,7 @@ IR without a Standard
 ---------------------
 
 If you wish to generate a sensitivity function on a standard
-start that is not part of the PypeIt database and are working
+star that is not part of the PypeIt database and are working
 in the IR, you can feed the stellar parameters.  Here is an
 example::
 

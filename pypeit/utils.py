@@ -984,7 +984,6 @@ def calc_ivar(varframe):
     return inverse(varframe)
 
 
-
 def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None, w=None, inmask = None, guesses=None,
              bspline_par=None, return_errors=False):
     """

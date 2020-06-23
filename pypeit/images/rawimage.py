@@ -69,6 +69,7 @@ class RawImage(object):
         self.steps = dict(subtract_bias=False,
                           subtract_overscan=False,
                           subtract_dark=False,
+                          subtract_pattern=False,
                           trim=False,
                           orient=False,
                           apply_gain=False,
@@ -196,6 +197,8 @@ class RawImage(object):
         # Get started
         # Standard order
         #   -- May need to allow for other order some day..
+        if par['use_pattern']:  # Note, this step *must* be done before use_overscan
+            self.subtract_pattern()
         if par['use_overscan']:
             self.subtract_overscan()
         if par['trim']:
@@ -232,12 +235,20 @@ class RawImage(object):
                 viewer, ch = ginga.show_image(orig_image, chname='orig_image')
                 ginga.show_slits(viewer, ch, left, right)  # , slits.id)
 
+        # Apply the relative spectral illumination
+        spec_illum = 1.0
+        if self.par['use_specillum']:
+            if flatimages is None or flatimages.get_spec_illum() is None:
+                msgs.error("Spectral illumination correction desired but not generated/provided.")
+            else:
+                spec_illum = flatimages.get_spec_illum().copy()
+
         # Flat field -- We cannot do illumination flat without a pixel flat (yet)
         if self.par['use_pixelflat'] or self.par['use_illumflat']:
-            if flatimages is None or flatimages.pixelflat is None:
+            if flatimages is None or flatimages.get_pixelflat() is None:
                 msgs.error("Flat fielding desired but not generated/provided.")
             else:
-                self.flatten(flatimages.pixelflat, illum_flat=illum_flat, bpm=self.bpm)
+                self.flatten(flatimages.get_pixelflat()*spec_illum, illum_flat=illum_flat, bpm=self.bpm)
 
         # Fresh BPM
         bpm = self.spectrograph.bpm(self.filename, self.det, shape=self.image.shape)
@@ -373,6 +384,36 @@ class RawImage(object):
         temp = procimg.subtract_overscan(self.image, self.datasec_img, self.oscansec_img,
                                          method=self.par['overscan_method'],
                                          params=self.par['overscan_par'])
+        # Fill
+        self.steps[step] = True
+        self.image = temp
+
+    def subtract_pattern(self):
+        """
+        Analyze and subtract the pattern noise from the image
+        """
+        step = inspect.stack()[0][3]
+        # Check if already overscan subtracted
+        if self.steps[step]:
+            msgs.warn("Image was already pattern subtracted!")
+
+        # Grab the frequency, if it exists in the header
+        # For some instruments, PYPEITFRQ is added to the header in get_rawimage() in the spectrograph file
+        # See keck_kcwi.py for an example
+        frequency = []
+        try:
+            # Grab a list of all the amplifiers
+            amps = np.sort(np.unique(self.oscansec_img[np.where(self.oscansec_img > 0)]))
+            for amp in amps:
+                frequency.append(self.hdu[0].header['PYPFRQ{0:02d}'.format(amp)])
+            # Final check to make sure the list isn't empty (which it shouldn't be, anyway)
+            if len(frequency) == 0:
+                frequency = None
+        except KeyError:
+            frequency = None
+        # Generate a new image with the pattern removed
+        temp = procimg.subtract_pattern(self.image, self.datasec_img, self.oscansec_img, frequency=frequency)
+
         # Fill
         self.steps[step] = True
         self.image = temp

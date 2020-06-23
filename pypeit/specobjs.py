@@ -208,7 +208,7 @@ class SpecObjs(object):
         meta_spec['PYPELINE'] = self[0].PYPELINE
         meta_spec['DET'] = detector
         # Return
-        if self[0].PYPELINE == 'MultiSlit' and self.nobj == 1:
+        if self[0].PYPELINE in ['MultiSlit', 'IFU'] and self.nobj == 1:
             meta_spec['ECH_ORDERS'] = None
             return wave.reshape(nspec), flux.reshape(nspec), flux_ivar.reshape(nspec), \
                    flux_gpm.reshape(nspec), meta_spec, self.header
@@ -233,7 +233,7 @@ class SpecObjs(object):
         """
         # Is this MultiSlit or Echelle
         pypeline = (self.PYPELINE)[0]
-        if 'MultiSlit' in pypeline:
+        if 'MultiSlit' in pypeline or 'IFU' in pypeline:
             # Have to do a loop to extract the counts for all objects
             if self.OPT_COUNTS[0] is not None:
                 SNR = np.median(self.OPT_COUNTS*np.sqrt(self.OPT_COUNTS_IVAR), axis=1)
@@ -303,8 +303,10 @@ class SpecObjs(object):
             sobjs_neg.OBJID = -sobjs_neg.OBJID
         elif sobjs_neg[0].PYPELINE == 'MultiSlit':
             sobjs_neg.OBJID = -sobjs_neg.OBJID
+        elif sobjs_neg[0].PYPELINE == 'IFU':
+            sobjs_neg.OBJID = -sobjs_neg.OBJID
         else:
-            msgs.error("Should not get here")
+            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         self.add_sobj(sobjs_neg)
 
         # Sort objects according to their spatial location. Necessary for the extraction to properly work
@@ -322,8 +324,10 @@ class SpecObjs(object):
                 index = self.ECH_OBJID < 0
             elif self[0].PYPELINE == 'MultiSlit':
                 index = self.OBJID < 0
+            elif self[0].PYPELINE == 'IFU':
+                index = self.OBJID < 0
             else:
-                msgs.error("Should not get here")
+                msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
             self.remove_sobj(index)
 
 
@@ -340,8 +344,10 @@ class SpecObjs(object):
             indx = self.ECH_ORDERINDX == slitorder
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.SLITID == slitorder
+        elif self[0].PYPELINE == 'IFU':
+            indx = self.SLITID == slitorder
         else:
-            msgs.error("Should not get here")
+            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         #
         return indx
 
@@ -360,8 +366,10 @@ class SpecObjs(object):
             indx = self.ECH_NAME == name
         elif self[0].PYPELINE == 'MultiSlit':
             indx = self.NAME == name
+        elif self[0].PYPELINE == 'IFU':
+            indx = self.NAME == name
         else:
-            msgs.error("Should not get here")
+            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
 
 
@@ -373,8 +381,10 @@ class SpecObjs(object):
             indx = (self.ECH_ORDER == slitorder) & (self.ECH_OBJID == objid)
         elif self[0].PYPELINE == 'MultiSlit':
             indx = (self.SLITID == slitorder) & (self.OBJID == objid)
+        elif self[0].PYPELINE == 'IFU':
+            indx = (self.SLITID == slitorder) & (self.OBJID == objid)
         else:
-            msgs.error("Should not get here")
+            msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         #
         return indx
 
@@ -622,6 +632,10 @@ class SpecObjs(object):
                 spat_fracpos.append(specobj.SPAT_FRACPOS)
                 slits.append(specobj.SLITID)
                 names.append(specobj.NAME)
+            elif pypeline == 'IFU':
+                spat_fracpos.append(specobj.SPAT_FRACPOS)
+                slits.append(specobj.SLITID)
+                names.append(specobj.NAME)
             elif pypeline == 'Echelle':
                 spat_fracpos.append(specobj.ECH_FRACPOS)
                 slits.append(specobj.ECH_ORDER)
@@ -662,6 +676,9 @@ class SpecObjs(object):
         if len(names) > 0:
             obj_tbl = Table()
             if pypeline == 'MultiSlit':
+                obj_tbl['slit'] = slits
+                obj_tbl['slit'].format = 'd'
+            elif pypeline == 'IFU':
                 obj_tbl['slit'] = slits
                 obj_tbl['slit'].format = 'd'
             elif pypeline == 'Echelle':

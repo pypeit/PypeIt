@@ -113,6 +113,10 @@ class SkyRegions(pypeitimage.PypeItImage):
     # Peg the version of this class to that of PypeItImage
     version = pypeitimage.PypeItImage.version
 
+    # I/O
+    output_to_disk = ('SKYREG_IMAGE')
+    hdu_prefix = 'SKYREG_'
+
     # Master fun
     master_type = 'SkyRegions'
     master_file_format = 'fits.gz'
@@ -162,7 +166,8 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
                                    flatimages=flatimages,
                                    sigma_clip=sigma_clip,
                                    sigrej=sigrej, maxiters=maxiters,
-                                   ignore_saturation=ignore_saturation, slits=slits)
+                                   ignore_saturation=ignore_saturation, slits=slits,
+                                   combine_method=frame_par['process']['combine'])
     #
     # Decorate according to the type of calibration
     #   Primarily for handling MasterFrames
