@@ -6,6 +6,8 @@ import numpy as np
 from IPython import embed
 
 from astropy.io import fits
+from astropy import wcs, units
+from astropy.coordinates import SkyCoord
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -38,6 +40,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.grating = None
         self.optical_model = None
         self.detector_map = None
+        self.slicescale = 0.00037718  # Degrees per 'large slicer' slice
+        self.platescale = 0.00004048  # Degrees per unbinned pixel
 
     @property
     def pypeline(self):
@@ -79,7 +83,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         xgap            = 0.,
                         ygap            = 0.,
                         ysize           = 1.,
-                        platescale      = 0.147,  # arcsec/pixel
+                        platescale      = 0.145728,  # arcsec/pixel
                         darkcurr        = None,  # <-- TODO : Need to set this
                         mincounts       = -1e10,
                         saturation      = 65535.,
@@ -554,7 +558,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         Returns
         -------
         bpix : ndarray
-          0 = ok; 1 = Mask
+            0 = ok; 1 = Mask
 
         """
         bpm_img = self.empty_bpm(filename, det, shape=shape)
@@ -609,49 +613,166 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         return bpm_img
 
-    def set_wcs(self, hdr):
-        """Set the WCS for this spectrograph
+    @staticmethod
+    def is_nasmask(hdr):
+        """Determine if a frame used NAS
+
+        Parameters
+        ----------
+        hdr : fits header
+            The header of the raw frame.
+
+        Returns
+        -------
+        bool : True if NAS used
         """
-        # TODO :: Need to set all of these!!
-        msgs.error("Should be using astropy.wcs")
-        ra = None
-        dec = None
-        wave0 = None
-        crpix1 = None
-        crpix2 = None
-        crpix3 = None
-        cd11 = None
-        cd21 = None
-        cd12 = None
-        cd22 = None
-        dwout = None
-        # WCS keywords
-        hdr['WCSDIM'] = (3, 'number of dimensions in WCS')
-        hdr['WCSNAME'] = ('KCWI', 'Name of WCS')
-        hdr['EQUINOX'] = (2000, 'EQUINOX')
-        hdr['RADESYS'] = ('FK5', 'WCS system')
-        hdr['CTYPE1'] = ('RA---TAN', '')
-        hdr['CTYPE2'] = ('DEC--TAN', '')
-        hdr['CTYPE3'] = ('AWAV', 'Air Wavelengths')
-        hdr['CUNIT1'] = ('deg', 'RA units')
-        hdr['CUNIT2'] = ('deg', 'DEC units')
-        hdr['CUNIT3'] = ('Angstrom', 'Wavelength units')
-        hdr['CNAME1'] = ('KCWI RA', 'RA name')
-        hdr['CNAME2'] = ('KCWI DEC', 'DEC name')
-        hdr['CNAME3'] = ('KCWI Wavelength', 'Wavelength name')
-        hdr['CRVAL1'] = (ra, 'RA zeropoint')
-        hdr['CRVAL2'] = (dec, 'DEC zeropoint')
-        hdr['CRVAL3'] = (wave0, 'Wavelength zeropoint')
-        hdr['CRPIX1'] = (crpix1, 'RA reference pixel')
-        hdr['CRPIX2'] = (crpix2, 'DEC reference pixel')
-        hdr['CRPIX3'] = (crpix3, 'Wavelength reference pixel')
-        hdr['CD1_1'] = (cd11, 'RA degrees per column pixel')
-        hdr['CD2_1'] = (cd21, 'DEC degrees per column pixel')
-        hdr['CD1_2'] = (cd12, 'RA degrees per row pixel')
-        hdr['CD2_2'] = (cd22, 'DEC degrees per row pixel')
-        hdr['CD3_3'] = (dwout, 'Wavelength Angstroms per pixel')
-        hdr['LONPOLE'] = (180.0, 'Native longitude of Celestial pole')
-        hdr['LATPOLE'] = (0.0, 'Celestial latitude of native pole')
-        hdr['HISTORY'] = "  {0:s} {1:s}".format(kgeom.progid, systime(0, kgeom.timestamp))
-        hdr['HISTORY'] = "  {0:s} {1:s}".format(pre, systime(0))
-        return hdr
+        if 'Mask' in hdr['BNASNAM']:
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def get_binning(hdr):
+        """ Get the binning
+
+        Parameters
+        ----------
+        hdr : fits header
+            The header of the raw frame.
+
+        Returns
+        -------
+        list : x,y pixel binning
+        """
+        binning = hdr['BINNING']
+        return [int(ibin) for ibin in binning.split(',')]
+
+    def get_scales(self, hdr):
+        """ Get the scale per pixel and slice
+
+        Parameters
+        ----------
+        hdr : fits header
+            The header of the raw frame.
+
+        Returns
+        -------
+        tuple : pixel and slice scale
+        """
+        # Pixel scales
+        pxscl, _ = self.platescale * self.get_binning(hdr)
+        slscl = self.slicescale
+        ifunum = hdr['IFUNUM']
+        if ifunum == 2:
+            slscl = self.slicescale/2.0
+        elif ifunum == 3:
+            slscl = self.slicescale/4.0
+        return pxscl, slscl
+
+    def get_wcs(self, hdr):
+        """Get the WCS for a frame
+
+        Parameters
+        ----------
+        hdr : fits header
+            The header of the raw frame. The information in this
+            header will be extracted and returned as a WCS.
+
+        Returns
+        -------
+        astropy.wcs : An astropy WCS object.
+        """
+        msgs.info("Calculating the WCS")
+        # Get the x and y binning factors...
+        xbin, ybin = self.get_binning(hdr)
+        slscl, pxscl = self.get_scales(hdr)
+
+        # Get RA/DEC
+        try:
+            if self.is_nasmask(hdr):
+                rastr = hdr['RABASE']
+                decstr = hdr['DECBASE']
+            else:
+                rastr = hdr['RA']
+                decstr = hdr['DEC']
+        except KeyError:
+            try:
+                rastr = hdr['TARGRA']
+                decstr = hdr['TARGDEC']
+            except KeyError:
+                rastr = ''
+                decstr = ''
+        # Create a coordinate
+        if len(rastr) > 0 and len(decstr) > 0:
+            coord = SkyCoord(rastr, decstr, unit=(units.hourangle, units.deg))
+        else:
+            coord = None
+
+        # Get rotator position
+        if 'ROTPOSN' in hdr:
+            rpos = hdr['ROTPOSN']
+        else:
+            rpos = 0.
+        if 'ROTREFAN' in hdr:
+            rref = hdr['ROTREFAN']
+        else:
+            rref = 0.
+        # Get the offset and PA
+        rotoff = 0.0  # IFU-SKYPA offset (degrees)
+        skypa = rpos + rref  # IFU position angle (degrees)
+        crota = np.radians(-(skypa + rotoff))
+
+        # Calculate the fits coordinates
+        cdelt1 = -slscl
+        cdelt2 = pxscl
+        if coord is None:
+            ra = 0.
+            dec = 0.
+            crota = 1
+        else:
+            ra = coord.ra.degree
+            dec = coord.dec.degree
+        cd11 = cdelt1 * np.cos(crota)
+        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
+        cd22 = cdelt2 * np.cos(crota)
+        crpix1 = 12.
+        crpix2 = maxslitlength / 2.
+        crpix3 = 1.
+        porg = hdr['PONAME']
+        ifunum = hdr['IFUNUM']
+        if 'IFU' in porg:
+            if ifunum == 1:
+                off1 = 1.0
+                off2 = 4.0
+            elif ifunum == 2:
+                off1 = 1.0
+                off2 = 5.0
+            elif ifunum == 3:
+                off1 = 0.05
+                off2 = 5.6
+            else:
+                msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
+                off1 = 0.
+                off2 = 0.
+            off1 = off1 / xbin
+            off2 = off2 / ybin
+            crpix1 += off1
+            crpix2 += off2
+
+        # Create a new WCS object.
+        w = wcs.WCS(naxis=3)
+        w.wcs.equinox = hdr['EQUINOX']
+        w.wcs.name = 'KCWI'
+        w.wcs.radesys = 'FK5'
+        # Insert the coordinate frame
+        w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
+        w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+        w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+        w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
+        w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
+        w.wcs.crpix = [[cd11, cd12], [cd21, cd22], [cdw]]
+        w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+        w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+
+        return w

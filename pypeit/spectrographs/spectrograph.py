@@ -731,8 +731,20 @@ class Spectrograph(object):
         return retvalue
 
     def set_wcs(self, hdr):
+        """Get the WCS for a frame
+
+        Parameters
+        ----------
+        hdr : fits header
+            The header of the raw frame. The information in this
+            header will be extracted and returned as a WCS.
+
+        Returns
+        -------
+        astropy.wcs : An astropy WCS object.
+        """
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
-        return hdr
+        return None
 
     def validate_metadata(self):
         """
