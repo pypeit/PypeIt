@@ -782,6 +782,17 @@ def main(flg):
         for ii in range(len(iroot)):
             wfile = os.path.join(reid_path, iroot[ii])
             build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
+    # LBT/MODS
+    if flg & (2**31):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['lbt_mods1r_red.json','lbt_mods2r_red.json']
+        outroot=['lbt_mods1r_red.fits','lbt_mods2r_red.fits']
+        binspec = 1
+        slits = [[1557],[1573]]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits[ii], lcut, binspec, outroot[ii], lowredux=False)
 
 # Command line execution
 if __name__ == '__main__':
@@ -852,7 +863,10 @@ if __name__ == '__main__':
     #flg += 2**29
 
     # MMT MMIRS
-    flg += 2**30
+    #flg += 2**30
+
+    # LBT MODS
+    flg += 2**31
 
     main(flg)
 
