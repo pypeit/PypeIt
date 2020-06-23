@@ -669,7 +669,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             slscl = self.slicescale/4.0
         return pxscl, slscl
 
-    def get_wcs(self, hdr):
+    def get_wcs(self, hdr, maxslitlen, wave0, dwv):
         """Get the WCS for a frame
 
         Parameters
@@ -677,6 +677,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         hdr : fits header
             The header of the raw frame. The information in this
             header will be extracted and returned as a WCS.
+        maxslitlen : float
+            Maximum slit length (in pixels)
+        wave0 : float
+            wavelength zeropoint
+        dwv : float
+            delta wavelength per spectral pixel
 
         Returns
         -------
@@ -737,7 +743,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
         cd22 = cdelt2 * np.cos(crota)
         crpix1 = 12.
-        crpix2 = maxslitlength / 2.  # Check this is maxslitlength
+        crpix2 = maxslitlen / 2.  # Check this is maxslitlength
         crpix3 = 1.
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
@@ -761,6 +767,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             crpix2 += off2
 
         # Create a new WCS object.
+        msgs.info("Generating KCWI WCS")
         w = wcs.WCS(naxis=3)
         w.wcs.equinox = hdr['EQUINOX']
         w.wcs.name = 'KCWI'
@@ -771,7 +778,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
-        w.wcs.crpix = [[cd11, cd12], [cd21, cd22], [cdw]]
+        w.wcs.crpix = [[cd11, cd12], [cd21, cd22], [dwv]]
         w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
         w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
 
