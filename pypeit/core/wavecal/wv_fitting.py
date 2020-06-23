@@ -279,7 +279,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         #mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_first,
         #                                 minx=fmin, maxx=fmax, verbose=verbose, weights=wfit)
         pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
-                                       lower=sigrej_first, upper=sigrej_first,
+                                       lower=sigrej_first, upper=sigrej_first, maxrej=1, sticky=False,
                                        minx=fmin, maxx=fmax, weights=wfit)
         # Junk fit?
         if pypeitFit is None:
