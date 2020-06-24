@@ -2446,7 +2446,7 @@ class HolyGrail:
                 continue
             # Fit the full set of lines with the derived patterns
             use_tcent, _ = self.get_use_tcent(tpatt_dict['sign'], tcent_ecent)
-            tfinal_dict = wv_fitting.fit_slit(self._spec[:, slit], tpatt_dict, use_tcent, self._line_lists, verbose=True)
+            tfinal_dict = wv_fitting.fit_slit(self._spec[:, slit], tpatt_dict, use_tcent, self._line_lists)
             # tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
             if tfinal_dict is None:
                 # This pattern wasn't good enough

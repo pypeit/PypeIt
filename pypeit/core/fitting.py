@@ -155,14 +155,15 @@ class PypeItFit(DataContainer):
             float: RMS
 
         """
+        msk = self.gpm.astype(np.bool)
         if self.weights is None:
             weights = np.ones(self.xval.size)
         else:
             weights = self.weights
         if apply_mask:
-            xval = self.xval[self.gpm]
-            yval = self.yval[self.gpm]
-            weights = weights[self.gpm]
+            xval = self.xval[msk]
+            yval = self.yval[msk]
+            weights = weights[msk]
         else:
             xval = self.xval.copy()
             yval = self.yval.copy()
