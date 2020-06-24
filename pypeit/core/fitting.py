@@ -883,6 +883,9 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', maxone=F
         function:
             which function should be used in the fitting (valid inputs:
             'polynomial', 'legendre', 'chebyshev', 'bspline')
+        maxone (bool):
+            Reject only the most deviant point between iterations (where
+            the best-fit model is recalculated during each interation).
         minx:
             minimum value in the array (or the left limit for a
             legendre/chebyshev polynomial)
