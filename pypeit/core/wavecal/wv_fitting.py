@@ -276,9 +276,10 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             flg_continue = False
         # Fit with rejection
         xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
+        maxiter = xfit.size - n_order - 2
         #mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_first,
         #                                 minx=fmin, maxx=fmax, verbose=verbose, weights=wfit)
-        pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
+        pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func, maxone=True, maxiter=maxiter,
                                        lower=sigrej_first, upper=sigrej_first, maxrej=1, sticky=False,
                                        minx=fmin, maxx=fmax, weights=wfit)
         # Junk fit?

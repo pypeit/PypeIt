@@ -861,8 +861,8 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     return c.reshape(deg+1)
 
 
-def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=None,
-               maxx=None, minx2=None, maxx2=None, bspline_par=None,
+def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', maxone=False,
+               minx=None, maxx=None, minx2=None, maxx2=None, bspline_par=None,
                guesses=None, maxiter=10, inmask=None, weights=None, invvar=None,
                lower=None, upper=None, maxdev=None,maxrej=None, groupdim=None,
                groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True):
@@ -976,8 +976,9 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
     iIter = 0
     qdone = False
     thismask = np.copy(inmask)
+    mskcnt = np.sum(thismask)
     pypeitFit = None
-    while (not qdone) and (iIter < maxiter):
+    while (not qdone or maxone) and (iIter < maxiter):
         if np.sum(thismask) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
         if not np.any(thismask):
@@ -996,6 +997,14 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
                                           lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
                                           use_mad=use_mad,sticky=sticky)
+        # Check the number of masked elements
+        if maxone:
+            if mskcnt == np.sum(thismask):
+                break  # No new values have been included in the mask
+            else:
+                maxrej += 1
+                mskcnt = np.sum(thismask)
+        # Update the iteration
         iIter += 1
     if (iIter == maxiter) & (maxiter != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
