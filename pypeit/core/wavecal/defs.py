@@ -100,6 +100,7 @@ def lines():
     line_dict['ThAr_MagE'] = 2**18  # R=4100
     line_dict['OH_FIRE_Echelle'] = 2**19  # R=6000
     line_dict['Ar_IR_GNIRS'] = 2**20  # R=6000
+    line_dict['UNKNWN'] = 2**21
 
 
 

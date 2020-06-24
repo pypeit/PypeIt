@@ -111,7 +111,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     # Points
     ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
     # Rejections?
-    bpm = np.invert(waveFit.pypeitfit.gpm)
+    bpm = np.logical_not(waveFit.pypeitfit.gpm)
     if np.any(bpm):
         xrej = waveFit.pixel_fit[bpm]
         yrej = waveFit.wave_fit[bpm]
@@ -1527,7 +1527,7 @@ class HolyGrail:
             self._det_stro[str(slit)] = [self._all_tcent[self._icut].copy(),self._all_ecent[self._icut].copy()]
 
             # Run brute force algorithm on the weak lines
-            best_patt_dict, best_final_fit = self.run_brute_loop(slit,self._det_weak[str(slit)])
+            best_patt_dict, best_final_fit = self.run_brute_loop(slit, self._det_weak[str(slit)])
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, best_patt_dict, best_final_fit)
@@ -1674,7 +1674,7 @@ class HolyGrail:
                                       lindex, indexm.shape[1], self._npix)
 
             msgs.info("Identifying the best solution")
-            patt_dict, final_fit = self.solve_slit(slit, psols, msols,self._det_weak[str(slit)], nselw=1, nseld=2)
+            patt_dict, final_fit = self.solve_slit(slit, psols, msols, self._det_weak[str(slit)], nselw=1, nseld=2)
 
             # Print preliminary report
             good_fit[slit] = self.report_prelim(slit, patt_dict, final_fit)
@@ -1930,7 +1930,8 @@ class HolyGrail:
             if not patt_dict['acceptable']:
                 new_bad_slits = np.append(new_bad_slits, bs)
                 continue
-            final_fit = self.fit_slit(bs, patt_dict, bsdet)
+            final_fit = wv_fitting.fit_slit(self._spec[:, bs], patt_dict, bsdet, self._line_lists)
+            #final_fit = self.fit_slit(bs, patt_dict, bsdet)
             if final_fit is None:
                 # This pattern wasn't good enough
                 new_bad_slits = np.append(new_bad_slits, bs)
@@ -2445,7 +2446,8 @@ class HolyGrail:
                 continue
             # Fit the full set of lines with the derived patterns
             use_tcent, _ = self.get_use_tcent(tpatt_dict['sign'], tcent_ecent)
-            tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
+            tfinal_dict = wv_fitting.fit_slit(self._spec[:, slit], tpatt_dict, use_tcent, self._line_lists)
+            # tfinal_dict = self.fit_slit(slit, tpatt_dict, use_tcent)
             if tfinal_dict is None:
                 # This pattern wasn't good enough
                 continue
@@ -2487,14 +2489,16 @@ class HolyGrail:
 
         # Check that a solution has been found
         if patt_dict['nmatch'] == 0 and self._verbose:
-            msgs.info('---------------------------------------------------' + msgs.newline() +
+            msgs.info(msgs.newline() +
+                      '---------------------------------------------------' + msgs.newline() +
                       'Initial report:' + msgs.newline() +
                       '  No matches! Try another algorithm' + msgs.newline() +
                       '---------------------------------------------------')
             return None
         elif self._verbose:
             # Report
-            msgs.info('---------------------------------------------------' + msgs.newline() +
+            msgs.info(msgs.newline() +
+                      '---------------------------------------------------' + msgs.newline() +
                       'Initial report:' + msgs.newline() +
                       '  Pixels {:s} with wavelength'.format(signtxt) + msgs.newline() +
                       '  Number of lines recovered    = {:d}'.format(self._all_tcent.size) + msgs.newline() +
@@ -2505,78 +2509,6 @@ class HolyGrail:
                       '  Best wave/disp                = {:g}'.format(patt_dict['bwv']/patt_dict['bdisp']) + msgs.newline() +
                       '---------------------------------------------------')
         return patt_dict
-
-    # JFH TODO This code should be removed from the class and replaced with the fit_slit function in fitting that I created
-    def fit_slit(self, slit, patt_dict, tcent, outroot=None, slittxt="Slit"):
-        """
-        Perform a fit to the wavelength solution
-
-        Parameters
-        ----------
-        slit : int
-            slit number
-        patt_dict : dict
-            dictionary of patterns
-        tcent: ndarray
-            List of the detections in this slit to be fit using the patt_dict
-        outroot : str
-            root directory to save QA
-        slittxt : str
-            Label used for QA
-
-        Returns
-        -------
-        final_fit : dict
-            A dictionary containing all of the information about the fit
-        """
-        # Check that patt_dict and tcent refer to each other
-        if patt_dict['mask'].shape != tcent.shape:
-            msgs.error('patt_dict and tcent do not refer to each other. Something is very wrong')
-
-        # Perform final fit to the line IDs
-        if self._thar:
-            NIST_lines = (self._line_lists['NIST'] > 0) & (np.char.find(self._line_lists['Source'].data, 'MURPHY') >= 0)
-        elif 'OH_R24000' in self._lines:
-            NIST_lines = self._line_lists['NIST'] == 0
-        else:
-            NIST_lines = self._line_lists['NIST'] > 0
-        ifit = np.where(patt_dict['mask'])[0]
-
-        if outroot is not None:
-            plot_fil = outroot + slittxt + '_fit.pdf'
-        else:
-            plot_fil = None
-        # Purge UNKNOWNS from ifit
-        imsk = np.ones(len(ifit), dtype=np.bool)
-        for kk, idwv in enumerate(np.array(patt_dict['IDs'])[ifit]):
-            if np.min(np.abs(self._line_lists['wave'][NIST_lines]-idwv)) > 0.01:
-                imsk[kk] = False
-        ifit = ifit[imsk]
-        # JFH removed this. Detections must be input as a parameter
-        # Allow for weaker lines in the fit
-        #if tcent is None:
-        #    tcent, ecent = self.get_use_tcent(patt_dict['sign'], weak=True)
-        #     weights = np.ones(tcent.size)
-        #else:
-        #    if ecent is None:
-        #        weights = np.ones(tcent.size)
-        #    else:
-        #        #weights = 1.0/ecent
-        #        weights = np.ones(tcent.size)
-        # Fit
-        final_fit = wv_fitting.iterative_fitting(self._spec[:, slit], tcent, ifit,
-                                                  np.array(patt_dict['IDs'])[ifit], self._line_lists[NIST_lines],
-                                                  patt_dict['bdisp'],
-                                                  match_toler=self._match_toler, func=self._func, n_first=self._n_first,
-                                                  sigrej_first=self._sigrej_first,
-                                                  n_final=self._n_final, sigrej_final=self._sigrej_final,
-                                                  plot_fil = plot_fil, verbose = self._verbose)
-
-        if plot_fil is not None and final_fit is not None:
-            print("Wrote: {:s}".format(plot_fil))
-
-        # Return
-        return final_fit
 
     def finalize_fit(self, detections):
         """
@@ -2606,7 +2538,9 @@ class HolyGrail:
                             outfile=self._outroot + slittxt + '.pdf')
                 msgs.info("Wrote: {:s}".format(self._outroot + slittxt + '.pdf'))
             # Perform the final fit for the best solution
-            best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], use_tcent, outroot=self._outroot, slittxt=slittxt)
+            best_final_fit = wv_fitting.fit_slit(self._spec[:, slit], self._all_patt_dict[str(slit)], use_tcent,
+                                                 self._line_lists, outroot=self._outroot, slittxt=slittxt)
+            #best_final_fit = self.fit_slit(slit, self._all_patt_dict[str(slit)], use_tcent, outroot=self._outroot, slittxt=slittxt)
             self._all_final_fit[str(slit)] = copy.deepcopy(best_final_fit)
 
     def report_prelim(self, slit, best_patt_dict, best_final_fit):
