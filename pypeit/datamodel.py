@@ -902,7 +902,8 @@ class DataContainer:
         else:
             _hdu = hdu
 
-        _ext = np.atleast_1d(ext)
+        _ext = np.atleast_1d(np.array(ext, dtype=object))
+        str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext])
 
         # Construct instantiation dictionary
         _d = dict.fromkeys(cls.datamodel.keys())
@@ -920,7 +921,7 @@ class DataContainer:
 
         # HDUs can have dictionary elements directly.
         keys = np.array(list(_d.keys()))
-        indx = np.isin([prefix+key.upper() for key in keys], _ext)
+        indx = np.isin([prefix+key.upper() for key in keys], _ext[str_ext])
         if np.any(indx):
             for e in keys[indx]:
                 hduindx = prefix+e.upper()
@@ -949,7 +950,8 @@ class DataContainer:
                     _d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
                                 else eval(_hdu[e].header[key.upper()])
             # Parse BinTableHDUs
-            if isinstance(_hdu[e], fits.BinTableHDU):
+            if isinstance(_hdu[e], fits.BinTableHDU) \
+                    and np.any(np.isin(list(cls.datamodel.keys()), _hdu[e].columns.names)):
                 # Datamodel checking
                 dm_type_passed &= _hdu[e].header['DMODCLS'] == cls.__name__
                 dm_version_passed &= _hdu[e].header['DMODVER'] == cls.version
