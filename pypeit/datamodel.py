@@ -908,6 +908,9 @@ class DataContainer:
         # Construct instantiation dictionary
         _d = dict.fromkeys(cls.datamodel.keys())
 
+        # Log if relevant data is found for this datamodel
+        found_data = False
+
         # NOTE: The extension and keyword comparisons are complicated
         # because the fits standard is to force these all to be
         # capitalized, while the datamodel doesn't (currently)
@@ -921,8 +924,10 @@ class DataContainer:
 
         # HDUs can have dictionary elements directly.
         keys = np.array(list(_d.keys()))
-        indx = np.isin([prefix+key.upper() for key in keys], _ext[str_ext])
+        prefkeys = np.array([prefix+key.upper() for key in keys])
+        indx = np.isin(prefkeys, _ext[str_ext])
         if np.any(indx):
+            found_data = True
             for e in keys[indx]:
                 hduindx = prefix+e.upper()
                 # Check version (and type)?
@@ -939,19 +944,30 @@ class DataContainer:
                     _d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
                         else Table.read(hdu[hduindx])
 
-
         for e in _ext:
+            if 'DMODCLS' not in _hdu[e].header.keys() or 'DMODVER' not in _hdu[e].header.keys() \
+                    or _hdu[e].header['DMODCLS'] != cls.__name__ \
+                    or _hdu[e].header['DMODVER'] != cls.version:
+                # Can't be parsed
+                continue
             # Check for header elements, but do not over-ride existing items
             indx = np.isin([key.upper() for key in keys], list(_hdu[e].header.keys()))
             if np.any(indx):
+                found_data = True
+                dm_type_passed &= _hdu[e].header['DMODCLS'] == cls.__name__
+                dm_version_passed &= _hdu[e].header['DMODVER'] == cls.version
                 for key in keys[indx]:
                     if key in _d.keys() and _d[key] is not None:
                         continue
                     _d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
                                 else eval(_hdu[e].header[key.upper()])
+            if isinstance(e, (str, np.str_)) and e in prefkeys:
+                # Already parsed this above
+                continue
             # Parse BinTableHDUs
             if isinstance(_hdu[e], fits.BinTableHDU) \
                     and np.any(np.isin(list(cls.datamodel.keys()), _hdu[e].columns.names)):
+                found_data = True
                 # Datamodel checking
                 dm_type_passed &= _hdu[e].header['DMODCLS'] == cls.__name__
                 dm_version_passed &= _hdu[e].header['DMODVER'] == cls.version
@@ -961,7 +977,9 @@ class DataContainer:
                 single_row = len(_hdu[e].data) == 1
                 for key in _hdu[e].columns.names:
                     if key in cls.datamodel.keys():
-                        _d[key] = _hdu[e].data[key][0] if (single_row and _hdu[e].data[key].ndim > 1) else _hdu[e].data[key]
+                        _d[key] = _hdu[e].data[key][0] \
+                                        if (single_row and _hdu[e].data[key].ndim > 1) \
+                                        else _hdu[e].data[key]
                         if transpose_table_arrays:
                             _d[key] = _d[key].T
 
@@ -974,8 +992,9 @@ class DataContainer:
                 _d[key] = np.asarray(_d[key])
             elif isinstance(_d[key], np.ndarray) and _d[key].dtype.byteorder not in ['=', '|']:
                 _d[key] = _d[key].astype(_d[key].dtype.type)
+
         # Return
-        return _d, dm_version_passed, dm_type_passed
+        return _d, dm_version_passed and found_data, dm_type_passed and found_data
 
     def __getattr__(self, item):
         """Maps values to attributes.
