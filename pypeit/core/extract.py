@@ -1814,7 +1814,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     # Find the spat IDs
     gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
     if gdslit_spat.size != norders:
-        msgs.error("You have not dealt with masked orders properly")
+        msgs.error("PypeIt has not dealt with masked orders in echelle. Contact the Developers!")
 
     if spec_min_max is None:
         spec_min_max = np.zeros(2,norders)
