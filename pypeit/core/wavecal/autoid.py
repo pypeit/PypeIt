@@ -1247,7 +1247,6 @@ class ArchiveReid:
 
         # Print the final report of all lines
         self.report_final()
-        #embed()
 
     def report_final(self):
         """Print out the final report of the wavelength calibration"""
@@ -1259,11 +1258,14 @@ class ArchiveReid:
             if slit not in self.ok_mask:
                 msgs.warn(badmsg)
                 continue
+            if slit in self.bad_slits:
+                msgs.warn(badmsg)
+                continue
             if self.all_patt_dict[str(slit)] is None:
                 msgs.warn(badmsg)
                 continue
             st = str(slit)
-            if len(self.wv_calib[st]) == 0:
+            if self.wv_calib[st] is None or len(self.wv_calib[st]) == 0:
                 print("Bad solution for slit: {}".format(st))
                 continue
             if self.all_patt_dict[st]['sign'] == +1:
