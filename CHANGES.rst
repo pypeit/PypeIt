@@ -9,6 +9,7 @@
  - KCWI reduction complete up to spec2D frames
  - Implemented new flatfield DataContainer to separate
    pixelflat and illumflat
+ - Deal with wavecalib crash
 
 
 1.0.4 (27 May 2020)
