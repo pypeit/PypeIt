@@ -549,7 +549,6 @@ class BuildWaveCalib(object):
             if fit is None:
                 self.wvc_bpm[kk] = True
 
-
     def run(self, skip_QA=False, debug=False):
         """
         Main driver for wavelength calibration

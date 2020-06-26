@@ -1,12 +1,18 @@
 
+Hotfixes after 1.0.5
+--------------------
 
-1.0.5dev
---------
+ - Deal with wavecalib crash
+
+1.0.5 (23 Jun 2020)
+-------------------
 
  - Add median combining code
  - Make biasframes median combine by default
-
-
+ - Implemented IFU reduction hooks
+ - KCWI reduction complete up to spec2D frames
+ - Implemented new flatfield DataContainer to separate
+   pixelflat and illumflat
 
 1.0.4 (27 May 2020)
 -------------------
