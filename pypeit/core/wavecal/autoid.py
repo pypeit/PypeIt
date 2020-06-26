@@ -1255,13 +1255,7 @@ class ArchiveReid:
             badmsg = '---------------------------------------------------' + msgs.newline() +\
                      'Final report for slit {0:d}/{1:d}:'.format(slit, self.nslits) + msgs.newline() +\
                      '  Wavelength calibration not performed!'
-            if slit not in self.ok_mask:
-                msgs.warn(badmsg)
-                continue
-            if slit in self.bad_slits:
-                msgs.warn(badmsg)
-                continue
-            if self.all_patt_dict[str(slit)] is None:
+            if slit not in self.ok_mask or slit in self.bad_slits or self.all_patt_dict[str(slit)] is None:
                 msgs.warn(badmsg)
                 continue
             st = str(slit)
