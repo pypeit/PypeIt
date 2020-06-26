@@ -743,7 +743,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
         cd22 = cdelt2 * np.cos(crota)
         crpix1 = 12.
-        crpix2 = maxslitlen / 2.  # Check this is maxslitlength
+        crpix2 = maxslitlen / 2.  # TODO :: Check this is maxslitlength - should it be a whole number?
         crpix3 = 1.
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
@@ -783,3 +783,42 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
 
         return w
+
+    def get_RADEC_image(self, alignment, slits, wcs):
+        """Get the WCS for a frame
+
+        Parameters
+        ----------
+        alignment : :class:`pypeit.alignframe.Alignments`
+            Master alignment frame
+        slits : :class:`pypeit.slittrace.SlitTraceSet`
+            Master slit edges
+        wcs : astropy.wcs
+            The World Coordinate system of a science frame
+
+        Returns
+        -------
+        ndimage : 3D numpy array of shape (nspec, nspat, 2), where the
+                  0th element (axis 2) is the RA image, and the
+                  1st element (axis=2) is the DEC image. Both RA and
+                  DEC are in units degrees.
+        """
+
+        # Idea for making cubes:
+        """
+        * generate an output WCS (with sampling similar to KCWI)
+        * generate an RA, DEC, and wavelength image of each reduced 2D frame
+        * make a white light image of each reduced 2D frame
+        * cross-correlate white light images to get spatial distortions between all frames
+        * apply distortions to RA and DEC images
+        * histogram3d the distortion corrected frames
+        """
+        # Initialise the output
+        radecimg = np.zeros((slits.nspec, slits.nspat, 2))
+        """
+        np.arange(maxslitlength)
+        values to evaluate are:  trace_middle - maxslitlength/2
+        note, maxslitlength should be a round number. Update this in get_wcs() and it should be the same number.
+        """
+
+        return radecimg
