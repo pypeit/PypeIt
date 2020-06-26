@@ -1814,7 +1814,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     # Find the spat IDs
     gdslit_spat = np.unique(slitmask[slitmask >= 0]).astype(int)  # Unique sorts
     if gdslit_spat.size != norders:
-        msgs.error("You have not dealt with masked orders properly")
+        msgs.error('There is a mismatch between the number of valid orders found by PypeIt and '
+                   'the number expected for this spectrograph.  Unable to continue.  Please '
+                   'submit an issue on Github: https://github.com/pypeit/PypeIt/issues .')
 
     if spec_min_max is None:
         spec_min_max = np.zeros(2,norders)
