@@ -308,6 +308,35 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         return np.where(self.spat_id == spat_id)[0][0]
 
+    def get_slitlengths(self, initial=False, median=False):
+        """
+        Get the length of each slit in pixels.
+
+        By default, the method will return the tweaked slit lengths
+        if they have been defined. If they haven't been defined the
+        nominal edges (:attr:`left` and :attr:`right`) are returned.
+        Use ``initial=True`` to return the nominal edges regardless
+        of the presence of the tweaked edges.
+
+        Args:
+            initial (:obj:`bool`, optional):
+                To use the initial edges regardless of the presence of
+                the tweaked edges, set this to True.
+            median (:obj:`bool`, optional):
+                The default is to return the slit length as a function
+                of the spectral coordinate. If median is set to true,
+                the median slit length of each slit is returned.
+
+        Returns:
+            :obj:numpy.ndarray_: Slit lengths.
+        """
+        left, right, _ = self.select_edges(initial=initial)
+        slitlen = right - left
+        if median is True:
+            slitlen = np.median(slitlen, axis=1)
+        return slitlen
+
+
     def select_edges(self, initial=False, flexure=None):
         """
         Select between the initial or tweaked slit edges and allow for

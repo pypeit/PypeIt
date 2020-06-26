@@ -149,8 +149,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
+        meta['ra'] = dict(ext=0, compound=True)
+        meta['dec'] = dict(ext=0, compound=True)
         meta['target'] = dict(ext=0, card='TARGNAME')
         meta['dispname'] = dict(ext=0, card='BGRATNAM')
         meta['decker'] = dict(ext=0, card='IFUNAM')
@@ -261,6 +261,18 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'ra' or meta_key == 'dec':
+            try:
+                if self.is_nasmask(headarr[0]):
+                    hdrstr = 'RABASE' if meta_key == 'ra' else 'DECBASE'
+                else:
+                    hdrstr = 'RA' if meta_key == 'ra' else 'DEC'
+            except KeyError:
+                try:
+                    hdrstr = 'TARGRA' if meta_key == 'ra' else 'TARGDEC'
+                except KeyError:
+                    hdrstr = ''
+            return headarr[0][hdrstr]
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -669,7 +681,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             slscl = self.slicescale/4.0
         return pxscl, slscl
 
-    def get_wcs(self, hdr, maxslitlen, wave0, dwv):
+    def get_wcs(self, hdr, slits, wave0, dwv):
         """Get the WCS for a frame
 
         Parameters
@@ -677,8 +689,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         hdr : fits header
             The header of the raw frame. The information in this
             header will be extracted and returned as a WCS.
-        maxslitlen : float
-            Maximum slit length (in pixels)
+        slits : :class:`pypeit.slittrace.SlitTraceSet`
+            Master slit edges
         wave0 : float
             wavelength zeropoint
         dwv : float
@@ -689,25 +701,15 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         astropy.wcs : An astropy WCS object.
         """
         msgs.info("Calculating the WCS")
-        # Get the x and y binning factors...
+        # Get the x and y binning factors, and the typical slit length
         xbin, ybin = self.get_binning(hdr)
         slscl, pxscl = self.get_scales(hdr)
+        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
         # Get RA/DEC
-        try:
-            if self.is_nasmask(hdr):
-                rastr = hdr['RABASE']
-                decstr = hdr['DECBASE']
-            else:
-                rastr = hdr['RA']
-                decstr = hdr['DEC']
-        except KeyError:
-            try:
-                rastr = hdr['TARGRA']
-                decstr = hdr['TARGDEC']
-            except KeyError:
-                rastr = ''
-                decstr = ''
+        rastr = self.compound_meta([hdr], 'ra')
+        decstr = self.compound_meta([hdr], 'dec')
+
         # Create a coordinate
         if len(rastr) > 0 and len(decstr) > 0:
             coord = SkyCoord(rastr, decstr, unit=(units.hourangle, units.deg))
@@ -743,7 +745,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
         cd22 = cdelt2 * np.cos(crota)
         crpix1 = 12.
-        crpix2 = maxslitlen / 2.  # TODO :: Check this is maxslitlength - should it be a whole number?
+        crpix2 = slitlength / 2.  # TODO :: Check this is maxslitlength - should it be a whole number?
         crpix3 = 1.
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
@@ -784,17 +786,21 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         return w
 
-    def get_RADEC_image(self, alignment, slits, wcs):
+    def get_radec_image(self, alignments, slits, wcs):
         """Get the WCS for a frame
 
         Parameters
         ----------
-        alignment : :class:`pypeit.alignframe.Alignments`
-            Master alignment frame
+        alignments : :class:`pypeit.alignframe.Alignments`
+            Master alignments
         slits : :class:`pypeit.slittrace.SlitTraceSet`
             Master slit edges
         wcs : astropy.wcs
             The World Coordinate system of a science frame
+        maxslitlen : int
+            This is the slit length in pixels, and it should be the same
+            value that was passed to get_wcs() to generate the WCS that
+            is passed into this function as an argument.
 
         Returns
         -------
@@ -813,12 +819,21 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         * apply distortions to RA and DEC images
         * histogram3d the distortion corrected frames
         """
+        # Grab the alignments
+        aligns = alignments['traces'][0, :, :, :]
         # Initialise the output
         radecimg = np.zeros((slits.nspec, slits.nspat, 2))
-        """
-        np.arange(maxslitlength)
-        values to evaluate are:  trace_middle - maxslitlength/2
-        note, maxslitlength should be a round number. Update this in get_wcs() and it should be the same number.
-        """
-
+        # Get the slit information
+        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        slitpos = np.arange(slitlength) - slitlength/2
+        slitid_img_init = slits.slit_img(pad=0, initial=True)
+        for slit_idx, spatid in enumerate(slits.spat_id):
+            msgs.info("Generating RA/DEC image for slit {0:d}/{1:d}".format(slit_idx+1, slits.nslits))
+            onslit_init = np.where(slitid_img_init == spatid)
+            evalpos = aligns[onslit_init[0], 2, slit_idx] - onslit_init[1]
+            lam = np.zeros(onslit_init[0].size)
+            world_ra, world_dec, _ = wcs.wcs_pix2world(onslit_init[0], evalpos, lam, 0, ra_dec_order=True)
+            # Set the RA first and DEC next
+            radecimg[(onslit_init[0], onslit_init[1], 0,)] = world_ra.copy()
+            radecimg[(onslit_init[0], onslit_init[1], 1,)] = world_dec.copy()
         return radecimg
