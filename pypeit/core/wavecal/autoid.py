@@ -1260,7 +1260,7 @@ class ArchiveReid:
                 continue
             st = str(slit)
             if self.wv_calib[st] is None or len(self.wv_calib[st]) == 0:
-                print("Bad solution for slit: {}".format(st))
+                msgs.warn('Bad solution for slit: {}'.format(st))
                 continue
             if self.all_patt_dict[st]['sign'] == +1:
                 signtxt = 'correlate'
