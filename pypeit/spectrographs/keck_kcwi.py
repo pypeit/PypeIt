@@ -823,8 +823,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Initialise the output
         radecimg = np.zeros((slits.nspec, slits.nspat, 2))
         # Get the slit information
-        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-        slitpos = np.arange(slitlength) - slitlength/2
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         for slit_idx, spatid in enumerate(slits.spat_id):
             msgs.info("Generating RA/DEC image for slit {0:d}/{1:d}".format(slit_idx+1, slits.nslits))

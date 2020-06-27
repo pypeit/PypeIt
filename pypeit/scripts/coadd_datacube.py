@@ -96,4 +96,8 @@ def main(args):
     wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
 
     # Generate an RA/DEC image
-    spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
+    radecimg = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
+
+    # Make the cube
+    slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
+    onslit = slitid_img_init > 0

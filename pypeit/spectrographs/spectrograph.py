@@ -752,6 +752,34 @@ class Spectrograph(object):
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
         return None
 
+    def get_radec_image(self, alignments, slits, wcs, flexure=None):
+        """ Get an image containg the RA and DEC of every pixel
+
+        Parameters
+        ----------
+        alignments : :class:`pypeit.alignframe.Alignments`
+            Master alignments
+        slits : :class:`pypeit.slittrace.SlitTraceSet`
+            Master slit edges
+        wcs : astropy.wcs
+            The World Coordinate system of a science frame
+        maxslitlen : int
+            This is the slit length in pixels, and it should be the same
+            value that was passed to get_wcs() to generate the WCS that
+            is passed into this function as an argument.
+        flexure : float, optional
+            If provided, offset each slit by this amount.
+
+        Returns
+        -------
+        ndimage : 3D numpy array of shape (nspec, nspat, 2), where the
+                  0th element (axis 2) is the RA image, and the
+                  1st element (axis=2) is the DEC image. Both RA and
+                  DEC are in units degrees.
+        """
+        msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
+        return None
+
     def validate_metadata(self):
         """
         Validates the meta definitions of the Spectrograph
