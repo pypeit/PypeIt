@@ -803,10 +803,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         Returns
         -------
-        ndimage : 3D numpy array of shape (nspec, nspat, 2), where the
-                  0th element (axis 2) is the RA image, and the
-                  1st element (axis=2) is the DEC image. Both RA and
-                  DEC are in units degrees.
+        ndimage, ndimage : Two 2D numpy array of shape (nspec, nspat), where the
+                           first ndarray is the RA image, and the second ndarray
+                           is the DEC image. RA and DEC are in units degrees.
         """
 
         # Idea for making cubes:
@@ -821,7 +820,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Grab the alignments
         aligns = alignments['traces']
         # Initialise the output
-        radecimg = np.zeros((slits.nspec, slits.nspat, 2))
+        raimg = np.zeros((slits.nspec, slits.nspat))
+        decimg = np.zeros((slits.nspec, slits.nspat))
         # Get the slit information
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         for slit_idx, spatid in enumerate(slits.spat_id):
@@ -831,6 +831,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             lam = np.zeros(onslit_init[0].size)
             world_ra, world_dec, _ = wcs.wcs_pix2world(onslit_init[0], evalpos, lam, 0)
             # Set the RA first and DEC next
-            radecimg[(onslit_init[0], onslit_init[1], 0,)] = world_ra.copy()
-            radecimg[(onslit_init[0], onslit_init[1], 1,)] = world_dec.copy()
-        return radecimg
+            raimg[onslit_init] = world_ra.copy()
+            decimg[onslit_init] = world_dec.copy()
+        return raimg, decimg

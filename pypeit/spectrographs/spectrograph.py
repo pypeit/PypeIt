@@ -772,13 +772,12 @@ class Spectrograph(object):
 
         Returns
         -------
-        ndimage : 3D numpy array of shape (nspec, nspat, 2), where the
-                  0th element (axis 2) is the RA image, and the
-                  1st element (axis=2) is the DEC image. Both RA and
-                  DEC are in units degrees.
+        ndimage, ndimage : Two 2D numpy array of shape (nspec, nspat), where the
+                           first ndarray is the RA image, and the second ndarray
+                           is the DEC image. RA and DEC are in units degrees.
         """
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
-        return None
+        return None, None
 
     def validate_metadata(self):
         """

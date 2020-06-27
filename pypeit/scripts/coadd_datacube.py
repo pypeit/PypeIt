@@ -96,8 +96,17 @@ def main(args):
     wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
 
     # Generate an RA/DEC image
-    radecimg = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
+    raimg, decimg = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
+
+    # Generate the output binning
+    rabins =
+    decbins =
+    wavebins =
 
     # Make the cube
     slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
     onslit = slitid_img_init > 0
+    datacube, edges = np.histogramdd((raimg[onslit], decimg[onslit], waveimg[onslit]),
+                                     bins=(rabins, decbins, wavebins), weights=sciimg[onslit])
+
+    # Save the datacube
