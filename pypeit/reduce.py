@@ -1229,7 +1229,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
             inmask = ((self.sciImg.fullmask == 0) & thismask & skymask_now).astype(np.bool)
             # Convert the wavelength image to A/pixel, registered at pixel 0 (this gives something like
             # the tilts frame, but conserves wavelength position in each slit)
-            tilt_wave = (self.waveimg - self.waveimg.min()) / (self.waveimg.max() - self.waveimg.min())
+            wavemin = self.waveimg[self.waveimg != 0.0].min()
+            tilt_wave = (self.waveimg - wavemin) / (self.waveimg.max() - wavemin)
             # Find sky
             self.global_sky[thismask] \
                 = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, tilt_wave,
