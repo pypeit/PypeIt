@@ -72,7 +72,7 @@ def main(args):
     # Load it up
     spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det)
 
-    # Setup for PYPIT imports
+    # Setup for PypeIt imports
     msgs.reset(verbosity=2)
 
     # Init

@@ -730,7 +730,7 @@ class Spectrograph(object):
         # Return
         return retvalue
 
-    def set_wcs(self, hdr):
+    def get_wcs(self, hdr, slits, wave0, dwv):
         """Get the WCS for a frame
 
         Parameters
@@ -738,6 +738,12 @@ class Spectrograph(object):
         hdr : fits header
             The header of the raw frame. The information in this
             header will be extracted and returned as a WCS.
+        slits : :class:`pypeit.slittrace.SlitTraceSet`
+            Master slit edges
+        wave0 : float
+            wavelength zeropoint
+        dwv : float
+            delta wavelength per spectral pixel
 
         Returns
         -------

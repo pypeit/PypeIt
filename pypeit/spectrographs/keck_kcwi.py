@@ -672,7 +672,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         tuple : pixel and slice scale
         """
         # Pixel scales
-        pxscl, _ = self.platescale * self.get_binning(hdr)
+        pxscl = self.platescale * self.get_binning(hdr)[0]
         slscl = self.slicescale
         ifunum = hdr['IFUNUM']
         if ifunum == 2:
@@ -707,14 +707,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
         # Get RA/DEC
-        rastr = self.compound_meta([hdr], 'ra')
-        decstr = self.compound_meta([hdr], 'dec')
+        raval = self.compound_meta([hdr], 'ra')
+        decval = self.compound_meta([hdr], 'dec')
 
         # Create a coordinate
-        if len(rastr) > 0 and len(decstr) > 0:
-            coord = SkyCoord(rastr, decstr, unit=(units.hourangle, units.deg))
-        else:
-            coord = None
+        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
 
         # Get rotator position
         if 'ROTPOSN' in hdr:
@@ -780,13 +777,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
         w.wcs.crval = [ra, dec, wave0]  # RA, DEC, and wavelength zeropoints
         w.wcs.crpix = [crpix1, crpix2, crpix3]  # RA, DEC, and wavelength reference pixels
-        w.wcs.crpix = [[cd11, cd12], [cd21, cd22], [dwv]]
+        w.wcs.cd = np.array([[cd11, cd12, 0.0], [cd21, cd22, 0.0], [0.0, 0.0, dwv]])
         w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
         w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
 
         return w
 
-    def get_radec_image(self, alignments, slits, wcs):
+    def get_radec_image(self, alignments, slits, wcs, flexure=None):
         """Get the WCS for a frame
 
         Parameters
@@ -801,6 +798,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             This is the slit length in pixels, and it should be the same
             value that was passed to get_wcs() to generate the WCS that
             is passed into this function as an argument.
+        flexure : float, optional
+            If provided, offset each slit by this amount.
 
         Returns
         -------
@@ -820,19 +819,19 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         * histogram3d the distortion corrected frames
         """
         # Grab the alignments
-        aligns = alignments['traces'][0, :, :, :]
+        aligns = alignments['traces']
         # Initialise the output
         radecimg = np.zeros((slits.nspec, slits.nspat, 2))
         # Get the slit information
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
         slitpos = np.arange(slitlength) - slitlength/2
-        slitid_img_init = slits.slit_img(pad=0, initial=True)
+        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         for slit_idx, spatid in enumerate(slits.spat_id):
             msgs.info("Generating RA/DEC image for slit {0:d}/{1:d}".format(slit_idx+1, slits.nslits))
             onslit_init = np.where(slitid_img_init == spatid)
             evalpos = aligns[onslit_init[0], 2, slit_idx] - onslit_init[1]
             lam = np.zeros(onslit_init[0].size)
-            world_ra, world_dec, _ = wcs.wcs_pix2world(onslit_init[0], evalpos, lam, 0, ra_dec_order=True)
+            world_ra, world_dec, _ = wcs.wcs_pix2world(onslit_init[0], evalpos, lam, 0)
             # Set the RA first and DEC next
             radecimg[(onslit_init[0], onslit_init[1], 0,)] = world_ra.copy()
             radecimg[(onslit_init[0], onslit_init[1], 1,)] = world_dec.copy()
