@@ -2,7 +2,7 @@
 
 1.0.6dev
 --------
- - Fixed an issue for GNIRS_10L due to the orders shifting. 
+ - Fixed an issue for GNIRS_10L due to the orders shifting.
 
 1.0.5 (23 Jun 2020)
 -------------------
