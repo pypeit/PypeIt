@@ -11,6 +11,7 @@ Run above the Science/ folder.
 
 import os
 import argparse
+from IPython import embed
 
 from astropy.io import fits
 from linetools import utils as ltu
@@ -88,25 +89,34 @@ def main(args):
     alignments = alignframe.Alignments.from_file(alignfile)
 
     wave0 = waveimg[waveimg != 0.0].min()
-    diff = waveimg[:, 1:] - waveimg[:, :-1]
+    diff = waveimg[1:, :] - waveimg[:-1, :]
     dwv = float(np.median(diff[diff != 0.0]))
     msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
 
-    # Grab the WCS
+    # Generate a master WCS to register all frames
+    masterwcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
+
+    # Grab the WCS of this frame
     wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
 
     # Generate an RA/DEC image
     raimg, decimg = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
 
     # Generate the output binning
-    rabins =
-    decbins =
-    wavebins =
+    slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+    xbins = np.arange(24)-wcs.wcs.crpix[0]
+    ybins = np.arange(2*wcs.wcs.crpix[1])-wcs.wcs.crpix[1]
+    zbins = np.arange(int(round((np.max(waveimg)-wave0)/dwv)))-wcs.wcs.crpix[2]
 
     # Make the cube
+    msgs.info("Generating datacube")
     slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
     onslit = slitid_img_init > 0
-    datacube, edges = np.histogramdd((raimg[onslit], decimg[onslit], waveimg[onslit]),
-                                     bins=(rabins, decbins, wavebins), weights=sciimg[onslit])
+    pix_coord = wcs.wcs_world2pix(raimg[onslit], decimg[onslit], waveimg[onslit]*1.0E-10, 0)
+    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit])
 
     # Save the datacube
+    outfile = "datacube.fits"
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    hdu = fits.PrimaryHDU(datacube, header=masterwcs.to_header())
+    hdu.writeto(outfile, overwrite=args.overwrite)

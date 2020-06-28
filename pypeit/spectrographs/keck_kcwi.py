@@ -742,7 +742,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
         cd22 = cdelt2 * np.cos(crota)
         crpix1 = 12.
-        crpix2 = slitlength / 2.  # TODO :: Check this is maxslitlength - should it be a whole number?
+        crpix2 = slitlength / 2.
         crpix3 = 1.
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
@@ -826,11 +826,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         for slit_idx, spatid in enumerate(slits.spat_id):
             msgs.info("Generating RA/DEC image for slit {0:d}/{1:d}".format(slit_idx+1, slits.nslits))
-            onslit_init = np.where(slitid_img_init == spatid)
-            evalpos = aligns[onslit_init[0], 2, slit_idx] - onslit_init[1]
-            lam = np.zeros(onslit_init[0].size)
-            world_ra, world_dec, _ = wcs.wcs_pix2world(onslit_init[0], evalpos, lam, 0)
+            onslit = slitid_img_init == spatid
+            onslit_init = np.where(onslit)
+            evalpos = onslit_init[1]-aligns[onslit_init[0], 2, slit_idx]
+            slitID = np.ones(evalpos.size) * slit_idx - 12.0
+            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, onslit_init[0], 0)
             # Set the RA first and DEC next
-            raimg[onslit_init] = world_ra.copy()
-            decimg[onslit_init] = world_dec.copy()
+            raimg[onslit] = world_ra.copy()
+            decimg[onslit] = world_dec.copy()
         return raimg, decimg
