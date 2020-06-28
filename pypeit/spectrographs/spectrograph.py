@@ -907,6 +907,10 @@ class Spectrograph(object):
         return None
 
     @property
+    def match_tol_spat_pos(self):
+        return 0.05
+
+    @property
     def orders(self):
         return None
 
@@ -945,7 +949,7 @@ class Spectrograph(object):
             iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
 
         # Check
-        if np.any(np.abs(self.order_spat_pos[iorder] - slit_spat_pos) > 0.05):
+        if np.any(np.abs(self.order_spat_pos[iorder] - slit_spat_pos) > self.match_tol_spat_pos):
             msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
                       "Returning order vector with the same number of orders you requested")
             iorder = np.arange(slit_spat_pos.size)

@@ -130,7 +130,7 @@ def main(args):
 
         # Get the bias frame if requested
         if bias_files is None:
-            proc_par['process']['bias'] = 'skip'
+            proc_par['process']['use_biasimage'] = False
             msbias = None
         else:
             #biasFrame = biasframe.BiasFrame(spec, files=bias_files, det=det, par=bias_par,

@@ -317,6 +317,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             msgs.error('Unrecognized disperser')
 
     @property
+    def match_tol_spat_pos(self):
+        # Making this larger than the default value of 0.05 because the order moves considerably in some cases
+        return 0.1
+
+    @property
     def orders(self):
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
@@ -339,7 +344,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             return np.vstack((spec_min, spec_max))
         else:
             msgs.error('Unrecognized disperser')
-
 
 
     def bpm(self, filename, det, shape=None, msbias=None):

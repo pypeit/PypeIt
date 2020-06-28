@@ -696,6 +696,7 @@ class EdgeTraceSet(object):
             if show_stages:
                 self.show(thin=10, include_img=True, idlabel=True)
 
+
         # Initial trace can result in no edges found, or centroid
         # refinement could have removed all traces (via `check_traces`)
         if not self.is_empty:

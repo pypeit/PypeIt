@@ -1179,7 +1179,9 @@ class ArchiveReid:
             arxiv_orders = []
             for iarxiv in range(narxiv):
                 arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
+            orders, _ = self.spectrograph.slit2order(slit_spat_pos)
 
+        ind_arxiv = np.arange(narxiv, dtype=int)
         # These are the final outputs
         self.all_patt_dict = {}
         self.detections = {}
@@ -1194,14 +1196,7 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            if self.ech_fix_format:
-                # Grab the order (could have been input)
-                order, indx = self.spectrograph.slit2order(slit_spat_pos[slit])
-                # Find it
-                ind_sp = arxiv_orders.index(order)
-            else:
-                ind_sp = np.arange(narxiv,dtype=int)
-
+            ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
