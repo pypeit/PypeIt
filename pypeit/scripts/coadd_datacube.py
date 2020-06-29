@@ -96,17 +96,19 @@ def main(args):
     # Generate a master WCS to register all frames
     masterwcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
 
+    pxscl, slscl = spec.get_scales(spec2DObj.head0)
+
     # Grab the WCS of this frame
     wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
 
     # Generate an RA/DEC image
-    raimg, decimg = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
+    raimg, decimg, minmax = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
 
     # Generate the output binning
     slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-    xbins = np.arange(24)-wcs.wcs.crpix[0]
-    ybins = np.arange(2*wcs.wcs.crpix[1])-wcs.wcs.crpix[1]
-    zbins = np.arange(int(round((np.max(waveimg)-wave0)/dwv)))-wcs.wcs.crpix[2]
+    xbins = np.arange(1 + 24) - 12.0 - 0.5
+    ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
+    zbins = np.arange(1+int(round((np.max(waveimg)-wave0)/dwv))) - 0.5
 
     # Make the cube
     msgs.info("Generating datacube")
