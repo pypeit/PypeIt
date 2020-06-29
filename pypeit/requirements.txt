@@ -24,7 +24,7 @@ numba>=0.39.0
 
 # Develop
 h5py>=2.7.1
-pytest>=3.0.7
+#pytest>=3.0.7
 
 # Documentation
 #sphinx>=1.6

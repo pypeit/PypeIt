@@ -31,8 +31,8 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `scipy <http://www.scipy.org/>`_ version 1.2 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
-* `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
-* `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
+* `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5.12 or later (needed for linetools)
+* `h5py <https://www.h5py.org/>`_ version 2.7.1 (for data I/O)
 * `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
@@ -50,9 +50,12 @@ If any of the packages are out of date, they can be updated with a command like:
 	conda update scipy
 
 
-Use conda's *pip install* to install the following:
+Use *pip install* to install the following within the conda environment, or
+the equivalent for your package manager:
 
 * `linetools <https://github.com/linetools/linetools/>`_ -- version 0.2 or later
+
+
 
 GitHub cloning
 ++++++++++++++
