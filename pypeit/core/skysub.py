@@ -121,7 +121,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         msgs.error("Type of inmask should be bool and is of type: {:}".format(inmask.dtype))
 
     # Sky pixels for fitting
-    inmask_in = thismask & (ivar > 0.0) & inmask & np.invert(edgmask)
+    inmask_in = thismask & (ivar > 0.0) & inmask & np.logical_not(edgmask)
     isrt = np.argsort(piximg[thismask])
     pix = piximg[thismask][isrt]
     sky = image[thismask][isrt]
