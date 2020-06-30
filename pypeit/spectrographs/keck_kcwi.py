@@ -149,8 +149,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, compound=True)
-        meta['dec'] = dict(ext=0, compound=True)
+        meta['ra'] = dict(ext=0, card=None, compound=True)
+        meta['dec'] = dict(ext=0, card=None, compound=True)
         meta['target'] = dict(ext=0, card='TARGNAME')
         meta['dispname'] = dict(ext=0, card='BGRATNAM')
         meta['decker'] = dict(ext=0, card='IFUNAM')
