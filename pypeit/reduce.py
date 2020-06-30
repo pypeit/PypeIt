@@ -127,6 +127,7 @@ class Reduce(object):
         self.par = par
         self.caliBrate = caliBrate
         self.std_outfile = std_outfile
+        self.scaleimg = np.array([1])  # np.array([1]) applies no scale
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -416,7 +417,7 @@ class Reduce(object):
 
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs, \
-               self.waveimg, self.tilts
+               self.scaleimg, self.waveimg, self.tilts
 
     def find_objects(self, image, std_trace=None,
                      show_peaks=False, show_fits=False,
@@ -1210,6 +1211,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
             # Use the default skysub routine
             return super().global_skysub(skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
                                          show_fit=show_fit, show=show, show_objs=show_objs)
+        pos_mask = False#(not self.ir_redux)
         # Otherwise, perform a joint sky subtraction
         # Prep
         self.global_sky = np.zeros_like(self.sciImg.image)
@@ -1242,7 +1244,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
                                    sigrej=sigrej, trim_edg=trim_edg,
                                    bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                    no_poly=self.par['reduce']['skysub']['no_poly'],
-                                   pos_mask=(not self.ir_redux), show_fit=show_fit)
+                                   pos_mask=pos_mask, show_fit=show_fit)
         # Mask if something went wrong
         if np.sum(self.global_sky[thismask]) == 0.:
             msgs.error("Cannot perform joint global sky fit")
@@ -1281,8 +1283,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
         # Correct the relative illumination of the science frame
         # TODO :: scaleImg *really* should be saved to the Spec2D data model.
         msgs.info("Correcting science frame for relative spectral illumination")
-        scaleFact = scaleImg + (scaleImg == 0)
-        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), scaleFact, self.sciImg.fullmask,
+        self.scaleimg = scaleImg + (scaleImg == 0)
+        sciImg, varImg = flat.flatfield(self.sciImg.image.copy(), self.scaleimg, self.sciImg.fullmask,
                                         varframe=utils.inverse(self.sciImg.ivar.copy()))
         self.sciImg.image = sciImg.copy()
         self.sciImg.ivar = utils.inverse(varImg)
@@ -1294,7 +1296,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
                                    sigrej=sigrej, trim_edg=trim_edg,
                                    bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                    no_poly=self.par['reduce']['skysub']['no_poly'],
-                                   pos_mask=(not self.ir_redux), show_fit=show_fit)
+                                   pos_mask=pos_mask, show_fit=show_fit)
 
         if update_crmask:
             # Find CRs with sky subtraction

@@ -61,6 +61,7 @@ class Spec2DObj(datamodel.DataContainer):
         'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
         'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
         'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image'),
+        'scaleimg': dict(otype=np.ndarray, atype=np.floating, desc='2D multiplicative scale image that has been applied to the science image'),
         'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
         'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
         'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
@@ -94,7 +95,7 @@ class Spec2DObj(datamodel.DataContainer):
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
+                 scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
