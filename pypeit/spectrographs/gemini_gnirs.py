@@ -333,6 +333,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def spec_min_max(self):
+        # TODO: Why aren't these numbers in fraction of the detector
+        # size instead of the pixel number?
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             spec_max = np.asarray([1022, 1022, 1022, 1022])

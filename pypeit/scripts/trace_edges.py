@@ -151,6 +151,17 @@ def main(args):
         edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, det=det, bpm=msbpm,
                                        auto=True, debug=args.debug, show_stages=args.show,
                                        qa_path=qa_path)
+
+#        slits = edges.get_slits()
+#        embed()
+#        exit()
+#
+#        edges.match_order()
+#        edges.show(thin=10, include_img=True, idlabel=True)
+#
+#        embed()
+#        exit()
+
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
         # Write the MasterEdges file
         edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,

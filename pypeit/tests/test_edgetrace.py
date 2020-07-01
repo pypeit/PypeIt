@@ -40,6 +40,12 @@ def test_addrm_slit():
     edges.rm_user_traces(rm_user_slits)
     assert edges.ntrace//2 == nslits, 'Did not remove trace.'
 
+#if __name__ == '__main__':
+#    test_addrm_slit()
+
+
+# TODO: Can we (and is it useful to) get these tests back?
+
 '''
 @cooked_required
 def test_chk_kast_slits():
