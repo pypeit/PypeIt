@@ -8,6 +8,9 @@ import numpy as np
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
+#import warnings
+#warnings.simplefilter('error', FutureWarning)
+
 from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats

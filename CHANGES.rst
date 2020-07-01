@@ -3,6 +3,7 @@
 1.0.6dev
 --------
 
+ - Fix class and version check for DataContainer objects.
  - Introduced another parameter used to identify box slits, as opposed
    to erroneous "slits" found by the edge tracing algorithms.  Any slit
    that has `minimum_slit_length < length < minimum_slit_length_sci` is
