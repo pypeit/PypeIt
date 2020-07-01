@@ -909,9 +909,9 @@ class Spectrograph(object):
     def order_spat_pos(self):
         return None
 
-    @property
-    def match_tol_spat_pos(self):
-        return 0.05
+#    @property
+#    def match_tol_spat_pos(self):
+#        return 0.05
 
     @property
     def orders(self):

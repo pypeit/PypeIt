@@ -316,10 +316,10 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized disperser')
 
-    @property
-    def match_tol_spat_pos(self):
-        # Making this larger than the default value of 0.05 because the order moves considerably in some cases
-        return 0.1
+#    @property
+#    def match_tol_spat_pos(self):
+#        # Making this larger than the default value of 0.05 because the order moves considerably in some cases
+#        return 0.1
 
     @property
     def orders(self):
