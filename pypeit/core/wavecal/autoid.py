@@ -1123,10 +1123,10 @@ class ArchiveReid:
         # TODO: What does and does not need to be an attribute?
 
         # Debugging
-        self.debug_peaks = debug_peaks | debug_all
-        self.debug_xcorr = debug_xcorr | debug_all
-        self.debug_reid = debug_reid | debug_all
-        self.debug_fits = debug_fits | debug_all
+        self.debug_peaks = debug_peaks or debug_all
+        self.debug_xcorr = debug_xcorr or debug_all
+        self.debug_reid = debug_reid or debug_all
+        self.debug_fits = debug_fits or debug_all
 
         self.spec = spec
         if spec.ndim == 2:

@@ -4494,6 +4494,8 @@ class EdgeTraceSet(object):
             use_center (:obj:`bool`, optional):
                 Use the measured centroids to define the slit edges
                 even if the slit edges have been otherwise modeled.
+            include_box (:obj:`bool`, optional):
+                Include box slits in the calculated coordinates.
 
         Returns:
             `numpy.ma.MaskedArray`_: Spatial coordinates of the slit
@@ -4699,7 +4701,7 @@ class EdgeTraceSet(object):
         right = self.spat_fit[:,gpm & self.is_right]
         binspec, binspat = parse.parse_binning(self.binning)
         ech_order = None if self.orderid is None else self.orderid[gpm][1::2]
-        if self.spectrograph.spec_min_max is None:
+        if self.spectrograph.spec_min_max is None or ech_order is None:
             specmin = np.asarray([-np.inf]*nslit)
             specmax = np.asarray([np.inf]*nslit)
         else:
