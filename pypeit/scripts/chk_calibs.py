@@ -81,16 +81,15 @@ def main(args):
     passes, scifiles, cfgs = [], [], []
 
     for setup, i in zip(setups, indx):
-        #
+        # Get the setup lines
+        cfg = ps.fitstbl.get_setup(i, config_only=False)
+        cfgs.append(cfg)
         if setup == 'None':
             print("There is a setup without science frames.  Skipping...")
             passes.append(False)
             scifiles.append(None)
-            cfgs.append({})
+            #cfgs.append({})
             continue
-        # Get the setup lines
-        cfg = ps.fitstbl.get_setup(i, config_only=False)
-        cfgs.append(cfg)
         in_cfg = ps.fitstbl['setup'] == setup
         # TODO -- Make the snippet below, which is also in the init of PypeIt a method somewhere
         config_specific_file = None
@@ -135,7 +134,7 @@ def main(args):
         #
         passes.append(passed)
 
-    print('========================== RESULTS =======================================')
+    print('= RESULTS ============================================')
 
     # Pass/fail
     answers['pass'] = passes
@@ -166,6 +165,6 @@ def main(args):
 
     # Print
     answers.pprint_all()
-    print('====================================================================================')
+    print('= ===================================================================================')
     # Return
     return answers, ps
