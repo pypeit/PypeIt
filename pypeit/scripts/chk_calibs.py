@@ -81,14 +81,22 @@ def main(args):
     passes, scifiles = [], []
 
     for setup, i in zip(setups, indx):
-        msgs.info('=======================================================================')
-        msgs.info('Working on setup: {}'.format(setup))
-        msgs.info('=======================================================================')
+        #
+        if setup == 'None':
+            print("There is a setup without science frames.  Skipping...")
+            passes.append(False)
+            scifiles.append('')
+            continue
         # Get the setup lines
         cfg = ps.fitstbl.get_setup(i, config_only=False)
         in_cfg = ps.fitstbl['setup'] == setup
         # TODO -- Make the snippet below, which is also in the init of PypeIt a method somewhere
         config_specific_file = None
+
+        msgs.info('=======================================================================')
+        msgs.info('Working on setup: {}'.format(setup))
+        msgs.info(str(cfg))
+        msgs.info('=======================================================================')
 
         data_files = [os.path.join(row['directory'], row['filename']) for row in ps.fitstbl[in_cfg]]
         for idx, row in enumerate(ps.fitstbl[in_cfg]):
@@ -135,4 +143,4 @@ def main(args):
     print(answers)
     print('=================================================================')
     # Return
-    return answers
+    return answers, ps
