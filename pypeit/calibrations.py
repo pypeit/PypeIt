@@ -7,6 +7,7 @@ Class for guiding calibration object generation in PypeIt
 import os
 
 from abc import ABCMeta
+from collections import Counter
 
 from IPython import embed
 
@@ -376,7 +377,7 @@ class Calibrations(object):
         else:
             # Build it
             self.msbias = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                    self.par['biasframe'], bias_files)
+                                                         self.par['biasframe'], bias_files)
             # Save it?
             self.msbias.to_master_file(masterframe_name)
 
@@ -467,12 +468,12 @@ class Calibrations(object):
         :attr:`par`.
 
         Returns:
-            :class:`pypeit.flatfield.FlatImages`:
+            :class:`pypeit.flatfield.Flats`:
         """
         # Check for existing data
         if not self._chk_objs(['msarc', 'msbpm', 'slits', 'wv_calib']):
             msgs.warn('Must have the arc, bpm, slits, and wv_calib defined to make flats!  Skipping and may crash down the line')
-            self.flatimages = flatfield.FlatImages(None, None, None, None)
+            self.flatimages = flatfield.FlatImages()
             return
 
         # Slit and tilt traces are required to flat-field the data
@@ -480,7 +481,7 @@ class Calibrations(object):
             # TODO: Why doesn't this fault?
             msgs.warn('Flats were requested, but there are quantities missing necessary to '
                       'create flats.  Proceeding without flat fielding....')
-            self.flatimages = flatfield.FlatImages(None, None, None, None)
+            self.flatimages = flatfield.FlatImages()
             return
 
         # Check internals
@@ -499,55 +500,76 @@ class Calibrations(object):
 
         # Load MasterFrame?
         if os.path.isfile(masterframe_filename) and self.reuse_masters:
-            self.flatimages = flatfield.FlatImages.from_file(masterframe_filename)
-            self.flatimages.is_synced(self.slits)
+            flatimages = flatfield.FlatImages.from_file(masterframe_filename)
+            flatimages.is_synced(self.slits)
+            # Load user defined files
+            if self.par['flatfield']['pixelflat_file'] is not None:
+                # Load
+                msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
+                with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
+                    nrm_image = flatfield.FlatImages(pixelflat_norm=hdu[self.det].data)
+                    flatimages = flatfield.merge(flatimages, nrm_image)
+            self.flatimages = flatimages
+            # update slits
             self.slits.mask_flats(self.flatimages)
             return self.flatimages
 
-
-        # TODO -- Allow for separate pixelflat and illumflat images
         # Generate the image
-        stacked_flat = None
-        if len(illum_image_files) > 0:
-            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                          self.par['illumflatframe'],
-                                                          illum_image_files, dark=self.msdark,
-                                                          bias=self.msbias, bpm=self.msbpm)
-        if stacked_flat is None and len(pixflat_image_files) > 0:
-            stacked_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                               self.par['pixelflatframe'],
-                                                               pixflat_image_files, dark=self.msdark,
-                                                               bias=self.msbias, bpm=self.msbpm)
-        if stacked_flat is not None:
-            # Create pixelflat and illumination flat from illumination flat stack
-            flatField = flatfield.FlatField(stacked_flat, self.spectrograph,
-                                            self.par['flatfield'], self.slits, self.wavetilts)
-            # Run
-            self.flatimages = flatField.run(show=self.show)
+        pixelflatImages, illumflatImages = None, None
+        # Check if the image files are the same
+        pix_is_illum = Counter(illum_image_files) == Counter(pixflat_image_files)
+        if len(pixflat_image_files) > 0:
+            pixel_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                        self.par['pixelflatframe'],
+                                                        pixflat_image_files, dark=self.msdark,
+                                                        bias=self.msbias, bpm=self.msbpm)
+            # Initialise the pixel flat
+            pixelFlatField = flatfield.FlatField(pixel_flat, self.spectrograph,
+                                                 self.par['flatfield'], self.slits, self.wavetilts, self.wv_calib)
+            # Generate
+            pixelflatImages = pixelFlatField.run(show=self.show)
 
-            # Save to Masters
-            self.flatimages.to_master_file(masterframe_filename)
+        # Only build illum_flat if the input files are different from the pixel flat
+        if (not pix_is_illum) and len(illum_image_files) > 0:
+            illum_flat = buildimage.buildimage_fromlist(self.spectrograph, self.det,
+                                                        self.par['illumflatframe'],
+                                                        illum_image_files, dark=self.msdark,
+                                                        bias=self.msbias, bpm=self.msbpm)
+            # Initialise the pixel flat
+            illumFlatField = flatfield.FlatField(illum_flat, self.spectrograph,
+                                                 self.par['flatfield'], self.slits, self.wavetilts,
+                                                 self.wv_calib, spat_illum_only=True)
+            # Generate
+            illumflatImages = illumFlatField.run(show=self.show)
+
+        # Merge the illum flat with the pixel flat
+        if pixelflatImages is not None:
+            # Combine the pixelflat and illumflat parameters into flatimages.
+            # This will merge the attributes of pixelflatImages that are not None
+            # with the attributes of illflatImages that are not None. Default is
+            # to take pixelflatImages.
+            flatimages = flatfield.merge(pixelflatImages, illumflatImages)
+        else:
+            # No pixel flat, but there might be an illumflat. This will mean that
+            # the attributes prefixed with 'pixelflat_' will all be None.
+            flatimages = illumflatImages
+
+        # Save flat images
+        if flatimages is not None:
+            flatimages.to_master_file(masterframe_filename)
             # Save slits too, in case they were tweaked
             self.slits.to_master_file()
-        else:
-            self.flatimages = flatfield.FlatImages(None, None, None, None)
 
         # 3) Load user-supplied images
         #  NOTE:  This is the *final* images, not just a stack
         #  And it will over-ride what is generated below (if generated)
         if self.par['flatfield']['pixelflat_file'] is not None:
-            # - Name is explicitly correct?
-            # THIS IS DONE IN PYPEITPAR
-            #if os.path.isfile(self.par['flatfield']['pixelflat_file']):
-            #    flat_file = self.par['flatfield']['pixelflat_file']
-            #else:
-            #    msgs.error('Could not find user-defined flatfield file: {0}'.format(
-            #        self.par['flatfield']['pixelflat_file']))
             # Load
             msgs.info('Using user-defined file: {0}'.format('pixelflat_file'))
             with fits.open(self.par['flatfield']['pixelflat_file']) as hdu:
-                self.flatimages.pixelflat = hdu[self.det].data
+                flatimages = flatfield.merge(flatimages, flatfield.FlatImages(pixelflat_norm=hdu[self.det].data))
 
+        self.flatimages = flatimages
         # Return
         return self.flatimages
 

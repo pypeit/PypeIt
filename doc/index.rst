@@ -118,6 +118,7 @@ Calibrations
    wave_calib
    wavetilts
    fluxing
+   telluric
 
 MasterFrames
 ++++++++++++
@@ -125,6 +126,7 @@ MasterFrames
 .. toctree::
    :maxdepth: 2
 
+   master_align
    master_arc
    master_bias
    master_edges

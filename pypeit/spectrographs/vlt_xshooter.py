@@ -538,7 +538,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['polyorder'] = 11
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par

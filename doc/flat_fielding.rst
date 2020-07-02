@@ -130,11 +130,10 @@ at least one of the data files in the
 :doc:`pypeit_file` :ref:`pypeit_file:Data Block` must
 be labelled as *illumflat*.
 
-Last, and **most confusing**, at present the code
-
-- Cannot process separate sets of *illumflat* and *pixelflat* images
-  and will take the former if both are provided.
-- the *illumflat* images must be the same as the *trace* images
+In some cases, it may be desirable to use a different set of
+frames for the pixel and illumination corrections. This is
+supported, but we recommend that you set the *trace* frames
+to be the same as the *illumflat* frames.
 
 Feed a PixelFlat
 ----------------

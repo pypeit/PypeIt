@@ -66,8 +66,6 @@ class WaveCalib(object):
         master_key (:obj:`str`, optional):  For naming QA only
 
     Attributes:
-        frametype : str
-            Hard-coded to 'wv_calib'
         steps : list
             List of the processing steps performed
         wv_calib : dict
@@ -87,8 +85,12 @@ class WaveCalib(object):
             Specifies saturation level for the arc lines
         wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
     """
-    # Frametype is a class attribute
+
     frametype = 'wv_calib'
+    """
+    Frame type designation.
+    """
+
     master_type = 'WaveCalib'
     master_file_format = 'json'
 

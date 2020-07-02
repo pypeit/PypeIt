@@ -3,12 +3,14 @@
 
 import glob
 import numpy as np
+from IPython import embed
 
 from astropy.io import fits
 
 from pypeit import msgs
 from pypeit import telescopes
 from pypeit.core import parse
+from pypeit.core import procimg
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
@@ -23,6 +25,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def __init__(self):
         # Get it started
+        # TODO :: Might need to change the tolerance of disperser angle in pypeit setup (two BH2 nights where sufficiently different that this was important).
         super(KeckKCWISpectrograph, self).__init__()
         self.spectrograph = 'keck_kcwi'
         self.telescope = telescopes.KeckTelescopePar()
@@ -115,13 +118,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         headarr = self.get_headarr(scifile)
 
         # Templates
-        print(self.get_meta_value(headarr, 'dispname'))
         if self.get_meta_value(headarr, 'dispname') == 'BH2':
             par['calibrations']['wavelengths']['method'] = 'full_template'  # 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BH2_4200.fits'
             par['calibrations']['wavelengths']['lamps'] = ['FeI', 'ArI', 'ArII']
-            par['calibrations']['wavelengths']['n_first'] = 2
-            par['calibrations']['wavelengths']['n_final'] = 6
         elif self.get_meta_value(headarr, 'dispname') == 'BM':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_kcwi_BM.fits'
@@ -180,7 +180,26 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_kcwi'
-        # Set wave tilts order
+
+        # Subtract the detector pattern from certain frames
+        par['calibrations']['biasframe']['process']['use_pattern'] = True
+        par['calibrations']['darkframe']['process']['use_pattern'] = True
+        par['calibrations']['pixelflatframe']['process']['use_pattern'] = True
+        par['calibrations']['illumflatframe']['process']['use_pattern'] = True
+        par['calibrations']['standardframe']['process']['use_pattern'] = True
+        par['scienceframe']['process']['use_pattern'] = True
+        # Subtract the detector pattern from all frames
+        # for key in par['calibrations'].keys():
+        #     if not isinstance(par['calibrations'][key], pypeitpar.FrameGroupPar):
+        #         continue
+        #     if 'process' in par['calibrations'][key].keys():
+        #         par['calibrations'][key]['process']['use_pattern'] = True
+        # for key in par.keys():
+        #     if 'process' in par[key].keys():
+        #         par[key]['process']['use_pattern'] = True
+
+        # Make sure the overscan is subtracted from the dark
+        par['calibrations']['darkframe']['process']['use_overscan'] = True
 
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
@@ -195,10 +214,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10., 10.]
-        #par['calibrations']['flatfield']['spec_samp_fine'] = 30.0
+        par['calibrations']['flatfield']['spec_samp_coarse'] = 20.0
         #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
-        par['calibrations']['flatfield']['slit_illum_pad'] = 2  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 0.01]
@@ -214,18 +235,20 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # LACosmics parameters
         par['scienceframe']['process']['sigclip'] = 4.0
         par['scienceframe']['process']['objlim'] = 1.5
+        par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
+        par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
+        #par['scienceframe']['process']['use_pattern'] = True    # Subtract off detector pattern
 
         # Don't do optimal extraction for 3D data.
         par['reduce']['extraction']['skip_optimal'] = True
 
-        # Make sure that this is listed as a slit spectrograph
+        # Make sure that this is reduced as a slit (as opposed to fiber) spectrograph
         par['reduce']['cube']['slit_spec'] = True
 
         # Sky subtraction parameters
-        #par['reduce']['skysub']['no_poly'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 0.5
+        par['reduce']['skysub']['no_poly'] = True
+        par['reduce']['skysub']['bspline_spacing'] = 0.2
         par['reduce']['skysub']['joint_fit'] = True
-        par['reduce']['skysub']['ref_slit'] = -1
 
         return par
 
@@ -426,6 +449,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 sec = head0[section+"{0:1d}".format(i+1)]
 
                 # Convert the data section from a string to a slice
+                # TODO :: I fear something has changed here... and the BPM is flipped (ot not flipped) for different amp modes.
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
                                           include_end=include_last, require_dim=2,
                                           binning=binning_raw)
@@ -441,8 +465,81 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             elif section == 'BSEC':
                 oscansec_img = pix_img.copy()
 
+        # Calculate the pattern frequency
+        hdu = self.calc_pattern_freq(raw_img, rawdatasec_img, oscansec_img, hdu)
+
         # Return
         return detpar, raw_img, hdu, exptime, rawdatasec_img, oscansec_img
+
+    def calc_pattern_freq(self, frame, rawdatasec_img, oscansec_img, hdu):
+        """Calculate the pattern frequency using the overscan region that
+        covers the overscan and data sections. Using a larger range allows
+        the frequency to be pinned down with high accuracy.
+
+        NOTE: The amplifiers are arranged as follows:
+
+        |   (0,ny)  --------- (nx,ny)
+        |           | 3 | 4 |
+        |           ---------
+        |           | 1 | 2 |
+        |     (0,0) --------- (nx, 0)
+
+        TODO :: PATTERN FREQUENCY ALGORITHM HAS NOT BEEN TESTED WHEN BINNING != 1x1
+
+        Parameters
+        ----------
+        frame : ndarray
+            Raw data frame to be used to estimate the pattern frequency
+        rawdatasec_img : ndarray
+            array the same shape as frame, used as a mask to identify the
+            data pixels (0 is no data, non-zero values indicate the amplifier number)
+        oscansec_img : ndarray
+            array the same shape as frame, used as a mask to identify the
+            overscan pixels (0 is no data, non-zero values indicate the amplifier number)
+        hdu : HDUList
+            Opened fits file.
+
+        Returns
+        -------
+        hdu : HDUList
+            The input HDUList, with header updated to include the frequency of each amplifier
+        """
+        msgs.info("Calculating pattern noise frequency")
+
+        # Make a copy of te original frame
+        raw_img = frame.copy()
+
+        # Get a unique list of the amplifiers
+        unq_amps = np.sort(np.unique(oscansec_img[np.where(oscansec_img >= 1)]))
+        num_amps = unq_amps.size
+
+        # Loop through amplifiers and calculate the frequency
+        for amp in unq_amps:
+            # Grab the pixels where the amplifier has data
+            pixs = np.where((rawdatasec_img == amp) | (oscansec_img == amp))
+            rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
+            # Deal with the different locations of the overscan regions in 2- and 4- amp mode
+            if num_amps == 2:
+                cmin = 1+np.max(pixs[0])
+                frame = raw_img[cmin:, rmin:rmax].astype(np.float64)
+            elif num_amps == 4:
+                if amp in [1, 2]:
+                    pixalt = np.where((rawdatasec_img == amp+2) | (oscansec_img == amp+2))
+                    cmin = 1+np.max(pixs[0])
+                    cmax = (np.min(pixalt[0]) + cmin)//2  # Average of the bottom of the top amp, and top of the bottom amp
+                else:
+                    pixalt = np.where((rawdatasec_img == amp-2) | (oscansec_img == amp-2))
+                    cmax = 1+np.min(pixs[0])
+                    cmin = (np.max(pixalt[0]) + cmax)//2
+                frame = raw_img[cmin:cmax, rmin:rmax].astype(np.float64)
+            # Calculate the pattern frequency
+            freq = procimg.pattern_frequency(frame)
+            msgs.info("Pattern frequency of amplifier {0:d}/{1:d} = {2:f}".format(amp, num_amps, freq))
+            # Add the frequency to the zeroth header
+            hdu[0].header['PYPFRQ{0:02d}'.format(amp)] = freq
+
+        # Return the updated HDU
+        return hdu
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """

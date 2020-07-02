@@ -187,8 +187,8 @@ class ProcessImagesPar(ParSet):
                  sigrej=None, n_lohi=None, sig_lohi=None, replace=None, lamaxiter=None, grow=None,
                  rmcompact=None, sigclip=None, sigfrac=None, objlim=None,
                  use_biasimage=None, use_overscan=None, use_darkimage=None,
-                 use_pixelflat=None, use_illumflat=None,
-                 spat_flexure_correct=None):
+                 use_pixelflat=None, use_illumflat=None, use_specillum=None,
+                 use_pattern=None, spat_flexure_correct=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -218,7 +218,7 @@ class ProcessImagesPar(ParSet):
         dtypes['orient'] = bool
         descr['orient'] = 'Orient the raw image into the PypeIt frame'
 
-        # Bias, overscan, dark (i.e. detector "signal")
+        # Bias, overscan, dark, pattern (i.e. detector "signal")
         defaults['use_biasimage'] = True
         dtypes['use_biasimage'] = bool
         descr['use_biasimage'] = 'Use a bias image.  If True, one or more must be supplied in the PypeIt file.'
@@ -245,6 +245,11 @@ class ProcessImagesPar(ParSet):
         dtypes['use_darkimage'] = bool
         descr['use_darkimage'] = 'Subtract off a dark image.  If True, one or more darks must be provided.'
 
+        defaults['use_pattern'] = False
+        dtypes['use_pattern'] = bool
+        descr['use_pattern'] = 'Subtract off a detector pattern. This pattern is assumed to be sinusoidal' \
+                               'along one direction, with a frequency that is constant across the detector.'
+
         # Flats
         defaults['use_pixelflat'] = True
         dtypes['use_pixelflat'] = bool
@@ -253,6 +258,11 @@ class ProcessImagesPar(ParSet):
         defaults['use_illumflat'] = True
         dtypes['use_illumflat'] = bool
         descr['use_illumflat'] = 'Use the illumination flat to correct for the illumination profile of each slit.'
+
+        defaults['use_specillum'] = False
+        dtypes['use_specillum'] = bool
+        descr['use_specillum'] = 'Use the relative spectral illumination profiles to correct the spectral' \
+                                 'illumination profile of each slit. This is primarily used for IFUs.'
 
         # Flexure
         defaults['spat_flexure_correct'] = False
@@ -337,11 +347,11 @@ class ProcessImagesPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['trim', 'apply_gain', 'orient',
-                   'use_biasimage', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
-                   'spat_flexure_correct', 'use_illumflat', 'use_pixelflat',
+                   'use_biasimage', 'use_pattern', 'use_overscan', 'overscan_method', 'overscan_par', 'use_darkimage',
+                   'spat_flexure_correct', 'use_illumflat', 'use_specillum', 'use_pixelflat',
                    'combine', 'satpix', 'sigrej', 'n_lohi', 'mask_cr',
                    'sig_lohi', 'replace', 'lamaxiter', 'grow',
-            'rmcompact', 'sigclip', 'sigfrac', 'objlim']
+                   'rmcompact', 'sigclip', 'sigfrac', 'objlim']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -364,7 +374,7 @@ class ProcessImagesPar(ParSet):
         """
         Return the valid methods for combining frames.
         """
-        return [ 'mean', 'median', 'weightmean' ]
+        return ['median', 'weightmean' ]
 
     @staticmethod
     def valid_saturation_handling():
@@ -464,7 +474,8 @@ class FlatFieldPar(ParSet):
     def __init__(self, method=None, pixelflat_file=None, spec_samp_fine=None,
                  spec_samp_coarse=None, spat_samp=None, tweak_slits=None, tweak_slits_thresh=None,
                  tweak_slits_maxfrac=None, rej_sticky=None, slit_trim=None, slit_illum_pad=None,
-                 illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None):
+                 illum_iter=None, illum_rej=None, twod_fit_npoly=None, saturated_slits=None,
+                 slit_illum_relative=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -547,6 +558,11 @@ class FlatFieldPar(ParSet):
                                   'the slit-illumination profile. Single value applied to both ' \
                                   'edges.'
 
+        defaults['slit_illum_relative'] = False
+        dtypes['slit_illum_relative'] = [bool]
+        descr['slit_illum_relative'] = 'Generate an image of the relative spectral illumination' \
+                                       'for a multi-slit setup.'
+
         defaults['illum_iter'] = 0
         dtypes['illum_iter'] = int
         descr['illum_iter'] = 'The number of rejection iterations to perform when constructing ' \
@@ -592,8 +608,8 @@ class FlatFieldPar(ParSet):
         k = numpy.array([*cfg.keys()])
         parkeys = ['method', 'pixelflat_file', 'spec_samp_fine', 'spec_samp_coarse',
                    'spat_samp', 'tweak_slits', 'tweak_slits_thresh', 'tweak_slits_maxfrac',
-                   'rej_sticky', 'slit_trim', 'slit_illum_pad', 'illum_iter', 'illum_rej',
-                   'twod_fit_npoly', 'saturated_slits']
+                   'rej_sticky', 'slit_trim', 'slit_illum_pad', 'slit_illum_relative',
+                   'illum_iter', 'illum_rej', 'twod_fit_npoly', 'saturated_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -644,7 +660,6 @@ class FlatFieldPar(ParSet):
         # TODO -- We don't need this set, do we??   See the desc of tweak_slits above
         #if self.data['tweak_slits'] and not self.data['illumflatten']:
         #    raise ValueError('In order to tweak slits illumflatten must be set to True')
-
 
 
 class FlexurePar(ParSet):
@@ -766,9 +781,9 @@ class AlignPar(ParSet):
         dtypes['trace_npoly'] = int
         descr['trace_npoly'] = 'Order of the polynomial to use when fitting the trace of a single bar'
 
-        defaults['trim_edge'] = [1, 1]
+        defaults['trim_edge'] = [0, 0]
         dtypes['trim_edge'] = list
-        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding objects'
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right before finding alignment bars'
 
         defaults['sig_thresh'] = 1.0  # This must be low, because the routine will find the
         dtypes['sig_thresh'] = [int, float]
@@ -2928,7 +2943,7 @@ class ReducePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None):
+    def __init__(self, findobj=None, skysub=None, extraction=None, cube=None, trim_edge=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2960,6 +2975,10 @@ class ReducePar(ParSet):
         dtypes['cube'] = [ ParSet, dict ]
         descr['cube'] = 'Parameters for cube generation algorithms'
 
+        defaults['trim_edge'] = [0, 0]
+        dtypes['trim_edge'] = list
+        descr['trim_edge'] = 'Trim the slit by this number of pixels left/right when performing sky sub'
+
         # Instantiate the parameter set
         super(ReducePar, self).__init__(list(pars.keys()),
                                              values=list(pars.values()),
@@ -2973,7 +2992,7 @@ class ReducePar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
 
-        allkeys = ['findobj', 'skysub', 'extraction', 'cube']
+        allkeys = ['findobj', 'skysub', 'extraction', 'cube', 'trim_edge']
         badkeys = numpy.array([pk not in allkeys for pk in k])
         if numpy.any(badkeys):
             raise ValueError('{0} not recognized key(s) for ReducePar.'.format(k[badkeys]))
@@ -3123,7 +3142,7 @@ class SkySubPar(ParSet):
     """
 
     def __init__(self, bspline_spacing=None, sky_sigrej=None, global_sky_std=None, no_poly=None,
-                 user_regions=None, ref_slit=None, joint_fit=None, load_mask=None):
+                 user_regions=None, joint_fit=None, load_mask=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3158,7 +3177,7 @@ class SkySubPar(ParSet):
         descr['no_poly'] = 'Turn off polynomial basis (Legendre) in global sky subtraction'
 
         defaults['user_regions'] = None
-        dtypes['user_regions'] = str
+        dtypes['user_regions'] = [str, list]
         descr['user_regions'] = 'A user-defined sky regions mask can be set using this keyword. To allow' \
                                 'the code to identify the sky regions automatically, set this variable to' \
                                 'an empty string. If you wish to set the sky regions, The text should be' \
@@ -3171,13 +3190,6 @@ class SkySubPar(ParSet):
         descr['load_mask'] = 'Load a user-defined sky regions mask to be used for the sky regions. Note,' \
                              'if you set this to True, you must first run the pypeit_skysub_regions GUI' \
                              'to manually select and store the regions to file.'
-
-        defaults['ref_slit'] = -1
-        dtypes['ref_slit'] = int
-        descr['ref_slit'] = 'Reference slit to be used for relative sky and flux calibration.' \
-                            'You need to set joint_fit=True for the reference slit to be used.' \
-                            'If this value is set to a negative number, the reference slit will' \
-                            'be set to the slit that contains the most flux from the standard star.'
 
         defaults['joint_fit'] = False
         dtypes['joint_fit'] = bool
@@ -3197,7 +3209,7 @@ class SkySubPar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'ref_slit', 'joint_fit']
+        parkeys = ['bspline_spacing', 'sky_sigrej', 'global_sky_std', 'no_poly', 'user_regions', 'load_mask', 'joint_fit']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3366,6 +3378,7 @@ class CalibrationsPar(ParSet):
         # Calibration Frames
         defaults['biasframe'] = FrameGroupPar(frametype='bias',
                                               process=ProcessImagesPar(apply_gain=False,
+                                                                       combine='median',
                                                                        use_biasimage=False,
                                                                        use_pixelflat=False,
                                                                        use_illumflat=False))
@@ -3986,7 +3999,7 @@ class PypeItPar(ParSet):
             self['scienceframe']['process'].data[k] = proc_par[k]
 
     # TODO: Perform extensive checking that the parameters are valid for
-    # a full run of PYPIT.  May not be necessary because validate will
+    # a full run of PypeIt.  May not be necessary because validate will
     # be called for all the sub parameter sets, but this can do higher
     # level checks, if necessary.
     def validate(self):
