@@ -168,7 +168,7 @@ class EdgeTraceBitMask(BitMask):
                     ('SYNCERROR', 'Trace synchronization error, likely due to edge effects'),
                    ('MASKINSERT', 'Trace was inserted based on drilled slit-mask locations'),
                  ('ORPHANINSERT', 'Trace was inserted to match an orphaned edge'),
-                    ('SHORTSLIT', 'Slit formed by left and right edge is too short'),
+                    ('SHORTSLIT', 'Slit formed by left and right edge is too short to be valid'),
                       ('BOXSLIT', 'Slit formed by left and right edge is valid (large enough '
                                   'to be a valid slit), but too short to be a science slit'),
                  ('ABNORMALSLIT', 'Slit formed by left and right edge has abnormal length'),
@@ -2667,22 +2667,8 @@ class EdgeTraceSet(object):
             msgs.warn('No trace to remove.')
             return
 
-        # Check the input
+        # Synchronize the trace selection
         _indx = self.synced_selection(np.atleast_1d(indx), mode=sync_rm)
-
-#        # Deal with removing traces when they are left-right
-#        # synchronized
-#        _indx = np.atleast_1d(indx).copy()
-#        if self.is_synced and sync_rm != 'ignore':
-#            if sync_rm == 'both':
-#                _indx = np.repeat(np.any(_indx.reshape(-1,2), axis=1), 2)
-#                msgs.info('Removing both traces if either selected in synchonized pair.')
-#            elif sync_rm == 'neither':
-#                _indx = np.repeat(np.all(_indx.reshape(-1,2), axis=1), 2)
-#                msgs.info('Removing both traces only if both selected in synchonized pair.')
-#            else:
-#                msgs.error('Unknown sync removal keyword: {0}'.format(sync_rm))
-
         if np.all(_indx):
             msgs.warn('All traces removed!')
             self._reinit_trace_data()
