@@ -64,7 +64,7 @@ def main(args):
     sdet = "{0:s}-".format(get_dnum(args.det, caps=True, prefix=True))
 
     # EXtract the information
-    sciimg = spec2DObj.sciimg
+    sciimg = spec2DObj.sciimg-spec2DObj.skymodel
     ivar = spec2DObj.ivarmodel
     waveimg = spec2DObj.waveimg
 
@@ -115,9 +115,15 @@ def main(args):
     slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
     onslit = slitid_img_init > 0
     pix_coord = wcs.wcs_world2pix(raimg[onslit], decimg[onslit], waveimg[onslit]*1.0E-10, 0)
+    datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit]*np.sqrt(ivar[onslit]))
     datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit])
 
     # Save the datacube
+    outfile = "datacube_resid.fits"
+    msgs.info("Saving datacube as: {0:s}".format(outfile))
+    hdu = fits.PrimaryHDU(datacube_resid, header=masterwcs.to_header())
+    hdu.writeto(outfile, overwrite=args.overwrite)
+
     outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     hdu = fits.PrimaryHDU(datacube, header=masterwcs.to_header())

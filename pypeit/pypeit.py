@@ -663,14 +663,6 @@ class PypeIt(object):
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
-        # Apply the scaleImg, but only if it has changed from the default value
-        if scaleImg.size != 1:
-            msgs.info("Applying relative scale image to the science frame")
-            sciScl, varScl = flat.flatfield(sciImg.image.copy(), scaleImg, sciImg.fullmask,
-                                            varframe=utils.inverse(sciImg.ivar.copy()))
-            sciImg.image = sciScl.copy()
-            sciImg.ivar = utils.inverse(varScl)
-
         # TODO -- Save the slits yet again?
 
 
