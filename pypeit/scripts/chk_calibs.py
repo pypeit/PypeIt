@@ -13,8 +13,7 @@ from pypeit import defs
 from IPython import embed
 
 def parser(options=None):
-    # TODO: Add argument that specifies the log file
-    parser = argparse.ArgumentParser(description="Script to setup a PypeIt run [v3]")
+    parser = argparse.ArgumentParser(description="Script to check for calibrations [v1]")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-r', '--root', type=str, default=None,
                        help='File path+root, e.g. /data/Kast/b ')
@@ -147,7 +146,7 @@ def main(args):
             for key in pcfg.keys():
                 pcfg[key].append(None)
             continue
-        #
+        # Load it up
         key0 = list(cfg.keys())[0]
         subd = cfg[key0]['--'] # for convenience
         pcfg['disperser'].append(subd['disperser']['name'])
@@ -156,6 +155,7 @@ def main(args):
         pcfg['decker'].append(subd['slit']['decker'])
         pcfg['slitwid'].append(subd['slit']['slitwid'])
         pcfg['binning'].append(subd['binning'])
+
     # Add
     for key in pcfg.keys():
         answers[key] = pcfg[key]
