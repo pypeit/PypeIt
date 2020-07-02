@@ -78,17 +78,19 @@ def main(args):
 
     answers = table.Table()
     answers['setups'] = setups
-    passes, scifiles = [], []
+    passes, scifiles, cfgs = [], [], []
 
     for setup, i in zip(setups, indx):
         #
         if setup == 'None':
             print("There is a setup without science frames.  Skipping...")
             passes.append(False)
-            scifiles.append('')
+            scifiles.append(None)
+            cfgs.append({})
             continue
         # Get the setup lines
         cfg = ps.fitstbl.get_setup(i, config_only=False)
+        cfgs.append(cfg)
         in_cfg = ps.fitstbl['setup'] == setup
         # TODO -- Make the snippet below, which is also in the init of PypeIt a method somewhere
         config_specific_file = None
@@ -133,14 +135,37 @@ def main(args):
         #
         passes.append(passed)
 
-    msgs.info('========================== ALL DONE =======================================')
     print('========================== RESULTS =======================================')
-    print('=================================================================')
-    #
-    answers['passfail'] = passes
+
+    # Pass/fail
+    answers['pass'] = passes
+
+    # Parse the configs
+    pcfg = dict(disperser=[], angle=[], dichroic=[], decker=[], slitwid=[], binning=[])
+    for cfg in cfgs:
+        # None?
+        if len(cfg) == 0:
+            for key in pcfg.keys():
+                pcfg[key].append(None)
+            continue
+        #
+        key0 = list(cfg.keys())[0]
+        subd = cfg[key0]['--'] # for convenience
+        pcfg['disperser'].append(subd['disperser']['name'])
+        pcfg['angle'].append(subd['disperser']['angle'])
+        pcfg['dichroic'].append(subd['dichroic'])
+        pcfg['decker'].append(subd['slit']['decker'])
+        pcfg['slitwid'].append(subd['slit']['slitwid'])
+        pcfg['binning'].append(subd['binning'])
+    # Add
+    for key in pcfg.keys():
+        answers[key] = pcfg[key]
+
+    # Sci files [put this last as it can get large]
     answers['scifiles'] = scifiles
+
     # Print
-    print(answers)
-    print('=================================================================')
+    answers.pprint_all()
+    print('====================================================================================')
     # Return
     return answers, ps

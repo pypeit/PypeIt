@@ -32,5 +32,3 @@ def test_chk_calibs_deimos():
     answers = chk_calibs.main(pargs)
 
     assert np.all(answers['passfail']), 'One or more failures!'
-
-
