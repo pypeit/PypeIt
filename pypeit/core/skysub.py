@@ -1178,7 +1178,7 @@ def read_userregions(skyreg, nslits, maxslitlength):
     return status, skyreg
 
 
-def generate_mask(pypeline, skyreg, slits, slits_left, slits_right):
+def generate_mask(pypeline, skyreg, slits, slits_left, slits_right, spat_flexure=None):
     """Generate the mask of sky regions
 
     Parameters
@@ -1239,4 +1239,4 @@ def generate_mask(pypeline, skyreg, slits, slits_left, slits_right):
                                      mask=slmsk, specmin=spec_min, specmax=spec_max,
                                      binspec=slits.binspec, binspat=slits.binspat, pad=0)
     # Generate the mask, and return
-    return (slitreg.slit_img(use_spatial=False) >= 0).astype(np.bool)
+    return (slitreg.slit_img(use_spatial=False, flexure=spat_flexure) >= 0).astype(np.bool)

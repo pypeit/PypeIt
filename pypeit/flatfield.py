@@ -1253,6 +1253,7 @@ class FlatField(object):
         sclspl = interpolate.interp1d(waveimg[onslit_a_olap][wsort], rawflat[onslit_a_olap][wsort],
                                       kind='linear', bounds_error=False, fill_value="extrapolate")
         # Now roughly calculate the flux scale relative to the first slit
+        # TODO :: Should iterate over this (see IFU.gloval_skysub() in reduce.py - could also use find_nearest instead of interpolating).
         for slit_idx in range(1, self.slits.spat_id.size):
             # Only use the overlapping regions of the slits, where the same wavelength range is covered
             onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
@@ -1263,7 +1264,7 @@ class FlatField(object):
             xfit = (waveimg[onslit_b_olap] - minw) / (maxw - minw)
             yfit = speca / rawflat[onslit_b_olap]
             # Rough outlier rejection
-            msk = (yfit > 1/5) & (yfit < 5)
+            msk = (yfit > -10) & (yfit < 10)
             coeff = utils.func_fit(xfit[msk], yfit[msk], "legendre", 2, minx=0, maxx=1)
             relscl_model[onslit_b_init] = utils.func_val(coeff,
                                                          (waveimg[onslit_b_init] - minw) / (maxw - minw),
