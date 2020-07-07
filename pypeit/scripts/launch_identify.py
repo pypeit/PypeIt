@@ -14,7 +14,7 @@ def parser(options=None):
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser = argparse.ArgumentParser(description='Launch PypeIt identify tool, display extracted'
+    parser = argparse.ArgumentParser(description='Launch PypeIt identify tool, display extracted '
                                                  'MasterArc, and load linelist.'
                                                  'Run above the Masters/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)

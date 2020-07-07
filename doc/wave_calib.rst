@@ -118,7 +118,7 @@ Here is the usage::
                            [--slit SLIT] [--det DET] [--rmstol RMSTOL]
                            arc_file slits_file
 
-    Launch PypeIt identify tool, display extractedMasterArc, and load linelist.Run
+    Launch PypeIt identify tool, display extracted MasterArc, and load linelist.Run
     above the Masters/ folder
 
     positional arguments:
