@@ -16,11 +16,12 @@ from abc import ABCMeta
 
 from linetools import utils as ltu
 from scipy import interpolate
+from scipy.optimize import least_squares
 
 from pypeit import specobjs, specobj
 from pypeit import ginga, msgs, utils
 from pypeit import masterframe
-from pypeit.core import skysub, extract, wave, flexure, flat
+from pypeit.core import skysub, extract, pixels, wave, flexure, flat
 from pypeit.images import buildimage
 from pypeit import wavecalib
 
@@ -1262,105 +1263,157 @@ class IFUReduce(MultiSlitReduce, Reduce):
         """
         # Generate a global sky sub for all slits separately
         global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
-                                               show_fit=show_fit, show=show, show_objs=show_objs)
-        # If a joint fit is not being performed, return the separate slits result
-        if not self.par['reduce']['skysub']['joint_fit']:
+                                              show_fit=show_fit, show=show, show_objs=show_objs)
+        # If the joint fit or spec/spat sensitivity corrections are not being performed, return the separate slits sky
+        if not self.par['reduce']['skysub']['joint_fit'] and \
+                not self.par['scienceframe']['process']['use_specillum'] and \
+                not self.par['scienceframe']['process']['use_illumflat']:
             return global_sky_sep
 
-        msgs.info("Performing joint global sky subtraction")
-        # Grab some parameters
+        # Extract some parameters
         gdslits = np.where(np.logical_not(self.reduce_bpm))[0]
         trim = self.par['calibrations']['flatfield']['slit_trim']
         spec_samp_fine = self.par['calibrations']['flatfield']['spec_samp_coarse']
-        rawimg = self.sciImg.image.copy()
-        # Grab the GPM and the slit images
+        applyCorrection = False  # Boolean flag to see if spatial or spectral corrections have been performed
+
+        # Get the GPM and the slit images
         gpm = (self.sciImg.fullmask == 0)
         slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
         slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True, flexure=self.spat_flexure_shift)
-        # Find all good slits, and create a mask of pixels to include (True=include)
-        wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
-        # Obtain the minimum and maximum wavelength of all slits
-        mnmx_wv = np.zeros((self.slits.nslits, 2))
-        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
-            onslit_init = (slitid_img_init == slit_spat)
-            mnmx_wv[slit_idx, 0] = np.min(self.waveimg[onslit_init])
-            mnmx_wv[slit_idx, 1] = np.max(self.waveimg[onslit_init])
-        # Sort by increasing minimum wavelength
-        swslt = np.argsort(mnmx_wv[:, 0])
-        # Get the minimum and maximum wavelengths that are covered in *all* slits.
-        minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
 
-        # Go through the slits and calculate the overlapping flux
-        maxiter = 20
-        scaleImg = np.ones_like(self.sciImg.image)
-        dwav = self.wv_calib[str(self.slits.spat_id[0])]['cen_disp']
-        for rr in range(maxiter):
-            relscl_model = np.ones_like(rawimg)
-            # Prepare slit 0
-            onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
-            onslit_a_olap = onslit_a & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask
-            wsort = np.argsort(self.waveimg[onslit_a_olap])
-            # Generate a master sky frame
-            if rr == 0:
-                numsamp = gdslits.size * int((maxw - minw) / dwav)
-                bins = np.linspace(minw, maxw, numsamp)
-                hist, edge = np.histogram(self.waveimg, bins=bins, weights=global_sky_sep)
-                cntr, edge = np.histogram(self.waveimg, bins=bins)
-                wave_ref = 0.5 * (edge[1:] + edge[:-1])
-                sky_ref = hist / cntr
-            else:
-                numsamp = gdslits.size * int((np.max(mnmx_wv) - np.min(mnmx_wv)) / dwav)
-                bins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp)
-                hist, edge = np.histogram(self.waveimg, bins=bins, weights=global_sky_sep * relscl_model)
-                cntr, edge = np.histogram(self.waveimg, bins=bins)
-                wave_ref = 0.5 * (edge[1:] + edge[:-1])
-                sky_ref = hist / cntr
-            # Now roughly calculate the flux scale relative to the first slit
-            for slit_idx in range(0, self.slits.spat_id.size):
-                # Only use the overlapping regions of the slits, where the same wavelength range is covered
-                onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
-                onslit_b_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
-                onslit_b_olap = onslit_b & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask
-                idxcls = self.find_nearest(wave_ref, self.waveimg[onslit_b_olap])
-                speca = sky_ref[idxcls]
-#                speca = sclspl(self.waveimg[onslit_b_olap])
-                # Fit a low order polynomial
-                xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
-                yfit = speca / rawimg[onslit_b_olap]
-                # Rough outlier rejection
-                msk = (yfit > -5) & (yfit < 5)
-                msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 2, function="legendre", minx=0, maxx=1, lower=5, upper=5)
-                relscl_model[onslit_b_init] = utils.func_val(coeff,
-                                                             (self.waveimg[onslit_b_init] - minw) / (maxw - minw),
-                                                             "legendre", minx=0, maxx=1)
+        # Do the spatial scaling first
+        spatScaleImg = np.ones_like(self.sciImg.image)
+        if self.par['scienceframe']['process']['use_illumflat']:
+            msgs.info("Performing spatial sensitivity correction")
+            applyCorrection = True
+            # For each slit, grab the spatial coordinates and a spline
+            # representation of te spatial profile from the illumflat
+            rawimg = self.sciImg.image.copy()
+            numbins = int(np.max(self.slits.get_slitlengths(initial=True, median=True)))
+            hist_trim = 3
+            spatbins = np.linspace(0.0, 1.0, numbins+1)
+            spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
+            for sl, slitnum in enumerate(self.slits.spat_id.size):
+                # Get the initial slit locations
+                onslit_b_init = (slitid_img_init == slitnum)
 
-            minv, maxv = np.min(relscl_model), np.max(relscl_model)
-            msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr+1, minv, maxv))
-            # Store rescaling
-            scaleImg *= relscl_model
-            rawimg *= relscl_model
-            if max(abs(1-minv), abs(maxv-1)) < 0.001: # Relative accruacy of 0.1% is sufficient
-                break
+                # Synthesize ximg, and edgmask from slit boundaries. Doing this outside this
+                # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
+                spatcoord, edgmask = pixels.ximg_and_edgemask(self.slits_left[:, sl], self.slits_right[:, sl],
+                                                              onslit_b_init, trim_edg=trim_edg)
+                # Ignore skymask
+                coord_msk = onslit_b_init & gpm
+                hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
+                cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
+                hist_slit_all = hist / (cntr + (cntr == 0))
 
-        # embed()
-        # plt.subplot(121)
-        # plt.imshow(self.sciImg.image.copy(), vmin=0, vmax=30)
-        # plt.subplot(122)
-        # plt.imshow(rawimg, vmin=0, vmax=30)
-        # plt.show()
+                # Repeat with skymask
+                coord_msk = onslit_b_init & gpm & skymask
+                hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
+                cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
+                hist_slit = hist / (cntr + (cntr == 0))
 
-        msgs.info("Correcting science frame for relative spectral illumination")
-        scaleFact = scaleImg + (scaleImg == 0)
-        self.apply_relative_scale(1/scaleFact)
+                # Prepare for fit - take the non-zero elements and trim slit edges
+                ww = (hist_slit[hist_trim:-hist_trim] != 0)
+                xfit = spat_slit[hist_trim:-hist_trim][ww]
+                yfit = hist_slit_all[hist_trim:-hist_trim][ww]
+
+                # Generate the model
+                model = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xfit)[0]
+                modev = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(spat_slit)[0]
+                xnorm = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(0.5)[0]
+
+                # Fit the function
+                spat_func = lambda x, y, model: x[0] + x[1] * model - y
+                res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, model))
+                spatnorm = spat_func(res_lsq.x, 0.0, modev)
+                spatnorm /= spat_func(res_lsq.x, 0.0, xnorm)
+                # Set the scaling factor
+                spatScaleImg[onslit_b_init] = spatnorm[onslit_b_init]
+
+        scaleImg = spatScaleImg.copy()
+        if self.par['scienceframe']['process']['use_specillum']:
+            msgs.info("Performing relative spectral sensitivity correction")
+            applyCorrection = True
+            # Apply spatial scale correction here
+            rawimg = self.sciImg.image.copy()/spatScaleImg
+            # Find all good slits, and create a mask of pixels to include (True=include)
+            wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
+            # Obtain the minimum and maximum wavelength of all slits
+            mnmx_wv = np.zeros((self.slits.nslits, 2))
+            for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+                onslit_init = (slitid_img_init == slit_spat)
+                mnmx_wv[slit_idx, 0] = np.min(self.waveimg[onslit_init])
+                mnmx_wv[slit_idx, 1] = np.max(self.waveimg[onslit_init])
+            # Sort by increasing minimum wavelength
+            swslt = np.argsort(mnmx_wv[:, 0])
+            # Get the minimum and maximum wavelengths that are covered in *all* slits.
+            minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
+
+            # Go through the slits and calculate the overlapping flux
+            maxiter = 20
+            dwav = self.wv_calib[str(self.slits.spat_id[0])]['cen_disp']
+            for rr in range(maxiter):
+                relscl_model = np.ones_like(rawimg)
+                # Prepare slit 0
+                onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
+                onslit_a_olap = onslit_a & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask
+                wsort = np.argsort(self.waveimg[onslit_a_olap])
+                # Generate a master sky frame
+                if rr == 0:
+                    numsamp = gdslits.size * int((maxw - minw) / dwav)
+                    bins = np.linspace(minw, maxw, numsamp)
+                    hist, edge = np.histogram(self.waveimg, bins=bins, weights=global_sky_sep)
+                    cntr, edge = np.histogram(self.waveimg, bins=bins)
+                    wave_ref = 0.5 * (edge[1:] + edge[:-1])
+                    sky_ref = hist / cntr
+                else:
+                    numsamp = gdslits.size * int((np.max(mnmx_wv) - np.min(mnmx_wv)) / dwav)
+                    bins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp)
+                    hist, edge = np.histogram(self.waveimg, bins=bins, weights=global_sky_sep * relscl_model)
+                    cntr, edge = np.histogram(self.waveimg, bins=bins)
+                    wave_ref = 0.5 * (edge[1:] + edge[:-1])
+                    sky_ref = hist / cntr
+                # Now roughly calculate the flux scale relative to the first slit
+                for slit_idx in range(0, self.slits.spat_id.size):
+                    # Only use the overlapping regions of the slits, where the same wavelength range is covered
+                    onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
+                    onslit_b_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+                    onslit_b_olap = onslit_b & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask
+                    idxcls = self.find_nearest(wave_ref, self.waveimg[onslit_b_olap])
+                    speca = sky_ref[idxcls]
+    #                speca = sclspl(self.waveimg[onslit_b_olap])
+                    # Fit a low order polynomial
+                    xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
+                    yfit = speca / rawimg[onslit_b_olap]
+                    # Rough outlier rejection
+                    msk = (yfit > -5) & (yfit < 5)
+                    msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 2, function="legendre", minx=0, maxx=1, lower=5, upper=5)
+                    relscl_model[onslit_b_init] = utils.func_val(coeff,
+                                                                 (self.waveimg[onslit_b_init] - minw) / (maxw - minw),
+                                                                 "legendre", minx=0, maxx=1)
+
+                minv, maxv = np.min(relscl_model), np.max(relscl_model)
+                msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr+1, minv, maxv))
+                # Store rescaling
+                scaleImg *= relscl_model
+                rawimg *= relscl_model
+                if max(abs(1-minv), abs(maxv-1)) < 0.001:  # Relative accruacy of 0.1% is sufficient
+                    break
+
+        if applyCorrection:
+            msgs.info("Correcting science frame for relative spectral and spatial illumination")
+            scaleFact = scaleImg + (scaleImg == 0)
+            self.apply_relative_scale(1/scaleFact)
 
         # Fit to the sky
-        jointfit = False
-        if not jointfit:
+        if not self.par['reduce']['skysub']['joint_fit']:
             # Re-run global skysub on individual slits, with the science frame now scaled
             self.global_sky = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask,
                                                    trim_edg=trim_edg, show_fit=show_fit, show=show, show_objs=show_objs)
         else:
             # Prepare masks and wave tilts
+            msgs.info("Performing joint global sky subtraction")
             # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
             nslits = self.slits.spat_id.size
             skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
