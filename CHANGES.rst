@@ -8,6 +8,7 @@ Hotfixes after 1.0.5
 --------
 
  - Fix class and version check for DataContainer objects.
+ - Implement grism19 for NOT/ALFOSC
 
 1.0.5 (23 Jun 2020)
 -------------------

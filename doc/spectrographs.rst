@@ -29,7 +29,7 @@ magellan_fire           Magellan    FIRE spectrometer; Echelle mode
 magellan_fire_long      Magellan    FIRE spectrometer; Longslit high throughput mode
 magellan_mage           Magellan    MagE spectrometer
 mdm_osmos               MDM         OSMOS spectrometer
-not_alfosc              NOT         ALFOSC spectrometer (grism 4)
+not_alfosc              NOT         ALFOSC spectrometer (grisms 4, 19)
 shane_kast_blue         Lick 3m     Kast dual spectrometer; blue camera
 shane_kast_red          Lick 3m     Kast dual spectrometer; red camera
 shane_kast_red_ret      Lick 3m     Kast dual spectrometer; red reticon
