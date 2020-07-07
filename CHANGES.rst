@@ -4,6 +4,11 @@ Hotfixes after 1.0.5
 
  - Deal with wavecalib crash
 
+1.0.6dev
+--------
+
+ - Fix class and version check for DataContainer objects.
+
 1.0.5 (23 Jun 2020)
 -------------------
 
