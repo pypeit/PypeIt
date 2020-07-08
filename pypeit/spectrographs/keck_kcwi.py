@@ -67,12 +67,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         numamps = head0['NVIDINP']
         specflip = True if head0['AMPID1'] == 2 else False
         gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
-        ronarr = np.ones(numamps) * 2.7
+        ronarr = np.ones(numamps) * 2.7  # Listed on the website
+#        ronarr = np.ones(numamps) * 2.2  # Measured from pattern-subtracted overscan region of a 1x1 frame
         dsecarr = np.array(['']*numamps)
 
         for ii in range(numamps):
             # Assign the gain for this amplifier
-            gainarr[ii] = head0["GAIN{0:1d}".format(ii + 1)] * gainmul
+            gainarr[ii] = head0["GAIN{0:1d}".format(ii + 1)]# * gainmul
 
         detector = dict(det             = det,
                         binning         = binning,
@@ -241,7 +242,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        #par['scienceframe']['process']['use_pattern'] = True    # Subtract off detector pattern
+        par['scienceframe']['process']['spat_flexure_correct'] = True  # apply relative spectral illumination
 
         # Don't do optimal extraction for 3D data.
         par['reduce']['extraction']['skip_optimal'] = True
@@ -253,7 +254,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['no_poly'] = True
 #        par['reduce']['skysub']['bspline_spacing'] = 0.2
 #        par['reduce']['skysub']['joint_fit'] = True
-        par['reduce']['skysub']['bspline_spacing'] = 0.8
+        par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = True
 
         return par
