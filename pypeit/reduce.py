@@ -1293,7 +1293,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
             hist_trim = 3
             spatbins = np.linspace(0.0, 1.0, numbins+1)
             spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
-            for sl, slitnum in enumerate(self.slits.spat_id.size):
+            for sl, slitnum in enumerate(self.slits.spat_id):
+                msgs.info("Deriving spatial correction for slit {0:d}/{1:d}".format(sl+1, self.slits.spat_id.size))
                 # Get the initial slit locations
                 onslit_b_init = (slitid_img_init == slitnum)
 
@@ -1320,23 +1321,24 @@ class IFUReduce(MultiSlitReduce, Reduce):
 
                 # Generate the model
                 model = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xfit)[0]
-                modev = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(spat_slit)[0]
-                xnorm = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(0.5)[0]
+                modev = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(spatcoord[onslit_b_init])[0]
+                xnorm = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(np.array([0.5]))[0][0]
 
                 # Fit the function
-                spat_func = lambda x, y, model: x[0] + x[1] * model - y
+                spat_func = lambda par, ydata, model: par[0] + par[1] * model - ydata
                 res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, model))
                 spatnorm = spat_func(res_lsq.x, 0.0, modev)
                 spatnorm /= spat_func(res_lsq.x, 0.0, xnorm)
                 # Set the scaling factor
-                spatScaleImg[onslit_b_init] = spatnorm[onslit_b_init]
+                spatScaleImg[onslit_b_init] = 1/spatnorm
 
         scaleImg = spatScaleImg.copy()
         if self.par['scienceframe']['process']['use_specillum']:
             msgs.info("Performing relative spectral sensitivity correction")
             applyCorrection = True
             # Apply spatial scale correction here
-            rawimg = self.sciImg.image.copy()/spatScaleImg
+            global_sky_sep *= spatScaleImg
+            rawimg = self.sciImg.image.copy() * spatScaleImg
             # Find all good slits, and create a mask of pixels to include (True=include)
             wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
             # Obtain the minimum and maximum wavelength of all slits
