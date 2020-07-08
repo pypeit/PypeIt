@@ -1293,7 +1293,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
             spatnorm = spat_func(res_lsq.x, 0.0, modev)
             spatnorm /= spat_func(res_lsq.x, 0.0, xnorm)
             # Set the scaling factor
-            spatScaleImg[onslit_b_init] = 1 / spatnorm
+            spatScaleImg[onslit_b_init] = spatnorm
 
         msgs.info("Correcting science frame for spatial illumination profile")
         scaleFact = spatScaleImg + (spatScaleImg == 0)
@@ -1325,9 +1325,10 @@ class IFUReduce(MultiSlitReduce, Reduce):
 
         # Go through the slits and calculate the overlapping flux
         maxiter = 20
-        relscl_model = 1.0
         dwav = self.wv_calib[str(self.slits.spat_id[0])]['cen_disp']
         for rr in range(maxiter):
+            # Reset the relative scaling for this iteration
+            relscl_model = np.ones_like(rawimg)
             # Generate a master sky frame
             if rr == 0:
                 numsamp = gdslits.size * int((maxw - minw) / dwav)
@@ -1336,13 +1337,11 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 numsamp = gdslits.size * int((np.max(mnmx_wv) - np.min(mnmx_wv)) / dwav)
                 bins = np.linspace(np.min(mnmx_wv), np.max(mnmx_wv), numsamp)
             # Histogram to get sky spectrum
-            hist, edge = np.histogram(self.waveimg, bins=bins, weights=global_sky * relscl_model)
+            hist, edge = np.histogram(self.waveimg, bins=bins, weights=global_sky)
             cntr, edge = np.histogram(self.waveimg, bins=bins)
             wave_ref = 0.5 * (edge[1:] + edge[:-1])
             sky_ref = hist / cntr
-            # Reset the relative scaling for this iteration
-            relscl_model = np.ones_like(rawimg)
-            # Now roughly calculate the flux scale relative to the first slit
+            # Using the reference sky, iterate to calculate the relative spectral response
             for slit_idx in range(0, self.slits.spat_id.size):
                 # Only use the overlapping regions of the slits, where the same wavelength range is covered
                 onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
@@ -1354,7 +1353,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
                 yfit = speca / rawimg[onslit_b_olap]
                 # Rough outlier rejection
-                msk = (yfit > -5) & (yfit < 5)
+                msk = (yfit > -10) & (yfit < 10)
                 msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 2, function="legendre", minx=0, maxx=1,
                                                       lower=5, upper=5)
                 relscl_model[onslit_b_init] = utils.func_val(coeff,
@@ -1369,6 +1368,19 @@ class IFUReduce(MultiSlitReduce, Reduce):
             if max(abs(1 - minv), abs(maxv - 1)) < 0.001:  # Relative accruacy of 0.1% is sufficient
                 break
 
+        # With the relative spectral response known, let's calculate the normalisation
+        # Calculate the reference value
+        on_slits = (slitid_img_trim > 0) & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask_now
+        refval, _, _ = stats.sigma_clipped_stats(rawimg[on_slits])
+        # Loop through all slits and calculate small adjustments
+        for sl, slidx in enumerate(self.slits.spat_id):
+            # Only use the overlapping regions of the slits, where the same wavelength range is covered
+            onslit_init = (slitid_img_init == slidx)
+            onslit_trim_msk = (slitid_img_trim == slidx) & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask_now
+            sltval, _, _ = stats.sigma_clipped_stats(rawimg[onslit_trim_msk])
+            scaleImg[onslit_init] *= (refval/sltval)
+
+        # Now perform the full correction to the science frame
         msgs.info("Correcting science frame for relative spectral and spatial illumination")
         scaleFact = scaleImg + (scaleImg == 0)
         self.apply_relative_scale(1 / scaleFact)
