@@ -793,6 +793,22 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         self.spectrograph = 'keck_lris_red_orig'
         self.camera = 'LRISr'
 
+    def default_pypeit_par(self):
+        """
+        Set default parameters for Keck LRISr reductions with the original detector
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.PypeItPar`:
+
+        """
+        par = KeckLRISRSpectrograph.default_pypeit_par()
+        par['rdx']['spectrograph'] = 'keck_lris_red_orig'
+        #
+        # 1D wavelength solution
+        par['calibrations']['wavelengths']['lamps'] = ['NeI', 'ArI', 'KrI', 'XeI', 'HgI']
+
+        return par
+
     def get_detector_par(self, hdu, det):
         """
 
