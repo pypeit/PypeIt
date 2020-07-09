@@ -4,7 +4,7 @@
 #
 # -*- coding: utf-8 -*-
 """
-This script enables the viewing of a FITS file
+This script enables the viewing of a raw FITS file
 """
 import argparse
 

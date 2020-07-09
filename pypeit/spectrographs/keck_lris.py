@@ -815,7 +815,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             binning=binning,
             det=1,
             dataext=1,
-            specaxis=0,
+            specaxis=1,
             specflip=False,
             spatflip=False,
             platescale=0.135,  # TO BE UPDATED!!
@@ -858,7 +858,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         # Open
         hdul = fits.open(raw_file)
         head0 = hdul[0].header
-        image = hdul[0].data
+        image = hdul[0].data.astype(float)
 
         # Get post, pre-pix values
         postpix = head0['POSTPIX']
@@ -884,9 +884,22 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             rawdatasec_img[:,imagecols + namps*(prepix // xbin)] = iamp+1
 
         return self.get_detector_par(hdul, 1), \
-               image.T, hdul, float(head0['ELAPTIME']), \
-               rawdatasec_img.T, oscansec_img.T
+               image, hdul, float(head0['ELAPTIME']), \
+               rawdatasec_img, oscansec_img
 
+    def init_meta(self):
+        """
+        Meta data specific to Keck LRIS red
+
+        Returns:
+
+        """
+        super(KeckLRISROrigSpectrograph, self).init_meta()
+        # Remove the lamps
+        keys = list(self.meta.keys())
+        for key in keys:
+            if 'lampstat' in key:
+                self.meta.pop(key)
 
 def lris_read_amp(inp, ext):
     """
