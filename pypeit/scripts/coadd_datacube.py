@@ -169,8 +169,12 @@ def main(args):
     # Perform and apply the DAR correction
     darpar = spec.get_dar_params(spec2DObj.head0)
     ra_corr, dec_corr = dar_correction(waveimg[onslit], *darpar)
-    raimg[onslit] += ra_corr
-    decimg[onslit] += dec_corr
+    # TODO :: THE FOLLOWING IS WRONG!!! It should just be:
+    # raimg[onslit] += ra_corr
+    # decimg[onslit] += dec_corr
+    # but we first need to generate a master WCS that takes this effect into account.
+    raimg[onslit] += (ra_corr-ra_corr[0])
+    decimg[onslit] += (dec_corr-dec_corr[0])
 
     # Generate the output binning
     slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
