@@ -5,9 +5,10 @@ import glob
 import numpy as np
 from IPython import embed
 
-from astropy.io import fits
 from astropy import wcs, units
-from astropy.coordinates import SkyCoord
+from astropy.io import fits
+from astropy.time import Time
+from astropy.coordinates import SkyCoord, EarthLocation
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -810,16 +811,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                            first ndarray is the RA image, and the second ndarray
                            is the DEC image. RA and DEC are in units degrees.
         """
-
-        # Idea for making cubes:
-        """
-        * generate an output WCS (with sampling similar to KCWI)
-        * generate an RA, DEC, and wavelength image of each reduced 2D frame
-        * make a white light image of each reduced 2D frame
-        * cross-correlate white light images to get spatial distortions between all frames
-        * apply distortions to RA and DEC images
-        * histogram3d the distortion corrected frames
-        """
         # Grab the alignments
         aligns = alignments['traces']
         # Initialise the output
@@ -830,7 +821,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         for slit_idx, spatid in enumerate(slits.spat_id):
             msgs.info("Generating RA/DEC image for slit {0:d}/{1:d}".format(slit_idx+1, slits.nslits))
-            onslit = slitid_img_init == spatid
+            onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             evalpos = onslit_init[1]-aligns[onslit_init[0], 2, slit_idx]
             minmax[:, 0] = np.min(evalpos)
@@ -841,3 +832,44 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
         return raimg, decimg, minmax
+
+    def get_dar_params(self, hdr):
+        """ Get the parameters of the differential atmospheric correction from the header
+
+        Parameters
+        ----------
+        hdr : fits header
+            Header of raw image with atmospheric parameters
+
+        Returns
+        -------
+        coord (astropy SkyCoord):
+            ra, dec positions at the centre of the field
+        obstime (astropy Time):
+            time at the midpoint of observation
+        location (astropy EarthLocation):
+            observatory location
+        pressure (float):
+            Outside pressure at `location`
+        temperature (float):
+            Outside ambient air temperature at `location`
+        rel_humidity (float):
+            Outside relative humidity at `location`. This should be between 0 to 1.
+        """
+        # Get RA/DEC
+        raval = self.compound_meta([hdr], 'ra')
+        decval = self.compound_meta([hdr], 'dec')
+
+        # Create a coordinate and get the time of observation
+        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+        obstime = Time(hdr['DATE-END'])
+
+        # Get observatory location
+        location = EarthLocation.of_site('Keck Observatory')
+
+        # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
+        pressure = hdr['WXPRESS'] * 0.001 * units.bar
+        temperature = hdr['WXOUTTMP'] * units.deg_C
+        rel_humidity = hdr['WXOUTHUM']/100.0
+
+        return coord, obstime, location, pressure, temperature, rel_humidity
