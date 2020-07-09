@@ -14,9 +14,7 @@ from IPython import embed
 
 def parser(options=None):
     parser = argparse.ArgumentParser(description="Script to check for calibrations [v1]")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-r', '--root', type=str, default=None,
-                       help='File path+root, e.g. /data/Kast/b ')
+    parser.add_argument('root', type=str, default=None, help='File path+root, e.g. /data/Kast/b ')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
                                 ', '.join(defs.pypeit_spectrographs)))
@@ -60,11 +58,7 @@ def main(args):
                              + 'on how to add a new instrument.')
 
     # Initialize PypeItSetup based on the arguments
-    if args.root is not None:
-        ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
-    else:
-        # Should never reach here
-        raise IOError('Need to set -r !!')
+    ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
 
     # Run the setup
     ps.run(setup_only=True)#, write_bkg_pairs=args.background)
@@ -87,7 +81,6 @@ def main(args):
             print("There is a setup without science frames.  Skipping...")
             passes.append(False)
             scifiles.append(None)
-            #cfgs.append({})
             continue
         in_cfg = ps.fitstbl['setup'] == setup
         # TODO -- Make the snippet below, which is also in the init of PypeIt a method somewhere
@@ -98,22 +91,21 @@ def main(args):
         msgs.info(str(cfg))
         msgs.info('=======================================================================')
 
+        # Grab a science/standard frame
         data_files = [os.path.join(row['directory'], row['filename']) for row in ps.fitstbl[in_cfg]]
         for idx, row in enumerate(ps.fitstbl[in_cfg]):
             if ('science' in row['frametype']) or ('standard' in row['frametype']):
                 config_specific_file = data_files[idx]
-        # search for arcs, trace if no scistd was there
-        if config_specific_file is None:
-            for idx, row in enumerate(ps.fitstbl[in_cfg]):
-                if ('arc' in row['frametype']) or ('trace' in row['frametype']):
-                    config_specific_file = data_files[idx]
         if config_specific_file is not None:
             msgs.info(
                 'Setting configuration-specific parameters using {0}'.format(os.path.split(config_specific_file)[1]))
-        try:
-            spectrograph_cfg_lines = ps.spectrograph.config_specific_par(config_specific_file).to_config()
-        except:
-            import pdb; pdb.set_trace()
+        else:
+            msgs.warn('No science or standard frame.  Punting..')
+            passes.append(False)
+            scifiles.append(None)
+            continue
+        #
+        spectrograph_cfg_lines = ps.spectrograph.config_specific_par(config_specific_file).to_config()
 
         #   - Build the full set, merging with any user-provided
         #     parameters

@@ -862,6 +862,7 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
             If True, crash out
         cut_cfg (`numpy.ndarray`_, optional):
             Also cut on this restricted configuration (mainly for chk_calibs)
+
     Returns:
         bool: True if we passed all checks
     """

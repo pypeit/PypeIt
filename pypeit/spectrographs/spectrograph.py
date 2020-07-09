@@ -796,7 +796,10 @@ class Spectrograph(object):
                     return ['None']*999 # self.numhead
         else:
             hdu = inp
-        return [hdu[k].header for k in range(len(hdu))]
+        try:
+            return [hdu[k].header for k in range(len(hdu))]
+        except:
+            embed(header='802 of spectrograph')
         #return [hdu[k].header for k in range(self.numhead)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):

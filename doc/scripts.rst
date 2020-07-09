@@ -18,13 +18,15 @@ It raises warnings when these are not found.
 
 Here is the usage::
 
-    usage: pypeit_chk_for_calibs [-h] -r ROOT [-s SPECTROGRAPH] [-e EXTENSION]
+    usage: pypeit_chk_for_calibs [-h] [-s SPECTROGRAPH] [-e EXTENSION] root
 
-    Script to setup a PypeIt run [v3]
+    Script to check for calibrations [v1]
+
+    positional arguments:
+      root                  File path+root, e.g. /data/Kast/b
 
     optional arguments:
       -h, --help            show this help message and exit
-      -r ROOT, --root ROOT  File path+root, e.g. /data/Kast/b
       -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
                             A valid spectrograph identifier: keck_deimos,
                             keck_lris_blue, keck_lris_red, keck_nires,
@@ -43,17 +45,19 @@ Here is the usage::
                             File extension; compression indicators (e.g. .gz) not
                             required.
 
+
+
 And a typical call::
 
-    pypeit_chk_calibs -s not_alfosc -r /PypeIt-development-suite/RAW_DATA/not_alfosc/grism4/ALDc2
+    pypeit_chk_calibs /PypeIt-development-suite/RAW_DATA/not_alfosc/grism4/ALDc2 -s not_alfosc
 
 After a running stream of detailed notes, it prints a table of results
 to the screen::
 
-    setups passfail     scifiles
+    setups pass     scifiles
     ------ -------- ---------------
-         A    False ALDc200205.fits
-      None     True
+         A False ALDc200205.fits
+      None True
 
 
 .. _pypeit-setup:

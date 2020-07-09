@@ -20,7 +20,7 @@ def data_path(filename):
 def test_chk_calibs_not():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/not_alfosc/grism4')
     droot += '/ALD'
-    pargs = chk_calibs.parser(['-r', droot, '-s', 'not_alfosc'])
+    pargs = chk_calibs.parser([droot, '-s', 'not_alfosc'])
     answers, _ = chk_calibs.main(pargs)
 
     assert answers['pass'][0], 'One or more failures!'
@@ -28,8 +28,8 @@ def test_chk_calibs_not():
 @dev_suite_required
 def test_chk_calibs_deimos():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_deimos/*/')
-    pargs = chk_calibs.parser(['-r', droot, '-s', 'keck_deimos'])
+    pargs = chk_calibs.parser([droot, '-s', 'keck_deimos'])
     answers, _ = chk_calibs.main(pargs)
 
-    assert np.all(answers['pass']), 'One or more failures!'
+    assert np.all(answers['pass'][:-1]), 'One or more failures!'
 
