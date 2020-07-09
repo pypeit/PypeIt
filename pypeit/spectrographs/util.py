@@ -54,6 +54,9 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'keck_lris_red':
         return spectrographs.keck_lris.KeckLRISRSpectrograph()
 
+    if spectrograph == 'keck_lris_red_orig':
+        return spectrographs.keck_lris.KeckLRISROrigSpectrograph()
+
     if spectrograph == 'keck_hires_red':
         return spectrographs.keck_hires.KECKHIRESRSpectrograph()
 

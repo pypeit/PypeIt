@@ -53,8 +53,12 @@ def main(args):
     # RAW_LRIS??
     if 'keck_lris' in args.spectrograph:
         #
-        gen_lris = keck_lris.KeckLRISRSpectrograph()  # Using LRISr, but this will work for LRISb too
-        img = gen_lris.get_rawimage(args.file,  None)[1]
+        if args.spectrograph == 'keck_lris_red_orig':
+            gen_lris = keck_lris.KeckLRISROrigSpectrograph()
+            img = gen_lris.get_rawimage(args.file, 1)[1]
+        else:
+            gen_lris = keck_lris.KeckLRISRSpectrograph()  # Using LRISr, but this will work for LRISb too
+            img = gen_lris.get_rawimage(args.file,  None)[1]
     # RAW_DEIMOS??
     elif args.spectrograph == 'keck_deimos':
         #
