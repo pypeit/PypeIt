@@ -4,6 +4,8 @@
 --------
 
  - Fix class and version check for DataContainer objects.
+ - Script to check for calibration files
+ - No longer require bias frames as default for DEIMOS
 
 1.0.5 (23 Jun 2020)
 -------------------
@@ -39,6 +41,7 @@
  - Fluxing docs
  - Fix flexure and heliocentric bugs
  - Identify GUI updates
+ - chk_for_calibs script
 
 1.0.2 (30 Apr 2020)
 -------------------
