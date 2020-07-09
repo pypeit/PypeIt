@@ -772,11 +772,7 @@ class Spectrograph(object):
                     return ['None']*999 # self.numhead
         else:
             hdu = inp
-        try:
-            return [hdu[k].header for k in range(len(hdu))]
-        except:
-            embed(header='802 of spectrograph')
-        #return [hdu[k].header for k in range(self.numhead)]
+        return [hdu[k].header for k in range(len(hdu))]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))

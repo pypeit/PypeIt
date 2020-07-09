@@ -13,8 +13,9 @@ Deviations
 ==========
 
 Here are the main deviations from the default settings
-for DEIMOS (see `default_pypeit_par`in
-the spectrographs.keck_deimos.py file)::
+for DEIMOS
+(see :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.default_pypeit_par`)::
+
 
     # Default lamps
     par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
