@@ -801,7 +801,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             :class:`pypeit.par.pypeitpar.PypeItPar`:
 
         """
-        par = KeckLRISRSpectrograph.default_pypeit_par()
+        par = super(KeckLRISROrigSpectrograph, self).default_pypeit_par()
         par['rdx']['spectrograph'] = 'keck_lris_red_orig'
         #
         # 1D wavelength solution
