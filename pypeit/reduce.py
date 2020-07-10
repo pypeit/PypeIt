@@ -1296,8 +1296,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
             spatScaleImg[onslit_b_init] = spatnorm
 
         msgs.info("Correcting science frame for spatial illumination profile")
-        scaleFact = spatScaleImg + (spatScaleImg == 0)
-        self.apply_relative_scale(scaleFact)
+        self.apply_relative_scale(spatScaleImg)
 
     def illum_profile_spectral(self, global_sky, skymask=None):
         msgs.info("Performing relative spectral sensitivity correction")
@@ -1310,8 +1309,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True, flexure=self.spat_flexure_shift)
         scaleImg = np.ones_like(self.sciImg.image)
         rawimg = self.sciImg.image.copy()
-        # Find all good slits, and create a mask of pixels to include (True=include)
-        wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
         # Obtain the minimum and maximum wavelength of all slits
         mnmx_wv = np.zeros((self.slits.nslits, 2))
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
@@ -1351,7 +1348,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 speca = sky_ref[idxcls]
                 # Fit a low order polynomial
                 xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
-                yfit = speca / rawimg[onslit_b_olap]
+                yfit = rawimg[onslit_b_olap] / speca
                 # Rough outlier rejection
                 msk = (yfit > -10) & (yfit < 10)
                 msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 2, function="legendre", minx=0, maxx=1,
@@ -1363,8 +1360,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
             minv, maxv = np.min(relscl_model), np.max(relscl_model)
             msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))
             # Store rescaling
-            scaleImg *= relscl_model
-            rawimg *= relscl_model
+            scaleImg /= relscl_model
+            rawimg /= relscl_model
             if max(abs(1 - minv), abs(maxv - 1)) < 0.001:  # Relative accruacy of 0.1% is sufficient
                 break
 
@@ -1382,8 +1379,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
 
         # Now perform the full correction to the science frame
         msgs.info("Correcting science frame for relative spectral and spatial illumination")
-        scaleFact = scaleImg + (scaleImg == 0)
-        self.apply_relative_scale(1 / scaleFact)
+        self.apply_relative_scale(scaleImg)
 
     def joint_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
                      show_fit=False, show=False, show_objs=False):
