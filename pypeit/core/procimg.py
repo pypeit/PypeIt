@@ -270,11 +270,19 @@ def rn_frame(datasec_img, gain, ronoise):
 
     Parameters
     ----------
+    datasec_img : ndarray
+        Index image (2D array) assigning each pixel in the data section to an amplifier.
+        A value of 0 means not a data section
+    gain : ndarray, list
+        A list of the gains for each amplifier
+    ronoise : ndarray, list
+        A list of read noise values for each amplifier. If any element of the array is 0.0,
+        the read noise will be determined from the overscan region
 
     Returns
     -------
     rn_img : ndarray
-      Read noise *variance* image (i.e. RN**2)
+        Read noise *variance* image (i.e. RN**2)
     """
     # Determine the number of amplifiers from the datasec image
     numamplifiers = np.amax(datasec_img)
