@@ -111,6 +111,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     tedges = np.zeros(flux.shape, dtype=np.float)
     tedges[np.where(sobel_sig > sigdetect)] = -1.0  # A positive gradient is a left edge
     tedges[np.where(sobel_sig < -sigdetect)] = 1.0  # A negative gradient is a right edge
+
     
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == -1))

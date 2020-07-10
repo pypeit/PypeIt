@@ -130,7 +130,7 @@ def main(args):
 
         # Get the bias frame if requested
         if bias_files is None:
-            proc_par['process']['bias'] = 'skip'
+            proc_par['process']['use_biasimage'] = False
             msbias = None
         else:
             #biasFrame = biasframe.BiasFrame(spec, files=bias_files, det=det, par=bias_par,
@@ -151,6 +151,7 @@ def main(args):
         edges = edgetrace.EdgeTraceSet(traceImage, spec, trace_par, det=det, bpm=msbpm,
                                        auto=True, debug=args.debug, show_stages=args.show,
                                        qa_path=qa_path)
+
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
         # Write the MasterEdges file
         edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
