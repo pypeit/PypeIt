@@ -68,8 +68,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         numamps = head0['NVIDINP']
         specflip = True if head0['AMPID1'] == 2 else False
         gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
-        ronarr = np.ones(numamps) * 2.7  # Listed on the website
-#        ronarr = np.ones(numamps) * 2.2  # Measured from pattern-subtracted overscan region of a 1x1 frame
+#        ronarr = np.ones(numamps) * 2.7  # Listed on the website
+        ronarr = np.zeros(numamps)
         dsecarr = np.array(['']*numamps)
 
         for ii in range(numamps):
@@ -244,6 +244,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
         par['scienceframe']['process']['spat_flexure_correct'] = True  # apply relative spectral illumination
+        par['scienceframe']['process']['use_biasimage'] = False
+        par['scienceframe']['process']['use_darkimage'] = False
 
         # Don't do optimal extraction for 3D data.
         par['reduce']['extraction']['skip_optimal'] = True
