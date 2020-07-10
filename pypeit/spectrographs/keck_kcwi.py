@@ -68,8 +68,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         numamps = head0['NVIDINP']
         specflip = True if head0['AMPID1'] == 2 else False
         gainmul, gainarr = head0['GAINMUL'], np.zeros(numamps)
-#        ronarr = np.ones(numamps) * 2.7  # Listed on the website
-        ronarr = np.zeros(numamps)
+        ronarr = np.zeros(numamps)  # Set this to zero (determine the readout noise from the overscan regions)
         dsecarr = np.array(['']*numamps)
 
         for ii in range(numamps):
@@ -92,7 +91,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         nonlinear       = 0.95,       # For lack of a better number!
                         numamplifiers   = numamps,
                         gain            = gainarr,
-                        ronoise         = ronarr,  # <-- TODO : Need to set this for other setups
+                        ronoise         = ronarr,
                         datasec         = dsecarr.copy(),     # <-- This is provided in the header
                         oscansec        = dsecarr.copy(),     # <-- This is provided in the header
                         )
