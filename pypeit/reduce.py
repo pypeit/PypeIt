@@ -5,22 +5,20 @@ Main driver class for skysubtraction and extraction
 .. include:: ../links.rst
 """
 
-import os
 import inspect
 import numpy as np
 import os
 
 from astropy import stats
-from astropy.io import fits
 from abc import ABCMeta
 
 from linetools import utils as ltu
 from scipy import interpolate
 from scipy.optimize import least_squares
 
-from pypeit import specobjs, specobj
+from pypeit import specobjs
 from pypeit import ginga, msgs, utils
-from pypeit import masterframe
+from pypeit import masterframe, flatfield
 from pypeit.core import skysub, extract, pixels, wave, flexure, flat
 from pypeit.images import buildimage
 from pypeit import wavecalib
@@ -1229,19 +1227,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         self.sciImg.ivar = utils.inverse(varImg)
         return
 
-    def find_nearest(self, array, values):
-        # make sure array is a numpy array
-        array = np.array(array)
-
-        # get insert positions
-        idxs = np.searchsorted(array, values, side="left")
-
-        # find indexes where previous index is closer
-        prev_idx_is_less = ((idxs == len(array)) | (np.fabs(values - array[np.maximum(idxs - 1, 0)]) < np.fabs(values - array[np.minimum(idxs, len(array) - 1)])))
-        idxs[prev_idx_is_less] -= 1
-
-        return idxs
-
     def illum_profile_spatial(self, skymask=None, trim_edg=(0,0)):
         msgs.info("Performing spatial sensitivity correction")
         # Setup some helpful parameters
@@ -1299,6 +1284,16 @@ class IFUReduce(MultiSlitReduce, Reduce):
         self.apply_relative_scale(spatScaleImg)
 
     def illum_profile_spectral(self, global_sky, skymask=None):
+        trim = self.par['calibrations']['flatfield']['slit_trim']
+        gpm = (self.sciImg.fullmask == 0)
+        scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
+                                                    model=global_sky, gpmask=gpm, skymask=skymask, trim=trim,
+                                                    flexure=self.spat_flexure_shift)
+        # Now perform the full correction to the science frame
+        msgs.info("Correcting science frame for relative spectral and spatial illumination")
+        self.apply_relative_scale(scaleImg)
+
+    def illum_profile_spectral_old(self, global_sky, skymask=None):
         msgs.info("Performing relative spectral sensitivity correction")
         # Setup some helpful parameters
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
@@ -1321,7 +1316,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
 
         # Go through the slits and calculate the overlapping flux
-        maxiter = 20
+        maxiter = 10
         dwav = self.wv_calib[str(self.slits.spat_id[0])]['cen_disp']
         for rr in range(maxiter):
             # Reset the relative scaling for this iteration
@@ -1344,14 +1339,14 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
                 onslit_b_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
                 onslit_b_olap = onslit_b & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask_now
-                idxcls = self.find_nearest(wave_ref, self.waveimg[onslit_b_olap])
+                idxcls = utils.find_nearest(wave_ref, self.waveimg[onslit_b_olap])
                 speca = sky_ref[idxcls]
                 # Fit a low order polynomial
                 xfit = (self.waveimg[onslit_b_olap] - minw) / (maxw - minw)
                 yfit = rawimg[onslit_b_olap] / speca
                 # Rough outlier rejection
                 msk = (yfit > -10) & (yfit < 10)
-                msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 2, function="legendre", minx=0, maxx=1,
+                msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1,
                                                       lower=5, upper=5)
                 relscl_model[onslit_b_init] = utils.func_val(coeff,
                                                              (self.waveimg[onslit_b_init] - minw) / (maxw - minw),
@@ -1360,22 +1355,22 @@ class IFUReduce(MultiSlitReduce, Reduce):
             minv, maxv = np.min(relscl_model), np.max(relscl_model)
             msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))
             # Store rescaling
-            scaleImg /= relscl_model
+            scaleImg *= relscl_model
             rawimg /= relscl_model
             if max(abs(1 - minv), abs(maxv - 1)) < 0.001:  # Relative accruacy of 0.1% is sufficient
                 break
 
         # With the relative spectral response known, let's calculate the normalisation
         # Calculate the reference value
-        on_slits = (slitid_img_trim > 0) & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask_now
-        refval, _, _ = stats.sigma_clipped_stats(rawimg[on_slits])
-        # Loop through all slits and calculate small adjustments
-        for sl, slidx in enumerate(self.slits.spat_id):
-            # Only use the overlapping regions of the slits, where the same wavelength range is covered
-            onslit_init = (slitid_img_init == slidx)
-            onslit_trim_msk = (slitid_img_trim == slidx) & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask_now
-            sltval, _, _ = stats.sigma_clipped_stats(rawimg[onslit_trim_msk])
-            scaleImg[onslit_init] *= (refval/sltval)
+        # on_slits = (slitid_img_trim > 0) & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask_now
+        # refval, _, _ = stats.sigma_clipped_stats(rawimg[on_slits])
+        # # Loop through all slits and calculate small adjustments
+        # for sl, slidx in enumerate(self.slits.spat_id):
+        #     # Only use the overlapping regions of the slits, where the same wavelength range is covered
+        #     onslit_init = (slitid_img_init == slidx)
+        #     onslit_trim_msk = (slitid_img_trim == slidx) & gpm & (self.waveimg >= minw) & (self.waveimg <= maxw) & skymask_now
+        #     sltval, _, _ = stats.sigma_clipped_stats(rawimg[onslit_trim_msk])
+        #     scaleImg[onslit_init] *= (refval/sltval)
 
         # Now perform the full correction to the science frame
         msgs.info("Correcting science frame for relative spectral and spatial illumination")
