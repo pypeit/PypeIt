@@ -909,7 +909,14 @@ class DataContainer:
         _d = dict.fromkeys(cls.datamodel.keys())
 
         # Log if relevant data is found for this datamodel
-        found_data = False
+        if np.all([_hdu[e].data is None for e in _ext]):
+            # TODO: This is a KLUDGE. Not sure we should allow this...
+            msgs.warn('Extensions to be read by {0} have no data!'.format(cls.__name__))
+            # This is so that the returned booleans for reading the
+            # data are not tripped as false!
+            found_data = True
+        else:
+            found_data = False
 
         # NOTE: The extension and keyword comparisons are complicated
         # because the fits standard is to force these all to be
