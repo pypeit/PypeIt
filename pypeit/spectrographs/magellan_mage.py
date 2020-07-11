@@ -267,12 +267,12 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
 
     @property
     def norders(self):
-        return 15   # 20-6
+        return 12   # 20-6
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos =  np.array([0.3157, 0.3986, 0.47465896, 0.5446689, 0.60911287, 0.66850584, 0.72341316,
-               0.77448156, 0.82253604, 0.86875753, 0.91512689, 0.96524312])
+        ord_spat_pos =  np.array([0.316, 0.399, 0.475, 0.545, 0.609, 0.669, 0.723, 0.774, 0.823,
+                                  0.869, 0.915, 0.965])
         return ord_spat_pos
 
     @property
