@@ -8,6 +8,58 @@ been installed directly into your path (e.g. ~/anaconda/bin).
 Pipeline Scripts
 ++++++++++++++++
 
+
+pypeit_chk_for_calibs
+=====================
+
+This script, which is similar to :ref:`pypeit-setup`, examines a set
+of files for an input spectrograph and scans for the standard calibrations.
+It raises warnings when these are not found.
+
+Here is the usage::
+
+    usage: pypeit_chk_for_calibs [-h] [-s SPECTROGRAPH] [-e EXTENSION] root
+
+    Script to check for calibrations [v1]
+
+    positional arguments:
+      root                  File path+root, e.g. /data/Kast/b
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -s SPECTROGRAPH, --spectrograph SPECTROGRAPH
+                            A valid spectrograph identifier: keck_deimos,
+                            keck_lris_blue, keck_lris_red, keck_nires,
+                            keck_nirspec_low, keck_mosfire, keck_hires_red,
+                            keck_kcwi, shane_kast_blue, shane_kast_red,
+                            shane_kast_red_ret, tng_dolores, wht_isis_blue,
+                            wht_isis_red, vlt_xshooter_uvb, vlt_xshooter_vis,
+                            vlt_xshooter_nir, vlt_fors2, gemini_gnirs,
+                            gemini_flamingos1, gemini_flamingos2,
+                            gemini_gmos_south_ham, gemini_gmos_north_e2v,
+                            gemini_gmos_north_ham, magellan_fire,
+                            magellan_fire_long, magellan_mage, lbt_mods1r,
+                            lbt_mods1b, lbt_mods2r, lbt_mods2b, lbt_luci1,
+                            lbt_luci2, mmt_binospec, mdm_osmos_mdm4k, not_alfosc
+      -e EXTENSION, --extension EXTENSION
+                            File extension; compression indicators (e.g. .gz) not
+                            required.
+
+
+
+And a typical call::
+
+    pypeit_chk_calibs /PypeIt-development-suite/RAW_DATA/not_alfosc/grism4/ALDc2 -s not_alfosc
+
+After a running stream of detailed notes, it prints a table of results
+to the screen::
+
+    setups pass     scifiles
+    ------ -------- ---------------
+         A False ALDc200205.fits
+      None True
+
+
 .. _pypeit-setup:
 
 pypeit_setup

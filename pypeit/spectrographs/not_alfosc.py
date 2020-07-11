@@ -214,8 +214,8 @@ class NOTALFOSCSpectrograph(spectrograph.Spectrograph):
         if self.get_meta_value(scifile, 'dispname') == 'Grism_#4':
             par['calibrations']['wavelengths']['reid_arxiv'] = 'not_alfosc_grism4.fits'
         else:
-            embed(header='not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
-            msgs.error("Crashing out..")
+            msgs.warn('not_alfosc.py: YOU NEED TO ADD IN THE WAVELENGTH SOLUTION FOR THIS GRISM')
+            #msgs.error("Crashing out..")
 
         # Return
         return par
