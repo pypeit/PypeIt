@@ -19,8 +19,8 @@ def data_path(filename):
 def test_bits():
     # Make sure bits are correct
     bm = SlitTraceBitMask()
-    assert bm.bits['USERIGNORE'] == 1, 'Bits changed'
-    assert bm.bits['BADFLATCALIB'] == 5, 'Bits changed'
+    assert bm.bits['USERIGNORE'] == 2, 'Bits changed'
+    assert bm.bits['BADFLATCALIB'] == 6, 'Bits changed'
 
 def test_init():
 

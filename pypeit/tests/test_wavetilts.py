@@ -134,3 +134,6 @@ def test_run(master_dir):
     waveTilts = buildwaveTilts.run(doqa=False)
     assert isinstance(waveTilts.fit2tiltimg(slits.slit_img()), np.ndarray)
 
+
+#if __name__ == '__main__':
+#    test_instantiate_from_master(master_dir())

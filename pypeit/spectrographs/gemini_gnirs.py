@@ -316,6 +316,11 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         else:
             msgs.error('Unrecognized disperser')
 
+#    @property
+#    def match_tol_spat_pos(self):
+#        # Making this larger than the default value of 0.05 because the order moves considerably in some cases
+#        return 0.1
+
     @property
     def orders(self):
         self.check_disperser()
@@ -328,6 +333,8 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
 
     @property
     def spec_min_max(self):
+        # TODO: Why aren't these numbers in fraction of the detector
+        # size instead of the pixel number?
         self.check_disperser()
         if '10/mmLBSX' in self.dispname:
             spec_max = np.asarray([1022, 1022, 1022, 1022])
@@ -339,7 +346,6 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
             return np.vstack((spec_min, spec_max))
         else:
             msgs.error('Unrecognized disperser')
-
 
 
     def bpm(self, filename, det, shape=None, msbias=None):
