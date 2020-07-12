@@ -223,7 +223,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
-        par['calibrations']['flatfield']['slit_trim'] = 0  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 3  # Make sure the full slit is used (i.e. no padding)
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
 
         # Set the default exposure time ranges for the frame typing
@@ -561,6 +561,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Return the updated HDU
         return hdu
+
+    def calc_spatial_illum(skymask=None, trim_edg=(0,0)):
+        msgs.info("Performing KCWI spatial sensitivity correction")
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """

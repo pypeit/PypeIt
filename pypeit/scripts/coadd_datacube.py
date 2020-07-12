@@ -138,6 +138,7 @@ def main(args):
     sciimg = spec2DObj.sciimg-spec2DObj.skymodel
     ivar = spec2DObj.ivarraw#model
     waveimg = spec2DObj.waveimg
+    bpmmask = spec2DObj.bpmmask
 
     # Grab the slit edges
     slits = spec2DObj.slits
@@ -155,7 +156,7 @@ def main(args):
 
     msgs.info("Constructing slit image")
     slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
-    onslit = slitid_img_init > 0
+    onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
 
     # Generate a master WCS to register all frames
     masterwcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
@@ -168,13 +169,13 @@ def main(args):
 
     # Perform and apply the DAR correction
     darpar = spec.get_dar_params(spec2DObj.head0)
-    ra_corr, dec_corr = dar_correction(waveimg[onslit], *darpar)
+    ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], *darpar)
     # TODO :: THE FOLLOWING IS WRONG!!! It should just be:
     # raimg[onslit] += ra_corr
     # decimg[onslit] += dec_corr
     # but we first need to generate a master WCS that takes this effect into account.
-    raimg[onslit] += (ra_corr-ra_corr[0])
-    decimg[onslit] += (dec_corr-dec_corr[0])
+    raimg[onslit_gpm] += (ra_corr-ra_corr[0])
+    decimg[onslit_gpm] += (dec_corr-dec_corr[0])
 
     # Generate the output binning
     slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
@@ -184,9 +185,10 @@ def main(args):
 
     # Make the cube
     msgs.info("Generating datacube")
-    pix_coord = wcs.wcs_world2pix(raimg[onslit], decimg[onslit], waveimg[onslit]*1.0E-10, 0)
-    datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit]*np.sqrt(ivar[onslit]))
-    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit])
+    # TODO :: Need to include variance weights and make a variance cube
+    pix_coord = wcs.wcs_world2pix(raimg[onslit_gpm], decimg[onslit_gpm], waveimg[onslit_gpm]*1.0E-10, 0)
+    datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit_gpm]*np.sqrt(ivar[onslit_gpm]))
+    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit_gpm])
     norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins))
     norm += (norm == 0)
 

@@ -1250,7 +1250,7 @@ class FlatField(object):
         # Get the pixels containing good slits
         spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
         # Apply the relative scaling
-        rawflatscl = rawflat * relscl_model
+        rawflatscl = rawflat / relscl_model
         # Flat-field modeling is done in the log of the counts
         flat_log = np.log(np.fmax(rawflatscl, 1.0))
         gpm_log = (rawflatscl > 1.0) & gpm
