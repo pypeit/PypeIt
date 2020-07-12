@@ -567,7 +567,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
-        Override parent bpm function with BPM specific to DEIMOS.
+        Override parent bpm function with BPM specific to KCWI.
 
         Parameters
         ----------
@@ -584,8 +584,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         bpm_img = self.empty_bpm(filename, det, shape=shape)
 
         # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # if msbias is not None:
+        #     return self.bpm_frombias(msbias, det, bpm_img)
 
         # Extract some header info
         #msgs.info("Reading AMPMODE and BINNING from KCWI file: {:s}".format(filename))
@@ -631,7 +631,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         for bb in range(len(bc)):
             bpm_img[bc[bb][2]:bc[bb][3]+1, bc[bb][0]:bc[bb][1]+1] = 1
 
-        return bpm_img
+        return np.flipud(bpm_img)
 
     @staticmethod
     def is_nasmask(hdr):
