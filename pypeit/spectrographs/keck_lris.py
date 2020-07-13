@@ -557,6 +557,91 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         return bpm_img
 
 
+class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
+    """
+    Child to handle the LRISb detector packed prior to 01 JUL 2009
+    """
+    ndet = 1
+
+    def __init__(self):
+        # Get it started
+        super(KeckLRISBOrigSpectrograph, self).__init__()
+        self.spectrograph = 'keck_lris_blue_orig'
+        self.camera = 'LRISb'
+
+    def default_pypeit_par(self):
+        """
+        Set default parameters for Keck LRISr reductions with the original detector
+
+        Returns:
+            :class:`pypeit.par.pypeitpar.PypeItPar`:
+
+        """
+        par = super(KeckLRISBOrigSpectrograph, self).default_pypeit_par()
+        par['rdx']['spectrograph'] = 'keck_lris_blue_orig'
+        #
+        return par
+
+    def init_meta(self):
+        """
+        Meta data specific to Keck LRIS red
+
+        Returns:
+
+        """
+        super(KeckLRISBOrigSpectrograph, self).init_meta()
+        # Remove the lamps
+        keys = list(self.meta.keys())
+        for key in keys:
+            if 'lampstat' in key:
+                self.meta.pop(key)
+
+    def get_rawimage(self, raw_file, det):
+        """
+        Over-ride standard get_rawimage() for LRISb to deal
+        with the original approach
+
+        Args:
+            raw_file (str):
+            det (int):
+
+        Returns:
+            tuple
+                See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
+
+        """
+        # Image info
+        image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
+        # Cut down
+        if np.max(rawdatasec_img) != 4:
+            msgs.error("Deal with not 2 AMP mode!!")
+        if det == 1:
+            bad_amp = rawdatasec_img > 2
+            rawdatasec_img[bad_amp] = 0
+            oscansec_img[bad_amp] = 0
+        elif det == 2:
+            bad_amp = rawdatasec_img <= 2
+            rawdatasec_img[bad_amp] = 0
+            oscansec_img[bad_amp] = 0
+        else:
+            msgs.error("Should not be here in keck_lris!")
+
+        # Detector
+        detector_par = self.get_detector_par(hdul, det-1)
+
+        # Flip the spectral axis
+        detector_par['specflip'] = True
+
+        # Return
+        return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
+
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        # Get the empty bpm: force is always True
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+        return bpm_img
+
+
 class KeckLRISRSpectrograph(KeckLRISSpectrograph):
     """
     Child to handle Keck/LRISr specific code
@@ -868,12 +953,30 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
                 self.meta.pop(key)
 
     def get_rawimage(self, raw_file, det):
+        """
+        Over-ride standard get_rawimage() for LRIS
+
+        Args:
+            raw_file (str):
+            det (int):
+                Effectively ignored
+
+        Returns:
+            tuple
+                See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
+
+        """
         # Image info
         image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
         # Detector
         detector_par = self.get_detector_par(hdul, det)
         # Return
         return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
+
+    def bpm(self, filename, det, shape=None, msbias=None):
+        # Get the empty bpm: force is always True
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
+        return bpm_img
 
 def lris_read_amp(inp, ext):
     """
@@ -1004,16 +1107,14 @@ def get_orig_rawimage(raw_file):
 
     Ported from LOWREDUX long_oscan.pro lris_oscan()
 
-    Parameters
-    ----------
-    raw_file : str
-      Filename
+    Args:
+        raw_file : str
+          Filename
 
-    Returns
-    -------
-    tuple
-        See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-        But note the detector info is *not* returned
+    Returns:
+        tuple
+            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
+            But note the detector info is *not* returned
     """
     # Open
     hdul = fits.open(raw_file)

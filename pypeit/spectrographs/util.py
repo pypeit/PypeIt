@@ -45,11 +45,14 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'keck_deimos':
         return spectrographs.keck_deimos.KeckDEIMOSSpectrograph()
 
+    if spectrograph == 'keck_kcwi':
+        return spectrographs.keck_kcwi.KeckKCWISpectrograph()
+
     if spectrograph == 'keck_lris_blue':
         return spectrographs.keck_lris.KeckLRISBSpectrograph()
 
-    if spectrograph == 'keck_kcwi':
-        return spectrographs.keck_kcwi.KeckKCWISpectrograph()
+    if spectrograph == 'keck_lris_blue_orig':
+        return spectrographs.keck_lris.KeckLRISBOrigSpectrograph()
 
     if spectrograph == 'keck_lris_red':
         return spectrographs.keck_lris.KeckLRISRSpectrograph()
