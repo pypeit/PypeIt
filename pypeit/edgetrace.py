@@ -1,3 +1,4 @@
+# TODO: This docstring needs to be updated!!
 """
 The primary purpose of this module is to provide the classes/methods
 used to trace slit edges.
@@ -131,8 +132,9 @@ from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.images.buildimage import TraceImage
 from pypeit.images import detector_container
 from pypeit.tracepca import TracePCA
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit.spectrographs import slitmask
+from pypeit.spectrographs.spectrograph import Spectrograph
+from pypeit.spectrographs.util import load_spectrograph
 
 
 class EdgeTraceBitMask(BitMask):
@@ -291,9 +293,6 @@ class EdgeTraceSet(object):
             Bad-pixel boolean mask for the trace image. Must have the
             same shape as `img`. If None, all pixels are assumed to
             be valid.
-        det (:obj:`int`, optional):
-            The 1-indexed detector number that provided the trace
-            image.  Cannot be `None`.
         auto (:obj:`bool`, optional):
             If a trace image is provided (`img`), run
             :func:`auto_trace` instead of :func:`initial_trace`.
@@ -308,9 +307,6 @@ class EdgeTraceSet(object):
         load (:obj:`bool`, optional):
             Attempt to load existing output. If True and the file
             does not exist, an error is raised.
-        files (:obj:`list`, optional):
-            List of the raw files used to construct the TraceImage
-            Only used to update the header of the output file
 
     Attributes:
         trace_img
@@ -326,7 +322,6 @@ class EdgeTraceSet(object):
             (:attr:`img`). Only defined if argument `img` in
             :func:`initial_trace` or :func:`auto_trace` is a
             :class:`pypeit.images.buildcalibration.TraceImage` object.
-        # TODO -- Remove img and just use trace_img
         img (`numpy.ndarray`_):
             Convenience for now.
         bpm (`numpy.ndarray`_):
@@ -404,31 +399,35 @@ class EdgeTraceSet(object):
     master_file_format = 'fits.gz'
     bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
 
-    def __init__(self, trace_img, spectrograph, par, bpm=None, det=None, qa_path=None,
-                 auto=False, debug=False, show_stages=False, save=False, load=False,
-                 files=None):
+    def __init__(self, trace_img, spectrograph, par, bpm=None, qa_path=None, auto=False,
+                 debug=False, show_stages=False, save=False, load=False):
 
-        # TODO: Should make file_format a class attribute
-
-        # TODO: Add type-checking for spectrograph and par
+        # Check input types
         if not isinstance(trace_img, TraceImage):
-            msgs.error("Bad input for img.  Must be a TraceImage object")
+            msgs.error('Input trace_img must be a TraceImage object.')
+        if not isinstance(spectrograph, Spectrograph):
+            msgs.error('Input spectrograph must be a Spectrograph object.')
+        if not isinstance(par, EdgeTracePar):
+            msgs.error('Input par must be an EdgeTracePar object.')
+
         self.trace_img = trace_img      # Input  TraceImage
+
+        # TODO: just use trace_img for many of these attributes
         self.img = trace_img.image      # The image used to find the slit edges
+        self.binning = self.trace_img.detector.binning  # Detector ordered:  spec, spat
+        self.det = self.trace_img.detector.det          # Detector used for the trace image
+        self.nspec, self.nspat = self.img.shape         # The shape of the trace image
+        self.files = self.trace_img.files               # Files used to construct the trace image
+
         self.spectrograph = spectrograph    # Spectrograph used to take the data
         self.PYP_SPEC = spectrograph.spectrograph  # For the Header.  Will be in datamodel
         self.par = par                      # Parameters used for slit edge tracing
 
-        self.files = None               # Files used to construct the trace image
         self.bpm = None                 # Mask for the trace image
-        self.det = None                 # Detector used for the trace image
         self.sobel_sig = None           # Sobel filtered image used to detect edges
         self.sobel_sig_left = None      # Sobel filtered image used to trace left edges
         self.sobel_sig_right = None     # Sobel filtered image used to trace right edges
         # TODO: Need a separate mask for the sobel image?
-        self.nspec = None               # The shape of the trace image is (nspec,nspat)
-        self.nspat = None
-        self.binning = None             # Detector ordered:  spec, spat
 
         self.traceid = None             # The ID numbers for each trace
         self.orderid = None             # For echelle spectrographs, this is the matched order ID
@@ -462,14 +461,10 @@ class EdgeTraceSet(object):
         if load:
             # Attempt to load an existing master frame
             self.load()
-        #elif self.img is not None:
-        #    # Provided a trace image so instantiate the object.
+        # TODO: This should be elif, but this will change when
+        # EdgeTraceSet is converted into a DataContainer.
         if auto:
-            self.auto_trace(bpm=bpm, det=det, binning=self.trace_img.detector.binning,
-                            save=save, debug=debug, show_stages=show_stages)
-        #    else:
-        #        # JFH Is this option every used?
-        #        self.initial_trace(img, bpm=bpm, det=det, binning=binning, save=save)
+            self.auto_trace(bpm=bpm, save=save, debug=debug, show_stages=show_stages)
 
     def _reinit_trace_data(self):
         """
@@ -642,12 +637,13 @@ class EdgeTraceSet(object):
                                       max_ocol=self.nspat-1, extract_width=extract_width,
                                       mask_threshold=mask_threshold)
 
-    def auto_trace(self, bpm=None, det=1, binning=None, save=False, debug=False, show_stages=False):
+    def auto_trace(self, bpm=None, save=False, debug=False, show_stages=False):
         r"""
         Execute a fixed series of methods to automatically identify
         and trace slit edges.
 
         The current algorithm is:
+
             - Detect and follow slit edges using :func:`initial_trace`.
             - Refine the measured centroids of the edge locations
               using :func:`centroid_refine`.
@@ -682,14 +678,6 @@ class EdgeTraceSet(object):
                 Bad-pixel mask for the trace image. Must have the
                 same shape as `img`. If None, all pixels are assumed
                 to be valid.
-            det (:obj:`int`, optional):
-                The 1-indexed detector number that provided the trace
-                image.  Cannot be `None`.
-            binning (:obj:`str`, optional):
-                On-detector binning of the data ordered spectral then
-                spatial with format, e.g., `2,1`.
-                This over-rides the binning provided by the input TraceImage.
-                NOT recommended
             save (:obj:`bool`, optional):
                 Save the result to the master frame.
             debug (:obj:`bool`, optional):
@@ -699,14 +687,13 @@ class EdgeTraceSet(object):
                 :func:`show` to show the results. These calls to show
                 are always::
 
-                    self.show(thin=10, include_img=True, idlabel=True)
+                    self.show()
 
         """
         # Perform the initial edge detection and trace identification
-        self.initial_trace(bpm=bpm, det=det, binning=binning, save=False)
+        self.initial_trace(bpm=bpm, save=False)
         if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True,
-                      title='Initial identification and tracing of slit edges')
+            self.show(title='Initial identification and tracing of slit edges')
 
         # Initial trace can result in no edges found
         if not self.is_empty:
@@ -714,8 +701,7 @@ class EdgeTraceSet(object):
             # features in the Sobel-filtered image.
             self.centroid_refine()
             if show_stages:
-                self.show(thin=10, include_img=True, idlabel=True,
-                          title='Refinement of edge locations')
+                self.show(title='Refinement of edge locations')
 
         # Initial trace can result in no edges found, or centroid
         # refinement could have removed all traces (via `check_traces`)
@@ -727,8 +713,7 @@ class EdgeTraceSet(object):
             # of the same slit edge
             self.merge_traces(debug=debug)
             if show_stages:
-                self.show(thin=10, include_img=True, idlabel=True,
-                          title='Polynomial fit to the edge locations')
+                self.show(title='Polynomial fit to the edge locations')
 
         # Check if the PCA decomposition is possible; this should catch
         # long slits
@@ -737,8 +722,7 @@ class EdgeTraceSet(object):
             # functional forms
             self.pca_refine(debug=debug)
             if show_stages:
-                self.show(thin=10, include_img=True, idlabel=True,
-                          title='PCA refinement of the trace models')
+                self.show(title='PCA refinement of the trace models')
 
             # Use the results of the PCA decomposition to rectify and
             # detect peaks/troughs in the spectrally collapsed
@@ -746,8 +730,7 @@ class EdgeTraceSet(object):
             # refine the edge traces
             self.peak_refine(rebuild_pca=True, debug=debug)
             if show_stages:
-                self.show(thin=10, include_img=True, idlabel=True,
-                          title='Result after re-identifying slit edges from a spectrally '
+                self.show(title='Result after re-identifying slit edges from a spectrally '
                                 'collapsed image.')
 
         elif self.par['sync_predict'] == 'pca':
@@ -777,8 +760,7 @@ class EdgeTraceSet(object):
         # Left-right synchronize the traces
         self.sync()
         if show_stages:
-            self.show(thin=10, include_img=True, idlabel=True,
-                      title='After synchronizing left-right traces into slits')
+            self.show(title='After synchronizing left-right traces into slits')
 
         # First manually remove some traces, just in case a user
         # wishes to manually place a trace nearby a trace that
@@ -800,8 +782,7 @@ class EdgeTraceSet(object):
                 ad_rm = True
                 self.add_user_traces(add_user_slits)
         if show_stages and ad_rm:
-            self.show(thin=10, include_img=True, idlabel=True,
-                      title='After user-dictated adding/removing slits')
+            self.show(title='After user-dictated adding/removing slits')
 
         # TODO: Add a parameter and an if statement that will allow for
         # this.
@@ -810,7 +791,7 @@ class EdgeTraceSet(object):
         # using the PCA decomposition
 #        self.pca_refine(debug=debug)
 #        if show_stages:
-#            self.show(thin=10, include_img=True, idlabel=True)
+#            self.show()
             
         # TODO: Add mask_refine() when it's ready
 
@@ -820,15 +801,16 @@ class EdgeTraceSet(object):
             # Save the object to a file
             self.save()
 
-    def initial_trace(self, bpm=None, det=1, binning=None, save=False):
+    def initial_trace(self, bpm=None, save=False):
         r"""
-        Initialize the object for tracing a new image.
+        Perform the initial trace of the image.
 
         This effectively reinstantiates the object and must be the
         first method called for tracing an image.  The algorithm:
 
             - Lightly boxcar smooths the trace image spectrally.
-            - Replaces bad pixel columns, if a mask is provided.
+            - Replaces pixel columns and rows that are substantially
+              masked, if a bad-pixel mask is provided (see ``bpm``).
             - Applies a Sobel filter to the trace image along the
               spatial axis (columns) to detect slit edges using steep
               positive gradients (left edges) and steep negative
@@ -837,17 +819,14 @@ class EdgeTraceSet(object):
             - Follows the detected left and right edges along
               spectrally adjacent pixels to identify coherent traces.
               See :func:`pypeit.core.trace.identify_traces`.
-            - Performs basic handling of orphaned left or right
-              edges. See
-              :func:`pypeit.core.trace.handle_orphan_edges`.
             - Initializes the attributes that provide the trace
               position for each spectral pixel based on these
               results.
 
         Used parameters from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are `filt_iter`,
-        `sobel_mode`, `edge_thresh`, `follow_span`,
-        `valid_flux_thresh`, and `det_buffer`.
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
+        ``filt_iter``, ``sobel_mode``, ``edge_thresh``, and
+        ``follow_span``.
 
         The results of this are, by default, saved to the master
         frame; see `save` argument and :func:`save`.
@@ -857,12 +836,6 @@ class EdgeTraceSet(object):
                 Bad-pixel mask for the trace image. Must have the
                 same shape as `img`. If None, all pixels are assumed
                 to be valid.
-            det (:obj:`int`, optional):
-                The 1-indexed detector number that provided the trace
-                image.  Cannot be `None`.
-            binning (str):
-                Over-ride binning provided by DetectorContainer in input image
-                NOT recommended
             save (:obj:`bool`, optional):
                 Save the result to the master frame.
         """
@@ -870,44 +843,20 @@ class EdgeTraceSet(object):
         msgs.info('{0:^50}'.format('Initialize Edge Tracing'))
         msgs.info('-'*50)
 
-        # TODO: Add debugging argument and hooks
-        # Parse the input based on its type
-        #if isinstance(img, TraceImage):
-        #    _img = img.image
-        #    self.binning = img.detector.binning
-        #    # TODO: does TraceImage have a mask?  Yes, it does
-        #else:
-        #    _img = img
-        if binning is not None:
-            self.binning = binning
-        else:
-            self.binning = self.trace_img.detector.binning
+        # TODO: Put in some checks that makes sure the relevant image
+        # attributes are not None?
 
-        # TODO: keep the TraceImage object instead of deconstructing
-        # it?  For direct input, use a base PypeItImage object
-
-        # Check the input
-        #if _img.ndim != 2:
-        #    msgs.error('Trace image must be 2D.')
-        #self.img = _img
-        self.nspec, self.nspat = self.img.shape
         self.bpm = np.zeros((self.nspec, self.nspat), dtype=bool) if bpm is None else bpm
         if self.bpm.shape != self.img.shape:
             msgs.error('Mask is not the same shape as the trace image.')
-        if det is None or det < 1:
-            msgs.error('Detector must be an integer that is >=1.')
-        self.det = det
 
         # Lightly smooth the image before using it to trace edges
         # TODO: Make this filter size a parameter?
-        # NOTE: This was _make_binarr()
         _img = ndimage.uniform_filter(self.img, size=(3, 1), mode='mirror')
 
         # Replace bad-pixel columns if they exist
         # TODO: Do this before passing the image to this function?
         # Instead of just replacing columns, replace all bad pixels...
-        # NOTE: This was previously done at the beginning of
-        # edgearr_from_binarr
         if np.any(self.bpm):
 
             # TODO: For tracing, we really only care about bad spec
@@ -916,10 +865,8 @@ class EdgeTraceSet(object):
             # options. Do we need to replace bad *rows* instead of bad
             # columns?
 
-            #flip = self.spectrograph.raw_is_transposed(det=self.det)
-            #axis = 1 if flip else 0
-
-            # Replace bad columns that cover more than half the image
+            # Replace bad columns and rows that cover more than half
+            # the image
             for flip, axis in zip([False,True], [0,1]):
                 bad_cols = np.sum(self.bpm, axis=axis) > (self.bpm.shape[axis]//2)
                 if flip:
@@ -936,7 +883,8 @@ class EdgeTraceSet(object):
         # currently not because of issues when masked pixels happen to
         # land in slit gaps.
         self.sobel_sig, edge_img \
-                = trace.detect_slit_edges(_img, bpm=self.bpm, median_iterations=self.par['filt_iter'],
+                = trace.detect_slit_edges(_img, bpm=self.bpm,
+                                          median_iterations=self.par['filt_iter'],
                                           sobel_mode=self.par['sobel_mode'],
                                           sigdetect=self.par['edge_thresh'])
         # Empty out the images prepared for left and right tracing
@@ -950,32 +898,10 @@ class EdgeTraceSet(object):
         # number?
 #        minimum_spec_length = self.nspec * self.par['det_min_spec_length']
         minimum_spec_length = 50
-        _trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
-                                              minimum_spec_length=minimum_spec_length)
-
-        ################################################################
-        #
-        # TODO: Make this an option
-#        # Update the traces by handling single orphan edges and/or
-#        # traces without any left or right edges.
-#        # NOTE: This combines the functionality of
-#        # edgearr_add_left_right and edgearr_final_left_right
-#
-#        # TODO: Why is this needed? Comments say that this is primarily
-#        # in place for LRISb, but can this be handled better with sync()?
-#
-#        flux_valid = np.median(_img) > self.par['valid_flux_thresh']
-#        trace_id_img = trace.handle_orphan_edges(_trace_id_img, self.sobel_sig, bpm=self.bpm,
-#                                                  flux_valid=flux_valid,
-#                                                  buffer=self.par['det_buffer'], copy=True)
-#
-#        # Flag any inserted edges
-#        # TODO: handle_orphan_edge can delete or insert edges; deleted
-#        # edges are ignored hereafter, inserted edges are flagged
-#        inserted_edge = (trace_id_img != 0) & (trace_id_img != _trace_id_img)
-        trace_id_img = _trace_id_img
+        trace_id_img = trace.identify_traces(edge_img, follow_span=self.par['follow_span'],
+                                             minimum_spec_length=minimum_spec_length)
+        # TODO: Remove this
         inserted_edge = np.zeros(trace_id_img.shape, dtype=bool)
-        ################################################################
 
         # Check that edges were found
         if np.all(trace_id_img == 0):
@@ -1078,7 +1004,7 @@ class EdgeTraceSet(object):
         # Header
         if master_key is not None:
             prihdr = masterframe.build_master_header(self, master_key, master_dir,
-                                              raw_files=self.files)
+                                                     raw_files=self.files)
         else:
             prihdr = io.initialize_header()
         #   - Add the qa path
@@ -1307,15 +1233,19 @@ class EdgeTraceSet(object):
         if len(self.files) == 0:
             self.files = None
 
-        # TODO: These now case back to float64, regardless of how they
+        # TODO: These now cast back to float64, regardless of how they
         # were written (typically float32). Not sure this is a great
         # idea, but I put it here so that get_slits always casts to
-        # float64.  Not exactly sure what make sense...
+        # float64.  Not exactly sure what makes sense...
+
+        # TODO: When converting to DataContainer, convert these to
+        # from_hdu methods to reconstruct self.trace_img.
         self.img = hdu['TRACEIMG'].data.astype(float)
         self.nspec, self.nspat = self.img.shape
         self.bpm = hdu['TRACEBPM'].data.astype(bool)
         self.det = hdu[0].header['DET']
         self.binning = hdu[0].header['BINNING']
+
         self.sobel_sig = hdu['SOBELSIG'].data.astype(float)
         self.traceid = hdu['TRACEID'].data
         self.spat_cen = hdu['CENTER'].data.astype(float)
@@ -1421,8 +1351,8 @@ class EdgeTraceSet(object):
                                                     for b in np.unique(self.spat_msk)])).tolist()
 
     # TODO: Break the ginga commands out into a separate method?
-    def show(self, include_error=False, thin=1, in_ginga=False, include_img=False,
-             include_sobel=False, img_buffer=100, flag=None, idlabel=False, slits=None,
+    def show(self, include_error=False, thin=10, in_ginga=False, include_img=True,
+             include_sobel=False, img_buffer=100, flag=None, idlabel=True, slits=None,
              original=False, title=None):
         """
         Show a scatter plot of the current trace data and fit, if
@@ -1780,76 +1710,93 @@ class EdgeTraceSet(object):
         side.
 
         This is primarily a wrapper for
-        :func:`pypeit.core.trace.prepare_sobel_for_trace`; the boxcar
-        smoothing is always 5 pixels. Barring a instantiation of the
-        object, this calculation is only done once per side by "lazy
-        loading" :attr:`sobel_sig_left` or :attr:`sobel_sig_right`.
+        :func:`~pypeit.core.trace.prepare_sobel_for_trace`; the
+        boxcar smoothing is always 5 pixels. Barring a instantiation
+        of the object, this calculation is only done once per side by
+        "lazy loading" :attr:`sobel_sig_left` or
+        :attr:`sobel_sig_right`.
 
         Args:
             side (:obj:`str`):
-                The side to return; must be 'left' or 'right'.
+                The side to return; must be ``'left'`` or ``'right'``.
     
         Returns:
             `numpy.ndarray`_: The manipulated Sobel image relevant to
             tracing the specified edge side.
+
+        Raises:
+            PypeItError:
+                Raised if ``side`` is not ``'left'`` or ``'right'``.
         """
         # TODO: Add boxcar to EdgeTracePar?
         boxcar = 5
         if side == 'left':
             if self.sobel_sig_left is None:
-                self.sobel_sig_left = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=boxcar,
-                                                                    side='left')
+                self.sobel_sig_left = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm,
+                                                                    boxcar=boxcar, side='left')
             return self.sobel_sig_left
         if side == 'right':
             if self.sobel_sig_right is None:
-                self.sobel_sig_right = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=boxcar,
-                                                                     side='right')
+                self.sobel_sig_right = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm,
+                                                                     boxcar=boxcar, side='right')
             return self.sobel_sig_right
         msgs.error('Side must be left or right.')
 
-    def centroid_refine(self, follow=True, start_indx=None, continuous=False, check=True,
-                        use_fit=False):
+    def centroid_refine(self, follow=True, start_indx=None, continuous=False, use_fit=False):
         """
         Refine the edge positions using a moment analysis and assess
         the results.
 
-        The method runs in two primary modes, depending on the
-        value of `follow`:
+        The starting point for all trace positions is
+        :attr:`spat_cen`, unless ``use_fit`` is True.
 
-        When `follow=False`, the function simply executes
-        :func:`pypeit.core.trace.masked_centroid` to recenter
+        The method runs in two primary modes, depending on the
+        value of ``follow``:
+
+        When ``follow=False``, the function simply executes
+        :func:`~pypeit.core.trace.masked_centroid` to recenter
         *all* the locations for the left and right edges at each
         spectral position (row) independently. The maximum shift
-        between any input and output centroid is `max_shift_abs` from
-        :attr:`par`.
+        between any input and output centroid is ``max_shift_abs``
+        from :attr:`par`.
 
-        When `follow=True`, the method uses
-        :func:`pypeit.core.trace.follow_centroid` to recenter each
-        edge starting from the `start_indx` spectral index position
-        (row) and then moving to higher and lower spectral rows. In
-        this case, the center of the aperture used for each spectral
-        row is the centroid of the trace measured for the preceding
-        spectral row. The maximum shift between the input and output
-        center for the first position analyzed is set by
-        `max_shift_abs` and the maximum shift for each subsequent
-        spectral row is set by `max_shift_adj`; both parameters are
-        provided in :attr:`par`. In this approach, it's typically
-        best to let the method determine the starting spectral row
-        instead of providing it directly. If left to its own devices,
-        it will iterate through all the traces collecting those that
-        all cross a specific spectral row into groups that it can
-        follow simultaneously. If a starting specral row is provided
-        directly, all traces must cross that row.
+        When ``follow=True``, the method uses
+        :func:`~pypeit.core.trace.follow_centroid` to recenter each
+        edge starting from the ``start_indx`` spectral index position
+        (row) and then follows the centroid to higher and lower
+        spectral rows. In this case, the center of the aperture used
+        for each spectral row is the centroid of the trace measured
+        for the preceding spectral row. The maximum shift between the
+        input and output center for the first position analyzed is
+        set by ``max_shift_abs`` and the maximum shift for each
+        subsequent spectral row is set by ``max_shift_adj``; both
+        parameters are provided in :attr:`par`. In this approach,
+        it's typically best to let the method determine the starting
+        spectral row instead of providing it directly. If left to its
+        own devices, it will iterate through all the traces
+        collecting those that all cross a specific spectral row into
+        groups that it can follow simultaneously. If a starting
+        specral row is provided directly, all traces must cross that
+        row.
 
-        Regardless of the value of `follow`,
-        :func:`pypeit.core.trace.masked_centroid` is run with uniform
-        weighting and an aperture width set to be twice
-        `fwhm_uniform` from :attr:`par`. Other used parameters from
-        :attr:`par` (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `max_shift_abs`, `max_shift_adj`, `max_spat_error`, and
-        `clip`.
+        Regardless of the value of ``follow``,
+        :func:`~pypeit.core.trace.masked_centroid` is run with
+        uniform weighting and an aperture width set to be twice
+        ``fwhm_uniform`` from :attr:`par`.
+
+        During the refinement, :func:`check_traces` after each new
+        trace is refined, indentifying repeat and errorneous traces.
+        (The minimum length of the trace passed to
+        :func:`check_traces` is set by ``det_min_spec_length`` in
+        :attr:`par`.) If ``clip`` in :attr:`par` is True, all bad
+        traces are removed (see :func:`remove_traces`).
+
+        Other used parameters from :attr:`par`
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) are
+        ``max_shift_abs``, ``max_shift_adj``, and ``max_spat_error``.
 
         .. warning::
+
             - This function modifies the internal trace arrays **in
               place**.
             - Because this changes :attr:`spat_cen` and
@@ -1861,25 +1808,24 @@ class EdgeTraceSet(object):
         Args:
             follow (:obj:`bool`, optional):
                 Perform the centroiding first at a single row (see
-                `start_indx`) and then move to higher and lower
+                ``start_indx``) and then move to higher and lower
                 spectral rows in series. See
-                :func:`pypeit.core.trace.follow_centroid`.
+                :func:`~pypeit.core.trace.follow_centroid`.
             start_indx (:obj:`int`, optional):
                 The index of the starting spectral row when following
-                the trace between adjacent rows; see `follow`. If
+                the trace between adjacent rows; see ``follow``. If
                 None, the starting spectral row is set by finding the
                 spectral row that crosses the most unmasked trace
                 positions; see
-                :func:`pypeit.core.trace.most_common_trace_row`.
-                Value is ignored if `follow=False`.
+                :func:`~pypeit.core.trace.most_common_trace_row`.
+                Value is ignored if ``follow=False``.
             continuous (:obj:`bool`, optional):
                 Keep only the continuous part of the traces from the
-                starting spectral row.
-            check (:obj:`bool`, optional):
-                Run :func:`check_traces` to flag bad traces.
+                starting spectral row. See
+                :func:`~pypeit.core.trace.follow_centroid`.
             use_fit (:obj:`bool`, optional):
                 Use the fitted traces as the starting point for the
-                refinement. Otherwise, uses :`spat_img`. If True and
+                refinement. Otherwise, uses :`spat_cen`. If True and
                 :attr:`spat_fit` is None, the method will raise an
                 exception.
         """
@@ -1899,6 +1845,7 @@ class EdgeTraceSet(object):
         maxerror = self.par['max_spat_error']
         minimum_spec_length = self.par['det_min_spec_length']*self.nspec
 
+        # Report
         msgs.info('-'*50)
         msgs.info('{0:^50}'.format('Edge Centroid Refinement'))
         msgs.info('-'*50)
@@ -2036,6 +1983,11 @@ class EdgeTraceSet(object):
             `numpy.ndarray`_: Boolean array with shape :math:`(N_{\rm
             spec}, N_{\rm trace})` selecting pixels that are (True)
             or are not (False) "off" the detector.
+
+        Raises:
+            PypeItError:
+                Raised if ``cen`` is not provided and
+                :attr:`spat_cen` is None.
         """
         buff = 0 if self.par['det_buffer'] is None else self.par['det_buffer']
         if buff < 0:
@@ -2045,29 +1997,39 @@ class EdgeTraceSet(object):
         if cen is None:
             cen = self.spat_cen
         if cen is None:
-            raise ValueError('No trace locations!')
+            msgs.error('No trace locations!')
         return (cen < buff) | (cen > self.nspat - buff)
 
     def check_traces(self, cen=None, msk=None, subset=None, min_spatial=None, max_spatial=None,
                      minimum_spec_length=None):
         r"""
-        Validate new trace data to be added.
+        Validate new or existing trace data.
 
-        Steps are:
-            - Remove duplicates based on the provided matching
-              tolerance (`match_tol` in :attr:`par`). Beware that
-              this should be done by providing `cen` directly.
-            - Remove traces that do not cover at least some fraction
-              of the detector (see `minimum_spec_length`).
-            - Remove traces that are at a minimum or maximum spatial
-              position (column) (typically the edge of the detector;
-              see `min_spatial` and `max_spatial`).
+        This function *only* changes the mask status of the traces and
+        returns flags for traces that are good or bad.  Traces are
+        flagged as bad if they meet any of the following conditions:
+
+            - If and only if ``subset`` is provided, the selected subset
+              of traces are checked against all other traces to find
+              repeats.  Repeats are identified as those tracing the same
+              side of a slit and having a minimum spatial separation of
+              less than the provided ``match_tol`` parameter in
+              :attr:`par`.  Beware that this should be done by providing
+              ``cen`` directly.
+            - Traces that do not extend for at least some fraction
+              of the detector (see ``minimum_spec_length``).
+            - Traces with spatial positions at the central spectral
+              channel that are above or below the provided threshold
+              (see ``min_spatial`` and ``max_spatial``).
+            - Traces that fully land off the edge of the detector; see
+              :func:`trace_pixels_off_detector`.
 
         The only used parameter from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is `match_tol`.
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is ``match_tol``.
 
         .. warning::
-            `msk` is edited in-place
+
+            :attr:`msk` is edited in-place
 
         Args:
             cen (`numpy.ndarray`_, optional):
@@ -2098,8 +2060,12 @@ class EdgeTraceSet(object):
                 The minimum number of spectral rows in an edge trace.
 
         Returns:
-            Returns two boolean arrays selecting the good and bad
-            traces.  Shapes are :math:`(N_{\rm trace},)`.
+            :obj:`tuple`: Returns two boolean arrays selecting the good
+            and bad traces.  Both are returned because neither will be
+            true for traces not selected by ``subset`` if it is
+            provided.  The shape of both arrays is :math:`(N_{\rm
+            trace},)`.
+
         """
         if self.is_empty:
             msgs.warn('No traces to check.')
@@ -2188,21 +2154,25 @@ class EdgeTraceSet(object):
         Merge traces based on their spatial separation.
 
         Traces are merged if:
+
             - they are from the same slit side (left or right)
-            - the fitted trace locations are separated by less than
-              `match_tol` (from :attr:`par`) for more than
-              `merge_frac` of the spectral range of the detector.
+            - the *fitted* trace locations of two different traces
+              are separated by less than ``match_tol`` (from
+              :attr:`par`) for more than ``merge_frac`` of the
+              spectral range of the detector.
 
         Since the merging is based on the *fitted* trace location,
         the traces must have been fit beforehand; see
-        :func:fit_refine`.
+        :func:`fit_refine`.
 
         When there are traces found that should be merged, the
         unmasked centroid measurements from the shorter trace(s) are
-        added to the longest trace. The traces are then resorted and
-        given new trace IDs.
+        added to the longest trace (meaning that the shorter trace is
+        effectively removed). The traces are then resorted and given
+        new trace IDs.
 
         .. warning::
+
             - This automatically removes any existing PCA
               decomposition
             - If functional fits exist and `refit` is False, *all*
@@ -2213,14 +2183,15 @@ class EdgeTraceSet(object):
         Args:
             merge_frac (:obj:`float`, optional):
                 The fraction of the spectral length of the detector
-                that should be less than `match_tol` in :attr:`par`
+                that should be less than ``match_tol`` in :attr:`par`
                 used to find traces to merge.
             refit (:obj:`bool`, optional):
                 If fitted models exist and traces are merged, run
                 :func:`fit_refine` with its default arguments after
                 the traces have been merged to refit the trace data.
             debug (:obj:`bool`, optional):
-                Only passed to :func:`fit_refine` if `refit` is True.
+                Only passed to :func:`fit_refine` if ``refit`` is
+                True.
         """
         if self.is_empty:
             msgs.warn('No traces to merge.')
@@ -2341,14 +2312,23 @@ class EdgeTraceSet(object):
     @property
     def is_synced(self):
         """
-        Return flag that left-right traces are synchronized into
-        slits.
+        Boolean that left-right traces are synchronized into slits.
+
+        For this to be true:
+
+            - **all** traces must be valid; i.e.,
+              ``np.all(self.good_traces(include_box=True))`` must be
+              True.
+
+            - The sorted traces must be ordered
+              left-right-left-right-...
+
         """
         if self.is_empty:
             return False
-        # Do it
-        gpm = self.good_traces(include_box=True)
-        side = np.clip(self.traceid[gpm], -1, 1)
+        if not np.all(self.good_traces(include_box=True)):
+            return False
+        side = np.clip(self.traceid, -1, 1)
         if len(side) == 0:
             return False
         return side[0] == -1 and side.size % 2 == 0 and np.all(side[1:] + side[:-1] == 0)
@@ -2459,10 +2439,14 @@ class EdgeTraceSet(object):
         if self.is_empty:
             msgs.warn('No traces to check.')
 
+        # Decide if the PCA should be rebuilt
+        _rebuild_pca = rebuild_pca and self.pca is not None and self.can_pca()
+
         # Remove any fully masked traces and its synced counterpart;
         # force the removal of traces marked as SYNCERROR, even if
         # those traces were inserted.
-        self.clean_traces(sync_rm='both', force_flag='SYNCERROR')
+        self.clean_traces(force_flag='SYNCERROR', rebuild_pca=_rebuild_pca, sync_mode='both',
+                          assume_synced=True)
 
         # Use the fit data if available
         trace_cen = self.spat_cen if self.spat_fit is None else self.spat_fit
@@ -2474,7 +2458,6 @@ class EdgeTraceSet(object):
         # TODO: Keep a separate mask for the fit positions?
         indx = self.trace_pixels_off_detector(cen=trace_cen)
         if np.any(indx):
-            new_masks = True
             self.spat_msk[indx] = self.bitmask.turn_on(self.spat_msk[indx], 'OFFDETECTOR')
 
         # Check the slits are synced
@@ -2510,9 +2493,6 @@ class EdgeTraceSet(object):
         # TODO: Should here and below only use the unmasked parts of
         # the trace for the slit gap and length computations?
 
-        # Keep track of whether or not any new masks were applied
-        new_masks = False
-
         if gap_atol is not None:
             # Calculate the slit gaps
             slit_gap = np.median(np.diff(trace_cen[:,1:], axis=1)[:,::2], axis=0)
@@ -2544,7 +2524,6 @@ class EdgeTraceSet(object):
                     return self._masked_single_slit(trace_cen)
                 msgs.warn('All slits are too short!')
             if np.any(indx):
-                new_masks = True
                 msgs.info('Rejecting {0} slits that are too short.'.format(np.sum(indx)))
                 self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'SHORTSLIT')
 
@@ -2562,7 +2541,6 @@ class EdgeTraceSet(object):
                     return self._masked_single_slit(trace_cen)
                 msgs.warn('All slits are too short!')
             if np.any(indx):
-                new_masks = True
                 msgs.info('Identifying/Rejecting {0} slits as box slits.'.format(np.sum(indx)))
                 self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'BOXSLIT')
 
@@ -2572,24 +2550,20 @@ class EdgeTraceSet(object):
             indx = np.repeat(np.absolute(np.log(slit_length/np.median(slit_length)))
                              > np.log(1+length_rtol), 2)
             if np.any(indx):
-                new_masks = True
                 msgs.info('Rejecting {0} abnormally long or short slits.'.format(np.sum(indx)))
                 self.spat_msk[:,indx] = self.bitmask.turn_on(self.spat_msk[:,indx], 'ABNORMALSLIT')
 
         # TODO: Check that slit edges meet a minimum slit gap?
-        if self.par['sync_clip']:
-            # Remove traces that have been fully flagged as bad,
-            # excluding those that are inserted or have been identified
-            # as a box slit.
-            rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
-                                               exclude=self.bitmask.exclude_flags)
-            self.remove_traces(rmtrace, rebuild_pca=rebuild_pca, sync_rm='both')
-            if self.is_empty:
-                msgs.warn('Assuming a single long-slit and continuing.')
-                self.bound_detector()
-        elif new_masks:
-            # Reset the PCA if new masks are applied
-            self._reset_pca(rebuild_pca and self.pca is not None and self.can_pca())
+
+        # Find all traces to remove
+        rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags, exclude=self.bitmask.exclude_flags)
+        # Make sure to also remove the synced one
+        rmtrace = self.synced_selection(rmtrace, mode='both', assume_synced=True)
+        # Remove 'em
+        self.remove_traces(rmtrace, rebuild_pca=_rebuild_pca)
+        if self.is_empty:
+            msgs.warn('Assuming a single long-slit and continuing.')
+            self.bound_detector()
 
     def rm_user_traces(self, rm_traces):
         """
@@ -2628,16 +2602,29 @@ class EdgeTraceSet(object):
                 msgs.info("Removing user-supplied slit at {},{}".format(xcen, y_spec))
                 # Mask
                 self.bitmask.turn_on(self.spat_msk[:,indx], 'USERRMSLIT')
+
+        # Syncronize the selection
+        indx = self.synced_selection(indx, mode='both', assumed_synced=True)
+        # TODO: Add rebuild_pca ?
         # Remove
-        self.remove_traces(indx, sync_rm='both')
+        self.remove_traces(indx)
 
     # TODO -- Add an option to distinguish between an actual remove and a flagging
-    def remove_traces(self, indx, resort=True, rebuild_pca=False, sync_rm='ignore'):
+    def remove_traces(self, indx, resort=True, rebuild_pca=False):
         r"""
         Remove a set of traces.
 
-        This method directly alters the attributes of this object
-        containing the trace data.
+        This method directly alters the attributes containing the
+        trace data.
+
+        .. warning::
+
+            If the traces are left-right synchronized, you should
+            decide how you want to treat the traces as pairs. See
+            :func:`synced_selection`. For example, to remove both
+            traces in a pair if either are selected, run::
+
+                edges.remove_traces(edges.synced_selection(indx, mode='both'))
 
         Args:
             indx (array-like):
@@ -2649,35 +2636,21 @@ class EdgeTraceSet(object):
             rebuild_pca (:obj:`bool`, optional):
                 If the pca exists, rebuild it using the new traces
                 and the previous parameter set.
-            sync_rm (:obj:`str`, optional):
-                The mode to use when updating traces to remove based
-                on their synchronization status. See
-                :func:`synced_selection`. For example, the following
-                two statements produce identical results::
-
-                    edges.remove_traces(indx, sync_rm='both')
-
-                or::
-
-                    edges.remove_traces(edges.synced_selection(indx, mode='both'))
-
         """
         # Make sure there are traces to remove
         if not np.any(indx):
             msgs.warn('No trace to remove.')
             return
 
-        # Synchronize the trace selection
-        _indx = self.synced_selection(np.atleast_1d(indx), mode=sync_rm)
-        if np.all(_indx):
+        if np.all(indx):
             msgs.warn('All traces removed!')
             self._reinit_trace_data()
             return
             
-        msgs.info('Removing {0} edge traces.'.format(np.sum(_indx)))
+        msgs.info('Removing {0} edge traces.'.format(np.sum(indx)))
 
         # Reset the trace data
-        keep = np.invert(_indx)
+        keep = np.logical_not(indx)
         self.spat_img = self.spat_img[:,keep]
         self.spat_cen = self.spat_cen[:,keep]
         self.spat_err = self.spat_err[:,keep]
@@ -2693,7 +2666,7 @@ class EdgeTraceSet(object):
         # Reset the PCA
         self._reset_pca(rebuild_pca and self.pca is not None and self.can_pca())
 
-    def synced_selection(self, indx, mode='ignore'):
+    def synced_selection(self, indx, mode='ignore', assume_synced=False):
         r"""
         Coordinate selection of traces based on their synchronization
         status.
@@ -2715,13 +2688,21 @@ class EdgeTraceSet(object):
                       selected, select both.
                     - ``'neither'``: If only one of the traces in a
                       pair is selected, *deselect* both.
+            assume_synced (:obj:`bool`, optional):
+                Assume the set of traces is synced when identifying
+                which traces to select/de-select if mode is either
+                ``'both'`` or ``'neither'``. This essentially ignores
+                the sync status of the traces and will fault if the
+                number of traces is not even. If False, the sync
+                status is checked using :func:`is_synced`.
 
         Raises:
             PypeItError:
                 Raised if the input ``indx`` doesn't have the correct
                 length, if mode is *not* ``'ignore'`` and the edges
-                have not been left-right synchronized, or if the
-                provided ``mode`` is not valid.
+                have not been left-right synchronized and
+                ``assume_synced`` is False, or if the provided
+                ``mode`` is not valid.
 
         Returns:
             `numpy.ndarray`_: The updated boolean vector selecting
@@ -2734,47 +2715,56 @@ class EdgeTraceSet(object):
         if indx.size != self.ntrace:
             msgs.error('Boolean array selecting traces to remove has incorrect length.')
 
-        if not self.is_synced:
-            msgs.error('To synchronize the trace selection, the traces must first have been '
-                       'synchronized into left-right pairs; run sync().')
+        if not assume_synced and not self.is_synced:
+            msgs.error('To synchronize the trace selection, it is expected that the traces have '
+                       'been left-right synchronized.  Either run sync() to sychronize, ignore '
+                       'the synchronization (which may raise an exception) by setting '
+                       'assumed_synced=True.')
         if mode == 'both':
             return np.repeat(np.any(indx.reshape(-1,2), axis=1), 2)
         elif mode == 'neither':
             return np.repeat(np.all(indx.reshape(-1,2), axis=1), 2)
         msgs.error('Unknown synchronized trace selection mode: {0}'.format(mode))
 
-    # TODO: Need to return to this
-    def clean_traces(self, sync_rm='ignore', force_flag=None):
+    def clean_traces(self, force_flag=None, rebuild_pca=True, sync_mode='ignore',
+                     assume_synced=False):
         """
         Remove any traces that are fully masked as bad.
 
-        For removal, the traces must be fully masked and
-        *none* of its pixels can be masked by one of the insertion
-        flags; see :func:`fully_masked_traces`. 
+        Traces selected for removal must be fully masked; see
+        :func:`fully_masked_traces`.
 
-        To force removal of traces with certain flags, regardless of
-        their insertion status, use `force_flag`. See
-        :class:`EdgeTraceBitMask` for list of flags.
+        By default, flags used to select bad trace measurements are
+        those provided by :func:`EdgeTraceBitMask.bad_flags`, and
+        those flags excluded from designating a trace as bad are
+        provided by :func:`EdgeTraceBitMask.exclude_flags`. To force
+        removal of traces with certain flags, regardless of these two
+        groups, use ``force_flag``. See :class:`EdgeTraceBitMask` for
+        list of flags.
 
         Args:
-            sync_rm (:obj:`str`, optional):
+            force_flag (:obj:`str`, :obj:`list`, optional):
+                Force inclusion of these flags in assessing whether
+                or not a trace is fully masked.
+            rebuild_pca (:obj:`bool`, optional):
+                Rebuild the PCA decomposition of the traces based on
+                the loaded trace data. Passed directly to
+                :func:`remove_traces`, which is only called if traces
+                are in fact removed.
+            sync_mode (:obj:`str`, optional):
                 If the traces are left-right synchronized (see
                 :func:`sync` and :func:`is_synced`), use this method
                 to deal with edges paired with those to be removed.
-                See :func:`remove_traces`.
-            force_flag (:obj:`str`, :obj:`list`, optional):
-                Force removal of traces fully masked with these
-                flags, even if they are also flagged as having been
-                inserted.
+                See :func:`synced_selection`.
+            assume_synced (:obj:`bool`, optional):
+                Assume the set of traces is synced. See
+                :func:`synced_selection`.
         """
         if self.is_empty:
             msgs.warn('No traces to clean.')
             return
 
         # Traces to remove
-#        rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
-#                                           exclude=self.bitmask.insert_flags
-#                                                    + self.bitmask.exclude_flags)
         rmtrace = self.fully_masked_traces(flag=self.bitmask.bad_flags,
                                            exclude=self.bitmask.exclude_flags)
         if force_flag is not None:
@@ -2784,26 +2774,27 @@ class EdgeTraceSet(object):
             # The removed traces should not have been included in the
             # PCA decomposition to begin with, but this call to remove
             # traces has to "rebuild" the PCA because it will remove it
-            # otherwise.
-            # TODO: Fix remove_traces to check if traces used in the
-            # construction of the PCA, and only then use the
-            # rebuild_pca flag to decide if it should rebuild.
-            self.remove_traces(rmtrace, rebuild_pca=True, sync_rm=sync_rm)
+            # otherwise. Note that `remove_traces` only rebuilds the
+            # PCA if the parameter passed to it is true AND :attr:`pca`
+            # previously existed AND the traces can be pca'd to begin
+            # with.
+            rmtrace = self.synced_selection(rmtrace, mode=sync_mode, assumed_synced=assume_synced)
+            self.remove_traces(rmtrace, rebuild_pca=rebuild_pca)
 
     def spatial_sort(self, use_mean=False, use_fit=True):
         """
         Sort the traces spatially.
 
-        The coordinates used for the sorting is either the measured
-        centroids or the fitted parameterization (see `use_fit`). The
+        The coordinates used for the sorting are either the measured
+        centroids or the fitted parameterization (see ``use_fit``). The
         fiducial coordinates that are sorted are either the mean of
         the unmasked coordinates over all spectral rows or the
         unmasked coordinates at a specified reference spectral row
-        (see `use_mean`).
+        (see ``use_mean``).
 
         The trace IDs are also reassigned to be sorted spatially;
-        i.e., the trace IDs for three synced slits would be `[-1, 1,
-        -2, 2, -3, 3]`.
+        i.e., the trace IDs for three synced slits would be ``[-1, 1,
+        -2, 2, -3, 3]``.
         
         All attributes are edited in-place.
 
@@ -2814,8 +2805,8 @@ class EdgeTraceSet(object):
                 reference spectral row is used, where the reference
                 spectral row is either the same as used by the PCA
                 (if available) or the result of
-                :func:`pypeit.core.trace.most_common_trace_row` using
-                the current trace mask.
+                :func:`~pypeit.core.trace.most_common_trace_row`
+                using the current trace mask.
             use_fit (:obj:`bool`, optional):
                 Sort according to the fit positions instead of the
                 measured positions. Otherwise, only use the fit
@@ -2895,27 +2886,40 @@ class EdgeTraceSet(object):
     def fit_refine(self, weighting='uniform', debug=False, idx=None):
         """
         Iteratively re-measure and fit a functional form to the edge
-        location data.
+        locations.
 
-        Primarily a wrapper for :func:`pypeit.core.trace.fit_trace`,
-        run once per edge side (left and right).
+        Before fitting the traces, :func:`check_traces` is used to
+        flag traces that do not meet a minimum length required for
+        fitting (set by ``fit_min_spec_length`` in :attr:`par`).
+
+        After this, the function is primarily a wrapper for
+        :func:`~pypeit.core.trace.fit_trace`, run once per edge side
+        (left and right). Both the measured centers and the fitted
+        model are modified by :func:`~pypeit.core.trace.fit_trace`,
+        such that :attr:`spat_cen`, :attr:`spat_err`,
+        :attr:`spat_msk`, :attr:`spat_fit`, :attr:`spat_fit_img`, and
+        :attr:`spat_img` are all modified by this method. Note that
+        only traces that are *not* fully flagged are fit.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `fit_function`, `fit_order`, `fwhm_uniform`, `fwhm_gaussian`,
-        `fit_maxdev`, `fit_maxiter`, and `fit_niter`.
+        ``max_shift_abs``, ``max_spat_error``, ``fit_function``,
+        ``fit_order``, ``fwhm_uniform``, ``fwhm_gaussian``,
+        ``fit_maxdev``, ``fit_maxiter``, ``fit_niter``, and
+        ``fit_min_spec_length``.
 
         Args:
             weighting (:obj:`str`, optional):
                 The weighting to apply to the position within each
                 integration window (see
-                :func:`pypeit.core.trace.fit_trace`).
+                :func:`~pypeit.core.trace.fit_trace`).
             debug (:obj:`bool`, optional):
-                Run in debug mode.
+                Run :func:`~pypeit.core.trace.fit_trace` in debug
+                mode.
             idx (`numpy.ndarray`_, optional):
                 Array of strings with the IDs for each object. Used
-                only if `debug` is true for the plotting. Default is
-                just a running number.
+                only if ``debug`` is true for the plotting (see
+                :func:`~pypeit.core.trace.fit_trace`).
         """
         # Check that there are traces to refine!
         if self.is_empty:
@@ -3001,7 +3005,6 @@ class EdgeTraceSet(object):
         # Add the new masking information; this merges the new and
         # existing mask because the existing mask was used by fit_trace
         # to ignore input trace data
-        # TODO: Does applying this mask here mess up fits later?
         self.spat_msk |= msk
         # Save the model fits
         self.spat_fit = fit
@@ -3278,23 +3281,24 @@ class EdgeTraceSet(object):
         Use a PCA decomposition to refine the traces.
 
         If no parametrized function has been fit to the trace data or
-        if specifically requested (see `use_center`), the PCA is
-        based on the measured trace centroids; othwerwise, the PCA
-        uses the parametrized trace fits.
+        if specifically requested (see ``use_center``), the PCA is
+        based on the measured trace centroids (:attr:`spat_cen`);
+        othwerwise, the PCA uses the parametrized trace fits
+        (:attr:`spat_fit`).
 
         If needed or forced to, this first executes :func:`build_pca`
         and then uses :func:`predict_traces` to use the PCA to reset
         the trace data.
 
         Only used parameter from :attr:`par`
-        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) is
-        `left_right_pca`.
+        (:class:`~pypeit.par.pypeitpar.EdgeTracePar`) is
+        ``left_right_pca``.
 
         Args:
             use_center (:obj:`bool`, optional):
                 Use the center measurements for the PCA decomposition
                 instead of the functional fit to those data. This is
-                only relevant if both are available. If not fits have
+                only relevant if both are available. If no fits have
                 been performed, the function will automatically use
                 the center measurements.
             debug (:obj:`bool`, optional):
@@ -3335,22 +3339,29 @@ class EdgeTraceSet(object):
 
         This function *requires* that the PCA model exists; see
         :func:`build_pca` or :func:`pca_refine`. It is also primarily
-        a wrapper for :func:`pypeit.core.trace.peak_trace`.
+        a wrapper for :func:`~pypeit.core.trace.peak_trace`. See the
+        documentation of that function for the explanation of the
+        algorithm.
 
         If the left and right traces have separate PCA
         decompositions, this function makes one call to
-        :func:`pypeit.core.trace.peak_trace` for each side.
+        :func:`~pypeit.core.trace.peak_trace` for each side.
         Otherwise, a single call is made to
-        :func:`pypeit.core.trace.peak_trace` where both the peak and
+        :func:`~pypeit.core.trace.peak_trace` where both the peak and
         troughs in :attr:`sobel_sig` are detected and traced.
+
+        Note that this effectively reinstantiates much of the object
+        attributes, including :attr:`traceid` :attr:`spat_cen`
+        :attr:`spat_err` :attr:`spat_msk` :attr:`spat_img`
+        :attr:`spat_fit`, and :attr:`spat_fit_type`.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `left_right_pca`, `edge_thresh`, `smash_range`,
-        `edge_detect_clip`, `trace_median_frac`, `trace_thresh`,
-        `fit_function`, `fit_order`, `fwhm_uniform`, `fwhm_uniform`,
-        `niter_gaussian`, `niter_gaussian`, `fit_maxdev`, and
-        `fit_maxiter`.
+        ``left_right_pca``, ``edge_thresh``, ``smash_range``,
+        ``edge_detect_clip``, ``trace_median_frac``, ``trace_thresh``,
+        ``fit_function``, ``fit_order``, ``fwhm_uniform``, ``fwhm_uniform``,
+        ``niter_gaussian``, ``niter_gaussian``, ``fit_maxdev``, and
+        ``fit_maxiter``.
 
         Args:
             rebuild_pca (:obj:`bool`, optional):
@@ -3360,9 +3371,14 @@ class EdgeTraceSet(object):
                 the refined traces. Note that the PCA is *not* then
                 used to reset the fitted trace data; i.e.,
                 :attr:`spat_fit` remains based on the output of
-                :func:`pypeit.core.trace.peak_trace`.
+                :func:`~pypeit.core.trace.peak_trace`.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
+
+        Raises:
+            PypeItError:
+                Raised if :attr:`pca` is not defined.
+
         """
         # Check that there are traces to refine!
         if self.is_empty:
@@ -3421,7 +3437,9 @@ class EdgeTraceSet(object):
             # Iterate through each side
             for i,side in enumerate(['left', 'right']):
                 # Get the image relevant to tracing
-                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5, side=side)
+#                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5,
+#                                                           side=side)
+                _sobel_sig = self._side_dependent_sobel(side)
 
                 _fit, _cen, _err, _msk, nside \
                         = trace.peak_trace(_sobel_sig, ivar=ivar, bpm=bpm,
@@ -3442,7 +3460,8 @@ class EdgeTraceSet(object):
                     nleft = nside
         else:
             # Get the image relevant to tracing
-            _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5, side=None)
+            _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5,
+                                                       side=None)
 
             # Find and trace both peaks and troughs in the image. The
             # input trace data (`trace` argument) is the PCA prediction
@@ -3465,11 +3484,6 @@ class EdgeTraceSet(object):
         if ntrace < self.ntrace:
             msgs.warn('Found fewer traces using peak finding than originally available.  '
                       'May want to reset peak threshold.')
-
-#        # TODO: Check the traces? NOTE: This currently only identifies short
-#        # traces.
-#        good, bad = self.check_traces(cen, msk)
-#        left = np.zeros(fit.shape[1])
 
         # Reset the trace data
         self.traceid = np.zeros(ntrace, dtype=int)
@@ -3495,10 +3509,16 @@ class EdgeTraceSet(object):
         """
         Find where edges need to be inserted.
 
-        See :func:`sync`.
+        This only determines where the left-right ordering of the
+        traces implies that a trace needs to be inserted. Where the
+        trace is inserted and with what shape is determined by
+        :func:`_get_reference_locations` and :func:`sync`,
+        respectively.
 
         Returns:
-            Three `numpy.ndarray`_ objects are returned:
+            :obj:`tuple`: Three `numpy.ndarray`_ objects are
+            returned:
+
                 - An integer vector identifying the type of side for
                   the fully synchronized edge set. Elements of the
                   vector should alternate left (-1) and right (1).
@@ -3507,6 +3527,7 @@ class EdgeTraceSet(object):
                   trace set.
                 - An array with the indices in the existing trace
                   arrays where the new traces should be inserted.
+
         """
         side = np.clip(self.traceid, -1, 1)
         add_edge = np.zeros(self.ntrace, dtype=bool)
@@ -3543,21 +3564,28 @@ class EdgeTraceSet(object):
 
     def _get_reference_locations(self, trace_cen, add_edge):
         """
-        Insert the reference locations for the traces to add.
+        Determine the reference locations for traces to add during
+        the left-right synchronization.
+
+        The positions of new traces are determined either by the
+        median slit length of the existing left-right pairs, or based
+        on the slit length of the nearest left-right pair. This
+        function only determines the positions for the new traces at
+        the reference spetral location (row). The shape is determined
+        by :func:`sync`.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
-        `sync_center`, `sync_to_edge`, and `gap_offset`. See
-        :func:`sync`.
+        ``sync_center``, ``sync_to_edge``, and ``gap_offset``.
 
         Args:
             trace_cen (`numpy.ndarray`_):
                 Trace data to use for determining new edge locations.
             add_edge (`numpy.ndarray`_):
                 Boolean array indicating that a trace in the new
-                array is an added trace. The number of *False*
-                entries in `add_edge` should match the length of the
-                2nd axis of `trace_cen`.
+                array is an added trace. The number of False entries
+                in ``add_edge`` should match the length of the 2nd
+                axis of ``trace_cen``.
 
         Returns:
             `numpy.ndarray`_: Reference positions for all edge
@@ -3721,39 +3749,50 @@ class EdgeTraceSet(object):
 
     def sync(self, rebuild_pca=True, debug=False):
         """
-        Match left and right edge traces to construct slit edge pairs.
+        Match left and right edge traces to construct slit edge
+        pairs.
 
-        First, the method removes any fully masked traces (see
-        :func:`clean_traces`). If this leaves the object empty, two
-        traces are added at the edge of the detector; otherwise, the
-        method ensures that the edge traces are sorted spatially (see
-        :func:`spatial_sort`) and determines where traces need to be
-        inserted to create a full set of left-right pairs (see
-        :func:`_get_insert_locations`).
+        Synchronization of the slits proceeds as follows:
 
-        The next steps are to determine the reference positions where
-        the traces should be inserted and the shape the trace should
-        take. The former is determined by the `sync_center` parameter
-        in :attr:`par` and the latter is determined by `sync_predict`.
+            - Any fully masked traces are removed using
+              :func:`clean_traces`.
+            - If that operation removes *all* traces (see
+              :func:`is_empty`), two traces are added at the edge of
+              the detector.
+            - The spatial order of the traces is sorted (see
+              :func:`spatial_sort`).
+            - At this point, if the traces are already synced (see
+              :func:`is_synced`), the synchronization is checked using
+              :func:`check_synced` and the method finishes.
+            - If the traces need to be synced, the method determines
+              which traces need an inserted trace to make a pair (see
+              :func:`_get_insert_locations`).
+            - The reference locations for the new traces are
+              determined by :func:`_get_reference_locations`.
+            - The shape of the inserted traces is set according to
+              the ``sync_predict`` parameter in :attr:`par`. The
+              shape is either predicted by the PCA decomposition or
+              taken to be exactly the same shape as the nearest left
+              or right edge.
+            - These new traces are then inserted using
+              :func:`insert_traces` and flagged as being inserted by
+              the synchronization process.
+            - Assuming there wasn't an error in the insertion scheme,
+              the synchronized traces are then checked by
+              :func:`check_synced` and the method finishes.
 
-        Current the position of the trace is determine either by the
-        median of or the nearest slit length for the already
-        identified left-right edge pairs. The form of the trace with
-        spectral pixel can either be predicted by the PCA
-        decomposition or take exactly the same shape as the nearest
-        left or right edge.
-
-        After the new traces are generated, they are added to the
-        edge traces using :func:`insert_traces` and flagged as having
-        been inserted by the sync operation. The full set of
-        synchronized edge traces are then checked using
-        :func:`check_synced`.
-
+        Before the last step above, the synchronization is checked.
+        Certain corner cases can lead to catastrophic errors in where
+        the inserted traces are placed such that the left-right
+        ordering of the synchronized traces is incorrect and
+        exception is raised.
+            
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
         `det_buffer`, `left_right_pca`, and `sync_predict`.
 
         .. warning::
+
             Synchronizing the left and right edges requires that
             traces that are fully masked as bad must be removed (this
             does not include traces that are "masked" as having been
@@ -3770,8 +3809,9 @@ class EdgeTraceSet(object):
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
-        # Remove any fully masked traces
-        self.clean_traces()
+        # Remove any fully masked traces. Keeps any inserted or
+        # box-slit traces.
+        self.clean_traces(rebuild_pca=rebuild_pca)
 
         # Make sure there are still traces left
         if self.is_empty:
@@ -3779,9 +3819,6 @@ class EdgeTraceSet(object):
             self.bound_detector()
 
         # Make sure that the traces are sorted spatially
-        # TODO: This should be the convention of the class and should
-        # *always* be true; instead check for this and raise an error
-        # if it's not?
         self.spatial_sort()
 
         # If the traces are already synced, check them and log the
@@ -3880,7 +3917,7 @@ class EdgeTraceSet(object):
 
         if debug:
             msgs.info('Show instance includes inserted traces but before checking the sync.')
-            self.show(thin=10, include_img=True, idlabel=True, flag='any')
+            self.show(flag='any')
 
         # Check the full synchronized list and log completion of the
         # method
@@ -4497,7 +4534,7 @@ class EdgeTraceSet(object):
 
         # TODO: Use reference_row by default? Except that it's only
         # defined if the PCA is defined.
-        _spec = self.nspat//2 if spec is None else spec
+        _spec = self.nspec//2 if spec is None else spec
 
         # Synced, spatially sorted traces are always ordered in left,
         # right pairs

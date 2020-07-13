@@ -4,6 +4,8 @@
 --------
 
  - Fix class and version check for DataContainer objects.
+ - Script to check for calibration files
+ - No longer require bias frames as default for DEIMOS
  - Introduced another parameter used to identify box slits, as opposed
    to erroneous "slits" found by the edge tracing algorithms.  Any slit
    that has `minimum_slit_length < length < minimum_slit_length_sci` is
@@ -19,8 +21,6 @@
     - Removes the need for `Spectrograph.slit2order` and
       `Spectrograph.order_vec`.  Changes propagated, primarily in
       `wavecalib.py`, `autoid.py`, and `reduce.py`.
- - Script to check for calibration files
- - No longer require bias frames as default for DEIMOS
  - Adds in Keck/LRISr with the original detector
 
 1.0.5 (23 Jun 2020)

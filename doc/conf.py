@@ -111,6 +111,12 @@ language = None
 # directories to ignore when looking for source files.
 exclude_patterns = ['_build', 'include/*.rst']
 
+# When nit-picking, ignore these warnings:
+nitpick_ignore = [ ('py:class', 'optional'),
+                   ('py:class', 'array-like'),
+                   ('py:class', 'scalar-like'),
+                   ('py:class', 'default') ]
+
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
 #default_role = None

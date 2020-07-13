@@ -42,7 +42,7 @@ def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
             The independent variable in the fit.
         action (`numpy.ndarray`_):
             Action matrix. See
-            :func:`pypeit.bspline.bspline.bspline.action.` The shape
+            :func:`pypeit.bspline.bspline.bspline.action`. The shape
             of the array is expected to be ``nd`` by ``npoly*nord``.
         lower (`numpy.ndarray`_):
             Vector with the starting indices along the second axis of
@@ -60,7 +60,7 @@ def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
             Polynomial per fit order.
 
     Returns:
-        `numpy.ndarray`: The best fitting bspline model at all
+        `numpy.ndarray`_: The best fitting bspline model at all
         provided :math:`x`.
     """
     # TODO: Can we save some of these objects to self so that we
@@ -97,12 +97,12 @@ def intrv(nord, breakpoints, x):
         Order of the fit.
     breakpoints : `numpy.ndarray`_
         Locations of good breakpoints
-    x : :class:`numpy.ndarray`
+    x : `numpy.ndarray`_
         Data values, assumed to be monotonically increasing.
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    indx : `numpy.ndarray`_
         Position of array elements with respect to breakpoints.
     """
     indx = np.zeros(x.size, dtype=int)
@@ -155,7 +155,7 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
             action used to construct the model.
 
     Returns:
-        tuple: Returns (1) matrix :math:`A` and (2) vector :math:`b`
+        :obj:`tuple`: Returns (1) matrix :math:`A` and (2) vector :math:`b`
         prepared for Cholesky decomposition and used in the solution
         to the equation :math:`Ax=b`.
     """
@@ -189,7 +189,7 @@ def cholesky_band(l, mininf=0.0):
 
     Parameters
     ----------
-    l : :class:`numpy.ndarray`
+    l : `numpy.ndarray`_
         A matrix on which to perform the Cholesky decomposition.
     mininf : :class:`float`, optional
         Entries in the `l` matrix are considered negative if they are less
@@ -197,7 +197,7 @@ def cholesky_band(l, mininf=0.0):
 
     Returns
     -------
-    :func:`tuple`
+    :obj:`tuple`
         If problems were detected, the first item will be the index or
         indexes where the problem was detected, and the second item will simply
         be the input matrix.  If no problems were detected, the first item
@@ -232,14 +232,14 @@ def cholesky_solve(a, bb):
 
     Parameters
     ----------
-    a : :class:`numpy.ndarray`
+    a : `numpy.ndarray`_
         :math:`A` in :math:`A x = b`.
-    bb : :class:`numpy.ndarray`
+    bb : `numpy.ndarray`_
         :math:`b` in :math:`A x = b`.
 
     Returns
     -------
-    :func:`tuple`
+    :obj:`tuple`
         A tuple containing the status and the result of the solution.  The
         status is always -1.
     """

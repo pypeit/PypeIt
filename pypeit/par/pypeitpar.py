@@ -2306,20 +2306,19 @@ class EdgeTracePar(ParSet):
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
     def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, follow_span=None,
-                 det_min_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
-                 max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
-                 fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None,
-                 fit_min_spec_length=None, auto_pca=None, left_right_pca=None, pca_min_edges=None,
-                 pca_n=None, pca_var_percent=None, pca_function=None, pca_order=None,
-                 pca_sigrej=None, pca_maxrej=None, pca_maxiter=None, smash_range=None,
-                 edge_detect_clip=None, trace_median_frac=None, trace_thresh=None,
-                 fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None, niter_gaussian=None,
-                 det_buffer=None, max_nudge=None, sync_predict=None, sync_center=None,
-                 gap_offset=None, sync_to_edge=None, minimum_slit_length=None,
-                 minimum_slit_length_sci=None, length_range=None, minimum_slit_gap=None, clip=None,
-                 sync_clip=None, order_match=None, order_offset=None, mask_reg_maxiter=None,
-                 mask_reg_maxsep=None, mask_reg_sigrej=None, ignore_alignment=None, pad=None,
-                 add_slits=None, rm_slits=None):
+                 det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
+                 max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
+                 fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
+                 auto_pca=None, left_right_pca=None, pca_min_edges=None, pca_n=None,
+                 pca_var_percent=None, pca_function=None, pca_order=None, pca_sigrej=None,
+                 pca_maxrej=None, pca_maxiter=None, smash_range=None, edge_detect_clip=None,
+                 trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
+                 fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
+                 sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
+                 minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
+                 minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
+                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
+                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2366,13 +2365,6 @@ class EdgeTracePar(ParSet):
                                        'should be included in any modeling approach; see '\
                                        'fit_min_spec_length).'
         
-        defaults['valid_flux_thresh'] = 500.
-        dtypes['valid_flux_thresh'] = [int, float]
-        descr['valid_flux_thresh'] = 'The flux in the image used to construct the edge traces ' \
-                                     'is valid if its median value is above this threshold.  ' \
-                                     'Any edge tracing issues are then assumed not to be an ' \
-                                     'issue with the trace image itself.'
-
         defaults['max_shift_abs'] = 0.5
         dtypes['max_shift_abs'] = [int, float]
         descr['max_shift_abs'] = 'Maximum spatial shift in pixels between an input edge ' \
@@ -2493,6 +2485,7 @@ class EdgeTracePar(ParSet):
                                'units) to smash when searching for slit edges.  If the ' \
                                'spectrum covers only a portion of the image, use that range.'
 
+        # TODO: Does this still need to be different from `edge_thresh`?
         dtypes['edge_detect_clip'] = [int, float]
         descr['edge_detect_clip'] = 'Sigma clipping level for peaks detected in the collapsed, ' \
                                     'Sobel-filtered significance image.'
@@ -2618,12 +2611,9 @@ class EdgeTracePar(ParSet):
 
         defaults['clip'] = True
         dtypes['clip'] = bool
-        descr['clip'] = 'Instead of just masking bad slit trace edges, remove them.'
-
-        defaults['sync_clip'] = True
-        dtypes['sync_clip'] = bool
-        descr['sync_clip'] = 'For synchronized edges specifically, remove both edge traces, ' \
-                             'even if only one is selected for removal.'
+        descr['clip'] = 'Remove traces flagged as bad, instead of only masking them.  This ' \
+                        'is currently only used by ' \
+                        ':func:`~pypeit.edgetrace.EdgeTraceSet.centroid_refine`.'
 
         dtypes['order_match'] = [int, float]
         descr['order_match'] = 'For echelle spectrographs, this is the tolerance allowed for ' \
@@ -2727,18 +2717,17 @@ class EdgeTracePar(ParSet):
         # TODO Please provide docs
         k = numpy.array([*cfg.keys()])
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
-                   'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
-                   'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
-                   'fit_niter', 'fit_min_spec_length', 'auto_pca', 'left_right_pca',
-                   'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
-                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
-                   'trace_median_frac', 'trace_thresh', 'fwhm_uniform', 'niter_uniform',
-                   'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict',
-                   'sync_center', 'gap_offset', 'sync_to_edge', 'minimum_slit_length',
-                   'minimum_slit_length_sci', 'length_range', 'minimum_slit_gap', 'clip',
-                   'sync_clip', 'order_match', 'order_offset', 'mask_reg_maxiter',
-                   'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits',
-                   'rm_slits']
+                   'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
+                   'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
+                   'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',
+                   'pca_function', 'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter',
+                   'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
+                   'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
+                   'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
+                   'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
+                   'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
+                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
+                   'pad', 'add_slits', 'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
