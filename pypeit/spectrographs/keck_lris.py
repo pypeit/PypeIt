@@ -853,56 +853,6 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         # Return
         return detector
 
-    def get_rawimage(self, raw_file, det):
-        """
-        Read a raw, original LRIS data frame
-
-        Ported from LOWREDUX long_oscan.pro lris_oscan()
-
-        Parameters
-        ----------
-        raw_file : str
-          Filename
-        det (int or None):
-          Detector number; Default = both
-
-        Returns
-        -------
-        tuple
-            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
-        """
-        # Open
-        hdul = fits.open(raw_file)
-        head0 = hdul[0].header
-        image = hdul[0].data.astype(float)
-
-        # Get post, pre-pix values
-        postpix = head0['POSTPIX']
-        prepix = head0['PREPIX']
-        post_buffer1 = 4
-        post_buffer2 = 8
-        namps = head0['NUMAMPS']
-
-        # get the x and y binning factors...
-        binning = head0['BINNING']
-        xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-
-        rawdatasec_img = np.zeros_like(image, dtype=int)
-        oscansec_img = np.zeros_like(image, dtype=int)
-
-        datacol = namps * (prepix // xbin) + np.arange(namps) * 1024 // xbin
-        postcol = datacol[namps - 1] + (1024 + post_buffer1) // xbin
-        for iamp in range(namps): #= 0, namps - 1L
-            biascols = np.arange((postpix - post_buffer2) // xbin) + (
-                    iamp * postpix) // xbin + postcol
-            oscansec_img[:, biascols] = iamp+1
-            imagecols = np.arange(1024 // xbin) + iamp * 1024 // xbin
-            rawdatasec_img[:,imagecols + namps*(prepix // xbin)] = iamp+1
-
-        return self.get_detector_par(hdul, 1), \
-               image, hdul, float(head0['ELAPTIME']), \
-               rawdatasec_img, oscansec_img
-
     def init_meta(self):
         """
         Meta data specific to Keck LRIS red
@@ -916,6 +866,14 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
         for key in keys:
             if 'lampstat' in key:
                 self.meta.pop(key)
+
+    def get_rawimage(self, raw_file, det):
+        # Image info
+        image, hdul, elaptime, rawdatasec_img, oscansec_img = get_orig_rawimage(raw_file)
+        # Detector
+        detector_par = self.get_detector_par(hdul, det)
+        # Return
+        return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
 
 def lris_read_amp(inp, ext):
     """
@@ -1038,4 +996,53 @@ def convert_lowredux_pixelflat(infil, outfil):
     hdulist = fits.HDUList(hdus)
     hdulist.writeto(outfil, clobber=True)
     print('Wrote {:s}'.format(outfil))
+
+
+def get_orig_rawimage(raw_file):
+    """
+    Read a raw, original LRIS data frame
+
+    Ported from LOWREDUX long_oscan.pro lris_oscan()
+
+    Parameters
+    ----------
+    raw_file : str
+      Filename
+
+    Returns
+    -------
+    tuple
+        See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
+        But note the detector info is *not* returned
+    """
+    # Open
+    hdul = fits.open(raw_file)
+    head0 = hdul[0].header
+    image = hdul[0].data.astype(float)
+
+    # Get post, pre-pix values
+    postpix = head0['POSTPIX']
+    prepix = head0['PREPIX']
+    post_buffer1 = 4
+    post_buffer2 = 8
+    namps = head0['NUMAMPS']
+
+    # get the x and y binning factors...
+    binning = head0['BINNING']
+    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+
+    rawdatasec_img = np.zeros_like(image, dtype=int)
+    oscansec_img = np.zeros_like(image, dtype=int)
+
+    datacol = namps * (prepix // xbin) + np.arange(namps) * 1024 // xbin
+    postcol = datacol[namps - 1] + (1024 + post_buffer1) // xbin
+    for iamp in range(namps): #= 0, namps - 1L
+        biascols = np.arange((postpix - post_buffer2) // xbin) + (
+                iamp * postpix) // xbin + postcol
+        oscansec_img[:, biascols] = iamp+1
+        imagecols = np.arange(1024 // xbin) + iamp * 1024 // xbin
+        rawdatasec_img[:,imagecols + namps*(prepix // xbin)] = iamp+1
+
+    return image, hdul, float(head0['ELAPTIME']), \
+           rawdatasec_img, oscansec_img
 
