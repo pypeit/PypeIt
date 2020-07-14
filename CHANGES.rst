@@ -1,4 +1,8 @@
 
+Hotfixes after 1.0.5
+--------------------
+
+ - Deal with wavecalib crash
 
 1.0.6dev
 --------
@@ -6,6 +10,7 @@
  - Fix class and version check for DataContainer objects.
  - Script to check for calibration files
  - No longer require bias frames as default for DEIMOS
+ - Implement grism19 for NOT/ALFOSC
 
 1.0.5 (23 Jun 2020)
 -------------------
@@ -16,7 +21,6 @@
  - KCWI reduction complete up to spec2D frames
  - Implemented new flatfield DataContainer to separate
    pixelflat and illumflat
-
 
 1.0.4 (27 May 2020)
 -------------------
@@ -41,7 +45,6 @@
  - Fluxing docs
  - Fix flexure and heliocentric bugs
  - Identify GUI updates
- - chk_for_calibs script
 
 1.0.2 (30 Apr 2020)
 -------------------

@@ -419,10 +419,7 @@ class WaveCalib(object):
             if key in ['steps', 'par', 'fit2d', 'bpm']:
                 continue
             if (self.wv_calib[key] is None) or (len(self.wv_calib[key]) == 0):
-                try:
-                    idx = self.slits.spatid_to_zero(int(key))
-                except:
-                    embed(header='428 of wavecalib')
+                idx = self.slits.slitord_to_zero(int(key))
                 self.wvc_bpm[idx] = True
 
     def run(self, skip_QA=False, debug=False):
