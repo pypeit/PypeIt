@@ -847,7 +847,7 @@ class IFUCalibrations(Calibrations):
         return ['bias', 'dark', 'bpm', 'arc', 'tiltimg', 'slits', 'wv_calib', 'tilts', 'align', 'flats']
 
 
-def check_for_calibs(par, fitstbl, raise_error=True):
+def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
     """
     Perform a somewhat quick and dirty check to see if the user
     has provided all of the calibration frametype's to reduce
@@ -860,7 +860,15 @@ def check_for_calibs(par, fitstbl, raise_error=True):
             PypeIt run.
         raise_error (:obj:`bool`, optional):
             If True, crash out
+        cut_cfg (`numpy.ndarray`_, optional):
+            Also cut on this restricted configuration (mainly for chk_calibs)
+
+    Returns:
+        bool: True if we passed all checks
     """
+    if cut_cfg is None:
+        cut_cfg = np.ones(len(fitstbl), dtype=bool)
+    pass_calib = True
     # Find the science frames
     is_science = fitstbl.find_frames('science')
     # Frame indices
@@ -868,7 +876,7 @@ def check_for_calibs(par, fitstbl, raise_error=True):
 
     for i in range(fitstbl.n_calib_groups):
         in_grp = fitstbl.find_calib_group(i)
-        grp_science = frame_indx[is_science & in_grp]
+        grp_science = frame_indx[is_science & in_grp & cut_cfg]
         u_combid = np.unique(fitstbl['comb_id'][grp_science])
         for j, comb_id in enumerate(u_combid):
             frames = np.where(fitstbl['comb_id'] == comb_id)[0]
@@ -880,6 +888,7 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                 if len(rows) == 0:
                     # Fail
                     msg = "No frames of type={} provided. Add them to your PypeIt file if this is a standard run!".format(ftype)
+                    pass_calib = False
                     if raise_error:
                         msgs.error(msg)
                     else:
@@ -896,8 +905,12 @@ def check_for_calibs(par, fitstbl, raise_error=True):
                             continue
                         # Otherwise fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)
+                        pass_calib = False
                         if raise_error:
                             msgs.error(msg)
                         else:
                             msgs.warn(msg)
 
+    if pass_calib:
+        msgs.info("Congrats!!  You passed the calibrations inspection!!")
+    return pass_calib

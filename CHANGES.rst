@@ -8,6 +8,8 @@ Hotfixes after 1.0.5
 --------
 
  - Fix class and version check for DataContainer objects.
+ - Script to check for calibration files
+ - No longer require bias frames as default for DEIMOS
  - Implement grism19 for NOT/ALFOSC
 
 1.0.5 (23 Jun 2020)
