@@ -70,7 +70,7 @@ def main(args):
                                      if args.redux_path is None else args.redux_path)
 
         rdx = PypeIt(pypeit_file, redux_path=redux_path)
-        detectors = rdx.par['rdx']['detnum'] if args.detector is None else args.detectors
+        detectors = rdx.par['rdx']['detnum'] if args.detector is None else args.detector
         # Save the spectrograph
         spec = rdx.spectrograph
         # Get the calibration group to use

@@ -2604,7 +2604,7 @@ class EdgeTraceSet(object):
                 self.bitmask.turn_on(self.spat_msk[:,indx], 'USERRMSLIT')
 
         # Syncronize the selection
-        indx = self.synced_selection(indx, mode='both', assumed_synced=True)
+        indx = self.synced_selection(indx, mode='both', assume_synced=True)
         # TODO: Add rebuild_pca ?
         # Remove
         self.remove_traces(indx)
@@ -2719,7 +2719,7 @@ class EdgeTraceSet(object):
             msgs.error('To synchronize the trace selection, it is expected that the traces have '
                        'been left-right synchronized.  Either run sync() to sychronize, ignore '
                        'the synchronization (which may raise an exception) by setting '
-                       'assumed_synced=True.')
+                       'assume_synced=True.')
         if mode == 'both':
             return np.repeat(np.any(indx.reshape(-1,2), axis=1), 2)
         elif mode == 'neither':
@@ -2778,7 +2778,7 @@ class EdgeTraceSet(object):
             # PCA if the parameter passed to it is true AND :attr:`pca`
             # previously existed AND the traces can be pca'd to begin
             # with.
-            rmtrace = self.synced_selection(rmtrace, mode=sync_mode, assumed_synced=assume_synced)
+            rmtrace = self.synced_selection(rmtrace, mode=sync_mode, assume_synced=assume_synced)
             self.remove_traces(rmtrace, rebuild_pca=rebuild_pca)
 
     def spatial_sort(self, use_mean=False, use_fit=True):
