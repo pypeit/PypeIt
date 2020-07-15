@@ -561,7 +561,7 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
     """
     Child to handle the LRISb detector packed prior to 01 JUL 2009
     """
-    ndet = 1
+    ndet = 2
 
     def __init__(self):
         # Get it started
