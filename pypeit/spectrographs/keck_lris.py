@@ -618,11 +618,17 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
         if det == 1:
             bad_amp = rawdatasec_img > 2
             rawdatasec_img[bad_amp] = 0
+            bad_amp = oscansec_img > 2
             oscansec_img[bad_amp] = 0
         elif det == 2:
-            bad_amp = rawdatasec_img <= 2
-            rawdatasec_img[bad_amp] = 0
-            oscansec_img[bad_amp] = 0
+            # Kludge this to be 1 and 2's
+            for timage in [rawdatasec_img, oscansec_img]:
+                # Zero out
+                bad_amp = timage <= 2
+                timage[bad_amp] = 0
+                # Offset
+                good_amp = timage > 2
+                timage[good_amp] -= 2
         else:
             msgs.error("Should not be here in keck_lris!")
 
@@ -631,6 +637,10 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
 
         # Flip the spectral axis
         detector_par['specflip'] = True
+
+        #if det == 2:
+        #    from pypeit import ginga
+        #    embed(header='636 of keck_lris')
 
         # Return
         return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
@@ -1101,7 +1111,7 @@ def convert_lowredux_pixelflat(infil, outfil):
     print('Wrote {:s}'.format(outfil))
 
 
-def get_orig_rawimage(raw_file):
+def get_orig_rawimage(raw_file, debug=False):
     """
     Read a raw, original LRIS data frame
 
