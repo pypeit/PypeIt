@@ -50,6 +50,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * VLT/X-Shooter
 * VLT/FORS2  (300I, 300V)
 * WHT/ISIS
+* P200/DBSP
 
 # Requirements
 
