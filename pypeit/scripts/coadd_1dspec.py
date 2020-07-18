@@ -224,7 +224,7 @@ def main(args):
             sensfile = os.path.join(args.test_spec_path, sensfile)
         coaddfile = os.path.join(args.test_spec_path, coaddfile)
 
-    if spectrograph.pypeline is 'Echelle' and sensfile is None:
+    if spectrograph.pypeline == 'Echelle' and sensfile is None:
         msgs.error('You must specify set the sensfuncfile in the .coadd1d file for Echelle coadds')
 
     # Instantiate
