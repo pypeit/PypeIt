@@ -26,6 +26,8 @@ Hotfixes after 1.0.5
     - Removes the need for `Spectrograph.slit2order` and
       `Spectrograph.order_vec`.  Changes propagated, primarily in
       `wavecalib.py`, `autoid.py`, and `reduce.py`.
+ - Adds in Keck/LRISr with the original detector
+ - Adds in Keck/LRISb with the FITS format
 
 1.0.5 (23 Jun 2020)
 -------------------

@@ -189,14 +189,6 @@ class Spectrograph(object):
                 raise TypeError('Telescope parameters must be one of those specified in'
                                 'pypeit.telescopes.')
 
-    #def _check_detector(self):
-    #    # Check the detector
-    #    if self.detector is None:
-    #        raise ValueError('Must first define spectrograph detector parameters!')
-    #    for d in self.detector:
-    #        if not isinstance(d, pypeitpar.DetectorPar):
-    #            raise TypeError('Detector parameters must be specified using DetectorPar.')
-
     def raw_is_transposed(self, detector_par):
         """
         Indicates that raw files read by `astropy.io.fits`_ yields an
@@ -212,22 +204,6 @@ class Spectrograph(object):
         """
         return detector_par['specaxis'] == 1
 
-    # TODO: THIS WILL PROBABLY NEED TO COME BACK
-#    def get_datasec_img(self, filename, det):
-#        """
-#        Generate and return the datasec image in the PypeIt reference
-#        frame, e.g. trimmed + oriented
-#
-#        Returns:
-#            np.ndarray
-#
-#        """
-#        rdimg = self.get_rawdatasec_img(filename=filename, det=det)
-#        # Fuss
-#        rdimg = procimg.trim_frame(rdimg, rdimg < 1)
-#        dimg = self.orient_image(rdimg, det)
-#        # Return
-#        return dimg
     def parse_spec_header(self, header):
         """
         Parses an input header for key spec items
@@ -723,7 +699,7 @@ class Spectrograph(object):
                                 kerror = True
                     # Bomb out?
                     if kerror:
-                        embed(header='630 of spectrograph')
+                        embed(header='723 of spectrograph')
                         msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
                 else:
                     msgs.warn("Required card {:s} missing from your header.  Proceeding with risk..".format(
