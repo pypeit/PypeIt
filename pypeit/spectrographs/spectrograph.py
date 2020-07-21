@@ -47,6 +47,9 @@ from pypeit.par import pypeitpar
 
 from IPython import embed
 
+# TODO: Create an EchelleSpectrograph derived class that holds all of
+# the echelle specific methods.
+
 class Spectrograph(object):
     """
     Abstract base class whose derived classes dictate
@@ -801,7 +804,6 @@ class Spectrograph(object):
         else:
             hdu = inp
         return [hdu[k].header for k in range(len(hdu))]
-        #return [hdu[k].header for k in range(self.numhead)]
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
@@ -877,22 +879,22 @@ class Spectrograph(object):
         """
         pass
 
-    def order_vec(self, slit_spat_pos):
-        """
-        Convert an array of slit_spat_pos values to order numbers
-
-        Args:
-            slit_spat_pos (np.ndarray): Slit positions
-
-        Returns:
-            np.ndarray: Order numbers
-
-        """
-        order_vec = np.zeros(slit_spat_pos.size, dtype=int)
-        for kk, ipos in enumerate(slit_spat_pos):
-            order_vec[kk], indx= self.slit2order(ipos)
-        # Return
-        return order_vec
+#    def order_vec(self, slit_spat_pos):
+#        """
+#        Convert an array of slit_spat_pos values to order numbers
+#
+#        Args:
+#            slit_spat_pos (np.ndarray): Slit positions
+#
+#        Returns:
+#            np.ndarray: Order numbers
+#
+#        """
+#        order_vec = np.zeros(slit_spat_pos.size, dtype=int)
+#        for kk, ipos in enumerate(slit_spat_pos):
+#            order_vec[kk], indx= self.slit2order(ipos)
+#        # Return
+#        return order_vec
 
     @property
     def norders(self):
@@ -910,6 +912,10 @@ class Spectrograph(object):
     def order_spat_pos(self):
         return None
 
+#    @property
+#    def match_tol_spat_pos(self):
+#        return 0.05
+
     @property
     def orders(self):
         return None
@@ -926,36 +932,39 @@ class Spectrograph(object):
     def loglam_minmax(self):
         return None
 
-    def slit2order(self, slit_spat_pos):
-        """
-        This routine is only for fixed-format echelle spectrographs.
-        It returns the order of the input slit based on its slit_pos
-
-        Args:
-            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
-
-        Returns:
-            order, indx
-
-            order (int): order number
-            indx  (int): order index
-
-        """
-        indx = np.arange(self.norders)
-        # Find closest
-        try:
-            iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
-        except TypeError:
-            iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
-
-        # Check
-        if np.any(np.abs(self.order_spat_pos[iorder] - slit_spat_pos) > 0.05):
-            msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
-                      "Returning order vector with the same number of orders you requested")
-            iorder = np.arange(slit_spat_pos.size)
-            return self.orders[iorder], indx[iorder]
-        else:
-            return self.orders[iorder], indx[iorder]
+#    def slit2order(self, slit_spat_pos):
+#        """
+#        This routine is only for fixed-format echelle spectrographs.
+#        It returns the order of the input slit based on its slit_pos
+#
+#        Args:
+#            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
+#
+#        Returns:
+#            order, indx
+#
+#            order (int): order number
+#            indx  (int): order index
+#
+#        """
+#        indx = np.arange(self.norders)
+#        # Find closest
+#        try:
+#            iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
+#        except TypeError:
+#            iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
+#
+#        embed(header='line 954 spectrograph.py')
+#        exit()
+#
+#        # Check
+#        if np.any(np.abs(self.order_spat_pos[iorder] - slit_spat_pos) > self.match_tol_spat_pos):
+#            msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
+#                      "Returning order vector with the same number of orders you requested")
+#            iorder = np.arange(slit_spat_pos.size)
+#            return self.orders[iorder], indx[iorder]
+#        else:
+#            return self.orders[iorder], indx[iorder]
 
 
     # TODO : This code needs serious work.  e.g. eliminate the try/except

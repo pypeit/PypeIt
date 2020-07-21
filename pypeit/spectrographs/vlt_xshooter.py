@@ -598,7 +598,7 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
-        par['sensfunc']['polyorder'] = 8
+        par['sensfunc']['polyorder'] = 11
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Paranal_VIS_4900_11100_R25000.fits')
 
         return par
@@ -836,32 +836,32 @@ class VLTXShooterUVBSpectrograph(VLTXShooterSpectrograph):
         # Required
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI3 NAME')
 
-    def slit2order(self, islit, nslit):
-
-        """
-        Parameters
-        ----------
-        islit: int, float, or string, slit number
-
-        Returns
-        -------
-        order: int
-        """
-        msgs.error("Refactor to use slit_spat_pos!!")
-
-        if isinstance(islit, str):
-            islit = int(islit)
-        elif isinstance(islit, np.ndarray):
-            islit = islit.astype(int)
-        elif isinstance(islit, float):
-            islit = int(islit)
-        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
-            pass
-        else:
-            msgs.error('Unrecognized type for islit')
-
-        orders = np.arange(24,12,-1, dtype=int)
-        return orders[islit]
+#    def slit2order(self, islit, nslit):
+#
+#        """
+#        Parameters
+#        ----------
+#        islit: int, float, or string, slit number
+#
+#        Returns
+#        -------
+#        order: int
+#        """
+#        msgs.error("Refactor to use slit_spat_pos!!")
+#
+#        if isinstance(islit, str):
+#            islit = int(islit)
+#        elif isinstance(islit, np.ndarray):
+#            islit = islit.astype(int)
+#        elif isinstance(islit, float):
+#            islit = int(islit)
+#        elif isinstance(islit, (int,np.int64,np.int32,np.int)):
+#            pass
+#        else:
+#            msgs.error('Unrecognized type for islit')
+#
+#        orders = np.arange(24,12,-1, dtype=int)
+#        return orders[islit]
 
 
     def order_platescale(self, binning = None):

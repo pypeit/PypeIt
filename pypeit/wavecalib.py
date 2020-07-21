@@ -244,8 +244,6 @@ class BuildWaveCalib(object):
         master_key (:obj:`str`, optional):  For naming QA only
 
     Attributes:
-        frametype : str
-            Hard-coded to 'wv_calib'
         steps : list
             List of the processing steps performed
         wv_calib : dict
@@ -265,7 +263,7 @@ class BuildWaveCalib(object):
             Specifies saturation level for the arc lines
         wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
     """
-    # Frametype is a class attribute
+
     frametype = 'wv_calib'
 
     def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
@@ -309,7 +307,8 @@ class BuildWaveCalib(object):
             # Load up slits
             # TODO -- Allow for flexure
             all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
-            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
+            self.orders = self.slits.ech_order  # Can be None
+#            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
             self.wvc_bpm = np.invert(mask == 0)
@@ -332,10 +331,12 @@ class BuildWaveCalib(object):
                 self.gpm &= self.msarc.image < self.nonlinear_counts
 
         else:
+            self.orders = None
+            self.wvc_bpm = None
+            self.wvc_bpm_init = None
             self.slitmask_science = None
             self.shape_science = None
             self.shape_arc = None
-            self.nslits = 0
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
@@ -390,7 +391,7 @@ class BuildWaveCalib(object):
             final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            embed()
+            embed(header='line 222 wavecalib.py')
             for slit_idx in ok_mask_idx:
                 arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
@@ -401,7 +402,8 @@ class BuildWaveCalib(object):
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask_idx,
-                                           slit_spat_pos=self.spat_coo,
+                                           #slit_spat_pos=self.spat_coo,
+                                           orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
@@ -447,20 +449,29 @@ class BuildWaveCalib(object):
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
 
+    # TODO: Point to the datamodel for wv_calib in the docstring
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
-        Evaluate 2-d wavelength solution for echelle data. Unpacks
-        wv_calib for slits to be input into  arc.fit2darc
+        Fit a two-dimensional wavelength solution for echelle data.
+
+        Primarily a wrapper for :func:`pypeit.core.arc.fit2darc`,
+        using data unpacked from the ``wv_calib`` dictionary.
 
         Args:
-            wv_calib (dict): Wavelength calibration
-            debug (bool, optional):  Show debugging info
-            skip_QA (bool, optional): Skip QA
+            wv_calib (:obj:`dict`):
+                Wavelength calibration dictionary.  See ??
+            debug (:obj:`bool`, optional):
+                Show debugging info
+            skip_QA (:obj:`bool`, optional):
+                Flag to skip construction of the nominal QA plots.
 
         Returns:
-            dict: dictionary containing information from 2-d fit
-
+            :obj:`dict`: Dictionary containing information from 2-d
+            fit.
         """
+        if self.spectrograph.pypeline != 'Echelle':
+            msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
+
         msgs.info('Fitting 2-d wavelength solution for echelle....')
         all_wave = np.array([], dtype=float)
         all_pixel = np.array([], dtype=float)
@@ -637,7 +648,7 @@ class BuildWaveCalib(object):
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
         # Fit 2D?
-        if self.par['echelle'] is True:
+        if self.par['echelle']:
             fit2d_dict = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             self.wv_calib['fit2d'] = fit2d_dict
 

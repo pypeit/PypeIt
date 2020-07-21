@@ -63,7 +63,7 @@ def test_instantiate_from_one(shane_kast_blue_sci_files):
     frame_par['process']['use_biasimage'] = False
     # Load
     rawImage = rawimage.RawImage(shane_kast_blue_sci_files[0], kast_blue, det)
-    flatImages = flatfield.FlatImages(pixelflat=pixelflat)
+    flatImages = flatfield.FlatImages(pixelflat_norm=pixelflat)
     pypeItImage = rawImage.process(frame_par['process'], flatimages=flatImages)
 
 
@@ -79,12 +79,12 @@ def test_from_list(shane_kast_blue_sci_files):
     pixelflat = load_kast_blue_masters(pixflat=True)[0]
     bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
     # Do it
-    flatImages = flatfield.FlatImages(pixelflat=pixelflat)
+    flatImages = flatfield.FlatImages(pixelflat_norm=pixelflat)
     kast_par['scienceframe']['process']['use_illumflat'] = False
     kast_par['scienceframe']['process']['use_biasimage'] = False
     sciImg = buildimage.buildimage_fromlist(kast_blue, det, kast_par['scienceframe'],
-                                               shane_kast_blue_sci_files, bpm=bpm,
-                                               bias=None, flatimages=flatImages)
+                                            shane_kast_blue_sci_files, bpm=bpm,
+                                            bias=None, flatimages=flatImages)
     # Test
     assert isinstance(sciImg, pypeitimage.PypeItImage)
 
@@ -100,13 +100,13 @@ def test_proc_diff(nires_sci_files, nires_bg_files):
     pixelflat = np.ones_like(bpm)
 
     # Sci image
-    flatImages = flatfield.FlatImages(pixelflat=pixelflat)
+    flatImages = flatfield.FlatImages(pixelflat_norm=pixelflat)
     sciImg = buildimage.buildimage_fromlist(keck_nires, det, nires_par['scienceframe'],
-                                               nires_sci_files, bias=None, bpm=bpm,
+                                            nires_sci_files, bias=None, bpm=bpm,
                                             flatimages=flatImages)
     # Bg image
     bgImg = buildimage.buildimage_fromlist(keck_nires, det, nires_par['scienceframe'],
-                                              nires_bg_files, bias=None, bpm=bpm,
+                                           nires_bg_files, bias=None, bpm=bpm,
                                            flatimages=flatImages)
     # Difference
     sciImg = sciImg.sub(bgImg, nires_par['scienceframe']['process'])

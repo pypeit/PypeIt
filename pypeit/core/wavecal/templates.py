@@ -755,13 +755,12 @@ def main(flg):
     # Keck KCWI
     if flg & (2 ** 29):
         # FeAr BH2
-        wfile1 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200_00.json')
-        wfile2 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200_11.json')
+        wfile1 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200.json')
         outroot = 'keck_kcwi_BH2_4200.fits'
         binspec = 1
-        slits = [99, 1753]
+        slits = [1015]
         lcut = [4350.0, 8000.0]
-        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+        build_template([wfile1], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
         # FeAr BM
         wfile1 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4060.json')
         wfile2 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4670.json')

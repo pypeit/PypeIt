@@ -6,7 +6,7 @@
     sortroot = shane_kast_blue_setup_A
 
 [baseprocess]
-    combine = mean
+    combine = median
     sigrej = 30
 [calibrations]
     [[biasframe]]

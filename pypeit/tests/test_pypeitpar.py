@@ -134,11 +134,11 @@ def test_mergecfg():
 def test_sync():
     p = pypeitpar.PypeItPar()
     proc = pypeitpar.ProcessImagesPar()
-    proc['combine'] = 'mean'
+    proc['combine'] = 'median'
     proc['sigrej'] = 20.5
     p.sync_processing(proc)
-    assert p['scienceframe']['process']['combine'] == 'mean'
-    assert p['calibrations']['biasframe']['process']['combine'] == 'mean'
+    assert p['scienceframe']['process']['combine'] == 'median'
+    assert p['calibrations']['biasframe']['process']['combine'] == 'median'
     # Sigma rejection of cosmic rays for arc frames is already turned
     # off by default
     assert p['calibrations']['arcframe']['process']['sigrej'] < 0
@@ -163,7 +163,7 @@ def test_pypeit_file():
     assert _p['fluxcalib'] is not None
     # These are user-level changes
     assert _p['calibrations']['biasframe']['process']['sig_lohi'] == [10, 10]
-    assert _p['calibrations']['traceframe']['process']['combine'] == 'mean'
+    assert _p['calibrations']['traceframe']['process']['combine'] == 'median'
     assert _p['scienceframe']['process']['n_lohi'] == [8, 8]
     assert _p['reduce']['extraction']['manual'] is not None  # Set this to what it should be eventually
 

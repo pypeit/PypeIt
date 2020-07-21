@@ -111,6 +111,7 @@ def detect_slit_edges(flux, bpm=None, median_iterations=0, min_sqm=30., sobel_mo
     tedges = np.zeros(flux.shape, dtype=np.float)
     tedges[np.where(sobel_sig > sigdetect)] = -1.0  # A positive gradient is a left edge
     tedges[np.where(sobel_sig < -sigdetect)] = 1.0  # A negative gradient is a right edge
+
     
     # Clean the edges
     wcl = np.where((ndimage.maximum_filter1d(sobel_sig, 10, axis=1) == sobel_sig) & (tedges == -1))
@@ -1221,37 +1222,37 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
     after collapsing along the spectral axis.
 
     The image is either compressed directly or after rectification
-    using the supplied `trace_map`. The provided trace data *must*
-    have the same shape as the input `flux` image and map each
+    using the supplied ``trace_map``. The provided trace data *must*
+    have the same shape as the input ``flux`` image and map each
     spatial position as a function of spectral position. This can be
-    the output of :func:`pypeit.core.pca.pca_predict` where the
-    provided coordinates are `np.arange(flux.shape[1])`; see also
-    :func:`pypeit.edges.EdgeTracePCA.predict`. The rectification of
-    the input `flux` is done using a boxcar extraction along the
-    provided traces with a width of `extract_width`; see
-    :func:`pypeit.core.moment.moment1d`.
+    the output of :func:`~pypeit.core.pca.pca_predict` where the
+    provided coordinates are ``np.arange(flux.shape[1])``; see also
+    :func:`~pypeit.tracepca.TracePCA.predict`. The rectification of
+    the input ``flux`` data is done using a boxcar extraction along
+    the provided traces with a width of ``extract_width``; see
+    :func:`~pypeit.core.moment.moment1d`.
 
-    The (rectified) image is collapsed spectrally (see `smash_range`)
+    The (rectified) image is collapsed spectrally (see ``smash_range``)
     giving the sigma-clipped mean flux as a function of spatial
     position. Peaks are then isolated in this vector (see
-    :func:`pypeit.core.arc.detect_lines`).
+    :func:`~pypeit.core.arc.detect_lines`).
 
     Traces that pass through these peak positions are then passed to
     two iterations of :func:`fit_trace`, which both remeasures the
     centroids of the trace and fits a polynomial to those trace data.
     The first iteration determines the centroids with uniform
-    weighting, passing `fwhm=fwhm_uniform` to :func:`fit_trace`, and
-    the second uses Gaussian weighting for the centroid measurements
-    (passing `fwhm=fwhm_gaussian` to :func:`fit_trace`). The results
-    of this second iteration of :func:`fit_trace` are the data
-    returned.
+    weighting, passing ``fwhm=fwhm_uniform`` to :func:`fit_trace`,
+    and the second uses Gaussian weighting for the centroid
+    measurements (passing ``fwhm=fwhm_gaussian`` to
+    :func:`fit_trace`). The results of this second iteration of
+    :func:`fit_trace` are the data returned.
 
     Troughs in the image can also be traced, which is done by
     flipping the sign of the image about its median and then
     repeating the "peak" finding and :func:`fit_trace` iterations. If
-    troughs are fit, the traces are order with the set of peak traces
-    first (the number of which is given by the last returned object
-    of the function), followed by the trough traces.
+    troughs are fit, the traces are ordered with the set of peak
+    traces first (the number of which is given by the last returned
+    object of the function), followed by the trough traces.
 
     Args:
         flux (`numpy.ndarray`_):
@@ -1259,45 +1260,46 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         ivar (`numpy.ndarray`_, optional):
             Inverse variance of the image intensity.  If not provided,
             unity variance is used.  If provided, must have the same
-            shape as `flux`.
+            shape as ``flux``.
         bpm (`numpy.ndarray`_, optional):
             Boolean array with the input bad-pixel mask for the
-            image. If not provided, all values in `flux` are
+            image. If not provided, all values in ``flux`` are
             considered valid. If provided, must have the same shape
-            as `flux`.
+            as ``flux``.
         trace_map (`numpy.ndarray`_, optional):
             Trace data that maps the spatial position of all spectra
             as a function of spectral row. For example, this can be
-            the output of :func:`pypeit.core.pca.pca_predict` where
-            the provided coordinates are `np.arange(flux.shape[1])`;
-            see also :func:`pypeit.edges.EdgeTracePCA.predict`. This
-            is used to rectify the input image so that spectra are
+            the output of :func:`~pypeit.core.pca.pca_predict` where
+            the provided coordinates are
+            ``np.arange(flux.shape[1])``; see also
+            :func:`~pypeit.tracepca.TracePCA.predict`. This is used
+            to rectify the input image so that spectra are
             identically organized along image rows (i.e., to select
-            the `i`th spectrum, one would slice with `[:,i]`). Shape
-            *must* be identical to `flux`. If None, `flux` is assumed
-            to be rectified on input.
+            the ``i``th spectrum, one would slice with ``[:,i]``).
+            Shape *must* be identical to ``flux``. If None, ``flux``
+            is assumed to be rectified on input.
         extract_width (:obj:`float`, optional):
             The width of the extract aperture to use when rectifying
-            the flux image. If None, set to `fwhm_gaussian`.
+            the flux image. If None, set to ``fwhm_gaussian``.
         smash_range (:obj:`tuple`, optional):
-            Spectral range to over which to collapse the input image
-            into a 1D flux as a function of spatial position. This 1D
-            vector is used to detect features for tracing. This is
-            useful (and recommended) for definining the relevant
+            Spectral range over which to collapse the input image
+            into the 1D flux as a function of spatial position. This
+            1D vector is used to detect features for tracing. This is
+            useful (and recommended) for defining the relevant
             detector range for data with spectra that do not span the
             length of the detector. The tuple gives the minimum and
             maximum in the fraction of the full spectral length
             (nspec). If None, the full image is collapsed.
         peak_thresh (:obj:`float, optional):
             The threshold for detecting peaks in the image. See the
-            `input_thresh` parameter for
-            :func:`pypeit.core.arc.detect_lines`.
+            ``input_thresh`` parameter for
+            :func:`~pypeit.core.arc.detect_lines`.
         peak_clip (:obj:`float, optional):
             Sigma-clipping threshold used to clip peaks with small
             values; no large values are clipped. If None, no clipping
-            is performed. Generally, one should instead raise the
-            value of `peak_thresh` instead, if the peak detection
-            algorithm is finding insignificant peaks.
+            is performed. Generally, if the peak detection algorithm
+            is finding insignificant peaks, one should instead raise
+            the value of ``peak_thresh``.
         trough (:obj:`bool`, optional):
             Trace both peaks **and** troughs in the input image. This
             is done by flipping the value of the smashed image about
@@ -1306,21 +1308,21 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
         trace_median_frac (:obj:`float`, optional):
             After rectification of the image and before refitting the
             traces, the rectified image is median filtered with a
-            kernel width of trace_median_frac*nspec along the
+            kernel width of ``trace_median_frac*nspec`` along the
             spectral dimension.
         trace_thresh (:obj:`float`, optional):
             After rectification and median filtering of the image
-            (see `trace_median_frac`), values in the resulting image
-            that are *below* this threshold are masked in the
+            (see ``trace_median_frac``), values in the resulting
+            image that are *below* this threshold are masked in the
             refitting of the trace using :func:`fit_trace`.
         fwhm_uniform (:obj:`float`, optional):
-            The `fwhm` parameter to use when using uniform weighting
-            in the calls to :func:`fit_trace`. See description of the
-            algorithm above.
+            The ``fwhm`` parameter to use when using uniform
+            weighting in the calls to :func:`fit_trace`. See
+            description of the algorithm above.
         fwhm_gaussian (:obj:`float`, optional):
-            The `fwhm` parameter to use when using Gaussian weighting
-            in the calls to :func:`fit_trace`. See description of the
-            algorithm above.
+            The ``fwhm`` parameter to use when using Gaussian
+            weighting in the calls to :func:`fit_trace`. See
+            description of the algorithm above.
         maxshift (:obj:`float`, optional):
             Maximum shift allowed between the input and recalculated
             centroid (see :func:`fit_trace`).
@@ -1335,7 +1337,7 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             :func:`fit_trace`.
         maxdev (:obj:`float`, optional):
             See :func:`fit_trace`. If provided, reject points with
-            `abs(data-model) > maxdev` when fitting the trace. If
+            ``abs(data-model) > maxdev`` when fitting the trace. If
             None, no points are rejected.
         maxiter (:obj:`int`, optional):
             Maximum number of rejection iterations allowed during the
@@ -1348,18 +1350,18 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
             The number of iterations for :func:`fit_trace` when edge
             measurements are based on Gaussian weighting. See
             description above.
-        bitmask (:class:`pypeit.bitmask.BitMask`, optional):
+        bitmask (:class:`~pypeit.bitmask.BitMask`, optional):
             Object used to toggle the returned bit masks in edge
             centroid measurements; see :func:`masked_centroid`.
         debug (:obj:`bool`, optional):
             Show plots useful for debugging.
 
     Returns:
-        Returns four `numpy.ndarray`_ objects and the number of peak
-        traces. The number of peak traces should be used to separate
-        peak from trough traces; if `trough` is False, this will just be
-        the total number of traces.  The four `numpy.ndarray`_ objects
-        provide:
+        :obj:`tuple`: Returns four `numpy.ndarray`_ objects and the
+        number of peak traces. The number of peak traces should be
+        used to separate peak from trough traces; if ``trough`` is
+        False, this will just be the total number of traces. The four
+        `numpy.ndarray`_ objects provide:
 
             - The best-fitting positions of each trace determined by the
               polynomial fit.
@@ -1368,8 +1370,13 @@ def peak_trace(flux, ivar=None, bpm=None, trace_map=None, extract_width=None, sm
               fit.
             - The errors in the Gaussian-weighted centroids.
             - Boolean flags for each centroid measurement (see
-              :func:`pypeit.core.moment.moment1d`).
+              :func:`~pypeit.core.moment.moment1d`).
 
+    Raises:
+        ValueError:
+            Raised if the input ``flux`` is not two-dimensional or if
+            the shape of ``ivar``, ``bpm``, or ``trace_map`` is not
+            identical to ``flux``.
     """
     # Setup and ensure input is correct
     if flux.ndim != 2:

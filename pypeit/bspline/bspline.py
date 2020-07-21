@@ -48,13 +48,13 @@ class bspline(datamodel.DataContainer):
 
     Parameters
     ----------
-    x : :class:`numpy.ndarray`
+    x : `numpy.ndarray`_
         The data.
     nord : :class:`int`, optional
         To be documented.
     npoly : :class:`int`, optional
         To be documented.
-    bkpt : :class:`numpy.ndarray`, optional
+    bkpt : `numpy.ndarray`_, optional
         To be documented.
     bkspread : :class:`float`, optional
         To be documented.
@@ -307,18 +307,18 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        xdata : :class:`numpy.ndarray`
+        xdata : `numpy.ndarray`_
             Independent variable.
-        ydata : :class:`numpy.ndarray`
+        ydata : `numpy.ndarray`_
             Dependent variable.
-        invvar : :class:`numpy.ndarray`
+        invvar : `numpy.ndarray`_
             Inverse variance of `ydata`.
-        x2 : :class:`numpy.ndarray`, optional
+        x2 : `numpy.ndarray`_, optional
             Orthogonal dependent variable for 2d fits.
 
         Returns
         -------
-        :func:`tuple`
+        :obj:`tuple`
             A tuple containing an integer error code, and the evaluation of the
             b-spline at the input values.  An error code of -2 is a failure,
             -1 indicates dropped breakpoints, 0 is success, and positive
@@ -383,14 +383,14 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        x : :class:`numpy.ndarray`
+        x : `numpy.ndarray`_
             Independent variable.
-        x2 : :class:`numpy.ndarray`, optional
+        x2 : `numpy.ndarray`_, optional
             Orthogonal dependent variable for 2d fits.
 
         Returns
         -------
-        :func:`tuple`
+        :obj:`tuple`
             A tuple containing the b-spline action matrix; the 'lower' parameter,
             a list of pixel positions, each corresponding to the first
             occurence of position greater than breakpoint indx; and 'upper',
@@ -460,14 +460,14 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        x : :class:`numpy.ndarray`
+        x : `numpy.ndarray`_
             To be documented.
         ileft : :class:`int`
             To be documented
 
         Returns
         -------
-        :class:`numpy.ndarray`
+        vnikx : `numpy.ndarray`_
             To be documented.
         """
         bkpt = self.breakpoints[self.mask]
@@ -499,24 +499,26 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        x : :class:`numpy.ndarray`
+        x : `numpy.ndarray`_
             Independent variable.
-        x2 : :class:`numpy.ndarray`, optional
+        x2 : `numpy.ndarray`_, optional
             Orthogonal dependent variable for 2d fits.
-        action : :class:`numpy.ndarray`, optional
+        action : `numpy.ndarray`_, optional
             Action matrix to use.  If not supplied it is calculated.
-        lower : :class:`numpy.ndarray`, optional
+        lower : `numpy.ndarray`_, optional
             If the action parameter is supplied, this parameter must also
             be supplied.
-        upper : :class:`numpy.ndarray`, optional
+        upper : `numpy.ndarray`_, optional
             If the action parameter is supplied, this parameter must also
             be supplied.
 
         Returns
         -------
-        :func:`tuple`
-            A tuple containing the results of the bspline evaluation and a
-            mask indicating where the evaluation was good.
+        yfit : `numpy.ndarray`_
+            Results of the bspline evaluation
+        mask : `numpy.ndarray`_
+            Mask indicating where the evaluation was good (i.e., True
+            is good).
         """
         # TODO: Is the sorting necessary?
         xsort = x.argsort()
@@ -550,14 +552,15 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        err : :class:`numpy.ndarray` or int
+        err : `numpy.ndarray`_, :obj:`int`
             The list of indexes returned by the cholesky routines.
-            This is indexed to the set of currently *good* breakpoints (i.e. self.mask=True)
-            And the first nord are skipped
+            This is indexed to the set of currently *good*
+            breakpoints (i.e. self.mask=True) and the first nord are
+            skipped.
 
         Returns
         -------
-        :class:`int`
+        :obj:`int`
             An integer indicating the results of the masking.  -1 indicates
             that the error points were successfully masked.  -2 indicates
             failure; the calculation should be aborted.
@@ -606,27 +609,26 @@ class bspline(datamodel.DataContainer):
 
         Parameters
         ----------
-        xdata : :class:`numpy.ndarray`
+        xdata : `numpy.ndarray`_
             Independent variable.
-        ydata : :class:`numpy.ndarray`
+        ydata : `numpy.ndarray`_
             Dependent variable.
-        invvar : :class:`numpy.ndarray`
+        invvar : `numpy.ndarray`_
             Inverse variance of `ydata`.
-        action : :class:`numpy.ndarray`
+        action : `numpy.ndarray`_
             Banded correlation matrix
-        lower  : :class:`numpy.ndarray`
+        lower  : `numpy.ndarray`_
             A list of pixel positions, each corresponding to the first occurence of position greater than breakpoint indx
-        upper  : :class:`numpy.ndarray`
+        upper  : `numpy.ndarray`_
             Same as lower, but denotes the upper pixel positions
 
         Returns
         -------
-        :func:`tuple` (success, yfit):
-            A tuple containing an boolean error code, and the evaluation
-            of the b-spline yfit at the input values.  The error codes
-            are as follows: 0 is good; -1 is dropped breakpoints, try
-            again; -2 is failure, should abort.
-
+        success : :obj:`int`
+            Method error code: 0 is good; -1 is dropped breakpoints,
+            try again; -2 is failure, should abort.
+        yfit : `numpy.ndarray`_
+            Evaluation of the b-spline yfit at the input values.
         """
         goodbk = self.mask[self.nord:]
         # KBW: Interesting: x.sum() is actually a bit faster than np.sum(x)
