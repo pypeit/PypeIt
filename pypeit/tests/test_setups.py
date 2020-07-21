@@ -79,6 +79,25 @@ def test_setup_keck_lris_red():
     files = glob.glob(os.path.join(setup_dir, 'keck_lris_red*'))
     ext = [f.split('.')[-1] for f in files]
     assert np.all([e in ext for e in expected]), \
+        'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
+@dev_suite_required
+def test_setup_keck_lris_red_orig():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_red_orig/long_300_5000')
+    droot += '/'
+    pargs = setup.parser(['-r', droot, '-s', 'keck_lris_red_orig'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_lris_red_orig*'))
+    ext = [f.split('.')[-1] for f in files]
+    assert np.all([e in ext for e in expected]), \
             'Did not find all setup file extensions: {0}'.format(expected)
 
     # Clean-up
@@ -97,6 +116,26 @@ def test_setup_keck_lris_blue():
     assert os.path.isdir(setup_dir), 'No setup_files directory created'
 
     files = glob.glob(os.path.join(setup_dir, 'keck_lris_blue*'))
+    ext = [f.split('.')[-1] for f in files]
+    #expected = ['lst', 'pypeit', 'setups', 'sorted']
+    assert np.all([e in ext for e in expected]), \
+        'Did not find all setup file extensions: {0}'.format(expected)
+
+    # Clean-up
+    shutil.rmtree(setup_dir)
+
+@dev_suite_required
+def test_setup_keck_lris_blue_orig():
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_lris_blue_orig/long_600_4000_d500')
+    droot += '/'
+    pargs = setup.parser(['-r', droot, '-s', 'keck_lris_blue_orig'])
+    setup.main(pargs)
+
+    cwd = os.getcwd()
+    setup_dir = os.path.join(cwd, 'setup_files')
+    assert os.path.isdir(setup_dir), 'No setup_files directory created'
+
+    files = glob.glob(os.path.join(setup_dir, 'keck_lris_blue_orig*'))
     ext = [f.split('.')[-1] for f in files]
     #expected = ['lst', 'pypeit', 'setups', 'sorted']
     assert np.all([e in ext for e in expected]), \

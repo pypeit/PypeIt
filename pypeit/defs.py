@@ -2,8 +2,8 @@
 """
 # No imports to avoid circularity
 
-pypeit_spectrographs = ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_nires',
-            'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
+pypeit_spectrographs = ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_orig',
+                        'keck_lris_blue_orig', 'keck_nires', 'keck_nirspec_low', 'keck_mosfire', 'keck_hires_red', 'keck_kcwi',
             'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores', 'wht_isis_blue',
             'wht_isis_red', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir', 'vlt_fors2',
             'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2', 'gemini_gmos_south_ham',
