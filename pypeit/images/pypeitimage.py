@@ -139,7 +139,6 @@ class PypeItImage(datamodel.DataContainer):
             if self.imgbitm != ','.join(list(self.bitmask.keys())):
                 msgs.error("Input BITMASK keys differ from current data model!")
 
-
     def _bundle(self):
         """
         Over-write default _bundle() method to write one

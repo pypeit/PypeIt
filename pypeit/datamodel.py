@@ -603,9 +603,9 @@ class DataContainer:
         # Data model must be defined
         if self.datamodel is None:
             raise ValueError('Data model for {0} is undefined!'.format(self.__class__.__name__))
+        if self.version is None:
+            raise ValueError('Must define a version for the class.')
 
-        # Copy the dictionary
-#        self.__dict__ = copy.deepcopy(d)
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
 
@@ -652,9 +652,6 @@ class DataContainer:
 
         # Validate the object
         self._validate()
-
-        if self.version is None:
-            raise ValueError('Must define a version for the class.')
 
     @classmethod
     def full_datamodel(cls, include_parent=True):

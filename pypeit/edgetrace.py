@@ -118,14 +118,14 @@ from astropy.stats import sigma_clipped_stats
 from astropy import table
 
 from pypeit import msgs
+from pypeit import io
 from pypeit import utils
 from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
-from pypeit import io
 from pypeit import slittrace
 # TODO: Commented until EdgeTraceSet becomes a DataContainer
-#from pypeit.datamodel import DataContainer
+from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
@@ -160,8 +160,6 @@ class EdgeTraceBitMask(BitMask):
                 ('DISCONTINUOUS', 'Pixel included in a trace but part of a discontinuous segment'),
                     ('DUPLICATE', 'Trace is a duplicate based on trace matching tolerance'),
                    ('SHORTRANGE', 'Trace does not meet the minimum spectral range criterion'),
-#                ('SHORTDETRANGE', 'Trace length does not meet trace detection threshold.'),
-#                ('SHORTFITRANGE', 'Trace length does not meet fitting/PCA threshold.'),
                        ('HITMIN', 'Trace crosses the minimum allowed spatial column'),
                        ('HITMAX', 'Trace crosses the maximum allowed spatial column'),
                   ('OFFDETECTOR', 'Trace lands off, or within `det_buffer` of, the detector edge'),
@@ -205,14 +203,13 @@ class EdgeTraceBitMask(BitMask):
 
     @property
     def exclude_flags(self):
-        # We will not exclude SYNCINSERT slits edges from the masking
-        #   These can easily crop up for star boxes and at the edge of the detector
-#        return ['USERINSERT', 'MASKINSERT', 'ORPHANINSERT', 'BOXSLIT']
+        """
+        List of flags to exclude when finding bad trace data.
+        """
         return self.insert_flags + self.order_flags + ['BOXSLIT']
 
 
-# TODO -- Make a DataContainer
-class EdgeTraceSet(object):
+class EdgeTraceSet(DataContainer):
     r"""
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
@@ -226,25 +223,10 @@ class EdgeTraceSet(object):
     value of `auto`. To automatically have the instantiation save the
     results, set `save=True` on instantiation.
 
-    To load an existing master file with the result of a trace, you
-    can either use the :attr:`from_file` method::
+    To load an existing master file with the result of a trace, 
+    use the :attr:`from_file` method::
 
         edges = EdgeTraceSet.from_file(file)
-
-    or instantiate the object as would have been done initially and
-    then check if the trace exists and load it::
-    
-        edges = EdgeTraceSet(spec, par)
-        if edges.exists:
-            edges.load()
-
-    or you can attempt to load directly on instantiation::
-
-        edges = EdgeTraceSet(spec, par, load=True)
-
-    In the latter case, note that the `load` argument takes
-    precedence and an exception is raised if one provides both `img`
-    and sets `load=True`.
 
     Most commonly, one will use the automatic tracing routine to
     trace the slit edges; see the description of the steps used
@@ -304,9 +286,6 @@ class EdgeTraceSet(object):
             :func:`show`.
         save (:obj:`bool`, optional):
             Save the result to the master frame.
-        load (:obj:`bool`, optional):
-            Attempt to load existing output. If True and the file
-            does not exist, an error is raised.
 
     Attributes:
         trace_img
@@ -394,13 +373,40 @@ class EdgeTraceSet(object):
             A list of strings indicating the main methods applied
             when tracing.
     """
+
     master_type = 'Edges'
-    version = '1.0.0'
+    """Root name for the master frame file."""
+
     master_file_format = 'fits.gz'
-    bitmask = EdgeTraceBitMask()    # Object used to define and toggle tracing mask bits
+    """Master frame file format."""
+
+    bitmask = EdgeTraceBitMask()
+    """BitMask instance."""
+
+    version = '1.0.0'
+    """DataContainer datamodel version."""
+
+    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+                 'trace_img': dict(otype=TraceImage,
+                                   desc='Image used to construct the edge traces.'),
+
+
+                 'specmax': dict(otype=np.ndarray, atype=np.floating,
+                                descr='Maximum spectral position allowed for each slit/order.  '
+                                      'Shape is Nslits.')}
+    """DataContainer datamodel."""
 
     def __init__(self, trace_img, spectrograph, par, bpm=None, qa_path=None, auto=False,
-                 debug=False, show_stages=False, save=False, load=False):
+                 debug=False, show_stages=False, save=False):
+
+        # Instantiate the DataContainer
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        _d = dict([(k,values[k]) for k in args[1:]])
+        # The dictionary passed to DataContainer.__init__ does not
+        # contain self or the MasterFrame arguments.
+        # TODO: Does it matter if the calling function passes the
+        # keyword arguments in a different order?
+        datamodel.DataContainer.__init__(self, d=_d)
 
         # Check input types
         if not isinstance(trace_img, TraceImage):
@@ -410,14 +416,14 @@ class EdgeTraceSet(object):
         if not isinstance(par, EdgeTracePar):
             msgs.error('Input par must be an EdgeTracePar object.')
 
-        self.trace_img = trace_img      # Input  TraceImage
+        self.trace_img = trace_img                      # Input TraceImage
+        self.nspec, self.nspat = self.trace_img.shape   # The shape of the trace image
 
         # TODO: just use trace_img for many of these attributes
-        self.img = trace_img.image      # The image used to find the slit edges
-        self.binning = self.trace_img.detector.binning  # Detector ordered:  spec, spat
-        self.det = self.trace_img.detector.det          # Detector used for the trace image
-        self.nspec, self.nspat = self.img.shape         # The shape of the trace image
-        self.files = self.trace_img.files               # Files used to construct the trace image
+#        self.img = trace_img.image      # The image used to find the slit edges
+#        self.binning = self.trace_img.detector.binning  # Detector ordered:  spec, spat
+#        self.det = self.trace_img.detector.det          # Detector used for the trace image
+#        self.files = self.trace_img.files               # Files used to construct the trace image
 
         self.spectrograph = spectrograph    # Spectrograph used to take the data
         self.PYP_SPEC = spectrograph.spectrograph  # For the Header.  Will be in datamodel
@@ -454,15 +460,6 @@ class EdgeTraceSet(object):
 
         self.log = None                 # Log of methods applied
 
-        if self.img is not None and load:
-            msgs.error('Arguments img and load are mutually exclusive.  Choose to either trace '
-                       'a new image or load a previous trace.')
-
-        if load:
-            # Attempt to load an existing master frame
-            self.load()
-        # TODO: This should be elif, but this will change when
-        # EdgeTraceSet is converted into a DataContainer.
         if auto:
             self.auto_trace(bpm=bpm, save=save, debug=debug, show_stages=show_stages)
 
@@ -769,7 +766,7 @@ class EdgeTraceSet(object):
         ad_rm = False
         if self.par['rm_slits'] is not None:
             rm_user_slits = trace.parse_user_slits(self.par['rm_slits'],
-                                                   self.det, rm=True)
+                                                   self.trace_img.det, rm=True)
             if rm_user_slits is not None:
                 ad_rm = True
                 self.rm_user_traces(rm_user_slits)
@@ -777,7 +774,7 @@ class EdgeTraceSet(object):
         # Add user traces
         if self.par['add_slits'] is not None:
             add_user_slits = trace.parse_user_slits(self.par['add_slits'],
-                                                    self.det)
+                                                    self.trace_img.det)
             if add_user_slits is not None:
                 ad_rm = True
                 self.add_user_traces(add_user_slits)
@@ -847,12 +844,12 @@ class EdgeTraceSet(object):
         # attributes are not None?
 
         self.bpm = np.zeros((self.nspec, self.nspat), dtype=bool) if bpm is None else bpm
-        if self.bpm.shape != self.img.shape:
+        if self.bpm.shape != self.trace_img.shape:
             msgs.error('Mask is not the same shape as the trace image.')
 
         # Lightly smooth the image before using it to trace edges
         # TODO: Make this filter size a parameter?
-        _img = ndimage.uniform_filter(self.img, size=(3, 1), mode='mirror')
+        _img = ndimage.uniform_filter(self.trace_img.image, size=(3, 1), mode='mirror')
 
         # Replace bad-pixel columns if they exist
         # TODO: Do this before passing the image to this function?
@@ -964,6 +961,8 @@ class EdgeTraceSet(object):
         if save:
             self.save()
 
+    # TODO: File name should default to master file. Can master_key be
+    # pulled from the TraceImage?
     def save(self, outfile, overwrite=True, checksum=True, float_dtype='float32',
              master_dir=None, master_key=None):
         """
@@ -971,8 +970,7 @@ class EdgeTraceSet(object):
 
         Args:
             outfile (:obj:`str`):
-                Full path for the output file. Defaults to
-                :attr:`master_file_path`.
+                Full path for the output file.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file.
             checksum (:obj:`bool`, optional):
@@ -981,11 +979,17 @@ class EdgeTraceSet(object):
             float_dtype (:obj:`str`, optional):
                 Convert floating-point data to this data type before
                 writing.  Default is 32-bit precision.
+            master_dir (:obj:`str`, optional):
+                Directory for the master calibration files. If None,
+                set to current working directory.
+            master_key (:obj:`str`, optional):
+                Key identifier for the master frame.  If None, ...
         """
+        # First check if a trace is available
+        if self.is_empty:
+            msgs.error('No trace information available!')
 
-        #_outfile = self.master_file_path if outfile is None else outfile
-
-        # Check if it exists
+        # Check if the output file exists
         if os.path.exists(outfile) and not overwrite:
             msgs.error('Master file exists: {0}'.format(outfile) + msgs.newline()
                        + 'Set overwrite=True to overwrite it.')
@@ -999,37 +1003,36 @@ class EdgeTraceSet(object):
         msgs.info('Writing master frame to {0}'.format(outfile))
 
         # Build the primary header
-        #   - Initialize with basic metadata
-        #prihdr = self.build_master_header()
-        # Header
-        if master_key is not None:
-            prihdr = masterframe.build_master_header(self, master_key, master_dir,
-                                                     raw_files=self.files)
-        else:
-            prihdr = io.initialize_header()
+        prihdr = io.initialize_header() if master_key is None \
+                    else masterframe.build_master_header(self, master_key, master_dir,
+                                                         raw_files=self.trace_img.files)
         #   - Add the qa path
         #prihdr['QADIR'] = (self.qa_path, 'PypeIt: QA directory')
-        #   - Add metadata specific to this class -- This is added as PYP_SPEC in the build_master_header() call
-        #prihdr['SPECT'] = (self.spectrograph.spectrograph, 'PypeIt: Spectrograph Name')
         #   - List the processed raw files, if available
-        if self.files is not None:
-            nfiles = len(self.files)
-            ndig = int(np.log10(nfiles))+1
-            for i in range(nfiles):
-                prihdr['RAW{0}'.format(str(i+1).zfill(ndig))] \
-                            = (self.files[i], 'PypeIt: Processed raw file')
-        #   - Add the binning
-        prihdr['BINNING'] = (self.binning, 'PypeIt: Binning')
-        #   - Add the detector number
-        prihdr['DET'] = (self.det, 'PypeIt: Detector')
+        # TODO: Add this to PypeItImage
+#        if self.trace_img.files is not None:
+#            nfiles = len(self.trace_img.files)
+#            ndig = int(np.log10(nfiles))+1
+#            for i in range(nfiles):
+#                prihdr['RAW{0}'.format(str(i+1).zfill(ndig))] \
+#                            = (self.trace_img.files[i], 'PypeIt: Processed raw file')
+        # TODO: Make sure are written as part of PypeItImage
+#        #   - Add the binning
+#        prihdr['BINNING'] = (self.trace_image.binning, 'PypeIt: Binning')
+#        #   - Add the detector number
+#        prihdr['DET'] = (self.trace_img.det, 'PypeIt: Detector')
+
         #   - Add the tracing parameters
         self.par.to_header(prihdr)
-        #   - List the completed methods, if there are any
-        if self.log is not None and len(self.log) > 0:
-            ndig = int(np.log10(len(self.log)))+1
-            for i,m in enumerate(self.log):
-                prihdr['LOG{0}'.format(str(i+1).zfill(ndig))] \
-                        = (m, '{0}: Completed method'.format(self.__class__.__name__))
+
+        # TODO: Ignore this for now
+#        #   - List the completed methods, if there are any
+#        if self.log is not None and len(self.log) > 0:
+#            ndig = int(np.log10(len(self.log)))+1
+#            for i,m in enumerate(self.log):
+#                prihdr['LOG{0}'.format(str(i+1).zfill(ndig))] \
+#                        = (m, '{0}: Completed method'.format(self.__class__.__name__))
+
         #   - PCA type, used for rebuilding the PCA when loading
         prihdr['PCATYPE'] = ('None' if self.pca is None else self.pca_type,
                              'PypeIt: Edge trace PCA type')
@@ -1064,9 +1067,6 @@ class EdgeTraceSet(object):
             outfile = outfile[:outfile.rfind('.')]
             compress = True
 
-        # First check if a trace is available
-        if self.is_empty:
-            msgs.error("No trace information available")
         # Build the list of extensions to write
         # TODO: Separately adding the design and object data is
         # necessary because of a bug in the behavior of empty binary
@@ -1075,20 +1075,21 @@ class EdgeTraceSet(object):
         # the most recent release. If it is, building the hdu can be
         # done in one go, where the binary tables will just be empty if
         # no design/object data is avialable.
-        hdu = fits.HDUList([fits.PrimaryHDU(header=prihdr),
-                            fits.ImageHDU(data=self.img.astype(float_dtype), name='TRACEIMG'),
-                            fits.ImageHDU(data=self.bpm.astype(np.int16), name='TRACEBPM'),
-                            fits.ImageHDU(data=self.sobel_sig.astype(float_dtype),
-                                          name='SOBELSIG'),
-                            fits.ImageHDU(data=self.traceid, name='TRACEID'),
-                            fits.ImageHDU(data=self.spat_cen.astype(float_dtype), name='CENTER'),
-                            fits.ImageHDU(data=self.spat_err.astype(float_dtype),
-                                          name='CENTER_ERR'),
-                            fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
-                            fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
-                                          name='CENTER_FIT')])
+
+        hdu = self.trace_img.to_hdu(add_primary=True, primary_hdr=prihdr)
+
+        hdu += [fits.ImageHDU(data=self.bpm.astype(np.int16), name='TRACEBPM'),
+                fits.ImageHDU(data=self.sobel_sig.astype(float_dtype), name='SOBELSIG'),
+                fits.ImageHDU(data=self.traceid, name='TRACEID'),
+                fits.ImageHDU(data=self.spat_cen.astype(float_dtype), name='CENTER'),
+                fits.ImageHDU(data=self.spat_err.astype(float_dtype), name='CENTER_ERR'),
+                fits.ImageHDU(header=mskhdr, data=self.spat_msk, name='CENTER_MASK'),
+                fits.ImageHDU(header=fithdr, data=self.spat_fit.astype(float_dtype),
+                              name='CENTER_FIT')]
+
         # Add detector
-        hdu += self.trace_img.detector.to_hdu()
+#        hdu += self.trace_img.detector.to_hdu()
+
         # Add order ID, if available
         if self.orderid is not None:
             hdu += [fits.ImageHDU(data=self.orderid, name='ORDERID')]
@@ -1114,51 +1115,51 @@ class EdgeTraceSet(object):
             msgs.info('Compressing file to: {0}.gz'.format(outfile))
             io.compress_file(outfile, overwrite=overwrite)
 
-    def load(self, validate=True, rebuild_pca=False):
-        """
-        Load and reinitialize the trace data.
-
-        Data is read from :attr:`master_file_path` and used to
-        overwrite any internal data. Specific comparisons of the
-        saved data are performed to ensure the file is consistent
-        with having been written by a consistent version of the code;
-        see :func:`_reinit`.
-
-        To load a full :class:`EdgeTraceSet` directly from a file,
-        use :func:`from_file`.
-
-        Args:
-            validate (:obj:`bool`, optional):
-                Validate that the spectrograph, parameter set, and
-                bitmask have not changed between the current internal
-                values and the values read from the fits file. The
-                method raises an error if the spectrograph or
-                parameter set are different. If the bitmask is
-                different, a warning is issued and the bitmask
-                defined by the header is used instead of the existing
-                :attr:`bitmask`.
-            rebuild_pca (:obj:`bool`, optional):
-                Rebuild the PCA decomposition of the traces based on
-                the loaded trace data, but only if the PCA had been
-                originally produced for the saved object (as
-                indicated by the fits header). Otherwise, any
-                existing saved PCA data will be used to construct the
-                PCA object(s). If the header indicates that the PCA
-                was not originally performed, this is ignored.
-        Raises:
-            FileNotFoundError:
-                Raised if no data has been written for this master
-                frame.
-            ValueError:
-                Raised if validation of the data fails (actually
-                raised by :func:`_reinit`).
-        """
-        # Check the file exists
-        if not self.exists:
-            msgs.error('File does not exit: {0}'.format(self.master_file_path))
-        with fits.open(self.master_file_path) as hdu:
-            # Re-initialize and validate
-            self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
+#    def load(self, validate=True, rebuild_pca=False):
+#        """
+#        Load and reinitialize the trace data.
+#
+#        Data is read from :attr:`master_file_path` and used to
+#        overwrite any internal data. Specific comparisons of the
+#        saved data are performed to ensure the file is consistent
+#        with having been written by a consistent version of the code;
+#        see :func:`_reinit`.
+#
+#        To load a full :class:`EdgeTraceSet` directly from a file,
+#        use :func:`from_file`.
+#
+#        Args:
+#            validate (:obj:`bool`, optional):
+#                Validate that the spectrograph, parameter set, and
+#                bitmask have not changed between the current internal
+#                values and the values read from the fits file. The
+#                method raises an error if the spectrograph or
+#                parameter set are different. If the bitmask is
+#                different, a warning is issued and the bitmask
+#                defined by the header is used instead of the existing
+#                :attr:`bitmask`.
+#            rebuild_pca (:obj:`bool`, optional):
+#                Rebuild the PCA decomposition of the traces based on
+#                the loaded trace data, but only if the PCA had been
+#                originally produced for the saved object (as
+#                indicated by the fits header). Otherwise, any
+#                existing saved PCA data will be used to construct the
+#                PCA object(s). If the header indicates that the PCA
+#                was not originally performed, this is ignored.
+#        Raises:
+#            FileNotFoundError:
+#                Raised if no data has been written for this master
+#                frame.
+#            ValueError:
+#                Raised if validation of the data fails (actually
+#                raised by :func:`_reinit`).
+#        """
+#        # Check the file exists
+#        if not self.exists:
+#            msgs.error('File does not exit: {0}'.format(self.master_file_path))
+#        with fits.open(self.master_file_path) as hdu:
+#            # Re-initialize and validate
+#            self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=False):
@@ -1189,12 +1190,8 @@ class EdgeTraceSet(object):
             msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
-            # THIS IS A HACK UNTIL WE MAKE THIS A DataContainer
-            img = hdu['TRACEIMG'].data.astype(float)
-            detector = detector_container.DetectorContainer.from_hdu(hdu['DETECTOR'])
-            traceImage = TraceImage(img, detector=detector)
-            #
-            this = cls(traceImage, load_spectrograph(hdu[0].header['PYP_SPEC']),
+#            # THIS IS A HACK UNTIL WE MAKE THIS A DataContainer
+            this = cls(TraceImage.from_hdu(hdu), load_spectrograph(hdu[0].header['PYP_SPEC']),
                        EdgeTracePar.from_header(hdu[0].header))
 
             # Re-initialize and validate
@@ -1228,10 +1225,11 @@ class EdgeTraceSet(object):
                 was not originally performed, this is ignored.
         """
         hdunames = [h.name for h in hdu]
-        # Read and assign data from the fits file
-        self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
-        if len(self.files) == 0:
-            self.files = None
+
+#        # Read and assign data from the fits file
+#        self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
+#        if len(self.files) == 0:
+#            self.files = None
 
         # TODO: These now cast back to float64, regardless of how they
         # were written (typically float32). Not sure this is a great
@@ -1240,11 +1238,10 @@ class EdgeTraceSet(object):
 
         # TODO: When converting to DataContainer, convert these to
         # from_hdu methods to reconstruct self.trace_img.
-        self.img = hdu['TRACEIMG'].data.astype(float)
-        self.nspec, self.nspat = self.img.shape
+
+        self.trace_img = TraceImage.from_hdu(hdu)
+        self.nspec, self.nspat = self.trace_img.shape
         self.bpm = hdu['TRACEBPM'].data.astype(bool)
-        self.det = hdu[0].header['DET']
-        self.binning = hdu[0].header['BINNING']
 
         self.sobel_sig = hdu['SOBELSIG'].data.astype(float)
         self.traceid = hdu['TRACEID'].data
@@ -1486,7 +1483,8 @@ class EdgeTraceSet(object):
             # Connect to or instantiate ginga window
             ginga.connect_to_ginga(raise_err=True, allow_new=True)
             # Clear the viewer and show the trace image
-            trace_viewer, trace_ch = ginga.show_image(self.img, chname='Trace Image', clear=True)
+            trace_viewer, trace_ch = ginga.show_image(self.trace_img.image, chname='Trace Image',
+                                                      clear=True)
             if not self.is_empty:
                 ginga.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
                                  _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
@@ -1500,9 +1498,9 @@ class EdgeTraceSet(object):
 
         # Show the traced image
         if include_img:
-            img_zlim = utils.growth_lim(self.img, 0.95, fac=1.05)
-            plt.imshow(self.img, origin='lower', interpolation='nearest', aspect='auto',
-                       vmin=img_zlim[0], vmax=img_zlim[1])
+            img_zlim = utils.growth_lim(self.trace_img.image, 0.95, fac=1.05)
+            plt.imshow(self.trace_img.image, origin='lower', interpolation='nearest',
+                       aspect='auto', vmin=img_zlim[0], vmax=img_zlim[1])
         elif include_sobel:
             sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
             plt.imshow(self.sobel_sig, origin='lower', interpolation='nearest', aspect='auto',
@@ -1614,7 +1612,7 @@ class EdgeTraceSet(object):
         # Spectral pixel coordinate vector and global plot limits
         spec = np.arange(self.nspec)
         ylim = [-1,self.nspec]
-        img_zlim = utils.growth_lim(self.img, 0.95, fac=1.05)
+        img_zlim = utils.growth_lim(self.trace_img.image, 0.95, fac=1.05)
         sob_zlim = utils.growth_lim(self.sobel_sig, 0.95, fac=1.05)
 
         # Set figure
@@ -1662,8 +1660,8 @@ class EdgeTraceSet(object):
             ax.tick_params(which='minor', length=5, direction='in', top=True, right=True)
             ax.set_xlim(xlim)
             ax.set_ylim(ylim)
-            ax.imshow(self.img, origin='lower', interpolation='nearest', vmin=img_zlim[0],
-                      vmax=img_zlim[1], aspect='auto')
+            ax.imshow(self.trace_img.image, origin='lower', interpolation='nearest',
+                      vmin=img_zlim[0], vmax=img_zlim[1], aspect='auto')
             if self.spat_fit is not None:
                 ax.plot(self.spat_fit[:,i], spec, color='C3' if self.traceid[i] < 0 else 'C1')
             ax.text(0.07, 0.93,'{0}'.format(self.traceid[i]), ha='left', va='center',
@@ -2359,8 +2357,8 @@ class EdgeTraceSet(object):
                   'and with the current slit edges errantly isolating some feature in the data.')
 
         # TODO: May want to limit the number of columns included in this calculation.
-        if np.mean(self.img[:,int(np.ceil(np.max(trace_cen[:,1]))):]) \
-                > np.mean(self.img[:,:int(np.floor(np.min(trace_cen[:,0])))]):
+        if np.mean(self.trace_img.image[:,int(np.ceil(np.max(trace_cen[:,1]))):]) \
+                > np.mean(self.trace_img.image[:,:int(np.floor(np.min(trace_cen[:,0])))]):
             msgs.warn('The mean of the trace image to the right of the right trace is larger '
                       'than it is to the left of the left trace. Removing the right trace and '
                       're-synchronizing.')
@@ -2473,9 +2471,9 @@ class EdgeTraceSet(object):
         if self.par['minimum_slit_length'] is not None \
                 or self.par['minimum_slit_length_sci'] is not None \
                 or self.par['minimum_slit_gap'] is not None:
-            platescale = parse.parse_binning(self.binning)[1] \
+            platescale = parse.parse_binning(self.trace_img.binning)[1] \
                             * self.trace_img.detector['platescale']
-            msgs.info('Binning: {0}'.format(self.binning))
+            msgs.info('Binning: {0}'.format(self.trace_img.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
             if self.par['minimum_slit_length'] is not None:
                 length_atol = self.par['minimum_slit_length']/platescale
@@ -4191,8 +4189,8 @@ class EdgeTraceSet(object):
             msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
 
         # Get the file to use when parsing the mask design information
-        _design_file = (None if self.files is None else self.files[0]) if design_file is None \
-                            else design_file
+        _design_file = (None if self.trace_img.files is None else self.trace_img.files[0]) \
+                            if design_file is None else design_file
         if _design_file is None or not os.path.isfile(_design_file):
             msgs.error('Slit-mask design file not found or none provided.')
 
@@ -4260,7 +4258,7 @@ class EdgeTraceSet(object):
             # Set the offset based on the location of this detector
             offset = self.spectrograph.detector_map.image_coordinates(
                             self.spectrograph.detector_map.npix[0]/2,
-                            self.spectrograph.detector_map.npix[1]/2, detector=self.det,
+                            self.spectrograph.detector_map.npix[1]/2, detector=self.trace_img.det,
                             in_mm=False)[0][0] - self.spectrograph.detector_map.npix[0]/2
             # Set the bounds to some nominal fraction of the detector
             # size and pix/mm scale; allow for a +/- 10% deviation in
@@ -4722,7 +4720,7 @@ class EdgeTraceSet(object):
         # Parse the data for the SlitTraceSet
         left = self.spat_fit[:,gpm & self.is_left]
         right = self.spat_fit[:,gpm & self.is_right]
-        binspec, binspat = parse.parse_binning(self.binning)
+        binspec, binspat = parse.parse_binning(self.trace_img.detector.binning)
         ech_order = None if self.orderid is None else self.orderid[gpm][1::2]
         if self.spectrograph.spec_min_max is None or ech_order is None:
             specmin = np.asarray([-np.inf]*nslit)
