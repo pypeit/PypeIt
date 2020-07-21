@@ -147,7 +147,7 @@ def main(args):
     all_sci, all_ivar = np.array([]), np.array([])
     dspat = None  # binning size on the sky (in arcsec)
     ref_scale = None  # This will be used to correct relative scaling among the various input frames
-    for fil in files:
+    for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil.rstrip("\n"), args.det)
 
@@ -223,11 +223,17 @@ def main(args):
 
         # TODO :: Need to apply relative spectral scaling so that all spectra are on the same spectral shape
 
+        numpix = raimg[onslit_gpm].size()
         all_ra = np.append(all_ra, raimg[onslit_gpm].copy())
         all_dec = np.append(all_dec, decimg[onslit_gpm].copy())
         all_wave = np.append(all_wave, waveimg[onslit_gpm].copy())
         all_sci = np.append(all_sci, sciimg[onslit_gpm].copy())
         all_ivar = np.append(all_ivar, ivar[onslit_gpm].copy())
+        all_idx = np.append(all_idx, ff*np.ones(numpix))
+
+    # Register spatial offsets between all frames
+    for ff in range(len(files)):
+
 
     # Generate a master WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
