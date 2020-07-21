@@ -91,23 +91,33 @@ class TraceAlignment(object):
     Class to guide the determination of the alignment traces
 
     Args:
-        rawalignimg (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
-            Align image, created by the AlignFrame class
-        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
-            Slit edges
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
-            The `Spectrograph` instance that sets the
-            instrument used to take the observations.  Used to set
-            :attr:`spectrograph`.
-        alignpar (:class:`pypeit.par.pypeitpar.AlignPar`):
+        rawalignimg (:class:`~pypeit.images.pypeitimage.PypeItImage`):
+            Align image, created by the AlignFrame class. Can be
+            None.
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit edge traces.  Can be None.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            The `Spectrograph` instance that sets the instrument used
+            to take the observations. Can be None.
+        alignpar (:class:`~pypeit.par.pypeitpar.AlignPar`):
             The parameters used for the align traces
-        det (int, optional): Detector number
-        qa_path (str, optional):  For QA
-        msbpm (ndarray, optional): Bad pixel mask image
+        det (:obj:`int`, optional):
+            Detector number
+        binning (:obj:`str`, optional):
+            Detector binning in comma separated numbers for the
+            spectral and spatial binning.
+        qa_path (:obj:`str`, optional):
+            Directory for QA plots
+        msbpm (`numpy.ndarray`_, optional):
+            Bad pixel mask image
 
     Attributes:
         steps (:obj:`list`):
             List of the processing steps performed.
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
+            Relevant spectrograph.
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Slit edge traces.
     """
     version = '1.0.0'
 
@@ -214,7 +224,7 @@ class TraceAlignment(object):
 
         Returns
         -------
-        align_traces : :obj:`numpy.ndarray`
+        align_traces : `numpy.ndarray`_
             Spatial traces (3D array of shape [nspec, ntraces, nslits])
         """
         nbars = len(self.alignpar['locations'])
@@ -266,13 +276,13 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     Parameters
     ----------
 
-    alignframe: ndarray
+    alignframe : `numpy.ndarray`_
         Image to be plotted (i.e. the master align frame)
     align_traces : list, optional
         The align traces
     slits : :class:`pypeit.slittrace.SlitTraceSet`, optional
         properties of the slits, including traces.
-    clear : bool
+    clear : bool, optional
         Clear the plotting window in ginga?
 
     Returns

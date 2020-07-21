@@ -11,6 +11,21 @@ Hotfixes after 1.0.5
  - Script to check for calibration files
  - No longer require bias frames as default for DEIMOS
  - Implement grism19 for NOT/ALFOSC
+ - Introduced another parameter used to identify box slits, as opposed
+   to erroneous "slits" found by the edge tracing algorithms.  Any slit
+   that has `minimum_slit_length < length < minimum_slit_length_sci` is
+   considered a `BOXSLIT`, any slit with `length < minimum_slit_length`
+   is considered a `SHORTSLIT`; the latter are always ignored.
+ - Introduced order matching code into EdgeTraceSet.
+    - This helps fix an issue for GNIRS_10L caused by the orders
+      shifting.
+    - Introduces two paramters in `EdgeTraceSetPar` to assist the
+      matching: `order_match` and `order_offset`
+    - Echelle spectrographs should now always have `ech_order` defined
+      in the SlitTraceSet object.
+    - Removes the need for `Spectrograph.slit2order` and
+      `Spectrograph.order_vec`.  Changes propagated, primarily in
+      `wavecalib.py`, `autoid.py`, and `reduce.py`.
 
 1.0.5 (23 Jun 2020)
 -------------------

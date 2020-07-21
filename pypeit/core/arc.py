@@ -1,3 +1,9 @@
+"""
+Module with core arc-lamp methods.
+
+.. include:: ../links.rst
+"""
+
 import inspect
 
 import numpy as np
@@ -29,25 +35,28 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     Parameters
     ----------
-    all_wv: np.array
+    all_wv: `numpy.ndarray`_
      wavelength of the identified lines
-    all_pix: np.array
+    all_pix: `numpy.ndarray`_
       y-centroid position of the identified lines
-    all_orders: np.array
+    all_orders: `numpy.ndarray`_
       order number of the identified lines
     nspec: int
       Size of the image in the spectral direction
-    nspec_coeff : np.int
+    nspec_coeff : int
       order of the fitting along the spectral (pixel) direction for each order
-    norder_coeff : np.int
+    norder_coeff : int
       order of the fitting in the order direction
-    sigrej: np.float
+    sigrej: float
       sigma level for the rejection
-    debug: boolean
+    debug: bool
       Extra plots to check the status of the procedure
 
-    Returns:
+    Returns
     -------
+    fit_dict : dict
+        Dictionary with the fitting results
+
     """
 
     # Normalize  for pixels. Fits are performed in normalized units (pixels/(nspec-1) to be able to deal with various
@@ -347,14 +356,17 @@ def resize_mask2arc(shape_arc, slitmask_orig):
     """
     Resizes a slitmask created with some original binning to be a slitmak relevant to an arc with a different binning
 
-    Args:
-        shape_arc: tuple
-            shape of the arc
-        slitmask_orig: ndarray, float
-            original slitmask
-    Returns:
-        slitmask: ndarray, float
-            Slitmask with shape corresponding to that of the arc
+    Parameters
+    ----------
+    shape_arc : tuple
+        Shape of the arc
+    slitmask_orig : `numpy.ndarray`_, float
+        original slitmask
+
+    Returns
+    -------
+    slitmask: `numpy.ndarray`_, float
+        Slitmask with shape corresponding to that of the arc
 
     """
     (nspec, nspat) = shape_arc
@@ -376,17 +388,19 @@ def resize_mask2arc(shape_arc, slitmask_orig):
 
 def resize_slits2arc(shape_arc, shape_orig, trace_orig):
     """
-    Resizes a a trace created with some original binning to be a relevant to an arc with a different binning
+    Resizes a a trace created with some original binning to be a
+    relevant to an arc with a different binning
 
     Args:
-        shape_arc: tuple
+        shape_arc (tuple):
             shape of the arc
-        shape_orig: tuple
+        shape_orig (tuple):
             original shape of the images used to create the trace
-        trace_orig: ndarray, float
+        trace_orig (`numpy.ndarray`_, float):
             trace that you want to resize
     Returns:
-        `numpy.ndarray`: trace corresponding to the binning of the arc
+        `numpy.ndarray`_: trace corresponding to the binning of the
+        arc
 
     """
     (nspec, nspat) = shape_arc
@@ -409,13 +423,15 @@ def resize_spec(spec_from, nspec_to):
     """
 
     Args:
-        spec_from: ndarray, float (nspec, nslits) or (nspec,)
-          Input spectrum which you want to resize via interpolation
-        nspec_to: int, size of spectrum you to resize to
+        spec_from (`numpy.ndarray`_):
+            One or more spectra to resize via interpolation. Shape
+            must be (nspec, nslits) or (nspec,).
+        nspec_to (int):
+            Size of spectrum you to resize to.
 
     Returns:
-        spec_to: ndarray, float, same size as spec_from
-          New spectra or spectrum with size nspec_to
+        `numpy.ndarray`_: New spectra or spectrum with shape
+        (nspec_to, nslits) or (nspec_to,).
 
     """
 
@@ -438,17 +454,16 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
     Extract a boxcar spectrum down the center of the slit
 
     Args:
-
-        slit_cen (`numpy.ndarray`):
+        slit_cen (`numpy.ndarray`_):
             Trace down the center of the slit
-        slitmask (`numpy.ndarray`):
+        slitmask (`numpy.ndarray`_):
             Image where pixel values identify its parent slit,
             starting with 0. Pixels with -1 are not part of any slit.
             Shape must match `arcimg`.
-        arcimg (`numpy.ndarray`):
+        arcimg (`numpy.ndarray`_):
             Image to extract the arc from. This should be an arcimage
             or perhaps a frame with night sky lines.
-        gpm (`numpy.ndarray`, optional):
+        gpm (`numpy.ndarray`_, optional):
             Input mask image with same shape as arcimg. Convention
             True = good and False = bad. If None, all pixels are
             considered good.
@@ -461,7 +476,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0, nonlinear_cou
             A list of the slit IDs to extract (if None, all slits will be extracted)
 
     Returns:
-        Returns three numpy.ndarray objects:
+        Returns three `numpy.ndarray`_ objects:
             - Array containing the extracted arc spectrum for each
               slit. Shape is (nspec, nslits)
             - Bad-pixel mask for the spectra. Shape is (nspec,
@@ -516,8 +531,8 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
 
     Parameters
     ----------
-    x : 1D array_like
-        data.
+    x : array-like
+        1D vector with data
     mph : {None, number}, optional (default = None)
         detect peaks that are greater than minimum peak height (if parameter
         `valley` is False) or peaks that are smaller than maximum peak height
@@ -538,12 +553,14 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
         if True (1), detect valleys (local minima) instead of peaks.
     show : bool, optional (default = False)
         if True (1), plot data in matplotlib figure.
-    ax : a matplotlib.axes.Axes instance, optional (default = None).
+    ax : `matplotlib.axes.Axes`_, optional
+        `matplotlib.axes.Axes`_ instance to use when plotting. If
+        None and ``show`` is True, a new instance is constructed.
 
     Returns
     -------
-    ind : 1D array_like
-        indeces of the peaks in `x`.
+    ind : array-like
+        1D vector with element indices containing the peaks in `x`
 
     Notes
     -----
@@ -697,8 +714,8 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
     Routine to determine the continuum and continuum pixels in spectra with peaks.
 
     Args:
-       spec (ndarray, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
-       inmask: ndarray, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
+       spec (`numpy.ndarray`_, float,  shape (nspec,)  A 1D spectrum for which the continuum is to be characterized
+       inmask: `numpy.ndarray`_, bool, shape (nspec,)   A mask indicating which pixels are good. True = Good, False=Bad
        niter_cont: int, default = 3
             Number of iterations of peak finding, masking, and continuum fitting used to define the continuum.
        npoly: int, default = None
@@ -715,7 +732,7 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
             The number of samples across the spectrum used for continuum subtraction. Continuum subtraction is done via
             median filtering, with a width of ngood/cont_samp, where ngood is the number of good pixels for estimating the continuum
             (i.e. that don't have peaks).
-       cont_frac_fwhm float, default = 1.0
+       cont_frac_fwhm : float, default = 1.0
             Width used for masking peaks in the spectrum when the continuum is being defined. Expressed as a fraction of the fwhm
             parameter
        cont_mask_neg: bool, default = False
@@ -728,8 +745,8 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
            Show plots for debugging
 
     Returns: (cont, cont_mask)
-        cont: ndarray, float, shape (nspec) The continuum determined
-        cont_mask: ndarray, bool, shape (nspec) A mask indicating which pixels were used for continuum determination
+        cont: `numpy.ndarray`_, float, shape (nspec) The continuum determined
+        cont_mask: `numpy.ndarray`_, bool, shape (nspec) A mask indicating which pixels were used for continuum determination
 
 
     """
@@ -805,15 +822,15 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
 
     Parameters
     ----------
-    censpec : ndarray
+    censpec : `numpy.ndarray`_
       A 1D spectrum to be searched for significant detections
 
-    sigdetect: float, default=20., optional
+    sigdetect : float, default=20., optional
        Sigma threshold above fluctuations for arc-line detection.
        Arcs are continuum subtracted and the fluctuations are
        computed after continuum subtraction.
 
-    input_thresh: float, str, default= None, optional
+    input_thresh : float, str, optional
        Optionally the user can specify the threhsold that peaks must
        be above to be kept. In this case the sigdetect parameter will
        be ignored. This is most useful for example for cases where
@@ -826,7 +843,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
        equivalent to setting the mph parameter to None in the
        detect_peaks code.
 
-    fwhm:  float, default = 4.0, optional
+    fwhm : float, default = 4.0, optional
        Number of pixels per fwhm resolution element.
 
     fit_frac_fwhm: float, default 0.5, optional
@@ -841,7 +858,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
        minimum allowed separation between peaks expressed relative to
        the fwhm.
 
-    cont_frac_fwhm float, default = 1.0, optional
+    cont_frac_fwhm : float, default = 1.0, optional
        width used for masking peaks in the spectrum when the
        continuum is being defined. Expressed as a fraction of the
        fwhm parameter
@@ -871,33 +888,33 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
        is None, which means the code will return all the lines above
        the significance threshold.
 
-    bpm: numpy.ndarray, optional
+    bpm: `numpy.ndarray`_, optional
         Bad-pixel mask for input spectrum. If None, all pixels
         considered good.
 
     verbose: bool, default = False
        Output more stuff to the screen.
 
-    debug: boolean, default = False
+    debug: bool, default = False
        Make plots showing results of peak finding and final arc lines that are used.
 
     Returns
     -------
-    tampl : ndarray
+    tampl : `numpy.ndarray`_
       The amplitudes of the line detections in the true arc
-    tampl_cont : ndarray
+    tampl_cont : `numpy.ndarray`_
       The amplitudes of the line detections in the continuum subtracted arc
-    tcent : ndarray
+    tcent : `numpy.ndarray`_
       The centroids of the line detections
-    twid : ndarray
+    twid : `numpy.ndarray`_
       The 1sigma Gaussian widths of the line detections
-    centerr : ndarray
+    centerr : `numpy.ndarray`_
       The variance on tcent
-    w : ndarray
+    w : `numpy.ndarray`_
       An index array indicating which detections are the most reliable.
-    arc : ndarray
+    arc : `numpy.ndarray`_
       The continuum sutracted arc used to find detections.
-    nsig : ndarray
+    nsig : `numpy.ndarray`_
       The significance of each line detected relative to the 1sigma
       variation in the continuum subtracted arc in the the line free
       region. Bad lines are assigned a significance of -1, since they
@@ -999,15 +1016,15 @@ def find_lines_qa(spec, cen, amp, good, bpm=None, thresh=None, nonlinear=None):
     Show a QA plot for the line detection.
 
     Args:
-        spec (`numpy.ndarray`):
+        spec (`numpy.ndarray`_):
             Spectrum used to detect lines
-        cen (`numpy.ndarray`):
+        cen (`numpy.ndarray`_):
             Identified line peaks
-        amp (`numpy.ndarray`):
+        amp (`numpy.ndarray`_):
             Amplitude of the identified lines.
-        good (`numpy.ndarray`):
+        good (`numpy.ndarray`_):
             Boolean array selecting the good line detections.
-        bpm (`numpy.ndarray`, optional):
+        bpm (`numpy.ndarray`_, optional):
             The bad-pixel mask for the spectrum. If None, all pixels
             are assumed to be valid.
         thresh (:obj:`float`, optional):
@@ -1115,8 +1132,8 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
 
     Parameters
     ----------
-    llist (Table):
-    censpec : ndarray
+    llist : `astropy.table.Table`_
+    censpec : `numpy.ndarray`_
     get_poly : bool, optional
       Pause to record the polynomial pix = b0 + b1*lambda + b2*lambda**2
     IDpixels : list

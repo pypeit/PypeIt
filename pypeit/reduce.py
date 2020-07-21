@@ -182,10 +182,13 @@ class Reduce(object):
         self.sobjs = None  # Final extracted object list with trace corrections applied
 
     def initialise_slits(self, initial=False):
-        """Initialise the slits
+        """
+        Initialise the slits
 
         Args:
-            initial (bool): Use the initial definition of the slits (Setting this to False will use the tweaked slits)
+            initial (:obj:`bool`, optional):
+                Use the initial definition of the slits. If False,
+                tweaked slits are used.
         """
         # Slits
         self.slits = self.caliBrate.slits
@@ -200,8 +203,8 @@ class Reduce(object):
         # NOTE: this uses the par defined by EdgeTraceSet; this will
         # use the tweaked traces if they exist
         self.sciImg.update_mask_slitmask(self.slitmask)
-        # For echelle
-        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
+#        # For echelle
+#        self.spatial_coo = self.slits.spatial_coordinates(initial=initial, flexure=self.spat_flexure_shift)
 
     def parse_manual_dict(self, manual_dict, neg=False):
         """
@@ -1004,7 +1007,12 @@ class EchelleReduce(Reduce):
 
         # JFH For 2d coadds the orders are no longer located at the standard locations
         self.order_vec = spectrograph.orders if 'coadd2d' in self.objtype \
-                            else self.spectrograph.order_vec(self.spatial_coo)
+                            else self.slits.ech_order
+#                            else self.spectrograph.order_vec(self.spatial_coo)
+        if self.order_vec is None:
+            msgs.error('Unable to set Echelle orders, likely because they were incorrectly '
+                       'assigned in the relevant SlitTraceSet.')
+
 
     def get_platescale(self, sobj):
         """
