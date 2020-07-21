@@ -683,7 +683,7 @@ class Calibrations(object):
                                                            master_dir=self.master_dir)
         if os.path.isfile(masterframe_name) and self.reuse_masters:
             self.wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
-            self.wv_calib.is_synced(self.slits)
+            self.wv_calib.chk_synced(self.slits)
             self.slits.mask_wvcalib(self.wv_calib)
         else:
             # Instantiate

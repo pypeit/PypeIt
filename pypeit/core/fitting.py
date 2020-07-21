@@ -155,14 +155,18 @@ class PypeItFit(DataContainer):
             float: RMS
 
         """
+        msk = self.gpm.astype(np.bool)
         if self.weights is None:
             weights = np.ones(self.xval.size)
         else:
             weights = self.weights
         if apply_mask:
-            xval = self.xval[self.gpm]
-            yval = self.yval[self.gpm]
-            weights = weights[self.gpm]
+            xval = self.xval[msk]
+            yval = self.yval[msk]
+            weights = weights[msk]
+        else:
+            xval = self.xval.copy()
+            yval = self.yval.copy()
         # Normalise
         weights /= np.sum(weights)
         values = self.val(xval)
@@ -523,7 +527,7 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
     """
     goodbk = sset.mask
     bkpt, _ = sset.value(sset.breakpoints[goodbk])
-    was_fit_and_masked = np.invert(gpm)
+    was_fit_and_masked = np.logical_not(gpm)
 
     plt.clf()
     ax = plt.gca()
@@ -858,8 +862,8 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     return c.reshape(deg+1)
 
 
-def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=None,
-               maxx=None, minx2=None, maxx2=None, bspline_par=None,
+def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', maxone=False,
+               minx=None, maxx=None, minx2=None, maxx2=None, bspline_par=None,
                guesses=None, maxiter=10, inmask=None, weights=None, invvar=None,
                lower=None, upper=None, maxdev=None,maxrej=None, groupdim=None,
                groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True):
@@ -879,6 +883,9 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
         function:
             which function should be used in the fitting (valid inputs:
             'polynomial', 'legendre', 'chebyshev', 'bspline')
+        maxone (bool):
+            Reject only the most deviant point between iterations (where
+            the best-fit model is recalculated during each interation).
         minx:
             minimum value in the array (or the left limit for a
             legendre/chebyshev polynomial)
@@ -954,7 +961,7 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
             invvar, and the code will return an error if this is done.
 
     Returns:
-        PypeItFit:
+        PypeItFit or None:
     """
 
     # Setup the initial mask
@@ -973,14 +980,18 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
     iIter = 0
     qdone = False
     thismask = np.copy(inmask)
-    while (not qdone) and (iIter < maxiter):
+    mskcnt = np.sum(thismask)
+    pypeitFit = None
+    while (not qdone or maxone) and (iIter < maxiter):
         if np.sum(thismask) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
         if not np.any(thismask):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-            if ct is None:
-                ct = np.zeros(order + 1)
-            return thismask, ct
+            if pypeitFit is not None:
+                if ct is None:
+                    pypeitFit.fitc = np.zeros(order + 1)
+                pypeitFit.gpm = thismask.astype(int)
+            return pypeitFit
 
         pypeitFit = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct,
                       minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
@@ -990,6 +1001,14 @@ def robust_fit(xarray, yarray, order, x2 = None, function='polynomial', minx=Non
                                           lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
                                           groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
                                           use_mad=use_mad,sticky=sticky)
+        # Check the number of masked elements
+        if maxone:
+            if mskcnt == np.sum(thismask):
+                break  # No new values have been included in the mask
+            else:
+                maxrej += 1
+                mskcnt = np.sum(thismask)
+        # Update the iteration
         iIter += 1
     if (iIter == maxiter) & (maxiter != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')

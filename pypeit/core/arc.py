@@ -1103,9 +1103,7 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
         try:
             pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
             #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
-            ampl[p] = pypeitFit.fitc[0]
-            cent[p] = pypeitFit.fitc[1]
-            widt[p] = pypeitFit.fitc[2]
+            ampl[p], cent[p], widt[p] = pypeitFit.fitc
             centerr[p] = pypeitFit.fitcov[1, 1]
             #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
             #b[p]    = popt[0]

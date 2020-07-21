@@ -52,6 +52,7 @@ class LinesBitMask(BitMask):
             ('OH_triplespec', 'Comment'),
             ('CuI', 'Comment'),
             ('ArII', 'Comment'),
+            ('OH', 'Comment'),
             ('OH_XSHOOTER', 'Comment'),
             ('OH_GNIRS', 'Comment'),
             ('OH_NIRES', 'Comment'),
@@ -61,6 +62,7 @@ class LinesBitMask(BitMask):
             ('ThAr_MagE', 'Comment'),
             ('OH_FIRE_Echelle', 'Comment'),
             ('Ar_IR_GNIRS', 'Comment'),
+            ('UNKNWN', 'Comment'),
         ])
         super(LinesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
@@ -101,6 +103,7 @@ def lines():
     line_dict['ThAr_MagE'] = 2**18  # R=4100
     line_dict['OH_FIRE_Echelle'] = 2**19  # R=6000
     line_dict['Ar_IR_GNIRS'] = 2**20  # R=6000
+    line_dict['UNKNWN'] = 2**21
 
 
 

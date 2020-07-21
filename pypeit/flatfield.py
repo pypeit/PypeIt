@@ -1031,7 +1031,7 @@ class FlatField(object):
             poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
             # Perform the full 2d fit
-            twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
+            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
                     = fitting.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
                                             poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
