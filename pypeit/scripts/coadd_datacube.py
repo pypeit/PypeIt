@@ -12,7 +12,11 @@ Run above the Science/ folder.
 import argparse
 from IPython import embed
 
+from astropy import wcs, units
 from astropy.io import fits
+from astropy.coordinates import AltAz, SkyCoord
+import scipy.optimize as opt
+from scipy.interpolate import interp1d
 import numpy as np
 
 from pypeit import msgs
@@ -28,7 +32,7 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it to a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument('file', type = str, default=None, help='PypeIt file')
+    parser.add_argument('file', type = str, default=None, help='ascii file with list of spec2D files to combine')
     parser.add_argument('--list', default=False, help='List the extensions only?',
                         action='store_true')
     parser.add_argument('--det', default=1, type=int, help="Detector")
@@ -36,11 +40,6 @@ def parser(options=None):
                         help='Overwrite any existing files/directories')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
-
-from astropy.coordinates import AltAz, SkyCoord
-import astropy.units as units
-import scipy.optimize as opt
-from scipy.interpolate import interp1d
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):
@@ -112,6 +111,26 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
+def generate_masterWCS(crval, cdelt, equinox=2000.0):
+    # Create a new WCS object.
+    msgs.info("Generating Master WCS")
+    w = wcs.WCS(naxis=3)
+    w.wcs.equinox = equinox
+    w.wcs.name = 'KCWI'
+    w.wcs.radesys = 'FK5'
+    # Insert the coordinate frame
+    w.wcs.cname = ['KCWI RA', 'KCWI DEC', 'KCWI Wavelength']
+    w.wcs.cunit = [units.degree, units.degree, units.Angstrom]
+    w.wcs.ctype = ["RA---TAN", "DEC--TAN", "AWAV"]
+    w.wcs.crval = crval  # RA, DEC, and wavelength zeropoints
+    w.wcs.crpix = [0, 0, 0]  # RA, DEC, and wavelength reference pixels
+    #w.wcs.cd = np.array([[cdval[0], 0.0, 0.0], [0.0, cdval[1], 0.0], [0.0, 0.0, cdval[2]]])
+    w.wcs.cdelt = cdelt
+    w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
+    w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
+    return w
+
+
 def main(args):
 
     # List only?
@@ -120,97 +139,138 @@ def main(args):
         hdu.info()
         return
 
-    # Load it up
-    spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det)
+    # Get a list of files for the combination
+    files = open(args.file, 'r').readlines()
+    combine = True if len(files) > 1 else False
 
-    # Load the spectrograph
-    specname = spec2DObj.head0['SPECTROG']
-    spec = load_spectrograph(specname)
+    all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
+    all_sci, all_ivar = np.array([]), np.array([])
+    dspat = None  # binning size on the sky (in arcsec)
+    ref_scale = None  # This will be used to correct relative scaling among the various input frames
+    for fil in files:
+        # Load it up
+        spec2DObj = spec2dobj.Spec2DObj.from_file(fil.rstrip("\n"), args.det)
 
-    # Setup for PypeIt imports
-    msgs.reset(verbosity=2)
+        # Load the spectrograph
+        specname = spec2DObj.head0['SPECTROG']
+        spec = load_spectrograph(specname)
 
-    # Init
-    # TODO: get_dnum needs to be deprecated...
-    sdet = "{0:s}-".format(get_dnum(args.det, caps=True, prefix=True))
+        # Setup for PypeIt imports
+        msgs.reset(verbosity=2)
 
-    # EXtract the information
-    sciimg = spec2DObj.sciimg-spec2DObj.skymodel
-    ivar = spec2DObj.ivarraw#model
-    waveimg = spec2DObj.waveimg
-    bpmmask = spec2DObj.bpmmask
+        # Init
+        # TODO: get_dnum needs to be deprecated...
+        sdet = "{0:s}-".format(get_dnum(args.det, caps=True, prefix=True))
 
-    # Grab the slit edges
-    slits = spec2DObj.slits
+        if ref_scale is None:
+            ref_scale = spec2DObj.scaleimg.copy()
+        # EXtract the information
+        sciimg = (spec2DObj.sciimg-spec2DObj.skymodel) * (ref_scale/spec2DObj.scaleimg)
+        ivar = spec2DObj.ivarraw * (ref_scale/spec2DObj.scaleimg)**2
+        waveimg = spec2DObj.waveimg
+        bpmmask = spec2DObj.bpmmask
 
-    # Load the master alignments
-    msgs.info("Loading alignments")
-    # TODO :: Include ALGNMKEY or alignments in Spec2D
-    alignfile = "Masters/MasterAlignment_{0:s}_01.fits".format(spec2DObj.head0['FLATMKEY'])
-    alignments = alignframe.Alignments.from_file(alignfile)
+        # Grab the slit edges
+        slits = spec2DObj.slits
 
-    wave0 = waveimg[waveimg != 0.0].min()
-    diff = waveimg[1:, :] - waveimg[:-1, :]
-    dwv = float(np.median(diff[diff != 0.0]))
-    msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
+        # Load the master alignments
+        msgs.info("Loading alignments")
+        # TODO :: Include ALGNMKEY or alignments in Spec2D
+        alignfile = fil.split("Science")[0] + "Masters/MasterAlignment_{0:s}_01.fits".format(spec2DObj.head0['FLATMKEY'])
+        alignments = alignframe.Alignments.from_file(alignfile)
 
-    msgs.info("Constructing slit image")
-    slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
-    onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
+        wave0 = waveimg[waveimg != 0.0].min()
+        diff = waveimg[1:, :] - waveimg[:-1, :]
+        dwv = float(np.median(diff[diff != 0.0]))
+        msgs.info("Using wavelength solution: wave0={0:.3f}, dispersion={1:.3f} Angstrom/pixel".format(wave0, dwv))
+
+        msgs.info("Constructing slit image")
+        slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=spec2DObj.sci_spat_flexure)
+        onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
+
+        # Grab the WCS of this frame
+        wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
+
+        # Find the largest spatial scale of all images being combined
+        pxscl, slscl = spec.get_scales(spec2DObj.head0)
+        if dspat is None:
+            dspat = max(pxscl, slscl)
+        elif max(pxscl, slscl) > dspat:
+            dspat = max(pxscl, slscl)
+
+        # Generate an RA/DEC image
+        msgs.info("Generating RA/DEC image")
+        raimg, decimg, minmax = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
+
+        # Perform and apply the DAR correction
+        if False:
+            darpar = spec.get_dar_params(spec2DObj.head0)
+            ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], *darpar)
+            raimg[onslit_gpm] += ra_corr
+            decimg[onslit_gpm] += dec_corr
+        # TODO :: THE FOLLOWING IS WRONG!!!  It's a placeholder while I figure out how to put everything onto a masterWCS
+        # raimg[onslit_gpm] += (ra_corr-ra_corr[0])
+        # decimg[onslit_gpm] += (dec_corr-dec_corr[0])
+
+        # Extinction correction
+        if False:
+            msgs.info("Applying extinction correction")
+            extinct = load_extinction_data(longitude, latitude)
+            ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
+            # Correct for extinction
+            flux_star = flux_star * ext_corr
+            ivar_star = ivar_star / ext_corr ** 2
+
+        # TODO :: Need to apply relative spectral scaling so that all spectra are on the same spectral shape
+
+        all_ra = np.append(all_ra, raimg[onslit_gpm].copy())
+        all_dec = np.append(all_dec, decimg[onslit_gpm].copy())
+        all_wave = np.append(all_wave, waveimg[onslit_gpm].copy())
+        all_sci = np.append(all_sci, sciimg[onslit_gpm].copy())
+        all_ivar = np.append(all_ivar, ivar[onslit_gpm].copy())
 
     # Generate a master WCS to register all frames
-    masterwcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
-
-    # Grab the WCS of this frame
-    wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
-
-    # Generate an RA/DEC image
-    raimg, decimg, minmax = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
-
-    # Perform and apply the DAR correction
-    darpar = spec.get_dar_params(spec2DObj.head0)
-    ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], *darpar)
-    # TODO :: THE FOLLOWING IS WRONG!!! It should just be:
-    # raimg[onslit] += ra_corr
-    # decimg[onslit] += dec_corr
-    # but we first need to generate a master WCS that takes this effect into account.
-    raimg[onslit_gpm] += (ra_corr-ra_corr[0])
-    decimg[onslit_gpm] += (dec_corr-dec_corr[0])
+    coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
+    coord_dlt = [dspat, dspat, dwv]
+    masterwcs = generate_masterWCS(coord_min, coord_dlt)
 
     # Generate the output binning
-    slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-    xbins = np.arange(1 + 24) - 12.0 - 0.5
-    ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
-    zbins = np.arange(1+int(round((np.max(waveimg)-wave0)/dwv))) - 0.5
+    if combine:
+        numra = int((np.max(all_ra)-np.min(all_ra)) * np.cos(np.mean(all_dec)*np.pi/180.0) / dspat)
+        numdec = int((np.max(all_dec)-np.min(all_dec))/dspat)
+        numwav = int((np.max(all_wave)-np.min(all_wave))/dwv)
+        xbins = np.arange(1+numra)-0.5
+        ybins = np.arange(1+numdec)-0.5
+        zbins = np.arange(1+numwav)-0.5
+    else:
+        slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
+        xbins = np.arange(1 + 24) - 12.0 - 0.5
+        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
+        zbins = np.arange(1+int(round((np.max(waveimg)-wave0)/dwv))) - 0.5
 
     # Make the cube
     msgs.info("Generating datacube")
     # TODO :: Need to include variance weights and make a variance cube
-    pix_coord = wcs.wcs_world2pix(raimg[onslit_gpm], decimg[onslit_gpm], waveimg[onslit_gpm]*1.0E-10, 0)
-    datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit_gpm]*np.sqrt(ivar[onslit_gpm]))
-    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=sciimg[onslit_gpm])
-    norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins))
-    norm += (norm == 0)
-
-    # Extinction correction
-    if False:
-        msgs.info("Applying extinction correction")
-        extinct = load_extinction_data(longitude, latitude)
-        ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
-        # Correct for extinction
-        flux_star = flux_star * ext_corr
-        ivar_star = ivar_star / ext_corr ** 2
-
-#    embed()
+    if combine:
+        pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
+        hdr = masterwcs.to_header()
+    else:
+        pix_coord = wcs.wcs_world2pix(np.vstack((all_ra, all_dec, all_wave*1.0E-10)).T, 0)
+        hdr = wcs.to_header()
+    #datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*np.sqrt(all_ivar))
+    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*all_ivar)
+    norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_ivar)
+    scaleArr = (norm > 0)/(norm + (norm == 0))
 
     # Save the datacube
-    outfile = "datacube_resid.fits"
-    msgs.info("Saving datacube as: {0:s}".format(outfile))
-    hdu = fits.PrimaryHDU(datacube_resid/norm, header=masterwcs.to_header())
-#    hdu = fits.PrimaryHDU(norm, header=masterwcs.to_header())
-    hdu.writeto(outfile, overwrite=args.overwrite)
+    if False:
+        outfile = "datacube_resid.fits"
+        msgs.info("Saving datacube as: {0:s}".format(outfile))
+        hdu = fits.PrimaryHDU(datacube_resid*norm, header=masterwcs.to_header())
+#        hdu = fits.PrimaryHDU(norm, header=masterwcs.to_header())
+        hdu.writeto(outfile, overwrite=args.overwrite)
 
     outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    hdu = fits.PrimaryHDU(datacube/norm, header=masterwcs.to_header())
+    hdu = fits.PrimaryHDU((datacube*scaleArr).T, header=hdr)
     hdu.writeto(outfile, overwrite=args.overwrite)

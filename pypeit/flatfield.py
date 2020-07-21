@@ -1281,6 +1281,7 @@ class FlatField(object):
 
         ### STEP 3
         # Redo the scale model, now using the bspline fit
+        #rawflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
         scale_model = np.ones_like(self.rawflatimg.image)
         for slit_idx in range(0, self.slits.spat_id.size):
             msgs.info("Generating model relative response image for slit {0:d}".format(slit_idx))
@@ -1291,12 +1292,14 @@ class FlatField(object):
             # Fit a low order polynomial
             minw, maxw = mnmx_wv[slit_idx, 0], mnmx_wv[slit_idx, 1]
             xfit = (waveimg[onslit_gpm] - minw) / (maxw - minw)
-            yfit = np.exp(spec_bspl.value(waveimg[onslit_gpm])[0]) / rawflat[onslit_gpm]
+            yfit = rawflat[onslit_gpm] / np.exp(spec_bspl.value(waveimg[onslit_gpm])[0])
             srtd = np.argsort(xfit)
             # Rough outlier rejection
-            inmsk = (yfit > 1/5) & (yfit < 5)
+            med = np.median(yfit)
+            mad = 1.4826*np.median(np.abs(med-yfit))
+            inmsk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
             slit_bspl, _, _, _, exit_status \
-                = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit), np.ones_like(xfit),
+                = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit)/mad**2, np.ones_like(xfit),
                                         nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
                                         kwargs_bspline={'bkspace': spec_samp_fine},
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -1304,9 +1307,18 @@ class FlatField(object):
             if exit_status > 1:
                 msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
             else:
-                scale_model[onslit_init] = slit_bspl.value((waveimg[onslit_init] - minw) / (maxw - minw))[0]
+                scale_model[onslit_init] = 1/slit_bspl.value((waveimg[onslit_init] - minw) / (maxw - minw))[0]
 
         if debug:
+            embed()
+            pltflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
+            censpec = np.round(0.5 * (self.slits.left_init + self.slits.right_init)).astype(np.int)
+            for ss in range(self.slits.nslits):
+                #plt.plot(waveimg[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())], scale_model[(np.arange(censpec.shape[0]), censpec[:,ss].flatten())])
+                plt.plot(waveimg[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())],
+                         pltflat[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())] *
+                         scale_model[(np.arange(censpec.shape[0]), censpec[:, ss].flatten())])
+            plt.show()
             # This code generates the wavy patterns seen in KCWI
             debug_model = np.ones_like(self.rawflatimg.image)
             blaze_model = np.ones_like(self.rawflatimg.image)
@@ -1387,6 +1399,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
     slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
     slitid_img_trim = slits.slit_img(pad=-trim, initial=True, flexure=flexure)
     scaleImg = np.ones_like(rawimg)
+    rawimg_copy = rawimg.copy()
     # Obtain the minimum and maximum wavelength of all slits
     mnmx_wv = np.zeros((slits.nslits, 2))
     for slit_idx, slit_spat in enumerate(slits.spat_id):
@@ -1426,7 +1439,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
             speca = sky_ref[idxcls]
             # Fit a low order polynomial
             xfit = (waveimg[onslit_b_olap] - minw) / (maxw - minw)
-            yfit = rawimg[onslit_b_olap] / speca
+            yfit = rawimg_copy[onslit_b_olap] / speca
             # Rough outlier rejection
             med = np.median(yfit)
             mad = 1.4826*np.median(np.abs(med-yfit))
@@ -1441,7 +1454,7 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
         msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))
         # Store rescaling
         scaleImg *= relscl_model
-        rawimg /= relscl_model
+        rawimg_copy /= relscl_model
         if max(abs(1 - minv), abs(maxv - 1)) < 0.001:  # Relative accruacy of 0.1% is sufficient
             break
     return scaleImg

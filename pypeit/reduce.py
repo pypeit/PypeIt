@@ -1227,8 +1227,8 @@ class IFUReduce(MultiSlitReduce, Reduce):
         self.sciImg.ivar = utils.inverse(varImg)
         return
 
-#    def illum_profile_spatial_fitall(self, skymask=None, trim_edg=(0,0)):
-    def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
+    def illum_profile_spatial_fitall(self, skymask=None, trim_edg=(0,0)):
+#    def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
 
         msgs.info("Performing spatial sensitivity correction")
         # Setup some helpful parameters
@@ -1327,22 +1327,28 @@ class IFUReduce(MultiSlitReduce, Reduce):
         # Apply the relative scale correction
         self.apply_relative_scale(spatScaleImg)
 
-    def illum_profile_spatial_separateSlits(self, skymask=None, trim_edg=(0,0)):
+#def spat_func(par, ydata, coords, spatbins, ww, spl, hist_trim, slitlength):
+ #   return par[0]*(1 + par[1] * model) - ydata
+
+#    def illum_profile_spatial_separateSlits(self, skymask=None, trim_edg=(0,0)):
+    def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
+
         msgs.info("Performing spatial sensitivity correction")
         # Setup some helpful parameters
         skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
-        hist_trim = 3  # Trim the edges of the histogram to take into account edge effects
+        hist_trim = 0  # Trim the edges of the histogram to take into account edge effects
         gpm = (self.sciImg.fullmask == 0)
         slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
         spatScaleImg = np.ones_like(self.sciImg.image)
         # For each slit, grab the spatial coordinates and a spline
-        # representation of te spatial profile from the illumflat
+        # representation of the spatial profile from the illumflat
         rawimg = self.sciImg.image.copy()
         numbins = int(np.max(self.slits.get_slitlengths(initial=True, median=True)))
         spatbins = np.linspace(0.0, 1.0, numbins + 1)
         spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
-        embed()
+        slitlength = np.median(self.slits.get_slitlengths(median=True))
         coeff_fit = np.zeros((self.slits.nslits, 2))
+        #embed()
         for sl, slitnum in enumerate(self.slits.spat_id):
             msgs.info("Deriving spatial correction for slit {0:d}/{1:d}".format(sl + 1, self.slits.spat_id.size))
             # Get the initial slit locations
@@ -1352,11 +1358,20 @@ class IFUReduce(MultiSlitReduce, Reduce):
             # routine would save time. But this is pretty fast, so we just do it here to make the interface simpler.
             spatcoord, edgmask = pixels.ximg_and_edgemask(self.slits_left[:, sl], self.slits_right[:, sl],
                                                           onslit_b_init, trim_edg=trim_edg)
+
+            # Make the model histogram
+            xspl = np.linspace(0.0, 1.0, 10 * int(slitlength))  # Sub sample each pixel with 10 subpixels
+            modspl = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xspl)[0]
+            gradspl = interpolate.interp1d(xspl, np.gradient(modspl) / modspl, kind='linear', bounds_error=False,
+                                           fill_value='extrapolate')
+
             # Ignore skymask
             coord_msk = onslit_b_init & gpm
             hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
             cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
             hist_slit_all = hist / (cntr + (cntr == 0))
+            histmod, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=gradspl(spatcoord[coord_msk]))
+            hist_model = histmod / (cntr + (cntr == 0))
 
             # Repeat with skymask
             coord_msk = onslit_b_init & gpm & skymask_now
@@ -1365,26 +1380,61 @@ class IFUReduce(MultiSlitReduce, Reduce):
             hist_slit = hist / (cntr + (cntr == 0))
 
             # Prepare for fit - take the non-zero elements and trim slit edges
-            ww = (hist_slit[hist_trim:-hist_trim] != 0)
-            xfit = spat_slit[hist_trim:-hist_trim][ww]
-            yfit = hist_slit_all[hist_trim:-hist_trim][ww]
+            if hist_trim == 0:
+                ww = (hist_slit != 0)
+                xfit = spat_slit[ww]
+                yfit = hist_slit_all[ww]
+                mfit = hist_model[ww]
+            else:
+                ww = (hist_slit[hist_trim:-hist_trim] != 0)
+                xfit = spat_slit[hist_trim:-hist_trim][ww]
+                yfit = hist_slit_all[hist_trim:-hist_trim][ww]
+                mfit = hist_model[hist_trim:-hist_trim][ww]
 
             # Generate the model
-            model = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xfit)[0]
-            spl = interpolate.interp1d(xfit, np.gradient(model)/model, kind='linear', bounds_error=False, fill_value='extrapolate')
+            #model = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xfit)[0]
+            #spl = interpolate.interp1d(xfit, np.gradient(model)/model, kind='linear', bounds_error=False, fill_value='extrapolate')
             #modev = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(spatcoord[onslit_b_init])[0]
             #xnorm = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(np.array([0.5]))[0][0]
 
             # Fit the function
             spat_func = lambda par, ydata, model: par[0]*(1 + par[1] * model) - ydata
-            res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, np.gradient(model)/model))
-            spatnorm = spat_func(res_lsq.x, 0.0, spl(spatcoord[onslit_b_init]))
-            spatnorm /= spat_func(res_lsq.x, 0.0, spl(0.5))
+            #spat_func = lambda par, xdata, ydata, model: par[0]*model.value(xdata + par[1])[0] - ydata
+#            spat_func = lambda par, xdata, ydata, model: par[0]*model.value(par[2]*xdata + par[1])[0] - ydata
+            res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, mfit))
+            # res_lsq = least_squares(spat_func, [np.median(yfit), 0.0],
+            #                         args=(xfit, yfit, self.caliBrate.flatimages.illumflat_spat_bsplines[sl]),
+            #                         bounds=([-np.inf, -2/slitlength], [np.inf, +2/slitlength]))
+#                                    bounds=([-np.inf, -1/slitlength, 1-1/slitlength], [np.inf, +1/slitlength, 1+1/slitlength]))
+#            spatnorm = spat_func(res_lsq.x, 0.0, spl(spatcoord[onslit_b_init]))
+#            spatnorm /= spat_func(res_lsq.x, 0.0, spl(0.5))
+            #spatnorm = spat_func(res_lsq.x, spatcoord[onslit_b_init], 0.0, self.caliBrate.flatimages.illumflat_spat_bsplines[sl])
+            #spatnorm /= spat_func(res_lsq.x, np.array([0.5]), 0.0, self.caliBrate.flatimages.illumflat_spat_bsplines[sl])[0]
+            spatnorm = spat_func(res_lsq.x, 0.0, gradspl(spatcoord[onslit_b_init]))
+            spatnorm /= spat_func(res_lsq.x, 0.0, gradspl(0.5))
             # Set the scaling factor
             spatScaleImg[onslit_b_init] = spatnorm
             coeff_fit[sl, :] = res_lsq.x
 
-            # Apply the relative scale correction
+        debug = False
+        if debug:
+            from matplotlib import pyplot as plt
+#            slitlength = 140
+            xplt = np.arange(24)
+            plt.subplot(121)
+            plt.plot(xplt[0::2], coeff_fit[::2, 0], 'rx')
+            plt.plot(xplt[1::2], coeff_fit[1::2, 0], 'bx')
+            plt.subplot(122)
+            plt.plot(xplt[0::2], coeff_fit[::2, 1]/10, 'rx')
+            plt.plot(xplt[1::2], coeff_fit[1::2, 1]/10, 'bx')
+            plt.show()
+            plt.imshow(spatScaleImg, vmin=0.99, vmax=1.01)
+            plt.show()
+            plt.subplot(133)
+            plt.plot(xplt[0::2], coeff_fit[::2, 2], 'rx')
+            plt.plot(xplt[1::2], coeff_fit[1::2, 2], 'bx')
+            plt.show()
+        # Apply the relative scale correction
         self.apply_relative_scale(spatScaleImg)
 
     def illum_profile_spectral(self, global_sky, skymask=None):
@@ -1471,12 +1521,12 @@ class IFUReduce(MultiSlitReduce, Reduce):
             return global_sky_sep
 
         # Do the spatial scaling first
-        if self.par['scienceframe']['process']['use_illumflat']:
-            # Perform the correction
-            self.illum_profile_spatial(skymask=skymask)
-            # Re-generate a global sky sub for all slits separately
-            global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
-                                                  show_fit=show_fit, show=show, show_objs=show_objs)
+        # if self.par['scienceframe']['process']['use_illumflat']:
+        #     # Perform the correction
+        #     self.illum_profile_spatial(skymask=skymask)
+        #     # Re-generate a global sky sub for all slits separately
+        #     global_sky_sep = Reduce.global_skysub(self, skymask=skymask, update_crmask=update_crmask, trim_edg=trim_edg,
+        #                                           show_fit=show_fit, show=show, show_objs=show_objs)
 
         if self.par['scienceframe']['process']['use_specillum']:
             self.illum_profile_spectral(global_sky_sep, skymask=skymask)

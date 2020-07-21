@@ -189,7 +189,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Subtract the detector pattern from certain frames
         par['calibrations']['biasframe']['process']['use_pattern'] = True
         par['calibrations']['darkframe']['process']['use_pattern'] = True
-        par['calibrations']['pixelflatframe']['process']['use_pattern'] = True
+        par['calibrations']['pixelflatframe']['process']['use_pattern'] = False
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
@@ -242,7 +242,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['objlim'] = 1.5
         par['scienceframe']['process']['use_illumflat'] = True  # illumflat is applied when building the relative scale image in reduce.py, so should be applied to scienceframe too.
         par['scienceframe']['process']['use_specillum'] = True  # apply relative spectral illumination
-        par['scienceframe']['process']['spat_flexure_correct'] = True  # apply relative spectral illumination
+        par['scienceframe']['process']['spat_flexure_correct'] = True  # correct for spatial flexure
         par['scienceframe']['process']['use_biasimage'] = False
         par['scienceframe']['process']['use_darkimage'] = False
 
@@ -665,7 +665,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         list : x,y pixel binning
         """
         binning = hdr['BINNING']
-        return [int(ibin) for ibin in binning.split(',')]
+        return [int(ibin) for ibin in binning.split(',')]  # [binspectral, binspatial]
 
     def get_scales(self, hdr):
         """ Get the scale per pixel and slice
@@ -680,7 +680,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         tuple : pixel and slice scale
         """
         # Pixel scales
-        pxscl = self.platescale * self.get_binning(hdr)[0]
+        pxscl = self.platescale * self.get_binning(hdr)[1]
         slscl = self.slicescale
         ifunum = hdr['IFUNUM']
         if ifunum == 2:
@@ -710,7 +710,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length
-        xbin, ybin = self.get_binning(hdr)
+        binspec, binspat = self.get_binning(hdr)
         slscl, pxscl = self.get_scales(hdr)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
@@ -736,8 +736,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
-        cdelt1 = -slscl
-        cdelt2 = pxscl
+        cdelt1 = -pxscl
+        cdelt2 = slscl
         if coord is None:
             ra = 0.
             dec = 0.
@@ -745,31 +745,34 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         else:
             ra = coord.ra.degree
             dec = coord.dec.degree
-        cd11 = cdelt1 * np.cos(crota)
-        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)
-        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)
-        cd22 = cdelt2 * np.cos(crota)
-        crpix1 = 12.
+        # Calculate the CD Matrix
+        cd11 = cdelt1 * np.cos(crota)                          # RA degrees per column
+        cd12 = abs(cdelt2) * np.sign(cdelt1) * np.sin(crota)   # RA degrees per row
+        cd21 = -abs(cdelt1) * np.sign(cdelt2) * np.sin(crota)  # DEC degress per column
+        cd22 = cdelt2 * np.cos(crota)                          # DEC degrees per row
+        # Get reference pixels (set these to the middle of the FOV)
+        crpix1 = 12.   # i.e. 24 slices/2
         crpix2 = slitlength / 2.
         crpix3 = 1.
+        # Get the offset
         porg = hdr['PONAME']
         ifunum = hdr['IFUNUM']
         if 'IFU' in porg:
-            if ifunum == 1:
+            if ifunum == 1:  # Large slicer
                 off1 = 1.0
                 off2 = 4.0
-            elif ifunum == 2:
+            elif ifunum == 2:  # Medium slicer
                 off1 = 1.0
                 off2 = 5.0
-            elif ifunum == 3:
+            elif ifunum == 3:  # Small slicer
                 off1 = 0.05
                 off2 = 5.6
             else:
                 msgs.warn("Unknown IFU number: {0:d}".format(ifunum))
                 off1 = 0.
                 off2 = 0.
-            off1 = off1 / xbin
-            off2 = off2 / ybin
+            off1 /= binspec
+            off2 /= binspat
             crpix1 += off1
             crpix2 += off2
 
@@ -824,7 +827,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Get the slit information
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
         for slit_idx, spatid in enumerate(slits.spat_id):
-            msgs.info("Generating RA/DEC image for slit {0:d}/{1:d}".format(slit_idx+1, slits.nslits))
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             evalpos = onslit_init[1]-aligns[onslit_init[0], 2, slit_idx]
