@@ -17,12 +17,15 @@ from astropy.io import fits
 from astropy.coordinates import AltAz, SkyCoord
 import scipy.optimize as opt
 from scipy.interpolate import interp1d
+import scipy.signal
 import numpy as np
+import copy
 
 from pypeit import msgs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.parse import get_dnum
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction
+from pypeit.core.procimg import grow_masked
 from pypeit import alignframe
 from pypeit import spec2dobj
 
@@ -53,7 +56,8 @@ def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pre
     return np.sum((np.array([coord_altaz.alt.value, coord_altaz.az.value])-datfit)**2)
 
 
-def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, rel_humidity):
+def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, rel_humidity,
+                   wave_ref=None, numgrid = 100):
     """Apply a differental atmospheric refraction correction to the input ra/dec.
     This implementation is based on ERFA, which is called through astropy
 
@@ -71,6 +75,10 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
         Outside ambient air temperature at `location`
     rel_humidity (float):
         Outside relative humidity at `location`. This should be between 0 to 1.
+    wave_ref (float):
+        Reference wavelength (The DAR correction will be performed relative to this wavelength)
+    numgrid (int):
+        Number of grid points to evaluate the DAR correction.
 
     Returns
     -------
@@ -83,7 +91,10 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     TODO :: Move this routine to the main PypeIt code
     """
     msgs.info("Performing differential atmospheric refraction correction")
-    numgrid = 100
+
+    if wave_ref is None:
+        wave_ref = 0.5*(wave_arr.min() + wave_arr.max())
+
     # First create the reference frame and wavelength grid
     coord_altaz = coord.transform_to(AltAz(obstime=obstime, location=location))
     wave_grid = np.linspace(wave_arr.min(), wave_arr.max(), numgrid) * units.AA
@@ -105,8 +116,8 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     spl_dec = interp1d(wave_grid, dec_grid, kind='cubic')
 
     # Evaluate the differentials at the input wave_arr
-    ra_diff = spl_ra(wave_arr)
-    dec_diff = spl_dec(wave_arr)
+    ra_diff = spl_ra(wave_arr) - spl_ra(wave_ref)
+    dec_diff = spl_dec(wave_arr) - spl_dec(wave_ref)
 
     return ra_diff, dec_diff
 
@@ -131,6 +142,41 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
     return w
 
 
+def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+    (x, y) = tup
+    xo = float(xo)
+    yo = float(yo)
+    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
+    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
+    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
+    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
+    return g.ravel()
+
+
+def calculate_offset(image, im_ref):
+    # Subtract median (should be close to zero, anyway)
+    image -= np.median(image)
+    im_ref -= np.median(im_ref)
+
+    # cross correlate (note, convolving seems faster)
+    ccorr = scipy.signal.fftconvolve(im_ref, image[::-1, ::-1], mode='same')
+
+    # Find the maximum
+    amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
+
+    # Perform a 2D Gaussian fit
+    x = np.arange(amax[0]-5, amax[0] + 6)
+    y = np.arange(amax[1]-5, amax[1] + 6)
+    initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
+    xx, yy = np.meshgrid(x, y)
+
+    # Fit the neighborhood of the maximum to calculate the offset
+    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy), ccorr[amax[0]-5:amax[0]+6, amax[1]-5:amax[1]+6].ravel(),
+                            p0=initial_guess)
+    # Return the shift, in pixels
+    return popt[1] + 0.5 - ccorr.shape[0]/2, popt[2] + 0.5 - ccorr.shape[1]/2
+
+
 def main(args):
 
     # List only?
@@ -141,12 +187,15 @@ def main(args):
 
     # Get a list of files for the combination
     files = open(args.file, 'r').readlines()
-    combine = True if len(files) > 1 else False
+    numfiles = len(files)
+    combine = True if numfiles > 1 else False
 
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
-    all_sci, all_ivar = np.array([]), np.array([])
+    all_sci, all_ivar, all_idx = np.array([]), np.array([]), np.array([])
+    all_wcs = []
     dspat = None  # binning size on the sky (in arcsec)
     ref_scale = None  # This will be used to correct relative scaling among the various input frames
+    wave_ref = None
     for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil.rstrip("\n"), args.det)
@@ -165,7 +214,7 @@ def main(args):
         if ref_scale is None:
             ref_scale = spec2DObj.scaleimg.copy()
         # EXtract the information
-        sciimg = (spec2DObj.sciimg-spec2DObj.skymodel) * (ref_scale/spec2DObj.scaleimg)
+        sciimg = (spec2DObj.sciimg-spec2DObj.skymodel) * (ref_scale/spec2DObj.scaleimg)  # Subtract sky and apply relative sky
         ivar = spec2DObj.ivarraw * (ref_scale/spec2DObj.scaleimg)**2
         waveimg = spec2DObj.waveimg
         bpmmask = spec2DObj.bpmmask
@@ -190,6 +239,7 @@ def main(args):
 
         # Grab the WCS of this frame
         wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
+        all_wcs.append(copy.deepcopy(wcs))
 
         # Find the largest spatial scale of all images being combined
         pxscl, slscl = spec.get_scales(spec2DObj.head0)
@@ -202,15 +252,13 @@ def main(args):
         msgs.info("Generating RA/DEC image")
         raimg, decimg, minmax = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
 
-        # Perform and apply the DAR correction
-        if False:
-            darpar = spec.get_dar_params(spec2DObj.head0)
-            ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], *darpar)
-            raimg[onslit_gpm] += ra_corr
-            decimg[onslit_gpm] += dec_corr
-        # TODO :: THE FOLLOWING IS WRONG!!!  It's a placeholder while I figure out how to put everything onto a masterWCS
-        # raimg[onslit_gpm] += (ra_corr-ra_corr[0])
-        # decimg[onslit_gpm] += (dec_corr-dec_corr[0])
+        # Perform the DAR correction
+        if wave_ref is None:
+            wave_ref = 0.5*(np.min(waveimg[onslit_gpm]) + np.max(waveimg[onslit_gpm]))
+        darpar = spec.get_dar_params(spec2DObj.head0)
+        ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], *darpar, wave_ref=wave_ref)
+        raimg[onslit_gpm] += ra_corr
+        decimg[onslit_gpm] += dec_corr
 
         # Extinction correction
         if False:
@@ -221,9 +269,8 @@ def main(args):
             flux_star = flux_star * ext_corr
             ivar_star = ivar_star / ext_corr ** 2
 
-        # TODO :: Need to apply relative spectral scaling so that all spectra are on the same spectral shape
-
-        numpix = raimg[onslit_gpm].size()
+        # Store the information
+        numpix = raimg[onslit_gpm].size
         all_ra = np.append(all_ra, raimg[onslit_gpm].copy())
         all_dec = np.append(all_dec, decimg[onslit_gpm].copy())
         all_wave = np.append(all_wave, waveimg[onslit_gpm].copy())
@@ -231,9 +278,67 @@ def main(args):
         all_ivar = np.append(all_ivar, ivar[onslit_gpm].copy())
         all_idx = np.append(all_idx, ff*np.ones(numpix))
 
-    # Register spatial offsets between all frames
-    for ff in range(len(files)):
+    # If several frames are being combined, generate white light images to register the offsets
+    if combine:
+        numra = int((np.max(all_ra)-np.min(all_ra)) * np.cos(np.mean(all_dec)*np.pi/180.0) / dspat)
+        numdec = int((np.max(all_dec)-np.min(all_dec))/dspat)
+        numwav = int((np.max(all_wave)-np.min(all_wave))/dwv)
+        xbins = np.arange(1+numra)-1
+        ybins = np.arange(1+numdec)-1
+        zbins = np.arange(2)-1
 
+        # Generate a master 2D WCS to register all frames
+        coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
+        coord_dlt = [dspat, dspat, np.max(all_wave)-np.min(all_wave)]
+        whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+
+        # Register spatial offsets between all frames
+        whitelight_Imgs = np.zeros((numra, numdec, numfiles))
+        whitelight_Errs = np.zeros((numra, numdec, numfiles))
+        bestmax, ref_idx, trim = 0.0, 0, 3  # ref_idx will be the index of the cube with the highest S/N
+        for ff in range(numfiles):
+            msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff+1, numfiles))
+            ww = (all_idx == ff)
+            # Make the cube
+            pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
+            wlcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci[ww] * all_ivar[ww])
+            norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_ivar[ww])
+            varCube = (norm > 0) / (norm + (norm == 0))
+            whtlght = (wlcube * varCube)[:, :, 0]
+            # Create a mask of good pixels (trim the edges)
+            msk = grow_masked(whtlght == 0, trim, 1) == 0
+            whtlght *= msk
+            # Set the masked regions to the median value
+            minval = np.min(whtlght[msk == 1])
+            whtlght[msk == 0] = minval
+            whitelight_Imgs[:, :, ff] = whtlght.copy()
+            whitelight_Errs[:, :, ff] = np.sqrt(varCube)[:, :, 0]
+            # Obtain a rough guess of the highest S/N cube
+            sn_img = whitelight_Imgs[:, :, ff]*msk / (whitelight_Errs[:, :, ff] + (whitelight_Errs[:, :, ff] == 0))
+            maxval = np.max(sn_img)
+            if maxval > bestmax:
+                bestmax = maxval
+                ref_idx = ff
+
+        msgs.info("Calculating the relative spatial translation of each cube (reference cube = {0:d})".format(ref_idx+1))
+        # Calculate the image offsets - check the reference is a zero shift
+        ra_shift_ref, dec_shift_ref = calculate_offset(whitelight_Imgs[:, :, ref_idx], whitelight_Imgs[:, :, ref_idx])
+        for ff in range(numfiles):
+            # Don't correlate the reference image with itself
+            if ff == ref_idx:
+                continue
+            # Calculate the shift
+            ra_shift, dec_shift = calculate_offset(whitelight_Imgs[:, :, ff], whitelight_Imgs[:, :, ref_idx])
+            # Convert to reference
+            ra_shift -= ra_shift_ref
+            dec_shift -= dec_shift_ref
+            # Convert pixel shift to degress shift
+            ra_shift *= dspat
+            dec_shift *= dspat
+            msgs.info("Image shift of cube {0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
+            # Apply the shift
+            all_ra[all_idx == ff] += ra_shift
+            all_dec[all_idx == ff] += dec_shift
 
     # Generate a master WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
