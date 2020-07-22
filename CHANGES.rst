@@ -1,12 +1,8 @@
 
-Hotfixes after 1.0.5
---------------------
+1.0.6 (22 Jul 2020)
+-------------------
 
- - Deal with wavecalib crash
-
-1.0.6dev
---------
-
+ - (Hotfix) Deal with wavecalib crash
  - Fix class and version check for DataContainer objects.
  - Script to check for calibration files
  - No longer require bias frames as default for DEIMOS
