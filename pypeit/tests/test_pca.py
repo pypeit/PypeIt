@@ -93,6 +93,8 @@ def test_read(vec_coo, bogus_vectors):
     assert np.array_equal(pca.pca_coeffs, readpca.pca_coeffs), 'Bad read'
     assert np.array_equal(pca.pca_components, readpca.pca_components), 'Bad read'
     assert np.array_equal(pca.pca_bpm, readpca.pca_bpm), 'Bad read'
+    assert np.array_equal(pca.fit_coeff[0], readpca.fit_coeff[0]), 'Bad read'
+    assert np.array_equal(pca.fit_coeff[1], readpca.fit_coeff[1]), 'Bad read'
     assert pca.npca == readpca.npca, 'Bad read'
     assert pca.nspec == readpca.nspec, 'Bad read'
     for i in range(pca.npca):
