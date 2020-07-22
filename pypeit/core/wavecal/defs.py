@@ -35,7 +35,6 @@ class LinesBitMask(BitMask):
     """
     version = '1.0.0'
 
-    # TODO Full of bugs
     def __init__(self):
         mask = dict([
             ('ArI', 'Argon I'),
@@ -46,13 +45,13 @@ class LinesBitMask(BitMask):
             ('CdI', 'Comment'),
             ('ZnI', 'Comment'),
             ('HeI', 'Comment'),
+            ('FeI', 'Comment'),
             ('OH', 'Comment'),
             ('UNKNWN', 'Comment'),
             ('OH_R24000', 'Comment'),
             ('OH_triplespec', 'Comment'),
             ('CuI', 'Comment'),
             ('ArII', 'Comment'),
-            ('OH', 'Comment'),
             ('OH_XSHOOTER', 'Comment'),
             ('OH_GNIRS', 'Comment'),
             ('OH_NIRES', 'Comment'),
@@ -62,7 +61,6 @@ class LinesBitMask(BitMask):
             ('ThAr_MagE', 'Comment'),
             ('OH_FIRE_Echelle', 'Comment'),
             ('Ar_IR_GNIRS', 'Comment'),
-            ('UNKNWN', 'Comment'),
         ])
         super(LinesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
 
