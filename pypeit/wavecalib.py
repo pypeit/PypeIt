@@ -457,8 +457,8 @@ class BuildWaveCalib(object):
         using data unpacked from the ``wv_calib`` dictionary.
 
         Args:
-            wv_calib (:obj:`dict`):
-                Wavelength calibration dictionary.  See ??
+            wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
+                Wavelength calibration object
             debug (:obj:`bool`, optional):
                 Show debugging info
             skip_QA (:obj:`bool`, optional):
@@ -480,20 +480,21 @@ class BuildWaveCalib(object):
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
         ok_mask_order = self.slits.slitord_id[ok_mask_idx]
         nspec = self.msarc.image.shape[0]
-        for iorder in wv_calib.keys():  # Spatial based
-            if int(iorder) not in ok_mask_order:
+        # Loop
+        for ii in range(wv_calib.nslits):
+            iorder = self.slits.ech_order[ii]
+            if iorder not in ok_mask_order:
                 continue
-            #try:
-            #    iorder, iindx = self.spectrograph.slit2order(self.spat_coo[self.slits.spatid_to_zero(int(islit))])
-            #except:
-            #    embed()
-            mask_now = wv_calib[iorder]['mask']
-            all_wave = np.append(all_wave, wv_calib[iorder]['wave_fit'][mask_now])
-            all_pixel = np.append(all_pixel, wv_calib[iorder]['pixel_fit'][mask_now])
-            all_order = np.append(all_order, np.full_like(wv_calib[iorder]['pixel_fit'][mask_now],
+            # Slurp
+            mask_now = wv_calib.wv_fits[ii].pypeitfit.gpm
+            all_wave = np.append(all_wave, wv_calib.wv_fits[ii]['wave_fit'][mask_now])
+            all_pixel = np.append(all_pixel, wv_calib.wv_fits[ii]['pixel_fit'][mask_now])
+            all_order = np.append(all_order, np.full_like(wv_calib.wv_fits[ii]['pixel_fit'][mask_now],
                                                           float(iorder)))
 
         # Fit
+        from importlib import reload
+        embed(header='496 of wavecalib')
         fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
                                   nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],
