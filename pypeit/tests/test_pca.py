@@ -93,4 +93,4 @@ def test_read(vec_coo, bogus_vectors):
     os.remove(ofile)
 
 if __name__ == '__main__':
-    test_write(vec_coo(), bogus_vectors(vec_coo()))
+    test_build(vec_coo(), bogus_vectors(vec_coo()))

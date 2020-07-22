@@ -35,7 +35,8 @@ class TracePCA(DataContainer):
         trace_cen (`numpy.ndarray`_, optional):
             A floating-point array with the spatial location of each
             each trace. Shape is :math:`(N_{\rm spec}, N_{\rm
-            trace})`.  If None, the object is "empty."
+            trace})`. If None, the object is "empty" and all of the
+            other keyword arguments are ignored.
         npca (:obj:`bool`, optional):
             The number of PCA components to keep. See
             :func:`pypeit.core.pca.pca_decomposition`.
@@ -129,14 +130,16 @@ class TracePCA(DataContainer):
     def __init__(self, trace_cen=None, npca=None, pca_explained_var=99.0, reference_row=None,
                  coo=None):
 
-        # TODO: This is only here to allow for a class method that
-        # instantiates the object from a file. Is there a better way to
-        # do this?
-        if trace_cen is None:
-            self._reinit()
-        else:
+        # Instantiate as an empty DataContainer
+        DataContainer.__init__(self)
+
+        if trace_cen is not None:
             self.decompose(trace_cen, npca=npca, pca_explained_var=pca_explained_var,
                            reference_row=reference_row, coo=coo)
+
+    def _init_internals(self):
+        """Add any attributes that are *not* part of the datamodel."""
+        self.is_empty = True
 
     def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
                   coo=None):
