@@ -294,8 +294,8 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         inmask=coeff_used[:,i]
     # Return arrays that match the shape of the input data
     if coeff.ndim == 1:
-        return np.invert(coeff_used)[0], fit_coeff[0], minx, maxx
-    return np.invert(coeff_used), fit_coeff, minx, maxx
+        return np.logical_not(coeff_used)[0], fit_coeff[0], minx, maxx
+    return np.logical_not(coeff_used), fit_coeff, minx, maxx
 
 
 def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, maxx=None,

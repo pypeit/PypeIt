@@ -738,7 +738,8 @@ class DataContainer:
         The default behavior implemented by this base class just
         parses the attributes into a single dictionary based on the
         datamodel and is returned such that it all is written to a
-        single fits extension.  Note that this will fault if the datamodel contains:
+        single fits extension. Note that this will fault if the
+        datamodel contains:
 
             - a dictionary object
             - more than one `astropy.table.Table`_,
@@ -802,8 +803,7 @@ class DataContainer:
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
         """
         Parse data read from a set of HDUs.
 
@@ -847,8 +847,7 @@ class DataContainer:
             the HDU type.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_,
-                 `astropy.io.fits.BinTableHDU`_):
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) to parse into the instantiation dictionary.
             ext (:obj:`int`, :obj:`str`, :obj:`list`, optional):
                 One or more extensions with the data. If None, the
@@ -861,8 +860,6 @@ class DataContainer:
             hdu_prefix (:obj:`str`, optional):
                 Decorate the HDUs with this prefix
                 Note, this over-rides any internally set hdu_prefix value
-            debug (:obj:`bool`, optional):
-                Perform debuggin
 
         Returns:
             :obj:`tuple`: Return three objects
@@ -879,27 +876,9 @@ class DataContainer:
         dm_version_passed = True
         dm_type_passed = True
 
-        # Get the (list of) extension(s) to parse
-        if ext is not None:
-            if not isinstance(ext, (str, int, list)):
-                raise TypeError('Provided ext object must be a str, int, or list.')
-            if isinstance(ext, list):
-                for e in ext:
-                    if not isinstance(ext, (str, int)):
-                        raise TypeError('Provided ext elements  must be a str or int.')
-        if ext is None and isinstance(hdu, fits.HDUList):
-            ext = [h.name for h in hdu]
-
-        # Allow user to provide single HDU
-        if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
-            if ext is not None:
-                warnings.warn('Only one HDU provided; extension number/name is irrelevant.')
-            ext = [0]
-            _hdu = [hdu]
-        else:
-            _hdu = hdu
-
-        _ext = np.atleast_1d(np.array(ext, dtype=object))
+        # Setup to iterate through the provided HDUs
+        _ext, _hdu = io.hdu_iter_by_ext(hdu, ext=ext)
+        _ext = np.atleast_1d(np.array(_ext, dtype=object))
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext])
 
         # Construct instantiation dictionary
