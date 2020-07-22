@@ -308,6 +308,7 @@ class TracePCA(DataContainer):
                 d['fit_coeff'] = [None]*d['npca']
                 for i in range(d['npca']):
                     d['fit_coeff'][i] = _hdu[e].data['fit_coeff_{0}'.format(i+1)][0]
+                break
         return d, version_passed, type_passed
 
 
