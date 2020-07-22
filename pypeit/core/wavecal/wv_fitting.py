@@ -282,8 +282,8 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             msgs.warn("All points rejected !!")
             return None
         # Fit
-        pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func, maxone=True, maxiter=maxiter,
-                                       lower=sigrej_first, upper=sigrej_first, maxrej=1, sticky=False,
+        pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func, maxiter=maxiter,
+                                       lower=sigrej_first, upper=sigrej_first, maxrej=1, sticky=True,
                                        minx=fmin, maxx=fmax, weights=wfit)
         # Junk fit?
         if pypeitFit is None:
