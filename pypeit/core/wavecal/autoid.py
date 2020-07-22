@@ -1692,10 +1692,7 @@ class HolyGrail:
                 wvc_gd[cntr] = self._all_patt_dict[str(slit)]["bwv"]
                 dsp_gd[cntr] = self._all_patt_dict[str(slit)]["bdisp"]
                 # JFH stuff
-                fitc = self._all_final_fit[str(slit)]['fitc']
-                fitfunc = self._all_final_fit[str(slit)]['function']
-                fmin, fmax = self._all_final_fit[str(slit)]['fmin'], self._all_final_fit[str(slit)]['fmax']
-                wave_soln = utils.func_val(fitc, xrng/xnpixmin1, fitfunc, minx=fmin, maxx=fmax)
+                wave_soln = self._all_final_fit[str(slit)].pypeitfit.val(xrng/xnpixmin1)
                 wvc_gd_jfh[cntr] = wave_soln[self._npix//2]
                 dsp_gd_jfh[cntr]= np.median(wave_soln - np.roll(wave_soln,1))
                 cntr += 1
@@ -1775,10 +1772,11 @@ class HolyGrail:
             # JFH ToDO Could just use the good wavelength solutions and then we would not need this sign and hence all_patt_ict
             sign_good[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
             # JFH stuff
-            fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
-            fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
-            fmin, fmax = self._all_final_fit[str(good_slits[islit])]['fmin'], self._all_final_fit[str(good_slits[islit])]['fmax']
-            wave_soln = utils.func_val(fitc, xrng/xnpixmin1, fitfunc, minx=fmin, maxx=fmax)
+            wave_soln = self._all_final_fit[str(good_slits[islit])].pypeitfit.val(xrng / xnpixmin1)
+            #fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
+            #fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
+            #fmin, fmax = self._all_final_fit[str(good_slits[islit])]['fmin'], self._all_final_fit[str(good_slits[islit])]['fmax']
+            #wave_soln = utils.func_val(fitc, xrng/xnpixmin1, fitfunc, minx=fmin, maxx=fmax)
             wvc_good[islit] = wave_soln[self._npix // 2]
             disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
 
@@ -1850,10 +1848,11 @@ class HolyGrail:
                     plt.show()
 
                 # Calculate wavelengths for all of the gsdet detections
-                fitc = self._all_final_fit[str(gs)]['fitc']
-                fitfunc = self._all_final_fit[str(gs)]['function']
-                fmin, fmax = self._all_final_fit[str(gs)]['fmin'], self._all_final_fit[str(gs)]['fmax']
-                wvval = utils.func_val(fitc, gsdet/xnpixmin1, fitfunc, minx=fmin, maxx=fmax)
+                #fitc = self._all_final_fit[str(gs)]['fitc']
+                #fitfunc = self._all_final_fit[str(gs)]['function']
+                #fmin, fmax = self._all_final_fit[str(gs)]['fmin'], self._all_final_fit[str(gs)]['fmax']
+                #wvval = utils.func_val(fitc, gsdet/xnpixmin1, fitfunc, minx=fmin, maxx=fmax)
+                wvval = self._all_final_fit[str(gs)].pypeitfit.val(xrng / xnpixmin1)
                 # Loop over the bad slit line pixel detections and find the nearest good slit line
                 for dd in range(bsdet.size):
                     pdiff = np.abs(bsdet[dd]-gsdet_ss)

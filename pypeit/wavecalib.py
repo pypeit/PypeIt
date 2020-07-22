@@ -77,7 +77,6 @@ class WaveCalib(datamodel.DataContainer):
             above.
         """
         _d = []
-        for_header = {}
 
         # Spat_ID first
         if self.spat_id is None:
@@ -97,13 +96,17 @@ class WaveCalib(datamodel.DataContainer):
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
                     # Naming
-                    wv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
                     dkey = 'WAVEFIT-{}'.format(self.spat_id[ss])
+                    # Generate a dummy?
+                    if wv_fit is None:
+                        kwv_fit = wv_fitting.WaveFit()
+                    else:
+                        kwv_fit = wv_fit
+                    kwv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
                     # Save
-                    _d.append({dkey: wv_fit})
+                    _d.append({dkey: kwv_fit})
             else: # Add to header of the spat_id image
                 _d[0][key] = self[key]
-        #import pdb; pdb.set_trace()
         # Return
         return _d
 
@@ -117,14 +120,18 @@ class WaveCalib(datamodel.DataContainer):
         spat_ids = []
         for ihdu in hdu:
             if 'WAVEFIT' in ihdu.name:
-                iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
-                if iwavefit.version != wv_fitting.WaveFit.version:
-                    msgs.warn("Your WaveFit is out of date!!")
+                # Allow for empty
+                if len(ihdu.data) == 0:
+                    iwavefit = wv_fitting.WaveFit()
+                else:
+                    iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
+                    if iwavefit.version != wv_fitting.WaveFit.version:
+                        msgs.warn("Your WaveFit is out of date!!")
+                    # Grab PypeItFit (if it exists)
+                    hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
+                    if hdname in [khdu.name for khdu in hdu]:
+                        iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
                 list_of_wave_fits.append(iwavefit)
-                # Grab PypeItFit
-                hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
-                if hdname in [khdu.name for khdu in hdu]:
-                    iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
                 # Grab SPAT_ID for checking
                 i0 = ihdu.name.find('ID-')
                 i1 = ihdu.name.find('_WAV')
@@ -493,8 +500,7 @@ class BuildWaveCalib(object):
                                                           float(iorder)))
 
         # Fit
-        from importlib import reload
-        embed(header='496 of wavecalib')
+        # THIS NEEDS TO BE DEVELOPED
         fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
                                   nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],
