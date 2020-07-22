@@ -19,6 +19,7 @@ gemini_gnirs            Gemini      GNIRS spectrometer
 keck_kcwi               Keck        KCWI slit-based IFU (BM, BH2)
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
+keck_lris_red_orig      Keck        :doc:`lris` spectrometer; red camera + original detector
 keck_mosfire            Keck        MOSFIRE spectrometer; J and Y gratings tested
 keck_nires              Keck        NIRES spectrometer
 keck_nirspec_low        Keck        NIRSPEC spectrometer; low-dispersion
@@ -29,7 +30,7 @@ magellan_fire           Magellan    FIRE spectrometer; Echelle mode
 magellan_fire_long      Magellan    FIRE spectrometer; Longslit high throughput mode
 magellan_mage           Magellan    MagE spectrometer
 mdm_osmos               MDM         OSMOS spectrometer
-not_alfosc              NOT         ALFOSC spectrometer (grism 4)
+not_alfosc              NOT         ALFOSC spectrometer (grisms 4, 19)
 shane_kast_blue         Lick 3m     Kast dual spectrometer; blue camera
 shane_kast_red          Lick 3m     Kast dual spectrometer; red camera
 shane_kast_red_ret      Lick 3m     Kast dual spectrometer; red reticon

@@ -152,13 +152,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
+
+        # Spectral flexure correction
         par['flexure']['spec_method'] = 'boxcar'
         # Set wave tilts order
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3
         par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
-        par['calibrations']['slitedges']['minimum_slit_length'] = 4.
-        par['calibrations']['slitedges']['sync_clip'] = False
+        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 4.
+#        par['calibrations']['slitedges']['sync_clip'] = False
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
@@ -166,6 +168,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
+
+        # Do not require bias frames
+        turn_off = dict(use_biasimage=False)
+        par.reset_all_processimages_par(**turn_off)
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'

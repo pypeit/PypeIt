@@ -51,18 +51,16 @@ class CoAdd2D(object):
                      sn_smooth_npix=None, ir_redux=False, master_dir=None, show=False,
                      show_peaks=False, debug_offsets=False, debug=False, **kwargs_wave):
         """
-        Instantiate the CoAdd2d subclass appropriate for the provided spectrograph.
+        Instantiate the subclass appropriate for the provided spectrograph.
 
-        The class must be subclassed this class CoAdd2d.
+        The class to instantiate must match the ``pypeline``
+        attribute of the provided ``spectrograph``, and must be a
+        subclass of :class:`CoAdd2D`; see the parent class
+        instantiation for parameter descriptions.
 
-        Parameters
-        ----------
-            See the documenation for the __init__ function below
-
-        Returns
-        -------
-            :class:`CoAdd2d`: One of the subclasses with :class:`CoAdd2d` as its
-            base.
+        Returns:
+            :class:`CoAdd2D`: One of the subclasses with
+            :class:`CoAdd2D` as its base.
         """
 
         return next(c for c in cls.__subclasses__() 
@@ -170,19 +168,26 @@ class CoAdd2D(object):
         object with specified slitid and objid and passes to coadd.sn_weights to determine the optimal weights for
         each exposure.
 
-        Args:
-            slitorderid (int):
-               The slit or order id that has the brightest object whose S/N will be used to determine the weight for each frame.
-            objid (np.ndarray):
-               Array of object indices with  shape = (nexp,) of the brightest object whose S/N will be used to determine the weight for each frame.
-            const_weights (bool):
-               Use constant weights for coadding the exposures. Default=False
+        Parameters
+        ----------
+        slitorderid : :obj:`int`
+           The slit or order id that has the brightest object whose
+           S/N will be used to determine the weight for each frame.
+        objid : `numpy.ndarray`_
+           Array of object indices with shape = (nexp,) of the
+           brightest object whose S/N will be used to determine the
+           weight for each frame.
+        const_weights : :obj:`bool`
+           Use constant weights for coadding the exposures.
+           Default=False
 
-        Returns:
-            rms_sn : ndarray, shape = (len(specobjs_list),)
-                Root mean square S/N value for each input spectra
-            weights : ndarray, shape (len(specobjs_list),)
-                Weights to be applied to the spectra. These are signal-to-noise squared weights.
+        Returns
+        -------
+        rms_sn : ndarray, shape = (len(specobjs_list),)
+            Root mean square S/N value for each input spectra
+        weights : ndarray, shape (len(specobjs_list),)
+            Weights to be applied to the spectra. These are
+            signal-to-noise squared weights.
         """
 
         nexp = len(self.stack_dict['specobjs_list'])
@@ -883,29 +888,39 @@ class EchelleCoAdd2D(CoAdd2D):
 
     def reference_trace_stack(self, slitid, offsets=None, objid=None):
         """
-        Utility function for determining the reference trace about which 2d coadds are performed.
-        There are two modes of operation to determine the reference trace for the 2d coadd of a given slit/order:
+        Utility function for determining the reference trace about
+        which 2d coadds are performed.
 
-         1) offsets: we stack about the center of the slit for the slit in question with the input offsets added
-         2) ojbid: we stack about the trace ofa reference object for this slit given for each exposure by the input objid
+        There are two modes of operation to determine the reference
+        trace for the 2d coadd of a given slit/order:
 
-        Either offsets or objid must be provided, but the code will raise an exception if both are provided.
+            #. ``offsets``: We stack about the center of the slit for
+               the slit in question with the input offsets added
+
+            #. ``ojbid``: We stack about the trace ofa reference
+               object for this slit given for each exposure by the
+               input objid
+
+        Either offsets or objid must be provided, but the code will
+        raise an exception if both are provided.
 
         Args:
             slitid (int):
-               The slit or order that we are currently considering
+                The slit or order that we are currently considering
             stack_dict (dict):
-               Dictionary containing all the images and keys required for perfomring 2d coadds.
-            offsets (list or np.ndarray):
-               An array of offsets with the same dimensionality as the nexp, the numer of images being coadded.
-            objid: (list or np.ndarray):
-               An array of objids with the same dimensionality as the nexp, the number of images being coadded.
+                Dictionary containing all the images and keys
+                required for performing 2d coadds.
+            offsets (list, `numpy.ndarray`_):
+                An array of offsets with the same dimensionality as
+                the nexp, the numer of images being coadded.
+            objid (list, `numpy.ndarray`_):
+                An array of objids with the same dimensionality as
+                the nexp, the number of images being coadded.
 
         Returns:
-            ref_trace_stack
-
-            ref_trace_stack (np.ndarray):
-                An array with shape (nspec, nexp) containing the reference trace for each of the nexp exposures.
+            `numpy.ndarray`: An array with shape (nspec, nexp)
+            containing the reference trace for each of the nexp
+            exposures.
 
         """
 
