@@ -1056,8 +1056,9 @@ class DataContainer:
         # Array?
         if 'atype' in self.datamodel[item].keys():
             if not isinstance(value.flat[0], self.datamodel[item]['atype']):
-                raise IOError('Wrong data type for array: {}\n'.format(item)
-                              + 'Allowed type(s) for the array are: {}'.format(self.datamodel[item]['atype']))
+                raise TypeError('Wrong data type for array: {}\n'.format(item)
+                                + 'Allowed type(s) for the array are: {}'.format(
+                                    self.datamodel[item]['atype']))
         # Set
         self.__dict__[item] = value
 

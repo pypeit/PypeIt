@@ -315,6 +315,9 @@ def pca_predict(x, pca_coeff_fits, pca_components, pca_mean, mean, minx=None, ma
             `numpy.ndarray`_), one per PCA component where the length
             of the 1D array is the number of coefficients fit to the
             PCA-component coefficients.
+        pca_components (`numpy.ndarray`_):
+            Vectors with the PCA components.  Shape must be
+            :math:`(N_{\rm comp}, N_{\rm pix})`.
         pca_mean (`numpy.ndarray`_):
             The mean offset of the PCA decomposotion for each pixel.
             Shape is :math:`(N_{\rm pix},)`.

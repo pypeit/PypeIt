@@ -17,11 +17,12 @@ from pypeit import utils
 from pypeit.io import init_record_array, rec_to_bintable
 from pypeit.core import trace
 from pypeit.core import pca
+from pypeit.datamodel import DataContainer
 
-# TODO: This is even more general than a "trace" PCA. Could think of a
-# more general name.
+# TODO: This is even more general than a "trace" PCA. Rename to
+# "VectorPCA"?
 
-class TracePCA:
+class TracePCA(DataContainer):
     r"""
     Class to build and interact with PCA model of traces.
 
@@ -56,6 +57,73 @@ class TracePCA:
             position defined by `reference_row`. See the `mean`
             argument of :func:`pypeit.core.pca.pca_decomposition`.
     """
+
+    version = '1.0.0'
+    """Datamodel version."""
+
+    datamodel = {'reference_row': dict(otype=int, 
+                                       descr='The row (spectral position) used as the reference ' \
+                                             'coordinate system for the PCA.'),
+                 'trace_coo': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Trace coordinates.  Shape must be '
+                                         r':math:`(N_{\rm spec},N_{\rm trace}).'),
+                 'nspec': dict(otype=int,
+                               descr='Number of pixels in the image spectral direction.'),
+                 'ntrace': dict(otype=int, descr='Number of traces used to construct the PCA.'),
+                 'input_npca': dict(otype=int,
+                                    descr='Requested number of PCA components if provided.'),
+                 'npca': dict(otype=int, descr='Number of PCA components used.'),
+                 'input_pcav': dict(otype=float,
+                                    descr='Requested variance accounted for by PCA decomposition.'),
+                 'pca_coeffs': dict(otype=np.ndarray, atype=np.floating,
+                                    descr=r'PCA component coefficients. If the PCA decomposition '
+                                          r'used :math:`N_{\rm comp}` components for '
+                                          r':math:`N_{\rm vec}` vectors, the shape of this array '
+                                          r'must be :math:`(N_{\rm vec}, N_{\rm comp})`. The '
+                                          r'array can be 1D with shape :math:`(N_{\rm vec},)` if '
+                                          r'there was only one PCA component.'),
+                 'pca_components': dict(otype=np.ndarray, atype=np.floating,
+                                        descr=r'Vectors with the PCA components.  Shape must be '
+                                              r':math:`(N_{\rm comp}, N_{\rm spec})`.'),
+                 'pca_mean': dict(otype=np.ndarray, atype=np.floating,
+                                  descr=r'The mean offset of the PCA decomposotion for each '
+                                        r' spectral pixel. Shape is :math:`(N_{\rm spec},)`.'),
+                 'pca_bpm': dict(otype=np.ndarray, atype=np.bool,
+                                 descr='A boolean numpy.ndarray masking data PCA component '
+                                       'coefficients that were rejected during the polynomial '
+                                       'fitting. Shape is the same as ``pca_coeff``.'),
+                 'function': dict(otype=str,
+                                  descr='Function type used to model the PCA coefficients as a '
+                                        'function of spatial position.'),
+                 'fit_coeff': dict(otype=list,
+                                   descr=r'A list of numpy.ndarray objects (or a single '
+                                         r'numpy.ndarray), one per PCA component where the length'
+                                         r'of the 1D array is the number of coefficients fit to '
+                                         r'the PCA-component coefficients. The number of function '
+                                         r'coefficients is typically :math:`N_{\rm coeff} = o+1`, '
+                                         r'where :math:`o` is the order of the fit.'),
+                 'minx': dict(otype=float,
+                              descr='The minimum spatial coordiante used to rescale the trace '
+                                    'coordinates.'),
+                 'maxx': dict(otype=float,
+                              descr='The maximum spatial coordiante used to rescale the trace '
+                                    'coordinates.'),
+                 'lower': dict(otype=float,
+                               descr='Number of standard deviations used for rejecting data '
+                                     '**below** the mean residual. If None, no rejection was '
+                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
+                 'upper': dict(otype=float,
+                               descr='Number of standard deviations used for rejecting data '
+                                     '**above** the mean residual. If None, no rejection was '
+                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
+                 'maxrej': dict(otype=int,
+                                descr='Maximum number of points to reject during fit iterations. '
+                                      'See :func:`utils.robust_polyfit_djs`.'),
+                 'maxiter': dict(otype=int,
+                                 descr='Maximum number of rejection iterations allows; will be 0 '
+                                       ' if no rejectsion were performed.')}
+    """Object datamodel."""
+
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
     def __init__(self, trace_cen=None, npca=None, pca_explained_var=99.0, reference_row=None,
@@ -130,7 +198,7 @@ class TracePCA:
         """
         Erase and/or define all the attributes of the class.
         """
-        self._is_empty = True
+        self.is_empty = True
         self.reference_row = None
         self.ntrace = None
         self.trace_coo = None

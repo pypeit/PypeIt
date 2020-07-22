@@ -209,7 +209,7 @@ class EdgeTraceBitMask(BitMask):
         return self.insert_flags + self.order_flags + ['BOXSLIT']
 
 
-class EdgeTraceSet(DataContainer):
+class EdgeTraceSet:
     r"""
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
@@ -386,27 +386,27 @@ class EdgeTraceSet(DataContainer):
     version = '1.0.0'
     """DataContainer datamodel version."""
 
-    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-                 'trace_img': dict(otype=TraceImage,
-                                   desc='Image used to construct the edge traces.'),
-
-
-                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Maximum spectral position allowed for each slit/order.  '
-                                      'Shape is Nslits.')}
-    """DataContainer datamodel."""
+#    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
+#                 'trace_img': dict(otype=TraceImage,
+#                                   desc='Image used to construct the edge traces.'),
+#
+#
+#                 'specmax': dict(otype=np.ndarray, atype=np.floating,
+#                                descr='Maximum spectral position allowed for each slit/order.  '
+#                                      'Shape is Nslits.')}
+#    """DataContainer datamodel."""
 
     def __init__(self, trace_img, spectrograph, par, bpm=None, qa_path=None, auto=False,
                  debug=False, show_stages=False, save=False):
 
-        # Instantiate the DataContainer
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # The dictionary passed to DataContainer.__init__ does not
-        # contain self or the MasterFrame arguments.
-        # TODO: Does it matter if the calling function passes the
-        # keyword arguments in a different order?
-        datamodel.DataContainer.__init__(self, d=_d)
+#        # Instantiate the DataContainer
+#        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+#        _d = dict([(k,values[k]) for k in args[1:]])
+#        # The dictionary passed to DataContainer.__init__ does not
+#        # contain self or the MasterFrame arguments.
+#        # TODO: Does it matter if the calling function passes the
+#        # keyword arguments in a different order?
+#        datamodel.DataContainer.__init__(self, d=_d)
 
         # Check input types
         if not isinstance(trace_img, TraceImage):
@@ -418,13 +418,6 @@ class EdgeTraceSet(DataContainer):
 
         self.trace_img = trace_img                      # Input TraceImage
         self.nspec, self.nspat = self.trace_img.shape   # The shape of the trace image
-
-        # TODO: just use trace_img for many of these attributes
-#        self.img = trace_img.image      # The image used to find the slit edges
-#        self.binning = self.trace_img.detector.binning  # Detector ordered:  spec, spat
-#        self.det = self.trace_img.detector.det          # Detector used for the trace image
-#        self.files = self.trace_img.files               # Files used to construct the trace image
-
         self.spectrograph = spectrograph    # Spectrograph used to take the data
         self.PYP_SPEC = spectrograph.spectrograph  # For the Header.  Will be in datamodel
         self.par = par                      # Parameters used for slit edge tracing

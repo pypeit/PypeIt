@@ -8,13 +8,14 @@ import pytest
 from astropy.io import fits
 
 from pypeit.tracepca import TracePCA
+from pypeit.tests.tstutils import data_path
 
-@pytest.fixture
+#@pytest.fixture
 def vec_coo():
     nvec = 50
     return np.linspace(0,1,nvec)
 
-@pytest.fixture
+#@pytest.fixture
 def bogus_vectors(vec_coo):
     # Generate some bogus vectors
     nspec = 1000
@@ -42,6 +43,18 @@ def test_prediction(vec_coo, bogus_vectors):
     pred = pca.predict(0.5)
     assert pred.size == bogus_vectors.shape[0], 'Bad prediction'
     # TODO: More checks?
+
+
+def test_rms():
+    """Test on some real data."""
+    center = np.load(data_path('example_trace_deimos_1200G_M_7750.npz'))['center']
+
+    pca = TracePCA(trace_cen=center)
+    pca.build_interpolator(3, function='legendre', debug=True)
+    pca_center = pca.predict(center[pca.reference_row,:])
+
+    rms = np.std(center-pca_center, axis=0)
+    assert np.sum(rms > 0.2) == 1, 'Change in the accuracy of the PCA.'
 
 
 def test_write(vec_coo, bogus_vectors):
@@ -79,3 +92,5 @@ def test_read(vec_coo, bogus_vectors):
 
     os.remove(ofile)
 
+if __name__ == '__main__':
+    test_write(vec_coo(), bogus_vectors(vec_coo()))
