@@ -57,7 +57,7 @@ def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pre
 
 
 def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, rel_humidity,
-                   wave_ref=None, numgrid = 100):
+                   wave_ref=None, numgrid = 10):
     """Apply a differental atmospheric refraction correction to the input ra/dec.
     This implementation is based on ERFA, which is called through astropy
 
@@ -108,7 +108,7 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
         # Fit the differential
         args = (coord.ra.value, coord.dec.value, datfit, wave_grid[ww], obstime, location, pressure, temperature, rel_humidity)
         #b_popt, b_pcov = opt.curve_fit(dar_fitfunc, tmp, datfit, p0=(0.0, 0.0))
-        res_lsq = opt.least_squares(dar_fitfunc, [0.0, 0.0], args=args)
+        res_lsq = opt.least_squares(dar_fitfunc, [0.0, 0.0], args=args, xtol=1.0e-6, ftol=None, gtol=None)
         # Store the result
         ra_grid[ww] = res_lsq.x[0]
         dec_grid[ww] = res_lsq.x[1]
