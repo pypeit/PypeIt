@@ -296,7 +296,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             msgs.info('n_order = {:d}'.format(n_order) + ': RMS = {:g}'.format(rms_pix))
 
         # Reject but keep originals (until final fit)
-        ifit = list(ifit[pypeitFit.gpm]) + sv_ifit
+        ifit = list(ifit[pypeitFit.gpm == 1]) + sv_ifit
         if not input_only:
             # Find new points from the linelist (should we allow removal of the originals?)
             twave = pypeitFit.val(tcent/xnspecmin1)#, func, minx=fmin, maxx=fmax)

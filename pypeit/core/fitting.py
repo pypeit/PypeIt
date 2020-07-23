@@ -30,7 +30,7 @@ class PypeItFit(DataContainer):
         'weights': dict(otype=np.ndarray, atype=np.floating, desc='Weights'),
         'fitc': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
         'fitcov': dict(otype=np.ndarray, atype=np.floating, desc='Covariance of the coefficients'),
-        'gpm': dict(otype=np.ndarray, atype=np.integer, desc='Mask (True=good)'),
+        'gpm': dict(otype=np.ndarray, atype=np.integer, desc='Mask (1=good)'),
         'func': dict(otype=str, desc='Fit function (polynomial, legendre, chebyshev, bspline, gauss)'),
         'minx': dict(otype=float,
                      desc='minimum value in the array (or the left limit for a legendre / chebyshev polynomial)'),

@@ -425,12 +425,19 @@ class BuildWaveCalib(object):
         # Build the DataContainer
         tmp = []
         for idx in range(self.slits.nslits):
-            tmp.append(final_fit.pop(str(idx)))
-        self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
+            item = final_fit.pop(str(idx))
+            if item is None:  # Add an empty WaveFit
+                tmp.append(wv_fitting.WaveFit())
+            else:
+                tmp.append(item)
+        try:
+            self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   nslits=self.slits.nslits,
                                   spat_id=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.spectrograph,
                                   )
+        except:
+            embed(header='436 of wavecalib')
 
         # Update mask
         self.update_wvmask()
@@ -566,7 +573,7 @@ class BuildWaveCalib(object):
         """
         # Update mask based on wv_calib
         for kk, fit in enumerate(self.wv_calib.wv_fits):
-            if fit is None:
+            if fit is None or fit.pypeitfit is None:
                 self.wvc_bpm[kk] = True
 
 
