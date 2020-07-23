@@ -61,6 +61,8 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     """Apply a differental atmospheric refraction correction to the input ra/dec.
     This implementation is based on ERFA, which is called through astropy
 
+    Parameters
+    ----------
     wave_arr (ndarray):
         wavelengths to obtain ra and dec offsets
     coord (astropy SkyCoord):
@@ -153,28 +155,53 @@ def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
     return g.ravel()
 
 
-def calculate_offset(image, im_ref):
+def calculate_offset(image, im_ref, nfit=3):
+    """Calculate the x,y offset between two images
+
+    Parameters
+    ----------
+    image (ndarray):
+        image that we want to measure the shift of (relative to im_ref)
+    im_ref (ndarray):
+        Reference image
+    nfit (int, optional):
+        Number of pixels (left and right of the maximum) to include in
+        fitting the peak of the cross correlation.
+
+    Returns
+    -------
+    ra_diff (float):
+        Relative shift (in pixels) of image relative to im_ref (x direction).
+        In order to align image with im_ref, ra_diff should be added to the
+        x-coordinates of image
+    dec_diff (float):
+        Relative shift (in pixels) of image relative to im_ref (y direction).
+        In order to align image with im_ref, dec_diff should be added to the
+        y-coordinates of image
+    """
     # Subtract median (should be close to zero, anyway)
     image -= np.median(image)
     im_ref -= np.median(im_ref)
 
     # cross correlate (note, convolving seems faster)
-    ccorr = scipy.signal.fftconvolve(im_ref, image[::-1, ::-1], mode='same')
+    ccorr = scipy.signal.correlate2d(im_ref, image, boundary='fill', mode='same')
+    #ccorr = scipy.signal.fftconvolve(im_ref, image[::-1, ::-1], mode='same')
 
     # Find the maximum
     amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
 
     # Perform a 2D Gaussian fit
-    x = np.arange(amax[0]-5, amax[0] + 6)
-    y = np.arange(amax[1]-5, amax[1] + 6)
+    x = np.arange(amax[0]-nfit, amax[0] + nfit+1)
+    y = np.arange(amax[1]-nfit, amax[1] + nfit+1)
     initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
-    xx, yy = np.meshgrid(x, y)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
 
     # Fit the neighborhood of the maximum to calculate the offset
-    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy), ccorr[amax[0]-5:amax[0]+6, amax[1]-5:amax[1]+6].ravel(),
+    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy),
+                            ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
                             p0=initial_guess)
-    # Return the shift, in pixels
-    return popt[1] + 0.5 - ccorr.shape[0]/2, popt[2] + 0.5 - ccorr.shape[1]/2
+    # Return the RA and DEC shift, in pixels
+    return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
 
 
 def main(args):
@@ -278,6 +305,7 @@ def main(args):
         all_ivar = np.append(all_ivar, ivar[onslit_gpm].copy())
         all_idx = np.append(all_idx, ff*np.ones(numpix))
 
+    cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
     # If several frames are being combined, generate white light images to register the offsets
     if combine:
         numra = int((np.max(all_ra)-np.min(all_ra)) * np.cos(np.mean(all_dec)*np.pi/180.0) / dspat)
@@ -333,7 +361,7 @@ def main(args):
             ra_shift -= ra_shift_ref
             dec_shift -= dec_shift_ref
             # Convert pixel shift to degress shift
-            ra_shift *= dspat
+            ra_shift *= dspat/cosdec
             dec_shift *= dspat
             msgs.info("Image shift of cube {0:d}: RA, DEC (arcsec) = {1:+0.3f}, {2:+0.3f}".format(ff+1, ra_shift*3600.0, dec_shift*3600.0))
             # Apply the shift
@@ -347,7 +375,7 @@ def main(args):
 
     # Generate the output binning
     if combine:
-        numra = int((np.max(all_ra)-np.min(all_ra)) * np.cos(np.mean(all_dec)*np.pi/180.0) / dspat)
+        numra = int((np.max(all_ra)-np.min(all_ra)) * cosdec / dspat)
         numdec = int((np.max(all_dec)-np.min(all_dec))/dspat)
         numwav = int((np.max(all_wave)-np.min(all_wave))/dwv)
         xbins = np.arange(1+numra)-0.5
