@@ -230,6 +230,7 @@ def main(args):
         # Load the spectrograph
         specname = spec2DObj.head0['SPECTROG']
         spec = load_spectrograph(specname)
+        embed()
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -287,30 +288,42 @@ def main(args):
         raimg[onslit_gpm] += ra_corr
         decimg[onslit_gpm] += dec_corr
 
-        # Extinction correction
-        if False:
-            msgs.info("Applying extinction correction")
-            extinct = load_extinction_data(longitude, latitude)
-            ext_corr = extinction_correction(wave * units.AA, airmass, extinct)
-            # Correct for extinction
-            flux_star = flux_star * ext_corr
-            ivar_star = ivar_star / ext_corr ** 2
+        # Get copies of arrays to be saved
+        wave_ext = waveimg[onslit_gpm].copy()
+        flux_ext = sciimg[onslit_gpm].copy()
+        ivar_ext = ivar[onslit_gpm].copy()
+
+        # Perform extinction correction
+        msgs.info("Applying extinction correction")
+        longitude = spec.telescope['latitude']
+        latitude = spec.telescope['longitude']
+        airmass = spec2DObj.head0[spec.meta['airmass']['card']]
+        extinct = load_extinction_data(longitude, latitude)
+        # extinction_correction requires the wavelength is sorted
+        wvsrt = np.argsort(wave_ext)
+        ext_corr = extinction_correction(wave_ext[wvsrt] * units.AA, airmass, extinct)
+        # Correct for extinction
+        flux_sav = flux_ext[wvsrt] * ext_corr
+        ivar_sav = ivar_ext[wvsrt] / ext_corr ** 2
+        # sort back to the original ordering
+        resrt = np.argsort(wvsrt)
 
         # Store the information
         numpix = raimg[onslit_gpm].size
         all_ra = np.append(all_ra, raimg[onslit_gpm].copy())
         all_dec = np.append(all_dec, decimg[onslit_gpm].copy())
-        all_wave = np.append(all_wave, waveimg[onslit_gpm].copy())
-        all_sci = np.append(all_sci, sciimg[onslit_gpm].copy())
-        all_ivar = np.append(all_ivar, ivar[onslit_gpm].copy())
+        all_wave = np.append(all_wave, wave_ext.copy())
+        all_sci = np.append(all_sci, flux_sav[resrt].copy())
+        all_ivar = np.append(all_ivar, ivar_sav[resrt].copy())
         all_idx = np.append(all_idx, ff*np.ones(numpix))
+
+    # Grab cos(dec) for convenience
 
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
     # If several frames are being combined, generate white light images to register the offsets
     if combine:
         numra = int((np.max(all_ra)-np.min(all_ra)) * np.cos(np.mean(all_dec)*np.pi/180.0) / dspat)
         numdec = int((np.max(all_dec)-np.min(all_dec))/dspat)
-        numwav = int((np.max(all_wave)-np.min(all_wave))/dwv)
         xbins = np.arange(1+numra)-1
         ybins = np.arange(1+numdec)-1
         zbins = np.arange(2)-1
