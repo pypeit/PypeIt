@@ -230,7 +230,6 @@ def main(args):
         # Load the spectrograph
         specname = spec2DObj.head0['SPECTROG']
         spec = load_spectrograph(specname)
-        embed()
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -295,8 +294,8 @@ def main(args):
 
         # Perform extinction correction
         msgs.info("Applying extinction correction")
-        longitude = spec.telescope['latitude']
-        latitude = spec.telescope['longitude']
+        longitude = spec.telescope['longitude']
+        latitude = spec.telescope['latitude']
         airmass = spec2DObj.head0[spec.meta['airmass']['card']]
         extinct = load_extinction_data(longitude, latitude)
         # extinction_correction requires the wavelength is sorted
@@ -318,8 +317,8 @@ def main(args):
         all_idx = np.append(all_idx, ff*np.ones(numpix))
 
     # Grab cos(dec) for convenience
-
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
+
     # If several frames are being combined, generate white light images to register the offsets
     if combine:
         numra = int((np.max(all_ra)-np.min(all_ra)) * np.cos(np.mean(all_dec)*np.pi/180.0) / dspat)
@@ -395,6 +394,7 @@ def main(args):
         ybins = np.arange(1+numdec)-0.5
         zbins = np.arange(1+numwav)-0.5
     else:
+        # TODO :: This is KCWI specific - probably should put this in the spectrograph file, or just delete it.
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
         xbins = np.arange(1 + 24) - 12.0 - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
@@ -412,7 +412,7 @@ def main(args):
     #datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*np.sqrt(all_ivar))
     datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*all_ivar)
     norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_ivar)
-    scaleArr = (norm > 0)/(norm + (norm == 0))
+    varCube = (norm > 0) / (norm + (norm == 0))
 
     # Save the datacube
     if False:
@@ -424,5 +424,8 @@ def main(args):
 
     outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
-    hdu = fits.PrimaryHDU((datacube*scaleArr).T, header=hdr)
-    hdu.writeto(outfile, overwrite=args.overwrite)
+    primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
+    sci_hdu = fits.ImageHDU((datacube*varCube).T, name="scicube", header=hdr)
+    var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
+    hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
+    hdulist.writeto(outfile, overwrite=args.overwrite)
