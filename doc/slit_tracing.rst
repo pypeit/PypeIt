@@ -19,7 +19,7 @@ edge cases (pun intended) is challenging if not impossible.
 Therefore, there are a number of user-input parameters
 that one may need to consider when running PypeIt (see below).
 
-Underlying the effort is the :class:`pypeit.edgetrace.EdgeTrace` class.
+Underlying the effort is the :class:`pypeit.edgetrace.EdgeTraceSet` class.
 
 Viewing
 =======

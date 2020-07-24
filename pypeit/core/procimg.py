@@ -414,15 +414,15 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
     currently known.
 
     Args:
-        rawframe (:obj:`numpy.ndarray`_):
+        rawframe (`numpy.ndarray`_):
             Frame from which to subtract overscan
         numamplifiers (int):
             Number of amplifiers for this detector.
-        datasec_img (:obj:`numpy.ndarray`_):
+        datasec_img (`numpy.ndarray`_):
             An array the same shape as rawframe that identifies
             the pixels associated with the data on each amplifier.
             0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
-        oscansec_img (:obj:`numpy.ndarray`_):
+        oscansec_img (`numpy.ndarray`_):
             An array the same shape as rawframe that identifies
             the pixels associated with the overscan region on each
             amplifier.
@@ -437,7 +437,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
             Debug the code (True means yes)
 
     Returns:
-        :obj:`numpy.ndarray`_: The input frame with the pattern subtracted
+        `numpy.ndarray`_: The input frame with the pattern subtracted
     """
     msgs.info("Analyzing detector pattern")
 

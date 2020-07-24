@@ -5,6 +5,7 @@ General utility functions.
 .. include:: ../links.rst
 """
 import os
+import inspect
 import pickle
 import warnings
 import itertools
@@ -28,6 +29,28 @@ from astropy import stats
 from pypeit.core import pydl
 from pypeit import bspline
 from pypeit import msgs
+
+def embed_header():
+    """
+    Nominal header for an execution of `IPython.embed`_.
+
+    Example:
+
+        To include the returned string::
+
+            from IPython import embed
+            from pypeit.utils import embed_header
+
+            embed(header=embed_header())
+
+    Returns:
+        :obj:`str`: String with the line in the calling module, the
+        name of the calling function, and the name of the calling
+        file.
+    """
+    info = inspect.getframeinfo(inspect.stack()[1][0])
+    return '{0} {1} {2}'.format(info.lineno, info.function, os.path.split(info.filename)[1])
+
 
 def spec_atleast_2d(wave, flux, ivar, mask):
     """

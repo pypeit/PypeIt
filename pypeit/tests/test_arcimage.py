@@ -4,6 +4,9 @@ of master frame functionality
 """
 import os
 
+#import warnings
+#warnings.simplefilter('error', FutureWarning)
+
 import pytest
 import glob
 import numpy as np

@@ -11,7 +11,7 @@ which are used to trace constant spatial position on a slit. These
 frames are useful in slit-based IFUs (e.g. `cbar` frames for KCWI).
 
 The image is written to disk as a multi-extension FITS file
-prefixed by `MasterAlignment`_ in the Masters/ folder.
+prefixed by ``MasterAlignment`` in the Masters/ folder.
 See :ref:`masters:Masters Naming` for the naming convention.
 
 

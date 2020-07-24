@@ -14,7 +14,7 @@ def parser(options=None):
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser = argparse.ArgumentParser(description='Launch PypeIt identify tool, display extracted'
+    parser = argparse.ArgumentParser(description='Launch PypeIt identify tool, display extracted '
                                                  'MasterArc, and load linelist.'
                                                  'Run above the Masters/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -65,7 +65,7 @@ def main(args):
     par = spec.default_pypeit_par()['calibrations']['wavelengths']
 
     # Get the lamp list
-    if args.lamps == '':
+    if args.lamps is None:
         lamplist = par['lamps']
         if lamplist is None:
             print("ERROR :: Cannot determine the lamps")

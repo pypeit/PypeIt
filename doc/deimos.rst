@@ -12,26 +12,22 @@ settings that are related to the Keck/DEIMOS spectrograph.
 Deviations
 ==========
 
-Here are the deviations from the default settings
-for DEIMOS (set in the settings.keck_deimos file)::
+Here are the main deviations from the default settings
+for DEIMOS
+(see :func:`~pypeit.spectrographs.keck_deimos.KeckDEIMOSSpectrograph.default_pypeit_par`)::
 
-    settings trace slits sigdetect 50.0
-    settings trace slits number -1
-    settings trace slits tilts params 1,1,1
-    settings trace slits tilts method spca
-    settings trace slits pca params [3,2,1,0]
-    settings trace slits polyorder  3
-    settings trace slits sobel mode nearest
-    settings trace slits fracignore  0.02   # 0.02 removes star boxes of 40pix size or less (and any real ones too!)
-    settings bias useframe overscan
-    settings pixelflat combine method median
-    settings pixelflat combine reject level [10.0,10.0]
+
+    # Default lamps
+    par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
+    # Do not require bias frames
+    turn_off = dict(use_biasimage=False)
+    par.reset_all_processimages_par(**turn_off)
+    # Spectral flexure correction
+    par['flexure']['spec_method'] = 'boxcar'
+
 
 These are tuned to the standard calibration
-set taken with DEIMOS.  Note that the *fracignore*
-setting is designed to remove alignment star boxes
-from the analysis.  If you have real slits which are
-the same size (or smaller) they too will be eliminated.
+set taken with DEIMOS.
 
 Calibrations
 ============
