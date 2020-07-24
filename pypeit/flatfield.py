@@ -1192,16 +1192,16 @@ class FlatField(object):
         slits are scaled relative to the zeroth slit. There are three
         stages in this approach:
 
-            #. Get a quick, rough scaling between the orders using a
+            1. Get a quick, rough scaling between the orders using a
                low order polynomial
 
-            #. Using this rough scale, perform a joint b-spline fit
+            2. Using this rough scale, perform a joint b-spline fit
                to all slits. This step ensures that a single
                functional form is used in step 3 to fit all slits. It
                also ensures that the model covers the min and max
                wavelength range of all slits.
 
-            #. Calculate the relative scale of each slit, using the
+            3. Calculate the relative scale of each slit, using the
                joint model calculated in step (2).
 
         Parameters
@@ -1396,6 +1396,35 @@ def show_flats(image_list, wcs_match=True, slits=None):
 
 
 def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skymask=None, trim=3, flexure=None):
+    """
+    Generate a rough estimate of the relative spectral scaling of slits
+    using a low order polynomial. This routine is for slit-based IFUs.
+
+    Parameters
+    ----------
+    rawimg : `numpy.ndarray`_
+        Image data that will be used to estimate the spectral relative sensitivity
+    waveimg : `numpy.ndarray`_
+        Wavelength image
+    slits : :class:`pypeit.slittrace.SlitTraceSet`
+        Information stored about the slits
+    model : `numpy.ndarray`_, None
+        A model of the rawimg data. If None, rawimg will be used.
+    gpmask : `numpy.ndarray`_, None
+        Good pixel mask
+    skymask : `numpy.ndarray`_, None
+        Sky mask
+    trim : int
+        Number of pixels to trim from the edges of the slit
+        when deriving the spectral illumination
+    flexure : float, None
+        Spatial flexure
+
+    Returns
+    -------
+    scale_model: `numpy.ndarray`_
+        An image containing the appropriate scaling
+    """
     msgs.info("Performing relative spectral sensitivity correction")
     # Setup some helpful parameters
     skymask_now = skymask if (skymask is not None) else np.ones_like(rawimg, dtype=bool)

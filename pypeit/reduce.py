@@ -551,23 +551,6 @@ class Reduce(object):
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.reduce_bpm[slit_idx] = True
 
-        # wavefull=np.linspace(3950,4450,10000)
-        # import matplotlib.pylab as pl
-        # from matplotlib import pyplot as plt
-        # colors = pl.cm.jet(np.linspace(0, 1, gdslits.size))
-        # for sl, slit_idx in enumerate(gdslits):
-        #     slit_spat = self.slits.spat_id[slit_idx]
-        #     thismask = self.slitmask == slit_spat
-        #     wav = self.waveimg[thismask]
-        #     flx = self.global_sky[thismask]
-        #     argsrt = np.argsort(wav)
-        #     spl = interpolate.interp1d(wav[argsrt], flx[argsrt], bounds_error=False)
-        #     if sl == 0:
-        #         ref = spl(wavefull)
-        #         plt.plot(wavefull, ref/np.nanmedian(ref), color=colors[sl], linestyle=':')
-        #     plt.plot(wavefull, spl(wavefull)/ref, color=colors[sl])
-        # plt.show()
-
         if update_crmask:
             # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
@@ -1235,110 +1218,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         self.sciImg.ivar = utils.inverse(varImg)
         return
 
-    def illum_profile_spatial_fitall(self, skymask=None, trim_edg=(0,0)):
-#    def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
-
-        msgs.info("Performing spatial sensitivity correction")
-        # Setup some helpful parameters
-        skymask_now = skymask if (skymask is not None) else np.ones_like(self.sciImg.image, dtype=bool)
-        hist_trim = 3  # Trim the edges of the histogram to take into account edge effects
-        gpm = (self.sciImg.fullmask == 0)
-        slitid_img_init = self.slits.slit_img(pad=0, initial=True, flexure=self.spat_flexure_shift)
-        spatScaleImg = np.ones_like(self.sciImg.image)
-        # For each slit, grab the spatial coordinates and a spline
-        # representation of te spatial profile from the illumflat
-        rawimg = self.sciImg.image.copy()
-        numbins = int(np.max(self.slits.get_slitlengths(initial=True, median=True)))
-        spatbins = np.linspace(0.0, 1.0, numbins + 1)
-        spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
-
-        # For KCWI there are two groups of slits to fit together
-        spat_fitfunc = lambda par, ydata, slit, model: (par[0] + par[1]*slit + par[2]*slit**2)*(1 + (par[3] + slit*par[4]) * model) - ydata
-        fitall=False
-        for gr in range(2):
-            msgs.info("Deriving spatial correction for slits in group {0:d}/2".format(gr + 1))
-            # Setup fit for this group
-            xfit, yfit, slitfit, modfit = np.array([]), np.array([]), np.array([]), np.array([])
-            spls = [None for all in self.slits.spat_id]
-            for sl in range(gr, self.slits.spat_id.size, 2):
-                # Get the initial slit locations
-                spatid = self.slits.spat_id[sl]
-                onslit_b_init = (slitid_img_init == spatid)
-
-                # Synthesize ximg, and edgmask from slit boundaries.
-                spatcoord, edgmask = pixels.ximg_and_edgemask(self.slits_left[:, sl], self.slits_right[:, sl],
-                                                              onslit_b_init, trim_edg=trim_edg)
-                # Ignore skymask
-                coord_msk = onslit_b_init & gpm
-                hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
-                cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
-                hist_slit_all = hist / (cntr + (cntr == 0))
-
-                # Repeat with skymask
-                coord_msk = onslit_b_init & gpm & skymask_now
-                hist, _ = np.histogram(spatcoord[coord_msk], bins=spatbins, weights=rawimg[coord_msk])
-                cntr, _ = np.histogram(spatcoord[coord_msk], bins=spatbins)
-                hist_slit = hist / (cntr + (cntr == 0))
-
-                # Prepare for fit - take the non-zero elements and trim slit edges
-                ww = (hist_slit[hist_trim:-hist_trim] != 0)
-                xfit = np.append(xfit, spat_slit[hist_trim:-hist_trim][ww])
-                xslt = spat_slit[hist_trim:-hist_trim][ww]
-                yfit = np.append(yfit, hist_slit_all[hist_trim:-hist_trim][ww])
-                slitfit = np.append(slitfit, sl*np.ones(np.sum(ww)))
-
-                # Generate the model
-                model = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xslt)[0]
-                modfit = np.append(modfit, np.gradient(model)/model)
-
-                spls[sl] = interpolate.interp1d(xslt, np.gradient(model)/model, kind='linear', bounds_error=False, fill_value='extrapolate')
-
-            # Perform the fit to this group
-            if fitall:
-                res_lsq = least_squares(spat_fitfunc, [np.median(yfit), 0.0, 0.0, 0.0], args=(yfit, slitfit, modfit))
-            else:
-                ww = (slitfit <= 11)
-                res_lsq_low = least_squares(spat_fitfunc, [np.median(yfit[ww]), 0.0, 0.0, 0.0, 0.0], args=(yfit[ww], slitfit[ww], modfit[ww]))
-                ww = (slitfit > 11)
-                res_lsq_high = least_squares(spat_fitfunc, [np.median(yfit[ww]), 0.0, 0.0, 0.0, 0.0], args=(yfit[ww], slitfit[ww], modfit[ww]))
-
-            # Apply the fit
-            for sl in range(gr, self.slits.spat_id.size, 2):
-                # Get the initial slit locations
-                spatid = self.slits.spat_id[sl]
-                onslit_b_init = (slitid_img_init == spatid)
-
-                # Synthesize ximg, and edgmask from slit boundaries.
-                spatcoord, edgmask = pixels.ximg_and_edgemask(self.slits_left[:, sl], self.slits_right[:, sl],
-                                                              onslit_b_init, trim_edg=trim_edg)
-
-                # modev = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(spatcoord[onslit_b_init])[0]
-                # xnorm = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(np.array([0.5]))[0][0]
-                modev = spls[sl](spatcoord[onslit_b_init])
-                xnorm = spls[sl](0.5)
-
-                # Get the normalisation
-                if fitall:
-                    spatnorm = spat_fitfunc(res_lsq.x, 0.0, sl, modev)
-                    spatnorm /= spat_fitfunc(res_lsq.x, 0.0, sl, xnorm)
-                else:
-                    if sl <= 11:
-                        spatnorm = spat_fitfunc(res_lsq_low.x, 0.0, sl, modev)
-                        spatnorm /= spat_fitfunc(res_lsq_low.x, 0.0, sl, xnorm)
-                    else:
-                        spatnorm = spat_fitfunc(res_lsq_high.x, 0.0, sl, modev)
-                        spatnorm /= spat_fitfunc(res_lsq_high.x, 0.0, sl, xnorm)
-
-                # Set the scaling factor
-                spatScaleImg[onslit_b_init] = spatnorm
-
-        # Apply the relative scale correction
-        self.apply_relative_scale(spatScaleImg)
-
-#def spat_func(par, ydata, coords, spatbins, ww, spl, hist_trim, slitlength):
- #   return par[0]*(1 + par[1] * model) - ydata
-
-#    def illum_profile_spatial_separateSlits(self, skymask=None, trim_edg=(0,0)):
     def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
 
         msgs.info("Performing spatial sensitivity correction")
@@ -1356,7 +1235,6 @@ class IFUReduce(MultiSlitReduce, Reduce):
         spat_slit = 0.5 * (spatbins[1:] + spatbins[:-1])
         slitlength = np.median(self.slits.get_slitlengths(median=True))
         coeff_fit = np.zeros((self.slits.nslits, 2))
-        #embed()
         for sl, slitnum in enumerate(self.slits.spat_id):
             msgs.info("Deriving spatial correction for slit {0:d}/{1:d}".format(sl + 1, self.slits.spat_id.size))
             # Get the initial slit locations
@@ -1399,35 +1277,18 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 yfit = hist_slit_all[hist_trim:-hist_trim][ww]
                 mfit = hist_model[hist_trim:-hist_trim][ww]
 
-            # Generate the model
-            #model = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(xfit)[0]
-            #spl = interpolate.interp1d(xfit, np.gradient(model)/model, kind='linear', bounds_error=False, fill_value='extrapolate')
-            #modev = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(spatcoord[onslit_b_init])[0]
-            #xnorm = self.caliBrate.flatimages.illumflat_spat_bsplines[sl].value(np.array([0.5]))[0][0]
-
             # Fit the function
             spat_func = lambda par, ydata, model: par[0]*(1 + par[1] * model) - ydata
-            #spat_func = lambda par, xdata, ydata, model: par[0]*model.value(xdata + par[1])[0] - ydata
-#            spat_func = lambda par, xdata, ydata, model: par[0]*model.value(par[2]*xdata + par[1])[0] - ydata
             res_lsq = least_squares(spat_func, [np.median(yfit), 0.0], args=(yfit, mfit))
-            # res_lsq = least_squares(spat_func, [np.median(yfit), 0.0],
-            #                         args=(xfit, yfit, self.caliBrate.flatimages.illumflat_spat_bsplines[sl]),
-            #                         bounds=([-np.inf, -2/slitlength], [np.inf, +2/slitlength]))
-#                                    bounds=([-np.inf, -1/slitlength, 1-1/slitlength], [np.inf, +1/slitlength, 1+1/slitlength]))
-#            spatnorm = spat_func(res_lsq.x, 0.0, spl(spatcoord[onslit_b_init]))
-#            spatnorm /= spat_func(res_lsq.x, 0.0, spl(0.5))
-            #spatnorm = spat_func(res_lsq.x, spatcoord[onslit_b_init], 0.0, self.caliBrate.flatimages.illumflat_spat_bsplines[sl])
-            #spatnorm /= spat_func(res_lsq.x, np.array([0.5]), 0.0, self.caliBrate.flatimages.illumflat_spat_bsplines[sl])[0]
             spatnorm = spat_func(res_lsq.x, 0.0, gradspl(spatcoord[onslit_b_init]))
             spatnorm /= spat_func(res_lsq.x, 0.0, gradspl(0.5))
             # Set the scaling factor
             spatScaleImg[onslit_b_init] = spatnorm
             coeff_fit[sl, :] = res_lsq.x
 
-        debug = False
+        debug=False
         if debug:
             from matplotlib import pyplot as plt
-#            slitlength = 140
             xplt = np.arange(24)
             plt.subplot(121)
             plt.plot(xplt[0::2], coeff_fit[::2, 0], 'rx')

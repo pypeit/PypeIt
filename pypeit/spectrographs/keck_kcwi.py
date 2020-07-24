@@ -193,15 +193,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         par['calibrations']['illumflatframe']['process']['use_pattern'] = True
         par['calibrations']['standardframe']['process']['use_pattern'] = True
         par['scienceframe']['process']['use_pattern'] = True
-        # Subtract the detector pattern from all frames
-        # for key in par['calibrations'].keys():
-        #     if not isinstance(par['calibrations'][key], pypeitpar.FrameGroupPar):
-        #         continue
-        #     if 'process' in par['calibrations'][key].keys():
-        #         par['calibrations'][key]['process']['use_pattern'] = True
-        # for key in par.keys():
-        #     if 'process' in par[key].keys():
-        #         par[key]['process']['use_pattern'] = True
 
         # Make sure the overscan is subtracted from the dark
         par['calibrations']['darkframe']['process']['use_overscan'] = True
@@ -254,8 +245,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Sky subtraction parameters
         par['reduce']['skysub']['no_poly'] = True
-#        par['reduce']['skysub']['bspline_spacing'] = 0.2
-#        par['reduce']['skysub']['joint_fit'] = True
         par['reduce']['skysub']['bspline_spacing'] = 0.6
         par['reduce']['skysub']['joint_fit'] = True
 
@@ -561,9 +550,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         # Return the updated HDU
         return hdu
-
-    def calc_spatial_illum(skymask=None, trim_edg=(0,0)):
-        msgs.info("Performing KCWI spatial sensitivity correction")
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
