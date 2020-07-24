@@ -297,14 +297,11 @@ class SkySubGUI(object):
             text = input("Enter the regions: ")
             status, reg = skysub.read_userregions(text, self._nslits, self._maxslitlength)
             if status == 0:
-                print("Regions successful!")
-                from IPython import embed
-                embed()
+                print("Regions parsed successfully")
                 for rr in range(len(reg)):
-                    self._start[0], self._end[0] = reg[rr][0], reg[rr][1]
-                    self._addsub = 1
-                    self.add_region_all()
-                    self._addsub = 0
+                    # Apply to all slits
+                    for sl in range(self._nslits):
+                        self._skyreg[sl] = reg[rr].copy()
                 self.replot()
                 break
             elif status == 1:
