@@ -2,6 +2,8 @@
 1.0.7dev
 --------
 
+- Script to generate combined datacubes for IFU data.
+
 1.0.6 (22 Jul 2020)
 -------------------
 
