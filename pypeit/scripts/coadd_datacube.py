@@ -4,9 +4,8 @@
 #
 # -*- coding: utf-8 -*-
 """
-This script enables the user to view a 2D FITS file
-and define the sky background regions interactively.
-Run above the Science/ folder.
+This script enables the user to convert spec2D FITS files
+from IFU instruments into a 3D cube with a defined WCS.
 """
 
 import argparse
@@ -90,7 +89,7 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
         Relative DEC shift at each wavelength given by `wave_arr`
 
     TODO :: There's probably going to be issues when the RA angle is either side of RA=0
-    TODO :: Move this routine to the main PypeIt code
+    TODO :: Move this routine to the main PypeIt code?
     """
     msgs.info("Performing differential atmospheric refraction correction")
 
@@ -125,6 +124,22 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
 
 
 def generate_masterWCS(crval, cdelt, equinox=2000.0):
+    """ Generate a WCS that will cover all input spec2D files
+
+    Parameters
+    ----------
+    crval (list):
+        3 element list containing the [RA, DEC, WAVELENGTH] of the reference pixel
+    cdelt (list):
+        3 element list containing the delta values of the [RA, DEC, WAVELENGTH]
+    equinox (float):
+        Equinox of the WCS
+
+    Returns
+    -------
+    w (`astropy.WCS`_):
+        astropy WCS to be used for the combined cube
+    """
     # Create a new WCS object.
     msgs.info("Generating Master WCS")
     w = wcs.WCS(naxis=3)
@@ -145,6 +160,13 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
 
 
 def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
+    """ A 2D Gaussian to be used to fit the cross-correlation
+
+    Parameters
+    ----------
+    tup (tuple):
+        A two element tuple containing the (x,y) coordinates where the 2D Gaussian will be evaluated
+    """
     (x, y) = tup
     xo = float(xo)
     yo = float(yo)
@@ -234,10 +256,6 @@ def main(args):
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
 
-        # Init
-        # TODO: get_dnum needs to be deprecated...
-        sdet = "{0:s}-".format(get_dnum(args.det, caps=True, prefix=True))
-
         if ref_scale is None:
             ref_scale = spec2DObj.scaleimg.copy()
         # EXtract the information
@@ -251,7 +269,7 @@ def main(args):
 
         # Load the master alignments
         msgs.info("Loading alignments")
-        # TODO :: Include ALGNMKEY or alignments in Spec2D
+        # TODO :: Include ALGNMKEY or alignments in Spec2D?
         alignfile = fil.split("Science")[0] + "Masters/MasterAlignment_{0:s}_01.fits".format(spec2DObj.head0['FLATMKEY'])
         alignments = alignframe.Alignments.from_file(alignfile)
 
@@ -409,16 +427,19 @@ def main(args):
     else:
         pix_coord = wcs.wcs_world2pix(np.vstack((all_ra, all_dec, all_wave*1.0E-10)).T, 0)
         hdr = wcs.to_header()
-    #datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*np.sqrt(all_ivar))
     datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*all_ivar)
     norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_ivar)
     varCube = (norm > 0) / (norm + (norm == 0))
 
     # Save the datacube
-    if False:
+    debug = False
+    if debug:
+        datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*np.sqrt(all_ivar))
+        norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins))
+        normCube = (norm > 0) / (norm + (norm == 0))
         outfile = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile))
-        hdu = fits.PrimaryHDU(datacube_resid*norm, header=masterwcs.to_header())
+        hdu = fits.PrimaryHDU(datacube_resid*normCube, header=masterwcs.to_header())
 #        hdu = fits.PrimaryHDU(norm, header=masterwcs.to_header())
         hdu.writeto(outfile, overwrite=args.overwrite)
 
