@@ -1219,6 +1219,19 @@ class IFUReduce(MultiSlitReduce, Reduce):
         return
 
     def illum_profile_spatial(self, skymask=None, trim_edg=(0, 0)):
+        """ Calculate the residual spatial illumination profile using the sky regions.
+        The redisual is calculated using the differential:
+        correction = amplitude * (1 + spatial_shift * (dy/dx)/y)
+        where y is the spatial profile determined from illumflat, and spatial_shift
+        is the residual spatial flexure shift in units of pixels.
+
+         Args:
+             skymask (np.ndarray):
+                Mask of sky regions where the spatial illumination will be determined
+             trim_edg (tuple):
+                A tuple of two ints indicated how much of the slit edges should be
+                trimmed when fitting to the spatial profile.
+        """
 
         msgs.info("Performing spatial sensitivity correction")
         # Setup some helpful parameters
@@ -1307,6 +1320,15 @@ class IFUReduce(MultiSlitReduce, Reduce):
         self.apply_relative_scale(spatScaleImg)
 
     def illum_profile_spectral(self, global_sky, skymask=None):
+        """Calculate the residual spectral illumination profile using the sky regions.
+        This uses the same routine as the flatfield spectral illumination profile.
+
+         Args:
+             global_sky (np.ndarray):
+                Model of the sky
+             skymask (np.ndarray, None):
+                Mask of sky regions where the spatial illumination will be determined
+        """
         trim = self.par['calibrations']['flatfield']['slit_trim']
         gpm = (self.sciImg.fullmask == 0)
         scaleImg = flatfield.illum_profile_spectral(self.sciImg.image.copy(), self.waveimg, self.slits,
@@ -1317,6 +1339,9 @@ class IFUReduce(MultiSlitReduce, Reduce):
 
     def joint_skysub(self, skymask=None, update_crmask=True, trim_edg=(0,0),
                      show_fit=False, show=False, show_objs=False, adderr=0.01):
+        """ Perform a joint sky model fit to the data. See Reduce.global_skysub()
+        for parameter definitions.
+        """
         msgs.info("Performing joint global sky subtraction")
         # Mask objects using the skymask? If skymask has been set by objfinding, and masking is requested, then do so
         nslits = self.slits.spat_id.size

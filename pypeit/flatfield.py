@@ -1287,7 +1287,6 @@ class FlatField(object):
 
         ### STEP 3
         # Redo the scale model, now using the bspline fit
-        #rawflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
         scale_model = np.ones_like(self.rawflatimg.image)
         for slit_idx in range(0, self.slits.spat_id.size):
             msgs.info("Generating model relative response image for slit {0:d}".format(slit_idx))
