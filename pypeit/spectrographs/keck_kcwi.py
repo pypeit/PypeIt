@@ -796,7 +796,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         return w
 
     def get_radec_image(self, alignments, slits, wcs, flexure=None):
-        """Get the WCS for a frame
+        """Generate an RA and DEC image for every pixel in the frame
 
         Parameters
         ----------
