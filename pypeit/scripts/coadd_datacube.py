@@ -249,7 +249,7 @@ def main(args):
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax = spec.get_radec_image(slits, wcs, flexure=spec2DObj.sci_spat_flexure, alignments=alignments)
+        raimg, decimg, minmax = spec.get_radec_image(slits, wcs, flexure=spec2DObj.sci_spat_flexure)#, alignments=alignments)
 
         # Perform the DAR correction
         if wave_ref is None:
@@ -260,9 +260,9 @@ def main(args):
         obstime = spec.get_meta_value([spec2DObj.head0], 'obstime')
         pressure = spec.get_meta_value([spec2DObj.head0], 'pressure')
         temperature = spec.get_meta_value([spec2DObj.head0], 'temperature')
-        rel_humidity = spec.get_meta_value([spec2DObj.head0], 'rel_humidity')
+        rel_humidity = spec.get_meta_value([spec2DObj.head0], 'humidity')
         coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-        location = spec.location  # TODO :: This should probably end up in the TelescopePar
+        location = spec.location  # TODO :: spec.location should probably end up in the TelescopePar (spec.telescope.location)
         ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], coord, obstime, location,
                                            pressure, temperature, rel_humidity, wave_ref=wave_ref)
         raimg[onslit_gpm] += ra_corr

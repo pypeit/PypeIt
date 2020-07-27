@@ -637,7 +637,7 @@ class Spectrograph(object):
             if required:
                 msgs.error("Need to allow for meta_key={} in your meta data".format(meta_key))
             else:
-                msgs.warn("Requested meta data does not exist...")
+                msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
 
         # Check if this meta key is required

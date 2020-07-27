@@ -830,14 +830,13 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         minmax = np.zeros((slits.nslits, 2))
         # Get the slit information
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
-        embed()
         for slit_idx, spatid in enumerate(slits.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
             evalpos = onslit_init[1]-trace_cen[onslit_init[0], slit_idx]
             minmax[:, 0] = np.min(evalpos)
             minmax[:, 1] = np.max(evalpos)
-            slitID = np.ones(evalpos.size) * slit_idx - 12.0
+            slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
             world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, onslit_init[0], 0)
             # Set the RA first and DEC next
             raimg[onslit] = world_ra.copy()
