@@ -758,32 +758,6 @@ class Spectrograph(object):
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
         return None, None
 
-    def get_dar_params(self, hdr):
-        """ Get the parameters of the differential atmospheric correction from the header
-
-        Parameters
-        ----------
-        hdr : fits header
-            Header of raw image with atmospheric parameters
-
-        Returns
-        -------
-        coord (astropy SkyCoord):
-            ra, dec positions at the centre of the field
-        obstime (astropy Time):
-            time at the midpoint of observation
-        location (astropy EarthLocation):
-            observatory location
-        pressure (float):
-            Outside pressure at `location`
-        temperature (float):
-            Outside ambient air temperature at `location`
-        rel_humidity (float):
-            Outside relative humidity at `location`. This should be between 0 to 1.
-        """
-        msgs.warn("DAR params not setup for spectrograph: {0:s}".format(self.spectrograph))
-        return None, None, None, None, None, None
-
     def validate_metadata(self):
         """
         Validates the meta definitions of the Spectrograph

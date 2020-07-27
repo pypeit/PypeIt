@@ -16,15 +16,14 @@ from astropy.io import fits
 from astropy.coordinates import AltAz, SkyCoord
 import scipy.optimize as opt
 from scipy.interpolate import interp1d
-import scipy.signal
 import numpy as np
 import copy
 
 from pypeit import msgs
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.core.parse import get_dnum
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.procimg import grow_masked
+from pypeit.core.flexure import calculate_image_offset
 from pypeit import alignframe
 from pypeit import spec2dobj
 
@@ -45,6 +44,32 @@ def parser(options=None):
 
 
 def dar_fitfunc(radec, coord_ra, coord_dec, datfit, wave, obstime, location, pressure, temperature, rel_humidity):
+    """ Generates a fitting function to calculate the offset due to differential atmospheric refraction
+
+    Args:
+        radec (tuple):
+            A tuple containing two floats representing the shift in ra and dec due to DAR.
+        coord_ra (float):
+            RA in degrees
+        coord_dec (float):
+            Dec in degrees
+        datfit (`numpy.ndarray`_):
+            The RA and DEC that the model needs to match
+        wave (float):
+            Wavelength to calculate the DAR
+        location (astropy EarthLocation):
+            observatory location
+        pressure (float):
+            Outside pressure at `location`
+        temperature (float):
+            Outside ambient air temperature at `location`
+        rel_humidity (float):
+            Outside relative humidity at `location`. This should be between 0 to 1.
+
+    Returns:
+        chisq (float):
+            chi-squared difference between datfit and model
+    """
     (diff_ra, diff_dec) = radec
     # Generate the coordinate with atmopheric conditions
     coord_atmo = SkyCoord(coord_ra + diff_ra, coord_dec + diff_dec, unit=(units.deg, units.deg))
@@ -60,33 +85,31 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     """Apply a differental atmospheric refraction correction to the input ra/dec.
     This implementation is based on ERFA, which is called through astropy
 
-    Parameters
-    ----------
-    wave_arr (ndarray):
-        wavelengths to obtain ra and dec offsets
-    coord (astropy SkyCoord):
-        ra, dec positions at the centre of the field
-    obstime (astropy Time):
-        time at the midpoint of observation
-    location (astropy EarthLocation):
-        observatory location
-    pressure (float):
-        Outside pressure at `location`
-    temperature (float):
-        Outside ambient air temperature at `location`
-    rel_humidity (float):
-        Outside relative humidity at `location`. This should be between 0 to 1.
-    wave_ref (float):
-        Reference wavelength (The DAR correction will be performed relative to this wavelength)
-    numgrid (int):
-        Number of grid points to evaluate the DAR correction.
+    Args:
+        wave_arr (`numpy.ndarray`_):
+            wavelengths to obtain ra and dec offsets
+        coord (astropy SkyCoord):
+            ra, dec positions at the centre of the field
+        obstime (astropy Time):
+            time at the midpoint of observation
+        location (astropy EarthLocation):
+            observatory location
+        pressure (float):
+            Outside pressure at `location`
+        temperature (float):
+            Outside ambient air temperature at `location`
+        rel_humidity (float):
+            Outside relative humidity at `location`. This should be between 0 to 1.
+        wave_ref (float):
+            Reference wavelength (The DAR correction will be performed relative to this wavelength)
+        numgrid (int):
+            Number of grid points to evaluate the DAR correction.
 
-    Returns
-    -------
-    ra_diff (ndarray):
-        Relative RA shift at each wavelength given by `wave_arr`
-    dec_diff (ndarray):
-        Relative DEC shift at each wavelength given by `wave_arr`
+    Returns:
+        ra_diff (`numpy.ndarray`_):
+            Relative RA shift at each wavelength given by `wave_arr`
+        dec_diff (`numpy.ndarray`_):
+            Relative DEC shift at each wavelength given by `wave_arr`
 
     TODO :: There's probably going to be issues when the RA angle is either side of RA=0
     TODO :: Move this routine to the main PypeIt code?
@@ -126,19 +149,17 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
 def generate_masterWCS(crval, cdelt, equinox=2000.0):
     """ Generate a WCS that will cover all input spec2D files
 
-    Parameters
-    ----------
-    crval (list):
-        3 element list containing the [RA, DEC, WAVELENGTH] of the reference pixel
-    cdelt (list):
-        3 element list containing the delta values of the [RA, DEC, WAVELENGTH]
-    equinox (float):
-        Equinox of the WCS
+    Args:
+        crval (list):
+            3 element list containing the [RA, DEC, WAVELENGTH] of the reference pixel
+        cdelt (list):
+            3 element list containing the delta values of the [RA, DEC, WAVELENGTH]
+        equinox (float):
+            Equinox of the WCS
 
-    Returns
-    -------
-    w (`astropy.WCS`_):
-        astropy WCS to be used for the combined cube
+    Returns:
+        w (`astropy.WCS`_):
+            astropy WCS to be used for the combined cube
     """
     # Create a new WCS object.
     msgs.info("Generating Master WCS")
@@ -157,73 +178,6 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
     w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
     w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
     return w
-
-
-def twoD_Gaussian(tup, amplitude, xo, yo, sigma_x, sigma_y, theta, offset):
-    """ A 2D Gaussian to be used to fit the cross-correlation
-
-    Parameters
-    ----------
-    tup (tuple):
-        A two element tuple containing the (x,y) coordinates where the 2D Gaussian will be evaluated
-    """
-    (x, y) = tup
-    xo = float(xo)
-    yo = float(yo)
-    a = (np.cos(theta)**2)/(2*sigma_x**2) + (np.sin(theta)**2)/(2*sigma_y**2)
-    b = -(np.sin(2*theta))/(4*sigma_x**2) + (np.sin(2*theta))/(4*sigma_y**2)
-    c = (np.sin(theta)**2)/(2*sigma_x**2) + (np.cos(theta)**2)/(2*sigma_y**2)
-    g = offset + amplitude*np.exp( - (a*((x-xo)**2) + 2*b*(x-xo)*(y-yo) + c*((y-yo)**2)))
-    return g.ravel()
-
-
-def calculate_offset(image, im_ref, nfit=3):
-    """Calculate the x,y offset between two images
-
-    Parameters
-    ----------
-    image (ndarray):
-        image that we want to measure the shift of (relative to im_ref)
-    im_ref (ndarray):
-        Reference image
-    nfit (int, optional):
-        Number of pixels (left and right of the maximum) to include in
-        fitting the peak of the cross correlation.
-
-    Returns
-    -------
-    ra_diff (float):
-        Relative shift (in pixels) of image relative to im_ref (x direction).
-        In order to align image with im_ref, ra_diff should be added to the
-        x-coordinates of image
-    dec_diff (float):
-        Relative shift (in pixels) of image relative to im_ref (y direction).
-        In order to align image with im_ref, dec_diff should be added to the
-        y-coordinates of image
-    """
-    # Subtract median (should be close to zero, anyway)
-    image -= np.median(image)
-    im_ref -= np.median(im_ref)
-
-    # cross correlate (note, convolving seems faster)
-    ccorr = scipy.signal.correlate2d(im_ref, image, boundary='fill', mode='same')
-    #ccorr = scipy.signal.fftconvolve(im_ref, image[::-1, ::-1], mode='same')
-
-    # Find the maximum
-    amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
-
-    # Perform a 2D Gaussian fit
-    x = np.arange(amax[0]-nfit, amax[0] + nfit+1)
-    y = np.arange(amax[1]-nfit, amax[1] + nfit+1)
-    initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
-    xx, yy = np.meshgrid(x, y, indexing='ij')
-
-    # Fit the neighborhood of the maximum to calculate the offset
-    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy),
-                            ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
-                            p0=initial_guess)
-    # Return the RA and DEC shift, in pixels
-    return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
 
 
 def main(args):
@@ -300,8 +254,17 @@ def main(args):
         # Perform the DAR correction
         if wave_ref is None:
             wave_ref = 0.5*(np.min(waveimg[onslit_gpm]) + np.max(waveimg[onslit_gpm]))
-        darpar = spec.get_dar_params(spec2DObj.head0)
-        ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], *darpar, wave_ref=wave_ref)
+        # Get DAR parameters
+        raval = spec.get_meta_value([spec2DObj.head0], 'ra')
+        decval = spec.get_meta_value([spec2DObj.head0], 'dec')
+        obstime = spec.get_meta_value([spec2DObj.head0], 'obstime')
+        pressure = spec.get_meta_value([spec2DObj.head0], 'pressure')
+        temperature = spec.get_meta_value([spec2DObj.head0], 'temperature')
+        rel_humidity = spec.get_meta_value([spec2DObj.head0], 'rel_humidity')
+        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
+        location = spec.location  # TODO :: This should probably end up in the TelescopePar
+        ra_corr, dec_corr = dar_correction(waveimg[onslit_gpm], coord, obstime, location,
+                                           pressure, temperature, rel_humidity, wave_ref=wave_ref)
         raimg[onslit_gpm] += ra_corr
         decimg[onslit_gpm] += dec_corr
 
@@ -380,13 +343,13 @@ def main(args):
 
         msgs.info("Calculating the relative spatial translation of each cube (reference cube = {0:d})".format(ref_idx+1))
         # Calculate the image offsets - check the reference is a zero shift
-        ra_shift_ref, dec_shift_ref = calculate_offset(whitelight_Imgs[:, :, ref_idx], whitelight_Imgs[:, :, ref_idx])
+        ra_shift_ref, dec_shift_ref = calculate_image_offset(whitelight_Imgs[:, :, ref_idx], whitelight_Imgs[:, :, ref_idx])
         for ff in range(numfiles):
             # Don't correlate the reference image with itself
             if ff == ref_idx:
                 continue
             # Calculate the shift
-            ra_shift, dec_shift = calculate_offset(whitelight_Imgs[:, :, ff], whitelight_Imgs[:, :, ref_idx])
+            ra_shift, dec_shift = calculate_image_offset(whitelight_Imgs[:, :, ff], whitelight_Imgs[:, :, ref_idx])
             # Convert to reference
             ra_shift -= ra_shift_ref
             dec_shift -= dec_shift_ref

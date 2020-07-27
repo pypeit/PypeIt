@@ -33,6 +33,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.spectrograph = 'keck_kcwi'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'KCWI'
+        self.location = EarthLocation.of_site('Keck Observatory')  # TODO :: Might consider changing TelescopePar to use the astropy EarthLocation
         # Uses default timeunit
         # Uses default primary_hdrext
         # self.sky_file ?
@@ -166,6 +167,12 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         meta['idname'] = dict(ext=0, card='CALXPOS')
         meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
 
+        # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
+        meta['obstime'] = dict(card=None, compound=True)
+        meta['pressure'] = dict(card=None, compound=True)
+        meta['temperature'] = dict(card=None, compound=True)
+        meta['rel_humidity'] = dict(card=None, compound=True)
+
         # Lamps
         lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
         for kk, lamp_name in enumerate(lamp_names):
@@ -214,7 +221,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         #par['calibrations']['flatfield']['tweak_slits'] = False  # Do not tweak the slit edges (we want to use the full slit)
         par['calibrations']['flatfield']['tweak_slits_thresh'] = 0.0  # Make sure the full slit is used (i.e. when the illumination fraction is > 0.5)
         par['calibrations']['flatfield']['tweak_slits_maxfrac'] = 0.0  # Make sure the full slit is used (i.e. no padding)
-        par['calibrations']['flatfield']['slit_trim'] = 3  # Make sure the full slit is used (i.e. no padding)
+        par['calibrations']['flatfield']['slit_trim'] = 3  # Trim the slit edges
         par['calibrations']['flatfield']['slit_illum_relative'] = True  # Calculate the relative slit illumination
 
         # Set the default exposure time ranges for the frame typing
@@ -267,6 +274,14 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 except KeyError:
                     hdrstr = ''
             return headarr[0][hdrstr]
+        elif meta_key == 'pressure':
+            return headarr[0]['WXPRESS'] * 0.001 * units.bar
+        elif meta_key == 'temperature':
+            return headarr[0]['WXOUTTMP'] * units.deg_C
+        elif meta_key == 'rel_humidity':
+            return headarr[0]['WXOUTHUM'] / 100.0
+        elif meta_key == 'obstime':
+            return Time(headarr[0]['DATE-END'])
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -824,44 +839,3 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             raimg[onslit] = world_ra.copy()
             decimg[onslit] = world_dec.copy()
         return raimg, decimg, minmax
-
-    def get_dar_params(self, hdr):
-        """ Get the parameters of the differential atmospheric correction from the header
-
-        Parameters
-        ----------
-        hdr : fits header
-            Header of raw image with atmospheric parameters
-
-        Returns
-        -------
-        coord (astropy SkyCoord):
-            ra, dec positions at the centre of the field
-        obstime (astropy Time):
-            time at the midpoint of observation
-        location (astropy EarthLocation):
-            observatory location
-        pressure (float):
-            Outside pressure at `location`
-        temperature (float):
-            Outside ambient air temperature at `location`
-        rel_humidity (float):
-            Outside relative humidity at `location`. This should be between 0 to 1.
-        """
-        # Get RA/DEC
-        raval = self.compound_meta([hdr], 'ra')
-        decval = self.compound_meta([hdr], 'dec')
-
-        # Create a coordinate and get the time of observation
-        coord = SkyCoord(raval, decval, unit=(units.deg, units.deg))
-        obstime = Time(hdr['DATE-END'])
-
-        # Get observatory location
-        location = EarthLocation.of_site('Keck Observatory')
-
-        # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
-        pressure = hdr['WXPRESS'] * 0.001 * units.bar
-        temperature = hdr['WXOUTTMP'] * units.deg_C
-        rel_humidity = hdr['WXOUTHUM']/100.0
-
-        return coord, obstime, location, pressure, temperature, rel_humidity
