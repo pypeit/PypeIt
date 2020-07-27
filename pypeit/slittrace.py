@@ -369,6 +369,55 @@ class SlitTraceSet(datamodel.DataContainer):
             slitlen = np.median(slitlen, axis=1)
         return slitlen
 
+    def get_radec_image(self, wcs, initial=True, flexure=None, trace_cen=None):
+        """Generate an RA and DEC image for every pixel in the frame
+
+        Parameters
+        ----------
+        wcs : astropy.wcs
+            The World Coordinate system of a science frame
+        maxslitlen : int
+            This is the slit length in pixels, and it should be the same
+            value that was passed to get_wcs() to generate the WCS that
+            is passed into this function as an argument.
+        initial : bool
+            Select the initial slit edges?
+        flexure : float, optional
+            If provided, offset each slit by this amount.
+        trace_cen : `numpy.ndarray`_, optional
+            Central traces of each slit. Shape should be (slits.nspec, slits.nslits).
+            If None, the average of the left and right slit edges will be used
+
+        Returns
+        -------
+        ndimage, ndimage : Two 2D numpy array of shape (nspec, nspat), where the
+                           first ndarray is the RA image, and the second ndarray
+                           is the DEC image. RA and DEC are in units degrees.
+        """
+        # Grab the central trace, if none was provided
+        if trace_cen is None:
+            left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+            trace_cen = 0.5 * (left + right)
+
+        # Initialise the output
+        raimg = np.zeros((self.nspec, self.nspat))
+        decimg = np.zeros((self.nspec, self.nspat))
+        minmax = np.zeros((self.nslits, 2))
+
+        # Get the slit information
+        slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
+        for slit_idx, spatid in enumerate(self.spat_id):
+            onslit = (slitid_img_init == spatid)
+            onslit_init = np.where(onslit)
+            evalpos = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
+            minmax[:, 0] = np.min(evalpos)
+            minmax[:, 1] = np.max(evalpos)
+            slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
+            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, onslit_init[0], 0)
+            # Set the RA first and DEC next
+            raimg[onslit] = world_ra.copy()
+            decimg[onslit] = world_dec.copy()
+        return raimg, decimg, minmax
 
     def select_edges(self, initial=False, flexure=None):
         """
@@ -709,6 +758,7 @@ class SlitTraceSet(datamodel.DataContainer):
         if np.any(bad_tilts):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
 
+
 def parse_slitspatnum(slitspatnum):
     """
     Parse the slitspatnum into a list of detectors and SPAT_IDs
@@ -728,4 +778,3 @@ def parse_slitspatnum(slitspatnum):
         spat_ids.append(int(spt[1]))
     # Return
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
-

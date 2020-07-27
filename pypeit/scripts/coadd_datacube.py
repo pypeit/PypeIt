@@ -221,12 +221,6 @@ def main(args):
         # Grab the slit edges
         slits = spec2DObj.slits
 
-        # Load the master alignments
-        msgs.info("Loading alignments")
-        # TODO :: Include ALGNMKEY or alignments in Spec2D?
-        alignfile = fil.split("Science")[0] + "Masters/MasterAlignment_{0:s}_01.fits".format(spec2DObj.head0['FLATMKEY'])
-        alignments = alignframe.Alignments.from_file(alignfile)
-
         wave0 = waveimg[waveimg != 0.0].min()
         diff = waveimg[1:, :] - waveimg[:-1, :]
         dwv = float(np.median(diff[diff != 0.0]))
@@ -249,7 +243,7 @@ def main(args):
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax = spec.get_radec_image(slits, wcs, flexure=spec2DObj.sci_spat_flexure)#, alignments=alignments)
+        raimg, decimg, minmax = slits.get_radec_image(wcs, initial=True, flexure=spec2DObj.sci_spat_flexure)
 
         # Perform the DAR correction
         if wave_ref is None:
