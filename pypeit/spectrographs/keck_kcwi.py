@@ -168,10 +168,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
 
         # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
-        meta['obstime'] = dict(card=None, compound=True)
-        meta['pressure'] = dict(card=None, compound=True)
-        meta['temperature'] = dict(card=None, compound=True)
-        meta['rel_humidity'] = dict(card=None, compound=True)
+        meta['obstime'] = dict(card=None, compound=True, required=False)
+        meta['pressure'] = dict(card=None, compound=True, required=False)
+        meta['temperature'] = dict(card=None, compound=True, required=False)
+        meta['humidity'] = dict(card=None, compound=True, required=False)
 
         # Lamps
         lamp_names = ['LMP0', 'LMP1', 'LMP2', 'LMP3']  # FeAr, ThAr, Aux, Continuum
@@ -278,7 +278,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             return headarr[0]['WXPRESS'] * 0.001 * units.bar
         elif meta_key == 'temperature':
             return headarr[0]['WXOUTTMP'] * units.deg_C
-        elif meta_key == 'rel_humidity':
+        elif meta_key == 'humidity':
             return headarr[0]['WXOUTHUM'] / 100.0
         elif meta_key == 'obstime':
             return Time(headarr[0]['DATE-END'])
@@ -795,13 +795,11 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
 
         return w
 
-    def get_radec_image(self, alignments, slits, wcs, flexure=None):
+    def get_radec_image(self, slits, wcs, flexure=None, trace_cen=None):
         """Generate an RA and DEC image for every pixel in the frame
 
         Parameters
         ----------
-        alignments : :class:`pypeit.alignframe.Alignments`
-            Master alignments
         slits : :class:`pypeit.slittrace.SlitTraceSet`
             Master slit edges
         wcs : astropy.wcs
@@ -812,6 +810,9 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             is passed into this function as an argument.
         flexure : float, optional
             If provided, offset each slit by this amount.
+        trace_cen : `numpy.ndarray`_, optional
+            Central traces of each slit. Shape should be (slits.nspec, slits.nslits).
+            If None, the average of the left and right slit edges will be used
 
         Returns
         -------
@@ -820,17 +821,20 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                            is the DEC image. RA and DEC are in units degrees.
         """
         # Grab the alignments
-        aligns = alignments['traces']
+        if trace_cen is None:
+            left, right, _ = slits.select_edges(initial=True, flexure=flexure)
+            trace_cen = 0.5*(left+right)
         # Initialise the output
         raimg = np.zeros((slits.nspec, slits.nspat))
         decimg = np.zeros((slits.nspec, slits.nspat))
         minmax = np.zeros((slits.nslits, 2))
         # Get the slit information
         slitid_img_init = slits.slit_img(pad=0, initial=True, flexure=flexure)
+        embed()
         for slit_idx, spatid in enumerate(slits.spat_id):
             onslit = (slitid_img_init == spatid)
             onslit_init = np.where(onslit)
-            evalpos = onslit_init[1]-aligns[onslit_init[0], 2, slit_idx]
+            evalpos = onslit_init[1]-trace_cen[onslit_init[0], slit_idx]
             minmax[:, 0] = np.min(evalpos)
             minmax[:, 1] = np.max(evalpos)
             slitID = np.ones(evalpos.size) * slit_idx - 12.0

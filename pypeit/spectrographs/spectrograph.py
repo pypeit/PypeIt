@@ -639,6 +639,11 @@ class Spectrograph(object):
             else:
                 msgs.warn("Requested meta data does not exist...")
                 return None
+
+        # Check if this meta key is required
+        if 'required' in self.meta[meta_key].keys():
+            required = self.meta[meta_key]['required']
+
         # Is this not derivable?  If so, use the default
         #   or search for it as a compound method
         value = None
@@ -699,7 +704,7 @@ class Spectrograph(object):
                                 kerror = True
                     # Bomb out?
                     if kerror:
-                        embed(header='723 of spectrograph')
+                        embed(header='spectrograph.get_meta_value()')
                         msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
                 else:
                     msgs.warn("Required card {:s} missing from your header.  Proceeding with risk..".format(
@@ -731,13 +736,11 @@ class Spectrograph(object):
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
         return None
 
-    def get_radec_image(self, alignments, slits, wcs, flexure=None):
+    def get_radec_image(self, slits, wcs, flexure=None, trace_cen=None):
         """ Get an image containg the RA and DEC of every pixel
 
         Parameters
         ----------
-        alignments : :class:`pypeit.alignframe.Alignments`
-            Master alignments
         slits : :class:`pypeit.slittrace.SlitTraceSet`
             Master slit edges
         wcs : astropy.wcs
@@ -748,6 +751,9 @@ class Spectrograph(object):
             is passed into this function as an argument.
         flexure : float, optional
             If provided, offset each slit by this amount.
+        trace_cen : `numpy.ndarray`_, optional
+            Central traces of each slit. Shape should be (slits.nspec, slits.nslits).
+            If None, the average of the left and right slit edges will be used
 
         Returns
         -------

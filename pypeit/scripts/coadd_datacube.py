@@ -249,7 +249,7 @@ def main(args):
 
         # Generate an RA/DEC image
         msgs.info("Generating RA/DEC image")
-        raimg, decimg, minmax = spec.get_radec_image(alignments, slits, wcs, flexure=spec2DObj.sci_spat_flexure)
+        raimg, decimg, minmax = spec.get_radec_image(slits, wcs, flexure=spec2DObj.sci_spat_flexure, alignments=alignments)
 
         # Perform the DAR correction
         if wave_ref is None:
