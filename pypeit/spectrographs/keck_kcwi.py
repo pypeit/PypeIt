@@ -458,9 +458,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         exptime = self.get_meta_value(headarr, 'exptime')
 
         # get the x and y binning factors...
-        binning = head0['BINNING']
-        xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-        binning_raw = binning
+        binning = self.get_meta_value(headarr, 'binning')
 
         # Always assume normal FITS header formatting
         one_indexed = True
@@ -477,7 +475,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                 # TODO :: I fear something has changed here... and the BPM is flipped (ot not flipped) for different amp modes.
                 datasec = parse.sec2slice(sec, one_indexed=one_indexed,
                                           include_end=include_last, require_dim=2,
-                                          binning=binning_raw)
+                                          binning=binning)
                 # Flip the datasec
                 datasec = datasec[::-1]
 
@@ -652,44 +650,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         else:
             return False
 
-    @staticmethod
-    def get_binning(hdr):
-        """ Get the binning
-
-        Parameters
-        ----------
-        hdr : fits header
-            The header of the raw frame.
-
-        Returns
-        -------
-        list : x,y pixel binning
-        """
-        binning = hdr['BINNING']
-        return [int(ibin) for ibin in binning.split(',')]  # [binspectral, binspatial]
-
-    def get_scales(self, hdr):
-        """ Get the scale per pixel and slice
-
-        Parameters
-        ----------
-        hdr : fits header
-            The header of the raw frame.
-
-        Returns
-        -------
-        tuple : pixel and slice scale
-        """
-        # Pixel scales
-        pxscl = self.platescale * self.get_binning(hdr)[1]
-        slscl = self.slicescale
-        ifunum = hdr['IFUNUM']
-        if ifunum == 2:
-            slscl = self.slicescale/2.0
-        elif ifunum == 3:
-            slscl = self.slicescale/4.0
-        return pxscl, slscl
-
     def get_wcs(self, hdr, slits, wave0, dwv):
         """Get the WCS for a frame
 
@@ -711,8 +671,18 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Calculating the WCS")
         # Get the x and y binning factors, and the typical slit length
-        binspec, binspat = self.get_binning(hdr)
-        slscl, pxscl = self.get_scales(hdr)
+        binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
+
+        # Get the pixel and slice scales
+        pxscl = self.platescale * binspat
+        slscl = self.slicescale
+        ifunum = hdr['IFUNUM']
+        if ifunum == 2:
+            slscl = self.slicescale/2.0
+        elif ifunum == 3:
+            slscl = self.slicescale/4.0
+
+        # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
 
         # Get RA/DEC
