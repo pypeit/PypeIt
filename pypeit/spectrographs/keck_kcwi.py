@@ -711,8 +711,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         crota = np.radians(-(skypa + rotoff))
 
         # Calculate the fits coordinates
-        cdelt1 = -pxscl
-        cdelt2 = slscl
+        cdelt1 = -slscl
+        cdelt2 = pxscl
         if coord is None:
             ra = 0.
             dec = 0.
