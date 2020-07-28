@@ -42,8 +42,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         self.grating = None
         self.optical_model = None
         self.detector_map = None
-        self.slicescale = 0.00037718  # Degrees per 'large slicer' slice
-        self.platescale = 0.00004048  # Degrees per unbinned pixel
 
     @property
     def pypeline(self):
@@ -82,9 +80,6 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
                         specaxis        = 0,
                         specflip        = specflip,
                         spatflip        = False,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
                         platescale      = 0.145728,  # arcsec/pixel
                         darkcurr        = None,  # <-- TODO : Need to set this
                         mincounts       = -1e10,
@@ -166,6 +161,7 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         meta['hatch'] = dict(ext=0, card='HATNUM')
         meta['idname'] = dict(ext=0, card='CALXPOS')
         meta['dispangle'] = dict(ext=0, card='BGRANGLE', rtol=0.01)
+        meta['slitwid'] = dict(card=None, compound=True)
 
         # Get atmospheric conditions (note, these are the conditions at the end of the exposure)
         meta['obstime'] = dict(card=None, compound=True, required=False)
@@ -262,6 +258,15 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif meta_key == 'slitwid':
+            # Get the slice scale
+            slicescale = 0.00037718  # Degrees per 'large slicer' slice
+            ifunum = headarr[0]['IFUNUM']
+            if ifunum == 2:
+                slicescale /= 2.0
+            elif ifunum == 3:
+                slicescale /= 4.0
+            return slicescale
         elif meta_key == 'ra' or meta_key == 'dec':
             try:
                 if self.is_nasmask(headarr[0]):
@@ -650,16 +655,20 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         else:
             return False
 
-    def get_wcs(self, hdr, slits, wave0, dwv):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
         """Get the WCS for a frame
 
         Parameters
         ----------
+        detector : DetectorContainer
+            A DetectorContainer object containing parameters of the detector
         hdr : fits header
             The header of the raw frame. The information in this
             header will be extracted and returned as a WCS.
         slits : :class:`pypeit.slittrace.SlitTraceSet`
             Master slit edges
+        platescale : float
+            platescale of an unbinned pixel in arcsec/pixel (e.g. detector.platescale)
         wave0 : float
             wavelength zeropoint
         dwv : float
@@ -674,13 +683,8 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         binspec, binspat = parse.parse_binning(self.get_meta_value([hdr], 'binning'))
 
         # Get the pixel and slice scales
-        pxscl = self.platescale * binspat
-        slscl = self.slicescale
-        ifunum = hdr['IFUNUM']
-        if ifunum == 2:
-            slscl = self.slicescale/2.0
-        elif ifunum == 3:
-            slscl = self.slicescale/4.0
+        pxscl = platescale * binspat / 3600.0  # Need to convert arcsec to degrees
+        slscl = self.get_meta_value([hdr], 'slitwid')
 
         # Get the typical slit length (this changes by ~0.3% over all slits, so a constant is fine for now)
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))

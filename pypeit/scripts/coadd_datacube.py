@@ -24,7 +24,7 @@ from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.procimg import grow_masked
 from pypeit.core.flexure import calculate_image_offset
-from pypeit import alignframe
+from pypeit.core import parse
 from pypeit import spec2dobj
 
 
@@ -206,6 +206,7 @@ def main(args):
         # Load the spectrograph
         specname = spec2DObj.head0['SPECTROG']
         spec = load_spectrograph(specname)
+        detector = spec2DObj.detector
 
         # Setup for PypeIt imports
         msgs.reset(verbosity=2)
@@ -231,11 +232,13 @@ def main(args):
         onslit_gpm = (slitid_img_init > 0) & (bpmmask == 0)
 
         # Grab the WCS of this frame
-        wcs = spec.get_wcs(spec2DObj.head0, slits, wave0, dwv)
+        wcs = spec.get_wcs(spec2DObj.head0, slits, detector.platescale, wave0, dwv)
         all_wcs.append(copy.deepcopy(wcs))
 
         # Find the largest spatial scale of all images being combined
-        pxscl, slscl = spec.get_scales(spec2DObj.head0)
+        # TODO :: probably need to put this in the DetectorContainer
+        pxscl = detector.platescale * parse.parse_binning(detector.binning)[1] / 3600.0  # This should be degrees/pixel
+        slscl = spec.get_meta_value([spec2DObj.head0], 'slitwid')
         if dspat is None:
             dspat = max(pxscl, slscl)
         elif max(pxscl, slscl) > dspat:
