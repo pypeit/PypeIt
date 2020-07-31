@@ -352,6 +352,7 @@ class Reduce(object):
         msgs.info("Generating wavelength image")
         self.waveimg = self.wv_calib.build_waveimg(self.spectrograph, self.tilts, self.slits,
                                                spat_flexure=self.spat_flexure_shift)
+        embed(header='355 of reduce')
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \

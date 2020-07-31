@@ -208,23 +208,22 @@ class WaveCalib(datamodel.DataContainer):
             if not np.any(thismask):
                 msgs.error("Something failed in wavelengths or masking..")
             if self.par['echelle']:
-                embed(header='195 of wavecalib')
-                # TODO: Put this in `SlitTraceSet`?
-                order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
+                # # TODO: Put this in `SlitTraceSet`?
+                #order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
                 # evaluate solution --
-                embed(header='211 of wavecalib')
-                image[thismask] = self.wv_fit2d.eval(tilts[thismask], x2 = np.ones_like(tilts[thismask]) * order)
+                image[thismask] = self.wv_fit2d.eval(
+                    tilts[thismask], x2=np.full_like(tilts[thismask], slits.ech_order[islit]))
 
 
-                image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
-                                                 tilts[thismask],
-                                                 wv_calib['fit2d']['func2d'],
-                                                 x2=np.ones_like(tilts[thismask])*order,
-                                                 minx=wv_calib['fit2d']['min_spec'],
-                                                 maxx=wv_calib['fit2d']['max_spec'],
-                                                 minx2=wv_calib['fit2d']['min_order'],
-                                                 maxx2=wv_calib['fit2d']['max_order'])
-                image[thismask] /= order
+                #image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
+                #                                 tilts[thismask],
+                #                                 wv_calib['fit2d']['func2d'],
+                #                                 x2=np.ones_like(tilts[thismask])*order,
+                #                                 minx=wv_calib['fit2d']['min_spec'],
+                #                                 maxx=wv_calib['fit2d']['max_spec'],
+                #                                 minx2=wv_calib['fit2d']['min_order'],
+                #                                 maxx2=wv_calib['fit2d']['max_order'])
+                image[thismask] /= slits.ech_order[islit]
             else:
                 #iwv_calib = wv_calib[str(slit)]
                 iwv_fits = self.wv_fits[islit]
