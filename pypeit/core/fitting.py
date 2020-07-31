@@ -33,6 +33,7 @@ class PypeItFit(DataContainer):
         'fitc': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
         'fitcov': dict(otype=np.ndarray, atype=np.floating, desc='Covariance of the coefficients'),
         'gpm': dict(otype=np.ndarray, atype=np.integer, desc='Mask (1=good)'),
+        'success': dict(otype=int, desc='Flag indicating whether fit was successful (success=1) or if it failed (success=0)'),
         'func': dict(otype=str, desc='Fit function (polynomial, legendre, chebyshev, polynomial2d, legendre2d, gauss)'),
         'minx': dict(otype=float,
                      desc='minimum value in the array (or the left limit for a legendre / chebyshev polynomial)'),
@@ -45,7 +46,7 @@ class PypeItFit(DataContainer):
     # This needs to contain all datamodel items
     def __init__(self, xval=None, yval=None, order=None, x2=None, weights=None, fitc=None,
                  fitcov=None, func=None, minx=None, maxx=None, minx2=None,
-                 maxx2=None, gpm=None):
+                 maxx2=None, gpm=None, success=None):
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = {k: values[k] for k in args[1:]}
@@ -77,49 +78,53 @@ class PypeItFit(DataContainer):
         # Do it
         return super(PypeItFit, self).to_hdu(**_d)
 
-    def fit(self):
+    @property
+    def bool_gpm(self):
+        return self.gpm.astype(bool) if self.gpm is not None else None
+
+    def fit(self, guesses=None, return_errors=False):
         """
 
         Args:
-            x (`numpy.ndarray`_):
-            y (`numpy.ndarray`_):
-            func (:obj:`str`):
-                polynomial, legendre, chebyshev, gaussian
-            deg (:obj:`int`):
-                degree of the fit
-            x2 (`numpy.ndarray`_, optional):
-            minx:
-            maxx:
-            minx2:
-            maxx2:
-            w (`numpy.ndarray`_, optional):
-            inmask (`numpy.ndarray`_, optional):
-            guesses:
+            guesses (array):
+                Guesses for Gaussian fits
             return_errors:
 
-        Returns:
-            PypeItFit:
-
         """
-        if self.return_errors:
+
+        # TODO Fix this!
+        if return_errors:
             msgs.error("Need to deal with this")
         # Init
         self.fitcov = None
 
-        # If the user provided an inmask apply it. The logic below of evaluating the fit only at the non-masked
+        # If the user provided an gpm apply it. The logic below of evaluating the fit only at the non-masked
         # pixels is preferable to the other approach of simply setting the weights to zero. The reason for that is that
         # the fits use a least-square optimization approach using matrix algebra, and lots of zero weights are
         # 1) more costly, and 2) will not produce exactly the same result (due to roundoff error) as actually
         # removing the locations you want to mask.
-        if self.inmask is not None:
-            x_out = self.xval[self.gpm]
-            y_out = self.yval[self.gpm]
+
+        # This block ensures sensible zero coefficient outputs are returned if the fits was successful
+        if not np.any(self.bool_gpm):
+            if self.func == "gaussian":
+                self.fitc = np.zeros(self.order[0])
+            elif '2d' in self.func:
+                self.fitc = np.zeros(self.order[0] + 1, self.order[1] + 1)
+            else:
+                self.fitc = np.zeros(self.order[0] + 1)
+            msgs.warn('Input gpm is masked everywhere. Fit is probably probelmatic')
+            self.success = 0
+            return self.success
+
+        if self.bool_gpm is not None:
+            x_out = self.xval[self.bool_gpm]
+            y_out = self.yval[self.bool_gpm]
             if self.x2 is not None:
-                x2_out = self.x2[self.gpm]
+                x2_out = self.x2[self.bool_gpm]
             else:
                 x2_out = None
             if self.weights is not None:
-                w_out = self.weights[self.gpm]
+                w_out = self.weights[self.bool_gpm]
             else:
                 w_out = None
         else:
@@ -137,7 +142,7 @@ class PypeItFit(DataContainer):
         # For two-d fits x = x, y = x2, y = z
         if ('2d' in self.func) and (x2_out is not None):
             # Is this a 2d fit?
-            fitc = polyfit2d_general(x_out, x2_out, y_out, self.order, w=w_out, function=self.func[:-2],
+            self.fitc = polyfit2d_general(x_out, x2_out, y_out, self.order, w=w_out, function=self.func[:-2],
                                      minx=self.minx, maxx=self.maxx,
                                      miny=self.minx2, maxy=self.maxx2)
         elif self.func == "polynomial":
@@ -151,7 +156,7 @@ class PypeItFit(DataContainer):
             else:
                 xmin, xmax = self.minx, self.maxx
             xv = 2.0 * (x_out - xmin) / (xmax - xmin) - 1.0
-            fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], w=w_out)
+            self.fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], w=w_out)
         elif self.func == "chebyshev":
             if self.minx is None or self.maxx is None:
                 if np.size(x_out) == 1:
@@ -161,23 +166,23 @@ class PypeItFit(DataContainer):
             else:
                 xmin, xmax = self.minx, self.maxx
             xv = 2.0 * (x_out - xmin) / (xmax - xmin) - 1.0
-            fitc = np.polynomial.chebyshev.chebfit(xv, y_out, self.order[0], w=w_out)
+            self.fitc = np.polynomial.chebyshev.chebfit(xv, y_out, self.order[0], w=w_out)
         elif self.func == "gaussian":
             # Guesses
-            if self.guesses is None:
+            if guesses is None:
                 ampl, cent, sigma = guess_gauss(x_out, y_out)
                 # As first guess choose slope and intercept to be zero
                 b = 0
                 m = 0
             else:
                 if self.order[0] == 2:
-                    ampl, sigma = self.guesses
+                    ampl, sigma = guesses
                 elif self.order[0] == 3:
-                    ampl, cent, sigma = self.guesses
+                    ampl, cent, sigma = guesses
                 elif self.order[0] == 4:
-                    b, ampl, cent, sigma = self.guesses
+                    b, ampl, cent, sigma = guesses
                 elif self.order[0] == 5:
-                    m, b, ampl, cent, sigma = self.guesses
+                    m, b, ampl, cent, sigma = guesses
             # Error
             if w_out is not None:
                 sig_y = 1. / w_out
@@ -196,13 +201,13 @@ class PypeItFit(DataContainer):
                 msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
         elif self.func == "moffat":
             # Guesses
-            if self.guesses is None:
+            if guesses is None:
                 ampl, cent, sigma = guess_gauss(x_out, y_out)
                 p0 = ampl
                 p2 = 3.  # Standard guess
                 p1 = (2.355 * sigma) / (2 * np.sqrt(2 ** (1. / p2) - 1))
             else:
-                p0, p1, p2 = self.guesses
+                p0, p1, p2 = guesses
             # Error
             if w_out is not None:
                 sig_y = 1. / w_out
@@ -216,6 +221,8 @@ class PypeItFit(DataContainer):
             msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                        "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
+        self.success = 1
+        return self.success
 
     def eval(self, x, x2=None):
         """
@@ -297,7 +304,7 @@ class PypeItFit(DataContainer):
             float: RMS
 
         """
-        msk = self.gpm.astype(np.bool)
+        msk = self.bool_gpm
         if self.weights is None:
             weights = np.ones(self.xval.size)
         else:
@@ -316,6 +323,167 @@ class PypeItFit(DataContainer):
         rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
         # Return
         return rms
+
+
+def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
+               minx=None, maxx=None, minx2=None, maxx2=None,
+               maxiter=10, inmask=None, weights=None, invvar=None,
+               lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
+               groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True):
+    """
+    A robust fit is performed to the xarray, yarray pairs
+    ``mask[i] = 1`` are good values.
+
+    Args:
+        xarray (`numpy.ndarray`_):
+            independent variable values
+        yarray (`numpy.ndarray`_):
+            dependent variable values
+        order (:obj:`int` or numpy.ndarray`_):
+            the order of the polynomial to be used in the fitting. This is an integer for 1d fits and must
+            be a tuple or 2d array for 2d fits (i.e. using x2 as the second independent variable).
+        x2  (`numpy.ndarray`_, optional):
+            Do a 2d fit? This is the second independent variable for 2d fits.
+        function:
+            which function should be used in the fitting (valid inputs:
+            'polynomial', 'legendre', 'chebyshev', 'polynomial2d', 'legendre2d')
+        minx:
+            minimum value in the array (or the left limit for a
+            legendre/chebyshev polynomial)
+        maxx:
+            maximum value in the array (or the right limit for a
+            legendre/chebyshev polynomial)
+        minx2:
+            Same as minx for second independent variable x2.
+        maxx2:
+            Same as maxx for second independent variable x2.
+        maxiter (:class:`int`, optional):
+            Maximum number of rejection iterations, default 10.  Set
+            this to zero to disable rejection and simply do a fit.
+        inmask (:class:`numpy.ndarray`, optional):
+            Input mask.  Bad points are marked with a value that
+            evaluates to ``False``.  Must have the same number of
+            dimensions as `data`. Points masked as bad "False" in the
+            inmask will also always evaluate to "False" in the outmask
+        invvar (:class:`float`, `numpy.ndarray`, optional):
+            Inverse variance of the data, used to reject points based on
+            the values of `upper` and `lower`.  This can either be a
+            single float for the entire yarray or a ndarray with the
+            same shape as the yarray.
+        weights (np.ndarray): shape same as xarray and yarray
+            If input the code will do a weighted fit. If not input, the
+            code will use invvar as the weights. If both invvar and
+            weights are input. The fit will be done with weights, but
+            the rejection will be based on::
+
+                chi = (data-model) * np.sqrt(invvar)
+
+        lower (:class:`int`, :class:`float`, optional):
+            If set, reject points with ``data < model - lower * sigma``,
+            where ``sigma = 1.0/sqrt(invvar)``.
+        upper (:class:`int`, :class:`float`, optional):
+            If set, reject points with ``data > model + upper * sigma``,
+            where ``sigma = 1.0/sqrt(invvar)``.
+        maxdev (:class:`int`, :class:`float`, optional):
+            If set, reject points with ``abs(data-model) > maxdev``.  It is
+            permitted to set all three of `lower`, `upper` and `maxdev`.
+        maxrej (:class:`int`, :class:`numpy.ndarray`, optional):
+            Maximum number of points to reject in this iteration.  If
+            `groupsize` or `groupdim` are set to arrays, this should be
+            an array as well.
+        groupdim (:class:`int`):
+            Dimension along which to group the data; set to 1 to group
+            along the 1st dimension, 2 for the 2nd dimension, etc.  If
+            data has shape ``[100,200]``, then setting ``GROUPDIM=2`` is
+            equivalent to grouping the data with ``groupsize=100``.  In
+            either case, there are 200 groups, specified by ``[*,i]``. NOT
+            WELL TESTED IN PYTHON!
+        groupsize (:class:`int`):
+            If this and maxrej are set, then reject a maximum of maxrej
+            points per group of groupsize points.  If groupdim is also
+            set, then this specifies sub-groups within that. NOT WELL
+            TESTED IN PYTHON!!
+        groupbadpix (:class:`bool`, optional):
+            If set to ``True``, consecutive sets of bad pixels are
+            considered groups, overriding the values of `groupsize`.
+        grow (:class:`int`, optional, default = 0):
+            If set to a non-zero integer, N, the N nearest neighbors of
+            rejected pixels will also be rejected.
+        sticky (:class:`bool`, optional, default is True):
+            If set to ``True``, pixels rejected in one iteration remain
+            rejected in subsequent iterations, even if the model
+            changes. If
+        use_mad (:class:`bool`, optional, default = False):
+            It set to ``True``, compute the median of the maximum
+            absolute deviation between the data and use this for the
+            rejection instead of the default which is to compute the
+            standard deviation of the yarray - modelfit. Note that it is
+            not possible to specify use_mad=True and also pass in values
+            invvar, and the code will return an error if this is done.
+
+    Returns:
+        PypeItFit or None:
+    """
+
+    # Setup the initial mask
+    if inmask is None:
+        inmask = np.ones(xarray.size, dtype=bool)
+
+    if weights is None:
+        if invvar is not None:
+            weights = np.copy(invvar)
+        else:
+            weights = np.ones(xarray.size, dtype=float)
+
+    # Iterate, and mask out new values on each iteration
+    iIter = 0
+    qdone = False
+    thismask = np.copy(inmask)
+    mskcnt = np.sum(thismask)
+    pypeitFit = None
+    while (not qdone) and (iIter < maxiter):
+        if np.sum(thismask) <= np.sum(order) + 1:
+            msgs.warn("More parameters than data points - fit might be undesirable")
+        if not np.any(thismask):
+            msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
+            #if pypeitFit is not None:
+            #    if ct is None:
+            #        pypeitFit.fitc = np.zeros(order + 1)
+            #    pypeitFit.gpm = thismask.astype(int)
+            #return pypeitFit
+
+        pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=thismask,
+                             minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
+        pypeitFit.fit()
+        #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights, inmask=thismask, guesses=ct,
+        #                     minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
+        ymodel = pypeitFit.eval(xarray, x2=x2)
+        # TODO Add nrej and nrej_tot as in robust_optimize below?
+        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask, inmask=inmask, invvar=invvar,
+                                          lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
+                                          groupdim=groupdim, groupsize=groupsize, groupbadpix=groupbadpix, grow=grow,
+                                          use_mad=use_mad, sticky=sticky)
+        # Update the iteration
+        iIter += 1
+    if (iIter == maxiter) & (maxiter != 0):
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
+    outmask = np.copy(thismask)
+    if np.sum(outmask) == 0:
+        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
+
+    # Do the final fit
+    pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=thismask,
+                          minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
+    pypeitFit.fit()
+    # Needs to be int to write to disk
+    pypeitFit.gpm = outmask.astype(int)
+    #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights,
+    #                     inmask=outmask, minx=minx, maxx=maxx, minx2=minx2,
+    #                     maxx2=maxx2)
+
+
+    # Return
+    return pypeitFit
 
 
 def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lower=5, maxiter=25,
@@ -559,6 +727,32 @@ def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lo
     return sset, outmask, yfit, reduced_chi, exit_status
 
 
+
+def scale_minmax(x, minx=None, maxx=None):
+    """
+    Scale in the input array
+
+    Args:
+        x (`numpy.ndarray`_): x-values
+        minx (float, optional): Minimum value for scaling
+        maxx (float, optional): Maximum value for scaling
+
+    Returns:
+        `numpy.ndarray`_: Scaled x values
+
+    """
+    if minx is None or maxx is None:
+        if np.size(x) == 1:
+            xmin, xmax = -1.0, 1.0
+        else:
+            xmin, xmax = np.min(x), np.max(x)
+    else:
+        xmin, xmax = minx, maxx
+    xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
+    return xv
+
+
+
 def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None, show=True):
     """
     Construct a QA plot of the bspline fit.
@@ -622,155 +816,6 @@ def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=No
     plt.show()
 
 
-def func_fit(x, y, func, deg, x2=None, minx=None, maxx=None, minx2=None, maxx2=None,
-             w=None, inmask=None, guesses=None, return_errors=False):
-    """
-
-    Args:
-        x (`numpy.ndarray`_):
-        y (`numpy.ndarray`_):
-        func (:obj:`str`):
-            polynomial, legendre, chebyshev, gaussian
-        deg (:obj:`int`):
-            degree of the fit
-        x2 (`numpy.ndarray`_, optional):
-        minx:
-        maxx:
-        minx2:
-        maxx2:
-        w (`numpy.ndarray`_, optional):
-        inmask (`numpy.ndarray`_, optional):
-        guesses:
-        return_errors:
-
-    Returns:
-        PypeItFit:
-
-    """
-    if return_errors:
-        msgs.error("Need to deal with this")
-    # Init
-    pcov = None
-
-    # If the user provided an inmask apply it. The logic below of evaluating the fit only at the non-masked
-    # pixels is preferable to the other approach of simply setting the weights to zero. The reason for that is that
-    # the fits use a least-square optimization approach using matrix algebra, and lots of zero weights are
-    # 1) more costly, and 2) will not produce exactly the same result (due to roundoff error) as actually
-    # removing the locations you want to mask.
-    if inmask is not None:
-        x_out = x[inmask]
-        y_out = y[inmask]
-        if x2 is not None:
-            x2_out = x2[inmask]
-        else:
-            x2_out = None
-        if w is not None:
-            w_out = w[inmask]
-        else:
-            w_out = None
-    else:
-        x_out = x
-        y_out = y
-        if x2 is not None:
-            x2_out = x2
-        else:
-            x2_out = None
-        if w is not None:
-            w_out = w
-        else:
-            w_out = None
-
-    # For two-d fits x = x, y = x2, y = z
-    if ('2d' in func) and (x2_out is not None):
-        # Is this a 2d fit?
-        fitc = polyfit2d_general(x_out, x2_out, y_out, deg, w=w_out, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
-    elif func == "polynomial":
-        fitc = np.polynomial.polynomial.polyfit(x_out, y_out, deg, w=w_out)
-    elif func == "legendre":
-        if minx is None or maxx is None:
-            if np.size(x_out) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x_out), np.max(x_out)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
-        fitc = np.polynomial.legendre.legfit(xv, y_out, deg, w=w_out)
-    elif func == "chebyshev":
-        if minx is None or maxx is None:
-            if np.size(x_out) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x_out), np.max(x_out)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
-        fitc = np.polynomial.chebyshev.chebfit(xv, y_out, deg, w=w_out)
-    elif func == "bspline":
-        msgs.error("Need to update whatever is calling this to call bspline instead..")
-        #if bspline_par is None:
-        #    bspline_par = {}
-        ## TODO -- Deal with this kwargs-like kludge
-        #fitc = bspline_fit(x_out, y_out, order=deg, w=w_out, **bspline_par)
-    elif func == "gaussian":
-        # Guesses
-        if guesses is None:
-            ampl, cent, sigma = guess_gauss(x_out, y_out)
-            # As first guess choose slope and intercept to be zero
-            b = 0
-            m = 0
-        else:
-            if deg == 2:
-                ampl, sigma = guesses
-            elif deg == 3:
-                ampl, cent, sigma = guesses
-            elif deg == 4:
-                b, ampl, cent, sigma = guesses
-            elif deg == 5:
-                m, b, ampl, cent, sigma = guesses
-        # Error
-        if w_out is not None:
-            sig_y = 1./w_out
-        else:
-            sig_y = None
-        if deg == 2:  # 2 parameter fit
-            fitc, pcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
-        elif deg == 3:  # Standard 3 parameters
-            fitc, pcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
-                                   sigma=sig_y)
-        elif deg == 4:  # 4 parameters
-            fitc, pcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma],sigma=sig_y)
-        elif deg == 5:  # 5 parameters
-            fitc, pcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma],sigma=sig_y)
-        else:
-            msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
-    elif func == "moffat":
-        # Guesses
-        if guesses is None:
-            ampl, cent, sigma = guess_gauss(x_out, y_out)
-            p0 = ampl
-            p2 = 3. # Standard guess
-            p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
-        else:
-            p0,p1,p2 = guesses
-        # Error
-        if w_out is not None:
-            sig_y = 1./w_out
-        else:
-            sig_y = None
-        if deg == 3:  # Standard 3 parameters
-            fitc, pcov = curve_fit(moffat, x_out, y_out, p0=[p0,p1,p2], sigma=sig_y)
-        else:
-            msgs.error("Not prepared for deg={:d} for Moffat fit".format(deg))
-    else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                   "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
-    # DataContainer
-    pypeitFit = PypeItFit(xval=x, yval=y, weights=w, fitc=fitc, fitcov=pcov, func=func,
-                          minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
-    if inmask is not None:
-        pypeitFit.gpm = inmask.astype(int)
-    return pypeitFit
 
 
 def moffat(x,p0,p1,p2):
@@ -928,188 +973,6 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     z = z.reshape((vander.shape[0],))
     c = np.linalg.lstsq(vander, z, rcond=None)[0]
     return c.reshape(deg+1)
-
-
-def robust_fit(xarray, yarray, order, x2 = None, function='polynomial',
-               minx=None, maxx=None, minx2=None, maxx2=None,
-               guesses=None, maxiter=10, inmask=None, weights=None, invvar=None,
-               lower=None, upper=None, maxdev=None,maxrej=None, groupdim=None,
-               groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True):
-    """
-    A robust fit is performed to the xarray, yarray pairs
-    ``mask[i] = 1`` are good values.
-
-    Args:
-        xarray (`numpy.ndarray`_):
-            independent variable values
-        yarray (`numpy.ndarray`_):
-            dependent variable values
-        order (:obj:`int`):
-            the order of the polynomial to be used in the fitting
-        x2  (`numpy.ndarray`_, optional):
-            Do a 2d fit? This is the second independent variable for 2d fits.
-        function:
-            which function should be used in the fitting (valid inputs:
-            'polynomial', 'legendre', 'chebyshev', 'polynomial2d', 'legendre2d')
-        minx:
-            minimum value in the array (or the left limit for a
-            legendre/chebyshev polynomial)
-        maxx:
-            maximum value in the array (or the right limit for a
-            legendre/chebyshev polynomial)
-        minx2:
-            Same as minx for second independent variable x2.
-        maxx2:
-            Same as maxx for second independent variable x2.
-        guesses (tuple):
-            Guesses
-        maxiter (:class:`int`, optional):
-            Maximum number of rejection iterations, default 10.  Set
-            this to zero to disable rejection and simply do a fit.
-        inmask (:class:`numpy.ndarray`, optional):
-            Input mask.  Bad points are marked with a value that
-            evaluates to ``False``.  Must have the same number of
-            dimensions as `data`. Points masked as bad "False" in the
-            inmask will also always evaluate to "False" in the outmask
-        invvar (:class:`float`, `numpy.ndarray`, optional):
-            Inverse variance of the data, used to reject points based on
-            the values of `upper` and `lower`.  This can either be a
-            single float for the entire yarray or a ndarray with the
-            same shape as the yarray.
-        weights (np.ndarray): shape same as xarray and yarray
-            If input the code will do a weighted fit. If not input, the
-            code will use invvar as the weights. If both invvar and
-            weights are input. The fit will be done with weights, but
-            the rejection will be based on::
-
-                chi = (data-model) * np.sqrt(invvar)
-
-        lower (:class:`int`, :class:`float`, optional):
-            If set, reject points with ``data < model - lower * sigma``,
-            where ``sigma = 1.0/sqrt(invvar)``.
-        upper (:class:`int`, :class:`float`, optional):
-            If set, reject points with ``data > model + upper * sigma``,
-            where ``sigma = 1.0/sqrt(invvar)``.
-        maxdev (:class:`int`, :class:`float`, optional):
-            If set, reject points with ``abs(data-model) > maxdev``.  It is
-            permitted to set all three of `lower`, `upper` and `maxdev`.
-        maxrej (:class:`int`, :class:`numpy.ndarray`, optional):
-            Maximum number of points to reject in this iteration.  If
-            `groupsize` or `groupdim` are set to arrays, this should be
-            an array as well.
-        groupdim (:class:`int`):
-            Dimension along which to group the data; set to 1 to group
-            along the 1st dimension, 2 for the 2nd dimension, etc.  If
-            data has shape ``[100,200]``, then setting ``GROUPDIM=2`` is
-            equivalent to grouping the data with ``groupsize=100``.  In
-            either case, there are 200 groups, specified by ``[*,i]``. NOT
-            WELL TESTED IN PYTHON!
-        groupsize (:class:`int`):
-            If this and maxrej are set, then reject a maximum of maxrej
-            points per group of groupsize points.  If groupdim is also
-            set, then this specifies sub-groups within that. NOT WELL
-            TESTED IN PYTHON!!
-        groupbadpix (:class:`bool`, optional):
-            If set to ``True``, consecutive sets of bad pixels are
-            considered groups, overriding the values of `groupsize`.
-        grow (:class:`int`, optional, default = 0):
-            If set to a non-zero integer, N, the N nearest neighbors of
-            rejected pixels will also be rejected.
-        sticky (:class:`bool`, optional, default is True):
-            If set to ``True``, pixels rejected in one iteration remain
-            rejected in subsequent iterations, even if the model
-            changes. If
-        use_mad (:class:`bool`, optional, default = False):
-            It set to ``True``, compute the median of the maximum
-            absolute deviation between the data and use this for the
-            rejection instead of the default which is to compute the
-            standard deviation of the yarray - modelfit. Note that it is
-            not possible to specify use_mad=True and also pass in values
-            invvar, and the code will return an error if this is done.
-
-    Returns:
-        PypeItFit or None:
-    """
-
-    # Setup the initial mask
-    if inmask is None:
-        inmask = np.ones(xarray.size, dtype=bool)
-
-    if weights is None:
-        if invvar is not None:
-            weights = np.copy(invvar)
-        else:
-            weights = np.ones(xarray.size,dtype=float)
-
-    # Iterate, and mask out new values on each iteration
-    ct = guesses
-
-    iIter = 0
-    qdone = False
-    thismask = np.copy(inmask)
-    mskcnt = np.sum(thismask)
-    pypeitFit = None
-    while (not qdone) and (iIter < maxiter):
-        if np.sum(thismask) <= np.sum(order) + 1:
-            msgs.warn("More parameters than data points - fit might be undesirable")
-        if not np.any(thismask):
-            msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-            if pypeitFit is not None:
-                if ct is None:
-                    pypeitFit.fitc = np.zeros(order + 1)
-                pypeitFit.gpm = thismask.astype(int)
-            return pypeitFit
-
-        pypeitFit = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct,
-                      minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
-        ymodel = pypeitFit.val(xarray, x2=x2)
-        # TODO Add nrej and nrej_tot as in robust_optimize below?
-        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, invvar=invvar,
-                                          lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
-                                          groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
-                                          use_mad=use_mad,sticky=sticky)
-        # Update the iteration
-        iIter += 1
-    if (iIter == maxiter) & (maxiter != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
-    outmask = np.copy(thismask)
-    if np.sum(outmask) == 0:
-        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
-
-    # Do the final fit
-    pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights,
-                         inmask=outmask, minx=minx, maxx=maxx, minx2=minx2,
-                         maxx2=maxx2)
-
-    # Needs to be int to write to disk
-    pypeitFit.gpm = outmask.astype(int)
-
-    # Return
-    return pypeitFit
-
-
-def scale_minmax(x, minx=None, maxx=None):
-    """
-    Scale in the input array
-
-    Args:
-        x (`numpy.ndarray`_): x-values
-        minx (float, optional): Minimum value for scaling
-        maxx (float, optional): Maximum value for scaling
-
-    Returns:
-        `numpy.ndarray`_: Scaled x values
-
-    """
-    if minx is None or maxx is None:
-        if np.size(x) == 1:
-            xmin, xmax = -1.0, 1.0
-        else:
-            xmin, xmax = np.min(x), np.max(x)
-    else:
-        xmin, xmax = minx, maxx
-    xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-    return xv
 
 
 # TODO: JFH This routine should be put in the bspline module as a utility function and the bspline class should be renamed to Bspline
