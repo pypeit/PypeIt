@@ -52,12 +52,18 @@ def test_wavecalib():
     out_file = data_path('test_wavecalib.fits')
     if os.path.isfile(out_file):
         os.remove(out_file)
-    # Piecese
+    # Pieces
     pypeitFit = fitting.PypeItFit(fitc=np.arange(5).astype(float), xval=np.linspace(1,100., 100))
+    # 2D fit
+    pypeitFit2 = fitting.PypeItFit(fitc=np.linspace((1,2),(10,20),10),
+                                   xval=np.linspace(1,100., 100),
+                                   x2=np.linspace(1, 100., 100))
     waveFit = wv_fitting.WaveFit(pypeitfit=pypeitFit, pixel_fit=np.arange(10).astype(float),
                                  wave_fit=np.linspace(1.,10.,10))
 
-    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]), nslits=1, spat_id=np.asarray([232]))
+    waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]),
+                                    nslits=1, spat_id=np.asarray([232]),
+                                    wv_fit2d=pypeitFit2)
 
     # Write
     waveCalib.to_file(out_file)
@@ -69,6 +75,7 @@ def test_wavecalib():
     assert np.array_equal(waveCalib.spat_id, waveCalib2.spat_id), 'Bad spat_id'
     assert np.array_equal(waveCalib.wv_fits[0].pypeitfit.fitc,
                           waveCalib2.wv_fits[0].pypeitfit.fitc), 'Bad fitc'
+    assert np.array_equal(waveCalib.wv_fit2d.xval, waveCalib2.wv_fit2d.xval)
 
     # Write again!
     waveCalib2.to_file(out_file, overwrite=True)

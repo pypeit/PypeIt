@@ -228,8 +228,9 @@ class PypeItFit(DataContainer):
         Return the evaluated fit
 
         Args:
-            x:
-            x2:
+            x (`numpy.ndarray_`, optional):
+            x2 (`numpy.ndarray_`, optional):
+                For 2D fits
 
         Returns:
             `numpy.ndarray_`:
@@ -289,15 +290,18 @@ class PypeItFit(DataContainer):
             else:
                 msgs.error("Not ready for this type of Moffat")
         else:
+            embed(header='292 of fitting')
             msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                        "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
-    def calc_fit_rms(self, apply_mask=True):
+    def calc_fit_rms(self, apply_mask=True, x2=None):
         """ Simple RMS calculation
 
         Args:
             apply_mask (bool, optional):
                 Apply mask?
+            x2 (`numpy.ndarray_`, optional):
+                For 2D fits
 
         Returns:
             float: RMS
@@ -317,11 +321,12 @@ class PypeItFit(DataContainer):
             yval = self.yval.copy()
         # Normalise
         weights /= np.sum(weights)
-        values = self.eval(xval)
+        values = self.eval(xval, x2=x2)
         # rms = np.std(yfit-values)
         rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
         # Return
         return rms
+
 
 def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                minx=None, maxx=None, minx2=None, maxx2=None,
