@@ -218,7 +218,7 @@ class WaveCalib(datamodel.DataContainer):
             else:
                 #iwv_calib = wv_calib[str(slit)]
                 iwv_fits = self.wv_fits[islit]
-                image[thismask] = iwv_fits.pypeitfit.val(tilts[thismask])
+                image[thismask] = iwv_fits.pypeitfit.eval(tilts[thismask])
                                                  #minx=iwv_calib['fmin'],
                                                  #maxx=iwv_calib['fmax'])
         # Return

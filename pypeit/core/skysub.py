@@ -1039,8 +1039,8 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
                         pypeitFit = fitting.robust_fit(order_vec[other_orders], fwhm_here[other_orders],1,
                                                                         function='polynomial',maxiter=25,lower=2.0, upper=2.0,
                                                                         maxrej=1,sticky=False, minx=minx, maxx=maxx)
-                        fwhm_this_ord = pypeitFit.val(order_vec[iord])#, 'polynomial', minx=minx, maxx=maxx)
-                        fwhm_all = pypeitFit.val(order_vec)#, 'polynomial', minx=minx, maxx=maxx)
+                        fwhm_this_ord = pypeitFit.eval(order_vec[iord])#, 'polynomial', minx=minx, maxx=maxx)
+                        fwhm_all = pypeitFit.eval(order_vec)#, 'polynomial', minx=minx, maxx=maxx)
                         fwhm_str = 'linear fit'
                     else:
                         fit_mask = np.ones_like(order_vec[other_orders],dtype=bool)

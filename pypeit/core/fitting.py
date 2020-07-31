@@ -62,7 +62,6 @@ class PypeItFit(DataContainer):
         """
         return super(PypeItFit, self)._bundle(ext='PYPEITFIT')
 
-
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
                limit_hdus=None, force_to_bintbl=True):
         """
@@ -318,12 +317,11 @@ class PypeItFit(DataContainer):
             yval = self.yval.copy()
         # Normalise
         weights /= np.sum(weights)
-        values = self.val(xval)
+        values = self.eval(xval)
         # rms = np.std(yfit-values)
         rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
         # Return
         return rms
-
 
 def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                minx=None, maxx=None, minx2=None, maxx2=None,
@@ -439,7 +437,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     iIter = 0
     qdone = False
     this_gpm = np.copy(in_gpm)
-    mskcnt = np.sum(this_gpm)
+    #mskcnt = np.sum(this_gpm)
     #pypeitFit = None
     while (not qdone) and (iIter < maxiter):
         if np.sum(this_gpm) <= np.sum(order) + 1:
@@ -447,7 +445,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         if not np.any(this_gpm):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
 
-        pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=this_gpm.astype(int),
+        pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=np.atleast_1d(order), x2=x2, weights=weights,
+                              gpm=this_gpm.astype(int),
                              minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
         pypeitFit.fit()
         #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights, inmask=thismask, guesses=ct,
@@ -464,7 +463,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
 
     # Do the final fit
-    pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=this_gpm.astype(int),
+    pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=np.atleast_1d(order), x2=x2, weights=weights, gpm=this_gpm.astype(int),
                           minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
     pypeitFit.fit()
 

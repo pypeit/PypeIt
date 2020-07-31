@@ -268,7 +268,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
     pypeitFits = []
     for i in range(npca):
         #coeff_used[:,i], fit_coeff[i] \
-        pypeitFit = fitting.robust_fit(coo, _coeff[:,i], _order[i], inmask=inmask,
+        pypeitFit = fitting.robust_fit(coo, _coeff[:,i], _order[i], in_gpm=inmask,
                                            invvar=None if _ivar is None else _ivar[:,i],
                                            weights=_weights[:,i], function=function,
                                            maxiter=maxiter, lower=lower, upper=upper,
@@ -288,7 +288,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
             if np.any(rejected):
                 plt.scatter(coo[rejected], _coeff[rejected,i], marker='x', color='C3', s=80, 
                             label='robust_polyfit_djs rejected')
-            plt.plot(xvec, pypeitFit.val(xvec),
+            plt.plot(xvec, pypeitFit.eval(xvec),
                      linestyle='--', color='C0',
                      label='Polynomial fit of order={0}'.format(_order[i]))
             plt.xlabel('Trace Coordinate', fontsize=14)
@@ -346,7 +346,7 @@ def pca_predict(x, pypeitFits, pca_components, pca_mean, mean):
     npca = pca_components.shape[0]
     c = np.zeros((_x.size, npca), dtype=float)
     for i in range(npca):
-        c[:,i] = pypeitFits[i].val(_x)#, function, minx=minx, maxx=maxx)
+        c[:,i] = pypeitFits[i].eval(_x)#, function, minx=minx, maxx=maxx)
         #c[:,i] = utils.func_val(pca_coeff_fits[i], _x, function, minx=minx, maxx=maxx)
     # Calculate the predicted vectors and return them
     vectors = np.dot(c, pca_components) + pca_mean[None,:] + _mean[:,None]

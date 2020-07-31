@@ -299,7 +299,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         ifit = list(ifit[pypeitFit.gpm == 1]) + sv_ifit
         if not input_only:
             # Find new points from the linelist (should we allow removal of the originals?)
-            twave = pypeitFit.val(tcent/xnspecmin1)#, func, minx=fmin, maxx=fmax)
+            twave = pypeitFit.eval(tcent/xnspecmin1)#, func, minx=fmin, maxx=fmax)
             for ss, iwave in enumerate(twave):
                 mn = np.min(np.abs(iwave-llist['wave']))
                 if mn/disp < match_toler:
@@ -332,7 +332,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         yrej = yfit[irej]
         if verbose:
             for kk, imask in enumerate(irej):
-                wave = pypeitFit.val(xrej[kk]/xnspecmin1)#, func, minx=fmin, maxx=fmax)
+                wave = pypeitFit.eval(xrej[kk]/xnspecmin1)#, func, minx=fmin, maxx=fmax)
                 msgs.info('Rejecting arc line {:g}; {:g}'.format(yfit[imask], wave))
     else:
         xrej = []
@@ -354,11 +354,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     # Pack up fit
     spec_vec = np.arange(nspec)
     #wave_soln = utils.func_val(fit,spec_vec/xnspecmin1, func, minx=fmin, maxx=fmax)
-    wave_soln = pypeitFit.val(spec_vec/xnspecmin1)#, func, minx=fmin, maxx=fmax)
+    wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)#, func, minx=fmin, maxx=fmax)
     #cen_wave = utils.func_val(fit, float(nspec)/2/xnspecmin1, func, minx=fmin, maxx=fmax)
-    cen_wave = pypeitFit.val(float(nspec)/2/xnspecmin1)#, func, minx=fmin, maxx=fmax)
+    cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)#, func, minx=fmin, maxx=fmax)
     #cen_wave_min1 = utils.func_val(fit, (float(nspec)/2 - 1.0)/xnspecmin1, func, minx=fmin, maxx=fmax)
-    cen_wave_min1 = pypeitFit.val((float(nspec)/2 - 1.0)/xnspecmin1)#, func, minx=fmin, maxx=fmax)
+    cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)#, func, minx=fmin, maxx=fmax)
     cen_disp = cen_wave - cen_wave_min1
 
     # Ions bit
