@@ -19,7 +19,6 @@ def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
 
-'''
 def test_pypeitfit():
     out_file = data_path('test_fit.fits')
     if os.path.isfile(out_file):
@@ -33,7 +32,6 @@ def test_pypeitfit():
     pypeitFit2.to_file(out_file, overwrite=True)
     # Finish
     os.remove(out_file)
-'''
 
 
 def test_polynomial():
@@ -51,16 +49,15 @@ def test_polynomial():
     val = pypeitFit.eval(x)
     assert np.isclose(val[0], -0.04746603), 'Bad value'
 
-'''
 def test_legendre():
     x = np.pi*np.linspace(0, 1., 100)
     y = np.sin(x)
     # Legendre
-    pypeitFit = fitting.func_fit(x, y, 'legendre', 3)
+    pypeitFit = fitting.PypeItFit(xval=x, yval=y, func='legendre', order=np.array([3]))
+    pypeitFit.fit() # = fitting.func_fit(x, y, 'legendre', 3)
     np.testing.assert_allclose(pypeitFit.fitc, np.array([  6.37115652e-01,   6.83317251e-17,
                                                    -6.84581686e-01, -7.59352737e-17]), atol=1e-9)
 
 def test_robust_fit():
     # NEED A TEST!!
     pass
-'''
