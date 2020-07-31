@@ -105,7 +105,7 @@ class PypeItFit(DataContainer):
         # removing the locations you want to mask.
 
         # This block ensures sensible zero coefficient outputs are returned if the fits was successful
-        if not np.any(self.bool_gpm):
+        if self.bool_gpm is not None and not np.any(self.bool_gpm):
             if self.func == "gaussian":
                 self.fitc = np.zeros(self.order[0])
             elif '2d' in self.func:
@@ -327,7 +327,7 @@ class PypeItFit(DataContainer):
 
 def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                minx=None, maxx=None, minx2=None, maxx2=None,
-               maxiter=10, inmask=None, weights=None, invvar=None,
+               maxiter=10, in_gpm=None, weights=None, invvar=None,
                lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
                groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True):
     """
@@ -360,7 +360,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         maxiter (:class:`int`, optional):
             Maximum number of rejection iterations, default 10.  Set
             this to zero to disable rejection and simply do a fit.
-        inmask (:class:`numpy.ndarray`, optional):
+        in_gpm (:class:`numpy.ndarray`, optional):
             Input mask.  Bad points are marked with a value that
             evaluates to ``False``.  Must have the same number of
             dimensions as `data`. Points masked as bad "False" in the
@@ -426,8 +426,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     """
 
     # Setup the initial mask
-    if inmask is None:
-        inmask = np.ones(xarray.size, dtype=bool)
+    if in_gpm is None:
+        in_gpm = np.ones(xarray.size, dtype=bool)
 
     if weights is None:
         if invvar is not None:
@@ -438,28 +438,23 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     # Iterate, and mask out new values on each iteration
     iIter = 0
     qdone = False
-    thismask = np.copy(inmask)
-    mskcnt = np.sum(thismask)
-    pypeitFit = None
+    this_gpm = np.copy(in_gpm)
+    mskcnt = np.sum(this_gpm)
+    #pypeitFit = None
     while (not qdone) and (iIter < maxiter):
-        if np.sum(thismask) <= np.sum(order) + 1:
+        if np.sum(this_gpm) <= np.sum(order) + 1:
             msgs.warn("More parameters than data points - fit might be undesirable")
-        if not np.any(thismask):
+        if not np.any(this_gpm):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-            #if pypeitFit is not None:
-            #    if ct is None:
-            #        pypeitFit.fitc = np.zeros(order + 1)
-            #    pypeitFit.gpm = thismask.astype(int)
-            #return pypeitFit
 
-        pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=thismask,
+        pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=this_gpm.astype(int),
                              minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
         pypeitFit.fit()
         #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights, inmask=thismask, guesses=ct,
         #                     minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
         ymodel = pypeitFit.eval(xarray, x2=x2)
         # TODO Add nrej and nrej_tot as in robust_optimize below?
-        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask, inmask=inmask, invvar=invvar,
+        this_gpm, qdone = pydl.djs_reject(yarray, ymodel, outmask=this_gpm, inmask=in_gpm, invvar=invvar,
                                           lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
                                           groupdim=groupdim, groupsize=groupsize, groupbadpix=groupbadpix, grow=grow,
                                           use_mad=use_mad, sticky=sticky)
@@ -467,20 +462,11 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         iIter += 1
     if (iIter == maxiter) & (maxiter != 0):
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
-    outmask = np.copy(thismask)
-    if np.sum(outmask) == 0:
-        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
 
     # Do the final fit
-    pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=thismask,
+    pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=this_gpm.astype(int),
                           minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
     pypeitFit.fit()
-    # Needs to be int to write to disk
-    pypeitFit.gpm = outmask.astype(int)
-    #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights,
-    #                     inmask=outmask, minx=minx, maxx=maxx, minx2=minx2,
-    #                     maxx2=maxx2)
-
 
     # Return
     return pypeitFit
