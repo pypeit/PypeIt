@@ -45,7 +45,7 @@ class PypeItFit(DataContainer):
     # This needs to contain all datamodel items
     def __init__(self, xval=None, yval=None, order=None, x2=None, weights=None, fitc=None,
                  fitcov=None, func=None, minx=None, maxx=None, minx2=None,
-                 maxx2=None, gpm=None, guesses=None, return_errors=False):
+                 maxx2=None, gpm=None):
         # Setup the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = {k: values[k] for k in args[1:]}
@@ -77,7 +77,7 @@ class PypeItFit(DataContainer):
         # Do it
         return super(PypeItFit, self).to_hdu(**_d)
 
-    def func_fit(self):
+    def fit(self):
         """
 
         Args:
@@ -217,7 +217,7 @@ class PypeItFit(DataContainer):
                        "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
 
 
-    def val(self, x, x2=None):
+    def eval(self, x, x2=None):
         """
         Return the evaluated fit
 
