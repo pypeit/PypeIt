@@ -30,6 +30,6 @@ def test_chk_calibs_deimos():
     droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/keck_deimos/*/')
     pargs = chk_calibs.parser([droot, '-s', 'keck_deimos'])
     answers, _ = chk_calibs.main(pargs)
-    
+
     assert np.all(answers['pass'][:-1]), 'One or more failures!'
 
