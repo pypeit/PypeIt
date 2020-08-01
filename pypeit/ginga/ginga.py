@@ -149,10 +149,11 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     # Giddy up
     if waveimg is not None:
         sh = viewer.shell()
-        args = ["foo", chname, grc.Blob(img.tobytes()), img.shape, 'float', header, grc.Blob(waveimg.tobytes()), 'float', {}]
+        args = [chname, chname, grc.Blob(img.tobytes()), img.shape, 'float', header, grc.Blob(waveimg.tobytes()), 'float', {}]
         sh.call_global_plugin_method('PypeIt', 'load_buffer', args, {})
     else:
         ch.load_np(chname, img, 'fits', header)
+    # OLD CODE
     #try:
         #ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
     #except:

@@ -187,7 +187,7 @@ If some tests fail, you can run an individual test, e.g. test_wavecalib.py with
     py.test -s test_wavecalib.py
 
 Note that the "-s" option allows to insert interactive debugging commands into the test,
-here test_wavecalib.py to help determine why the test is failing. 
+here test_wavecalib.py to help determine why the test is failing.
 
 .. warning::
 

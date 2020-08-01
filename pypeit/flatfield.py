@@ -16,7 +16,6 @@ from IPython import embed
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import ginga
 from pypeit import bspline
 
 from pypeit import datamodel
@@ -25,6 +24,7 @@ from pypeit import wavecalib
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
+from pypeit.ginga import ginga
 from pypeit import slittrace
 
 
