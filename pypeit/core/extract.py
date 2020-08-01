@@ -16,11 +16,11 @@ from astropy import stats
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import ginga
 from pypeit import specobj
 from pypeit import specobjs
 from pypeit import tracepca
 from pypeit import bspline
+from pypeit.ginga import ginga
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc

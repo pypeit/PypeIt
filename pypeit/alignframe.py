@@ -8,9 +8,9 @@ import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit import ginga, msgs
+from pypeit.ginga import ginga
 from pypeit.core import extract
-from pypeit import datamodel
+from pypeit import datamodel, msgs
 
 
 class Alignments(datamodel.DataContainer):

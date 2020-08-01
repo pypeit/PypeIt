@@ -10,10 +10,9 @@ import inspect
 from astropy.io import fits
 
 from pypeit import msgs
-from pypeit import ginga
-
 from pypeit.images import detector_container, imagebitmask
 from pypeit.core import procimg
+from pypeit.ginga import ginga
 from pypeit import datamodel
 from pypeit import utils
 from pypeit import masterframe

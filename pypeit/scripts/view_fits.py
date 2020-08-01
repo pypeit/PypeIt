@@ -38,7 +38,7 @@ def main(args):
     from pypeit.spectrographs import keck_deimos
     from pypeit.spectrographs import gemini_gmos
     from pypeit import msgs
-    from pypeit import ginga
+    from pypeit.ginga import ginga
 
     # List only?
     if args.list:

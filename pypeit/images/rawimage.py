@@ -226,7 +226,7 @@ class RawImage(object):
                 msgs.error("Need to provide slits to create illumination flat")
             illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
             if debug:
-                from pypeit import ginga
+                from pypeit.ginga import ginga
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
                 viewer, ch = ginga.show_image(illum_flat, chname='illum_flat')
                 ginga.show_slits(viewer, ch, left, right)  # , slits.id)

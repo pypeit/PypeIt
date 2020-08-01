@@ -18,7 +18,7 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
-from pypeit import ginga
+from pypeit.ginga import ginga
 from pypeit import slittrace
 from pypeit import specobjs
 

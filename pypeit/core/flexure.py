@@ -17,8 +17,8 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit.ginga import ginga
 from pypeit.core import arc
-from pypeit import ginga
 from pypeit.core import qa
 
 from IPython import embed

@@ -17,8 +17,9 @@ from abc import ABCMeta
 from linetools import utils as ltu
 
 from pypeit import specobjs, specobj
-from pypeit import ginga, msgs, utils
+from pypeit import msgs, utils
 from pypeit import masterframe
+from pypeit.ginga import ginga
 from pypeit.core import skysub, extract, wave, flexure, flat
 from pypeit.images import buildimage
 from pypeit import wavecalib

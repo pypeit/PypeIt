@@ -120,7 +120,7 @@ from astropy import table
 from pypeit import msgs
 from pypeit import utils
 from pypeit import sampling
-from pypeit import ginga
+from pypeit.ginga import ginga
 from pypeit import masterframe
 from pypeit import io
 from pypeit import slittrace

@@ -13,9 +13,8 @@ from matplotlib import pyplot as plt
 
 from astropy import stats, visualization
 
-from pypeit import msgs
-from pypeit import datamodel
-from pypeit import ginga
+from pypeit import msgs, datamodel
+from pypeit.ginga import ginga
 from pypeit.core import arc
 from pypeit.core import tracewave
 

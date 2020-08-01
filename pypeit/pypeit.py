@@ -12,7 +12,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
-from pypeit import ginga
+from pypeit.ginga import ginga
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
