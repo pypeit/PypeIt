@@ -141,17 +141,22 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         for ch in chnames:
             shell.delete_channel(ch)
     ch = viewer.channel(chname)
-
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
 
     # Giddy up
-    try:
-        ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
-    except:
+    if waveimg is not None:
+        sh = viewer.shell()
+        args = ["foo", chname, grc.Blob(img.tobytes()), img.shape, 'float', header, grc.Blob(waveimg.tobytes()), 'float', {}]
+        sh.call_global_plugin_method('PypeIt', 'load_buffer', args, {})
+    else:
         ch.load_np(chname, img, 'fits', header)
+    #try:
+        #ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
+    #except:
+        #ch.load_np(chname, img, 'fits', header)
     canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at
