@@ -28,6 +28,20 @@ class PypeItImage(AstroImage):
         self.wav_np = wav_np
 
     def info_xy(self, data_x, data_y, settings):
+        """
+        Function to show info for data.
+
+        Parameters
+        ----------
+        data_x
+        data_y
+        settings
+
+        Returns
+        -------
+
+        """
+
         info = super(PypeItImage, self).info_xy(data_x, data_y, settings)
 
         try:
