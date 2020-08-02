@@ -3,12 +3,25 @@ import numpy as np
 from ginga import GingaPlugin
 from ginga.AstroImage import AstroImage
 
+# Ginga PypeIt plugin that allows the value of a wavelength map to be displayed via ginga for any image.
 
 class PypeItImage(AstroImage):
     """
     Custom image type for PypeIt
+
     """
     def __init__(self, wav_np=None, **kwargs):
+        """
+        Chile of AstroImage for PypeIt images that can display wavelengths.
+
+        Parameters
+        ----------
+        wav_np: numpy array
+            Wavelength map image
+        kwargs:
+            Keyword arguments for AstroImage
+
+        """
 
         AstroImage.__init__(self, **kwargs)
 
