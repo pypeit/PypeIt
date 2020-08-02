@@ -23,6 +23,8 @@ from pypeit.images import detector_container
 class KeckKCWISpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/KCWI specific code
+
+    TODO :: Need to apply spectral flexure and heliocentric correction to waveimg
     """
     ndet = 1
 

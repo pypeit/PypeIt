@@ -199,9 +199,11 @@ def main(args):
     dspat = None  # binning size on the sky (in arcsec)
     ref_scale = None  # This will be used to correct relative scaling among the various input frames
     wave_ref = None
+    weights = np.ones(numfiles)  # Weights to use when combining cubes
     for ff, fil in enumerate(files):
         # Load it up
         spec2DObj = spec2dobj.Spec2DObj.from_file(fil.rstrip("\n"), args.det)
+        print(spec2DObj.sci_spat_flexure)
 
         # Load the spectrograph
         specname = spec2DObj.head0['SPECTROG']
@@ -285,6 +287,10 @@ def main(args):
         # sort back to the original ordering
         resrt = np.argsort(wvsrt)
 
+        # Calculate the weights relative to the zeroth cube
+        if ff != 0:
+            weights[ff] = np.median(flux_sav[resrt]/ivar_sav[resrt])
+
         # Store the information
         numpix = raimg[onslit_gpm].size
         all_ra = np.append(all_ra, raimg[onslit_gpm].copy())
@@ -303,7 +309,7 @@ def main(args):
         numdec = int((np.max(all_dec)-np.min(all_dec))/dspat)
         xbins = np.arange(1+numra)-1
         ybins = np.arange(1+numdec)-1
-        zbins = np.arange(2)-1
+        spec_bins = np.arange(2)-1
 
         # Generate a master 2D WCS to register all frames
         coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
@@ -319,8 +325,8 @@ def main(args):
             ww = (all_idx == ff)
             # Make the cube
             pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
-            wlcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci[ww] * all_ivar[ww])
-            norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_ivar[ww])
+            wlcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci[ww] * all_ivar[ww])
+            norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_ivar[ww])
             varCube = (norm > 0) / (norm + (norm == 0))
             whtlght = (wlcube * varCube)[:, :, 0]
             # Create a mask of good pixels (trim the edges)
@@ -358,6 +364,9 @@ def main(args):
             all_ra[all_idx == ff] += ra_shift
             all_dec[all_idx == ff] += dec_shift
 
+        # Recalculate the white light images to get the relative weights of the images
+        weights = np.ones(numfiles)
+
     # Generate a master WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
     coord_dlt = [dspat, dspat, dwv]
@@ -370,13 +379,13 @@ def main(args):
         numwav = int((np.max(all_wave)-np.min(all_wave))/dwv)
         xbins = np.arange(1+numra)-0.5
         ybins = np.arange(1+numdec)-0.5
-        zbins = np.arange(1+numwav)-0.5
+        spec_bins = np.arange(1+numwav)-0.5
     else:
         # TODO :: This is KCWI specific - probably should put this in the spectrograph file, or just delete it.
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
         xbins = np.arange(1 + 24) - 12.0 - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
-        zbins = np.arange(1+int(round((np.max(waveimg)-wave0)/dwv))) - 0.5
+        spec_bins = np.arange(1+int(round((np.max(waveimg)-wave0)/dwv))) - 0.5
 
     # Make the cube
     msgs.info("Generating datacube")
@@ -387,20 +396,19 @@ def main(args):
     else:
         pix_coord = wcs.wcs_world2pix(np.vstack((all_ra, all_dec, all_wave*1.0E-10)).T, 0)
         hdr = wcs.to_header()
-    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*all_ivar)
-    norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_ivar)
+    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*all_ivar)
+    norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_ivar)
     varCube = (norm > 0) / (norm + (norm == 0))
 
     # Save the datacube
     debug = False
     if debug:
-        datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins), weights=all_sci*np.sqrt(all_ivar))
-        norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, zbins))
+        datacube_resid, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*np.sqrt(all_ivar))
+        norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins))
         normCube = (norm > 0) / (norm + (norm == 0))
         outfile = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile))
-        hdu = fits.PrimaryHDU(datacube_resid*normCube, header=masterwcs.to_header())
-#        hdu = fits.PrimaryHDU(norm, header=masterwcs.to_header())
+        hdu = fits.PrimaryHDU((datacube_resid*normCube).T, header=masterwcs.to_header())
         hdu.writeto(outfile, overwrite=args.overwrite)
 
     outfile = "datacube.fits"

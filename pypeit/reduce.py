@@ -1372,7 +1372,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
                 = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,
-                                       bsp=self.par['reduce']['skysub']['bspline_spacing'] / np.sqrt(nslits),
+                                       bsp=self.par['reduce']['skysub']['bspline_spacing'],
                                        no_poly=self.par['reduce']['skysub']['no_poly'],
                                        pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Update the ivar image used in the sky fit

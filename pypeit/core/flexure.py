@@ -22,7 +22,7 @@ from pypeit import utils
 from pypeit.core import arc
 from pypeit import ginga
 from pypeit.core import qa
-from pypeit.core.fitting import twoD_Gaussian
+from pypeit.core.fitting_ToBeMerged import twoD_Gaussian
 
 from IPython import embed
 
