@@ -3,9 +3,8 @@
 --------
  - Implemented a PypeIt ginga plugin kindly provided by the developers of ginga.
    It allows us to display images with a secondary wavelength image. It removes the need to
-   constantly use @profxj ginga fork, removes the hack that was previously required to show
-   wavelengths using fake wcs_images, and also fixes a bug whereby WCS image registration
-   was broken because of that hack.
+   constantly use @profxj ginga fork, and fixes a bug whereby WCS image registration
+   was broken when using the forked ginga. 
 
 1.0.6 (22 Jul 2020)
 -------------------
