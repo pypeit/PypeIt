@@ -1,6 +1,8 @@
 
 1.0.7dev
 --------
+ - Fixed a bug in full_template that would cause crashes for arcs with extreme wavelength coverage
+   because of zero-padding.
 
 1.0.6 (22 Jul 2020)
 -------------------
