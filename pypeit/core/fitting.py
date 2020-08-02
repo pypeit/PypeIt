@@ -62,7 +62,6 @@ class PypeItFit(DataContainer):
         """
         return super(PypeItFit, self)._bundle(ext='PYPEITFIT')
 
-
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
                limit_hdus=None, force_to_bintbl=True):
         """
@@ -229,8 +228,9 @@ class PypeItFit(DataContainer):
         Return the evaluated fit
 
         Args:
-            x:
-            x2:
+            x (`numpy.ndarray_`, optional):
+            x2 (`numpy.ndarray_`, optional):
+                For 2D fits
 
         Returns:
             `numpy.ndarray_`:
@@ -290,15 +290,18 @@ class PypeItFit(DataContainer):
             else:
                 msgs.error("Not ready for this type of Moffat")
         else:
+            embed(header='292 of fitting')
             msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                        "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
 
-    def calc_fit_rms(self, apply_mask=True):
+    def calc_fit_rms(self, apply_mask=True, x2=None):
         """ Simple RMS calculation
 
         Args:
             apply_mask (bool, optional):
                 Apply mask?
+            x2 (`numpy.ndarray_`, optional):
+                For 2D fits
 
         Returns:
             float: RMS
@@ -318,7 +321,7 @@ class PypeItFit(DataContainer):
             yval = self.yval.copy()
         # Normalise
         weights /= np.sum(weights)
-        values = self.val(xval)
+        values = self.eval(xval, x2=x2)
         # rms = np.std(yfit-values)
         rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
         # Return
@@ -439,7 +442,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     iIter = 0
     qdone = False
     this_gpm = np.copy(in_gpm)
-    mskcnt = np.sum(this_gpm)
+    #mskcnt = np.sum(this_gpm)
     #pypeitFit = None
     while (not qdone) and (iIter < maxiter):
         if np.sum(this_gpm) <= np.sum(order) + 1:
@@ -447,7 +450,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         if not np.any(this_gpm):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
 
-        pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=this_gpm.astype(int),
+        pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=np.atleast_1d(order), x2=x2, weights=weights,
+                              gpm=this_gpm.astype(int),
                              minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
         pypeitFit.fit()
         #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights, inmask=thismask, guesses=ct,
@@ -464,7 +468,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
 
     # Do the final fit
-    pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=order, x2=x2, weights=weights, gpm=this_gpm.astype(int),
+    pypeitFit = PypeItFit(xval=xarray, yval=yarray, func=function, order=np.atleast_1d(order), x2=x2, weights=weights, gpm=this_gpm.astype(int),
                           minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
     pypeitFit.fit()
 

@@ -281,11 +281,17 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
 
     #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
     if np.any(np.isfinite(corr[subpix_grid.astype(np.int)])):
-        fit = fitting.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
+        fit = fitting.PypeItFit(xval=subpix_grid, yval=corr[subpix_grid.astype(np.int)],
+                                func='polynomial', order=np.atleast_1d(2))
+        fit.fit()
+        #fit = fitting.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
         success = True
         max_fit = -0.5 * fit[1] / fit[2]
     else:
-        fit = fitting.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
+        fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
+                                funct='polynomial', order=np.atleast_1d(2))
+        fit.fit()
+        #fit = fitting.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
         success = False
         max_fit = 0.0
         msgs.warn('Flexure compensation failed for one of your objects')

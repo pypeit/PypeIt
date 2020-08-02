@@ -446,12 +446,12 @@ class TraceSet(object):
                 #mask_djs, poly_coeff = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
                 pypeitFit = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
-                                                                inmask = inmask[iTrace, :], invvar = thisinvvar,
+                                                                in_gpm = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minx = self.xmin, maxx = self.xmax,
-                                                                maxdev=self.maxdev,maxrej=None,groupdim=None,
-                                                                groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
-                ycurfit_djs = pypeitFit.val(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
+                                                                maxdev=self.maxdev,
+                                                                grow=0,use_mad=False,sticky=False)
+                ycurfit_djs = pypeitFit.eval(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
                 self.pypeitFits.append(pypeitFit)
 
                 # Load
@@ -488,7 +488,7 @@ class TraceSet(object):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
             #legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
             #ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
-            ypos[iTrace, :] =  self.pypeitFits[iTrace].val(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
+            ypos[iTrace, :] =  self.pypeitFits[iTrace].eval(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
 #            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 
