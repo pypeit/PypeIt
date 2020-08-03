@@ -34,8 +34,6 @@ def parser(options=None):
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default=None, help='ascii file with list of spec2D files to combine')
-    parser.add_argument('--list', default=False, help='List the extensions only?',
-                        action='store_true')
     parser.add_argument('--det', default=1, type=int, help="Detector")
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
@@ -181,20 +179,33 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
 
 
 def main(args):
-
-    # List only?
-    if args.list:
-        hdu = fits.open(args.file)
-        hdu.info()
-        return
-
     # Get a list of files for the combination
     files = open(args.file, 'r').readlines()
+    filelist = []
+    for fil in files:
+        filelist.append(fil.rstrip("\n"))
+
+    # Coadd the files
+    coadd_cube(filelist, det=args.det, overwrite=args.overwrite)
+
+
+def coadd_cube(files, det=0, overwrite=False):
+    """ Main routine to coadd spec2D files
+
+    Args:
+        files (list):
+            List of all spec2D files
+        det (int):
+            detector
+        overwrite (bool):
+            Overwrite the output file, if it exists?
+    """
+    # prep
     numfiles = len(files)
     combine = True if numfiles > 1 else False
 
     all_ra, all_dec, all_wave = np.array([]), np.array([]), np.array([])
-    all_sci, all_ivar, all_idx = np.array([]), np.array([]), np.array([])
+    all_sci, all_ivar, all_idx, all_wghts = np.array([]), np.array([]), np.array([]), np.array([])
     all_wcs = []
     dspat = None  # binning size on the sky (in arcsec)
     ref_scale = None  # This will be used to correct relative scaling among the various input frames
@@ -202,8 +213,7 @@ def main(args):
     weights = np.ones(numfiles)  # Weights to use when combining cubes
     for ff, fil in enumerate(files):
         # Load it up
-        spec2DObj = spec2dobj.Spec2DObj.from_file(fil.rstrip("\n"), args.det)
-        print(spec2DObj.sci_spat_flexure)
+        spec2DObj = spec2dobj.Spec2DObj.from_file(fil, det)
 
         # Load the spectrograph
         specname = spec2DObj.head0['SPECTROG']
@@ -289,7 +299,7 @@ def main(args):
 
         # Calculate the weights relative to the zeroth cube
         if ff != 0:
-            weights[ff] = np.median(flux_sav[resrt]/ivar_sav[resrt])
+            weights[ff] = np.median(flux_sav[resrt]*np.sqrt(ivar_sav[resrt]))**2
 
         # Store the information
         numpix = raimg[onslit_gpm].size
@@ -299,6 +309,7 @@ def main(args):
         all_sci = np.append(all_sci, flux_sav[resrt].copy())
         all_ivar = np.append(all_ivar, ivar_sav[resrt].copy())
         all_idx = np.append(all_idx, ff*np.ones(numpix))
+        all_wghts = np.append(all_wghts, weights[ff]*np.ones(numpix))
 
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
@@ -318,17 +329,16 @@ def main(args):
 
         # Register spatial offsets between all frames
         whitelight_Imgs = np.zeros((numra, numdec, numfiles))
-        whitelight_Errs = np.zeros((numra, numdec, numfiles))
-        bestmax, ref_idx, trim = 0.0, 0, 3  # ref_idx will be the index of the cube with the highest S/N
+        trim = 3
         for ff in range(numfiles):
             msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff+1, numfiles))
             ww = (all_idx == ff)
             # Make the cube
             pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
-            wlcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci[ww] * all_ivar[ww])
-            norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_ivar[ww])
-            varCube = (norm > 0) / (norm + (norm == 0))
-            whtlght = (wlcube * varCube)[:, :, 0]
+            wlcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci[ww] * all_wghts[ww])
+            norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_wghts[ww])
+            nrmCube = (norm > 0) / (norm + (norm == 0))
+            whtlght = (wlcube * nrmCube)[:, :, 0]
             # Create a mask of good pixels (trim the edges)
             msk = grow_masked(whtlght == 0, trim, 1) == 0
             whtlght *= msk
@@ -336,14 +346,9 @@ def main(args):
             minval = np.min(whtlght[msk == 1])
             whtlght[msk == 0] = minval
             whitelight_Imgs[:, :, ff] = whtlght.copy()
-            whitelight_Errs[:, :, ff] = np.sqrt(varCube)[:, :, 0]
-            # Obtain a rough guess of the highest S/N cube
-            sn_img = whitelight_Imgs[:, :, ff]*msk / (whitelight_Errs[:, :, ff] + (whitelight_Errs[:, :, ff] == 0))
-            maxval = np.max(sn_img)
-            if maxval > bestmax:
-                bestmax = maxval
-                ref_idx = ff
 
+        # ref_idx will be the index of the cube with the highest S/N
+        ref_idx = np.argmax(weights)
         msgs.info("Calculating the relative spatial translation of each cube (reference cube = {0:d})".format(ref_idx+1))
         # Calculate the image offsets - check the reference is a zero shift
         ra_shift_ref, dec_shift_ref = calculate_image_offset(whitelight_Imgs[:, :, ref_idx], whitelight_Imgs[:, :, ref_idx])
@@ -396,9 +401,11 @@ def main(args):
     else:
         pix_coord = wcs.wcs_world2pix(np.vstack((all_ra, all_dec, all_wave*1.0E-10)).T, 0)
         hdr = wcs.to_header()
-    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*all_ivar)
-    norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_ivar)
-    varCube = (norm > 0) / (norm + (norm == 0))
+    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*all_wghts)
+    norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_wghts)
+    ivarcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_ivar)
+    normCube = (norm > 0) / (norm + (norm == 0))
+    varCube = (ivarcube > 0) / (ivarcube + (ivarcube == 0))
 
     # Save the datacube
     debug = False
@@ -414,7 +421,7 @@ def main(args):
     outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
-    sci_hdu = fits.ImageHDU((datacube*varCube).T, name="scicube", header=hdr)
+    sci_hdu = fits.ImageHDU((datacube*normCube).T, name="scicube", header=hdr)
     var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
     hdulist.writeto(outfile, overwrite=args.overwrite)
