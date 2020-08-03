@@ -1,4 +1,10 @@
 
+1.0.7dev
+--------
+ - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
+   wavelength coverage slits results in reidentification with a purely zero-padded array.
+
+
 1.0.6 (22 Jul 2020)
 -------------------
 
