@@ -124,7 +124,6 @@ from pypeit import sampling
 from pypeit import ginga
 from pypeit import masterframe
 from pypeit import slittrace
-# TODO: Commented until EdgeTraceSet becomes a DataContainer
 from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
 from pypeit.par.pypeitpar import EdgeTracePar
@@ -209,7 +208,7 @@ class EdgeTraceBitMask(BitMask):
         return self.insert_flags + self.order_flags + ['BOXSLIT']
 
 
-class EdgeTraceSet:
+class EdgeTraceSet(DataContainer):
     r"""
     Core class that identifies, traces, and pairs edges in an image
     to define the slit apertures.
@@ -386,15 +385,20 @@ class EdgeTraceSet:
     version = '1.0.0'
     """DataContainer datamodel version."""
 
-#    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-#                 'trace_img': dict(otype=TraceImage,
-#                                   desc='Image used to construct the edge traces.'),
-#
-#
-#                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-#                                descr='Maximum spectral position allowed for each slit/order.  '
-#                                      'Shape is Nslits.')}
-#    """DataContainer datamodel."""
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'trace_img': dict(otype=TraceImage,
+                                   descr='Image used to construct the edge traces.'),
+                 'nspec': dict(otype=int, d)
+
+        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
+            The object that sets the instrument used to take the
+            observations. Used to set :attr:`spectrograph`.
+
+
+                 'specmax': dict(otype=np.ndarray, atype=np.floating,
+                                descr='Maximum spectral position allowed for each slit/order.  '
+                                      'Shape is Nslits.')}
+    """DataContainer datamodel."""
 
     def __init__(self, trace_img, spectrograph, par, bpm=None, qa_path=None, auto=False,
                  debug=False, show_stages=False, save=False):
@@ -4257,7 +4261,7 @@ class EdgeTraceSet:
             # size and pix/mm scale; allow for a +/- 10% deviation in
             # the pixel scale
             # TODO: Is 10% generally enough (for any instrument)? Make
-            # this a (spectograph-specific) parameter?
+            # this a (spectrograph-specific) parameter?
             offset_rng = [offset-0.1*self.spectrograph.detector_map.npix[0],
                           offset+0.1*self.spectrograph.detector_map.npix[0]]
         except:

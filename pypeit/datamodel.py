@@ -556,6 +556,15 @@ class DataContainer:
     Be wary of nested DataContainer's!!
     """
 
+    # Define output_to_disk
+    output_to_disk = None
+    """
+    If set, this limits the HDU extensions that are written to the
+    output file. Note this is the name of the extension, including
+    the hdu_prefix, not necessarily the names of specific datamodel
+    components.
+    """
+
     # Define the data model
     datamodel = None
     """

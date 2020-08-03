@@ -88,17 +88,17 @@ class bspline(datamodel.DataContainer):
     """
     version = '1.0.0'
 
-    datamodel = {
-        'breakpoints':  dict(otype=np.ndarray, atype=np.floating, desc='Breakpoint locations'),
-        'nord': dict(otype=int, desc='Order of the bspline fit'),
-        'npoly': dict(otype=int, desc='Order of the bspline polynomial'),
-        'mask': dict(otype=np.ndarray, atype=np.bool_, desc='Mask'),
-        'coeff': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
-        'icoeff': dict(otype=np.ndarray, atype=np.floating, desc='??'),
-        'xmin': dict(otype=float, desc='Normalization for input data'),
-        'xmax': dict(otype=float, desc='Normalization for input data'),
-        'funcname': dict(otype=str, desc='Function of fit'),
-    }
+    # TODO: Fix the description of icoeff
+    datamodel = {'breakpoints':  dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Breakpoint locations'),
+                 'nord': dict(otype=int, descr='Order of the bspline fit'),
+                 'npoly': dict(otype=int, descr='Order of the bspline polynomial'),
+                 'mask': dict(otype=np.ndarray, atype=np.bool_, descr='Mask'),
+                 'coeff': dict(otype=np.ndarray, atype=np.floating, descr='Fit coefficients'),
+                 'icoeff': dict(otype=np.ndarray, atype=np.floating, descr='??'),
+                 'xmin': dict(otype=float, desc='Normalization for input data'),
+                 'xmax': dict(otype=float, desc='Normalization for input data'),
+                 'funcname': dict(otype=str, desc='Function of fit')}
 
     # ToDO Consider refactoring the argument list so that there are no kwargs
     def __init__(self, x, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0, verbose=False,

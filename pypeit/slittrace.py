@@ -95,8 +95,8 @@ class SlitTraceSet(datamodel.DataContainer):
     bitmask = SlitTraceBitMask()
 
     # Define the data model
-    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-                 'pypeline': dict(otype=str, desc='PypeIt pypeline name'),
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'pypeline': dict(otype=str, descr='PypeIt pypeline name'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'nspat': dict(otype=int,
@@ -147,7 +147,6 @@ class SlitTraceSet(datamodel.DataContainer):
                                 descr='Maximum spectral position allowed for each slit/order.  '
                                       'Shape is Nslits.')}
     """Provides the class data model."""
-    # NOTE: The docstring above is for the ``datamodel`` attribute.
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.

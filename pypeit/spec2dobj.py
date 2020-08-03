@@ -54,21 +54,28 @@ class Spec2DObj(datamodel.DataContainer):
     # TODO -- Hold, save the non-wavelength images as FLOAT32 ??
 
     # Becase we are including nested DataContainers, be careful not to duplicate variable names!!
-    datamodel = {
-        'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
-        'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image'),
-        'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image'),
-        'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
-        'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
-        'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image'),
-        'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
-        'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
-        'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
-        'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
-        'sci_spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
-        'detector': dict(otype=detector_container.DetectorContainer, desc='Detector DataContainer'),
-        'det': dict(otype=int, desc='Detector index'),
-    }
+    datamodel = {'sciimg': dict(otype=np.ndarray, atype=np.floating,
+                                descr='2D processed science image'),
+                 'ivarraw': dict(otype=np.ndarray, atype=np.floating,
+                                 descr='2D processed inverse variance image'),
+                 'skymodel': dict(otype=np.ndarray, atype=np.floating, descr='2D sky model image'),
+                 'objmodel': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='2D object model image'),
+                 'ivarmodel': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='2D ivar model image'),
+                 'tilts': dict(otype=np.ndarray, atype=np.floating, descr='2D tilts image'),
+                 'waveimg': dict(otype=np.ndarray, atype=np.floating, descr='2D wavelength image'),
+                 'bpmmask': dict(otype=np.ndarray, atype=np.integer,
+                                 descr='2D bad-pixel mask for the image'),
+                 'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
+                 'slits': dict(otype=slittrace.SlitTraceSet,
+                               descr='SlitTraceSet defining the slits'),
+                 'sci_spat_flexure': dict(otype=float,
+                                          descr='Shift, in spatial pixels, between this image '
+                                                'and SlitTrace'),
+                 'detector': dict(otype=detector_container.DetectorContainer,
+                                  descr='Detector DataContainer'),
+                 'det': dict(otype=int, descr='Detector index')}
 
     @classmethod
     def from_file(cls, file, det):

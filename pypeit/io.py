@@ -471,9 +471,6 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     cols = []
     for key in array_keys:
         _d = numpy.asarray(d[key])
-        if key == 'fit_coeff':
-            embed()
-            exit()
         cols += [fits.Column(name=key,
                              format=rec_to_fits_type(_d, single_row=single_row),
                              dim=rec_to_fits_col_dim(_d, single_row=single_row),

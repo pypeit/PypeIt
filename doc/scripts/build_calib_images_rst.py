@@ -49,7 +49,7 @@ def build_tbl(imgtyp):
         else:
             data_table[i+1,2] = ' '
         # Description
-        data_table[i+1,3] = ParSet._data_string(data_model[k]['desc'])
+        data_table[i+1,3] = ParSet._data_string(data_model[k]['descr'])
 
     # Restrict by output_to_disk?
     if imgtyp.output_to_disk is not None:

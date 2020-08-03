@@ -32,15 +32,15 @@ class Alignments(datamodel.DataContainer):
     master_type = 'Alignment'
     master_file_format = 'fits'
 
-    datamodel = {
-        'alignframe':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined alignment frames'),
-        'nspec':  dict(otype=int, desc='The number of spectral elements'),
-        'nalign': dict(otype=int, desc='Number of alignment traces in each slit'),
-        'nslits':  dict(otype=int, desc='The number of slits'),
-        'traces': dict(otype=np.ndarray, atype=np.floating, desc='Traces of the alignment frame'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
-    }
+    datamodel = {'alignframe': dict(otype=np.ndarray, atype=np.floating,
+                                    descr='Processed, combined alignment frames'),
+                 'nspec': dict(otype=int, descr='The number of spectral elements'),
+                 'nalign': dict(otype=int, descr='Number of alignment traces in each slit'),
+                 'nslits': dict(otype=int, descr='The number of slits'),
+                 'traces': dict(otype=np.ndarray, atype=np.floating,
+                                descr='Traces of the alignment frame'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
                  traces=None, PYP_SPEC=None, spat_id=None):

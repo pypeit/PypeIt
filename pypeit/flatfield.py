@@ -47,23 +47,25 @@ class FlatImages(datamodel.DataContainer):
     master_type = 'Flat'
     master_file_format = 'fits'
 
-    datamodel = {
-        'pixelflat_raw': dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined pixel flats'),
-        'pixelflat_norm': dict(otype=np.ndarray, atype=np.floating, desc='Normalized pixel flat'),
-        'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
-        'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
-                                        desc='B-spline models for pixel flat'),
-        'pixelflat_bpm': dict(otype=np.ndarray, atype=np.integer,
-                              desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
-        'pixelflat_spec_illum': dict(otype=np.ndarray, atype=np.floating, desc='Relative spectral illumination'),
-        'illumflat_raw': dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined illum flats'),
-        'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
-                                        desc='B-spline models for illum flat'),
-        'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
-                              desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id'),
-    }
+    datamodel = {'pixelflat_raw': dict(otype=np.ndarray, atype=np.floating,
+                                       descr='Processed, combined pixel flats'),
+                 'pixelflat_norm': dict(otype=np.ndarray, atype=np.floating,
+                                        descr='Normalized pixel flat'),
+                 'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, descr='Model flat'),
+                 'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                                                 descr='B-spline models for pixel flat'),
+                 'pixelflat_bpm': dict(otype=np.ndarray, atype=np.integer,
+                                       descr='Mirrors SlitTraceSet mask for Flat-specific flags'),
+                 'pixelflat_spec_illum': dict(otype=np.ndarray, atype=np.floating,
+                                              descr='Relative spectral illumination'),
+                 'illumflat_raw': dict(otype=np.ndarray, atype=np.floating,
+                                       descr='Processed, combined illum flats'),
+                 'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                                                 descr='B-spline models for illum flat'),
+                 'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
+                                       descr='Mirrors SlitTraceSet mask for Flat-specific flags'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id')}
 
     def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
                  pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None,
