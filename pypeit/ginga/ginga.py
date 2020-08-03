@@ -153,11 +153,6 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         sh.call_global_plugin_method('PypeIt', 'load_buffer', args, {})
     else:
         ch.load_np(chname, img, 'fits', header)
-    # OLD CODE
-    #try:
-        #ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
-    #except:
-        #ch.load_np(chname, img, 'fits', header)
     canvas = viewer.canvas(ch._chname)
 
     # These commands set up the viewer. They can be found at
