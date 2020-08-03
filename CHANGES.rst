@@ -1,13 +1,11 @@
 
-1.0.7
+1.0.7dev
 --------
 
-1.0.6 (01 Aug 2020)
---------
- - Implemented a PypeIt ginga plugin kindly provided by the developers of ginga.
-   It allows us to display images with a secondary wavelength image. It removes the need to
-   constantly use @profxj ginga fork, and fixes a bug whereby WCS image registration
-   was broken when using the forked ginga.
+ - Implemented a plugin kindly provided by the ginga developers to
+   display images with a secondary wavelength image WCS. Removes
+   dependency on @profxj's ginga fork, and avoids a bug when using
+   WCS image registration in that fork.
 
 1.0.6 (22 Jul 2020)
 -------------------
