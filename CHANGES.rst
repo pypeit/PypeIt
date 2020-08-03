@@ -1,5 +1,8 @@
 
-1.0.7 (01 Aug 2020)
+1.0.7
+--------
+
+1.0.6 (01 Aug 2020)
 --------
  - Implemented a PypeIt ginga plugin kindly provided by the developers of ginga.
    It allows us to display images with a secondary wavelength image. It removes the need to
