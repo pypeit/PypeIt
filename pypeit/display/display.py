@@ -47,14 +47,25 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
     # Start
     viewer = grc.RemoteClient(host, port)
     # Test
-    ginga = viewer.shell()
+    sh = viewer.shell()
     try:
-        tmp = ginga.get_current_workspace()
+        tmp = sh.get_current_workspace()
     except:
         if allow_new:
             subprocess.Popen(['ginga', '--modules=RC'])
-            time.sleep(3)
-            return grc.RemoteClient(host, port)
+            i = 0
+            while True:
+                try:
+                    viewer = grc.RemoteClient(host, port)
+                    sh = viewer.shell()
+                    tmp = sh.get_current_workspace()
+                except:
+                    i += 1
+                    continue
+                else:
+                    break
+            print('Tries: {0}'.format(i))
+            return viewer #grc.RemoteClient(host, port)
 
         if raise_err:
             raise ValueError
