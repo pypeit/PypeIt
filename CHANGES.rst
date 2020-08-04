@@ -16,6 +16,9 @@
     - Added a script to check that the plugins are all available.
     - Installation docs updated
  - Deprecated `pypeit/debugger.py` and `pypeit/data/settings`
+ - Removed h5py as a dependency
+ - `linetools` is now listed in `pypeit/requirements.txt` until I can
+   check if it still causes readthedocs to fail...
 
 1.0.6 (22 Jul 2020)
 -------------------
