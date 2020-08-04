@@ -13,8 +13,6 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 
-from pypeit import debugger
-
 
 class WHTISISSpectrograph(spectrograph.Spectrograph):
     """

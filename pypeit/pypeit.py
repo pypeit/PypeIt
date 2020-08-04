@@ -12,7 +12,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit import calibrations
 from pypeit.images import buildimage
-from pypeit.ginga import ginga
+from pypeit import display
 from pypeit import reduce
 from pypeit import spec2dobj
 from pypeit.core import qa
@@ -431,7 +431,7 @@ class PypeIt(object):
         # if show is set, clear the ginga channels at the start of each new sci_ID
         if self.show:
             # TODO: Put this in a try/except block?
-            ginga.clear_all()
+            display.clear_all()
 
         has_bg = True if bg_frames is not None and len(bg_frames) > 0 else False
 

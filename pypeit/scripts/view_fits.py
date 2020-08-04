@@ -38,7 +38,7 @@ def main(args):
     from pypeit.spectrographs import keck_deimos
     from pypeit.spectrographs import gemini_gmos
     from pypeit import msgs
-    from pypeit.ginga import ginga
+    from pypeit import display
 
     # List only?
     if args.list:
@@ -75,4 +75,4 @@ def main(args):
         img = hdu[args.exten].data
         # Write
 
-    ginga.show_image(img)
+    display.show_image(img)

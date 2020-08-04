@@ -8,7 +8,7 @@ import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit.ginga import ginga
+from pypeit import display
 from pypeit.core import extract
 from pypeit import datamodel, msgs
 
@@ -289,14 +289,14 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     -------
 
     """
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     ch_name = 'alignment'
-    viewer, channel = ginga.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
+    viewer, channel = display.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
 
     # Display the slit edges
     if slits is not None and viewer is not None:
         left, right, mask = slits.select_edges()
-        ginga.show_slits(viewer, channel, left, right)
+        display.show_slits(viewer, channel, left, right)
 
     # Display the alignment traces
     if align_traces is not None and viewer is not None:
@@ -307,4 +307,4 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                 if slt%2 == 0:
                     color = 'magenta'
                 # Display the trace
-                ginga.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)
+                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)

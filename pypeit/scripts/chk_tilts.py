@@ -34,10 +34,9 @@ def parser(options=None):
 
 def main(pargs):
 
-    import pdb as debugger
     import time
 
-    from pypeit.ginga import ginga
+    from pypeit import display
     from pypeit import wavetilts
 
     import subprocess
@@ -45,12 +44,18 @@ def main(pargs):
     # Load up
     wTilts = wavetilts.WaveTilts.from_master_files(pargs.setup)
 
-    # Launch ginga if need be
-    try:
-        ginga.connect_to_ginga(raise_err=True)
-    except ValueError:
-        subprocess.Popen(['ginga', '--modules=RC'])
-        time.sleep(3)
+    # Connect to the ginga viewer
+
+    # TODO: I don't think raise_err needs to be specified here, but
+    # this is what's done in show_2dspec
+    display.connect_to_ginga(raise_err=True, allow_new=True)
+
+#    # Launch ginga if need be
+#    try:
+#        display.connect_to_ginga(raise_err=True)
+#    except ValueError:
+#        subprocess.Popen(['ginga', '--modules=RC'])
+#        time.sleep(3)
 
     # Show
     if pargs.slit is not None:

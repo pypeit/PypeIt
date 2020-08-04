@@ -12,7 +12,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit.images import detector_container, imagebitmask
 from pypeit.core import procimg
-from pypeit.ginga import ginga
+from pypeit import display
 from pypeit import datamodel
 from pypeit import utils
 from pypeit import masterframe
@@ -363,7 +363,7 @@ class PypeItImage(datamodel.DataContainer):
             # TODO: This should fault.
             msgs.warn("No image to show!")
             return
-        ginga.show_image(self.image, chname='image')
+        display.show_image(self.image, chname='image')
 
     def __repr__(self):
         repr = '<{:s}: '.format(self.__class__.__name__)

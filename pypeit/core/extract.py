@@ -20,7 +20,7 @@ from pypeit import specobj
 from pypeit import specobjs
 from pypeit import tracepca
 from pypeit import bspline
-from pypeit.ginga import ginga
+from pypeit import display
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
@@ -1418,7 +1418,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         plt.ylabel('F/sigma (significance)')
         plt.title(qa_title + ': Slit# {:d}'.format(specobj_dict['SLITID']))
         plt.show()
-        viewer, ch = ginga.show_image(image*(thismask*inmask))
+        viewer, ch = display.show_image(image*(thismask*inmask))
 
     # Now loop over all the regular apertures and assign preliminary traces to them.
     for iobj in range(nobj_reg):
@@ -1625,14 +1625,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     skymask = skymask_objflux | skymask_fwhm
     # If requested display the resulting traces on top of the image
     if show_trace:
-        viewer, ch = ginga.show_image(image*(thismask*inmask))
-        ginga.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].SLITID)
+        viewer, ch = display.show_image(image*(thismask*inmask))
+        display.show_slits(viewer, ch, slit_left.T, slit_righ.T, slit_ids = sobjs[0].SLITID)
         for iobj in range(nobj):
             if sobjs[iobj].hand_extract_flag == False:
                 color = 'orange'
             else:
                 color = 'blue'
-            ginga.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
+            display.show_trace(viewer, ch,sobjs[iobj].TRACE_SPAT, trc_name = sobjs[iobj].NAME, color=color)
 
     msgs.info("Successfully traced a total of {0:d} objects".format(len(sobjs)))
 
@@ -2154,20 +2154,20 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     skymask = skymask_objfind | skymask_fwhm
 
     if show_trace:
-        viewer, ch = ginga.show_image(image*allmask)
+        viewer, ch = display.show_image(image*allmask)
 
         for spec in sobjs_trim:
             color = 'red' if spec.ech_frac_was_fit else 'magenta'
             ## Showing the final flux weighted centroiding from PCA predictions
-            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
+            display.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
 
         for iobj in range(nobj_trim):
             for iord in range(norders):
                 ## Showing PCA predicted locations before recomputing flux/gaussian weighted centroiding
-                ginga.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
+                display.show_trace(viewer, ch, pca_fits[:,iord, iobj], str(uni_frac[iobj]), color='yellow')
                 ## Showing the final traces from this routine
-                ginga.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.NAME, color='cyan')
+                display.show_trace(viewer, ch, sobjs_final.TRACE_SPAT[iord].T, sobjs_final.NAME, color='cyan')
 
 
         # Labels for the points

@@ -17,7 +17,8 @@ from IPython import embed
 
 from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
-from pypeit import msgs, utils, ginga, bspline, slittrace
+from pypeit import msgs, utils, bspline, slittrace
+from pypeit import display
 from pypeit.core.moment import moment1d
 
 def skysub_npoly(thismask):
@@ -866,7 +867,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
 
     # If requested display the model fits for this slit
     if show_resids:
-        viewer, ch = ginga.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask)
+        viewer, ch = display.show_image((sciimg - skyimage - objimage) * np.sqrt(modelivar) * thismask)
         # TODO add error checking here to see if ginga exists
         canvas = viewer.canvas(ch._chname)
         out1 = canvas.clear()
@@ -878,7 +879,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                 color = 'magenta'
             else:
                 color = 'orange'
-            ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
+            display.show_trace(viewer, ch, spec.TRACE_SPAT, spec.name, color=color)
 
         # These are the pixels that were masked by the extraction
         spec_mask, spat_mask = np.where((outmask == False) & (inmask == True))

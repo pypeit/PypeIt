@@ -19,7 +19,7 @@ from linetools import utils as ltu
 from pypeit import specobjs, specobj
 from pypeit import msgs, utils
 from pypeit import masterframe
-from pypeit.ginga import ginga
+from pypeit import display
 from pypeit.core import skysub, extract, wave, flexure, flat
 from pypeit.images import buildimage
 from pypeit import wavecalib
@@ -737,8 +737,8 @@ class Reduce(object):
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
                 ch_name = chname if chname is not None else 'global_sky_{}'.format(self.det)
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                              mask=mask_in, clear=clear, wcs_match=True)
+                viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
+                                                mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
         elif attr == 'local':
             # local sky subtraction
@@ -750,8 +750,8 @@ class Reduce(object):
                 cut_min = mean - 1.0 * sigma
                 cut_max = mean + 4.0 * sigma
                 ch_name = chname if chname is not None else 'local_sky_{}'.format(self.det)
-                viewer, ch = ginga.show_image(image, chname=ch_name, bitmask=bitmask_in,
-                                              mask=mask_in, clear=clear, wcs_match=True)
+                viewer, ch = display.show_image(image, chname=ch_name, bitmask=bitmask_in,
+                                                mask=mask_in, clear=clear, wcs_match=True)
                                               #, cuts=(cut_min, cut_max))
         elif attr == 'sky_resid':
             # sky residual map with object included
@@ -761,9 +761,9 @@ class Reduce(object):
                 image = (self.sciImg.image - self.skymodel) * np.sqrt(self.ivarmodel)
                 image *= (self.sciImg.fullmask == 0)
                 ch_name = chname if chname is not None else 'sky_resid_{}'.format(self.det)
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                              bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                              wcs_match=True)
+                viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
+                                                bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                                wcs_match=True)
         elif attr == 'resid':
             # full residual map with object model subtractede
             if self.sciImg.image is not None and self.skymodel is not None \
@@ -773,22 +773,22 @@ class Reduce(object):
                 image = (self.sciImg.image - self.skymodel - self.objmodel) * np.sqrt(self.ivarmodel)
                 image *= (self.sciImg.fullmask == 0)
                 ch_name = chname if chname is not None else 'resid_{}'.format(self.det)
-                viewer, ch = ginga.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
-                                              bitmask=bitmask_in, mask=mask_in, clear=clear,
-                                              wcs_match=True)
+                viewer, ch = display.show_image(image, chname=ch_name, cuts=(-5.0, 5.0),
+                                                bitmask=bitmask_in, mask=mask_in, clear=clear,
+                                                wcs_match=True)
         elif attr == 'image':
             ch_name = chname if chname is not None else 'image'
-            viewer, ch = ginga.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
+            viewer, ch = display.show_image(image, chname=ch_name, clear=clear, wcs_match=True)
         else:
             msgs.warn("Not an option for show")
 
         if sobjs is not None:
             for spec in sobjs:
                 color = 'magenta' if spec.hand_extract_flag else 'orange'
-                ginga.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
+                display.show_trace(viewer, ch, spec.TRACE_SPAT, spec.NAME, color=color)
 
         if slits and self.slits_left is not None:
-            ginga.show_slits(viewer, ch, self.slits_left, self.slits_right)
+            display.show_slits(viewer, ch, self.slits_left, self.slits_right)
 
     def __repr__(self):
         txt = '<{:s}: nimg={:d}'.format(self.__class__.__name__,

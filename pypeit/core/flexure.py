@@ -17,7 +17,7 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit.ginga import ginga
+from pypeit import display
 from pypeit.core import arc
 from pypeit.core import qa
 
@@ -93,11 +93,9 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
         # Now translate the slits in the tslits_dict
         all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
         gpm = mask == 0
-        viewer, ch = ginga.show_image(_sciimg)
-        ginga.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
+        viewer, ch = display.show_image(_sciimg)
+        display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         embed(header='83 of flexure.py')
-    #ginga.show_slits(viewer, ch, tslits_shift['slit_left'], tslits_shift['slit_righ'])
-    #ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'])
 
     return lag_max[0]
 
