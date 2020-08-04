@@ -13,25 +13,24 @@ import numpy as np
 from ginga import GingaPlugin
 from ginga.AstroImage import AstroImage
 
-class PypeItImage(AstroImage):
+class SlitImage(AstroImage):
     """
-    Custom image type for PypeIt
+    Custom image type for a 2D slit image.
 
+    This is a child of ginga's `AstroImage`_ and primarily enables
+    the display and cross-image registration of the slit wavelengths.
+
+    TODO: Also include the slit/order spatial position?
+
+    Parameters
+    ----------
+    wav_np : `numpy.ndarray`_
+        Wavelength map image
+    **kwargs:
+        Keyword arguments for `AstroImage`_
     """
     def __init__(self, wav_np=None, **kwargs):
-        """
-        Child of ginga's `AstroImage`_ for PypeIt images that
-        displays wavelengths.
-
-        Parameters
-        ----------
-        wav_np : `numpy.ndarray`_
-            Wavelength map image
-        **kwargs:
-            Keyword arguments for `AstroImage`_
-
-        """
-        super(PypeItImage, self).__init__(**kwargs)
+        super(SlitImage, self).__init__(**kwargs)
         self.wav_np = wav_np
 
     def info_xy(self, data_x, data_y, settings):
@@ -40,16 +39,19 @@ class PypeItImage(AstroImage):
 
         Parameters
         ----------
-        data_x
-        data_y
-        settings
+        data_x: float
+        data_y: float
+        settings:
 
         Returns
         -------
 
         """
 
-        info = super(PypeItImage, self).info_xy(data_x, data_y, settings)
+        embed()
+        exit()
+
+        info = super(SlitImage, self).info_xy(data_x, data_y, settings)
 
         try:
             # We report the value across the pixel, even though the coords
@@ -75,39 +77,45 @@ class PypeItImage(AstroImage):
         return info
 
 
-class PypeIt(GingaPlugin.GlobalPlugin):
-
+class SlitWavelength(GingaPlugin.GlobalPlugin):
+    """
+    ginga plugin that enables display and registration of slit
+    wavelength coordinates for a 2D slit image.
+    """
     def __init__(self, fv):
-        super(PypeIt, self).__init__(fv)
+        super(SlitWavelength, self).__init__(fv)
 
-    def load_buffer(self, imname, chname, img_buf, dims, dtype,
-                    header, wav_buf, wav_dtype, metadata):
-        """Display a FITS image buffer.
+    def load_buffer(self, imname, chname, img_buf, dims, dtype, header, wav_buf, wav_dtype,
+                    metadata):
+        """
+        Load and display the 2D slit image.
 
         Parameters
         ----------
-        imname : string
-            a name to use for the image in Ginga
-        chname : string
-            channel in which to load the image
+        imname : :obj:`str`
+            Name to use for the image in Ginga
+        chname : :obj:`str`
+            Channel in which to load the image
         img_buf : bytes
-            the image data, as a buffer
-        dims : tuple
-            image dimensions in pixels (usually (height, width))
-        dtype : string
+            Image data, as a buffer
+        dims : :obj:`tuple`
+            Image dimensions in pixels, typically (height, width)
+        dtype : :obj:`str`
             numpy data type of encoding (e.g. 'float32')
-        header : dict
-            fits file header as a dictionary
+        header : :obj:`dict`
+            Fits file header as a dictionary
         wav_buf : bytes
-            the wavelength data, as a buffer
-        wav_dtype : string
+            Wavelength image data, as a buffer. Ultimate 2D shape
+            once parsed must match the input image data.
+        wav_dtype : :obj:`str`
             numpy data type of wav_buf array encoding (e.g. 'float32')
-        metadata : dict
+        metadata : :obj:`dict`
             other metadata about image to attach to image
 
         Returns
         -------
-        0
+        status : :obj:`int`
+            Load status number.  Currently always returns 0.
 
         Notes
         -----
@@ -134,7 +142,7 @@ class PypeIt(GingaPlugin.GlobalPlugin):
             wav_np = data.reshape(dims)
 
             # Create image container
-            image = PypeItImage(wav_np=wav_np, logger=self.logger)
+            image = SlitImage(wav_np=wav_np, logger=self.logger)
             image.load_buffer(img_buf, dims, dtype, byteswap=byteswap,
                               metadata=metadata)
             image.update_keywords(header)
@@ -156,4 +164,4 @@ class PypeIt(GingaPlugin.GlobalPlugin):
         return 0
 
     def __str__(self):
-        return 'pypeit'
+        return 'slitwavelength'
