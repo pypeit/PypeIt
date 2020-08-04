@@ -2,28 +2,29 @@
 Installing PypeIt
 =================
 
-This document describes how to install PypeIt.
-Both for users and developers.
+This document describes how to install PypeIt for both users and developers.
 
 Installing Dependencies
 =======================
 
-Though we have tried to keep the number of dependencies low,
-there are a few packages that need to be installed (various python packages
+Though we have tried to keep the number of dependencies low, there
+are a few packages that need to be installed (various python packages
 and linetools).
 
-We highly recommend that you use Anaconda for the majority
-of these installations.
-
-Detailed installation instructions are presented below:
+We highly recommend that you use Anaconda for the majority of these
+installations.
 
 Python Dependencies
 -------------------
 
+The 
+
 PypeIt depends on the following list of Python packages.
 Install these first.
 
-We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
+We recommend that you use `Anaconda
+<https://www.continuum.io/downloads/>`_ to install and/or update
+these packages.
 
 * `python <http://www.python.org/>`_ version 3.7 or later
 * `numpy <http://www.numpy.org/>`_ version 1.16.0 or later
@@ -32,12 +33,16 @@ We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to i
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
-* `h5py <https://www.h5py.org/>`_ version 2.7 (for data I/O)
 * `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
 * `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
+* `ginga <https://pypi.org/project/ginga/>`_ -- version 3.0 or later
+* `packaging <https://pypi.org/project/packaging/>`_ -- version 19.0 or later
+* `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later (see also below)
+* `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later
+
 
 If you are using Anaconda, you can check the presence of these packages with::
 
