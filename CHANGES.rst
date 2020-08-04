@@ -13,7 +13,8 @@
     - `pypeit/ginga.py` moved to `pypeit/display/display.py` and ginga
       plugin added to `pypeit/diplay` directory.
     - ginga plugin registered as an entry point in `setup.py`
- - deprecated `pypeit/debugger.py` and `pypeit/data/settings`
+    - Added a script to check that the plugins are all available.
+ - Deprecated `pypeit/debugger.py` and `pypeit/data/settings`
 
 1.0.6 (22 Jul 2020)
 -------------------

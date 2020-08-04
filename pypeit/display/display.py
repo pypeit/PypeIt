@@ -53,6 +53,12 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
     except:
         if allow_new:
             subprocess.Popen(['ginga', '--modules=RC'])
+
+            # NOTE: time.sleep(3) is now insufficient. The loop below
+            # continues to try to connect with the ginga viewer that
+            # was just instantiated for a maximum number of iterations.
+            # If the connection is remains unsuccessful, an error is
+            # thrown stating that the connection timed out.
             maxiter = int(1e6)
             for i in range(maxiter):
                 try:
