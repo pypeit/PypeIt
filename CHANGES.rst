@@ -1,6 +1,9 @@
 
 1.0.7dev
 --------
+ - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
+   wavelength coverage slits results in reidentification with a purely zero-padded array.
+
 
  - Implemented a plugin kindly provided by the ginga developers to
    display images with a secondary wavelength image WCS. Removes
