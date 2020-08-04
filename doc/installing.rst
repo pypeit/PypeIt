@@ -26,9 +26,9 @@ Install these first.
 We recommend that you use `Anaconda <https://www.continuum.io/downloads/>`_ to install and/or update these packages.
 
 * `python <http://www.python.org/>`_ version 3.7 or later
-* `numpy <http://www.numpy.org/>`_ version 1.16.0 or later
+* `numpy <http://www.numpy.org/>`_ version 1.18.0 or later
 * `astropy <http://www.astropy.org/>`_ version 4.0 or later
-* `scipy <http://www.scipy.org/>`_ version 1.2 or later
+* `scipy <http://www.scipy.org/>`_ version 1.4 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
 * `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
 * `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)

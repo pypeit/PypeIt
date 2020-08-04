@@ -111,11 +111,11 @@ matrix:
         #  env: NUMPY_VERSION=1.14
 
         # Try numpy 1.16
-        - os: linux
-          env: NUMPY_VERSION=1.16
+        #- os: linux
+        #  env: NUMPY_VERSION=1.16
         # Try numpy 1.17
-        - os: linux
-          env: NUMPY_VERSION=1.17
+        #- os: linux
+        #  env: NUMPY_VERSION=1.17
         # Try numpy 1.18
         - os: linux
           env: NUMPY_VERSION=1.18
