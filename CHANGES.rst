@@ -1,11 +1,11 @@
 
 1.0.7dev
 --------
+ - (Hotfix) Deal with chk_calibs test
 
 1.0.6 (22 Jul 2020)
 -------------------
 
- - (Hotfix) Deal with chk_calibs crash
  - (Hotfix) Deal with wavecalib crash
  - Fix class and version check for DataContainer objects.
  - Script to check for calibration files
