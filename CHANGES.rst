@@ -7,9 +7,13 @@
    reidentification with a purely zero-padded array.
  - (Hotfix) Deal with chk_calibs test
  - Implemented a plugin kindly provided by the ginga developers to
-   display images with a secondary wavelength image WCS. Removes
-   dependency on @profxj's ginga fork, and avoids a bug when using WCS
-   image registration in that fork.
+   display images with a secondary wavelength image WCS.
+    - Removes dependency on @profxj's ginga fork, and avoids a bug when
+      using WCS image registration in that fork.
+    - `pypeit/ginga.py` moved to `pypeit/display/display.py` and ginga
+      plugin added to `pypeit/diplay` directory.
+    - ginga plugin registered as an entry point in `setup.py`
+ - deprecated `pypeit/debugger.py` and `pypeit/data/settings`
 
 1.0.6 (22 Jul 2020)
 -------------------
