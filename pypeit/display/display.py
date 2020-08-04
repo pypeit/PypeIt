@@ -52,7 +52,7 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
         tmp = ginga.get_current_workspace()
     except:
         if allow_new:
-            subprocess.Popen(['ginga', '--modules=PypeIt,RC'])
+            subprocess.Popen(['ginga', '--modules=RC'])
             time.sleep(3)
             return grc.RemoteClient(host, port)
 
