@@ -140,7 +140,7 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     header['NAXIS2'] = img.shape[0]
 
     # Giddy up
-    waveimg = None
+#    waveimg = None
     if waveimg is not None:
         sh = viewer.shell()
         args = [chname, chname, grc.Blob(img.tobytes()), img.shape, 'float', header, grc.Blob(waveimg.tobytes()), 'float', {}]

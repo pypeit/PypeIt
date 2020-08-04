@@ -77,6 +77,7 @@
 .. ginga
 
 .. _AstroImage: https://ginga.readthedocs.io/en/stable/dev_manual/image_wrappers.html#astroimage
+.. _ginga GlobalPlugin: https://ginga.readthedocs.io/en/stable/dev_manual/developers.html#writing-a-global-plugin
 
 .. pypeit
 .. _repo: https://github.com/pypeit/PypeIt

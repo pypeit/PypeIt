@@ -40,40 +40,39 @@ class SlitImage(AstroImage):
         Parameters
         ----------
         data_x: float
+            image x coordinate
         data_y: float
-        settings:
+            image y coordinate
+        settings: :class:`ginga.misc.Settings.SettingGroup`
+            ginga settings group
 
         Returns
         -------
-
+        info : :class:`ginga.misc.Bunch.Bunch`
+            Metadata for this coordinate
         """
-
-        embed()
-        exit()
-
         info = super(SlitImage, self).info_xy(data_x, data_y, settings)
+        if self.wave_np is None:
+            # Allow the wavelengths to be undefined and just return the
+            # same result as would be provided by AstroImage.
+            return info
 
+        # We report the value across the pixel, even though the coords
+        # change halfway across the pixel
+        _d_x = int(np.floor(data_x + 0.5))
+        _d_y = int(np.floor(data_y + 0.5))
+
+        # Convert wavelength value to a string. Return an empty
+        # string if the provided coordinate is off the image
+        _ht, _wd = self.wav_np.shape
+        wav_s = '{:<14.6g}'.format(self.wav_np[_d_y, _d_x]) \
+                    if 0 <= _d_y < _ht and 0 <= _d_x < _wd else ''
+
+        # TODO: Not sure we need this try/except block
         try:
-            # We report the value across the pixel, even though the coords
-            # change halfway across the pixel
-            _d_x, _d_y = (int(np.floor(data_x + 0.5)),
-                          int(np.floor(data_y + 0.5)))
-
-            _ht, _wd = self.wav_np.shape
-            if 0 <= _d_y < _ht and 0 <= _d_x < _wd:
-                # spectral wavelength is stored in auxillary array
-                wavelength = self.wav_np[_d_y, _d_x]
-                # choose your best formatting here...
-                wav_s = "{:<14.6g}".format(wavelength)
-            else:
-                wav_s = ''
-                
-            info.update(dict(ra_lbl="\u03bb", ra_txt=wav_s,
-                             dec_lbl='', dec_txt=''))
-
+            info.update(dict(ra_lbl="\u03bb", ra_txt=wav_s, dec_lbl='', dec_txt=''))
         except Exception as e:
-            self.logger.error('Error getting wavelength value: {0}'.format(e), exc_info=True)
-
+            self.logger.error('Error including wavelength value: {0}'.format(e), exc_info=True)
         return info
 
 
@@ -81,6 +80,8 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
     """
     ginga plugin that enables display and registration of slit
     wavelength coordinates for a 2D slit image.
+
+    See the documentation for `ginga GlobalPlugin`_.
     """
     def __init__(self, fv):
         super(SlitWavelength, self).__init__(fv)
@@ -128,6 +129,7 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
         self.logger.info("received image data len=%d" % (len(img_buf)))
 
         # Unpack the data
+        # TODO: Should trim down what's in this try/except block
         try:
             # dtype string works for most instances
             if dtype == '':
@@ -143,8 +145,7 @@ class SlitWavelength(GingaPlugin.GlobalPlugin):
 
             # Create image container
             image = SlitImage(wav_np=wav_np, logger=self.logger)
-            image.load_buffer(img_buf, dims, dtype, byteswap=byteswap,
-                              metadata=metadata)
+            image.load_buffer(img_buf, dims, dtype, byteswap=byteswap, metadata=metadata)
             image.update_keywords(header)
             image.set(name=imname, path=None)
 
