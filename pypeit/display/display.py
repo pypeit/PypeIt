@@ -53,19 +53,21 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
     except:
         if allow_new:
             subprocess.Popen(['ginga', '--modules=RC'])
-            i = 0
-            while True:
+            maxiter = int(1e6)
+            for i in range(maxiter):
                 try:
                     viewer = grc.RemoteClient(host, port)
                     sh = viewer.shell()
                     tmp = sh.get_current_workspace()
                 except:
-                    i += 1
                     continue
                 else:
                     break
-            print('Tries: {0}'.format(i))
-            return viewer #grc.RemoteClient(host, port)
+            if i == maxiter-1:
+                msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
+                           '`ginga --modules=RC` on the command line.  In either case, wait for '
+                           'the ginga viewer to open and try the pypeit command again.')
+            return viewer
 
         if raise_err:
             raise ValueError
