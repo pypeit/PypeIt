@@ -1179,6 +1179,7 @@ class DataContainer:
                 Passed to _parse()
             chk_version (:obj:`bool`, optional):
                 If True, raise an error if the datamodel version or type check failed
+                If False, throw a warning only
         """
         # NOTE: We can't use `cls(cls._parse(hdu))` here because this
         # will call the `__init__` method of the derived class and we
@@ -1190,14 +1191,18 @@ class DataContainer:
         # other base classes, like MasterFrame.
         d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
-        if chk_version:
-            if not dm_type_passed:
-                msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
-            if not dm_version_passed:
+        if not dm_type_passed:
+            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
+        if not dm_version_passed:
+            if chk_version:
                 msgs.error('Current version of {0} object ({1})'.format(cls.__name__, cls.version)
-                           + ' does not match version used to write the HDU(s)!')
+                       + ' does not match version used to write the HDU(s)!')
+            else:
+                msgs.warn('Current version of {0} object ({1})'.format(cls.__name__, cls.version)
+                   + ' does not match version used to write the HDU(s)!')
         # Finish
         self = super().__new__(cls)
+        embed(header='1205 of datamodel')
         DataContainer.__init__(self, d)
         return self
 
