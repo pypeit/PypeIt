@@ -105,7 +105,7 @@ matrix:
         # Try numpy 1.18
         - os: linux
           env: NUMPY_VERSION=1.18
-        # Try numpy 1.18
+        # Try numpy 1.19
         - os: linux
           env: NUMPY_VERSION=1.19
         # Try numpy pre-release
