@@ -52,7 +52,7 @@ class SlitImage(AstroImage):
             Metadata for this coordinate
         """
         info = super(SlitImage, self).info_xy(data_x, data_y, settings)
-        if self.wave_np is None:
+        if self.wav_np is None:
             # Allow the wavelengths to be undefined and just return the
             # same result as would be provided by AstroImage.
             return info
