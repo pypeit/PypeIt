@@ -11,3 +11,4 @@ def setup_SlitWavelength():
                  ptype='global', workspace='right', start=False,
                  category='PypeIt', menu='SlitWavelength', tab='SlitWavelength')
 
+from pypeit.display import display

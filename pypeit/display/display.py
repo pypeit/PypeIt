@@ -19,15 +19,9 @@ import subprocess
 # Most of the standard geometric types are in basic.py and there are specialized ones in utils.py, astro.py and layer.py. Looking at
 # the classes will also tell you which parameters are positional and which are keyword.
 
-
-# CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
-#from pypeit import ardebug as debugger
-#import pdb as debugger
-#from pypeit import scienceimage
+from astropy.io import fits
 
 from ginga.util import grc
-
-from astropy.io import fits
 
 from pypeit import msgs
 
