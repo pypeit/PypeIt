@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+
+"""
+Check that the installation of python is C enabled.
+"""
+
+import os
+import numpy
+from pkg_resources import iter_entry_points
+from pypeit.display import required_plugins
+from pypeit import msgs
+
+available_plugins = []
+for entry_point in iter_entry_points(group='ginga.rv.plugins', name=None):
+    spec = entry_point.load()()
+    available_plugins += [spec.get('name', spec.get('menu',
+                                                    spec.get('klass', spec.get('module'))))]
+indx = numpy.isin(required_plugins, available_plugins)
+if not numpy.all(indx):
+    msgs.error('Missing plugins: {0}'.format(required_plugins[numpy.logical_not(indx)]))
+msgs.info('All required plugins found: {0}'.format(', '.join(required_plugins)))
+
+
