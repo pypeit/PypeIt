@@ -57,7 +57,7 @@ RELEASE = 'dev' not in VERSION
 # To enable pypeit ginga global plugin
 entry_points = """
 [ginga.rv.plugins]
-SlitWavelength = viewer::setup_SlitWavelength
+SlitWavelength = pypeit.viewer:setup_SlitWavelength
 """
 
 def run_setup(data_files, scripts, packages, install_requires):
