@@ -806,7 +806,7 @@ class DataContainer:
 
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+               hdu_prefix=None, chk_version=True):
         """
         Parse data read from a set of HDUs.
 
@@ -866,6 +866,8 @@ class DataContainer:
                 Note, this over-rides any internally set hdu_prefix value
             debug (:obj:`bool`, optional):
                 Perform debuggin
+            chk_version (:obj:`bool`, optional):
+                If True (default), require a match to be properly parsed
 
         Returns:
             :obj:`tuple`: Return three objects
@@ -954,7 +956,7 @@ class DataContainer:
         for e in _ext:
             if 'DMODCLS' not in _hdu[e].header.keys() or 'DMODVER' not in _hdu[e].header.keys() \
                     or _hdu[e].header['DMODCLS'] != cls.__name__ \
-                    or _hdu[e].header['DMODVER'] != cls.version:
+                    or (_hdu[e].header['DMODVER'] != cls.version and chk_version):
                 # Can't be parsed
                 continue
             # Check for header elements, but do not over-ride existing items
@@ -1189,20 +1191,20 @@ class DataContainer:
         # result. The call to `DataContainer.__init__` is explicit to
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
-        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
+        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix,
+                                                          chk_version=chk_version)
         # Check version and type?
         if not dm_type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
         if not dm_version_passed:
             if chk_version:
-                msgs.error('Current version of {0} object ({1})'.format(cls.__name__, cls.version)
-                       + ' does not match version used to write the HDU(s)!')
+                msgs.error('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
+                       + ' does not match version used to write your HDU(s)!')
             else:
-                msgs.warn('Current version of {0} object ({1})'.format(cls.__name__, cls.version)
-                   + ' does not match version used to write the HDU(s)!')
+                msgs.warn('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
+                   + ' does not match version used to write your HDU(s)!')
         # Finish
         self = super().__new__(cls)
-        embed(header='1205 of datamodel')
         DataContainer.__init__(self, d)
         return self
 
