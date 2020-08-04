@@ -200,7 +200,8 @@ We have provided a suite of tests that you can download and run via
 this repo: `TestSuite
 <https://github.com/pypeit/PypeIt-development-suite>`_
 
-Install it by cloning the GitHub repository (do **not** install this in the ``PypeIt`` source directory tree)::
+Install it by cloning the GitHub repository (do **not** install this
+in the ``PypeIt`` source directory tree)::
 
 	git clone https://github.com/pypeit/PypeIt-development-suite.git
 
