@@ -416,7 +416,7 @@ def coadd_cube(files, det=0, overwrite=False):
         outfile = "datacube_resid.fits"
         msgs.info("Saving datacube as: {0:s}".format(outfile))
         hdu = fits.PrimaryHDU((datacube_resid*normCube).T, header=masterwcs.to_header())
-        hdu.writeto(outfile, overwrite=args.overwrite)
+        hdu.writeto(outfile, overwrite=overwrite)
 
     outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
@@ -424,4 +424,4 @@ def coadd_cube(files, det=0, overwrite=False):
     sci_hdu = fits.ImageHDU((datacube*normCube).T, name="scicube", header=hdr)
     var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
-    hdulist.writeto(outfile, overwrite=args.overwrite)
+    hdulist.writeto(outfile, overwrite=overwrite)
