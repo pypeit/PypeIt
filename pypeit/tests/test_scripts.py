@@ -16,8 +16,8 @@ from astropy.io import fits
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
+from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import display
 
 
 def data_path(filename):

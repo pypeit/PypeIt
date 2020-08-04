@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from astropy import stats, visualization
 
 from pypeit import msgs, datamodel
-from pypeit import display
+from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import tracewave
 

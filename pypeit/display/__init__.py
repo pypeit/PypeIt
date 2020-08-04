@@ -10,5 +10,3 @@ def setup_SlitWavelength():
                  module='ginga_plugins', klass='SlitWavelength',
                  ptype='global', workspace='right', start=False,
                  category='PypeIt', menu='SlitWavelength', tab='SlitWavelength')
-
-from pypeit.display import display

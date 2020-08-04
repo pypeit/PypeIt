@@ -18,7 +18,7 @@ from IPython import embed
 from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
 from pypeit import msgs, utils, bspline, slittrace
-from pypeit import display
+from pypeit.display import display
 from pypeit.core.moment import moment1d
 
 def skysub_npoly(thismask):

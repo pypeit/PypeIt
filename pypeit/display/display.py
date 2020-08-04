@@ -25,7 +25,6 @@ from ginga.util import grc
 
 from pypeit import msgs
 
-
 def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
     """
     Connect to a RC Ginga.

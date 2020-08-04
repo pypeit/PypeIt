@@ -120,13 +120,13 @@ from astropy import table
 from pypeit import msgs
 from pypeit import utils
 from pypeit import sampling
-from pypeit import display
 from pypeit import masterframe
 from pypeit import io
 from pypeit import slittrace
 # TODO: Commented until EdgeTraceSet becomes a DataContainer
 #from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
+from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.images.buildimage import TraceImage

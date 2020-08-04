@@ -21,7 +21,7 @@ from pypeit import bspline
 from pypeit import datamodel
 from pypeit import masterframe
 from pypeit import wavecalib
-from pypeit import display
+from pypeit.display import display
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis

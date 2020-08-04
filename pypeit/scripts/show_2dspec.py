@@ -18,10 +18,10 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
-from pypeit import display
 from pypeit import slittrace
 from pypeit import specobjs
 
+from pypeit.display import display
 from pypeit.core.parse import get_dnum
 from pypeit.images.imagebitmask import ImageBitMask
 from pypeit import masterframe

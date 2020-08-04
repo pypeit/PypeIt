@@ -36,8 +36,8 @@ def main(pargs):
 
     import time
 
-    from pypeit import display
     from pypeit import wavetilts
+    from pypeit.display import display
 
     import subprocess
 

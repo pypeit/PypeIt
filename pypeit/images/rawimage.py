@@ -14,7 +14,7 @@ from pypeit.core import flat
 from pypeit.core import flexure
 from pypeit.images import pypeitimage
 from pypeit import utils
-from pypeit import display
+from pypeit.display import display
 
 from IPython import embed
 

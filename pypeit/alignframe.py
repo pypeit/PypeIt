@@ -8,7 +8,7 @@ import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit import display
+from pypeit.display import display
 from pypeit.core import extract
 from pypeit import datamodel, msgs
 

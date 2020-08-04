@@ -12,7 +12,7 @@ from astropy.io import fits
 from pypeit import msgs
 from pypeit.images import detector_container, imagebitmask
 from pypeit.core import procimg
-from pypeit import display
+from pypeit.display import display
 from pypeit import datamodel
 from pypeit import utils
 from pypeit import masterframe
