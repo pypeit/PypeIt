@@ -147,8 +147,16 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
     header['NAXIS2'] = img.shape[0]
 
     # Giddy up
+#    waveimg = None
     if waveimg is not None:
         sh = viewer.shell()
+#        embed()
+#        exit()
+#        if not sh.gpmon.has_plugin('PypeIt'):
+#            msgs.error('ginga PypeIt plugin not successfully loaded')
+
+
+#        sh.add_channel(chname=chname)
         args = [chname, chname, grc.Blob(img.tobytes()), img.shape, 'float', header, grc.Blob(waveimg.tobytes()), 'float', {}]
         sh.call_global_plugin_method('PypeIt', 'load_buffer', args, {})
     else:

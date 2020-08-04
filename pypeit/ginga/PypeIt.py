@@ -1,9 +1,17 @@
+"""
+Pluging for ginga that allows the value of a wavelength map to be
+displayed for any image.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+"""
+
+from IPython import embed
+
 import numpy as np
 
 from ginga import GingaPlugin
 from ginga.AstroImage import AstroImage
-
-# Ginga PypeIt plugin that allows the value of a wavelength map to be displayed via ginga for any image.
 
 class PypeItImage(AstroImage):
     """
@@ -12,19 +20,18 @@ class PypeItImage(AstroImage):
     """
     def __init__(self, wav_np=None, **kwargs):
         """
-        Chile of AstroImage for PypeIt images that can display wavelengths.
+        Child of ginga's `AstroImage`_ for PypeIt images that
+        displays wavelengths.
 
         Parameters
         ----------
-        wav_np: numpy array
+        wav_np : `numpy.ndarray`_
             Wavelength map image
-        kwargs:
-            Keyword arguments for AstroImage
+        **kwargs:
+            Keyword arguments for `AstroImage`_
 
         """
-
-        AstroImage.__init__(self, **kwargs)
-
+        super(PypeItImage, self).__init__(**kwargs)
         self.wav_np = wav_np
 
     def info_xy(self, data_x, data_y, settings):
@@ -63,8 +70,7 @@ class PypeItImage(AstroImage):
                              dec_lbl='', dec_txt=''))
 
         except Exception as e:
-            self.logger.error("Error getting wavelength value: {}".format(e),
-                              exc_info=True)
+            self.logger.error('Error getting wavelength value: {0}'.format(e), exc_info=True)
 
         return info
 
@@ -128,7 +134,7 @@ class PypeIt(GingaPlugin.GlobalPlugin):
             wav_np = data.reshape(dims)
 
             # Create image container
-            image = PypeItImage(logger=self.logger, wav_np=wav_np)
+            image = PypeItImage(wav_np=wav_np, logger=self.logger)
             image.load_buffer(img_buf, dims, dtype, byteswap=byteswap,
                               metadata=metadata)
             image.update_keywords(header)
@@ -136,8 +142,7 @@ class PypeIt(GingaPlugin.GlobalPlugin):
 
         except Exception as e:
             # Some kind of error unpacking the data
-            errmsg = "Error creating image data for '%s': %s" % (
-                imname, str(e))
+            errmsg = 'Error creating image data for {0}: {1}'.format(imname, e)
             self.logger.error(errmsg)
             raise GingaPlugin.PluginError(errmsg)
 
@@ -147,9 +152,7 @@ class PypeIt(GingaPlugin.GlobalPlugin):
         # Note: this little hack needed to let window resize in time for
         # file to auto-size properly
         self.fv.gui_do(self.fv.change_channel, channel.name)
-
-        self.fv.gui_do(self.fv.add_image, imname, image,
-                       chname=channel.name)
+        self.fv.gui_do(self.fv.add_image, imname, image, chname=channel.name)
         return 0
 
     def __str__(self):

@@ -179,8 +179,8 @@ def main(args):
 
     # After displaying all the images sync up the images with WCS_MATCH
     shell = viewer.shell()
-    out = shell.start_global_plugin('WCSMatch')
-    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
+    shell.start_global_plugin('WCSMatch')
+    shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
 
     if args.embed:
         embed()
