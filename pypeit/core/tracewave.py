@@ -652,7 +652,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     pypeitFit = fitting.robust_fit(tilts_spec.flatten() / xnspecmin1,
                                                (tilts.flatten() - tilts_spec.flatten()) / xnspecmin1,
                                                fitxy, x2=tilts_dspat.flatten() / xnspatmin1,
-                                               inmask=tot_mask.flatten(), invvar=tilts_ivar,
+                                               in_gpm=tot_mask.flatten(), invvar=tilts_ivar,
                                                function=func2d, maxiter=maxiter, lower=sigrej,
                                                upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
                                                minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
@@ -662,7 +662,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # locations that were fit but were rejectedK
     rej_mask = tot_mask & np.invert(fitmask)
     # Compute and store the 2d tilts fit
-    delta_tilt_1 = xnspecmin1 * pypeitFit.val(tilts_spec[tilts_mask] / xnspecmin1, #, func2d,
+    delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1, #, func2d,
                                                x2=tilts_dspat[tilts_mask] / xnspatmin1)#, minx=0.0,
                                                #maxx=1.0, minx2=-1.0, maxx2=1.0)
     delta_tilt = np.zeros_like(tilts_dspat)
@@ -710,7 +710,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     thismask_grow = ndimage.convolve(thismask_pad.astype(float), kernel, mode='nearest') > 0.0
     # Evaluate the tilts on the padded image grid
     tiltpix = spec_img_pad[thismask_grow] + xnspecmin1 \
-              * pypeitFit.val(spec_img_nrm[thismask_grow], x2=dspat_img_nrm[thismask_grow])
+              * pypeitFit.eval(spec_img_nrm[thismask_grow], x2=dspat_img_nrm[thismask_grow])
               #* utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d,
               #                 x2=dspat_img_nrm[thismask_grow], minx=0.0, maxx=1.0,
               #                 minx2=-1.0, maxx2=1.0)
@@ -740,7 +740,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     pypeitFit = fitting.robust_fit(tiltpix / xnspecmin1, spec_img_pad[thismask_grow] / xnspecmin1,
                                    fitxy, x2=spat_img_pad[thismask_grow] / xnspatmin1,
                                    invvar=tilts_ivar1, upper=5.0, lower=5.0,
-                                   maxdev=10.0 / xnspecmin1, inmask=inmask, function=func2d,
+                                   maxdev=10.0 / xnspecmin1, in_gpm=inmask, function=func2d,
                                    maxiter=20, minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                    use_mad=False, sticky=False)
     # JFH changed above to use stick=False, to limit the amount of rejection
@@ -835,7 +835,7 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
     #
     pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
                                   minx2=0.0, maxx2=1.0, func=func2d)
-    tilts = pypeitFit.val(spec_img / xnspecmin1, x2=spat_img / xnspatmin1)
+    tilts = pypeitFit.eval(spec_img / xnspecmin1, x2=spat_img / xnspatmin1)
     #tilts = utils.func_val(coeff2, spec_img / xnspecmin1, func2d, x2=spat_img / xnspatmin1,
     #                       minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break

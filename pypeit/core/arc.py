@@ -55,8 +55,8 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     Returns
     -------
-    fit_dict : dict
-        Dictionary with the fitting results
+    pypeitFit : pypeit.fitting.PypeItFit
+        Fitting results
 
     """
 
@@ -90,7 +90,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     pypeitFit = fitting.robust_fit(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff), x2=all_orders,
                                    function=func2d, maxiter=100, lower=sigrej, upper=sigrej, minx=min_spec,maxx=max_spec,
                                    minx2=min_order, maxx2=max_order, use_mad=True, sticky=False)
-    wv_order_mod = pypeitFit.val(all_pix/xnspecmin1, x2=all_orders)
+    wv_order_mod = pypeitFit.eval(all_pix/xnspecmin1, x2=all_orders)
     #fitmask, coeff2 = fitting.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
     #                                           function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
     #                                           minx=min_spec,maxx=max_spec, minx2=min_order, maxx2=max_order,
@@ -99,25 +99,25 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     #                                           minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
     #resid = (wv_order_mod[fitmask]-all_wv_order[fitmask])
     #fin_rms = np.std(resid)
-    fin_rms = pypeitFit.calc_fit_rms(apply_mask=True)
+    fin_rms = pypeitFit.calc_fit_rms(x2=all_orders, apply_mask=True)
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
     orders = np.unique(all_orders)
 
-    fit_dict = dict(coeffs=coeff2, orders=orders,
-                    nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
-                    min_spec=min_spec, max_spec=max_spec,
-                    min_order=min_order, max_order=max_order,
-                    nspec=nspec, all_pix=all_pix, all_wv=all_wv,
-                    func2d=func2d,xnorm=xnspecmin1,
-                    all_orders=all_orders, all_mask=fitmask)
+    #fit_dict = dict(coeffs=coeff2, orders=orders,
+    #                nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
+    #                min_spec=min_spec, max_spec=max_spec,
+    #                min_order=min_order, max_order=max_order,
+    #                nspec=nspec, all_pix=all_pix, all_wv=all_wv,
+    #                func2d=func2d,xnorm=xnspecmin1,
+    #                all_orders=all_orders, all_mask=fitmask)
 
 
     if debug:
-        fit2darc_global_qa(fit_dict)
-        fit2darc_orders_qa(fit_dict)
+        fit2darc_global_qa(pypeitFit)
+        fit2darc_orders_qa(pypeitFit)
 
-    return fit_dict
+    return pypeitFit
 
 
 
@@ -800,7 +800,7 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
                                            npoly, function='polynomial', maxiter=25,
                                            upper=3.0, lower=3.0, minx=0.0,
                                            maxx=float(nspec-1))
-            cont_now = pypeitFit.val(spec_vec.astype(float))
+            cont_now = pypeitFit.eval(spec_vec.astype(float))
         else:
             cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
 
@@ -1107,6 +1107,11 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 #            continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
+            #pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
+            # TODO -- REPLACE THIS WITH A CUSTOM GAUSSIAN FITTER
+            #pypeitFit = fitting.PypeItFit(xval=xarray[pmin:pmax], yval=yarray[pmin:pmax],
+                                          func="gaussian", order=np.array([3]))#, return_errors=True)
+            #pypeitFit.fit()
             #pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
             #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
             #ampl[p], cent[p], widt[p] = pypeitFit.fitc

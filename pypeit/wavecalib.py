@@ -46,6 +46,7 @@ class WaveCalib(datamodel.DataContainer):
     datamodel = {
         'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
                               desc='WaveFit to each 1D wavelength solution'),
+        'wv_fit2d': dict(otype=fitting.PypeItFit, desc='2D wavelength solution (echelle)'),
         'nslits': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
@@ -53,7 +54,7 @@ class WaveCalib(datamodel.DataContainer):
     }
 
     def __init__(self, wv_fits=None, nslits=None, spat_id=None, PYP_SPEC=None,
-                 strpar=None):
+                 strpar=None, wv_fit2d=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -105,6 +106,8 @@ class WaveCalib(datamodel.DataContainer):
                     kwv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
                     # Save
                     _d.append({dkey: kwv_fit})
+            elif key == 'wv_fit2d':
+                _d.append({key: self[key]})
             else: # Add to header of the spat_id image
                 _d[0][key] = self[key]
         # Return
@@ -136,6 +139,8 @@ class WaveCalib(datamodel.DataContainer):
                 i0 = ihdu.name.find('ID-')
                 i1 = ihdu.name.find('_WAV')
                 spat_ids.append(int(ihdu.name[i0+3:i1]))
+            elif ihdu.name == 'PYPEITFIT': # 2D fit
+                _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
         # Check
         if spat_ids != _d['spat_id'].tolist():
             msgs.error("Bad parsing of the MasterFlat")
@@ -192,8 +197,9 @@ class WaveCalib(datamodel.DataContainer):
         # If this is echelle print out a status message and do some error checking
         if self.par['echelle']:
             msgs.info('Evaluating 2-d wavelength solution for echelle....')
-            if len(wv_calib['fit2d']['orders']) != np.sum(ok_slits):
-                msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
+            # TODO UPDATE THIS!!
+            #if len(wv_calib['fit2d']['orders']) != np.sum(ok_slits):
+            #    msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
 
         # Unpack some 2-d fit parameters if this is echelle
         for islit in np.where(ok_slits)[0]:
@@ -202,23 +208,26 @@ class WaveCalib(datamodel.DataContainer):
             if not np.any(thismask):
                 msgs.error("Something failed in wavelengths or masking..")
             if self.par['echelle']:
-                embed(header='195 of wavecalib')
-                # TODO: Put this in `SlitTraceSet`?
-                order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
-                # evaluate solution
-                image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
-                                                 tilts[thismask],
-                                                 wv_calib['fit2d']['func2d'],
-                                                 x2=np.ones_like(tilts[thismask])*order,
-                                                 minx=wv_calib['fit2d']['min_spec'],
-                                                 maxx=wv_calib['fit2d']['max_spec'],
-                                                 minx2=wv_calib['fit2d']['min_order'],
-                                                 maxx2=wv_calib['fit2d']['max_order'])
-                image[thismask] /= order
+                # # TODO: Put this in `SlitTraceSet`?
+                #order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
+                # evaluate solution --
+                image[thismask] = self.wv_fit2d.eval(
+                    tilts[thismask], x2=np.full_like(tilts[thismask], slits.ech_order[islit]))
+
+
+                #image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
+                #                                 tilts[thismask],
+                #                                 wv_calib['fit2d']['func2d'],
+                #                                 x2=np.ones_like(tilts[thismask])*order,
+                #                                 minx=wv_calib['fit2d']['min_spec'],
+                #                                 maxx=wv_calib['fit2d']['max_spec'],
+                #                                 minx2=wv_calib['fit2d']['min_order'],
+                #                                 maxx2=wv_calib['fit2d']['max_order'])
+                image[thismask] /= slits.ech_order[islit]
             else:
                 #iwv_calib = wv_calib[str(slit)]
                 iwv_fits = self.wv_fits[islit]
-                image[thismask] = iwv_fits.pypeitfit.val(tilts[thismask])
+                image[thismask] = iwv_fits.pypeitfit.eval(tilts[thismask])
                                                  #minx=iwv_calib['fmin'],
                                                  #maxx=iwv_calib['fmax'])
         # Return
@@ -479,8 +488,7 @@ class BuildWaveCalib(object):
                 Flag to skip construction of the nominal QA plots.
 
         Returns:
-            :obj:`dict`: Dictionary containing information from 2-d
-            fit.
+            :class:`pypeit.fitting.PypeItFit`): object containing information from 2-d fit.
         """
         if self.spectrograph.pypeline != 'Echelle':
             msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
@@ -508,7 +516,7 @@ class BuildWaveCalib(object):
 
         # Fit
         # THIS NEEDS TO BE DEVELOPED
-        fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
+        fit2d = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
                                   nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],
                                   sigrej=self.par['ech_sigrej'], debug=debug)
@@ -516,6 +524,8 @@ class BuildWaveCalib(object):
         self.steps.append(inspect.stack()[0][3])
 
         # QA
+        # TODO -- TURN QA BACK ON!
+        skip_QA = True
         if not skip_QA:
             outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa',
                                                 out_dir=self.qa_path)
@@ -524,7 +534,7 @@ class BuildWaveCalib(object):
                                                 out_dir=self.qa_path)
             arc.fit2darc_orders_qa(fit2d_dict, outfile=outfile_orders)
 
-        return fit2d_dict
+        return fit2d
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
@@ -603,8 +613,8 @@ class BuildWaveCalib(object):
 
         # Fit 2D?
         if self.par['echelle']:
-            fit2d_dict = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
-            self.wv_calib['fit2d'] = fit2d_dict
+            fit2d = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+            self.wv_calib.wv_fit2d = fit2d
 
         # Deal with mask
         self.update_wvmask()
