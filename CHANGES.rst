@@ -14,7 +14,8 @@
       plugin added to `pypeit/diplay` directory.
     - ginga plugin registered as an entry point in `setup.py`
     - Added a script to check that the plugins are all available.
-    - Installation docs updated
+    - Installation docs updated.  Both `ginga` and `linetools` are now
+      installed via pip.
  - Deprecated `pypeit/debugger.py` and `pypeit/data/settings`
  - Removed h5py as a dependency
  - `linetools` is now listed in `pypeit/requirements.txt` until I can
