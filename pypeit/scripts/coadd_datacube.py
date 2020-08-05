@@ -189,7 +189,7 @@ def main(args):
     coadd_cube(filelist, det=args.det, overwrite=args.overwrite)
 
 
-def coadd_cube(files, det=0, overwrite=False):
+def coadd_cube(files, det=1, overwrite=False):
     """ Main routine to coadd spec2D files
 
     Args:
