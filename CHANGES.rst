@@ -1,5 +1,5 @@
 
-1.0.7dev
+1.1.0dev
 --------
  - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
    wavelength coverage slits results in reidentification with a purely zero-padded array.
