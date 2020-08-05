@@ -2040,40 +2040,46 @@ class WavelengthSolutionPar(ParSet):
         defaults['method'] = 'holy-grail'
         options['method'] = WavelengthSolutionPar.valid_methods()
         dtypes['method'] = str
-        descr['method'] = 'Method to use to fit the individual arc lines. Most of these methods are now deprecated ' \
-                          'as they fail most of the time without significant parameter tweaking. ' \
-                          '\'holy-grail\' attempts to get a first guess at line IDs by looking for patterns in the ' \
-                          'line locations. It is fully automated and works really well excpet for when it does not' \
-                          '\'reidentify\' is now the preferred method, however it requires that an archive of ' \
-                          'wavelength solution has been constructed for your instrument/grating combination'' \
-                          ''Options are: {0}'.format(', '.join(options['method']))
-#        descr['method'] = 'Method to use to fit the individual arc lines.  ' \
-#                          '\'fit\' is likely more accurate, but \'simple\' uses a polynomial ' \
-#                          'fit (to the log of a gaussian) and is fast and reliable.  ' \
-#                          '\'arclines\' uses the arclines python package.' \
-#                          'Options are: {0}'.format(', '.join(options['method']))
+        descr['method'] = 'Method to use to fit the individual arc lines.  Note that most of ' \
+                          'the available methods should not be used; they are unstable and ' \
+                          'require significant parameter tweaking to succeed.  You should use' \
+                          'either \'holy-grail\' or \'reidentify\': \'holy-grail\' attempts to ' \
+                          'get a first guess at line IDs by looking for patterns in the line ' \
+                          'locations.  It is fully automated.  When it works, it works well; ' \
+                          'however, it can fail catastrophically.  Instead, \'reidentify\' is ' \
+                          'the preferred method.  It requires an archived wavelength solution ' \
+                          'for your specific instrument/grating combination as a reference.  ' \
+                          'This is used to anchor the wavelength solution for the data being ' \
+                          'reduced.  All options are: {0}'.format(', '.join(options['method']))
 
         # Echelle wavelength calibration stuff
+        # TODO: Is this needed? I.e., where do we need this parameter
+        # when we don't have access to spectrograph.pypeline?
         defaults['echelle'] = False
         dtypes['echelle'] = bool
-        descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit wavelength fit will be performed as a function ' \
-                           'of spectral pixel and order number to improve the wavelength solution'
+        descr['echelle'] = 'Is this an echelle spectrograph? If yes an additional 2-d fit ' \
+                           'wavelength fit will be performed as a function of spectral pixel ' \
+                           'and order number to improve the wavelength solution'
 
         defaults['ech_nspec_coeff'] = 4
         dtypes['ech_nspec_coeff'] = int
-        descr['ech_nspec_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the spectral dimension. ' \
-                                   'You should choose this to be the n_final of the fits to the individual orders.'
+        descr['ech_nspec_coeff'] = 'For echelle spectrographs, this is the order of the final ' \
+                                   '2d fit to the spectral dimension.  You should choose this ' \
+                                   'to be the n_final of the fits to the individual orders.'
 
         defaults['ech_norder_coeff'] = 4
         dtypes['ech_norder_coeff'] = int
-        descr['ech_norder_coeff'] = 'For echelle spectrographs, order of the final 2d fit to the order dimension.'
+        descr['ech_norder_coeff'] = 'For echelle spectrographs, this is the order of the final ' \
+                                    '2d fit to the order dimension.'
 
         defaults['ech_sigrej'] = 2.0
         dtypes['ech_sigrej'] = [int,float]
-        descr['ech_sigrej'] = 'For echelle spectrographs sigma clipping rejection threshold in 2d fit to spectral and order dimensions'
+        descr['ech_sigrej'] = 'For echelle spectrographs, this is the sigma-clipping rejection ' \
+                              'threshold in the 2d fit to spectral and order dimensions'
 
+        # TODO: These needs to be tidied up so we can check for valid
+        # lamps. Right now I'm not checking.
 
-        # TODO: These needs to be tidied up so we can check for valid lamps. Right now I'm not checking.
         # Force lamps to be a list
         if pars['lamps'] is not None and not isinstance(pars['lamps'], list):
             pars['lamps'] = [pars['lamps']]
@@ -2081,8 +2087,8 @@ class WavelengthSolutionPar(ParSet):
         #options['lamps'] = WavelengthSolutionPar.valid_lamps()
         dtypes['lamps'] = list
         descr['lamps'] = 'Name of one or more ions used for the wavelength calibration.  Use ' \
-                         'None for no calibration.  ' \
-                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
+                         'None for no calibration.  ' # \
+#                         'Options are: {0}'.format(', '.join(WavelengthSolutionPar.valid_lamps()))
 
 
         # ToDo Should this be in counts or ADU? Currently the arcs are in ADU (which actually sort of makes sense here) but the
@@ -2098,71 +2104,92 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['sigdetect'] = 5.
         dtypes['sigdetect'] =  [int, float, list, numpy.ndarray]
-        descr['sigdetect'] = 'Detection threshold for arc lines. This can be a single number or a list/array providing the value for each slit'
+        descr['sigdetect'] = 'Sigma threshold above fluctuations for arc-line detection.  Arcs ' \
+                             'are continuum subtracted and the fluctuations are computed after ' \
+                             'continuum subtraction.  This can be a single number or a vector ' \
+                             '(list or numpy array) that provides the detection threshold for ' \
+                             'each slit.'
 
         defaults['fwhm'] = 4.
         dtypes['fwhm'] = [int, float]
-        descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in *unbinned* pixels.'
+        descr['fwhm'] = 'Spectral sampling of the arc lines. This is the FWHM of an arcline in ' \
+                        '*unbinned* pixels.'
 
         # These are the parameters used for reidentification
         defaults['reid_arxiv']=None
         dtypes['reid_arxiv'] = str
-        descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used for the wavelength ' \
-                              'reidentification if the wavelength solution method = reidentify'
+        descr['reid_arxiv'] = 'Name of the archival wavelength solution file that will be used ' \
+                              'for the wavelength reidentification.  Only used if ``method`` is ' \
+                              '\'reidentify\''
 
         defaults['nreid_min'] = 1
         dtypes['nreid_min'] = int
-        descr['nreid_min'] = 'Minimum number of times that a given candidate reidentified line must be properly matched ' \
-                             'with a line in the arxiv to be considered a good reidentification. If there is a lot of ' \
-                             'duplication in the arxiv of the spectra in question (i.e. multislit) set this to a number ' \
-                             'like 1-4. For echelle this depends on the number of solutions in the arxiv. For fixed format ' \
-                             'echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle with a tiltable grating, it will ' \
-                             'depend on the number of solutions in the arxiv.'
+        descr['nreid_min'] = 'Minimum number of times that a given candidate reidentified line ' \
+                             'must be properly matched with a line in the arxiv to be ' \
+                             'considered a good reidentification. If there is a lot of ' \
+                             'duplication in the arxiv of the spectra in question (i.e. ' \
+                             'multislit) set this to a number like 1-4. For echelle this ' \
+                             'depends on the number of solutions in the arxiv.  Set this to 1 ' \
+                             'for fixed format echelle spectrographs.  For an echelle with a ' \
+                             'tiltable grating, this will depend on the number of solutions in ' \
+                             'the arxiv.'
 
+        # TODO: Should people be using full_template?  If so, change the
+        # description of method.
         defaults['nsnippet'] = 2
         dtypes['nsnippet'] = int
-        descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when using the full_template method'
+        descr['nsnippet'] = 'Number of spectra to chop the arc spectrum into when ``method`` is ' \
+                            '\'full_template\''
 
         defaults['cc_thresh'] = 0.70
         dtypes['cc_thresh'] = [float, list, numpy.ndarray]
-        descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between an input spectrum and member ' \
-                             'of the archive required to attempt reidentification. Spectra from the archive with a lower ' \
-                             'cross-correlation are not used for reidentification. This can be a single number or a list/array providing the value for each slit'
+        descr['cc_thresh'] = 'Threshold for the *global* cross-correlation coefficient between ' \
+                             'an input spectrum and member of the archive required to attempt ' \
+                             'reidentification.  Spectra from the archive with a lower ' \
+                             'cross-correlation are not used for reidentification. This can be ' \
+                             'a single number or a list/array providing the value for each slit.'
 
         defaults['cc_local_thresh'] = 0.70
         dtypes['cc_local_thresh'] = float
-        descr['cc_local_thresh'] = 'Threshold for the *local* cross-correlation coefficient, evaluated at each reidentified line,  ' \
-                                   'between an input spectrum and the shifted and stretched archive spectrum above which a ' \
-                                   'line must be to be considered a good line for reidentification. The local cross-correlation ' \
-                                   'is evaluated at each candidate reidentified line (using a window of nlocal_cc), and is then ' \
-                                   'used to score the the reidentified lines to arrive at the final set of good reidentifications'
+        descr['cc_local_thresh'] = 'Threshold for the *local* cross-correlation coefficient, ' \
+                                   'evaluated at each reidentified line,  between an input ' \
+                                   'spectrum and the shifted and stretched archive spectrum ' \
+                                   'above which a line must be to be considered a good line ' \
+                                   'for reidentification. The local cross-correlation is ' \
+                                   'evaluated at each candidate reidentified line (using a ' \
+                                   'window of nlocal_cc), and is then used to score the the ' \
+                                   'reidentified lines to arrive at the final set of good ' \
+                                   'reidentifications.'
 
         defaults['nlocal_cc'] = 11
         dtypes['nlocal_cc'] = int
-        descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation computation for each arc line. If not ' \
-                             'an odd number one will be added to it to make it odd.'
+        descr['nlocal_cc'] = 'Size of pixel window used for local cross-correlation ' \
+                             'computation for each arc line. If not an odd number one will ' \
+                             'be added to it to make it odd.'
 
         defaults['ech_fix_format'] = True
         dtypes['ech_fix_format'] = bool
-        descr['ech_fix_format'] = 'Is this a fixed format echelle like ESI, X-SHOOTER, or NIRES. If so reidentification ' \
-                                  'will assume that each order in the data is aligned with a single order in the reid arxiv'
-
-
-
+        descr['ech_fix_format'] = 'Is this a fixed format echelle?  If so reidentification ' \
+                                  'will assume that each order in the data is aligned with a ' \
+                                  'single order in the reid arxiv.'
 
         # These are the parameters used for the iterative fitting of the arc lines
         defaults['rms_threshold'] = 0.15
         dtypes['rms_threshold'] = [float, list, numpy.ndarray]
-        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a single number or a list/array providing the value for each slit'
+        descr['rms_threshold'] = 'Minimum RMS for keeping a slit/order solution. This can be a ' \
+                                 'single number or a list/array providing the value for each slit.'
 
         defaults['match_toler'] = 2.0
         dtypes['match_toler'] = float
-        descr['match_toler'] = 'Matching tolerance in pixels when searching for new lines. This is the difference ' \
-                               'in pixels between the wavlength assigned to an arc line by an iteration of the wavelength ' \
-                               'solution to the wavelength in the line list. This parameter is also used as the matching ' \
-                               'tolerance in pixels for a line reidentification. A good line match must match within this ' \
-                               'tolerance to the shifted and stretched archive spectrum, and the archive wavelength ' \
-                               'solution at this match must be within match_toler dispersion elements from the line in line list.'
+        descr['match_toler'] = 'Matching tolerance in pixels when searching for new lines. This ' \
+                               'is the difference in pixels between the wavlength assigned to ' \
+                               'an arc line by an iteration of the wavelength solution to the ' \
+                               'wavelength in the line list.  This parameter is also used as ' \
+                               'the matching tolerance in pixels for a line reidentification.  ' \
+                               'A good line match must match within this tolerance to the ' \
+                               'shifted and stretched archive spectrum, and the archive ' \
+                               'wavelength solution at this match must be within match_toler ' \
+                               'dispersion elements from the line in line list.'
 
         defaults['func'] = 'legendre'
         dtypes['func'] = str
@@ -2174,23 +2201,26 @@ class WavelengthSolutionPar(ParSet):
 
         defaults['sigrej_first'] = 2.0
         dtypes['sigrej_first'] = float
-        descr['sigrej_first'] = 'Number of sigma for rejection for the first guess to the wavelength solution.'
-
+        descr['sigrej_first'] = 'Number of sigma for rejection for the first guess to the ' \
+                                'wavelength solution.'
 
         defaults['n_final'] = 4
         dtypes['n_final'] = [int, float, list, numpy.ndarray]
-        descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 parameters in the fit). This can be a single number or a list/array providing the value for each slit'
-
+        descr['n_final'] = 'Order of final fit to the wavelength solution (there are n_final+1 ' \
+                           'parameters in the fit). This can be a single number or a ' \
+                           'list/array providing the value for each slit'
 
         defaults['sigrej_final'] = 3.0
         dtypes['sigrej_final'] = float
-        descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the wavelength solution.'
+        descr['sigrej_final'] = 'Number of sigma for rejection for the final guess to the ' \
+                                'wavelength solution.'
 
         # TODO: Not used
         # Backwards compatibility with basic and semi_brute algorithms
         defaults['wv_cen'] = 0.0
         dtypes['wv_cen'] = float
-        descr['wv_cen'] = 'Central wavelength. Backwards compatibility with basic and semi-brute algorithms.'
+        descr['wv_cen'] = 'Central wavelength. Backwards compatibility with basic and ' \
+                          'semi-brute algorithms.'
 
         defaults['disp'] = 0.0
         dtypes['disp'] = float
@@ -2261,35 +2291,37 @@ class WavelengthSolutionPar(ParSet):
         """
         Return the valid wavelength solution methods.
         """
-        return [ 'arc', 'sky', 'pixel' ]
+        return ['arc', 'sky', 'pixel']
 
     @staticmethod
     def valid_methods():
         """
         Return the valid wavelength solution methods.
         """
-        return [ 'simple', 'semi-brute', 'basic', 'holy-grail', 'identify', 'reidentify', 'full_template']
+        # TODO: Remove from this list anything that is not valid!
+        return ['simple', 'semi-brute', 'basic', 'holy-grail', 'identify', 'reidentify',
+                'full_template']
 
     @staticmethod
     def valid_lamps():
         """
         Return the valid lamp ions
         """
-        return [ 'ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr' ]
+        return ['ArI', 'CdI', 'HgI', 'HeI', 'KrI', 'NeI', 'XeI', 'ZnI', 'ThAr']
 
     @staticmethod
     def valid_media():
         """
         Return the valid media for the wavelength calibration.
         """
-        return [ 'vacuum', 'air' ]
+        return ['vacuum', 'air']
 
     @staticmethod
     def valid_reference_frames():
         """
         Return the valid reference frames for the wavelength calibration
         """
-        return [ 'observed', 'heliocentric', 'barycentric' ]
+        return ['observed', 'heliocentric', 'barycentric']
 
     def validate(self):
         pass
@@ -2304,19 +2336,19 @@ class EdgeTracePar(ParSet):
     """
     prefix = 'ETP'  # Prefix for writing parameters to a header is a class attribute
     def __init__(self, filt_iter=None, sobel_mode=None, edge_thresh=None, follow_span=None,
-                 det_min_spec_length=None, valid_flux_thresh=None, max_shift_abs=None,
-                 max_shift_adj=None, max_spat_error=None, match_tol=None, fit_function=None,
-                 fit_order=None, fit_maxdev=None, fit_maxiter=None, fit_niter=None,
-                 fit_min_spec_length=None, auto_pca=None, left_right_pca=None, pca_min_edges=None,
-                 pca_n=None, pca_var_percent=None, pca_function=None, pca_order=None,
-                 pca_sigrej=None, pca_maxrej=None, pca_maxiter=None, smash_range=None,
-                 edge_detect_clip=None, trace_median_frac=None, trace_thresh=None,
-                 fwhm_uniform=None, niter_uniform=None, fwhm_gaussian=None, niter_gaussian=None,
-                 det_buffer=None, max_nudge=None, sync_predict=None, sync_center=None,
-                 gap_offset=None, sync_to_edge=None, minimum_slit_length=None, length_range=None,
-                 minimum_slit_gap=None, clip=None, sync_clip=None, mask_reg_maxiter=None,
-                 mask_reg_maxsep=None, mask_reg_sigrej=None, ignore_alignment=None, pad=None,
-                 add_slits=None, rm_slits=None):
+                 det_min_spec_length=None, max_shift_abs=None, max_shift_adj=None,
+                 max_spat_error=None, match_tol=None, fit_function=None, fit_order=None,
+                 fit_maxdev=None, fit_maxiter=None, fit_niter=None, fit_min_spec_length=None,
+                 auto_pca=None, left_right_pca=None, pca_min_edges=None, pca_n=None,
+                 pca_var_percent=None, pca_function=None, pca_order=None, pca_sigrej=None,
+                 pca_maxrej=None, pca_maxiter=None, smash_range=None, edge_detect_clip=None,
+                 trace_median_frac=None, trace_thresh=None, fwhm_uniform=None, niter_uniform=None,
+                 fwhm_gaussian=None, niter_gaussian=None, det_buffer=None, max_nudge=None,
+                 sync_predict=None, sync_center=None, gap_offset=None, sync_to_edge=None,
+                 minimum_slit_length=None, minimum_slit_length_sci=None, length_range=None,
+                 minimum_slit_gap=None, clip=None, order_match=None, order_offset=None,
+                 mask_reg_maxiter=None, mask_reg_maxsep=None, mask_reg_sigrej=None,
+                 ignore_alignment=None, pad=None, add_slits=None, rm_slits=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -2363,13 +2395,6 @@ class EdgeTracePar(ParSet):
                                        'should be included in any modeling approach; see '\
                                        'fit_min_spec_length).'
         
-        defaults['valid_flux_thresh'] = 500.
-        dtypes['valid_flux_thresh'] = [int, float]
-        descr['valid_flux_thresh'] = 'The flux in the image used to construct the edge traces ' \
-                                     'is valid if its median value is above this threshold.  ' \
-                                     'Any edge tracing issues are then assumed not to be an ' \
-                                     'issue with the trace image itself.'
-
         defaults['max_shift_abs'] = 0.5
         dtypes['max_shift_abs'] = [int, float]
         descr['max_shift_abs'] = 'Maximum spatial shift in pixels between an input edge ' \
@@ -2490,6 +2515,7 @@ class EdgeTracePar(ParSet):
                                'units) to smash when searching for slit edges.  If the ' \
                                'spectrum covers only a portion of the image, use that range.'
 
+        # TODO: Does this still need to be different from `edge_thresh`?
         dtypes['edge_detect_clip'] = [int, float]
         descr['edge_detect_clip'] = 'Sigma clipping level for peaks detected in the collapsed, ' \
                                     'Sobel-filtered significance image.'
@@ -2577,8 +2603,23 @@ class EdgeTracePar(ParSet):
         descr['minimum_slit_length'] = 'Minimum slit length in arcsec.  Slit lengths are ' \
                                        'determined by the median difference between the left ' \
                                        'and right edge locations for the unmasked trace ' \
-                                       'locations.  Short slits are masked or clipped.  ' \
-                                       'If None, no minimum slit length applied.'
+                                       'locations.  This is used to identify traces that are ' \
+                                       '*erroneously* matched together to form slits.  Short ' \
+                                       'slits are expected to be ignored or removed (see ' \
+                                       ' ``clip``).  If None, no minimum slit length applied.'
+
+        dtypes['minimum_slit_length_sci'] = [int, float]
+        descr['minimum_slit_length_sci'] = 'Minimum slit length in arcsec for a science slit.  ' \
+                                       'Slit lengths are determined by the median difference ' \
+                                       'between the left and right edge locations for the ' \
+                                       'unmasked trace locations.  Used in combination with ' \
+                                       '``minimum_slit_length``, this parameter is used to ' \
+                                       'identify box or alignment slits; i.e., those slits ' \
+                                       'that are shorter than ``minimum_slit_length_sci`` but ' \
+                                       'larger than ``minimum_slit_length`` are box/alignment ' \
+                                       'slits.  Box slits are *never* removed (see ``clip``), ' \
+                                       'but no spectra are extracted from them.  If None, no ' \
+                                       'minimum science slit length is applied.'
 
 #        defaults['length_range'] = 0.3
         dtypes['length_range'] = [int, float]
@@ -2600,12 +2641,25 @@ class EdgeTracePar(ParSet):
 
         defaults['clip'] = True
         dtypes['clip'] = bool
-        descr['clip'] = 'Instead of just masking bad slit trace edges, remove them.'
+        descr['clip'] = 'Remove traces flagged as bad, instead of only masking them.  This ' \
+                        'is currently only used by ' \
+                        ':func:`~pypeit.edgetrace.EdgeTraceSet.centroid_refine`.'
 
-        defaults['sync_clip'] = True
-        dtypes['sync_clip'] = bool
-        descr['sync_clip'] = 'For synchronized edges specifically, remove both edge traces, ' \
-                             'even if only one is selected for removal.'
+        dtypes['order_match'] = [int, float]
+        descr['order_match'] = 'For echelle spectrographs, this is the tolerance allowed for ' \
+                               'matching identified "slits" to echelle orders. Must be in ' \
+                               'the fraction of the detector spatial scale (i.e., a value of ' \
+                               '0.05 means that the order locations must be within 5% of the ' \
+                               'expected value).  If None, no limit is used.'
+
+        dtypes['order_offset'] = [int, float]
+        descr['order_offset'] = 'Offset to introduce to the expected order positions to improve ' \
+                                'the match for this specific data. This is an additive offset ' \
+                                'to the measured slit positions; i.e., this should minimize the ' \
+                                'difference between the expected order positions and ' \
+                                '``self.slit_spatial_center() + offset``. Must be in the ' \
+                                'fraction of the detector spatial scale. If None, no offset ' \
+                                'is applied.'
 
         # TODO: Make these mask registration parameters a separate
         # (nested) parameter set? Would making saving the paramters to
@@ -2693,17 +2747,17 @@ class EdgeTracePar(ParSet):
         # TODO Please provide docs
         k = numpy.array([*cfg.keys()])
         parkeys = ['filt_iter', 'sobel_mode', 'edge_thresh', 'follow_span', 'det_min_spec_length',
-                   'valid_flux_thresh', 'max_shift_abs', 'max_shift_adj', 'max_spat_error',
-                   'match_tol', 'fit_function', 'fit_order', 'fit_maxdev', 'fit_maxiter',
-                   'fit_niter', 'fit_min_spec_length', 'auto_pca', 'left_right_pca',
-                   'pca_min_edges', 'pca_n', 'pca_var_percent', 'pca_function', 'pca_order',
-                   'pca_sigrej', 'pca_maxrej', 'pca_maxiter', 'smash_range', 'edge_detect_clip',
-                   'trace_median_frac', 'trace_thresh', 'fwhm_uniform', 'niter_uniform',
-                   'fwhm_gaussian', 'niter_gaussian', 'det_buffer', 'max_nudge', 'sync_predict',
-                   'sync_center', 'gap_offset', 'sync_to_edge', 'minimum_slit_length',
-                   'length_range', 'minimum_slit_gap', 'clip', 'sync_clip', 'mask_reg_maxiter',
-                   'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment', 'pad', 'add_slits',
-                   'rm_slits']
+                   'max_shift_abs', 'max_shift_adj', 'max_spat_error', 'match_tol', 'fit_function',
+                   'fit_order', 'fit_maxdev', 'fit_maxiter', 'fit_niter', 'fit_min_spec_length',
+                   'auto_pca', 'left_right_pca', 'pca_min_edges', 'pca_n', 'pca_var_percent',
+                   'pca_function', 'pca_order', 'pca_sigrej', 'pca_maxrej', 'pca_maxiter',
+                   'smash_range', 'edge_detect_clip', 'trace_median_frac', 'trace_thresh',
+                   'fwhm_uniform', 'niter_uniform', 'fwhm_gaussian', 'niter_gaussian',
+                   'det_buffer', 'max_nudge', 'sync_predict', 'sync_center', 'gap_offset',
+                   'sync_to_edge', 'minimum_slit_length', 'minimum_slit_length_sci',
+                   'length_range', 'minimum_slit_gap', 'clip', 'order_match', 'order_offset',
+                   'mask_reg_maxiter', 'mask_reg_maxsep', 'mask_reg_sigrej', 'ignore_alignment',
+                   'pad', 'add_slits', 'rm_slits']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):

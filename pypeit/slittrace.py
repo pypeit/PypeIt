@@ -24,6 +24,8 @@ class SlitTraceBitMask(BitMask):
     def __init__(self):
         mask = dict([
             ('SHORTSLIT', 'Slit formed by left and right edge is too short. Not ignored for flexure'),
+            ('BOXSLIT', 'Slit formed by left and right edge is valid (large enough to be a valid '
+                        'slit), but too short to be a science slit'),
             ('USERIGNORE', 'User has specified to ignore this slit. Not ignored for flexure.'),
             ('BADWVCALIB', 'Wavelength calibration failed for this slit'),
             ('BADTILTCALIB', 'Tilts analysis failed for this slit'),
@@ -107,15 +109,20 @@ class SlitTraceSet(datamodel.DataContainer):
                              descr='Integer number of pixels to consider beyond the slit edges.'),
                  'spat_id': dict(otype=np.ndarray, atype=(int,np.integer),
                                  descr='Slit ID number from SPAT measured at half way point.'),
-                 'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number slitmask'),
-                 'ech_order': dict(otype=np.ndarray, atype=(int,np.integer), descr='Slit ID number echelle order'),
-                 'nslits': dict(otype=int, descr='Total number of slits, derived from shape of left_init.'),
+                 'maskdef_id': dict(otype=np.ndarray, atype=(int,np.integer),
+                                    descr='Slit ID number slitmask'),
+                 'ech_order': dict(otype=np.ndarray, atype=(int,np.integer),
+                                   descr='Slit ID number echelle order'),
+                 'nslits': dict(otype=int,
+                                descr='Total number of slits, derived from shape of left_init.'),
                  'left_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all left edges, one '
-                                    'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
+                                    'per slit.  Derived from the TraceImage. Shape is Nspec by '
+                                    'Nslits.'),
                  'right_init': dict(otype=np.ndarray, atype=np.floating,
                               descr='Spatial coordinates (pixel indices) of all right edges, one '
-                                    'per slit.  Derived from the TraceImage. Shape is Nspec by Nslits.'),
+                                    'per slit.  Derived from the TraceImage. Shape is Nspec by '
+                                    'Nslits.'),
                  'left_tweak': dict(otype=np.ndarray, atype=np.floating,
                                     descr='Spatial coordinates (pixel indices) of all left '
                                           'edges, one per slit.  These traces have been adjusted '
@@ -125,31 +132,30 @@ class SlitTraceSet(datamodel.DataContainer):
                                            'edges, one per slit.  These traces have been adjusted '
                                            'by the flat-field.  Shape is Nspec by Nslits.'),
                  'center': dict(otype=np.ndarray, atype=np.floating,
-                               descr='Spatial coordinates of the slit centers from left_init, right_init.  '
-                                     'Shape is Nspec by Nslits.'),
+                               descr='Spatial coordinates of the slit centers from left_init, '
+                                     'right_init.  Shape is Nspec by Nslits.'),
                  'mask_init': dict(otype=np.ndarray, atype=np.integer,
-                     descr='Bit mask for slits at instantiation.  Used to reset'),
+                                   descr='Bit mask for slits at instantiation.  Used to reset'),
                  'mask': dict(otype=np.ndarray, atype=np.integer,
-                              descr='Bit mask for slits (fully good slits have 0 value).  Shape is Nslits.'),
+                              descr='Bit mask for slits (fully good slits have 0 value).  Shape '
+                                    'is Nslits.'),
                 'slitbitm': dict(otype=str, desc='List of BITMASK keys from SlitTraceBitMask'),
                 'specmin': dict(otype=np.ndarray, atype=np.floating,
-                                 descr='Minimum spectral position allowed for each slit/order.  '
-                                       'Shape is Nslits.'),
+                                descr='Minimum spectral position allowed for each slit/order.  '
+                                      'Shape is Nslits.'),
                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-                                 descr='Maximum spectral position allowed for each slit/order.  '
-                                       'Shape is Nslits.'),
-                 }
+                                descr='Maximum spectral position allowed for each slit/order.  '
+                                      'Shape is Nslits.')}
     """Provides the class data model."""
     # NOTE: The docstring above is for the ``datamodel`` attribute.
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
     # The INIT must contain every datamodel item or risk fail on I/O when it is a nested container
-    def __init__(self, left_init, right_init, pypeline, nspec=None, nspat=None, PYP_SPEC=None, mask_init=None,
-                 specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
-                 spat_id=None, maskdef_id=None, ech_order=None, nslits=None,
-                 left_tweak=None, right_tweak=None, center=None, mask=None,
-                 slitbitm=None):
+    def __init__(self, left_init, right_init, pypeline, nspec=None, nspat=None, PYP_SPEC=None,
+                 mask_init=None, specmin=None, specmax=None, binspec=1, binspat=1, pad=0,
+                 spat_id=None, maskdef_id=None, ech_order=None, nslits=None, left_tweak=None,
+                 right_tweak=None, center=None, mask=None, slitbitm=None):
 
         # Instantiate the DataContainer
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -210,6 +216,12 @@ class SlitTraceSet(datamodel.DataContainer):
         if self.specmax is None:
             self.specmax = np.full(self.nslits, self.nspec, dtype=float)
 
+        # If the echelle order is provided, check that the number of
+        # orders matches the number of provided "slits"
+        if self.ech_order is not None and len(self.ech_order) != self.nslits:
+            msgs.error('Number of provided echelle orders does not match the number of '
+                       'order traces.')
+
         # Make sure mask, specmin, and specmax are at least 1D arrays.
         # TODO: Is there a way around this?
         self.mask_init = np.atleast_1d(self.mask_init)
@@ -249,7 +261,8 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._parse`. Data is
         always read from the 'SLITS' extension.
         """
-        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True, debug=True)
+        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True,
+                                               debug=True)
 
     def init_tweaked(self):
         """
@@ -279,6 +292,8 @@ class SlitTraceSet(datamodel.DataContainer):
                     if self.maskdef_id is None else np.vstack([info, self.maskdef_id])
         return info.astype(int).T
 
+    # TODO: Do we need both of these? I.e., can the 'spat_id' for
+    # echelle spectrographs just be the echelle order?
     @property
     def slitord_id(self):
         """
@@ -290,7 +305,7 @@ class SlitTraceSet(datamodel.DataContainer):
         """
         if self.pypeline in ['MultiSlit', 'IFU']:
             return self.spat_id
-        elif self.pypeline in ['Echelle']:
+        elif self.pypeline == 'Echelle':
             return self.ech_order
         else:
             msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
@@ -648,8 +663,9 @@ class SlitTraceSet(datamodel.DataContainer):
         #    if wv_calib[str(spat_id)] is None:
         #        self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
         for islit in range(self.nslits):
-            if wv_calib[str(self.slitord_id[islit])] is None or len(wv_calib[str(self.slitord_id[islit])]) == 0:
-                    self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
+            if wv_calib[str(self.slitord_id[islit])] is None \
+                    or len(wv_calib[str(self.slitord_id[islit])]) == 0:
+                self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):
         """

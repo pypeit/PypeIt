@@ -135,7 +135,8 @@ class WaveCalib(object):
             # Load up slits
             # TODO -- Allow for flexure
             all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
-            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
+            self.orders = self.slits.ech_order  # Can be None
+#            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
             # Internal mask for failed wv_calib analysis
             # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
             self.wvc_bpm = np.invert(mask == 0)
@@ -158,10 +159,12 @@ class WaveCalib(object):
                 self.gpm &= self.msarc.image < self.nonlinear_counts
 
         else:
+            self.orders = None
+            self.wvc_bpm = None
+            self.wvc_bpm_init = None
             self.slitmask_science = None
             self.shape_science = None
             self.shape_arc = None
-            self.nslits = 0
             self.slitcen = None
             self.slitmask = None
             self.gpm = None
@@ -216,7 +219,7 @@ class WaveCalib(object):
             final_fit = {}
             # Manually identify lines
             msgs.info("Initializing the wavelength calibration tool")
-            embed()
+            embed(header='line 222 wavecalib.py')
             for slit_idx in ok_mask_idx:
                 arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
                 final_fit[str(slit_idx)] = arcfitter.get_results()
@@ -227,7 +230,8 @@ class WaveCalib(object):
             # Now preferred
             # Slit positions
             arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask_idx,
-                                           slit_spat_pos=self.spat_coo,
+                                           #slit_spat_pos=self.spat_coo,
+                                           orders=self.orders,
                                            nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
@@ -265,20 +269,29 @@ class WaveCalib(object):
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
 
+    # TODO: Point to the datamodel for wv_calib in the docstring
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
-        Evaluate 2-d wavelength solution for echelle data. Unpacks
-        wv_calib for slits to be input into  arc.fit2darc
+        Fit a two-dimensional wavelength solution for echelle data.
 
+        Primarily a wrapper for :func:`pypeit.core.arc.fit2darc`,
+        using data unpacked from the ``wv_calib`` dictionary.
+        
         Args:
-            wv_calib (dict): Wavelength calibration
-            debug (bool, optional):  Show debugging info
-            skip_QA (bool, optional): Skip QA
+            wv_calib (:obj:`dict`):
+                Wavelength calibration dictionary.  See ??
+            debug (:obj:`bool`, optional):
+                Show debugging info
+            skip_QA (:obj:`bool`, optional):
+                Flag to skip construction of the nominal QA plots.
 
         Returns:
-            dict: dictionary containing information from 2-d fit
-
+            :obj:`dict`: Dictionary containing information from 2-d
+            fit.
         """
+        if self.spectrograph.pypeline != 'Echelle':
+            msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
+
         msgs.info('Fitting 2-d wavelength solution for echelle....')
         all_wave = np.array([], dtype=float)
         all_pixel = np.array([], dtype=float)
@@ -447,7 +460,7 @@ class WaveCalib(object):
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
         # Fit 2D?
-        if self.par['echelle'] is True:
+        if self.par['echelle']:
             fit2d_dict = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
             self.wv_calib['fit2d'] = fit2d_dict
 
@@ -516,19 +529,23 @@ class WaveCalib(object):
 # TODO -- Move this as a method on a WaveCalib DataContainer
 def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     """
-    Main algorithm to build the wavelength image
+    Main algorithm to build the wavelength image.
 
-    Only applied to good slits, which means any non-flagged or flagged
-     in the exclude_for_reducing list
+    The wavelength image is only constructed for good slits based on
+    ``slits.mask`` and selected using
+    :func:`pypeit.slittrace.SlitTraceSetBitMask.exclude_for_reducing`.
 
     Args:
-        spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
+        spectrograph (:class:`~pypeit.spectrographs.spectrograph.Spectrograph`):
             Spectrograph object
         tilts (`numpy.ndarray`_):
             Image holding tilts
-        slits (:class:`pypeit.slittrace.SlitTraceSet`):
-        wv_calib (dict):
-        spat_flexure (float, optional):
+        slits (:class:`~pypeit.slittrace.SlitTraceSet`):
+            Object holding the slit left and right edge traces.
+        wv_calib (:obj:`dict`):
+            Object holding the wavelength calibration
+        spat_flexure (:obj:`float`, optional):
+            Spatial offset to apply for flexure.
 
     Returns:
         `numpy.ndarray`_: The wavelength image.
@@ -543,7 +560,10 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
     slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
 
     par = wv_calib['par']
-    slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
+    if slits.ech_order is None and par['echelle']:
+        msgs.error('Echelle orders must be provided by the slits object!')
+        
+#    slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
 
     # If this is echelle print out a status message and do some error checking
     if par['echelle']:
@@ -552,23 +572,28 @@ def build_waveimg(spectrograph, tilts, slits, wv_calib, spat_flexure=None):
             msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
 
     # Unpack some 2-d fit parameters if this is echelle
-    for slit_spat in slits.spat_id[ok_slits]:
+#    for slit_spat in slits.spat_id[ok_slits]:
+    for i in range(slits.nslits):
+        if not ok_slits[i]:
+            continue
+        slit_spat = slits.spat_id[i]
         thismask = (slitmask == slit_spat)
         if not np.any(thismask):
             msgs.error("Something failed in wavelengths or masking..")
         if par['echelle']:
-            # TODO: Put this in `SlitTraceSet`?
-            order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
+#            # TODO: Put this in `SlitTraceSet`?
+#            order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
             # evaluate solution
             image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
                                              tilts[thismask],
                                              wv_calib['fit2d']['func2d'],
-                                             x2=np.ones_like(tilts[thismask])*order,
+#                                             x2=np.ones_like(tilts[thismask])*order,
+                                             x2=np.full_like(tilts[thismask], slits.ech_order[i]),
                                              minx=wv_calib['fit2d']['min_spec'],
                                              maxx=wv_calib['fit2d']['max_spec'],
                                              minx2=wv_calib['fit2d']['min_order'],
                                              maxx2=wv_calib['fit2d']['max_order'])
-            image[thismask] /= order
+            image[thismask] /= slits.ech_order[i]
         else:
             #iwv_calib = wv_calib[str(slit)]
             iwv_calib = wv_calib[str(slit_spat)]
