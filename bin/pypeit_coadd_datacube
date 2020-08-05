@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Perform datacube coadds of PypeIt 2D spectra.
+"""
+
+import pypeit.scripts.coadd_datacube as coadd_datacube
+
+if __name__ == '__main__':
+    args = coadd_datacube.parser()
+    coadd_datacube.main(args)

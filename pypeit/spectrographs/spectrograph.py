@@ -627,8 +627,12 @@ class Spectrograph:
             if required:
                 msgs.error("Need to allow for meta_key={} in your meta data".format(meta_key))
             else:
-                msgs.warn("Requested meta data does not exist...")
+                msgs.warn("Requested meta data for meta_key={} does not exist...".format(meta_key))
                 return None
+
+        # Check if this meta key is required
+        if 'required' in self.meta[meta_key].keys():
+            required = self.meta[meta_key]['required']
 
         # Is this not derivable?  If so, use the default
         #   or search for it as a compound method
@@ -695,9 +699,14 @@ class Spectrograph:
                                 kerror = True
                     # Bomb out?
                     if kerror:
+<<<<<<< HEAD
                         embed(header=utils.embed_header())
                         msgs.error('Required meta "{0}" did not load!'.format(meta_key)
                                    + 'You may have a corrupt header.')
+=======
+                        embed(header='spectrograph.get_meta_value()')
+                        msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
+>>>>>>> ginga_waveimg
                 else:
                     msgs.warn('Required card {0} missing '.format(self.meta[meta_key]['card'])
                               + 'from your header.  Proceeding with risk...')
@@ -706,9 +715,29 @@ class Spectrograph:
         # Return
         return retvalue
 
-    def set_wcs(self, hdr):
+    def get_wcs(self, hdr, slits, platescale, wave0, dwv):
+        """Get the WCS for a frame
+
+        Parameters
+        ----------
+        hdr : fits header
+            The header of the raw frame. The information in this
+            header will be extracted and returned as a WCS.
+        slits : :class:`pypeit.slittrace.SlitTraceSet`
+            Master slit edges
+        platescale : float
+            platescale of an unbinned pixel in arcsec/pixel (e.g. detector.platescale)
+        wave0 : float
+            wavelength zeropoint
+        dwv : float
+            delta wavelength per spectral pixel
+
+        Returns
+        -------
+        astropy.wcs : An astropy WCS object.
+        """
         msgs.warn("No WCS setup for spectrograph: {0:s}".format(self.spectrograph))
-        return hdr
+        return None
 
     def validate_metadata(self):
         """

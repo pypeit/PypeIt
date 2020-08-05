@@ -121,11 +121,11 @@ from pypeit import msgs
 from pypeit import io
 from pypeit import utils
 from pypeit import sampling
-from pypeit import ginga
 from pypeit import masterframe
 from pypeit import slittrace
 from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
+from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.images.buildimage import TraceImage
@@ -1478,19 +1478,19 @@ class EdgeTraceSet(DataContainer):
             _trc = cen if fit is None else fit
 
             # Connect to or instantiate ginga window
-            ginga.connect_to_ginga(raise_err=True, allow_new=True)
+            display.connect_to_ginga(raise_err=True, allow_new=True)
             # Clear the viewer and show the trace image
-            trace_viewer, trace_ch = ginga.show_image(self.trace_img.image, chname='Trace Image',
-                                                      clear=True)
+            trace_viewer, trace_ch = display.show_image(self.trace_img.image, chname='Trace Image',
+                                                        clear=True)
             if not self.is_empty:
-                ginga.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
-                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+                display.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
+                                   _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
 
             # Show the Sobel sigma image (do *not* clear)
-            sobel_viewer, sobel_ch = ginga.show_image(self.sobel_sig, chname='Sobel Filtered')
+            sobel_viewer, sobel_ch = display.show_image(self.sobel_sig, chname='Sobel Filtered')
             if not self.is_empty:
-                ginga.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
-                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+                display.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
+                                   _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
             return
 
         # Show the traced image

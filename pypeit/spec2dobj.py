@@ -42,7 +42,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.0'
+    version = '1.0.1'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -53,7 +53,8 @@ class Spec2DObj(datamodel.DataContainer):
 
     # TODO -- Hold, save the non-wavelength images as FLOAT32 ??
 
-    # Becase we are including nested DataContainers, be careful not to duplicate variable names!!
+    # Because we are including nested DataContainers, be careful not to
+    # duplicate variable names!!
     datamodel = {'sciimg': dict(otype=np.ndarray, atype=np.floating,
                                 descr='2D processed science image'),
                  'ivarraw': dict(otype=np.ndarray, atype=np.floating,
@@ -64,6 +65,9 @@ class Spec2DObj(datamodel.DataContainer):
                  'ivarmodel': dict(otype=np.ndarray, atype=np.floating,
                                    descr='2D ivar model image'),
                  'tilts': dict(otype=np.ndarray, atype=np.floating, descr='2D tilts image'),
+                 'scaleimg': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='2D multiplicative scale image that has been applied to '
+                                        'the science image'),
                  'waveimg': dict(otype=np.ndarray, atype=np.floating, descr='2D wavelength image'),
                  'bpmmask': dict(otype=np.ndarray, atype=np.integer,
                                  descr='2D bad-pixel mask for the image'),
@@ -101,7 +105,7 @@ class Spec2DObj(datamodel.DataContainer):
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
+                 scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -208,6 +212,9 @@ class Spec2DObj(datamodel.DataContainer):
             for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
+
+# TODO: In python3, you don't have to subclass from object. All classes
+# do so automatically.
 class AllSpec2DObj(object):
     """
     Simple object to hold Spec2DObj objects

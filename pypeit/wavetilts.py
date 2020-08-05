@@ -13,9 +13,8 @@ from matplotlib import pyplot as plt
 
 from astropy import stats, visualization
 
-from pypeit import msgs
-from pypeit import datamodel
-from pypeit import ginga
+from pypeit import msgs, datamodel
+from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import tracewave
 
@@ -595,7 +594,7 @@ class BuildWaveTilts(object):
 
         # TODO sort out show methods for debugging
         if show:
-            viewer,ch = ginga.show_image(self.mstilt.image*(self.slitmask > -1),chname='tilts')
+            viewer,ch = display.show_image(self.mstilt.image*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
@@ -626,7 +625,7 @@ class BuildWaveTilts(object):
             # TODO: Show the traces before running the 2D fit
 
             if show:
-                ginga.show_tilts(viewer, ch, self.trace_dict)
+                display.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit_idx] = self._parse_param(self.par, 'spat_order', slit_idx)
             self.spec_order[slit_idx] = self._parse_param(self.par, 'spec_order', slit_idx)

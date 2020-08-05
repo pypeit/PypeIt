@@ -28,7 +28,7 @@ class DetectorContainer(datamodel.DataContainer):
                                              'shape).'),
                       'specflip': dict(otype=bool,
                                        descr='If this is True then the dispersion dimension '
-                                             '(specificed by the specaxis) will be flipped.  '
+                                             '(specified by the specaxis) will be flipped.  '
                                              'PypeIt expects wavelengths to increase with '
                                              'increasing pixel number.  If this is not the case '
                                              'for this instrument, set specflip to True.'),
@@ -69,7 +69,10 @@ class DetectorContainer(datamodel.DataContainer):
                                          'detector contains more than one amplifier.'),
                       'ronoise': dict(otype=np.ndarray, atype=np.floating,
                                       descr='Read-out noise (e-). A list should be provided if a '
-                                            'detector contains more than one amplifier.'),
+                                            'detector contains more than one amplifier. If any '
+                                            'element of this list is <=0, the readout noise will '
+                                            'be determined from the overscan regions defined by '
+                                            'oscansec.'),
                       'datasec': dict(otype=np.ndarray, atype=str,
                                       descr='Either the data sections or the header keyword '
                                             'where the valid data sections can be obtained, one '
