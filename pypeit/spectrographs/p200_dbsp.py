@@ -3,7 +3,8 @@
 import numpy as np
 
 from astropy.io import fits
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, SkyCoord, EarthLocation, AltAz, ICRS
+from astropy import units as u
 from astropy.time import Time
 from pkg_resources import resource_filename
 
@@ -16,7 +17,14 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 
 from pypeit import debugger
+from typing import List
 
+loc = EarthLocation.of_site('Palomar')
+
+def get_zenith_ra_dec(time) -> SkyCoord:
+    time = Time(time)
+    altaz = AltAz(alt=Angle(90, unit=u.deg), az=Angle(0, unit=u.deg), obstime=time, location=loc)
+    return altaz.transform_to(ICRS)
 
 class P200DBSPSpectrograph(spectrograph.Spectrograph):
     """
@@ -55,8 +63,11 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
+        # VERY HACKY!!!!
+        meta['ra'] = dict(card=None, compound=True)
+        meta['dec'] = dict(card=None, compound=True)
+        #meta['ra'] = dict(ext=0, card='RA')
+        #meta['dec'] = dict(ext=0, card='DEC')
         meta['target'] = dict(ext=0, card='OBJECT')
 
         meta['dispname'] = dict(ext=0, card='GRATING')
@@ -65,7 +76,9 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
 
         meta['mjd'] = dict(card=None, compound=True)
         meta['exptime'] = dict(ext=0, card='EXPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
+        #meta['airmass'] = dict(ext=0, card='AIRMASS')
+        # VERY HACKY!!!!
+        meta['airmass'] = dict(card=None, compound=True)
 
         # Extras for config and frametyping
         meta['dichroic'] = dict(ext=0, card='DICHROIC')
@@ -78,15 +91,33 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         # Ingest
         self.meta = meta
 
-    def compound_meta(self, headarr, meta_key):
+    def compound_meta(self, headarr: List[fits.Header], meta_key):
         if meta_key == 'mjd':
             return Time(headarr[0]['UTSHUT']).mjd
         elif meta_key == 'dispangle':
             try:
-                return Angle(headarr[0]['ANGLE'], ).deg
+                return Angle(headarr[0]['ANGLE']).deg
             except Exception as e:
                 print(headarr[0]['ANGLE'])
                 raise e
+        elif meta_key == 'ra':
+            ra = headarr[0].get('RA', default=None)
+            frametype = headarr[0]['IMGTYPE']
+            if ra is None and frametype in ['bias', 'flat', 'cal']:
+                ra = get_zenith_ra_dec(headarr[0]['UTSHUT']).ra.to_string(unit='hour', sep=':')
+            return ra
+        elif meta_key == 'dec':
+            dec = headarr[0].get('DEC', default=None)
+            frametype = headarr[0]['IMGTYPE']
+            if dec is None and frametype in ['bias', 'flat', 'cal']:
+                dec = get_zenith_ra_dec(headarr[0]['UTSHUT']).dec.to_string(unit='deg', sep=':')
+            return dec
+        elif meta_key == 'airmass':
+            am = headarr[0].get('AIRMASS', default=None)
+            frametype = headarr[0]['IMGTYPE']
+            if am is None and frametype in ['bias', 'flat', 'cal']:
+                am = '1.000'
+            return am
         else:
             return None
             #msgs.error("Not ready for this compound meta")
