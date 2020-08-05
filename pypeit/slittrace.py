@@ -254,7 +254,7 @@ class SlitTraceSet(datamodel.DataContainer):
         return super(SlitTraceSet, self)._bundle(ext='SLITS', transpose_arrays=True)
 
     @classmethod
-    def _parse(cls, hdu, hdu_prefix=None, chk_version=True):
+    def _parse(cls, hdu, hdu_prefix=None):
         """
         Parse the data that was previously written to a fits file.
 

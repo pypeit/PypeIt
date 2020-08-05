@@ -920,7 +920,7 @@ class DataContainer:
 
         # NOTE: The extension and keyword comparisons are complicated
         # because the fits standard is to force these all to be
-        # capitalized, while the datamodel doesn't (currently)
+        # capitalized, while the datamodel doesn't
         # implement this restriction.
 
         # Handle hdu_prefix
