@@ -167,38 +167,6 @@ class PypeItFit(DataContainer):
                 xmin, xmax = self.minx, self.maxx
             xv = 2.0 * (x_out - xmin) / (xmax - xmin) - 1.0
             self.fitc = np.polynomial.chebyshev.chebfit(xv, y_out, self.order[0], w=w_out)
-        elif self.func == "gaussian":
-            # Guesses
-            if guesses is None:
-                ampl, cent, sigma = guess_gauss(x_out, y_out)
-                # As first guess choose slope and intercept to be zero
-                b = 0
-                m = 0
-            else:
-                if self.order[0] == 2:
-                    ampl, sigma = guesses
-                elif self.order[0] == 3:
-                    ampl, cent, sigma = guesses
-                elif self.order[0] == 4:
-                    b, ampl, cent, sigma = guesses
-                elif self.order[0] == 5:
-                    m, b, ampl, cent, sigma = guesses
-            # Error
-            if w_out is not None:
-                sig_y = 1. / w_out
-            else:
-                sig_y = None
-            if self.order[0] == 2:  # 2 parameter fit
-                self.fitc, self.fitcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
-            elif self.order[0] == 3:  # Standard 3 parameters
-                self.fitc, self.fitcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
-                                       sigma=sig_y)
-            elif self.order[0] == 4:  # 4 parameters
-                self.fitc, self.fitcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma], sigma=sig_y)
-            elif self.order[0] == 5:  # 5 parameters
-                self.fitc, self.fitcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma], sigma=sig_y)
-            else:
-                msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
         elif self.func == "moffat":
             # Guesses
             if guesses is None:
@@ -820,6 +788,32 @@ def moffat(x,p0,p1,p2):
         float or ndarray: Evaluated Moffat
     """
     return p0 / (1+(x/p1)**2)**p2
+
+
+def fit_gauss(x_out, y_out, guesses=None, w_out=None):
+    if guesses is None:
+        ampl, cent, sigma = guess_gauss(x_out, y_out)
+        # As first guess choose slope and intercept to be zero
+        b = 0
+        m = 0
+    ampl, cent, sigma = guesses
+    # Error
+    if w_out is not None:
+        sig_y = 1. / w_out
+    else:
+        sig_y = None
+    #if self.order[0] == 2:  # 2 parameter fit
+    #    self.fitc, self.fitcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
+    #elif self.order[0] == 3:  # Standard 3 parameters
+    fitc, fitcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
+                                           sigma=sig_y)
+    #elif self.order[0] == 4:  # 4 parameters
+    #    self.fitc, self.fitcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma], sigma=sig_y)
+    #elif self.order[0] == 5:  # 5 parameters
+    #    self.fitc, self.fitcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma], sigma=sig_y)
+    #else:
+    #    msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
+    return fitc, fitcov
 
 
 def gauss_2deg(x,ampl,sigm):
