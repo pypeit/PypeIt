@@ -49,7 +49,8 @@ class DetectorContainer(datamodel.DataContainer):
         'gain': dict(otype=np.ndarray, atype=np.floating, desc='Inverse gain (e-/ADU). A list should be provided if a detector ' \
                     'contains more than one amplifier.'),
         'ronoise': dict(otype=np.ndarray, atype=np.floating, desc='Read-out noise (e-). A list should be provided if a detector ' \
-                       'contains more than one amplifier.'),
+                       'contains more than one amplifier. If any element of this list is <=0, the readout noise will be determined' \
+                       'from the overscan regions defined by oscansec.'),
         'datasec': dict(otype=np.ndarray, atype=str, desc='Either the data sections or the header keyword where the valid ' \
                        'data sections can be obtained, one per amplifier. If defined ' \
                        'explicitly should be in FITS format (e.g., [1:2048,10:4096]).'),

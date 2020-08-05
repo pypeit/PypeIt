@@ -42,6 +42,7 @@ def init_dict():
                  skymodel = 0.95 * np.ones_like(sciimg),
                  objmodel = np.ones_like(sciimg),
                  ivarmodel = 0.05 * np.ones_like(sciimg),
+                 scaleimg = np.ones_like(sciimg),
                  waveimg = 1000 * np.ones_like(sciimg),
                  bpmmask=np.ones_like(sciimg).astype(int),
                  det=1,

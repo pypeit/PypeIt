@@ -386,7 +386,7 @@ def extinction_correction(wave, airmass, extinct):
         mag_ext[gdv[-1] + 1:] = mag_ext[gdv[-1]]
         msgs.warn("Extrapolating at high wavelengths using last valid value")
     else:
-        msgs.info("Extinction data covered the whole spectra. Correct it!")
+        msgs.info("Extinction data covered the whole spectra. Applying correction...")
     # Evaluate
     flux_corr = 10.0 ** (0.4 * mag_ext * airmass)
     # Return
