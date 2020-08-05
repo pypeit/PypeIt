@@ -925,11 +925,15 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         sv_det, sv_IDs = [], []
         for kk in range(nsnippet):
             # Construct
-            i0 = nsub * kk
-            i1 = min(nsub*(kk+1), ispec.size)
-            tsnippet = ispec[i0:i1]
-            msnippet = mspec[i0:i1]
-            mwvsnippet = mwv[i0:i1]
+            j0 = nsub * kk
+            j1 = min(nsub*(kk+1), ispec.size)
+            tsnippet = ispec[j0:j1]
+            msnippet = mspec[j0:j1]
+            mwvsnippet = mwv[j0:j1]
+            # JFH This continue statement deals with the case when the msnippet derives from *entirely* zero-padded
+            # pixels, and allows the code to continue with crashing.
+            if not np.any(msnippet):
+                continue
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
                                                               line_lists, 1, debug_xcorr=debug_xcorr,
@@ -938,7 +942,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
                                                               match_toler=par['match_toler'],
                                                               cc_thresh=0.1, fwhm=par['fwhm'])
             # Deal with IDs
-            sv_det.append(i0 + detections)
+            sv_det.append(j0 + detections)
             try:
                 sv_IDs.append(patt_dict['IDs'])
             except KeyError:
@@ -975,118 +979,86 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
 
 
 class ArchiveReid:
-    """
+    r"""
     Algorithm to wavelength calibrate spectroscopic data based on an
     archive of wavelength solutions.
 
     Parameters
     ----------
     spec :  float ndarray shape of (nspec, nslits) or (nspec)
-        Array of arc spectra for which wavelength solutions are desired.
-    spectrograph : pypeit.spectrograph.Spectrograph
-        Spectrograph
-    par : :class:`pypeit.par.pypeitpar.WaveSolutionPar`
-        Parameters
+        Array of arc spectra for which wavelength solutions are
+        desired.
+    spectrograph : :class:`~pypeit.spectrographs.spectrograph.Spectrograph`
+        Spectrograph instance
+    par : :class:`~pypeit.par.pypeitpar.WaveSolutionPar`
+        Key parameters that drive the behavior of the
+        wavelength-solution algorithms.
+    ok_mask : `numpy.ndarray`, optional
+        Integer array with the list of valid spectra ``spec`` to use.
+        If None, all spectra are used.
     use_unknowns : bool, default = True, optional
-        If True, arc lines that are known to be present in the spectra,
-        but have not been attributed to an element+ion, will be included
-        in the fit.
+        If True, arc lines that are known to be present in the
+        spectra, but have not been attributed to an element+ion, will
+        be included in the fit.
+    debug_all: :obj:`bool`, optional
+        Convenience parameter that turns on all debugging. Setting
+        ``debug_all`` to True is equivalent to setting
+        ``debug_peaks``, ``debug_xcorr``, ``debug_reid``, and
+        ``debug_fits`` to True.
+    debug_peaks : :obj:`bool`, optional
+        Debug the line identification in the arcline spectra. See
+        ``debug`` parameter in
+        func:`pypeit.core.wavecal.wvutils.arc_lines_from_spec`.
     debug_xcorr: bool, default = False, optional
-       Show plots useful for debugging the cross-correlation used for shift/stretch computation
+        Show plots useful for debugging the cross-correlation used
+        for shift/stretch computation.
     debug_reid: bool, default = False, optional
-       Show plots useful for debugging the line reidentification
+        Show plots useful for debugging the line reidentification
+    debug_fits : :obj:`bool`, optional
+        Show the arc-line fit debugging plot. See :func:`arc_fit_qa`.
+    orders : `numpy.ndarray`, optional
+        Order numbers for the provided spectra. Used to match against
+        the relevant archived spectrum for echelle spectrographs.
+        Shape must be :math:`(N_{\rm spec},)` and these *must* be
+        provided if ``par['ech_fix_format']`` is True.
     nonlinear_counts: float, default = 1e10
-       For arc line detection: Arc lines above this saturation threshold
-       are not used in wavelength solution fits because they cannot be
-       accurately centroided
-    sigdetect: float, default 5.0
-       For arc line detection: Sigma threshold above fluctuations for
-       arc-line detection. Arcs are continuum subtracted and the
-       fluctuations are computed after continuum subtraction.
-    reid_arxiv: str
-       For reidentification: Name of the archival wavelength solution
-       file that will be used for the wavelength reidentification
-    nreid_min: int
-       For reidentification: Minimum number of times that a given
-       candidate reidentified line must be properly matched with a line
-       in the arxiv to be considered a good reidentification. If there
-       is a lot of duplication in the arxiv of the spectra in question
-       (i.e. multislit) set this to a number like 2-4. For echelle this
-       depends on the number of solutions in the arxiv.  For fixed
-       format echelle (ESI, X-SHOOTER, NIRES) set this 1. For an echelle
-       with a tiltable grating, it will depend on the number of
-       solutions in the arxiv.
-    cc_thresh: float, default = 0.8
-       For reidentification: Threshold for the *global*
-       cross-correlation coefficient between an input spectrum and
-       member of the archive required to attempt reidentification.
-       Spectra from the archive with a lower cross-correlation are not
-       used for reidentification
-    cc_local_thresh: float, default = 0.8
-       For reidentification: Threshold for the *local* cross-correlation
-       coefficient, evaluated at each reidentified line,  between an
-       input spectrum and the shifted and stretched archive spectrum
-       above which a line must be to be considered a good line for
-       reidentification. The local cross-correlation is evaluated at
-       each candidate reidentified line (using a window of nlocal_cc),
-       and is then used to score the the reidentified lines to arrive at
-       the final set of good reidentifications
-    n_local_cc: int, defualt = 11
-       For reidentification: Size of pixel window used for local
-       cross-correlation computation for each arc line. If not an odd
-       number one will be added to it to make it odd.
-    slit_spat_pos: np.ndarray, optional
-       For reidentification: For figuring out the echelle order
-    rms_threshold: float, default = 0.15
-       For iterative wavelength solution fitting: Minimum rms for
-       considering a wavelength solution to be an acceptable good fit.
-       Slits/orders with a larger RMS than this are flagged as bad slits
-    match_toler: float, default = 2.0
-       For iterative wavelength solution fitting: Matching tolerance in
-       pixels when searching for new lines. This is the difference in
-       pixels between the wavlength assigned to an arc line by an
-       iteration of the wavelength solution to the wavelength in the
-       line list. This parameter is *also* used as the matching
-       tolerance in pixels for a line reidentification. A good line
-       match must match within this tolerance to the the shifted and
-       stretched archive spectrum, and the archive wavelength solution
-       at this match must be within match_toler dispersion elements from
-       the line in line list.
-    func: str, default = 'legendre'
-       For iterative wavelength solution fitting: Name of function used
-       for the wavelength solution
-    n_first: int, default = 2
-       For iterative wavelength solution fitting: Order of first guess
-       to the wavelength solution.
-    sigrej_first: float, default = 2.0
-       For iterative wavelength solution fitting: Number of sigma for
-       rejection for the first guess to the wavelength solution.
-    n_final: int, default = 4
-       For iterative wavelength solution fitting: Order of the final
-       wavelength solution fit
-    sigrej_final: float, default = 3.0
-       For iterative wavelength solution fitting: Number of sigma for
-       rejection for the final fit to the wavelength solution.
+        For arc line detection: Arc lines above this saturation
+        threshold are not used in wavelength solution fits because
+        they cannot be accurately centroided
 
+    Attributes
+    ----------
+    debug_peaks : :obj:`bool`
+        Debug the peak finding.
+
+    .. todo::
+        - Fill in the rest of the attributes.
 
     """
+    # TODO: Because we're passing orders directly, we no longer need spectrograph...
+    def __init__(self, spec, spectrograph, par, ok_mask=None, use_unknowns=True, debug_all=False,
+                 debug_peaks=False, debug_xcorr=False, debug_reid=False, debug_fits=False,
+                 orders=None, nonlinear_counts=1e10):
 
+        # TODO: Perform detailed checking of the input
 
-    def __init__(self, spec, spectrograph, par, ok_mask=None, use_unknowns=True, debug_all = False,
-                 debug_peaks = False, debug_xcorr = False, debug_reid = False, debug_fits= False,
-                 slit_spat_pos=None, nonlinear_counts=1e10):
+        # Check input
+        if not isinstance(par, pypeitpar.WavelengthSolutionPar):
+            msgs.error('Input parameters must be provided by a WavelengthSolutionPar object.')
+        # TODO: Do we need ech_fix_format if we have
+        # spectrograph.pypeline, assuming we keep passing spectrograph?
+        if par['ech_fix_format'] and orders is None:
+            msgs.error('If the specrograph is a fixed-format echelle (ech_fix_format is True), '
+                       'the orders must be provided.')
 
-        if debug_all:
-            debug_peaks = True
-            debug_xcorr = True
-            debug_reid = True
-            debug_fits = True
+        # TODO: What does and does not need to be an attribute?
 
+        # Debugging
+        self.debug_peaks = debug_peaks or debug_all
+        self.debug_xcorr = debug_xcorr or debug_all
+        self.debug_reid = debug_reid or debug_all
+        self.debug_fits = debug_fits or debug_all
 
-        self.debug_peaks = debug_peaks
-        self.debug_xcorr = debug_xcorr
-        self.debug_reid = debug_reid
-        self.debug_fits = debug_fits
         self.spec = spec
         if spec.ndim == 2:
             self.nspec, self.nslits = spec.shape
@@ -1094,23 +1066,26 @@ class ArchiveReid:
             self.nspec = spec.size
             self.nslits = 1
         else:
-            msgs.error('Unrecognized shape for spec. It must be either a one dimensional or two dimensional numpy array')
-        if not isinstance(par, pypeitpar.WavelengthSolutionPar):
-            msgs.error("Bad par!")
+            msgs.error('Input spec must be a 1D or 2D numpy array!')
+
+        if orders is not None and orders.size != self.nslits:
+            msgs.error('Number of provided orders does not match the number of provided spectra.')
+
         self.par = par
         self.spectrograph = spectrograph
-        self.slit_spat_pos = slit_spat_pos
         self.lamps = self.par['lamps']
         self.use_unknowns = use_unknowns
 
         # Mask info
-        if ok_mask is None:
-            self.ok_mask = np.arange(self.nslits)
-        else:
-            self.ok_mask = ok_mask
-        self.bad_slits = []  # List of bad slits
+        self.ok_mask = np.arange(self.nslits) if ok_mask is None else ok_mask
+        if np.amax(ok_mask) >= self.nslits:
+            msgs.error('Spectrum selected by ok_mask is beyond the limits of the provided '
+                       'spec array.')
+        # List of bad slits
+        self.bad_slits = []
 
         # Pull paramaters out of the parset
+        # TODO: Why are we doing this?
         # Parameters for arc line detction
         self.nonlinear_counts = nonlinear_counts # self.par['nonlinear_counts']
         self.sigdetect = self.par['sigdetect']
@@ -1132,9 +1107,7 @@ class ArchiveReid:
         self.n_final= self.par['n_final']
         self.sigrej_final= self.par['sigrej_final']
 
-        # check that
-
-
+        # Load the line lists
         if 'ThAr' in self.lamps:
             line_lists_all = waveio.load_line_lists(self.lamps)
             self.line_lists = line_lists_all[np.where(line_lists_all['ion'] != 'UNKNWN')]
@@ -1143,15 +1116,15 @@ class ArchiveReid:
             self.line_lists = waveio.load_line_lists(self.lamps)
             self.unknwns = waveio.load_unknown_list(self.lamps)
 
-        if self.use_unknowns:
-            self.tot_line_list = table.vstack([self.line_lists, self.unknwns])
-        else:
-            self.tot_line_list = self.line_lists
+        self.tot_line_list = table.vstack([self.line_lists, self.unknwns]) if self.use_unknowns \
+                                else self.line_lists
 
         # Read in the wv_calib_arxiv and pull out some relevant quantities
         # ToDO deal with different binnings!
         self.wv_calib_arxiv, self.par_arxiv = waveio.load_reid_arxiv(self.reid_arxiv)
-        # Determine the number of spectra in the arxiv, check that it matches nslits if this is fixed format.
+
+        # Determine the number of spectra in the arxiv, check that it
+        # matches nslits if this is fixed format.
         narxiv = len(self.wv_calib_arxiv)
         for key in self.wv_calib_arxiv.keys():
             try:
@@ -1179,7 +1152,9 @@ class ArchiveReid:
             arxiv_orders = []
             for iarxiv in range(narxiv):
                 arxiv_orders.append(self.wv_calib_arxiv[str(iarxiv)]['order'])
+#            orders, _ = self.spectrograph.slit2order(slit_spat_pos)
 
+        ind_arxiv = np.arange(narxiv, dtype=int)
         # These are the final outputs
         self.all_patt_dict = {}
         self.detections = {}
@@ -1194,14 +1169,7 @@ class ArchiveReid:
             msgs.info('Reidentifying and fitting slit # {0:d}/{1:d}'.format(slit,self.nslits-1))
             # If this is a fixed format echelle, arxiv has exactly the same orders as the data and so
             # we only pass in the relevant arxiv spectrum to make this much faster
-            if self.ech_fix_format:
-                # Grab the order (could have been input)
-                order, indx = self.spectrograph.slit2order(slit_spat_pos[slit])
-                # Find it
-                ind_sp = arxiv_orders.index(order)
-            else:
-                ind_sp = np.arange(narxiv,dtype=int)
-
+            ind_sp = arxiv_orders.index(orders[slit]) if self.ech_fix_format else ind_arxiv
             sigdetect = wvutils.parse_param(self.par, 'sigdetect', slit)
             cc_thresh = wvutils.parse_param(self.par, 'cc_thresh', slit)
             self.detections[str(slit)], self.spec_cont_sub[:,slit], self.all_patt_dict[str(slit)] = \
@@ -1247,7 +1215,6 @@ class ArchiveReid:
 
         # Print the final report of all lines
         self.report_final()
-        #embed()
 
     def report_final(self):
         """Print out the final report of the wavelength calibration"""
@@ -1256,15 +1223,12 @@ class ArchiveReid:
             badmsg = '---------------------------------------------------' + msgs.newline() +\
                      'Final report for slit {0:d}/{1:d}:'.format(slit, self.nslits) + msgs.newline() +\
                      '  Wavelength calibration not performed!'
-            if slit not in self.ok_mask:
-                msgs.warn(badmsg)
-                continue
-            if self.all_patt_dict[str(slit)] is None:
+            if slit not in self.ok_mask or slit in self.bad_slits or self.all_patt_dict[str(slit)] is None:
                 msgs.warn(badmsg)
                 continue
             st = str(slit)
-            if len(self.wv_calib[st]) == 0:
-                print("Bad solution for slit: {}".format(st))
+            if self.wv_calib[st] is None or len(self.wv_calib[st]) == 0:
+                msgs.warn('Bad solution for slit: {}'.format(st))
                 continue
             if self.all_patt_dict[st]['sign'] == +1:
                 signtxt = 'correlate'

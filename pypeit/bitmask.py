@@ -66,7 +66,7 @@ class BitMask:
             Number of bits
         bits (dict):
             A dictionary with the bit name and value
-        descr (numpy.ndarray):
+        descr (`numpy.ndarray`_):
             List of bit descriptions
         max_value (int):
             The maximum valid bitmask value given the number of bits.
@@ -248,7 +248,7 @@ class BitMask:
 
         Raises:
             KeyError: Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
+                is not one of the valid bitmask names.
             TypeError: Raised if the provided *flag* does not contain
                 one or more strings.
         """
@@ -278,7 +278,7 @@ class BitMask:
         Raises:
             KeyError:
                 Raised by the dict data type if the input *flag* is not
-                one of the valid :attr:`flags`.
+                one of the valid bitmask names.
             TypeError:
                 Raised if the provided *flag* does not contain one or
                 more strings.
@@ -329,18 +329,20 @@ class BitMask:
         Ensure that a bit is turned on in the provided bitmask value.
 
         Args:
-            value (uint or array): Bitmask value.  It should be less
-                than or equal to :attr:`max_value`; however, that is not
-                checked.
-            flag (list, numpy.ndarray, or str): Bit name(s) to turn on.
+            value (:obj:`int`, `numpy.ndarray`_):
+                Bitmask value. It should be less than or equal to
+                :attr:`max_value`; however, that is not checked.
+            flag (:obj:`list`, `numpy.ndarray`, :obj:`str`):
+                Bit name(s) to turn on.
         
         Returns:
-            uint: New bitmask value after turning on the selected bit.
+            :obj:`int`: New bitmask value after turning on the
+            selected bit.
 
         Raises:
-            KeyError: Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
-            Exception: Raised if the provided *flag* is not a string.
+            ValueError:
+                Raised by the dict data type if the input ``flag`` is
+                not one of the valid bitmask names or if it is None.
         """
         if flag is None:
             raise ValueError('Provided bit name cannot be None.')
@@ -368,12 +370,12 @@ class BitMask:
                 Bit name(s) to turn off.
         
         Returns:
-            uint: New bitmask value after turning off the selected bit.
+            int: New bitmask value after turning off the selected bit.
 
         Raises:
-            KeyError: Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
-            Exception: Raised if the provided *flag* is not a string.
+            ValueError:
+                Raised by the dict data type if the input ``flag`` is
+                not one of the valid bitmask names or if it is None.
         """
         if flag is None:
             raise ValueError('Provided bit name cannot be None.')
@@ -402,7 +404,7 @@ class BitMask:
         Construct boolean arrays with the selected bits flagged.
 
         Args:
-            value (numpy.ndarray):
+            value (`numpy.ndarray`_):
                 The bitmask values to unpack.
             flag (:obj:`str`, :obj:`list`, optional):
                 The specific bits to unpack.  If None, all values are
