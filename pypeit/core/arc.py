@@ -39,7 +39,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     all_wv: `numpy.ndarray`_
      wavelength of the identified lines
     all_pix: `numpy.ndarray`_
-      y-centroid position of the identified lines
+      Spectral direction centroid position of the identified lines
     all_orders: `numpy.ndarray`_
       order number of the identified lines
     nspec: int
@@ -112,7 +112,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     #                func2d=func2d,xnorm=xnspecmin1,
     #                all_orders=all_orders, all_mask=fitmask)
 
-
+    debug=True
     if debug:
         fit2darc_global_qa(pypeitFit)
         fit2darc_orders_qa(pypeitFit)
@@ -121,12 +121,12 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
 
 
-def fit2darc_global_qa(fit_dict, outfile=None):
+def fit2darc_global_qa(pypeitFit, outfile=None):
     """ QA on 2D fit of the wavelength solution.
 
     Parameters
     ----------
-    fit_dict: dict
+    pypeitFit: dict
       dict of the 2D arc solution
     outfile:
       parameter for QA
@@ -139,22 +139,23 @@ def fit2darc_global_qa(fit_dict, outfile=None):
 
     utils.pyplot_rcparams()
 
-    # Extract info from fit_dict
-    nspec = fit_dict['nspec']
-    orders = fit_dict['orders']
-    nspec_coeff = fit_dict['nspec_coeff']
-    norder_coeff = fit_dict['norder_coeff']
-    all_wv = fit_dict['all_wv']
-    all_pix = fit_dict['all_pix']
-    all_orders = fit_dict['all_orders']
-    fitmask = fit_dict['all_mask']
-    coeffs = fit_dict['coeffs']
-    func2d = fit_dict['func2d']
-    min_spec = fit_dict['min_spec']
-    max_spec = fit_dict['max_spec']
-    min_order = fit_dict['min_order']
-    max_order = fit_dict['max_order']
-    xnorm = fit_dict['xnorm']
+    # Extract info from pypeitFit
+    embed()
+    nspec = pypeitFit['nspec']
+    orders = pypeitFit['orders']
+    nspec_coeff = pypeitFit['nspec_coeff']
+    norder_coeff = pypeitFit['norder_coeff']
+    all_wv = pypeitFit['all_wv']
+    all_pix = pypeitFit['all_pix']
+    all_orders = pypeitFit['all_orders']
+    fitmask = pypeitFit['all_mask']
+    coeffs = pypeitFit['coeffs']
+    func2d = pypeitFit['func2d']
+    min_spec = pypeitFit['min_spec']
+    max_spec = pypeitFit['max_spec']
+    min_order = pypeitFit['min_order']
+    max_order = pypeitFit['max_order']
+    xnorm = pypeitFit['xnorm']
     resid_wl_global = []
 
     # Define pixels array
@@ -221,14 +222,14 @@ def fit2darc_global_qa(fit_dict, outfile=None):
     utils.pyplot_rcparams_default()
 
 
-def fit2darc_orders_qa(fit_dict, outfile=None):
+def fit2darc_orders_qa(pypeitFit, outfile=None):
     """ QA on 2D fit of the wavelength solution of an Echelle spectrograph.
     Each panel contains a single order with the global fit and the
     residuals.
 
     Parameters
     ----------
-    fit_dict: dict
+    pypeitFit: dict
       dict of the 2D arc solution
     outfile:
       parameter for QA
@@ -241,23 +242,23 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
 
     utils.pyplot_rcparams()
 
-    # Extract info from fit_dict
-    # Extract info from fit_dict
-    nspec = fit_dict['nspec']
-    orders = fit_dict['orders']
-    nspec_coeff = fit_dict['nspec_coeff']
-    norder_coeff = fit_dict['norder_coeff']
-    all_wv = fit_dict['all_wv']
-    all_pix = fit_dict['all_pix']
-    all_orders = fit_dict['all_orders']
-    fitmask = fit_dict['all_mask']
-    coeffs = fit_dict['coeffs']
-    func2d = fit_dict['func2d']
-    min_spec = fit_dict['min_spec']
-    max_spec = fit_dict['max_spec']
-    min_order = fit_dict['min_order']
-    max_order = fit_dict['max_order']
-    xnorm = fit_dict['xnorm']
+    # Extract info from pypeitFit
+    # Extract info from pypeitFit
+    nspec = pypeitFit['nspec']
+    orders = pypeitFit['orders']
+    nspec_coeff = pypeitFit['nspec_coeff']
+    norder_coeff = pypeitFit['norder_coeff']
+    all_wv = pypeitFit['all_wv']
+    all_pix = pypeitFit['all_pix']
+    all_orders = pypeitFit['all_orders']
+    fitmask = pypeitFit['all_mask']
+    coeffs = pypeitFit['coeffs']
+    func2d = pypeitFit['func2d']
+    min_spec = pypeitFit['min_spec']
+    max_spec = pypeitFit['max_spec']
+    min_order = pypeitFit['min_order']
+    max_order = pypeitFit['max_order']
+    xnorm = pypeitFit['xnorm']
     resid_wl_global = []
 
     # Define pixels array
