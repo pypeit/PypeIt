@@ -789,9 +789,24 @@ def moffat(x,p0,p1,p2):
     return p0 / (1+(x/p1)**2)**p2
 
 
-def fit_gauss(x_out, y_out, guesses=None, w_out=None, return_errors=False):
-    if return_errors:
-        msgs.error("Need to deal with this")
+def fit_gauss(x_out, y_out, guesses=None, w_out=None):
+    """
+    Fit a 3 parameter gaussian
+
+    NOTE:  THIS WILL BE REPLACED SOON BY SOMETHING FAST
+
+    Args:
+        x_out (`numpy.ndarray_`):
+        y_out (`numpy.ndarray_`):
+        guesses (tuple, optional):
+            ampl, cent, sigma guesses for the Gaussian; each as floats
+        w_out (`numpy.ndarray_`):
+            Weights
+
+    Returns:
+        tuple: fitc, fitcov
+
+    """
     if guesses is None:
         ampl, cent, sigma = guess_gauss(x_out, y_out)
         # As first guess choose slope and intercept to be zero
