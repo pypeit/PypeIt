@@ -35,7 +35,7 @@ def get_files():
 def test_init():
     # Init
     files = get_files()
-    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
     assert len(setupc.steps) == 0
     assert setupc.nfiles == 0
 
@@ -47,7 +47,7 @@ def test_build_fitstbl():
     files = glob.glob(file_root+'*')
     assert len(files) > 0
     # Init
-    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
     #
     fitstbl = setupc.build_fitstbl(files)
     assert isinstance(fitstbl, Table)
@@ -64,7 +64,7 @@ def test_image_type():
     # Check for files
     files = get_files()
     # Init
-    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
     fitstbl = setupc.build_fitstbl(files)
     # Type
     setupc.get_frame_types(flag_unknown=True)
@@ -88,7 +88,7 @@ def test_type():
                  '[scienceframe]',
                  'exprng = 60,None']
     setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue',
-                                     cfg_lines=cfg_lines)
+                                     cfg_lines=cfg_lines, path=data_path(''))
     setupc.build_fitstbl(files)
     setupc.get_frame_types(flag_unknown=True)
     assert np.sum(setupc.fitstbl.find_frames('science')) == 2
@@ -124,9 +124,9 @@ def test_run():
     # Check for files
     files = get_files()
     # Init
-    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
     # Run
-    par, spectrograph, fitstbl = setupc.run()
+    par, spectrograph, fitstbl = setupc.run(sort_dir=data_path(''))
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
     assert isinstance(fitstbl, PypeItMetaData)
@@ -137,9 +137,9 @@ def test_run_calcheck():
     # Check for files
     files = get_files()
     # Init
-    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
     # Run
-    par, spectrograph, fitstbl = setupc.run(calibration_check=True)
+    par, spectrograph, fitstbl = setupc.run(calibration_check=True, sort_dir=data_path(''))
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
 
@@ -147,9 +147,9 @@ def test_run_calcheck():
 def test_run_setup():
     files = get_files()
     # Init
-    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue')
+    setupc = pypeitsetup.PypeItSetup(files, spectrograph_name='shane_kast_blue', path=data_path(''))
     # Run
-    par, spectrograph, fitstbl = setupc.run(setup_only=True)
+    par, spectrograph, fitstbl = setupc.run(setup_only=True, sort_dir=data_path(''))
     # Test
     assert par is None
 

@@ -35,7 +35,8 @@ def test_quicklook():
         raise IOError("You need to get the CALIBS folder as described above!!")
 
     # Define the output directories (HARDCODED!!)
-    outdir = os.path.join(os.getcwd(), 'keck_lris_blue_A')
+    os.chdir(data_path(''))
+    outdir = data_path('keck_lris_blue_A')
     # Remove them if they already exist
     if os.path.isdir(outdir):
         shutil.rmtree(outdir)
