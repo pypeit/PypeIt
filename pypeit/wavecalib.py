@@ -525,14 +525,14 @@ class BuildWaveCalib(object):
 
         # QA
         # TODO -- TURN QA BACK ON!
-        skip_QA = True
+        #skip_QA = True
         if not skip_QA:
             outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa',
                                                 out_dir=self.qa_path)
-            arc.fit2darc_global_qa(fit2d_dict, outfile=outfile_global)
+            arc.fit2darc_global_qa(fit2d, nspec, outfile=outfile_global)
             outfile_orders = qa.set_qa_filename(self.master_key, 'arc_fit2d_orders_qa',
                                                 out_dir=self.qa_path)
-            arc.fit2darc_orders_qa(fit2d_dict, outfile=outfile_orders)
+            arc.fit2darc_orders_qa(fit2d, nspec, outfile=outfile_orders)
 
         return fit2d
 

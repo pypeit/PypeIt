@@ -90,6 +90,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     pypeitFit = fitting.robust_fit(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff), x2=all_orders,
                                    function=func2d, maxiter=100, lower=sigrej, upper=sigrej, minx=min_spec,maxx=max_spec,
                                    minx2=min_order, maxx2=max_order, use_mad=True, sticky=False)
+    embed()
     wv_order_mod = pypeitFit.eval(all_pix/xnspecmin1, x2=all_orders)
     #fitmask, coeff2 = fitting.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
     #                                           function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
@@ -102,8 +103,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     fin_rms = pypeitFit.calc_fit_rms(x2=all_orders, apply_mask=True)
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
-    orders = np.unique(all_orders)
-
+    #orders = np.unique(all_orders)
     #fit_dict = dict(coeffs=coeff2, orders=orders,
     #                nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
     #                min_spec=min_spec, max_spec=max_spec,
@@ -112,16 +112,16 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     #                func2d=func2d,xnorm=xnspecmin1,
     #                all_orders=all_orders, all_mask=fitmask)
 
-    debug=True
+    #debug=True
     if debug:
-        fit2darc_global_qa(pypeitFit)
-        fit2darc_orders_qa(pypeitFit)
+        fit2darc_global_qa(pypeitFit, nspec)
+        fit2darc_orders_qa(pypeitFit, nspec)
 
     return pypeitFit
 
 
 
-def fit2darc_global_qa(pypeitFit, outfile=None):
+def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
     """ QA on 2D fit of the wavelength solution.
 
     Parameters
@@ -140,26 +140,18 @@ def fit2darc_global_qa(pypeitFit, outfile=None):
     utils.pyplot_rcparams()
 
     # Extract info from pypeitFit
-    embed()
-    nspec = pypeitFit['nspec']
-    orders = pypeitFit['orders']
-    nspec_coeff = pypeitFit['nspec_coeff']
-    norder_coeff = pypeitFit['norder_coeff']
-    all_wv = pypeitFit['all_wv']
-    all_pix = pypeitFit['all_pix']
-    all_orders = pypeitFit['all_orders']
-    fitmask = pypeitFit['all_mask']
-    coeffs = pypeitFit['coeffs']
-    func2d = pypeitFit['func2d']
-    min_spec = pypeitFit['min_spec']
-    max_spec = pypeitFit['max_spec']
-    min_order = pypeitFit['min_order']
-    max_order = pypeitFit['max_order']
-    xnorm = pypeitFit['xnorm']
+    xnspecmin1 = float(nspec - 1)
+    all_orders = pypeitFit['x2']
+    orders = np.unique(pypeitFit['x2'])
+    all_wv = pypeitFit['yval']/pypeitFit['x2']
+    all_pix =  pypeitFit['xval']*xnspecmin1
+    gpm = pypeitFit['gpm'].astype(bool)
+    nspec_coeff = pypeitFit['order'][0]
+    norder_coeff = pypeitFit['order'][1]
     resid_wl_global = []
 
     # Define pixels array
-    spec_vec_norm = np.arange(nspec)/xnorm
+    spec_vec_norm = np.arange(nspec)/xnspecmin1
 
     # Define figure properties
     plt.figure(figsize=(8, 5))
@@ -177,20 +169,17 @@ def fit2darc_global_qa(pypeitFit, outfile=None):
         bb = (ii - np.min(orders)) / (np.max(orders) - np.min(orders))
 
         # evaluate solution
-        wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=np.ones_like(spec_vec_norm)*ii,
-                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+        wv_order_mod = pypeitFit.eval(spec_vec_norm, x2=np.ones_like(spec_vec_norm)*ii)
         # Plot solution
-        plt.plot(wv_order_mod / ii, spec_vec_norm*xnorm, color=(rr, gg, bb),
-                 linestyle='-', linewidth=2.5)
+        plt.plot(wv_order_mod / ii, spec_vec_norm*xnspecmin1, color=(rr, gg, bb), linestyle='-', linewidth=2.5)
 
         # Evaluate residuals at each order
         on_order = all_orders == ii
         this_pix = all_pix[on_order]
         this_wv = all_wv[on_order]
-        this_msk = fitmask[on_order]
+        this_msk = gpm[on_order]
         this_order = all_orders[on_order]
-        wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
-                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+        wv_order_mod_resid = pypeitFit.eval(this_pix/xnspecmin1, x2=this_order)
         resid_wl = (wv_order_mod_resid / ii - this_wv)
         resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
         plt.scatter((wv_order_mod_resid[~this_msk] / ii) + \
@@ -204,7 +193,7 @@ def fit2darc_global_qa(pypeitFit, outfile=None):
 
     rms_global = np.std(resid_wl_global)
 
-    plt.text(mx, np.max(spec_vec_norm*xnorm), r'residuals $\times$100', \
+    plt.text(mx, np.max(spec_vec_norm*xnspecmin1), r'residuals $\times$100', \
              ha="right", va="top")
     plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
         norder_coeff, nspec_coeff, rms_global))
@@ -222,7 +211,7 @@ def fit2darc_global_qa(pypeitFit, outfile=None):
     utils.pyplot_rcparams_default()
 
 
-def fit2darc_orders_qa(pypeitFit, outfile=None):
+def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
     """ QA on 2D fit of the wavelength solution of an Echelle spectrograph.
     Each panel contains a single order with the global fit and the
     residuals.
@@ -243,26 +232,20 @@ def fit2darc_orders_qa(pypeitFit, outfile=None):
     utils.pyplot_rcparams()
 
     # Extract info from pypeitFit
+
     # Extract info from pypeitFit
-    nspec = pypeitFit['nspec']
-    orders = pypeitFit['orders']
-    nspec_coeff = pypeitFit['nspec_coeff']
-    norder_coeff = pypeitFit['norder_coeff']
-    all_wv = pypeitFit['all_wv']
-    all_pix = pypeitFit['all_pix']
-    all_orders = pypeitFit['all_orders']
-    fitmask = pypeitFit['all_mask']
-    coeffs = pypeitFit['coeffs']
-    func2d = pypeitFit['func2d']
-    min_spec = pypeitFit['min_spec']
-    max_spec = pypeitFit['max_spec']
-    min_order = pypeitFit['min_order']
-    max_order = pypeitFit['max_order']
-    xnorm = pypeitFit['xnorm']
+    xnspecmin1 = float(nspec - 1)
+    all_orders = pypeitFit['x2']
+    orders = np.unique(pypeitFit['x2'])
+    all_wv = pypeitFit['yval']/pypeitFit['x2']
+    all_pix =  pypeitFit['xval']*xnspecmin1
+    gpm = pypeitFit['gpm'].astype(bool)
+    nspec_coeff = pypeitFit['order'][0]
+    norder_coeff = pypeitFit['order'][1]
     resid_wl_global = []
 
     # Define pixels array
-    spec_vec_norm = np.arange(nspec)/xnorm
+    spec_vec_norm = np.arange(nspec)/xnspecmin1
 
     # set the size of the plot
     nrow = np.int(2)
@@ -291,26 +274,24 @@ def fit2darc_orders_qa(pypeitFit, outfile=None):
 
                 # Evaluate function
                 # evaluate solution
-                wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=ii*np.ones_like(spec_vec_norm),
-                                              minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+                wv_order_mod = pypeitFit.eval(spec_vec_norm, x2=ii*np.ones_like(spec_vec_norm))
                 # Evaluate delta lambda
-                dwl = (wv_order_mod[-1] - wv_order_mod[0])/ii/xnorm/(spec_vec_norm[-1] - spec_vec_norm[0])
+                dwl = (wv_order_mod[-1] - wv_order_mod[0])/ii/xnspecmin1/(spec_vec_norm[-1] - spec_vec_norm[0])
 
                 # Estimate the residuals
                 on_order = all_orders == ii
                 this_order = all_orders[on_order]
                 this_pix = all_pix[on_order]
                 this_wv = all_wv[on_order]
-                this_msk = fitmask[on_order]
+                this_msk = gpm[on_order]
 
-                wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
-                                              minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+                wv_order_mod_resid = pypeitFit.eval(this_pix/xnspecmin1, x2=this_order)
                 resid_wl = (wv_order_mod_resid/ii - this_wv)
                 resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
 
                 # Plot the fit
                 ax0.set_title('Order = {0:0.0f}'.format(ii))
-                ax0.plot(spec_vec_norm*xnorm, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
+                ax0.plot(spec_vec_norm*xnspecmin1, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
                          linewidth=2.5)
                 ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid[~this_msk] / ii / 10000.) + \
                             100. * resid_wl[~this_msk] / 10000., marker='x', color='black', \
