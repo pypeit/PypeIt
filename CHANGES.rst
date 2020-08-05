@@ -6,6 +6,8 @@
    for situations where extreme wavelength coverage slits results in
    reidentification with a purely zero-padded array.
  - (Hotfix) Deal with chk_calibs test
+ - Script to generate combined datacubes for IFU data.
+ - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
  - Implemented a plugin kindly provided by the ginga developers to
    display images with a secondary wavelength image WCS.
     - Removes dependency on @profxj's ginga fork, and avoids a bug when

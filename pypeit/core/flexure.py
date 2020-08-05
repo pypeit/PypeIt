@@ -12,6 +12,8 @@ from matplotlib import gridspec
 
 from astropy import stats
 from astropy import units
+import scipy.signal
+import scipy.optimize as opt
 
 from linetools.spectra import xspectrum1d
 
@@ -20,6 +22,7 @@ from pypeit import utils
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import qa
+from pypeit.core.fitting_ToBeMerged import twoD_Gaussian
 
 from IPython import embed
 
@@ -564,4 +567,51 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
         #plt.close()
 
     plt.rcdefaults()
+
+
+def calculate_image_offset(image, im_ref, nfit=3):
+    """Calculate the x,y offset between two images
+
+    Args:
+        image (`numpy.ndarray`_):
+            Image that we want to measure the shift of (relative to im_ref)
+        im_ref (`numpy.ndarray`_):
+            Reference image
+        nfit (int, optional):
+            Number of pixels (left and right of the maximum) to include in
+            fitting the peak of the cross correlation.
+
+    Returns:
+        ra_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (x direction).
+            In order to align image with im_ref, ra_diff should be added to the
+            x-coordinates of image
+        dec_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (y direction).
+            In order to align image with im_ref, dec_diff should be added to the
+            y-coordinates of image
+    """
+    # Subtract median (should be close to zero, anyway)
+    image -= np.median(image)
+    im_ref -= np.median(im_ref)
+
+    # cross correlate (note, convolving seems faster)
+    ccorr = scipy.signal.correlate2d(im_ref, image, boundary='fill', mode='same')
+    #ccorr = scipy.signal.fftconvolve(im_ref, image[::-1, ::-1], mode='same')
+
+    # Find the maximum
+    amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
+
+    # Perform a 2D Gaussian fit
+    x = np.arange(amax[0]-nfit, amax[0] + nfit+1)
+    y = np.arange(amax[1]-nfit, amax[1] + nfit+1)
+    initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+
+    # Fit the neighborhood of the maximum to calculate the offset
+    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy),
+                            ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
+                            p0=initial_guess)
+    # Return the RA and DEC shift, in pixels
+    return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
 

@@ -15,7 +15,8 @@ from pypeit.images import buildimage
 from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
-from pypeit.core import qa
+from pypeit.core import qa, flat
+from pypeit import utils
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -373,6 +374,10 @@ class PypeIt(object):
 
             msgs.info('Finished calibration group {0}'.format(i))
 
+        # Check if this is an IFU reduction. If so, make a datacube
+        if self.spectrograph.pypeline == "IFU" and self.par['reduce']['cube']['make_cube']:
+            msgs.work("Generate datacube")
+
         # Finish
         self.print_end_time()
 
@@ -653,7 +658,7 @@ class PypeIt(object):
         # Prep for manual extraction (if requested)
         manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
 
-        skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = self.redux.run(
+        skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run(
             std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
@@ -673,6 +678,7 @@ class PypeIt(object):
                                         skymodel=skymodel,
                                         objmodel=objmodel,
                                         ivarmodel=ivarmodel,
+                                        scaleimg=scaleImg,
                                         waveimg=waveImg,
                                         bpmmask=outmask,
                                         detector=sciImg.detector,
