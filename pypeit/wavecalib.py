@@ -47,6 +47,7 @@ class WaveCalib(datamodel.DataContainer):
         'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
                               desc='WaveFit to each 1D wavelength solution'),
         'wv_fit2d': dict(otype=fitting.PypeItFit, desc='2D wavelength solution (echelle)'),
+        'arc_spectra': dict(otype=np.ndarray, atype=np.floating, desc='2D array: 1D extracted spectra, slit by slit (nspec, nslit)'),
         'nslits': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
@@ -54,7 +55,7 @@ class WaveCalib(datamodel.DataContainer):
     }
 
     def __init__(self, wv_fits=None, nslits=None, spat_id=None, PYP_SPEC=None,
-                 strpar=None, wv_fit2d=None):
+                 strpar=None, wv_fit2d=None, arc_spectra=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -441,6 +442,7 @@ class BuildWaveCalib(object):
                 tmp.append(item)
         try:
             self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
+                                  arc_spectra=arccen,
                                   nslits=self.slits.nslits,
                                   spat_id=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.spectrograph,
