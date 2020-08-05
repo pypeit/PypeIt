@@ -1280,7 +1280,7 @@ class DataContainer:
 
     # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
-    def from_file(cls, ifile, verbose=True):
+    def from_file(cls, ifile, verbose=True, chk_version=True):
         """
         Instantiate the object from an extension in the specified fits file.
 
@@ -1289,6 +1289,8 @@ class DataContainer:
         Args:
             ifile (:obj:`str`):
                 Fits file with the data to read
+            chk_version (:obj:`bool`, optional):
+                Passed to from_hdu().  See those docs for details
 
         Raises:
             FileNotFoundError:
@@ -1302,7 +1304,7 @@ class DataContainer:
 
         # Do it
         with fits.open(ifile) as hdu:
-            obj = cls.from_hdu(hdu)
+            obj = cls.from_hdu(hdu, chk_version=chk_version)
             obj.head0 = hdu[0].header
             # Tack on filename
             obj.filename = ifile
