@@ -508,7 +508,7 @@ class BuildWaveCalib(object):
             if iorder not in ok_mask_order:
                 continue
             # Slurp
-            mask_now = wv_calib.wv_fits[ii].pypeitfit.gpm
+            mask_now = wv_calib.wv_fits[ii].pypeitfit.bool_gpm
             all_wave = np.append(all_wave, wv_calib.wv_fits[ii]['wave_fit'][mask_now])
             all_pixel = np.append(all_pixel, wv_calib.wv_fits[ii]['pixel_fit'][mask_now])
             all_order = np.append(all_order, np.full_like(wv_calib.wv_fits[ii]['pixel_fit'][mask_now],

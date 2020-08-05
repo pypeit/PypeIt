@@ -90,7 +90,6 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     pypeitFit = fitting.robust_fit(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff), x2=all_orders,
                                    function=func2d, maxiter=100, lower=sigrej, upper=sigrej, minx=min_spec,maxx=max_spec,
                                    minx2=min_order, maxx2=max_order, use_mad=True, sticky=False)
-    embed()
     wv_order_mod = pypeitFit.eval(all_pix/xnspecmin1, x2=all_orders)
     #fitmask, coeff2 = fitting.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
     #                                           function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
@@ -145,7 +144,7 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
     orders = np.unique(pypeitFit['x2'])
     all_wv = pypeitFit['yval']/pypeitFit['x2']
     all_pix =  pypeitFit['xval']*xnspecmin1
-    gpm = pypeitFit['gpm'].astype(bool)
+    gpm = pypeitFit.bool_gpm
     nspec_coeff = pypeitFit['order'][0]
     norder_coeff = pypeitFit['order'][1]
     resid_wl_global = []
@@ -239,7 +238,7 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
     orders = np.unique(pypeitFit['x2'])
     all_wv = pypeitFit['yval']/pypeitFit['x2']
     all_pix =  pypeitFit['xval']*xnspecmin1
-    gpm = pypeitFit['gpm'].astype(bool)
+    gpm = pypeitFit.bool_gpm
     nspec_coeff = pypeitFit['order'][0]
     norder_coeff = pypeitFit['order'][1]
     resid_wl_global = []

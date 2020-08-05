@@ -279,12 +279,14 @@ class PypeItFit(DataContainer):
             xval = self.xval[msk]
             yval = self.yval[msk]
             weights = weights[msk]
+            x2_val = x2[msk] if x2 is not None else None
         else:
             xval = self.xval.copy()
             yval = self.yval.copy()
+            x2_val = x2
         # Normalise
         weights /= np.sum(weights)
-        values = self.eval(xval, x2=x2)
+        values = self.eval(xval, x2=x2_val)
         # rms = np.std(yfit-values)
         rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
         # Return
