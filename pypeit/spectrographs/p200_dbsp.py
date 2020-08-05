@@ -353,6 +353,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         #    except (TypeError, KeyError):
         #        pass
         par['scienceframe']['process']['use_overscan'] = True
+        par['scienceframe']['process']['sigclip'] = 4.0 # Tweaked downward from 4.5. 
+        par['scienceframe']['process']['objlim'] = 1.5 # Tweaked downward from 3.0. Same value as Keck KCWI and DEIMOS
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
