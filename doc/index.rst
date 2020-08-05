@@ -50,7 +50,7 @@ What this version provides
 What this version is missing (i.e. what we are working on)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Documentation
+* Items
 
   * Telluric corrections
   * A-B image difference processing
@@ -156,6 +156,7 @@ Reduction Algorithms
 
    reduction_tips
    object_finding
+   extraction
 
 Documentation
 +++++++++++++

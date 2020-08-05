@@ -47,7 +47,7 @@ class WaveCalib(datamodel.DataContainer):
         'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
                               desc='WaveFit to each 1D wavelength solution'),
         'wv_fit2d': dict(otype=fitting.PypeItFit, desc='2D wavelength solution (echelle)'),
-        'arc_spectra': dict(otype=np.ndarray, atype=np.floating, desc='2D array: 1D extracted spectra, slit by slit (nspec, nslit)'),
+        'arc_spectra': dict(otype=np.ndarray, atype=np.floating, desc='2D array: 1D extracted spectra, slit by slit (nspec, nslits)'),
         'nslits': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
         'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
