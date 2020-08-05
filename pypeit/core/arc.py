@@ -1108,15 +1108,9 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
         # Fit the gaussian
         try:
             #pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
-            # TODO -- REPLACE THIS WITH A CUSTOM GAUSSIAN FITTER
-            #pypeitFit = fitting.PypeItFit(xval=xarray[pmin:pmax], yval=yarray[pmin:pmax],
-                                          func="gaussian", order=np.array([3]))#, return_errors=True)
-            #pypeitFit.fit()
-            #pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
-            #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
-            #ampl[p], cent[p], widt[p] = pypeitFit.fitc
             fitc, fitcov = fitting.fit_gauss(xarray[pmin:pmax], yarray[pmin:pmax])
-            ampl[p], cent[p], widt[p] = fitc  #fitting.fit_gauss(xarray[pmin:pmax], yarray[pmin:pmax])
+            ampl[p], cent[p], widt[p] = fitc
+            #ampl[p], cent[p], widt[p] = pypeitFit.fitc
             centerr[p] = fitcov[1, 1]
             #centerr[p] = pypeitFit.fitcov[1, 1]
             #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)

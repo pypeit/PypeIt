@@ -81,19 +81,14 @@ class PypeItFit(DataContainer):
     def bool_gpm(self):
         return self.gpm.astype(bool) if self.gpm is not None else None
 
-    def fit(self, guesses=None, return_errors=False):
+    def fit(self, guesses=None):
         """
 
         Args:
             guesses (array):
                 Guesses for Gaussian fits
-            return_errors:
-
         """
 
-        # TODO Fix this!
-        if return_errors:
-            msgs.error("Need to deal with this")
         # Init
         self.fitcov = None
 
@@ -794,13 +789,16 @@ def moffat(x,p0,p1,p2):
     return p0 / (1+(x/p1)**2)**p2
 
 
-def fit_gauss(x_out, y_out, guesses=None, w_out=None):
+def fit_gauss(x_out, y_out, guesses=None, w_out=None, return_errors=False):
+    if return_errors:
+        msgs.error("Need to deal with this")
     if guesses is None:
         ampl, cent, sigma = guess_gauss(x_out, y_out)
         # As first guess choose slope and intercept to be zero
         b = 0
         m = 0
-    ampl, cent, sigma = guesses
+    else:
+        ampl, cent, sigma = guesses
     # Error
     if w_out is not None:
         sig_y = 1. / w_out
