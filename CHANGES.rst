@@ -6,7 +6,7 @@
  - (Hotfix) Deal with chk_calibs test
  - Script to generate combined datacubes for IFU data.
  - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
- - Allow show2d_spec to load older Spec2DObj datamodel versions
+ - Allow show2d_spec, chk_edges, chk_flats to load older Spec2DObj datamodel versions
 
 1.0.6 (22 Jul 2020)
 -------------------
