@@ -141,52 +141,19 @@ class PypeItFit(DataContainer):
         # For two-d fits x = x, y = x2, y = z
         if ('2d' in self.func) and (x2_out is not None):
             # Is this a 2d fit?
-            self.fitc = polyfit2d_general(x_out, x2_out, y_out, self.order, w=w_out, function=self.func[:-2],
-                                     minx=self.minx, maxx=self.maxx,
-                                     miny=self.minx2, maxy=self.maxx2)
+            self.fitc, self.minx, self.maxx, self.minx2, self.maxx2 = polyfit2d_general(
+                x_out, x2_out, y_out, self.order, w=w_out, function=self.func[:-2],
+                minx=self.minx, maxx=self.maxx,
+                miny=self.minx2, maxy=self.maxx2)
         elif self.func == "polynomial":
             self.fitc = np.polynomial.polynomial.polyfit(x_out, y_out, self.order[0], w=w_out)
-        elif self.func == "legendre":
-            if self.minx is None or self.maxx is None:
-                if np.size(x_out) == 1:
-                    xmin, xmax = -1.0, 1.0
-                else:
-                    xmin, xmax = np.min(x_out), np.max(x_out)
-            else:
-                xmin, xmax = self.minx, self.maxx
-            xv = 2.0 * (x_out - xmin) / (xmax - xmin) - 1.0
-            self.fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], w=w_out)
-        elif self.func == "chebyshev":
-            if self.minx is None or self.maxx is None:
-                if np.size(x_out) == 1:
-                    xmin, xmax = -1.0, 1.0
-                else:
-                    xmin, xmax = np.min(x_out), np.max(x_out)
-            else:
-                xmin, xmax = self.minx, self.maxx
-            xv = 2.0 * (x_out - xmin) / (xmax - xmin) - 1.0
-            self.fitc = np.polynomial.chebyshev.chebfit(xv, y_out, self.order[0], w=w_out)
-#        elif self.func == "moffat":
-#            # Guesses
-#            if guesses is None:
-#                ampl, cent, sigma = guess_gauss(x_out, y_out)
-#                p0 = ampl
-#                p2 = 3.  # Standard guess
-#                p1 = (2.355 * sigma) / (2 * np.sqrt(2 ** (1. / p2) - 1))
-#            else:
-#                p0, p1, p2 = guesses
-#            # Error
-#            if w_out is not None:
-#                sig_y = 1. / w_out
-#            else:
-#                sig_y = None
-#            if self.order[0] == 3:  # Standard 3 parameters
-#                self.fitc, self.fitcov = curve_fit(moffat, x_out, y_out, p0=[p0, p1, p2], sigma=sig_y)
-#            else:
-#                msgs.error("Not prepared for deg={:d} for Moffat fit".format(self.order[0]))
+        elif self.func == "legendre" or self.func == "chebyshev":
+            xv, self.minx, self.maxx = scale_minmax(x_out, minx=self.minx, maxx=self.maxx)
+            self.fitc = np.polynomial.legendre.legfit(xv, y_out, self.order[0], w=w_out)  \
+                if self.func == "legendre" else np.polynomial.chebyshev.chebfit(xv, y_out, self.order[0], w=w_out)
         else:
             msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                       "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
+                       "Please choose from 'polynomial', 'legendre', 'chebyshev','polynomial2d', 'legendre2d'")
 
         self.success = 1
         return self.success
@@ -204,63 +171,7 @@ class PypeItFit(DataContainer):
             `numpy.ndarray`_:
 
         """
-        # For two-d fits x = x, y = x2, y = z
-        if ('2d' in self.func) and (x2 is not None):
-            # Is this a 2d fit?
-            if self.func[:-2] == "polynomial":
-                return np.polynomial.polynomial.polyval2d(x, x2, self.fitc)
-            elif self.func[:-2] in ["legendre", "chebyshev"]:
-                # Scale x-direction
-                xv = scale_minmax(x, minx=self.minx, maxx=self.maxx)
-                # Scale x2-direction
-                x2v = scale_minmax(x2, minx=self.minx2, maxx=self.maxx2)
-                if self.func[:-2] == "legendre":
-                    return np.polynomial.legendre.legval2d(xv, x2v, self.fitc)
-                elif self.func[:-2] == "chebyshev":
-                    return np.polynomial.chebyshev.chebval2d(xv, x2v, self.fitc)
-            else:
-                msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(self.func))
-            return None
-        elif self.func == "polynomial":
-            return np.polynomial.polynomial.polyval(x, self.fitc)
-        elif self.func == "legendre":
-            if self.minx is None or self.maxx is None:
-                if np.size(x) == 1:
-                    xmin, xmax = -1.0, 1.0
-                else:
-                    xmin, xmax = np.min(x), np.max(x)
-            else:
-                xmin, xmax = self.minx, self.maxx
-            xv = 2.0 * (x - xmin) / (xmax - xmin) - 1.0
-            return np.polynomial.legendre.legval(xv, self.fitc)
-        elif self.func == "chebyshev":
-            if self.minx is None or self.maxx is None:
-                if np.size(x) == 1:
-                    xmin, xmax = -1.0, 1.0
-                else:
-                    xmin, xmax = np.min(x), np.max(x)
-            else:
-                xmin, xmax = self.minx, self.maxx
-            xv = 2.0 * (x - xmin) / (xmax - xmin) - 1.0
-            return np.polynomial.chebyshev.chebval(xv, self.fitc)
-        elif self.func == "bspline":
-            return interpolate.splev(x, self.fitc, ext=1)
-        elif self.func == "gaussian":
-            if len(self.fitc) == 2:
-                return gauss_2deg(x, self.fitc[0], self.fitc[1])
-            elif len(self.fitc) == 3:
-                return gauss_3deg(x, self.fitc[0], self.fitc[1], self.fitc[2])
-            else:
-                msgs.error("Not ready for this type of gaussian")
-        elif self.func == "moffat":
-            if len(self.fitc) == 3:
-                return moffat(x, self.fitc[0], self.fitc[1], self.fitc[2])
-            else:
-                msgs.error("Not ready for this type of Moffat")
-        else:
-            embed(header='292 of fitting')
-            msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                       "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
+        return evaluate_fit(self.fitc, self.func, x, x2=x2, minx=self.minx, maxx=self.maxx, minx2=self.minx2, maxx2=self.maxx2)
 
     def calc_fit_rms(self, apply_mask=True, x2=None):
         """ Simple RMS calculation
@@ -296,6 +207,45 @@ class PypeItFit(DataContainer):
         rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
         # Return
         return rms
+
+
+def evaluate_fit(fitc, func, x, x2=None, minx=None, maxx=None, minx2=None, maxx2=None):
+    """
+    Return the evaluated fit
+
+    Args:
+        x (`numpy.ndarray`_, optional):
+        x2 (`numpy.ndarray`_, optional):
+            For 2D fits
+
+    Returns:
+        `numpy.ndarray`_:
+
+    """
+    # For two-d fits x = x, y = x2, y = z
+    if ('2d' in func) and (x2 is not None):
+        # Is this a 2d fit?
+        if func[:-2] == "polynomial":
+            return np.polynomial.polynomial.polyval2d(x, x2, fitc)
+        elif func[:-2] in ["legendre", "chebyshev"]:
+            # Scale x-direction
+            xv, _, _ = scale_minmax(x, minx=minx, maxx=maxx)
+            # Scale x2-direction
+            x2v, _, _ = scale_minmax(x2, minx=minx2, maxx=maxx2)
+            return (np.polynomial.legendre.legval2d(xv, x2v, fitc) if func[:-2] == "legendre"
+                    else np.polynomial.chebyshev.chebval2d(xv, x2v, fitc))
+        else:
+            msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(func))
+        return None
+    elif func == "polynomial":
+        return np.polynomial.polynomial.polyval(x, fitc)
+    elif func == "legendre" or func == "chebyshev":
+        xv, _, _ = scale_minmax(x, minx=minx, maxx=maxx)
+        return (np.polynomial.legendre.legval(xv, fitc) if func == "legendre"
+                else np.polynomial.chebyshev.chebval(xv, fitc))
+    else:
+        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
+                   "Please choose from 'polynomial', 'legendre', 'chebyshev', 'polynomial2d', 'legendre2d', 'chebyshev2d'")
 
 
 def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
@@ -719,7 +669,7 @@ def scale_minmax(x, minx=None, maxx=None):
     else:
         xmin, xmax = minx, maxx
     xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-    return xv
+    return xv, xmin, xmax
 
 
 
@@ -837,17 +787,8 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None):
         sig_y = 1. / w_out
     else:
         sig_y = None
-    #if self.order[0] == 2:  # 2 parameter fit
-    #    self.fitc, self.fitcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
-    #elif self.order[0] == 3:  # Standard 3 parameters
     fitc, fitcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
                                            sigma=sig_y)
-    #elif self.order[0] == 4:  # 4 parameters
-    #    self.fitc, self.fitcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma], sigma=sig_y)
-    #elif self.order[0] == 5:  # 5 parameters
-    #    self.fitc, self.fitcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma], sigma=sig_y)
-    #else:
-    #    msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
     return fitc, fitcov
 
 
@@ -968,10 +909,11 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     # Vander
     if function == 'polynomial':
         vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
-    elif function == 'legendre':
-        xv = scale_minmax(x, minx=minx, maxx=maxx)
-        yv = scale_minmax(y, minx=miny, maxx=maxy)
-        vander = np.polynomial.legendre.legvander2d(xv, yv, deg)
+    elif function == 'legendre' or function == 'chebyshev':
+        xv, minx, maxx = scale_minmax(x, minx=minx, maxx=maxx)
+        yv, miny, maxy = scale_minmax(y, minx=miny, maxx=maxy)
+        vander = np.polynomial.legendre.legvander2d(xv, yv, deg) if function == 'legendgre' \
+            else np.polynomial.chebyshev.chebvander2d(xv, yv, deg)
     else:
         msgs.error("Not ready for this type of {:s}".format(function))
     # Weights
@@ -987,7 +929,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     vander = vander.reshape((-1,vander.shape[-1]))
     z = z.reshape((vander.shape[0],))
     c = np.linalg.lstsq(vander, z, rcond=None)[0]
-    return c.reshape(deg+1)
+    return c.reshape(deg+1), minx, maxx, miny, maxy
 
 
 # TODO: JFH This routine should be put in the bspline module as a utility function and the bspline class should be renamed to Bspline
