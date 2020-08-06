@@ -222,21 +222,16 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'holy-grail' # ????
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue.fits'
         par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
 
-        # Need to set calibrations -> wavelength -> lamps by inspecting the header
-        # par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII', 'HgI', 'NeI', 'HeI']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 5
         #par['calibrations']['wavelengths']['sigdetect'] = 10.0
-        #par['calibrations']['wavelengths']['wv_cen'] = 4859.0 # set under config specific par
-        #par['calibrations']['wavelengths']['disp'] = 0.2 # also set under config specific par
         # Do not flux calibrate
-        # par['fluxcalib'] = None
+        par['fluxcalib'] = None
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
@@ -268,33 +263,6 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-
-        angle_str = self.get_meta_value(scifile, 'dispangle')
-        angle = Angle(angle_str, 'degree').rad
-        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) # dispname is 600/4000 e.g.
-
-        if lines_mm == 158.:
-            order = 2.
-        else:
-            order = 1.
-
-        theta_m = 38.5 * 2*np.pi / 360. - angle
-        par['calibrations']['wavelengths']['wv_cen'] = np.abs(1e7/lines_mm * (np.sin(theta_m) - np.sin(angle)) / order)
-        par['calibrations']['wavelengths']['disp'] = np.cos(theta_m)/(lines_mm*1e-7*228.6*order)
-
-        lampstr = self.get_meta_value(scifile, 'lampstat01')
-        # Lamp status is D-FeAr-Hg-Ar-Ne-He-InCand
-        lamps = [[], ['FeI', 'FeII', 'ArI', 'ArII'], ['HgI'], ['ArI', 'ArII'], ['NeI'], ['HeI'], []]
-        lamp_arr = []
-        for lamp_idx in range(len(lampstr)):
-            lamp_char = lampstr[lamp_idx]
-            if lamp_char == "1":
-                lamp_arr.extend(lamps[lamp_idx])
-
-        par['calibrations']['wavelengths']['lamps'] = lamp_arr
-        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
-
-        # Return
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
@@ -402,11 +370,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
-        par['calibrations']['wavelengths']['method'] = 'holy-grail' # ????
         par['calibrations']['wavelengths']['method'] = 'full_template'
         par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red.fits'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'NeI', 'HeI']
-        #par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII', 'HgI', 'NeI', 'HeI']
         # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['n_first'] = 3
         #par['calibrations']['wavelengths']['n_final'] = 5
@@ -444,20 +410,6 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-
-        angle_str = self.get_meta_value(scifile, 'dispangle')
-        angle = Angle(angle_str, 'degree').rad
-        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) # dispname is 600/4000 e.g.
-
-        order = 1.
-
-        theta_m = 35. * 2*np.pi / 360. - angle
-        par['calibrations']['wavelengths']['wv_cen'] = (1e7 / lines_mm) * (np.sin(theta_m) - np.sin(angle)) / order
-        par['calibrations']['wavelengths']['disp'] = np.cos(theta_m)/(lines_mm * 1e-7 * 304.8 * order)
-
-        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'NeI', 'HeI']
-
-        # Return
         return par
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
