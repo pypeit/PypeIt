@@ -1,6 +1,9 @@
 
 1.0.7dev
 --------
+ - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
+   wavelength coverage slits results in reidentification with a purely zero-padded array.
+ - (Hotfix) Deal with chk_calibs test
  - Refactor WaveCalib into a DataContainer
  - Refactor fitting + PypeItFit DataContainer
  - Coadd2D bug fixes
