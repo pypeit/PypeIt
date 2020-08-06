@@ -53,14 +53,14 @@ class Spec2DObj(datamodel.DataContainer):
 
     # Because we are including nested DataContainers, be careful not to duplicate variable names!!
     datamodel = {
-        'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
-        'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image'),
-        'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image'),
-        'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
-        'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
-        'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image'),
-        'scaleimg': dict(otype=np.ndarray, atype=np.floating, desc='2D multiplicative scale image that has been applied to the science image'),
-        'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
+        'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image (float32)'),
+        'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image (float32)'),
+        'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image (float32)'),
+        'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image (float32)'),
+        'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image (float32)'),
+        'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image (float64)'),
+        'scaleimg': dict(otype=np.ndarray, atype=np.floating, desc='2D multiplicative scale image that has been applied to the science image (float32)'),
+        'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image (float64)'),
         'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
         'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
         'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
