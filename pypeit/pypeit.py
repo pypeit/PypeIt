@@ -735,7 +735,7 @@ class PypeIt(object):
             all_specobjs.write_info(outfiletxt, self.spectrograph.pypeline)
 
         # 2D spectra
-        outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits.gz'.format(basename))
+        outfile2d = os.path.join(self.science_path, 'spec2d_{:s}.fits'.format(basename))
         # Build header
         pri_hdr = all_spec2d.build_primary_hdr(head2d, self.spectrograph,
                                                redux_path=self.par['rdx']['redux_path'],
