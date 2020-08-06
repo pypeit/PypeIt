@@ -1223,7 +1223,8 @@ class FlatField(object):
         flex = self.wavetilts.spat_flexure
         slitmask = self.slits.slit_img(initial=True, flexure=flex)
         tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
-        waveimg = wavecalib.build_waveimg(self.spectrograph, tilts, self.slits, self.wv_calib, spat_flexure=flex)
+        #waveimg = wavecalib.build_waveimg(self.spectrograph, tilts, self.slits, self.wv_calib, spat_flexure=flex)
+        waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
         msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']

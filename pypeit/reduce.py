@@ -353,7 +353,7 @@ class Reduce(object):
 
         # Wavelengths (on unmasked slits)
         msgs.info("Generating wavelength image")
-        self.waveimg = self.wv_calib.build_waveimg(self.spectrograph, self.tilts, self.slits,
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
                                                spat_flexure=self.spat_flexure_shift)
 
         # First pass object finding

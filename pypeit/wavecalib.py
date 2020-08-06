@@ -166,7 +166,7 @@ class WaveCalib(datamodel.DataContainer):
         if not np.array_equal(self.spat_id, slits.spat_id):
             msgs.error("Your wvcalib solutions are out of sync with your slits.  Remove Masters and start from scratch")
 
-    def build_waveimg(self, spectrograph, tilts, slits, spat_flexure=None):
+    def build_waveimg(self, tilts, slits, spat_flexure=None):
         """
         Main algorithm to build the wavelength image
 
@@ -174,8 +174,6 @@ class WaveCalib(datamodel.DataContainer):
          in the exclude_for_reducing list
 
         Args:
-            spectrograph (:obj:`pypeit.spectrographs.spectrograph.Spectrograph`):
-                Spectrograph object
             tilts (`numpy.ndarray`_):
                 Image holding tilts
             slits (:class:`pypeit.slittrace.SlitTraceSet`):

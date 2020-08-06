@@ -147,7 +147,7 @@ def test_it_all(multi_caliBrate):
     tilts = waveTilts.fit2tiltimg(slitmask)
 
     #
-    mswave = wv_calib.build_waveimg(multi_caliBrate.spectrograph, tilts, slits)
+    mswave = wv_calib.build_waveimg(tilts, slits)
     assert mswave.shape == (2048,350)
 
 @dev_suite_required
