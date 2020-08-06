@@ -7,6 +7,7 @@
 import inspect
 from copy import deepcopy
 import numpy as np
+from astropy import stats
 
 from pypeit import msgs
 from pypeit.core import procimg
@@ -55,8 +56,10 @@ class RawImage(object):
         self.headarr = deepcopy(self.spectrograph.get_headarr(self.hdu))
 
         # Key attributes
+        self.rawimage = self.rawimage.copy()
         self.image = self.rawimage.copy()
         self.datasec_img = self.rawdatasec_img.copy()
+        self.ronoise = self.detector['ronoise']
 
         # Attributes
         self.par = None
@@ -150,10 +153,19 @@ class RawImage(object):
             `numpy.ndarray`_: Copy of the read noise squared image
 
         """
+        # Check if we need to determine the read noise directly from the overscan region from any amplifier
+        numamps = len(self.ronoise)
+        for amp in range(numamps):
+            if self.ronoise[amp] <= 0.0:
+                biaspix = self.rawimage[self.oscansec_img==amp+1] * self.detector['gain'][amp]
+                _, _, stddev = stats.sigma_clipped_stats(biaspix, sigma=5)
+                self.ronoise[amp] = stddev
+                msgs.info("Read noise of amplifier {0:d} = {1:.3f} e-".format(amp+1, self.ronoise[amp]))
+
         # Build it
         self.rn2img = procimg.rn_frame(self.datasec_img,
                                        self.detector['gain'],
-                                       self.detector['ronoise'])
+                                       self.ronoise)
         # Return
         return self.rn2img.copy()
 
@@ -416,7 +428,8 @@ class RawImage(object):
 
         # Fill
         self.steps[step] = True
-        self.image = temp
+        self.image = temp.copy()
+        self.rawimage = temp.copy()
 
     def trim(self, force=False):
         """

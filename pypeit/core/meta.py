@@ -124,13 +124,17 @@ def define_additional_meta(nlamps=20):
                        'filter1': dict(dtype=str, comment='First filter in optical path'),
                        'dispangle': dict(dtype=float, comment='Angle of the disperser', rtol=0.),
                        'hatch': dict(dtype=str, comment='Position of instrument hatch'),
-                       'slitwid': dict(dtype=float,
-                                       comment='Slit width, sometimes distinct from decker'),
+                       'slitwid': dict(dtype=float, comment='Slit width, sometimes distinct from decker'),
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'arm': dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
                        'dither': dict(dtype=float, comment='Dither amount in arcsec'),
-                       'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)')}
+                       'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
+                       'obstime': dict(dtype=str, comment='Observation time'),
+                       'pressure': dict(dtype=float, comment='Pressure at obstime'),
+                       'temperature': dict(dtype=float, comment='Temperature at obstime'),
+                       'humidity': dict(dtype=float, comment='Relative humidity (0 to 1) at obstime')}
+
     for kk in range(nlamps):
         additional_meta['lampstat{:02d}'.format(kk+1)] \
                 = dict(dtype=str, comment='Status of a given lamp (e.g off/on)')

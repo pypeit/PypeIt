@@ -15,6 +15,9 @@
  - Add MMT/MMIRS
  - QL script for Keck/MOSFIRE
 
+- Script to generate combined datacubes for IFU data.
+- Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
+
 1.0.6 (22 Jul 2020)
 -------------------
 
