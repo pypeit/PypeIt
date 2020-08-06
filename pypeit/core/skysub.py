@@ -17,7 +17,6 @@ from IPython import embed
 
 from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
-from pypeit.core import fitting
 from pypeit import msgs, utils, ginga, bspline, slittrace
 from pypeit.core import fitting
 

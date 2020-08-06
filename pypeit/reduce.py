@@ -510,7 +510,7 @@ class Reduce(object):
             show_objs (bool, optional):
 
         Returns:
-            numpy.ndarray: image of the the global sky model
+            `numpy.ndarray`_: image of the the global sky model
 
         """
         # Prep
@@ -587,12 +587,12 @@ class Reduce(object):
 
         Parameters
         ----------
-        skymask_init :  numpy.ndarray
+        skymask_init :  `numpy.ndarray`_
             A boolean array of sky pixels (True is pixel is a sky region)
 
         Returns
         -------
-        skymask_init :  numpy.ndarray
+        skymask_init :  `numpy.ndarray`_
             A boolean array of sky pixels (True is pixel is a sky region)
         usersky : bool
             If the user has defined the sky, set this variable to True (otherwise False).
@@ -1216,7 +1216,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
             show_objs (bool, optional):
 
         Returns:
-            numpy.ndarray: image of the the global sky model
+            `numpy.ndarray_`: image of the the global sky model
 
         """
         # Prep

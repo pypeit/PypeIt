@@ -34,7 +34,7 @@ class PypeItFit(DataContainer):
         'fitcov': dict(otype=np.ndarray, atype=np.floating, desc='Covariance of the coefficients'),
         'gpm': dict(otype=np.ndarray, atype=np.integer, desc='Mask (1=good)'),
         'success': dict(otype=int, desc='Flag indicating whether fit was successful (success=1) or if it failed (success=0)'),
-        'func': dict(otype=str, desc='Fit function (polynomial, legendre, chebyshev, polynomial2d, legendre2d, gauss)'),
+        'func': dict(otype=str, desc='Fit function (polynomial, legendre, chebyshev, polynomial2d, legendre2d)'),
         'minx': dict(otype=float,
                      desc='minimum value in the array (or the left limit for a legendre / chebyshev polynomial)'),
         'maxx': dict(otype=float,
@@ -79,14 +79,19 @@ class PypeItFit(DataContainer):
 
     @property
     def bool_gpm(self):
+        """
+        Generate a bool version of gpm which is int
+        for I/O
+
+        Returns:
+            `numpy.ndarray`_ or None: bool version of self.gpm or None
+
+        """
         return self.gpm.astype(bool) if self.gpm is not None else None
 
-    def fit(self, guesses=None):
+    def fit(self):
         """
-
-        Args:
-            guesses (array):
-                Guesses for Gaussian fits
+        Perform the fit
         """
 
         # Init
@@ -161,24 +166,24 @@ class PypeItFit(DataContainer):
                 xmin, xmax = self.minx, self.maxx
             xv = 2.0 * (x_out - xmin) / (xmax - xmin) - 1.0
             self.fitc = np.polynomial.chebyshev.chebfit(xv, y_out, self.order[0], w=w_out)
-        elif self.func == "moffat":
-            # Guesses
-            if guesses is None:
-                ampl, cent, sigma = guess_gauss(x_out, y_out)
-                p0 = ampl
-                p2 = 3.  # Standard guess
-                p1 = (2.355 * sigma) / (2 * np.sqrt(2 ** (1. / p2) - 1))
-            else:
-                p0, p1, p2 = guesses
-            # Error
-            if w_out is not None:
-                sig_y = 1. / w_out
-            else:
-                sig_y = None
-            if self.order[0] == 3:  # Standard 3 parameters
-                self.fitc, self.fitcov = curve_fit(moffat, x_out, y_out, p0=[p0, p1, p2], sigma=sig_y)
-            else:
-                msgs.error("Not prepared for deg={:d} for Moffat fit".format(self.order[0]))
+#        elif self.func == "moffat":
+#            # Guesses
+#            if guesses is None:
+#                ampl, cent, sigma = guess_gauss(x_out, y_out)
+#                p0 = ampl
+#                p2 = 3.  # Standard guess
+#                p1 = (2.355 * sigma) / (2 * np.sqrt(2 ** (1. / p2) - 1))
+#            else:
+#                p0, p1, p2 = guesses
+#            # Error
+#            if w_out is not None:
+#                sig_y = 1. / w_out
+#            else:
+#                sig_y = None
+#            if self.order[0] == 3:  # Standard 3 parameters
+#                self.fitc, self.fitcov = curve_fit(moffat, x_out, y_out, p0=[p0, p1, p2], sigma=sig_y)
+#            else:
+#                msgs.error("Not prepared for deg={:d} for Moffat fit".format(self.order[0]))
         else:
             msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
                        "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
@@ -191,12 +196,12 @@ class PypeItFit(DataContainer):
         Return the evaluated fit
 
         Args:
-            x (`numpy.ndarray_`, optional):
-            x2 (`numpy.ndarray_`, optional):
+            x (`numpy.ndarray`_, optional):
+            x2 (`numpy.ndarray`_, optional):
                 For 2D fits
 
         Returns:
-            `numpy.ndarray_`:
+            `numpy.ndarray`_:
 
         """
         # For two-d fits x = x, y = x2, y = z
@@ -263,7 +268,7 @@ class PypeItFit(DataContainer):
         Args:
             apply_mask (bool, optional):
                 Apply mask?
-            x2 (`numpy.ndarray_`, optional):
+            x2 (`numpy.ndarray`_, optional):
                 For 2D fits
 
         Returns:
@@ -440,7 +445,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
     # Return
     return pypeitFit
 
-
+# TODO -- Should this move into the bspline.py module?
 def bspline_profile(xdata, ydata, invvar, profile_basis, ingpm=None, upper=5, lower=5, maxiter=25,
                     nord=4, bkpt=None, fullbkpt=None, relative=None, kwargs_bspline={},
                     kwargs_reject={}, quiet=False):
@@ -708,6 +713,7 @@ def scale_minmax(x, minx=None, maxx=None):
 
 
 
+# TODO -- Should this move into the bspline.py module?
 def bspline_qa(xdata, ydata, sset, gpm, yfit, xlabel=None, ylabel=None, title=None, show=True):
     """
     Construct a QA plot of the bspline fit.
