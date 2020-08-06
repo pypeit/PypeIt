@@ -97,7 +97,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
         all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
         gpm = mask == 0
         viewer, ch = ginga.show_image(_sciimg)
-        ginga.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
+        #ginga.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         embed(header='83 of flexure.py')
     #ginga.show_slits(viewer, ch, tslits_shift['slit_left'], tslits_shift['slit_righ'])
     #ginga.show_slits(viewer, ch, tslits_dict['slit_left'], tslits_dict['slit_righ'])
@@ -627,7 +627,7 @@ def calculate_image_offset(image, im_ref, nfit=3):
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
     # Fit the neighborhood of the maximum to calculate the offset
-    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy),
+    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy),
                             ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
                             p0=initial_guess)
     # Return the RA and DEC shift, in pixels
