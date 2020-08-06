@@ -24,6 +24,7 @@ from astropy import constants
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
+from pypeit.core import fitting
 from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit import msgs
@@ -303,11 +304,11 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     """
     # Evaluate the polynomial for rescaling
     if 'poly' in model:
-        ymult = utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max)
+        ymult = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
     elif 'square' in model:
-        ymult = (utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max)) ** 2
+        ymult = (fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)) ** 2
     elif 'exp' in model:
-        ymult = np.exp(utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max))
+        ymult = np.exp(fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max))
     else:
         msgs.error('Unrecognized value of model requested')
 
