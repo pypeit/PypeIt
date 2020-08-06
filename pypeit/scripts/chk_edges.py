@@ -19,6 +19,8 @@ def parser(options=None):
                         help='Channel name for image in Ginga')
     parser.add_argument('--mpl', default=False, action='store_true',
                         help='Use a matplotlib window instead of ginga to show the trace')
+    parser.add_argument('--try_old', default=False, action='store_true',
+                        help='Attempt to load old datamodel versions.  A crash may ensue..')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -32,7 +34,7 @@ def parser(options=None):
 def main(pargs):
     from pypeit import edgetrace
 
-    edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file)
+    edges = edgetrace.EdgeTraceSet.from_file(pargs.trace_file, chk_version=(not pargs.try_old))
     if pargs.mpl:
         edges.show(thin=10, include_img=True, idlabel=True)
     else:
