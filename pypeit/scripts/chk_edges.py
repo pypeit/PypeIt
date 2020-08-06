@@ -20,7 +20,7 @@ def parser(options=None):
     parser.add_argument('--mpl', default=False, action='store_true',
                         help='Use a matplotlib window instead of ginga to show the trace')
     parser.add_argument('--try_old', default=False, action='store_true',
-                        help='Attempt to load old datamodel versions.  A crash may ensew..')
+                        help='Attempt to load old datamodel versions.  A crash may ensue..')
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
