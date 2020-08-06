@@ -21,7 +21,14 @@ def delete_if_exists(fname, f_or_dir):
             shutil.rmtree(fname)
 
 if __name__ == '__main__':
-    flist = ['fitstbl.fits', 'MasterArc_A_01_22.fits', 'tmp.fits', 'tmp_detector.fits', 'tst_pypeitimage.fits', 'shane_kast_blue.calib', 'shane_kast_blue.sorted']
+    flist = ['fitstbl.fits', 'MasterArc_A_01_22.fits', 'tmp.fits', 'tmp_detector.fits', 'tst_pypeitimage.fits', 'shane_kast_blue.calib', 'shane_kast_blue.sorted', 'sensfunc.fits']
+    try:
+        from pypeit.tests.test_fluxspec import kast_blue_files
+        f = os.path.basename(kast_blue_files()[1])
+        print(f'adding {data_path(f)} to files to delete')
+        flist.append()
+    except:
+        pass
     for fname in flist:
         delete_if_exists(data_path(fname), 'file')
     for dirname in ['setup_files', 'shane_kast_blue_A', 'keck_lris_blue_A']:
