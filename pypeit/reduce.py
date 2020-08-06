@@ -649,16 +649,16 @@ class Reduce(object):
             basename (str):
 
         """
-
-        # TODO -- Turn this back on once we have a poper bspline fitter
-        if self.par['flexure']['spec_method'] != 'skip' and False:
+        if self.par['flexure']['spec_method'] != 'skip':
             # Measure
             flex_list = flexure.spec_flexure_obj(sobjs, self.slits.slitord_id, self.reduce_bpm,
                                                  self.par['flexure']['spec_method'],
                                                  self.par['flexure']['spectrum'],
                                                  mxshft=self.par['flexure']['spec_maxshift'])
             # QA
-            flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
+            # TODO -- These needs to be turned back on!!
+            if False:
+                flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')

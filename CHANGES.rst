@@ -2,11 +2,11 @@
 1.0.7dev
 --------
  - Refactor WaveCalib into a DataContainer
- - Refactor fitting
+ - Refactor fitting + PypeItFit DataContainer
  - Coadd2D bug fixes
  - Coadd2D without spec1d files
  - Coadd2D offsets
- - Coadd2D docs
+ - Some Coadd2D docs
  - Manual extraction
  - Improve LBT/LUCI
  - Add MMT/MMIRS
