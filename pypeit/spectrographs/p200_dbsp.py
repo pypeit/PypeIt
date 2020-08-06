@@ -174,9 +174,9 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         detector_dict = dict(
             binning         = binning,
             det             = 1,
-            dataext         = 0, # check
-            specaxis        = 0, # this should be wrong
-            specflip        = True, # check # Apparently this needs to be true?????? don't like this.....
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = True,
             spatflip        = False, # check
             platescale      = 0.389,
             darkcurr        = 0.0,
@@ -327,8 +327,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             binning         = binning,
             det             = 1,
             dataext         = 0,
-            specaxis        = 1, # aaaaaaaa
-            specflip        = False, # check
+            specaxis        = 1,
+            specflip        = False,
             spatflip        = False, # check
             platescale      = 0.293,
             darkcurr        = 0.0,
