@@ -117,6 +117,11 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             frametype = headarr[0]['IMGTYPE']
             if am is None and frametype in ['bias', 'flat', 'cal']:
                 am = '1.000'
+            elif headarr[0].get('RA', default=None) and headarr[0].get('DEC', default=None):
+                ra = headarr[0]['RA']
+                dec = headarr[0]['DEC']
+                altaz = SkyCoord(ra, dec, unit=(u.hour, u.deg)).transform_to(AltAz(obstime=headarr[0]['UTSHUT'], location=loc))
+                am = altaz.secz
             return am
         else:
             return None
@@ -218,6 +223,10 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'holy-grail' # ????
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue.fits'
+        par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
+
         # Need to set calibrations -> wavelength -> lamps by inspecting the header
         # par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII', 'HgI', 'NeI', 'HeI']
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -394,6 +403,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'holy-grail' # ????
+        par['calibrations']['wavelengths']['method'] = 'full_template'
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red.fits'
+        par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'NeI', 'HeI']
         #par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII', 'HgI', 'NeI', 'HeI']
         # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['n_first'] = 3

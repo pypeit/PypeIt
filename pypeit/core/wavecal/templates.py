@@ -769,6 +769,26 @@ def main(flg):
         slits = [1026, 1021]
         lcut = [4350.0, 8000.0]
         build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+    
+    # P200 DBSP r
+    if flg & (2 ** 30):
+        # HeNeAr
+        wfile = os.path.join(template_path, 'P200_DBSP', 'P200_DBSP_Red.json')
+        outroot = 'p200_dbsp_red.fits'
+        binspec = 1
+        slits = [221]
+        lcut = None # only matters if >1 slit
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+    
+    # P200 DBSP b
+    if flg & (2 ** 31):
+        # FeAr
+        wfile = os.path.join(template_path, 'P200_DBSP', 'P200_DBSP_Blue.json')
+        outroot = 'p200_dbsp_blue.fits'
+        binspec = 1
+        slits = [231]
+        lcut = None
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
 
 # Command line execution
 if __name__ == '__main__':
@@ -836,7 +856,13 @@ if __name__ == '__main__':
     #flg += 2**28
 
     # Keck KCWI
-    flg += 2**29
+    #flg += 2**29
+
+    # P200 DBSP r
+    flg += 2**30
+
+    # P200 DBSP b
+    flg += 2**31
 
     main(flg)
 
