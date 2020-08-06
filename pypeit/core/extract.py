@@ -2049,9 +2049,9 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             #TODO Do this as a S/N weighted fit similar to what is now in the pca_trace algorithm?
             #msk_frac, poly_coeff_frac = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
             pypeitFit = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
-                                                                 function='polynomial', maxiter=20, lower=2, upper=2,
-                                                                 use_mad= True, sticky=False,
-                                                                 minx = order_vec.min(), maxx=order_vec.max())
+                                           function='polynomial', maxiter=20, lower=2, upper=2,
+                                           use_mad= True, sticky=False,
+                                           minx = order_vec.min(), maxx=order_vec.max())
             frac_mean_new = np.zeros(norders)
             frac_mean_new[badorder] = pypeitFit.eval(order_vec[badorder])#, minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
