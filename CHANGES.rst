@@ -1,12 +1,12 @@
 
-1.0.7dev
+1.1.0dev
 --------
  - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
    wavelength coverage slits results in reidentification with a purely zero-padded array.
  - (Hotfix) Deal with chk_calibs test
-
-- Script to generate combined datacubes for IFU data.
-- Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
+ - Script to generate combined datacubes for IFU data.
+ - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
+ - Allow show2d_spec, chk_edges, chk_flats to load older Spec2DObj datamodel versions
 
 1.0.6 (22 Jul 2020)
 -------------------

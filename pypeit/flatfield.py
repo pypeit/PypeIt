@@ -145,8 +145,7 @@ class FlatImages(datamodel.DataContainer):
         return d
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False, hdu_prefix=None):
         # Grab everything but the bspline's
         _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
         # Now the bsplines

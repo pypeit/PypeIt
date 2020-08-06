@@ -69,8 +69,8 @@ def main(args):
         hdu.info()
         return
 
-    # Load it up
-    spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det)
+    # Load it up -- NOTE WE ALLOW *OLD* VERSIONS TO GO FORTH
+    spec2DObj = spec2dobj.Spec2DObj.from_file(args.file, args.det, chk_version=False)
 
     # Setup for PypeIt imports
     msgs.reset(verbosity=2)
@@ -79,15 +79,6 @@ def main(args):
     # TODO: get_dnum needs to be deprecated...
     sdet = get_dnum(args.det, prefix=False)
 
-#    if not os.path.exists(mdir):
-#        mdir_base = os.path.join(os.getcwd(), os.path.basename(mdir))
-#        msgs.warn('Master file dir: {0} does not exist. Using {1}'.format(mdir, mdir_base))
-#        mdir=mdir_base
-
-    # Slits
-#    slits_key = '{0}_{1:02d}'.format(spec2DObj.head0['TRACMKEY'], args.det)
-#    slit_file = os.path.join(mdir, masterframe.construct_file_name(slittrace.SlitTraceSet, slits_key))
-#    slits = slittrace.SlitTraceSet.from_file(slit_file)
 
     # Grab the slit edges
     slits = spec2DObj.slits
