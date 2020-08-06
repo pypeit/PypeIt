@@ -806,7 +806,7 @@ class DataContainer:
 
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None, chk_version=True):
+               hdu_prefix=None):
         """
         Parse data read from a set of HDUs.
 
@@ -866,8 +866,6 @@ class DataContainer:
                 Note, this over-rides any internally set hdu_prefix value
             debug (:obj:`bool`, optional):
                 Perform debuggin
-            chk_version (:obj:`bool`, optional):
-                If True (default), require a match to be properly parsed
 
         Returns:
             :obj:`tuple`: Return three objects
@@ -922,7 +920,7 @@ class DataContainer:
 
         # NOTE: The extension and keyword comparisons are complicated
         # because the fits standard is to force these all to be
-        # capitalized, while the datamodel doesn't (currently)
+        # capitalized, while the datamodel doesn't
         # implement this restriction.
 
         # Handle hdu_prefix
@@ -955,8 +953,7 @@ class DataContainer:
 
         for e in _ext:
             if 'DMODCLS' not in _hdu[e].header.keys() or 'DMODVER' not in _hdu[e].header.keys() \
-                    or _hdu[e].header['DMODCLS'] != cls.__name__ \
-                    or (_hdu[e].header['DMODVER'] != cls.version and chk_version):
+                    or _hdu[e].header['DMODCLS'] != cls.__name__:
                 # Can't be parsed
                 continue
             # Check for header elements, but do not over-ride existing items
@@ -1168,7 +1165,7 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None):
+    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
         """
         Instantiate the object from an HDU extension.
 
@@ -1180,8 +1177,8 @@ class DataContainer:
             hdu_prefix (:obj:`str`, optional):
                 Passed to _parse()
             chk_version (:obj:`bool`, optional):
-                If True, raise an error if the datamodel version or type check failed
-                If False, throw a warning only
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
         """
         # NOTE: We can't use `cls(cls._parse(hdu))` here because this
         # will call the `__init__` method of the derived class and we
@@ -1191,18 +1188,15 @@ class DataContainer:
         # result. The call to `DataContainer.__init__` is explicit to
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
-        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix,
-                                                          chk_version=chk_version)
+        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if not dm_type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
         if not dm_version_passed:
-            if chk_version:
-                msgs.error('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
-                       + ' does not match version used to write your HDU(s)!')
-            else:
-                msgs.warn('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
-                   + ' does not match version used to write your HDU(s)!')
+            _f = msgs.error if chk_version else msgs.warn
+            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
+               + ' does not match version used to write your HDU(s)!')
+
         # Finish
         self = super().__new__(cls)
         DataContainer.__init__(self, d)
@@ -1289,6 +1283,8 @@ class DataContainer:
         Args:
             ifile (:obj:`str`):
                 Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages
             chk_version (:obj:`bool`, optional):
                 Passed to from_hdu().  See those docs for details
 
