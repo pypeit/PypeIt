@@ -420,7 +420,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
         if not np.any(this_gpm):
             msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
         pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
-                              func=function, order=np.atleast_1d(order), x2=x2.astype(float) if x2 is not None else x2,
+                              func=function, order=np.atleast_1d(order),
+                              x2=x2.astype(float) if x2 is not None else x2,
                               weights=weights.astype(float), gpm=this_gpm.astype(int),
                               minx=float(minx)if minx is not None else minx,
                               maxx=float(maxx) if maxx is not None else maxx,
@@ -442,7 +443,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
 
     # Do the final fit
     pypeitFit = PypeItFit(xval=xarray.astype(float), yval=yarray.astype(float),
-                          func=function, order=np.atleast_1d(order), x2=x2.astype(float) if x2 is not None else x2,
+                          func=function, order=np.atleast_1d(order),
+                          x2=x2.astype(float) if x2 is not None else x2,
                           weights=weights.astype(float), gpm=this_gpm.astype(int),
                           minx=float(minx) if minx is not None else minx,
                           maxx=float(maxx) if maxx is not None else maxx,
