@@ -440,15 +440,12 @@ class BuildWaveCalib(object):
                 tmp.append(wv_fitting.WaveFit())
             else:
                 tmp.append(item)
-        try:
-            self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
+        self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   arc_spectra=arccen,
                                   nslits=self.slits.nslits,
                                   spat_id=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.spectrograph,
                                   )
-        except:
-            embed(header='436 of wavecalib')
 
         # Update mask
         self.update_wvmask()
@@ -490,7 +487,7 @@ class BuildWaveCalib(object):
                 Flag to skip construction of the nominal QA plots.
 
         Returns:
-            :class:`pypeit.fitting.PypeItFit`): object containing information from 2-d fit.
+            :class:`pypeit.fitting.PypeItFit`: object containing information from 2-d fit.
         """
         if self.spectrograph.pypeline != 'Echelle':
             msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')

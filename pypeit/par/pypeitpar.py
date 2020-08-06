@@ -3317,14 +3317,6 @@ class ExtractionPar(ParSet):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
-        # Check the manual input
-        # TODO -- Get Manual in the readthedocs
-        #if manual is not None:
-        #    if not isinstance(manual, (ParSet, dict, list)):
-        #        raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
-        #    _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
-        #    pars['manual'] = _manual
-
         # Initialize the other used specifications for this parameter
         # set
         defaults = OrderedDict.fromkeys(pars.keys())
@@ -3395,7 +3387,6 @@ class ExtractionPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        #kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
 
         # Keywords that are ParSets
         pk = 'manual'

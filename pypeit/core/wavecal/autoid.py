@@ -38,7 +38,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     QA for Arc spectrum
 
     Args:
-        waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`:
+        waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`):
         outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
         ids_only (bool, optional):
         title (:obj:`str`, optional):

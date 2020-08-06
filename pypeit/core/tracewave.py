@@ -657,7 +657,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                                upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
                                                minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
                                                use_mad=False, sticky=False)
-    fitmask = pypeitFit.gpm.reshape(tilts_dspat.shape).astype(bool)
+    fitmask = pypeitFit.bool_gpm.reshape(tilts_dspat.shape)
     # Compute a rejection mask that we will use later. These are
     # locations that were fit but were rejectedK
     rej_mask = tot_mask & np.invert(fitmask)
@@ -744,7 +744,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                    maxiter=20, minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0,
                                    use_mad=False, sticky=False)
     # JFH changed above to use stick=False, to limit the amount of rejection
-    irej = np.invert(pypeitFit.gpm) & inmask
+    irej = np.logical_not(pypeitFit.bool_gpm) & inmask
     msgs.info('Rejected {0}/{1} pixels in final inversion tilts image fit'.format(
         np.sum(irej), np.sum(inmask)))
     # normalized tilts image

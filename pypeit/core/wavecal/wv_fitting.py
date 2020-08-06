@@ -59,6 +59,9 @@ class WaveFit(datamodel.DataContainer):
         datamodel.DataContainer.__init__(self, d=d)
 
     def _init_internals(self):
+        """
+        Set some internal attributes
+        """
         # Needs to be here so we can set it in WaveCalib
         self.hdu_prefix = None
 
@@ -101,6 +104,7 @@ class WaveFit(datamodel.DataContainer):
     @property
     def ions(self):
         """
+        Returns an array of ion labels
 
         Returns:
             `numpy.ndarray`_:  Array of the ion label for each line as recorded in ion_bits
@@ -111,7 +115,6 @@ class WaveFit(datamodel.DataContainer):
             ionlist += self.bitmask.flagged_bits(ionbit)
         # Return
         return np.asarray(ionlist)
-
 
 
 def fit_slit(spec, patt_dict, tcent, line_lists, vel_tol = 1.0, outroot=None, slittxt="Slit", thar=False,match_toler=3.0,
