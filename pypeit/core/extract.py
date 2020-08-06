@@ -977,6 +977,17 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
 
 
 def parse_manual(manual_par):
+    """
+    Parse the rather klunky ManualExtractionPar parameters into more useful items
+
+    Args:
+        manual_par (:class:`pypeit.par.pypeitpar.ManualExtractionPar`):
+            Manual extract parameter object
+
+    Returns:
+        tuple: spats, specs, det, fwhm
+
+    """
     if isinstance(manual_par['det'], list):
         spat_spec = manual_par['spat_spec'].split(',')
         det = [int(obj) for obj in manual_par['det'].split(',')]
@@ -1760,17 +1771,17 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         slit_righ:  float ndarray
             Left boundary of orders to be extracted (given as floating
             pt pixels). This a 2-d array with shape (nspec, norders)
-        order_vec (np.ndarray):
+        order_vec (`numpy.ndarray`_):
             Echelle orders.  This is written to the SpecObj objects.
             It is ok, but not recommended to provide np.arange(norders)
-        maskslits (`numpy.ndarray):
-        det (:obj:`int`):
+        maskslits (`numpy.ndarray`_):
+        det (:obj:`int`, optional):
             Need for hand object
-        inmask: ndarray, bool, shape (nspec, nspat), default = None
+        inmask (`numpy.ndarray`_): bool, shape (nspec, nspat), default = None
             Input mask for the input image.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
-        hand_extract_dict (dict):
+        hand_extract_dict (dict, optional):
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -2058,8 +2069,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             # TODO This QA needs some work
             if show_pca:
                 frac_mean_fit = pypeitFit.eval(order_vec)
-                plt.plot(order_vec[goodorder][pypeitFit.gpm], frac_mean_new[goodorder][pypeitFit.gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(pypeitFit.gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                plt.plot(order_vec[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
+                plt.plot(order_vec[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')

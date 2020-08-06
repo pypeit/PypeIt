@@ -13,6 +13,7 @@ from pypeit.par.parset import ParSet
 from pypeit.images import buildimage
 from pypeit.flatfield import FlatImages
 from pypeit.wavetilts import WaveTilts
+from pypeit.wavecalib import WaveCalib
 
 from IPython import embed
 
@@ -23,7 +24,7 @@ def link_string(p):
 
 def build_tbl(imgtyp):
 
-    data_model = imgtyp.full_datamodel()
+    data_model = imgtyp.full_datamodel(include_children=False)
     keys = list(data_model.keys())
     keys.sort()
 
@@ -50,6 +51,8 @@ def build_tbl(imgtyp):
             data_table[i+1,2] = ' '
         # Description
         data_table[i+1,3] = ParSet._data_string(data_model[k]['desc'])
+    #if imgtyp == WaveCalib:
+    #    embed(header='54 of build_calib')
 
     # Restrict by output_to_disk?
     if imgtyp.output_to_disk is not None:
@@ -73,25 +76,22 @@ if __name__ == '__main__':
     pypeit_root = os.path.dirname(resource_filename('pypeit', ''))
     output_path = os.path.join(pypeit_root, 'doc', 'include')
 
-    for imgtyp,ofile in zip([buildimage.ArcImage,
+    for imgtyp, ofile in zip([buildimage.ArcImage,
                              buildimage.BiasImage,
                              buildimage.TiltImage,
+                             WaveCalib,
                              WaveTilts,
                              FlatImages],
                             [os.path.join(output_path, 'datamodel_arcimage.rst'),
                              os.path.join(output_path, 'datamodel_biasimage.rst'),
                              os.path.join(output_path, 'datamodel_tiltimage.rst'),
+                             os.path.join(output_path, 'datamodel_wavecalib.rst'),
                              os.path.join(output_path, 'datamodel_wavetilts.rst'),
                              os.path.join(output_path, 'datamodel_flatimages.rst'),
                               ]):
         # Build the Table
         tbl_lines = build_tbl(imgtyp)
         tbl_lines = [''] + ['Version {:s}'.format(imgtyp.version)] + [''] + tbl_lines
-
-        # Insert lines
-        #pos = lines.index(insert_line)
-        #if pos < 0:
-        #    raise ValueError("Missing insert line!")
 
         # Finish
         #output_rst = os.path.join(pypeit_root, 'doc', 'calib_images.rst')

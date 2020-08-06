@@ -657,7 +657,7 @@ class DataContainer:
             raise ValueError('Must define a version for the class.')
 
     @classmethod
-    def full_datamodel(cls, include_parent=True):
+    def full_datamodel(cls, include_parent=True, include_children=True):
         """
         Expand out the datamodel into a single dict
         This needs to be a class method to access the datamodel without instantiation
@@ -665,6 +665,9 @@ class DataContainer:
         Args:
             include_parent (bool, optional):
                 If True, include the parent entry in additional to its pieces
+            include_children (bool, optional):
+                If True, expand any items that are DataModel's
+
 
         Returns:
             dict: All the keys, items of the nested datamodel's
@@ -677,13 +680,16 @@ class DataContainer:
             if obj_is_data_container(cls.datamodel[key]['otype']):
                 if include_parent:
                     full_datamodel[key] = cls.datamodel[key]
-                # Now run through the others
-                sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
-                for key in sub_datamodel.keys():
-                    # Check  this is not a duplicate
-                    assert key not in full_datamodel.keys()
-                    # Assign
-                    full_datamodel[key] = sub_datamodel[key]
+                if include_children:
+                    # Now run through the others
+                    sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
+                    for key in sub_datamodel.keys():
+                        # Check  this is not a duplicate
+                        assert key not in full_datamodel.keys()
+                        # Assign
+                        full_datamodel[key] = sub_datamodel[key]
+                else:
+                    full_datamodel[key] = cls.datamodel[key]
             else:
                 full_datamodel[key] = cls.datamodel[key]
         #
@@ -1148,10 +1154,6 @@ class DataContainer:
                 else:
                     hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
                                             force_to_bintbl=force_to_bintbl)]
-                    #except:
-                    #    import pdb; pdb.set_trace()
-                    #    embed(header='1121 of datamodel')
-                    #    msgs.error("bad")
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
         # Prefixes

@@ -227,6 +227,7 @@ def main(args):
         sci_dict[det]['sciimg'], sci_dict[det]['sciivar'], sci_dict[det]['skymodel'], sci_dict[det]['objmodel'], \
         sci_dict[det]['ivarmodel'], sci_dict[det]['outmask'], sci_dict[det]['specobjs'], sci_dict[det]['detector'], \
             sci_dict[det]['slits'] = coadd.reduce(pseudo_dict, show = args.show, show_peaks = args.peaks)
+
         # Save pseudo image master files
         #coadd.save_masters()
 
@@ -260,6 +261,7 @@ def main(args):
                                               skymodel=sci_dict[det]['skymodel'],
                                               objmodel=sci_dict[det]['objmodel'],
                                               ivarmodel=sci_dict[det]['ivarmodel'],
+                                              scaleimg=np.array([1.0], dtype=np.float),
                                               bpmmask=sci_dict[det]['outmask'],
                                               detector=sci_dict[det]['detector'],
                                               slits=sci_dict[det]['slits'],

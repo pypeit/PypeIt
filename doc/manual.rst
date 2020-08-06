@@ -8,18 +8,18 @@ Overview
 This document describes how perform so-called Manual
 Extraction in PypeIt.  This is for cases where the
 object continuum is too faint to trigger the auto-magical
-:doc:`object_finding` alogrithm.
+:doc:`object_finding` algorithm.
 
 Process
 =======
 
 Here is the standard recipe:
 
- 1 Reduce the spectral image(s)
- 2 Examine the spec2d images with :ref:`pypeit-2dspec`
- 3 Record the spatial and spectral pixel where the trace should cross
- 4 Modify the PypeIt file as described below
- 5 :ref:`run-pypeit` again
+1. Reduce the spectral image(s)
+2. Examine the spec2d images with :ref:`pypeit-2dspec`
+3. Record the spatial and spectral pixel where the trace should cross
+4. Modify the PypeIt file as described below
+5. :ref:`run-pypeit` again
 
 Tracing
 -------
@@ -28,9 +28,9 @@ The code will lay down a new trace and perform extraction
 at each input location.  The trace used will be, in order
 of decreasing preference:
 
- 1 The brightest object on the slit, offset to the input position
- 2 The standard star
- 3 The slit edges
+1. The brightest object on the slit, offset to the input position
+2. The standard star
+3. The slit edges
 
 Multi-Slit
 ----------
@@ -56,3 +56,5 @@ Echelle
 
 For echelle, you only have to specify the object location in a single
 order and the code will use its fractional position on all other orders.
+
+THIS NEEDS TO BE TESTED

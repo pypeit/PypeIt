@@ -1105,7 +1105,7 @@ class CubePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, slit_spec=None, cube_spat_num=None, cube_wave_num=None,
+    def __init__(self, slit_spec=None, make_cube=None, cube_spat_num=None, cube_wave_num=None,
                  cube_wave_min=None, cube_wave_max=None):
 
         # Grab the parameter names and values from the function
@@ -1128,6 +1128,10 @@ class CubePar(ParSet):
         dtypes['slit_spec'] = [bool]
         descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
                              'If the data uses fibres for all spaxels, set this to False.'
+
+        defaults['make_cube'] = True
+        dtypes['make_cube'] = [bool]
+        descr['make_cube'] = 'Set this to False if you do not wish to generate a data cube.'
 
         defaults['cube_spat_num'] = None
         dtypes['cube_spat_num'] = [int, float]
@@ -1166,7 +1170,7 @@ class CubePar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'cube_spat_num', 'cube_wave_num', 'cube_wave_min', 'cube_wave_max']
+        parkeys = ['slit_spec', 'make_cube', 'cube_spat_num', 'cube_wave_num', 'cube_wave_min', 'cube_wave_max']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3317,14 +3321,6 @@ class ExtractionPar(ParSet):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
-        # Check the manual input
-        # TODO -- Get Manual in the readthedocs
-        #if manual is not None:
-        #    if not isinstance(manual, (ParSet, dict, list)):
-        #        raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
-        #    _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
-        #    pars['manual'] = _manual
-
         # Initialize the other used specifications for this parameter
         # set
         defaults = OrderedDict.fromkeys(pars.keys())
@@ -3395,7 +3391,6 @@ class ExtractionPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        #kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
 
         # Keywords that are ParSets
         pk = 'manual'

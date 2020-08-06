@@ -31,6 +31,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         super(MMTMMIRSSpectrograph, self).__init__()
         self.spectrograph = 'mmt_mmirs'
         self.telescope = telescopes.MMTTelescopePar()
+        self.camera = 'MMIRS'
 
     @staticmethod
     def default_pypeit_par():

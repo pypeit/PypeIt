@@ -38,7 +38,7 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     QA for Arc spectrum
 
     Args:
-        waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`:
+        waveFit (:class:`pypeit.core.wavecal.wv_fitting.WaveFit`):
         outfile (:obj:`str`, optional): Name of output file or 'show' to show on screen
         ids_only (bool, optional):
         title (:obj:`str`, optional):
@@ -930,11 +930,15 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
         sv_det, sv_IDs = [], []
         for kk in range(nsnippet):
             # Construct
-            i0 = nsub * kk
-            i1 = min(nsub*(kk+1), ispec.size)
-            tsnippet = ispec[i0:i1]
-            msnippet = mspec[i0:i1]
-            mwvsnippet = mwv[i0:i1]
+            j0 = nsub * kk
+            j1 = min(nsub*(kk+1), ispec.size)
+            tsnippet = ispec[j0:j1]
+            msnippet = mspec[j0:j1]
+            mwvsnippet = mwv[j0:j1]
+            # JFH This continue statement deals with the case when the msnippet derives from *entirely* zero-padded
+            # pixels, and allows the code to continue with crashing.
+            if not np.any(msnippet):
+                continue
             # Run reidentify
             detections, spec_cont_sub, patt_dict = reidentify(tsnippet, msnippet, mwvsnippet,
                                                               line_lists, 1, debug_xcorr=debug_xcorr,
@@ -943,7 +947,7 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
                                                               match_toler=par['match_toler'],
                                                               cc_thresh=0.1, fwhm=par['fwhm'])
             # Deal with IDs
-            sv_det.append(i0 + detections)
+            sv_det.append(j0 + detections)
             try:
                 sv_IDs.append(patt_dict['IDs'])
             except KeyError:

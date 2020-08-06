@@ -12,6 +12,8 @@ from matplotlib import gridspec
 
 from astropy import stats
 from astropy import units
+import scipy.signal
+import scipy.optimize as opt
 
 from linetools.spectra import xspectrum1d
 
@@ -253,13 +255,13 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
                                        nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
                                        maxiter = 15, upper = 3.0, lower = 3.0)
-    obj_sky_cont = pypeitFit_obj.value(obj_skyspec.wavelength.value)
+    obj_sky_cont, _ = pypeitFit_obj.value(obj_skyspec.wavelength.value)
 
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
     pypeitFit_sky, _ = fitting.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
                                        nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
                                        maxiter = 15, upper = 3.0, lower = 3.0)
-    arx_sky_cont = pypeitFit_sky.value(arx_skyspec.wavelength.value)
+    arx_sky_cont, _ = pypeitFit_sky.value(arx_skyspec.wavelength.value)
     #pypeitFit_sky= fitting.robust_fit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3,
     #                                    function='bspline', lower=3., upper=3., bspline_par=bspline_par)
     #arx_sky_cont = pypeitFit_sky.val(arx_skyspec.wavelength.value)
@@ -286,7 +288,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
         fit.fit()
         #fit = fitting.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
         success = True
-        max_fit = -0.5 * fit[1] / fit[2]
+        max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
                                 funct='polynomial', order=np.atleast_1d(2))
@@ -583,4 +585,51 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
         #plt.close()
 
     plt.rcdefaults()
+
+
+def calculate_image_offset(image, im_ref, nfit=3):
+    """Calculate the x,y offset between two images
+
+    Args:
+        image (`numpy.ndarray`_):
+            Image that we want to measure the shift of (relative to im_ref)
+        im_ref (`numpy.ndarray`_):
+            Reference image
+        nfit (int, optional):
+            Number of pixels (left and right of the maximum) to include in
+            fitting the peak of the cross correlation.
+
+    Returns:
+        ra_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (x direction).
+            In order to align image with im_ref, ra_diff should be added to the
+            x-coordinates of image
+        dec_diff (float):
+            Relative shift (in pixels) of image relative to im_ref (y direction).
+            In order to align image with im_ref, dec_diff should be added to the
+            y-coordinates of image
+    """
+    # Subtract median (should be close to zero, anyway)
+    image -= np.median(image)
+    im_ref -= np.median(im_ref)
+
+    # cross correlate (note, convolving seems faster)
+    ccorr = scipy.signal.correlate2d(im_ref, image, boundary='fill', mode='same')
+    #ccorr = scipy.signal.fftconvolve(im_ref, image[::-1, ::-1], mode='same')
+
+    # Find the maximum
+    amax = np.unravel_index(np.argmax(ccorr), ccorr.shape)
+
+    # Perform a 2D Gaussian fit
+    x = np.arange(amax[0]-nfit, amax[0] + nfit+1)
+    y = np.arange(amax[1]-nfit, amax[1] + nfit+1)
+    initial_guess = (np.max(ccorr), amax[0], amax[1], 3, 3, 0, 0)
+    xx, yy = np.meshgrid(x, y, indexing='ij')
+
+    # Fit the neighborhood of the maximum to calculate the offset
+    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy),
+                            ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
+                            p0=initial_guess)
+    # Return the RA and DEC shift, in pixels
+    return popt[1] - ccorr.shape[0]//2, popt[2] - ccorr.shape[1]//2
 

@@ -1,6 +1,22 @@
 
 1.0.7dev
 --------
+ - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
+   wavelength coverage slits results in reidentification with a purely zero-padded array.
+ - (Hotfix) Deal with chk_calibs test
+ - Refactor WaveCalib into a DataContainer
+ - Refactor fitting + PypeItFit DataContainer
+ - Coadd2D bug fixes
+ - Coadd2D without spec1d files
+ - Coadd2D offsets
+ - Some Coadd2D docs
+ - Manual extraction
+ - Improve LBT/LUCI
+ - Add MMT/MMIRS
+ - QL script for Keck/MOSFIRE
+
+- Script to generate combined datacubes for IFU data.
+- Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
 
 1.0.6 (22 Jul 2020)
 -------------------
@@ -44,14 +60,6 @@
  - Add a script (pypeit_flux_setup) for creating fluxing,
    coadd1d and tellfit pypeit files
  - Add telluric fitting script, pypeit_tellfit
- - Refactor WaveCalib into a DataContainer
- - Refactor fitting
-
- - Coadd2D bug fixes
- - Coadd2D without spec1d files
- - Coadd2D offsets
- - Coadd2D docs
- - Manual extraction
 
 
 
