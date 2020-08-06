@@ -106,11 +106,11 @@ class PypeItFit(DataContainer):
         # This block ensures sensible zero coefficient outputs are returned if the fits was successful
         if self.bool_gpm is not None and not np.any(self.bool_gpm):
             if self.func == "gaussian":
-                self.fitc = np.zeros(self.order[0])
+                self.fitc = np.zeros(self.order[0]).astype(float)
             elif '2d' in self.func:
-                self.fitc = np.zeros(self.order[0] + 1, self.order[1] + 1)
+                self.fitc = np.zeros(self.order[0] + 1, self.order[1] + 1).astype(float)
             else:
-                self.fitc = np.zeros(self.order[0] + 1)
+                self.fitc = np.zeros(self.order[0] + 1).astype(float)
             msgs.warn('Input gpm is masked everywhere. Fit is probably probelmatic')
             self.success = 0
             return self.success
@@ -171,7 +171,8 @@ class PypeItFit(DataContainer):
             `numpy.ndarray`_:
 
         """
-        return evaluate_fit(self.fitc, self.func, x, x2=x2, minx=self.minx, maxx=self.maxx, minx2=self.minx2, maxx2=self.maxx2)
+        return evaluate_fit(self.fitc, self.func, x, x2=x2, minx=self.minx,
+                            maxx=self.maxx, minx2=self.minx2, maxx2=self.maxx2)
 
     def calc_fit_rms(self, apply_mask=True, x2=None):
         """ Simple RMS calculation
@@ -252,7 +253,8 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                minx=None, maxx=None, minx2=None, maxx2=None,
                maxiter=10, in_gpm=None, weights=None, invvar=None,
                lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
-               groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True):
+               groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
+               debug=False):
     """
     A robust fit is performed to the xarray, yarray pairs
     ``mask[i] = 1`` are good values.
@@ -373,10 +375,12 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                               func=function, order=np.atleast_1d(order),
                               x2=x2.astype(float) if x2 is not None else x2,
                               weights=weights.astype(float), gpm=this_gpm.astype(int),
-                              minx=float(minx)if minx is not None else minx,
+                              minx=float(minx) if minx is not None else minx,
                               maxx=float(maxx) if maxx is not None else maxx,
                               minx2=float(minx2) if minx2 is not None else minx2,
                               maxx2=float(maxx2) if maxx2 is not None else maxx2)
+        if debug:
+            embed(header='382 of fitting')
         pypeitFit.fit()
         #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights, inmask=thismask, guesses=ct,
         #                     minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
