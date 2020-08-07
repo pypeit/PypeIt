@@ -1,5 +1,5 @@
 
-1.0.7dev
+1.1.0dev
 --------
 
  - Fixed a bug fixes a bug in full_template wavelength reidentification
@@ -8,6 +8,7 @@
  - (Hotfix) Deal with chk_calibs test
  - Script to generate combined datacubes for IFU data.
  - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
+ - Allow show2d_spec, chk_edges, chk_flats to load older Spec2DObj datamodel versions
  - Implemented a plugin kindly provided by the ginga developers to
    display images with a secondary wavelength image WCS.
     - Removes dependency on @profxj's ginga fork, and avoids a bug when
