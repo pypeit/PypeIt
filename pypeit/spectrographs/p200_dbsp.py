@@ -3,10 +3,9 @@
 import numpy as np
 
 from astropy.io import fits
-from astropy.coordinates import Angle, SkyCoord, EarthLocation, AltAz, ICRS
+from astropy.coordinates import Angle
 from astropy import units as u
 from astropy.time import Time
-from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -16,15 +15,10 @@ from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
 from pypeit.images import detector_container
 
-from pypeit import debugger
 from typing import List
 
-loc = EarthLocation.of_site('Palomar')
-
-def get_zenith_ra_dec(time) -> SkyCoord:
-    time = Time(time)
-    altaz = AltAz(alt=Angle(90, unit=u.deg), az=Angle(0, unit=u.deg), obstime=time, location=loc)
-    return altaz.transform_to(ICRS)
+def flip_fits_slice(s: str) -> str:
+    return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
 
 class P200DBSPSpectrograph(spectrograph.Spectrograph):
     """
@@ -63,11 +57,8 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         """
         meta = {}
         # Required (core)
-        # VERY HACKY!!!!
-        meta['ra'] = dict(card=None, compound=True)
-        meta['dec'] = dict(card=None, compound=True)
-        #meta['ra'] = dict(ext=0, card='RA')
-        #meta['dec'] = dict(ext=0, card='DEC')
+        meta['ra'] = dict(ext=0, card='RA', required_ftypes=['science', 'standard'])
+        meta['dec'] = dict(ext=0, card='DEC', required_ftypes=['science', 'standard'])
         meta['target'] = dict(ext=0, card='OBJECT')
 
         meta['dispname'] = dict(ext=0, card='GRATING')
@@ -76,9 +67,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
 
         meta['mjd'] = dict(card=None, compound=True)
         meta['exptime'] = dict(ext=0, card='EXPTIME')
-        #meta['airmass'] = dict(ext=0, card='AIRMASS')
-        # VERY HACKY!!!!
-        meta['airmass'] = dict(card=None, compound=True)
+        meta['airmass'] = dict(ext=0, card='AIRMASS', required_ftypes=['science', 'standard'])
 
         # Extras for config and frametyping
         meta['dichroic'] = dict(ext=0, card='DICHROIC')
@@ -91,7 +80,23 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
         # Ingest
         self.meta = meta
 
-    def compound_meta(self, headarr: List[fits.Header], meta_key):
+    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+        """
+        Methods to generate meta in a more complex manner than simply
+        reading from the header.
+
+        mjd is converted from UTSHUT header
+        dispangle is parsed from ANGLE header
+
+        Args:
+            headarr: List[fits.Header]
+              List of headers
+            meta_key: str
+
+        Returns:
+            value:
+
+        """
         if meta_key == 'mjd':
             return Time(headarr[0]['UTSHUT']).mjd
         elif meta_key == 'dispangle':
@@ -100,37 +105,32 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             except Exception as e:
                 print(headarr[0]['ANGLE'])
                 raise e
-        elif meta_key == 'ra':
-            ra = headarr[0].get('RA', default=None)
-            frametype = headarr[0]['IMGTYPE']
-            if ra is None and frametype in ['bias', 'flat', 'cal']:
-                ra = get_zenith_ra_dec(headarr[0]['UTSHUT']).ra.to_string(unit='hour', sep=':')
-            return ra
-        elif meta_key == 'dec':
-            dec = headarr[0].get('DEC', default=None)
-            frametype = headarr[0]['IMGTYPE']
-            if dec is None and frametype in ['bias', 'flat', 'cal']:
-                dec = get_zenith_ra_dec(headarr[0]['UTSHUT']).dec.to_string(unit='deg', sep=':')
-            return dec
-        elif meta_key == 'airmass':
-            am = headarr[0].get('AIRMASS', default=None)
-            frametype = headarr[0]['IMGTYPE']
-            if am is None and frametype in ['bias', 'flat', 'cal']:
-                am = '1.000'
-            elif headarr[0].get('RA', default=None) and headarr[0].get('DEC', default=None):
-                ra = headarr[0]['RA']
-                dec = headarr[0]['DEC']
-                altaz = SkyCoord(ra, dec, unit=(u.hour, u.deg)).transform_to(AltAz(obstime=headarr[0]['UTSHUT'], location=loc))
-                am = altaz.secz
-            return am
         else:
             return None
-            #msgs.error("Not ready for this compound meta")
 
     def pypeit_file_keys(self):
         pypeit_keys = super(P200DBSPSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['slitwid']
         return pypeit_keys
+    
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        if ftype in ['science', 'standard']:
+            return good_exp & (fitstbl['lampstat01'] == '0000000') & (fitstbl['idname'] == 'object')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['idname'] == 'bias')
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
+            return good_exp & (fitstbl['idname'] == 'flat')
+        if ftype in ['pinhole', 'dark']:
+            # Don't type pinhole or dark frames
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['arc', 'tilt']:
+            return good_exp & (fitstbl['lampstat01'] != '0000000') & (fitstbl['idname'] == 'cal')
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
 
 
 class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
@@ -143,7 +143,22 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         self.spectrograph = 'p200_dbsp_blue'
         self.camera = 'DBSPb'
     
-    def compound_meta(self, headarr, meta_key):
+    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+        """
+        Methods to generate meta in a more complex manner than simply
+        reading from the header. Super method handles mjd and dispangle
+
+        binning is parsed from CCDSUM header
+
+        Args:
+            headarr: List[fits.Header]
+              List of headers
+            meta_key: str
+
+        Returns:
+            value:
+
+        """
         retval = super(P200DBSPBlueSpectrograph, self).compound_meta(headarr, meta_key)
         if retval is not None:
             return retval
@@ -153,7 +168,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, hdu: fits.HDUList, det: int):
         """
         Return a DectectorContainer for the current image
 
@@ -185,10 +200,16 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             mincounts       = -1e10, # cross-check
             numamplifiers   = 1,
             gain            = np.atleast_1d(0.72),
-            ronoise         = np.atleast_1d(2.5),
-            datasec         = np.atleast_1d('[1:2835,1:410]'),       # TODO: from datamodel, should just be able to point this to DSEC1/BSEC1
-            oscansec        = np.atleast_1d('[1:2835,411:460]')      # but that just doesn't work, so we will hardcode.
+            ronoise         = np.atleast_1d(2.5)
             )
+        
+        header = hdu[0].header
+        datasec = header['DSEC1']
+        oscansec = header['BSEC1']
+
+        detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
+        detector_dict['oscansec'] = np.atleast_1d(flip_fits_slice(oscansec))
+
         return detector_container.DetectorContainer(**detector_dict)
 
 
@@ -203,17 +224,6 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
 
-        # JFH Is this correct?
-        # Processing steps
-        # turn_off = dict(use_illumflat=False)
-        # par.reset_all_processimages_par(**turn_off)
-
-        # Turn off the overscan
-        #for ftype in par['calibrations'].keys():
-        #    try:
-        #        par['calibrations'][ftype]['process']['overscan'] = 'none'
-        #    except (TypeError, KeyError):
-        #        pass
         par['scienceframe']['process']['use_overscan'] = True
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
@@ -263,26 +273,13 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-        return par
 
-    def check_frame_type(self, ftype, fitstbl, exprng=None):
-        """
-        Check for frames of the provided type.
-        """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['lampstat01'] == '0000000') & (fitstbl['idname'] == 'object')
-        if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'bias')
-        if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['idname'] == 'flat')
-        if ftype in ['pinhole', 'dark']:
-            # Don't type pinhole or dark frames
-            return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['lampstat01'] != '0000000') & (fitstbl['idname'] == 'cal')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
-        return np.zeros(len(fitstbl), dtype=bool)
+        disp = self.get_meta_value(scifile, 'dispname')
+        if disp == '600/4000':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000.fits'
+        else:
+            msgs.error("Your grating " + disp + ' needs a template spectrum for the blue arm of DBSP.')
+        return par
 
 
 class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
@@ -295,7 +292,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         self.spectrograph = 'p200_dbsp_red'
         self.camera = 'DBSPr'
     
-    def compound_meta(self, headarr, meta_key):
+    def compound_meta(self, headarr: List[fits.Header], meta_key: str):
         retval = super(P200DBSPRedSpectrograph, self).compound_meta(headarr, meta_key)
         if retval is not None:
             return retval
@@ -305,7 +302,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         else:
             msgs.error("Not ready for this compound meta")
 
-    def get_detector_par(self, hdu, det):
+    def get_detector_par(self, hdu: fits.HDUList, det: int):
         """
         Return a DectectorContainer for the current image
 
@@ -337,10 +334,17 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             mincounts       = -1e10, # check
             numamplifiers   = 1,
             gain            = np.atleast_1d(2.8),
-            ronoise         = np.atleast_1d(8.5),
-            datasec         = np.atleast_1d('[1:440,1:4121]'),       # TODO: from datamodel, should just be able to point this to DSEC1/BSEC1
-            oscansec        = np.atleast_1d('[1:440,4122:4141]')     # but that just doesn't work, so we will hardcode.
+            ronoise         = np.atleast_1d(8.5)
         )
+
+        header = hdu[0].header
+
+        datasec = header['DSEC1']
+        oscansec = header['BSEC1']
+
+        detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
+        detector_dict['oscansec'] = np.atleast_1d(flip_fits_slice(oscansec))
+
         return detector_container.DetectorContainer(**detector_dict)
 
     def default_pypeit_par(self):
@@ -410,23 +414,11 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-        return par
 
-    def check_frame_type(self, ftype, fitstbl, exprng=None):
-        """
-        Check for frames of the provided type.
-        """
-        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
-        if ftype in ['science', 'standard']:
-            return good_exp & (fitstbl['lampstat01'] == '0000000') & (fitstbl['idname'] == 'object')
-        if ftype == 'bias':
-            return good_exp & (fitstbl['idname'] == 'bias')
-        if ftype in ['pixelflat', 'trace', 'illumflat']:
-            return good_exp & (fitstbl['idname'] == 'flat')
-        if ftype in ['pinhole', 'dark']:
-            # Don't type pinhole or dark frames
-            return np.zeros(len(fitstbl), dtype=bool)
-        if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['lampstat01'] != '0000000') & (fitstbl['idname'] == 'cal')
-        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
-        return np.zeros(len(fitstbl), dtype=bool)
+        disp = self.get_meta_value(scifile, 'dispname')
+        if disp == '316/7500':
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500.fits'
+        else:
+            msgs.error("Your grating " + disp + ' needs a template spectrum for the red arm of DBSP.')
+
+        return par

@@ -50,7 +50,7 @@ Conduct](https://pypeit.readthedocs.io/en/latest/codeconduct.html).
 * VLT/X-Shooter
 * VLT/FORS2  (300I, 300V)
 * WHT/ISIS
-* P200/DBSP
+* P200/DBSP (316/7500 on red arm, 600/4000 on blue arm)
 
 # Requirements
 
