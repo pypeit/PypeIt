@@ -224,22 +224,26 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     obj_skyspec.data['flux'][0,:2] = 0.
     obj_skyspec.data['flux'][0,-2:] = 0.
 
+    # Set minimum to 0.  For bad rebinning and for pernicious extractions
+    obj_skyspec.data['flux'][0,:] = np.maximum(obj_skyspec.data['flux'][0,:], 0.)
+    arx_skyspec.data['flux'][0,:] = np.maximum(arx_skyspec.data['flux'][0,:], 0.)
+
     # Normalize spectra to unit average sky count
     norm = np.sum(obj_skyspec.flux.value)/obj_skyspec.npix
-    obj_skyspec.flux = obj_skyspec.flux / norm
     norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
-    arx_skyspec.flux = arx_skyspec.flux / norm2
-    if norm < 0:
+    if norm <= 0:
         msgs.warn("Bad normalization of object in flexure algorithm")
         msgs.warn("Will try the median")
         norm = np.median(obj_skyspec.flux.value)
-        if norm < 0:
+        if norm <= 0:
             msgs.warn("Improper sky spectrum for flexure.  Is it too faint??")
             return None
-    if norm2 < 0:
+    if norm2 <= 0:
         msgs.warn('Bad normalization of archive in flexure. You are probably using wavelengths '
                    'well beyond the archive.')
         return None
+    obj_skyspec.flux = obj_skyspec.flux / norm
+    arx_skyspec.flux = arx_skyspec.flux / norm2
 
     # Deal with bad pixels
     msgs.work("Need to mask bad pixels")
