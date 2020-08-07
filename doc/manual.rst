@@ -5,8 +5,8 @@ Manual Extraction
 Overview
 ========
 
-This document describes how perform so-called Manual
-Extraction in PypeIt.  This is for cases where the
+This document describes how to perform so-called Manual
+Extraction in PypeIt.  This is generally for cases where the
 object continuum is too faint to trigger the auto-magical
 :doc:`object_finding` algorithm.
 
@@ -57,4 +57,12 @@ Echelle
 For echelle, you only have to specify the object location in a single
 order and the code will use its fractional position on all other orders.
 
-THIS NEEDS TO BE TESTED
+Here is an example from the DevSuite (VLT_manual)::
+
+    [reduce
+      [[extraction]]
+        [[[manual]]]
+           spat_spec = 1181.8:3820.6
+           det = 1
+           fwhm = 3.
+

@@ -429,10 +429,10 @@ class CoAdd2D(object):
         if show:
             redux.show('image', image=pseudo_dict['imgminsky']*(sciImage.fullmask == 0), chname = 'imgminsky', slits=True, clear=True)
 
-        # Object finding, this hack appears inevitable for the moment, since we need to be able to call find_objects
-        # outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
-        # 2d coadd reduce
-        # HACK ME!
+        # TODO:
+        #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
+        #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
+        #  2d coadd reduce
         if self.par['reduce']['extraction']['manual']['spat_spec'] is not None:
             spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
             hand_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,

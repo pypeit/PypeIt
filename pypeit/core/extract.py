@@ -1,16 +1,12 @@
 """ Module for PypeIt extraction code
 """
-import time
 import copy
-import inspect
 
 import numpy as np
 import scipy
 from matplotlib import pyplot as plt
 
 from IPython import embed
-
-from sklearn.decomposition import PCA
 
 from astropy import stats
 
@@ -1651,6 +1647,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
 
         sobjs = sobjs[keep]
 
+    #
+    if len(sobjs) == 0:
+        msgs.info('No hand or normal objects found on this slit. Returning')
+        skymask = create_skymask_fwhm(sobjs,thismask)
+        return specobjs.SpecObjs(), skymask[thismask]
+
     # Sort objects according to their spatial location
     nobj = len(sobjs)
     spat_pixpos = sobjs.SPAT_PIXPOS
@@ -1904,14 +1906,15 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
 
     # Hand prep
+    #   Determine the location of the source on *all* of the orders
     if hand_extract_dict is not None:
         f_spats = []
         for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
                               hand_extract_dict['hand_extract_spat'],
                               hand_extract_dict['hand_extract_spec']):
             # Find the input slit
-            ispec = np.clip(np.round(spec),0,nspec-1)  #int(spec)
-            ispat = np.clip(np.round(spat),0,nspec-1)  #int(spat)
+            ispec = int(np.clip(np.round(spec),0,nspec-1))
+            ispat = int(np.clip(np.round(spat),0,nspec-1))
             slit = slitmask[ispec, ispat]
             # Fractions
             iord_hand = gdslit_spat.tolist().index(slit)
@@ -1937,14 +1940,13 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         except TypeError:
             std_in = None
 
-        # TODO JFH: Fix this ugliness. The way this code works, you should only need to create a single hand object,
+        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,
         # not one at every location on the order
         if hand_extract_dict is not None:
             new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
             for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
                                       hand_extract_dict['hand_extract_spat'],
                                       hand_extract_dict['hand_extract_spec'], f_spats):
-                #
                 ispec = int(spec)
                 new_hand_extract_dict['hand_extract_spec'][ss] = ispec
                 new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
