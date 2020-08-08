@@ -1,9 +1,5 @@
 # Required packages for PypeIt
-#
-# TODO: Make linetools and arclines pip installable so that they can be
-# added here, or add them as submodule dependencies in extern/ directory
-#  linetools is now pip installable but caused readthedocs to barf..
-#
+
 # Users
 packaging>=19.0
 numpy>=1.18.0
@@ -15,18 +11,8 @@ PyYAML>=5.1
 configobj>=5.0.6
 scikit-learn>=0.20
 IPython>=7.2.0
-#ginga>=2.9  -- Can't include ginga as pip will not grab the JXP fork
-
-# linetools -- This causes readthedocs to barf
-#linetools>=0.2
-# arclines
+ginga>=3.0
 numba>=0.39.0
-
-# Develop
-h5py>=2.7.1
+linetools>=0.2
 pytest>=3.0.7
-
-# Documentation
-#sphinx>=1.6
-
 

@@ -15,6 +15,7 @@ from pypeit.core import flat
 from pypeit.core import flexure
 from pypeit.images import pypeitimage
 from pypeit import utils
+from pypeit.display import display
 
 from IPython import embed
 
@@ -238,14 +239,13 @@ class RawImage(object):
                 msgs.error("Need to provide slits to create illumination flat")
             illum_flat = flatimages.fit2illumflat(slits, flexure_shift=self.spat_flexure_shift)
             if debug:
-                from pypeit import ginga
                 left, right = slits.select_edges(flexure=self.spat_flexure_shift)
-                viewer, ch = ginga.show_image(illum_flat, chname='illum_flat')
-                ginga.show_slits(viewer, ch, left, right)  # , slits.id)
+                viewer, ch = display.show_image(illum_flat, chname='illum_flat')
+                display.show_slits(viewer, ch, left, right)  # , slits.id)
                 #
                 orig_image = self.image.copy()
-                viewer, ch = ginga.show_image(orig_image, chname='orig_image')
-                ginga.show_slits(viewer, ch, left, right)  # , slits.id)
+                viewer, ch = display.show_image(orig_image, chname='orig_image')
+                display.show_slits(viewer, ch, left, right)  # , slits.id)
 
         # Apply the relative spectral illumination
         spec_illum = 1.0
