@@ -180,9 +180,18 @@ them, make sure you have `pytest`_ installed and then:
     cd $PYPEIT_DIR/pypeit/tests
     py.test .
 
+If some tests fail, you can run an individual test, e.g. test_wavecalib.py with
+
+.. code-block:: bash
+
+    py.test -s test_wavecalib.py
+
+Note that the "-s" option allows to insert interactive debugging commands into the test,
+here test_wavecalib.py to help determine why the test is failing.
+
 .. warning::
 
-    This generates some files that should be ignored.  **Please do not
+    Running these tests generates some files that should be ignored.  **Please do not
     add these test files to the repository.**  We're in the process of
     including some automatic clean-up in the testing functions.
 

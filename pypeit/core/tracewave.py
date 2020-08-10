@@ -14,7 +14,6 @@ from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import ginga
 from pypeit import tracepca
 from pypeit.core import arc
 from pypeit.core import qa

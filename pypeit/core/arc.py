@@ -14,8 +14,6 @@ from matplotlib import pyplot as plt
 import scipy
 from astropy import stats
 
-from pypeit import debugger
-
 from pypeit import msgs
 from pypeit import utils
 #from pypeit.core.wavecal import autoid

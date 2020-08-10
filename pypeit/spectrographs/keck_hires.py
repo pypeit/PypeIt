@@ -23,8 +23,6 @@ from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
-from pypeit import debugger
-
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     """

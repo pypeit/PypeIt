@@ -34,8 +34,8 @@ env:
         - SKLEARN_VERSION=stable
         - MAIN_CMD='python setup.py'
         - SETUP_CMD='test'
-        - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future numba scikit-learn configobj IPython'
-        - PIP_DEPENDENCIES='extension_helpers'
+        - CONDA_DEPENDENCIES='scipy pyyaml matplotlib future numba scikit-learn configobj IPython'
+        - PIP_DEPENDENCIES='extension_helpers ginga linetools'
         - EVENT_TYPE='pull_request push'
         - TASK='test'
 
@@ -127,8 +127,8 @@ install:
 
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
+#    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
+#    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
     #- conda install numpy
     #- conda install configobj
     #- conda install scikit-learn

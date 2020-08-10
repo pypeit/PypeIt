@@ -11,7 +11,6 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.images import detector_container
 
-from pypeit import debugger
 
 class TNGDoloresSpectrograph(spectrograph.Spectrograph):
     """

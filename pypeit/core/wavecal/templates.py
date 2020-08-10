@@ -19,8 +19,6 @@ from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import fitting
 
-from pypeit import debugger
-
 # Data Model
 # FITS table
 #  wave -- Wavelength values
@@ -137,7 +135,7 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         nwspec = np.maximum(nwspec, miny)
     # Check
     if chk:
-        debugger.plot1d(nwwv, nwspec)
+#        debugger.plot1d(nwwv, nwspec)
         embed(header='123')
     # Generate the table
     write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
