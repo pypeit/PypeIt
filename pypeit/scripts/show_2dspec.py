@@ -95,6 +95,8 @@ def main(args):
 
     # Object traces from spec1d file
     spec1d_file = args.file.replace('spec2d', 'spec1d')
+    if args.file[-2:] == 'gz':
+        spec1d_file = spec1d_file[:-3]
     if os.path.isfile(spec1d_file):
         sobjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
     else:
