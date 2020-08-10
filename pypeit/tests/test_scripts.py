@@ -16,8 +16,8 @@ from astropy.io import fits
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
+from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import ginga
 
 
 def data_path(filename):
@@ -102,7 +102,7 @@ def test_show_2dspec():
     spec2d_file = os.path.join(droot, 'Science',
                              'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Ginga needs to be open in RC mode
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     # Save
     cdir = os.getcwd()
     os.chdir(droot)
@@ -120,7 +120,7 @@ def test_chk_edges():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                                 'MasterEdges_KeckLRISr_400_8500_det1.fits.gz')
     # Ginga needs to be open in RC mode
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     #
     pargs = chk_edges.parser([mstrace_root])
     chk_edges.main(pargs)
@@ -138,7 +138,7 @@ def test_chk_flat():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
                                 'MasterFlat_A_1_01.fits')
     # Ginga needs to be open in RC mode
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     #
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)

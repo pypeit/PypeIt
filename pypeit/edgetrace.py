@@ -120,13 +120,13 @@ from astropy import table
 from pypeit import msgs
 from pypeit import utils
 from pypeit import sampling
-from pypeit import ginga
 from pypeit import masterframe
 from pypeit import io
 from pypeit import slittrace
 # TODO: Commented until EdgeTraceSet becomes a DataContainer
 #from pypeit.datamodel import DataContainer
 from pypeit.bitmask import BitMask
+from pypeit.display import display
 from pypeit.par.pypeitpar import EdgeTracePar
 from pypeit.core import parse, pydl, procimg, pca, trace
 from pypeit.images.buildimage import TraceImage
@@ -1161,7 +1161,7 @@ class EdgeTraceSet(object):
             self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
 
     @classmethod
-    def from_file(cls, filename, rebuild_pca=False):
+    def from_file(cls, filename, rebuild_pca=False, chk_version=True):
         """
         Instantiate using data from a file.
 
@@ -1190,8 +1190,10 @@ class EdgeTraceSet(object):
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
             # THIS IS A HACK UNTIL WE MAKE THIS A DataContainer
+            # TODO -- Include chk_version in any future DataContainer's added here
             img = hdu['TRACEIMG'].data.astype(float)
-            detector = detector_container.DetectorContainer.from_hdu(hdu['DETECTOR'])
+            detector = detector_container.DetectorContainer.from_hdu(hdu['DETECTOR'],
+                                                                     chk_version=chk_version)
             traceImage = TraceImage(img, detector=detector)
             #
             this = cls(traceImage, load_spectrograph(hdu[0].header['PYP_SPEC']),
@@ -1484,18 +1486,18 @@ class EdgeTraceSet(object):
             _trc = cen if fit is None else fit
 
             # Connect to or instantiate ginga window
-            ginga.connect_to_ginga(raise_err=True, allow_new=True)
+            display.connect_to_ginga(raise_err=True, allow_new=True)
             # Clear the viewer and show the trace image
-            trace_viewer, trace_ch = ginga.show_image(self.img, chname='Trace Image', clear=True)
+            trace_viewer, trace_ch = display.show_image(self.img, chname='Trace Image', clear=True)
             if not self.is_empty:
-                ginga.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
-                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+                display.show_slits(trace_viewer, trace_ch, _trc[:,gpm & is_left],
+                                   _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
 
             # Show the Sobel sigma image (do *not* clear)
-            sobel_viewer, sobel_ch = ginga.show_image(self.sobel_sig, chname='Sobel Filtered')
+            sobel_viewer, sobel_ch = display.show_image(self.sobel_sig, chname='Sobel Filtered')
             if not self.is_empty:
-                ginga.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
-                                 _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
+                display.show_slits(sobel_viewer, sobel_ch, _trc[:,gpm & is_left],
+                                   _trc[:,gpm & is_right], pstep=thin, synced=synced, **id_kwargs)
             return
 
         # Show the traced image

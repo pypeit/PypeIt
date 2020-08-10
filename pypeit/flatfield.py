@@ -16,12 +16,12 @@ from IPython import embed
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import ginga
 from pypeit import bspline
 
 from pypeit import datamodel
 from pypeit import masterframe
 from pypeit import wavecalib
+from pypeit.display import display
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
@@ -145,8 +145,7 @@ class FlatImages(datamodel.DataContainer):
         return d
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False, hdu_prefix=None):
         # Grab everything but the bspline's
         _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
         # Now the bsplines
@@ -1373,7 +1372,7 @@ def show_flats(image_list, wcs_match=True, slits=None):
     Returns:
 
     """
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     if slits is not None:
         left, right, mask = slits.select_edges()
         gpm = mask == 0
@@ -1384,11 +1383,11 @@ def show_flats(image_list, wcs_match=True, slits=None):
             continue
         # TODO: Add an option that shows the relevant stuff in a
         # matplotlib window.
-        viewer, ch = ginga.show_image(img, chname=name, cuts=cut,
-                                      wcs_match=wcs_match, clear=clear)
+        viewer, ch = display.show_image(img, chname=name, cuts=cut, wcs_match=wcs_match,
+                                        clear=clear)
         if slits is not None:
-            ginga.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
-                             slit_ids=slits.spat_id[gpm])
+            display.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
+                               slit_ids=slits.spat_id[gpm])
         # Turn off clear
         if clear:
             clear = False
