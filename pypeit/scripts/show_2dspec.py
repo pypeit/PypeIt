@@ -18,10 +18,10 @@ from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 
 from pypeit import msgs
-from pypeit import ginga
 from pypeit import slittrace
 from pypeit import specobjs
 
+from pypeit.display import display
 from pypeit.core.parse import get_dnum
 from pypeit.images.imagebitmask import ImageBitMask
 from pypeit import masterframe
@@ -58,7 +58,7 @@ def show_trace(specobjs, det, viewer, ch):
     for kk in in_det:
         trace = specobjs[kk]['TRACE_SPAT']
         obj_id = specobjs[kk].NAME
-        ginga.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
+        display.show_trace(viewer, ch, trace, obj_id, color='orange') #hdu.name)
 
 
 def main(args):
@@ -104,14 +104,14 @@ def main(args):
         msgs.warn('Could not find spec1d file: {:s}'.format(spec1d_file) + msgs.newline() +
                   '                          No objects were extracted.')
 
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
 
     # Now show each image to a separate channel
 
     # Show the bitmask?
     mask_in = None
     if args.showmask:
-        viewer, ch = ginga.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
+        viewer, ch = display.show_image(spec2DObj.bpmmask, chname="BPM", waveimg=spec2DObj.waveimg, clear=True)
         #bpm, crmask, satmask, minmask, offslitmask, nanmask, ivar0mask, ivarnanmask, extractmask \
 
     # SCIIMG
@@ -122,11 +122,11 @@ def main(args):
     cut_max = mean + 4.0 * sigma
     chname_skysub='sciimg-det{:s}'.format(sdet)
     # Clear all channels at the beginning
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
+    viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg, clear=True)
 
     if sobjs is not None:
         show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
     # SKYSUB
     if args.ignore_extract_mask:
@@ -143,37 +143,37 @@ def main(args):
     chname_skysub='skysub-det{:s}'.format(sdet)
     # Clear all channels at the beginning
     # TODO: JFH For some reason Ginga crashes when I try to put cuts in here.
-    viewer, ch = ginga.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
+    viewer, ch = display.show_image(image, chname=chname_skysub, waveimg=spec2DObj.waveimg,
                                   bitmask=bitMask, mask=mask_in) #, cuts=(cut_min, cut_max),wcs_match=True)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
 
     # SKRESIDS
     chname_skyresids = 'sky_resid-det{:s}'.format(sdet)
     image = (spec2DObj.sciimg - spec2DObj.skymodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)  # sky residual map
-    viewer, ch = ginga.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
+    viewer, ch = display.show_image(image, chname_skyresids, waveimg=spec2DObj.waveimg,
                                   cuts=(-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
     # RESIDS
     chname_resids = 'resid-det{:s}'.format(sdet)
     # full model residual map
     image = (spec2DObj.sciimg - spec2DObj.skymodel - spec2DObj.objmodel) * np.sqrt(spec2DObj.ivarmodel) * (spec2DObj.bpmmask == 0)
-    viewer, ch = ginga.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
+    viewer, ch = display.show_image(image, chname=chname_resids, waveimg=spec2DObj.waveimg,
                                   cuts = (-5.0, 5.0), bitmask=bitMask, mask=mask_in)
     if not args.removetrace and sobjs is not None:
             show_trace(sobjs, args.det, viewer, ch)
-    ginga.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
+    display.show_slits(viewer, ch, left, right, slit_ids=slid_IDs)
 
 
     # After displaying all the images sync up the images with WCS_MATCH
     shell = viewer.shell()
-    out = shell.start_global_plugin('WCSMatch')
-    out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
+    shell.start_global_plugin('WCSMatch')
+    shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_resids], {})
 
     if args.embed:
         embed()

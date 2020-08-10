@@ -6,11 +6,11 @@ import numpy as np
 
 # These need to be outside of the def's
 try:
-    from pypeit.ginga import show_image
+    from pypeit.ginga.ginga import show_image
 except ImportError:  # Ginga is not yet required
     pass
 else:
-    from pypeit.ginga import clear_canvas
+    from pypeit.ginga.ginga import clear_canvas
 
 # ADD-ONs from xastropy
 def plot1d(*args, **kwargs):

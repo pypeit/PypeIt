@@ -1,12 +1,28 @@
 
 1.1.0dev
 --------
- - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
-   wavelength coverage slits results in reidentification with a purely zero-padded array.
+
+ - Fixed a bug fixes a bug in full_template wavelength reidentification
+   for situations where extreme wavelength coverage slits results in
+   reidentification with a purely zero-padded array.
  - (Hotfix) Deal with chk_calibs test
  - Script to generate combined datacubes for IFU data.
  - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
  - Allow show2d_spec, chk_edges, chk_flats to load older Spec2DObj datamodel versions
+ - Implemented a plugin kindly provided by the ginga developers to
+   display images with a secondary wavelength image WCS.
+    - Removes dependency on @profxj's ginga fork, and avoids a bug when
+      using WCS image registration in that fork.
+    - `pypeit/ginga.py` moved to `pypeit/display/display.py` and ginga
+      plugin added to `pypeit/diplay` directory.
+    - ginga plugin registered as an entry point in `setup.py`
+    - Added a script to check that the plugins are all available.
+    - Installation docs updated.  Both `ginga` and `linetools` are now
+      installed via pip.
+ - Deprecated `pypeit/debugger.py` and `pypeit/data/settings`
+ - Removed h5py as a dependency
+ - `linetools` is now listed in `pypeit/requirements.txt` until I can
+   check if it still causes readthedocs to fail...
  - Modify Spec2DObj 2D model for float32 images
 
 1.0.6 (22 Jul 2020)
