@@ -107,8 +107,7 @@ class bspline(datamodel.DataContainer):
         structure returned by the create_bspline function.
         """
         # Setup the DataContainer with everything None
-        _d = {}
-        datamodel.DataContainer.__init__(self, d=_d)
+        datamodel.DataContainer.__init__(self)
         # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
         # as it goes
         fullbkpt1 = copy.copy(fullbkpt)
@@ -237,6 +236,11 @@ class bspline(datamodel.DataContainer):
             self.xmin = 0.0
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
+
+    def reinit_coeff(self):
+        nc = self.breakpoints.size - self.nord
+        self.coeff = np.zeros((self.npoly, nc), dtype=float) if self.npoly > 1 \
+                        else np.zeros(nc, dtype=float)
 
     def _init_internals(self):
         self.hdu_prefix = None

@@ -82,7 +82,7 @@ class Spec2DObj(datamodel.DataContainer):
                  'det': dict(otype=int, descr='Detector index')}
 
     @classmethod
-    def from_file(cls, file, det):
+    def from_file(cls, file, det, chk_version=True):
         """
         Overload :func:`pypeit.datamodel.DataContainer.from_file` to allow det
         input and to slurp the header
@@ -90,6 +90,8 @@ class Spec2DObj(datamodel.DataContainer):
         Args:
             file (:obj:`str`):
             det (:obj:`int`):
+            chk_version (:obj:`bool`):
+                If False, allow a mismatch in datamodel to proceed
 
         Returns:
             `Spec2DObj`:
@@ -100,7 +102,7 @@ class Spec2DObj(datamodel.DataContainer):
         if not np.any(['DET{:02d}'.format(det) in hdu.name for hdu in hdul]):
             msgs.error("Requested detector {} is not in this file - {}".format(det, file))
         #
-        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
+        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det), chk_version=chk_version)
         slf.head0 = hdul[0].header
         return slf
 

@@ -1159,7 +1159,7 @@ class EdgeTraceSet(DataContainer):
 #            self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
 
     @classmethod
-    def from_file(cls, filename, rebuild_pca=False):
+    def from_file(cls, filename, rebuild_pca=False, chk_version=True):
         """
         Instantiate using data from a file.
 
@@ -1187,7 +1187,6 @@ class EdgeTraceSet(DataContainer):
             msgs.error('File does not exit: {0}'.format(filename))
         msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
         with fits.open(filename) as hdu:
-#            # THIS IS A HACK UNTIL WE MAKE THIS A DataContainer
             this = cls(TraceImage.from_hdu(hdu), load_spectrograph(hdu[0].header['PYP_SPEC']),
                        EdgeTracePar.from_header(hdu[0].header))
 
