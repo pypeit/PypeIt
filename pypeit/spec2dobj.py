@@ -42,7 +42,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.1'
+    version = '1.0.2'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -51,24 +51,25 @@ class Spec2DObj(datamodel.DataContainer):
     # tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
     #                 write these for each file as well. Alternatively we could just write the offsets to the header.
 
-    # TODO -- Hold, save the non-wavelength images as FLOAT32 ??
-
     # Because we are including nested DataContainers, be careful not to
     # duplicate variable names!!
     datamodel = {'sciimg': dict(otype=np.ndarray, atype=np.floating,
-                                descr='2D processed science image'),
+                                descr='2D processed science image (float32)'),
                  'ivarraw': dict(otype=np.ndarray, atype=np.floating,
-                                 descr='2D processed inverse variance image'),
-                 'skymodel': dict(otype=np.ndarray, atype=np.floating, descr='2D sky model image'),
+                                 descr='2D processed inverse variance image (float32)'),
+                 'skymodel': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='2D sky model image (float32)'),
                  'objmodel': dict(otype=np.ndarray, atype=np.floating,
-                                  descr='2D object model image'),
+                                  descr='2D object model image (float32)'),
                  'ivarmodel': dict(otype=np.ndarray, atype=np.floating,
-                                   descr='2D ivar model image'),
-                 'tilts': dict(otype=np.ndarray, atype=np.floating, descr='2D tilts image'),
+                                   descr='2D ivar model image (float32)'),
+                 'tilts': dict(otype=np.ndarray, atype=np.floating,
+                               descr='2D tilts image (float64)'),
                  'scaleimg': dict(otype=np.ndarray, atype=np.floating,
                                   descr='2D multiplicative scale image that has been applied to '
-                                        'the science image'),
-                 'waveimg': dict(otype=np.ndarray, atype=np.floating, descr='2D wavelength image'),
+                                        'the science image (float32)'),
+                 'waveimg': dict(otype=np.ndarray, atype=np.floating,
+                                 descr='2D wavelength image (float64)'),
                  'bpmmask': dict(otype=np.ndarray, atype=np.integer,
                                  descr='2D bad-pixel mask for the image'),
                  'imgbitm': dict(otype=str, descr='List of BITMASK keys from ImageBitMask'),
@@ -153,7 +154,10 @@ class Spec2DObj(datamodel.DataContainer):
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray:
                 tmp = {}
-                tmp[key] = self[key]
+                if self.datamodel[key]['atype'] == np.floating and key not in ['waveimg', 'tilts']:
+                    tmp[key] = self[key].astype(np.float32)
+                else:
+                    tmp[key] = self[key]
                 d.append(tmp)
             # Detector
             elif key == 'detector':
