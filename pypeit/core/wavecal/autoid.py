@@ -2150,13 +2150,13 @@ class HolyGrail:
                     arr = self._all_tcent_weak.copy()[self._icut_weak]
                     err = self._all_ecent_weak.copy()[self._icut_weak]
                 else:
-                    debugger.set_trace()
+                    embed()
             else:
                 if cut:
                     arr = self._all_tcent.copy()[self._icut]
                     err = self._all_ecent.copy()[self._icut]
                 else:
-                    debugger.set_trace()
+                    embed()
         else:
             arr, err = arr_err[0], arr_err[1]
         # Return the appropriate tcent

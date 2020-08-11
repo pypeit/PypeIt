@@ -638,10 +638,6 @@ class KeckLRISBOrigSpectrograph(KeckLRISBSpectrograph):
         # Flip the spectral axis
         detector_par['specflip'] = True
 
-        #if det == 2:
-        #    from pypeit import ginga
-        #    embed(header='636 of keck_lris')
-
         # Return
         return detector_par, image, hdul, elaptime, rawdatasec_img, oscansec_img
 
