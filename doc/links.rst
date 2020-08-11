@@ -74,6 +74,11 @@
 .. _IPython.embed: https://ipython.readthedocs.io/en/stable/api/generated/IPython.terminal.embed.html#function
 .. _pytest: https://docs.pytest.org/en/latest/
 
+.. ginga
+
+.. _AstroImage: https://ginga.readthedocs.io/en/stable/dev_manual/image_wrappers.html#astroimage
+.. _ginga GlobalPlugin: https://ginga.readthedocs.io/en/stable/dev_manual/developers.html#writing-a-global-plugin
+
 .. pypeit
 .. _repo: https://github.com/pypeit/PypeIt
 .. _PypeIt-development-suite: https://github.com/pypeit/PypeIt-development-suite

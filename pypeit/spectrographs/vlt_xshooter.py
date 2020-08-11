@@ -18,7 +18,6 @@ from IPython import embed
 
 from pkg_resources import resource_filename
 
-from pypeit import debugger
 
 class VLTXShooterSpectrograph(spectrograph.Spectrograph):
     """
