@@ -73,3 +73,5 @@ def test_from_sens_func(kast_blue_files):
     sobjs = specobjs.SpecObjs.from_fitsfile(outfile)
     assert 'OPT_FLAM' in sobjs[0].keys()
 
+    os.remove(sens_file)
+
