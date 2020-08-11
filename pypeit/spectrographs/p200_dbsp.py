@@ -103,7 +103,7 @@ class P200DBSPSpectrograph(spectrograph.Spectrograph):
             try:
                 return Angle(headarr[0]['ANGLE']).deg
             except Exception as e:
-                print(headarr[0]['ANGLE'])
+                msgs.warn("Could not read dispangle from header:" + msgs.newline() + str(headarr[0]['ANGLE']))
                 raise e
         else:
             return None
@@ -159,7 +159,10 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             value:
 
         """
+        # Handle dispangle and mjd from superclass method
         retval = super(P200DBSPBlueSpectrograph, self).compound_meta(headarr, meta_key)
+
+        # If superclass could not handle the meta key
         if retval is not None:
             return retval
         if meta_key == 'binning':
@@ -232,7 +235,6 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue.fits'
         par['calibrations']['wavelengths']['lamps'] = ['FeI', 'FeII', 'ArI', 'ArII']
 
         #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
@@ -292,7 +294,25 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         self.camera = 'DBSPr'
     
     def compound_meta(self, headarr: List[fits.Header], meta_key: str):
+        """
+        Methods to generate meta in a more complex manner than simply
+        reading from the header. Super method handles mjd and dispangle
+
+        binning is parsed from CCDSUM header
+
+        Args:
+            headarr: List[fits.Header]
+              List of headers
+            meta_key: str
+
+        Returns:
+            value:
+
+        """
+        # Handle dispangle and mjd from superclass method
         retval = super(P200DBSPRedSpectrograph, self).compound_meta(headarr, meta_key)
+        
+        # If superclass could not handle the meta key
         if retval is not None:
             return retval
         if meta_key == 'binning':
@@ -355,14 +375,8 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        #par['calibrations']['slitedges']['edge_thresh'] = 'nearest'
 
-        # Turn off the overscan
-        #for ftype in par['calibrations'].keys():
-        #    try:
-        #        par['calibrations'][ftype]['process']['overscan'] = 'none'
-        #    except (TypeError, KeyError):
-        #        pass
+
         par['scienceframe']['process']['use_overscan'] = True
         par['scienceframe']['process']['sigclip'] = 4.0 # Tweaked downward from 4.5. 
         par['scienceframe']['process']['objlim'] = 1.5 # Tweaked downward from 3.0. Same value as Keck KCWI and DEIMOS
@@ -373,7 +387,6 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
         par['calibrations']['wavelengths']['method'] = 'full_template'
-        par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red.fits'
         par['calibrations']['wavelengths']['lamps'] = ['ArI', 'ArII', 'NeI', 'HeI']
         # par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         #par['calibrations']['wavelengths']['n_first'] = 3
