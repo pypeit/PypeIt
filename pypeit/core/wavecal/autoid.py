@@ -25,7 +25,7 @@ from pypeit.core import pca
 from pypeit import utils
 
 from pypeit import msgs
-from pypeit import debugger
+#from pypeit import debugger
 
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
