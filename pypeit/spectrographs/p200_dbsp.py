@@ -277,7 +277,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
 
         disp = self.get_meta_value(scifile, 'dispname')
         if disp == '600/4000':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the blue arm of DBSP.')
         return par
@@ -428,7 +428,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         disp = self.get_meta_value(scifile, 'dispname')
         if disp == '316/7500':
-            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500.fits'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the red arm of DBSP.')
 
