@@ -122,7 +122,7 @@ def load_sky_spectrum(sky_file):
     return xspectrum1d.XSpectrum1D.from_file(sky_file)
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -130,6 +130,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
             Spectrum of the sky related to our object
         arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
             Archived sky spectrum
+        arx_lines (list): Line information returned by arc.detect_lines for
+            the Archived sky spectrum
         mxshft (float, optional):
             Maximum allowed shift from flexure;  note there are cases that
             have been known to exceed even 30 pixels..
@@ -143,7 +145,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
     arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig \
-            = arc.detect_lines(arx_skyspec.flux.value)
+            = arx_lines
     obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj \
             = arc.detect_lines(obj_skyspec.flux.value)
 
@@ -320,8 +322,11 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     """
     sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
-    # Load Archive
+
+    # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
+    # for each slit
     sky_spectrum = load_sky_spectrum(sky_file)
+    sky_lines = arc.detect_lines(sky_spectrum.flux.value)
 
     nslits = len(bpm)
     gdslits = np.where(np.invert(bpm))[0]
@@ -364,7 +369,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
             obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
             # Calculate the shift
-            fdict = spec_flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
+            fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines, mxshft=mxshft)
             punt = False
             if fdict is None:
                 msgs.warn("Flexure shift calculation failed for this spectrum.")
