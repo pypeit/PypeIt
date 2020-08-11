@@ -51,6 +51,9 @@ def test_run_setup():
                               '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
     with pytest.raises(ValueError):
         setup.main(pargs2)
+    
+    # Cleanup
+    shutil.rmtree(data_path('setup_files'))
 
 
 def test_setup_made_pypeit_file():
@@ -63,6 +66,9 @@ def test_setup_made_pypeit_file():
     assert len(data_files) == 2
     assert sorted(frametype['b1.fits.gz'].split(',')) == ['arc', 'tilt']
     assert setups[0] == 'A'
+
+    # Cleanup
+    shutil.rmtree(data_path('shane_kast_blue_A'))
 
 
 @dev_suite_required
