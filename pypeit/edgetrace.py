@@ -388,11 +388,10 @@ class EdgeTraceSet(DataContainer):
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'trace_img': dict(otype=TraceImage,
                                    descr='Image used to construct the edge traces.'),
-                 'nspec': dict(otype=int, d)
-
-        spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
-            The object that sets the instrument used to take the
-            observations. Used to set :attr:`spectrograph`.
+                 'nspec': dict(otype=int, descr='Image pixels in the spectral direction.'),
+                 'nspat': dict(otype=int, descr='Image pixels in the spatial direction.'),
+                 'bpm': dict(otype=np.ndarray, atype=(bool, np.bool_),
+                             descr='Bad-pixel mask for trace image'
 
 
                  'specmax': dict(otype=np.ndarray, atype=np.floating,
@@ -411,6 +410,11 @@ class EdgeTraceSet(DataContainer):
 #        # TODO: Does it matter if the calling function passes the
 #        # keyword arguments in a different order?
 #        datamodel.DataContainer.__init__(self, d=_d)
+
+        # TODO: TraceImage has a bad-pixel mask. Why isn't the
+        # trace_img.bpm the same as the keyword argument bpm?
+        # Currently, the trace_img.bpm array is not used. Should this
+        # be combined with the provided bpm?
 
         # Check input types
         if not isinstance(trace_img, TraceImage):
