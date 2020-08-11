@@ -771,8 +771,8 @@ def main(flg):
     # P200 DBSP r
     if flg & (2 ** 30):
         # HeNeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'P200_DBSP_Red.json')
-        outroot = 'p200_dbsp_red.fits'
+        wfile = os.path.join(template_path, 'P200_DBSP', 'R316_7500_D55', 'P200_DBSP_Red.json')
+        outroot = 'p200_dbsp_red_316_7500_d55.fits'
         binspec = 1
         slits = [221]
         lcut = None # only matters if >1 slit
@@ -781,8 +781,8 @@ def main(flg):
     # P200 DBSP b
     if flg & (2 ** 31):
         # FeAr
-        wfile = os.path.join(template_path, 'P200_DBSP', 'P200_DBSP_Blue.json')
-        outroot = 'p200_dbsp_blue.fits'
+        wfile = os.path.join(template_path, 'P200_DBSP', 'B600_4000_D55', 'P200_DBSP_Blue.json')
+        outroot = 'p200_dbsp_blue_600_4000_d55.fits'
         binspec = 1
         slits = [231]
         lcut = None
