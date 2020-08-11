@@ -228,7 +228,6 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
-        par['calibrations']['master_dir'] = 'Masters_Blue'
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
@@ -370,7 +369,6 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         # Make a bad pixel mask
         par['calibrations']['bpm_usebias'] = True
         # Set pixel flat combination method
-        par['calibrations']['master_dir'] = 'Masters_Red'
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
         # Change the wavelength calibration method
