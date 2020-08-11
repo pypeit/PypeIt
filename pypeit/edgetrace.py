@@ -345,7 +345,7 @@ class EdgeTraceSet(DataContainer):
             trace centroid; see :class:`EdgeTraceBitMask`.
         spat_fit (`numpy.ndarray`_):
             A model fit to the `spat_cen` data.
-        spat_fit_type (:obj:`str`):
+        fittype (:obj:`str`):
             An informational string identifier for the type of model
             used to fit the trace data.
         pca (:obj:`list`, :class:`pypeit.tracepca.TracePCA`):
@@ -355,7 +355,7 @@ class EdgeTraceSet(DataContainer):
             :class:`pypeit.tracepca.TracePCA` objects if the PCA
             decomposition is peformed for the left (`pca[0]`) and
             right (`pca[1]`) traces separately.
-        pca_type (:obj:`str`)
+        pcatype (:obj:`str`)
             An informational string indicating which data were used
             in the PCA decomposition, 'center' for `spat_cen` or
             'fit' for `spat_fit`.
@@ -386,30 +386,57 @@ class EdgeTraceSet(DataContainer):
     """DataContainer datamodel version."""
 
     datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'dispname': dict(otype=str,
+                                  descr='Spectrograph disperser name.  Primarily needed for '
+                                        'reloading an existing MasterEdge file.'),
                  'trace_img': dict(otype=TraceImage,
                                    descr='Image used to construct the edge traces.'),
                  'nspec': dict(otype=int, descr='Image pixels in the spectral direction.'),
                  'nspat': dict(otype=int, descr='Image pixels in the spatial direction.'),
                  'bpm': dict(otype=np.ndarray, atype=(bool, np.bool_),
-                             descr='Bad-pixel mask for trace image'
-
-
-                 'specmax': dict(otype=np.ndarray, atype=np.floating,
-                                descr='Maximum spectral position allowed for each slit/order.  '
-                                      'Shape is Nslits.')}
+                             descr='Bad-pixel mask for trace image'),
+                 'sobel_sig': dict(otype=np.ndarray, atype=(float, np.floating),
+                                   descr='Sobel-filtered image used to detect edges'),
+                 'traceid': dict(otype=np.ndarray, atype=(int, np.integer),
+                                 descr='ID number for the edge traces.  Negative and positive '
+                                       'IDs are for, respectively, left and right edges.'),
+                 'orderid': dict(otype=np.ndarray, atype=(int, np.integer),
+                                 descr='For echelle spectrographs, this is the order ID number '
+                                       'for the edge traces.  Negative and positive IDs are for, '
+                                       'respectively, left and right edges.'),
+                 'spat_cen': dict(otype=np.ndarray, atype=(float, np.floating),
+                                  descr='(Floating-point) Measured spatial coordinate of the '
+                                        'edge traces for each spectral pixel.  Shape is '
+                                        '(Nspec,Ntrace).'),
+                 'spat_err': dict(otype=np.ndarray, atype=(float, np.floating),
+                                  descr='Error in the measured spatial coordinate edge traces.'),
+                 'spat_msk': dict(otype=np.ndarray, atype=bitmask.minimum_dtype(),
+                                  descr='Bitmask for the edge trace positions.'),
+                 'spat_fit': dict(otype=np.ndarray, atype=(float, np.floating),
+                                  descr='The best-fit model result for the trace edge.'),
+                 'fittype': dict(otype=str,
+                                 descr='An informational string identifying the type of model '
+                                       'used to fit the trace data.  Either ``pca`` for a PCA '
+                                       'decomposition or the polynomial function type and order'),
+                 'pca': dict(otype=TracePCA,
+                             descr='The PCA decomposition of all edge traces.  Ignored if the '
+                                   'left_right_pca parameter is True.'),
+                 'left_pca': dict(otype=TracePCA,
+                                  descr='The PCA decomposition of the left-edge traces.  Ignored '
+                                        'if the left_right_pca parameter is False.'),
+                 'right_pca': dict(otype=TracePCA,
+                                   descr='The PCA decomposition of the right-edge traces.  '
+                                         'Ignored if the left_right_pca parameter is False.'),
+                 'pcatype': dict(otype=str,
+                                 descr='String identifier for the measurements used to construct '
+                                       'the PCA (center or fit)')}
     """DataContainer datamodel."""
 
     def __init__(self, trace_img, spectrograph, par, bpm=None, qa_path=None, auto=False,
-                 debug=False, show_stages=False, save=False):
+                 debug=False, show_stages=False):
 
-#        # Instantiate the DataContainer
-#        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-#        _d = dict([(k,values[k]) for k in args[1:]])
-#        # The dictionary passed to DataContainer.__init__ does not
-#        # contain self or the MasterFrame arguments.
-#        # TODO: Does it matter if the calling function passes the
-#        # keyword arguments in a different order?
-#        datamodel.DataContainer.__init__(self, d=_d)
+        # Instantiate as an empty DataContainer
+        super(EdgeTraceSet, self).__init__()
 
         # TODO: TraceImage has a bad-pixel mask. Why isn't the
         # trace_img.bpm the same as the keyword argument bpm?
@@ -424,45 +451,31 @@ class EdgeTraceSet(DataContainer):
         if not isinstance(par, EdgeTracePar):
             msgs.error('Input par must be an EdgeTracePar object.')
 
+        # TODO:
+        #   - Change spectrograph.spectrograph to spectrograph.name
+        #   - Change self.PYP_SPEC to self.specname
         self.trace_img = trace_img                      # Input TraceImage
         self.nspec, self.nspat = self.trace_img.shape   # The shape of the trace image
         self.spectrograph = spectrograph    # Spectrograph used to take the data
         self.PYP_SPEC = spectrograph.spectrograph  # For the Header.  Will be in datamodel
+        self.dispname = spectrograph.dispname
         self.par = par                      # Parameters used for slit edge tracing
+        if auto:
+            # Go ahead and run the tracing
+            self.auto_trace(bpm=bpm, save=save, debug=debug, show_stages=show_stages)
 
-        self.bpm = None                 # Mask for the trace image
-        self.sobel_sig = None           # Sobel filtered image used to detect edges
+    def _init_internals(self):
+        """Add any attributes that are *not* part of the datamodel."""
+        self.spectrograph = None        # Spectrograph instance
+        self.par = None                 # EdgeTracePar instance
+        self.qa_path = None             # Path for the QA plots
         self.sobel_sig_left = None      # Sobel filtered image used to trace left edges
         self.sobel_sig_right = None     # Sobel filtered image used to trace right edges
-        # TODO: Need a separate mask for the sobel image?
-
-        self.traceid = None             # The ID numbers for each trace
-        self.orderid = None             # For echelle spectrographs, this is the matched order ID
-                                        # of each trace. Left traces are negative, right traces
-                                        # are positive, and the absolute value of both is the
-                                        # echelle order.  See match_order().
-
-        self.spat_img = None            # (Integer) Pixel nearest the slit edge for each trace
-        self.spat_cen = None            # (Floating-point) Spatial coordinate of the slit edges
-                                        # for each spectral pixel
-        self.spat_err = None            # Error in the slit edge spatial coordinate
-        self.spat_msk = None            # Mask for the slit edge position for each spectral pixel
-
-        self.spat_fit = None            # The result of modeling the slit edge positions
-        self.spat_fit_type = None       # The type of fitting performed
-        
-        self.pca = None                 # One or two TracePCA objects with PCA decomposition
-        self.pca_type = None            # Measurements used to construct the PCA (center or fit)
-
         self.design = None              # Table that collates slit-mask design data matched to
                                         # the edge traces
         self.objects = None             # Table that collates object information, if available
                                         # in the slit-mask design, matched to the `design` table.
-
         self.log = None                 # Log of methods applied
-
-        if auto:
-            self.auto_trace(bpm=bpm, save=save, debug=debug, show_stages=show_stages)
 
     def _reinit_trace_data(self):
         """
@@ -475,9 +488,11 @@ class EdgeTraceSet(DataContainer):
         self.spat_err = None
         self.spat_msk = None
         self.spat_fit = None
-        self.spat_fit_type = None
+        self.fittype = None
         self.pca = None
-        self.pca_type = None
+        self.left_pca = None
+        self.right_pca = None
+        self.pcatype = None
         self.design = None
         self.objects = None
 
@@ -495,80 +510,80 @@ class EdgeTraceSet(DataContainer):
         # TODO: Maybe this should only throw a warning
         msgs.error('Number of slits undefined because edges are not left-right synchronized.')
 
-    @staticmethod
-    def empty_design_table(rows=None):
-        """
-        Construct an empty `design` table.
-
-        Args:
-            rows (:obj:`int`, optional):
-                Number of table rows for each table column, expected
-                to be the number of matched slits. If None, the table
-                has empty columns.
-
-        Returns:
-            `astropy.table.Table`_: Instance of the empty design
-            table.
-        """
-        length = 0 if rows is None else rows
-        return table.Table([
-                    table.Column(name='TRACEID', dtype=int, length=length,
-                                 description='Trace ID Number'),
-                    table.Column(name='TRACESROW', dtype=int, length=length,
-                                 description='Spectral row for provided left and right edges.'),
-                    table.Column(name='TRACELPIX', dtype=float, length=length,
-                                 description='Spatial pixel coordinate for left edge'),
-                    table.Column(name='TRACERPIX', dtype=float, length=length,
-                                 description='Spatial pixel coordinate for right edge'),
-                    table.Column(name='SLITID', dtype=int, length=length,
-                                 description='Slit ID Number'),
-                    table.Column(name='SLITLFOC', dtype=float, length=length,
-                                 description='Left edge of the slit in mm at the focal plane'),
-                    table.Column(name='SLITRFOC', dtype=float, length=length,
-                                 description='Right edge of the slit in mm at the focal plane'),
-                    table.Column(name='SLITRA', dtype=float, length=length,
-                                 description='Right ascension of the slit center (deg)'),
-                    table.Column(name='SLITDEC', dtype=float, length=length,
-                                 description='Declination of the slit center (deg)'),
-                    table.Column(name='SLITLEN', dtype=float, length=length,
-                                 description='Slit length (arcsec)'),
-                    table.Column(name='SLITWID', dtype=float, length=length,
-                                 description='Slit width (arcsec)'),
-                    table.Column(name='SLITPA', dtype=float, length=length,
-                                 description='Slit position angle onsky (deg from N through E)'),
-                    table.Column(name='ALIGN', dtype=np.int16, length=length,
-                                 description='Slit used for alignment (1-yes; 0-no), not target '
-                                             'observations.')
-                           ])
-
-    @staticmethod
-    def empty_objects_table(rows=None):
-        """
-        Construct an empty `objects` table.
-
-        Args:
-            rows (:obj:`int`, optional):
-                Number of table rows for each table column, expected
-                to be the number of objects. If None, the table has
-                empty columns.
-
-        Returns:
-            `astropy.table.Table`_: Instance of the empty object
-            table.
-        """
-        length = 0 if rows is None else rows
-        return table.Table([
-                    table.Column(name='OBJID', dtype=int, length=length,
-                                 description='Object ID Number'),
-                    table.Column(name='OBJRA', dtype=float, length=length,
-                                 description='Right ascension of the object (deg)'),
-                    table.Column(name='OBJDEC', dtype=float, length=length,
-                                 description='Declination of the object (deg)'),
-                    table.Column(name='SLITID', dtype=int, length=length,
-                                 description='Slit ID Number'),
-                    table.Column(name='SLITINDX', dtype=int, length=length,
-                                 description='Row index of relevant slit in the design table')
-                           ])
+#    @staticmethod
+#    def empty_design_table(rows=None):
+#        """
+#        Construct an empty `design` table.
+#
+#        Args:
+#            rows (:obj:`int`, optional):
+#                Number of table rows for each table column, expected
+#                to be the number of matched slits. If None, the table
+#                has empty columns.
+#
+#        Returns:
+#            `astropy.table.Table`_: Instance of the empty design
+#            table.
+#        """
+#        length = 0 if rows is None else rows
+#        return table.Table([
+#                    table.Column(name='TRACEID', dtype=int, length=length,
+#                                 description='Trace ID Number'),
+#                    table.Column(name='TRACESROW', dtype=int, length=length,
+#                                 description='Spectral row for provided left and right edges.'),
+#                    table.Column(name='TRACELPIX', dtype=float, length=length,
+#                                 description='Spatial pixel coordinate for left edge'),
+#                    table.Column(name='TRACERPIX', dtype=float, length=length,
+#                                 description='Spatial pixel coordinate for right edge'),
+#                    table.Column(name='SLITID', dtype=int, length=length,
+#                                 description='Slit ID Number'),
+#                    table.Column(name='SLITLFOC', dtype=float, length=length,
+#                                 description='Left edge of the slit in mm at the focal plane'),
+#                    table.Column(name='SLITRFOC', dtype=float, length=length,
+#                                 description='Right edge of the slit in mm at the focal plane'),
+#                    table.Column(name='SLITRA', dtype=float, length=length,
+#                                 description='Right ascension of the slit center (deg)'),
+#                    table.Column(name='SLITDEC', dtype=float, length=length,
+#                                 description='Declination of the slit center (deg)'),
+#                    table.Column(name='SLITLEN', dtype=float, length=length,
+#                                 description='Slit length (arcsec)'),
+#                    table.Column(name='SLITWID', dtype=float, length=length,
+#                                 description='Slit width (arcsec)'),
+#                    table.Column(name='SLITPA', dtype=float, length=length,
+#                                 description='Slit position angle onsky (deg from N through E)'),
+#                    table.Column(name='ALIGN', dtype=np.int16, length=length,
+#                                 description='Slit used for alignment (1-yes; 0-no), not target '
+#                                             'observations.')
+#                           ])
+#
+#    @staticmethod
+#    def empty_objects_table(rows=None):
+#        """
+#        Construct an empty `objects` table.
+#
+#        Args:
+#            rows (:obj:`int`, optional):
+#                Number of table rows for each table column, expected
+#                to be the number of objects. If None, the table has
+#                empty columns.
+#
+#        Returns:
+#            `astropy.table.Table`_: Instance of the empty object
+#            table.
+#        """
+#        length = 0 if rows is None else rows
+#        return table.Table([
+#                    table.Column(name='OBJID', dtype=int, length=length,
+#                                 description='Object ID Number'),
+#                    table.Column(name='OBJRA', dtype=float, length=length,
+#                                 description='Right ascension of the object (deg)'),
+#                    table.Column(name='OBJDEC', dtype=float, length=length,
+#                                 description='Declination of the object (deg)'),
+#                    table.Column(name='SLITID', dtype=int, length=length,
+#                                 description='Slit ID Number'),
+#                    table.Column(name='SLITINDX', dtype=int, length=length,
+#                                 description='Row index of relevant slit in the design table')
+#                           ])
 
     def rectify(self, flux, bpm=None, extract_width=None, mask_threshold=0.5, side='left'):
         r""""
@@ -616,9 +631,10 @@ class EdgeTraceSet(DataContainer):
              shape :math:`(N_{\rm spec}, N_{\rm spat})`, the rectified
              image and its boolean bad-pixel mask.
         """
-        if self.pca is None:
+        if self.pcatype is None:
             msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
-        pca = self.pca[0 if side == 'left' else 1] if self.par['left_right_pca'] else self.pca
+        pca = (self.left_pca if side == 'left' else self.right_pca) \
+                    if self.par['left_right_pca'] else self.pca
 
         # Get the traces that cross the reference spatial position at
         # the first and last pixels of the image
@@ -944,12 +960,14 @@ class EdgeTraceSet(DataContainer):
         self.spat_err = np.zeros((self.nspec, self.ntrace), dtype=float)
 
         # No fitting has been done yet
-        self.spat_fit_type = None
+        self.fittype = None
         self.spat_fit = None
 
         # No PCA has been constructed yet
         self.pca = None
-        self.pca_type = None
+        self.left_pca = None
+        self.right_pca = None
+        self.pcatype = None
 
         # No design or object data yet
         self.design = None
@@ -1035,7 +1053,7 @@ class EdgeTraceSet(DataContainer):
 #                        = (m, '{0}: Completed method'.format(self.__class__.__name__))
 
         #   - PCA type, used for rebuilding the PCA when loading
-        prihdr['PCATYPE'] = ('None' if self.pca is None else self.pca_type,
+        prihdr['PCATYPE'] = ('None' if self.pcatype is None else self.pcatype,
                              'PypeIt: Edge trace PCA type')
         #   - The dispersion name is needed in the setup of some
         #     spectrographs
@@ -1043,7 +1061,7 @@ class EdgeTraceSet(DataContainer):
             prihdr['DISPNAME'] = (self.spectrograph.dispname, 'Spectrograph disperser')
         #   - Indicate the type if fit (TODO: Keep the fit parameters?)
         fithdr = fits.Header()
-        fithdr['FITTYP'] = 'None' if self.spat_fit_type is None else self.spat_fit_type
+        fithdr['FITTYP'] = 'None' if self.fittype is None else self.fittype
 
         # Only put the definition of the bits in the trace mask in the
         # header of the appropriate extension.
@@ -1094,12 +1112,14 @@ class EdgeTraceSet(DataContainer):
         # Add order ID, if available
         if self.orderid is not None:
             hdu += [fits.ImageHDU(data=self.orderid, name='ORDERID')]
-        # Add PCA, if available
+        # Add PCA, if available. Should not produce both PCA and the
+        # left-right PCAs.
         if self.pca is not None:
-            if self.par['left_right_pca']:
-                hdu += [self.pca[0].to_hdu(name='LPCA'), self.pca[1].to_hdu(name='RPCA')]
-            else:
-                hdu += [self.pca.to_hdu()]
+            hdu += self.pca.to_hdu(name='PCA')
+        if self.left_pca is not None:
+            hdu += self.left_pca.to_hdu(name='LEFT_PCA')
+        if self.right_pca is not None:
+            hdu += self.right_pca.to_hdu(name='RIGHT_PCA')
         # TODO: These things are going to go in slittrace.SlitTraceSet
         if self.design is not None:
             hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
@@ -1115,52 +1135,6 @@ class EdgeTraceSet(DataContainer):
         if compress:
             msgs.info('Compressing file to: {0}.gz'.format(outfile))
             io.compress_file(outfile, overwrite=overwrite)
-
-#    def load(self, validate=True, rebuild_pca=False):
-#        """
-#        Load and reinitialize the trace data.
-#
-#        Data is read from :attr:`master_file_path` and used to
-#        overwrite any internal data. Specific comparisons of the
-#        saved data are performed to ensure the file is consistent
-#        with having been written by a consistent version of the code;
-#        see :func:`_reinit`.
-#
-#        To load a full :class:`EdgeTraceSet` directly from a file,
-#        use :func:`from_file`.
-#
-#        Args:
-#            validate (:obj:`bool`, optional):
-#                Validate that the spectrograph, parameter set, and
-#                bitmask have not changed between the current internal
-#                values and the values read from the fits file. The
-#                method raises an error if the spectrograph or
-#                parameter set are different. If the bitmask is
-#                different, a warning is issued and the bitmask
-#                defined by the header is used instead of the existing
-#                :attr:`bitmask`.
-#            rebuild_pca (:obj:`bool`, optional):
-#                Rebuild the PCA decomposition of the traces based on
-#                the loaded trace data, but only if the PCA had been
-#                originally produced for the saved object (as
-#                indicated by the fits header). Otherwise, any
-#                existing saved PCA data will be used to construct the
-#                PCA object(s). If the header indicates that the PCA
-#                was not originally performed, this is ignored.
-#        Raises:
-#            FileNotFoundError:
-#                Raised if no data has been written for this master
-#                frame.
-#            ValueError:
-#                Raised if validation of the data fails (actually
-#                raised by :func:`_reinit`).
-#        """
-#        # Check the file exists
-#        if not self.exists:
-#            msgs.error('File does not exit: {0}'.format(self.master_file_path))
-#        with fits.open(self.master_file_path) as hdu:
-#            # Re-initialize and validate
-#            self._reinit(hdu, validate=validate, rebuild_pca=rebuild_pca)
 
     @classmethod
     def from_file(cls, filename, rebuild_pca=False, chk_version=True):
@@ -1249,7 +1223,7 @@ class EdgeTraceSet(DataContainer):
         self.spat_err = hdu['CENTER_ERR'].data.astype(float)
         self.spat_msk = hdu['CENTER_MASK'].data
         self.spat_fit = hdu['CENTER_FIT'].data.astype(float)
-        self.spat_fit_type = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
+        self.fittype = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
                                 else hdu['CENTER_FIT'].header['FITTYP']
         # Get the order ID, design, and object data if they exist
         ext = [h.name for h in hdu]
@@ -1269,29 +1243,29 @@ class EdgeTraceSet(DataContainer):
                                     else self.spat_fit).astype(int))
 
         # Read or rebuild the PCA if it existed previously
-        self.pca_type = None if hdu[0].header['PCATYPE'] == 'None' else hdu[0].header['PCATYPE']
-        if self.pca_type is None:
-            self.pca = None
-        elif rebuild_pca:
-            if self.can_pca():
-                self._reset_pca(True)
-            else:
-                # TODO: Should this throw a warning instead?
+        self.pcatype = None if hdu[0].header['PCATYPE'] == 'None' else hdu[0].header['PCATYPE']
+        self.pca = None
+        self.left_pca = None
+        self.right_pca = None
+        if rebuild_pca:
+            if not self.can_pca():
                 msgs.error('Traces do not meet necessary criteria for the PCA decomposition.')
-        else:
-            self.pca = [ TracePCA.from_hdu(hdu[ext]) for ext in ['LPCA', 'RPCA']] \
-                            if self.par['left_right_pca'] else TracePCA.from_hdu(hdu['PCA'])
+            self._reset_pca(True)
+        elif self.pcatype is not None:
+            if self.par['left_right_pca']:
+                self.left_pca = TracePCA.from_hdu(hdu['LEFT_PCA'])
+                self.right_pca = TracePCA.from_hdu(hdu['RIGHT_PCA'])
+            else:
+                self.pca = TracePCA.from_hdu(hdu['PCA'])
 
         # Read the disperser if possible. This is needed for the
         # spec_min_max property of some spectrographs.
+        self.dispname = None if hdu[0].header['DISPNAME'] == 'None' else hdu[0].header['DISPNAME']
         if self.spectrograph.dispname is None:
-            try:
-                self.spectrograph.dispname = hdu[0].header['DISPNAME']
-            except:
-                # Assume the spectrgrograph *NEVER* defines the disperser
-                pass
+            self.spectrograph.dispname = self.dispname
 
         # Read the log
+        # TODO: Keep this?
         self.log = io.parse_hdr_key_group(hdu[0].header, prefix='LOG')
 
         # Reinit the left and right sobel images
@@ -1800,7 +1774,7 @@ class EdgeTraceSet(DataContainer):
             - Because this changes :attr:`spat_cen` and
               :attr:`spat_err`, any model fitting of these data are
               erased by this function! I.e., :attr:`spat_fit` and
-              :attr:`spat_fit_type` are set to None.
+              :attr:`fittype` are set to None.
             - This *always* removes the PCA if it exists.
 
         Args:
@@ -1952,10 +1926,12 @@ class EdgeTraceSet(DataContainer):
         # Erase any previous fitting, PCA, and slit-mask-match results
         # TODO: Should probably get sectioned off as a method because a
         # few methods do this.  Add an option to _reinit_trace_data?
-        self.spat_fit_type = None
+        self.fittype = None
         self.spat_fit = None
-        self.pca_type = None
+        self.pcatype = None
         self.pca = None
+        self.left_pca = None
+        self.right_pca = None
         self.design = None
         self.objects = None
 
@@ -2245,10 +2221,12 @@ class EdgeTraceSet(DataContainer):
         # Erase any previous fitting, PCA, and slit-mask-match results
         # TODO: Should probably get sectioned off as a method because a
         # few methods do this.
-        self.spat_fit_type = None
+        self.fittype = None
         self.spat_fit = None
-        self.pca_type = None
+        self.pcatype = None
         self.pca = None
+        self.left_pca = None
+        self.right_pca = None
         self.design = None
         self.objects = None
 
@@ -2438,7 +2416,7 @@ class EdgeTraceSet(DataContainer):
             msgs.warn('No traces to check.')
 
         # Decide if the PCA should be rebuilt
-        _rebuild_pca = rebuild_pca and self.pca is not None and self.can_pca()
+        _rebuild_pca = rebuild_pca and self.pcatype is not None and self.can_pca()
 
         # Remove any fully masked traces and its synced counterpart;
         # force the removal of traces marked as SYNCERROR, even if
@@ -2662,7 +2640,7 @@ class EdgeTraceSet(DataContainer):
             self.spatial_sort()
 
         # Reset the PCA
-        self._reset_pca(rebuild_pca and self.pca is not None and self.can_pca())
+        self._reset_pca(rebuild_pca and self.pcatype is not None and self.can_pca())
 
     def synced_selection(self, indx, mode='ignore', assume_synced=False):
         r"""
@@ -2833,8 +2811,8 @@ class EdgeTraceSet(DataContainer):
             srt = np.argsort(np.mean(cen, axis=0))
         else:
             # Sort according to the spatial position in one row
-            reference_row = trace.most_common_trace_row(bpm) if self.pca is None \
-                                else (self.pca[0].reference_row if self.par['left_right_pca']
+            reference_row = trace.most_common_trace_row(bpm) if self.pcatype is None \
+                                else (self.left_pca.reference_row if self.par['left_right_pca']
                                     else self.pca.reference_row)
             msgs.info('Re-sorting edges based on where they cross row {0}'.format(reference_row))
             srt = np.argsort(cen[reference_row,:])
@@ -2864,10 +2842,12 @@ class EdgeTraceSet(DataContainer):
         """
         if rebuild:
             # Rebuild the PCA using the previous parameters
-            return self.build_pca(use_center=self.pca_type == 'center') 
+            return self.build_pca(use_center=self.pcatype == 'center') 
         # Remove the existing PCA
-        self.pca_type = None
+        self.pcatype = None
         self.pca = None
+        self.left_pca = None
+        self.right_pca = None
 
     def current_trace_locations(self):
         """
@@ -3006,7 +2986,7 @@ class EdgeTraceSet(DataContainer):
         self.spat_msk |= msk
         # Save the model fits
         self.spat_fit = fit
-        self.spat_fit_type = '{0} : order={1}'.format(function, order)
+        self.fittype = '{0} : order={1}'.format(function, order)
         # Set the pixelated trace data based on the fit, instead of the
         # measured centroids
         self.spat_img = np.round(self.spat_fit).astype(int)
@@ -3071,7 +3051,8 @@ class EdgeTraceSet(DataContainer):
         """
         Use the PCA decomposition to predict traces.
 
-        The PCA decomposition must be available via :attr:`pca`; see
+        The PCA decomposition must be available via :attr:`pca` or
+        :attr:`left_pca` and :attr:`right_pca`; see
         :func:`build_pca`. This is a convenience method to handle the
         PCA predictions given that left and right traces can be
         decomposed separately or simultaneously.
@@ -3097,7 +3078,7 @@ class EdgeTraceSet(DataContainer):
             coordinate is provided, a single trace vector is
             returned.
         """
-        if self.pca is None:
+        if self.pcatype is None:
             msgs.error('Must first run the PCA analysis fo the traces; run build_pca.')
 
         _spat_cen = np.atleast_1d(spat_cen)
@@ -3107,7 +3088,7 @@ class EdgeTraceSet(DataContainer):
 
         if self.par['left_right_pca']:
             trace_add = np.zeros((self.nspec,0), dtype='float')
-            for s,p in zip([-1,1], self.pca):
+            for s,p in zip([-1,1], [self.left_pca,self.right_pca]):
                 indx = _side == s
                 if not np.any(indx):
                     continue
@@ -3121,18 +3102,13 @@ class EdgeTraceSet(DataContainer):
         """
         Build a PCA model of the current edge data.
 
-        Primarily a wrapper that instantiates :attr:`pca`. If left
-        and right traces are analyzed separately, :attr:`pca` will be
-        a list of two :class:`pypeit.tracepca.TracePCA` objects;
-        otherwise :attr:`pca` is a single
-        :class:`pypeit.tracepca.TracePCA` object. After executing
-        this, traces can be predicted by calling
-        `self.pca.predict(spat)` (see
-        :func:`pypeit.tracepca.TracePCA.predict`) if both sides are
-        analyzed simultaneously; otherwise, left and tright traces
-        can be predicted using `self.pca[0].predict(spat)`. and
-        `self.pca[1].predict(spat)`, respectively. See
-        :func:`predict_traces`.
+        Primarily a wrapper that instantiates :attr:`pca`, or
+        :attr:`left_pca` and :attr:`right_pca` if left and right
+        traces are analyzed separately. All of these objects will be
+        a :class:`pypeit.tracepca.TracePCA`, if instantiated. After
+        executing this method, traces can be predicted by
+        :func:`pypeit.tracepca.TracePCA.predict` for the relevant PCA
+        decomposition; see :func:`predict_traces`.
 
         If no parametrized function has been fit to the trace data or
         if specifically requested (see `use_center`), the PCA is
@@ -3194,7 +3170,7 @@ class EdgeTraceSet(DataContainer):
         msgs.info('Maximum number of rejection iterations: {0}'.format(maxiter))
 
         # Check the state of the current object
-        if self.pca is not None:
+        if self.pcatype is not None:
             msgs.warn('PCA model already exists and will be overwritten.')
         if self.spat_fit is None and not use_center:
             msgs.warn('No trace fits exits.  PCA based on trace centroid measurements.')
@@ -3204,7 +3180,7 @@ class EdgeTraceSet(DataContainer):
             msgs.error('Traces do not meet necessary criteria for the PCA decomposition.')
 
         # Set the data used to construct the PCA
-        self.pca_type = 'center' if self.spat_fit is None or use_center else 'fit'
+        self.pcatype = 'center' if self.spat_fit is None or use_center else 'fit'
 
         # When constructing the PCA, ignore bad trace measurements
         # *and* any traces inserted by hand.
@@ -3221,7 +3197,6 @@ class EdgeTraceSet(DataContainer):
         # is for the left, right, or all traces, the reference row is
         # always the same.
         reference_row = trace.most_common_trace_row(bpm[:,use_trace])
-#        reference_row = self.npec//2
 
         # Setup the list of traces to use in a single object so that we
         # can loop though them, regardless of whether we're performing
@@ -3235,7 +3210,7 @@ class EdgeTraceSet(DataContainer):
                                 np.sum(pcaindx[i]), self.ntrace, side))
 
         # Run the PCA decomposition and construct its interpolator
-        self.pca = [None]*len(pcaindx)
+        _pca = [None]*len(pcaindx)
         for i,indx in enumerate(pcaindx):
             # Grab the trace data. This uses all the data, even if some
             # of it is masked.
@@ -3243,36 +3218,38 @@ class EdgeTraceSet(DataContainer):
                             else self.spat_fit[:,indx]
 
             # Instantiate the PCA
-            self.pca[i] = TracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
+            _pca[i] = TracePCA(trace_inp, npca=npca, pca_explained_var=pca_explained_var,
                                    reference_row=reference_row)
 
             # Set the order of the function fit to the PCA
             # coefficiencts: Order is set to cascade down to lower
             # order for components that account for a smaller
             # percentage of the variance.
-            _order = np.clip(order - np.arange(self.pca[i].npca), 1, None).astype(int)
+            _order = np.clip(order - np.arange(_pca[i].npca), 1, None).astype(int)
             msgs.info('Order of function fit to each component: {0}'.format(_order))
 
             # Apply a 10% relative error to each coefficient. This
             # performs better than use_mad, since larger coefficients
             # will always be considered inliers, if the coefficients
             # vary rapidly with order as they sometimes do.
-            #ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(self.pca[i].pca_coeffs), 0.1)))
+            #ivar = utils.inverse(np.square(np.fmax(0.1*np.abs(_pca[i].pca_coeffs), 0.1)))
             #ivar = None
 
             # TODO: Instead, weight by the mean/median value of
             # sobel_sig along each trace.
 
             # Run the fit
-            self.pca[i].build_interpolator(_order, function=function, lower=lower,
-                                           upper=upper, minx=0., maxx=self.nspat-1., maxrej=maxrej,
-                                           maxiter=maxiter, debug=debug)
+            _pca[i].build_interpolator(_order, function=function, lower=lower, upper=upper,
+                                       minx=0., maxx=self.nspat-1., maxrej=maxrej, maxiter=maxiter,
+                                       debug=debug)
 
             # TODO: Use the rejected pca coefficiencts to reject traces?
 
-        # If left and right use the same PCA, get rid of the list
-        if not left_right_pca:
-            self.pca = self.pca[0]
+        # Save the result
+        if left_right_pca:
+            self.left_pca, self.right_pca = _pca
+        else:
+            self.pca = _pca[0]
 
     def pca_refine(self, use_center=False, debug=False, force=False):
         """
@@ -3309,16 +3286,16 @@ class EdgeTraceSet(DataContainer):
             msgs.error('No traces to refine!')
 
         # Perform the PCA decomposition if necessary
-        _pca_type = 'center' if use_center or self.spat_fit is None else 'fit'
-        if force or self.pca is None or self.pca_type != _pca_type:
+        _pcatype = 'center' if use_center or self.spat_fit is None else 'fit'
+        if force or self.pcatype is None or self.pcatype != _pcatype:
             self.build_pca(use_center=use_center, debug=debug)
 
-        self.spat_fit_type = 'pca'
+        self.fittype = 'pca'
 
         # Predict the traces using the PCA
-        reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
                             else self.pca.reference_row
-        trace_ref = self.spat_cen[reference_row,:] if self.pca_type == 'center' \
+        trace_ref = self.spat_cen[reference_row,:] if self.pcatype == 'center' \
                             else self.spat_fit[reference_row,:]
         side = self.is_right.astype(int)*2-1
         self.spat_fit = self.predict_traces(trace_ref, side)
@@ -3351,7 +3328,7 @@ class EdgeTraceSet(DataContainer):
         Note that this effectively reinstantiates much of the object
         attributes, including :attr:`traceid` :attr:`spat_cen`
         :attr:`spat_err` :attr:`spat_msk` :attr:`spat_img`
-        :attr:`spat_fit`, and :attr:`spat_fit_type`.
+        :attr:`spat_fit`, and :attr:`fittype`.
 
         Used parameters from :attr:`par`
         (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
@@ -3382,7 +3359,7 @@ class EdgeTraceSet(DataContainer):
         if self.is_empty:
             msgs.error('No traces are defined.')
 
-        if self.pca is None:
+        if self.pcatype is None:
             msgs.error('Must first run the PCA analysis fo the traces; run build_pca.')
 
         # Parse parameters and report
@@ -3433,15 +3410,16 @@ class EdgeTraceSet(DataContainer):
             msk = np.zeros((self.nspec,0), dtype=self.bitmask.minimum_dtype())
 
             # Iterate through each side
-            for i,side in enumerate(['left', 'right']):
+            for side in ['left', 'right']:
                 # Get the image relevant to tracing
 #                _sobel_sig = trace.prepare_sobel_for_trace(self.sobel_sig, bpm=self.bpm, boxcar=5,
 #                                                           side=side)
                 _sobel_sig = self._side_dependent_sobel(side)
+                _pca = self.left_pca if side == 'left' else self.right_pca
 
                 _fit, _cen, _err, _msk, nside \
                         = trace.peak_trace(_sobel_sig, ivar=ivar, bpm=bpm,
-                                           trace_map=self.pca[i].predict(np.arange(self.nspat)),
+                                           trace_map=_pca.predict(np.arange(self.nspat)),
                                            smash_range=smash_range, peak_thresh=peak_thresh,
                                            peak_clip=peak_clip, trace_median_frac=trace_median_frac,
                                            trace_thresh=trace_thresh, fwhm_uniform=fwhm_uniform,
@@ -3488,7 +3466,7 @@ class EdgeTraceSet(DataContainer):
         self.traceid[:nleft] = -1-np.arange(nleft)
         self.traceid[nleft:] = 1+np.arange(ntrace-nleft)
         self.spat_fit = fit
-        self.spat_fit_type = '{0} : order={1}'.format(function, order)
+        self.fittype = '{0} : order={1}'.format(function, order)
         self.spat_cen = cen
         self.spat_err = err
         # The mask is entirely new and shouldn't be merged with the
@@ -3602,8 +3580,8 @@ class EdgeTraceSet(DataContainer):
         # Get the reference row for the placement calculation; allow
         # the use of inserted traces.
         bpm = self.bitmask.flagged(self.spat_msk, flag=self.bitmask.bad_flags)
-        reference_row = trace.most_common_trace_row(bpm) if self.pca is None \
-                            else (self.pca[0].reference_row if self.par['left_right_pca']
+        reference_row = trace.most_common_trace_row(bpm) if self.pcatype is None \
+                            else (self.left_pca.reference_row if self.par['left_right_pca']
                                     else self.pca.reference_row)
 
         # Check that the trace data are sorted at this spectral row
@@ -3822,14 +3800,14 @@ class EdgeTraceSet(DataContainer):
         # If the traces are already synced, check them and log the
         # function as completed
         if self.is_synced:
-            self.check_synced(rebuild_pca=rebuild_pca and self.pca is not None)
+            self.check_synced(rebuild_pca=rebuild_pca and self.pcatype is not None)
             self.log += [inspect.stack()[0][3]]
             return
 
         # Edges are currently not synced, so check the input
         if self.par['sync_predict'] not in ['pca', 'nearest']:
             msgs.error('Unknown trace mode: {0}'.format(self.par['sync_predict']))
-        if self.par['sync_predict'] == 'pca' and self.pca is None:
+        if self.par['sync_predict'] == 'pca' and self.pcatype is None:
             msgs.error('The PCA decomposition does not exist.  Either run self.build_pca or use '
                        'a different trace_mode.')
 
@@ -4185,7 +4163,7 @@ class EdgeTraceSet(DataContainer):
             msgs.error('No traces to refine.')
 
         # The PCA decomposition must have already been determined
-        if self.pca is None:
+        if self.pcatype is None:
             msgs.error('Must first run the PCA analysis for the traces; run build_pca.')
 
         # Get the file to use when parsing the mask design information
@@ -4212,7 +4190,7 @@ class EdgeTraceSet(DataContainer):
         # Match both left and right edges simultaneously
         x_design = np.array([self.spectrograph.slitmask.bottom[:,0],
                              self.spectrograph.slitmask.top[:,0]]).T.ravel()
-        reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
                             else self.pca.reference_row
         x_det = self.spat_fit[reference_row,:]
 
@@ -4396,7 +4374,7 @@ class EdgeTraceSet(DataContainer):
                 self.sync(rebuild_pca=True)
             else:
                 self.check_synced(rebuild_pca=True)
-            reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+            reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
                             else self.pca.reference_row
             # Reset the match after removing/inserting traces
             x_det = self.spat_fit[reference_row,:]
@@ -4435,7 +4413,7 @@ class EdgeTraceSet(DataContainer):
         # Number of slits
         nslits = len(slit_index)
         # Reference row
-        reference_row = self.pca[0].reference_row if self.par['left_right_pca'] \
+        reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
                             else self.pca.reference_row
         # Instantiate as an empty table
         self.design = EdgeTraceSet.empty_design_table(rows=nslits)

@@ -565,6 +565,9 @@ class DataContainer:
     components.
     """
 
+    # TODO: Enable multiple possible types for the datamodel elements?
+    # I.e., allow `otype` to be a tuple of the allowed object types?
+
     # Define the data model
     datamodel = None
     """

@@ -131,7 +131,7 @@ class TracePCA(DataContainer):
                  coo=None):
 
         # Instantiate as an empty DataContainer
-        DataContainer.__init__(self)
+        super(TracePCA, self).__init__()
 
         # Only do the decomposition if the trace coordinates are provided.
         if trace_cen is not None:
