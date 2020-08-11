@@ -620,7 +620,7 @@ class Spectrograph:
 
         # Loop?
         if isinstance(meta_key, list):
-            return [self.get_meta_value(headarr, mdict, required=required)) for mdict in meta_key]
+            return [self.get_meta_value(headarr, mdict, required=required) for mdict in meta_key]
 
         # Are we prepared to provide this meta data?
         if meta_key not in self.meta.keys():
@@ -699,14 +699,9 @@ class Spectrograph:
                                 kerror = True
                     # Bomb out?
                     if kerror:
-<<<<<<< HEAD
                         embed(header=utils.embed_header())
                         msgs.error('Required meta "{0}" did not load!'.format(meta_key)
                                    + 'You may have a corrupt header.')
-=======
-                        embed(header='spectrograph.get_meta_value()')
-                        msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
->>>>>>> ginga_waveimg
                 else:
                     msgs.warn('Required card {0} missing '.format(self.meta[meta_key]['card'])
                               + 'from your header.  Proceeding with risk...')
