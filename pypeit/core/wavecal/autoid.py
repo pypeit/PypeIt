@@ -2229,7 +2229,7 @@ class HolyGrail:
         # First run pattern recognition assuming pixels correlate with wavelength
         dindexp, lindexp, wvcenp, dispsp = generate_patterns(use_tcent, wavedata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
-        # Now run pattern recognition assuming pixels correlate with wavelength
+        # Now run pattern recognition assuming pixels anti-correlate with wavelength
         use_tcent, _ = self.get_use_tcent(-1, tcent_ecent)
         dindexm, lindexm, wvcenm, dispsm = generate_patterns(use_tcent, wavedata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
@@ -2350,7 +2350,7 @@ class HolyGrail:
             nm = histimg.max() - histimg.min()
             ticks = np.arange(this_hist.min(),this_hist.max() + 1,1)
             cbar = fx.colorbar(cimg, ax=ax_image,ticks = ticks,drawedges = True, extend ='both',
-                               spacing = 'proporational',orientation ='horizontal')
+                               spacing = 'proportional',orientation ='horizontal')
             cbar.set_ticklabels(ticks)
             cbar.set_label('# of Occurences')
             ax_image.set_xlabel('Central Wavelength (Angstroms)')
