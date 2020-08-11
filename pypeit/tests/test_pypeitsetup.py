@@ -58,6 +58,9 @@ def test_build_fitstbl():
     tmp = setupc.load_metadata(data_path('fitstbl.fits'))
     assert len(tmp) == 26
 
+    # Cleanup
+    os.remove(data_path('fitstbl.fits'))
+
 
 @dev_suite_required
 def test_image_type():
@@ -132,6 +135,9 @@ def test_run():
     assert isinstance(fitstbl, PypeItMetaData)
     #assert isinstance(setup_dict, dict)
 
+    # Cleanup
+    os.remove(data_path('shane_kast_blue.calib'))
+
 @dev_suite_required
 def test_run_calcheck():
     # Check for files
@@ -143,6 +149,9 @@ def test_run_calcheck():
     # Test
     assert isinstance(par, pypeitpar.PypeItPar)
 
+    # Cleanup
+    os.remove(data_path('shane_kast_blue.calib'))
+
 @dev_suite_required
 def test_run_setup():
     files = get_files()
@@ -153,3 +162,5 @@ def test_run_setup():
     # Test
     assert par is None
 
+    # Cleanup
+    os.remove(data_path('shane_kast_blue.sorted'))

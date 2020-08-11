@@ -4,6 +4,7 @@ Module to run tests on scripts
 import os
 import numpy as np
 import pytest
+import shutil
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
@@ -26,6 +27,9 @@ def test_chk_calibs_not():
 
     assert answers['pass'][0], 'One or more failures!'
 
+    # Cleanup
+    shutil.rmtree(data_path('setup_files'))
+
 @dev_suite_required
 def test_chk_calibs_deimos():
     os.chdir(data_path(''))
@@ -40,4 +44,7 @@ def test_chk_calibs_deimos():
     pargs = chk_calibs.parser([droot, '-s', 'keck_deimos'])
     answers, _ = chk_calibs.main(pargs)
     assert np.all(answers['pass'][:-1]), 'One or more failures!'
+
+    # Cleanup
+    shutil.rmtree(data_path('setup_files'))
 

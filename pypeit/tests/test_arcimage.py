@@ -44,3 +44,5 @@ def test_master_io():
     # Read
     _arcImage = buildimage.ArcImage.from_file(data_path('MasterArc_A_01_22.fits'))
     assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)
+    # Cleanup
+    os.remove(master_filename)

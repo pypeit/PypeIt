@@ -112,6 +112,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
         show:
 
     Returns:
+        outfiles (list): list of files written to
 
     """
     # Build sync_dict
@@ -126,6 +127,7 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
     par['coadd1d']['flux_value'] = False
 
     sensfile = None
+    outfiles = []
     # Loop on entries
     for key in sync_dict:
 
@@ -139,6 +141,9 @@ def coadd1d_filelist(files, outroot, det, debug=False, show=False):
         coAdd1d.run()
         # Save to file
         coAdd1d.save(coaddfile)
+        outfiles.append(coaddfile)
+    
+    return outfiles
 
 
 def parser(options=None):
