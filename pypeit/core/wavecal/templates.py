@@ -879,17 +879,17 @@ if __name__ == '__main__':
     # Keck KCWI
     #flg += 2**29
 
-    # MMT MMIRS
-    #flg += 2**30
-
-    # LBT MODS
-    flg += 2**31
-
     # P200 DBSP r
-    flg += 2**32
+    flg += 2**30
 
     # P200 DBSP b
-    flg += 2**33
+    flg += 2**31
+
+    # MMT MMIRS
+    #flg += 2**31
+
+    # LBT MODS
+    flg += 2**32
 
     main(flg)
 
