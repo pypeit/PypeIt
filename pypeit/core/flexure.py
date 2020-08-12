@@ -322,7 +322,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
 
     # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
-    # for each slit
+    # multiple times
     sky_spectrum = load_sky_spectrum(sky_file)
     sky_lines = arc.detect_lines(sky_spectrum.flux.value)
 
