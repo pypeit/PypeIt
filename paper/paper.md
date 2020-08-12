@@ -60,6 +60,8 @@ developers [@mike; @mase]. The reduction procedure - including a
 complete list of the input parameters and available functionality -
 is provided as online documentation hosted by [Read the
 Docs](https://pypeit.readthedocs.io), which is regularly updated.
+It is a set of commands designed to perform the reduction without
+any additional coding.
 In what follows, we provide a brief description of the algorithms,
 but refer the interested reader to the online documentation for
 the most up-to-date information. 
