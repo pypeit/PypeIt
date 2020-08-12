@@ -200,6 +200,8 @@ Or, alternatively::
     cd PypeIt/pypeit/tests
     python -m pytest . -W ignore
 
+Over 100 tests should pass, nearly 100 will be skipped (unless
+you are a developer) and none should fail.
 
 3. Try running ``PypeIt`` on our extensive development test suite
 -----------------------------------------------------------------
