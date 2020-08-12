@@ -379,11 +379,7 @@ def robust_fit(xarray, yarray, order, x2=None, function='polynomial',
                               maxx=float(maxx) if maxx is not None else maxx,
                               minx2=float(minx2) if minx2 is not None else minx2,
                               maxx2=float(maxx2) if maxx2 is not None else maxx2)
-        if debug:
-            embed(header='382 of fitting')
         pypeitFit.fit()
-        #pypeitFit = func_fit(xarray, yarray, function, order, x2=x2, w=weights, inmask=thismask, guesses=ct,
-        #                     minx=minx, maxx=maxx, minx2=minx2, maxx2=maxx2)
         ymodel = pypeitFit.eval(xarray, x2=x2)
         # TODO Add nrej and nrej_tot as in robust_optimize below?
         this_gpm, qdone = pydl.djs_reject(yarray, ymodel, outmask=this_gpm, inmask=in_gpm, invvar=invvar,
@@ -916,7 +912,7 @@ def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
     elif function == 'legendre' or function == 'chebyshev':
         xv, minx, maxx = scale_minmax(x, minx=minx, maxx=maxx)
         yv, miny, maxy = scale_minmax(y, minx=miny, maxx=maxy)
-        vander = np.polynomial.legendre.legvander2d(xv, yv, deg) if function == 'legendgre' \
+        vander = np.polynomial.legendre.legvander2d(xv, yv, deg) if function == 'legendre' \
             else np.polynomial.chebyshev.chebvander2d(xv, yv, deg)
     else:
         msgs.error("Not ready for this type of {:s}".format(function))

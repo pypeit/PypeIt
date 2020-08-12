@@ -647,8 +647,6 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                   * np.sqrt(np.abs(tilts_mad) ** 2 + adderr ** 2)
 
     tilts_ivar = utils.inverse((tilts_sigma.flatten() / xnspecmin1) ** 2)
-    #fitmask, coeff2 = fitting.robust_fit(tilts_spec.flatten() / xnspecmin1,
-    embed(header='652 of tracewave')
     pypeitFit = fitting.robust_fit(tilts_spec.flatten() / xnspecmin1,
                                                (tilts.flatten() - tilts_spec.flatten()) / xnspecmin1,
                                                fitxy, x2=tilts_dspat.flatten() / xnspatmin1,
@@ -656,15 +654,15 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
                                                function=func2d, maxiter=maxiter, lower=sigrej,
                                                upper=sigrej, maxdev=maxdev_pix / xnspecmin1,
                                                minx=-0.0, maxx=1.0, minx2=-1.0, maxx2=1.0,
-                                               use_mad=False, sticky=False, debug=True)
+                                               use_mad=False, sticky=False)
     fitmask = pypeitFit.bool_gpm.reshape(tilts_dspat.shape)
     # Compute a rejection mask that we will use later. These are
     # locations that were fit but were rejectedK
     rej_mask = tot_mask & np.invert(fitmask)
     # Compute and store the 2d tilts fit
-    delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1, #, func2d,
-                                               x2=tilts_dspat[tilts_mask] / xnspatmin1)#, minx=0.0,
-                                               #maxx=1.0, minx2=-1.0, maxx2=1.0)
+    delta_tilt_1 = xnspecmin1 * pypeitFit.eval(tilts_spec[tilts_mask] / xnspecmin1,
+                                               x2=tilts_dspat[tilts_mask] / xnspatmin1)
+
     delta_tilt = np.zeros_like(tilts_dspat)
     tilts_2dfit = np.zeros_like(tilts_dspat)
     delta_tilt[tilts_mask] = delta_tilt_1
