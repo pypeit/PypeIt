@@ -126,7 +126,7 @@ Users
 If you are mainly here to use PypeIt to reduce
 your observational data then this section is for you.
 
-Ideally, you will need to go no further than the few links
+Ideally, you will need to go not much further than the few links
 in this section take you.
 
 .. toctree::
