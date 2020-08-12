@@ -905,7 +905,7 @@ class DataContainer:
         _ext = np.atleast_1d(ext)
 
         # Construct instantiation dictionary
-        d = dict.fromkeys(cls.datamodel.keys())
+        _d = dict.fromkeys(cls.datamodel.keys())
 
         # NOTE: The extension and keyword comparisons are complicated
         # because the fits standard is to force these all to be
@@ -919,24 +919,23 @@ class DataContainer:
             prefix = '' if cls.hdu_prefix is None else cls.hdu_prefix
 
         # HDUs can have dictionary elements directly.
-        keys = np.array(list(d.keys()))
+        keys = np.array(list(_d.keys()))
         indx = np.isin([prefix+key.upper() for key in keys], _ext)
         if np.any(indx):
             for e in keys[indx]:
                 hduindx = prefix+e.upper()
                 # Check version (and type)?
                 #  Are we a DataContainer?
-                #if inspect.isclass(cls.datamodel[e]['otype']) and DataContainer in cls.datamodel[e]['otype'].__bases__:
                 if obj_is_data_container(cls.datamodel[e]['otype']):
                     # Parse it!
-                    d[e], p1, p2 = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
+                    _d[e], p1, p2 = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
                     dm_version_passed &= p1
                     dm_type_passed &= p2
                 else:
                     dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
                     dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
                     # Grab it
-                    d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
+                    _d[e] = _hdu[hduindx].data if isinstance(hdu[hduindx], fits.ImageHDU) \
                         else Table.read(hdu[hduindx])
 
 
@@ -945,33 +944,36 @@ class DataContainer:
             indx = np.isin([key.upper() for key in keys], list(_hdu[e].header.keys()))
             if np.any(indx):
                 for key in keys[indx]:
-                    if key in d.keys() and d[key] is not None:
+                    if key in _d.keys() and _d[key] is not None:
                         continue
-                    d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
+                    _d[key] = _hdu[e].header[key.upper()] if cls.datamodel[key]['otype'] != tuple \
                                 else eval(_hdu[e].header[key.upper()])
             # Parse BinTableHDUs
             if isinstance(_hdu[e], fits.BinTableHDU):
+                # Datamodel checking
+                #dm_type_passed &= _hdu[0].header['DMODCLS'] == cls.__name__
+                #dm_version_passed &= _hdu[0].header['DMODVER'] == cls.version
                 # If the length of the table is 1, assume the table
                 # data had to be saved as a single row because of shape
                 # differences.
                 single_row = len(_hdu[e].data) == 1
                 for key in _hdu[e].columns.names:
                     if key in cls.datamodel.keys():
-                        d[key] = _hdu[e].data[key][0] if (single_row and _hdu[e].data[key].ndim > 1) else _hdu[e].data[key]
+                        _d[key] = _hdu[e].data[key][0] if (single_row and _hdu[e].data[key].ndim > 1) else _hdu[e].data[key]
                         if transpose_table_arrays:
-                            d[key] = d[key].T
+                            _d[key] = _d[key].T
 
         # Two annoying hacks:
         #   - Hack to expunge charray which are basically deprecated and
         #     cause trouble.
         #   - Hack to force native byte ordering
-        for key in d:
-            if isinstance(d[key], np.chararray):
-                d[key] = np.asarray(d[key])
-            elif isinstance(d[key], np.ndarray) and d[key].dtype.byteorder not in ['=', '|']:
-                d[key] = d[key].astype(d[key].dtype.type)
+        for key in _d:
+            if isinstance(_d[key], np.chararray):
+                _d[key] = np.asarray(_d[key])
+            elif isinstance(_d[key], np.ndarray) and _d[key].dtype.byteorder not in ['=', '|']:
+                _d[key] = _d[key].astype(_d[key].dtype.type)
         # Return
-        return d, dm_version_passed, dm_type_passed
+        return _d, dm_version_passed, dm_type_passed
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -1099,6 +1101,8 @@ class DataContainer:
 
         # Initialize the primary header (only used if add_primary=True)
         _primary_hdr = io.initialize_header() if primary_hdr is None else primary_hdr
+        #_primary_hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
+        #_primary_hdr['DMODVER'] = (self.version, 'Datamodel version')
 
         # Initialize the base header
         _hdr = io.initialize_header() if hdr is None else hdr
@@ -1112,7 +1116,7 @@ class DataContainer:
                 ext = list(d.keys())[0]
                 # Allow for embedded DataContainer's
                 if isinstance(d[ext], DataContainer):
-                    hdu += d[ext].to_hdu()
+                    hdu += d[ext].to_hdu(add_primary=False)
                 else:
                     hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
                                             force_to_bintbl=force_to_bintbl)]
@@ -1159,10 +1163,10 @@ class DataContainer:
         d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if chk_version:
-            if not dm_version_passed:
-                raise IOError("Bad datamodel version in your hdu's")
             if not dm_type_passed:
-                raise IOError("Bad datamodel type in your hdu's")
+                msgs.error("One or more bad datamodel type in your hdu's")
+            if not dm_version_passed:
+                msgs.error("One or more bad datamodel version in your hdu's")
         # Finish
         self = super().__new__(cls)
         DataContainer.__init__(self, d)
