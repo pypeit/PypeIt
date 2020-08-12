@@ -138,7 +138,6 @@ in this section take you.
    codeconduct
    installing
    cookbook
-   spectrographs
    step-by-step
 
 ----
@@ -147,6 +146,7 @@ in this section take you.
    :caption: Running
    :maxdepth: 1
 
+   spectrographs
    setup
    running
    pypeit_par
