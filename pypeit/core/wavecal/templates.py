@@ -768,6 +768,26 @@ def main(flg):
         lcut = [4350.0, 8000.0]
         build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
 
+    # P200 DBSP r
+    if flg & (2 ** 30):
+        # HeNeAr
+        wfile = os.path.join(template_path, 'P200_DBSP', 'R316_7500_D55', 'P200_DBSP_Red.json')
+        outroot = 'p200_dbsp_red_316_7500_d55.fits'
+        binspec = 1
+        slits = [221]
+        lcut = None # only matters if >1 slit
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+
+    # P200 DBSP b
+    if flg & (2 ** 31):
+        # FeAr
+        wfile = os.path.join(template_path, 'P200_DBSP', 'B600_4000_D55', 'P200_DBSP_Blue.json')
+        outroot = 'p200_dbsp_blue_600_4000_d55.fits'
+        binspec = 1
+        slits = [231]
+        lcut = None
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+
     # MMT/MMIRS
     if flg & (2**30):
         reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
@@ -859,11 +879,17 @@ if __name__ == '__main__':
     # Keck KCWI
     #flg += 2**29
 
+    # P200 DBSP r
+    flg += 2**30
+
+    # P200 DBSP b
+    flg += 2**31
+
     # MMT MMIRS
-    #flg += 2**30
+    #flg += 2**31
 
     # LBT MODS
-    flg += 2**31
+    flg += 2**32
 
     main(flg)
 

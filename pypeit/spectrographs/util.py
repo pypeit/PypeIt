@@ -153,5 +153,11 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'not_alfosc':
         return spectrographs.not_alfosc.NOTALFOSCSpectrograph()
 
+    if spectrograph == 'p200_dbsp_red':
+        return spectrographs.p200_dbsp.P200DBSPRedSpectrograph()
+    
+    if spectrograph == 'p200_dbsp_blue':
+        return spectrographs.p200_dbsp.P200DBSPBlueSpectrograph()
+
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 

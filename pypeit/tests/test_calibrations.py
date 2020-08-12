@@ -100,10 +100,16 @@ def test_arc(multi_caliBrate):
     arc = multi_caliBrate.get_arc()
     assert arc.image.shape == (2048,350)
 
+    # Cleanup
+    shutil.rmtree(multi_caliBrate.master_dir)
+
 
 def test_tiltimg(multi_caliBrate):
     tilt = multi_caliBrate.get_tiltimg()
     assert tilt.image.shape == (2048,350)
+
+    # Cleanup
+    shutil.rmtree(multi_caliBrate.master_dir)
 
 def test_bpm(multi_caliBrate):
     # Prep

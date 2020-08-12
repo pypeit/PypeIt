@@ -2236,7 +2236,7 @@ class HolyGrail:
         # First run pattern recognition assuming pixels correlate with wavelength
         dindexp, lindexp, wvcenp, dispsp = generate_patterns(use_tcent, wavedata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
-        # Now run pattern recognition assuming pixels correlate with wavelength
+        # Now run pattern recognition assuming pixels anti-correlate with wavelength
         use_tcent, _ = self.get_use_tcent(-1, tcent_ecent)
         dindexm, lindexm, wvcenm, dispsm = generate_patterns(use_tcent, wavedata, self._npix,
                                                              detsrch, lstsrch, pix_tol)

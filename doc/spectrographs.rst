@@ -40,6 +40,8 @@ vlt_xshooter_uvb        VLT         X-Shooter spectrometer; UVB camera
 vlt_xshooter_vis        VLT         X-Shooter spectrometer; VIS camera
 vlt_xshooter_nir        VLT         X-Shooter spectrometer; NIR camera
 wht_isis_blue           WHT         ISIS spectrometer; blue camera?
+p200_dbsp_blue          P200        DBSP spectrograph; blue camera
+p200_dbsp_red           P200        DBSP spectrograph; red camera
 ======================  =========   =======================================
 
 
