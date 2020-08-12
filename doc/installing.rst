@@ -56,12 +56,13 @@ command like::
 Use *pip install* to install the following within the conda environment, or
 the equivalent for your package manager:
 
-* `linetools <https://github.com/linetools/linetools/>`_ -- version 0.2 or later
+* *linetools* -- version 0.2 or later
 
 
 
 GitHub cloning
-++++++++++++++
+--------------
+
 The only exception (true for ginga?) is that you *must* use ``pip
 install`` to install ``linetools``::
 
@@ -203,7 +204,7 @@ Or, alternatively::
 3. Try running ``PypeIt`` on our extensive development test suite
 -----------------------------------------------------------------
 
-**This should only be done for those wishing to develop the code.**
+**The following should only be done for those wishing to develop the code.**
 Regardless, ask for help if you really want to do this.
 
 We have provided a suite of tests that you can download and run via
