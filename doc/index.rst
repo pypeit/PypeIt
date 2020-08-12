@@ -136,10 +136,16 @@ in this section take you.
    installing
    cookbook
    spectrographs
+   setup
+   running
+   pypeit_par
    calibrations
+   object_finding
    extraction
+   outputs
    fluxing
    coadd1d
+   step-by-step
 
 Contributors
 ============

@@ -128,8 +128,8 @@ with a separate doc for how to view each, what they should
 look like, and how to troubleshoot:
 
   - View the :doc:`master_bias` image (if you produced one)
-  - Check slit edges with the :doc:`master_edges` file
   - View the :doc:`master_arc` image
+  - Check slit edges with the :doc:`master_edges` file
   - View the :doc:`master_tilt` image
   - Check the 1D wavelength solution in the :doc:`master_wvcalib` output
   - Check the 2D wavelength solution in the :doc:`master_tilts` output

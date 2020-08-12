@@ -36,5 +36,4 @@ instrument):
 - :doc:`master_flat`
 - :doc:`master_tilt`
 - :doc:`master_tilts`
-- :doc:`master_wave`
 - :doc:`master_wvcalib`
