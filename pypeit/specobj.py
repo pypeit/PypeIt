@@ -75,7 +75,7 @@ class SpecObj(datamodel.DataContainer):
                                desc='Optimally extracted noise from IVAR (counts)'),
         'OPT_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                  desc='Optimally extracted noise variance, sky+read noise only (counts^2)'),
-        'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_, desc='Mask for optimally extracted flux'),
+        'OPT_MASK': dict(otype=np.ndarray, atype=np.bool_, desc='Good pixel mask for optimally extracted flux.'),
         'OPT_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Optimally extracted sky (counts)'),
         'OPT_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Optimally extracted RN squared (counts)'),
         'OPT_FRAC_USE': dict(otype=np.ndarray, atype=float,
@@ -95,7 +95,7 @@ class SpecObj(datamodel.DataContainer):
                                desc='Boxcar extracted noise from IVAR (counts)'),
         'BOX_COUNTS_NIVAR': dict(otype=np.ndarray, atype=float,
                                  desc='Boxcar extracted noise variance, sky+read noise only (counts^2)'),
-        'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_, desc='Mask for optimally extracted flux'),
+        'BOX_MASK': dict(otype=np.ndarray, atype=np.bool_, desc='Good pixel mask for boxcar extracted flux'),
         'BOX_COUNTS_SKY': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted sky (counts)'),
         'BOX_COUNTS_RN': dict(otype=np.ndarray, atype=float, desc='Boxcar extracted RN squared (counts)'),
         'BOX_FRAC_USE': dict(otype=np.ndarray, atype=float,
@@ -155,7 +155,13 @@ class SpecObj(datamodel.DataContainer):
         self.smash_peakflux = None
         self.smash_nsig = None
         self.maskwidth = None
+
+        # Hand
         self.hand_extract_flag = False
+        self.hand_extract_spec = None
+        self.hand_extract_spat = None
+        self.hand_extract_det = None
+        self.hand_extract_fwhm = None
 
         # Object profile
         self.prof_nsigma = None
@@ -170,8 +176,19 @@ class SpecObj(datamodel.DataContainer):
         self.ech_frac_was_fit = None #
         self.ech_snr = None #
 
-    def _bundle(self, ext=None, transpose_arrays=False):
-        _d = super(SpecObj, self)._bundle(ext=ext, transpose_arrays=transpose_arrays)
+    def _bundle(self, **kwargs):
+        """
+        Over-ride DataContainer._bundle() to deal with DETECTOR
+
+        Args:
+            kwargs:
+                Passed to DataContainer._bundle()
+
+        Returns:
+            list:
+
+        """
+        _d = super(SpecObj, self)._bundle(**kwargs)
         # Move DetectorContainer into its own HDU
         if _d[0]['DETECTOR'] is not None:
             _d.append(dict(detector=_d[0].pop('DETECTOR')))

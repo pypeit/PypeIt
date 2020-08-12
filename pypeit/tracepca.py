@@ -55,18 +55,93 @@ class TracePCA:
             defined by the value of `trace_cen` at the spectral
             position defined by `reference_row`. See the `mean`
             argument of :func:`pypeit.core.pca.pca_decomposition`.
+
+    Attributes:
+        is_empty (:obj:`bool`):
+            Flag that object holds no PCA trace data.
+        reference_row (:obj:`int`):
+            The row (spectral coordinate) that is used to provide the
+            reference column (spatial position) of the trace.
+        ntrace (:obj:`int`):
+            Number of traces.
+        trace_coo (`numpy.ndarray`_)
+            The reference trace coordinates. Shape is :math:`(N_{\rm
+            trace},)`.
+        input_npca (:obj:`int`):
+            The requested number of PCA components, if provided.
+        input_pcav (:obj:`float`):
+            The input percentage of the variance in the data
+            accounted for by the PCA. Set by user; None otherwise.
+        pca_coeffs (`numpy.ndarray`_):
+            The coefficients of each PCA component. Shape is
+            :math:`(N_{\rm trace},N_{\rm pca})`.
+        pca_components (`numpy.ndarray`_):
+            The principle-component vectors. Shape is
+            :math:`(N_{\rm pca},N_{\rm spec})`.
+        pca_mean (`numpy.ndarray`_):
+            Mean of the traces at each spectral location. Shape is
+            :math:`(N_{\rm spec},)`.
+        npca (:obj:`int`):
+            Number of PCA components. When provided by the user, this
+            is the same as :attr:`input_npca`. Otherwise, this is the
+            number PCA components needed to account for the provided
+            percentage of the variance in the decomposition
+            (:attr:`input_pcav`).
+        nspec (:obj:`int`):
+            Number of spectral positions (i.e., the length of each
+            trace).
+        function (:obj:`str`):
+            The function used to fit the PCA coefficients and
+            interpolate coefficients for new trace positions.
+        lower (:obj:`float`):
+            Number of standard deviations used for rejecting data
+            **below** the mean residual when fitting the PCA
+            coefficients.
+        upper (:obj:`float`):
+            Number of standard deviations used for rejecting data
+            **above** the mean residual when fitting the PCA
+            coefficients.
+        maxrej (:obj:`int`):
+            Maximum number of points to reject during PCA-coefficient
+            fit iterations.
+        maxiter (:obj:`int`, optional):
+            Maximum number of rejection iterations allowed during
+            PCA-coefficient fit.
+        pca_bpm (`numpy.ndarray`_):
+            Boolean mask for PCA coefficients rejected during the
+            fit. Shape is :math:`(N_{\rm trace},N_{\rm pca})`.
+        fit_coeff (:obj:`list`):
+            A list of :math:`N_{\rm pca}` `numpy.ndarray`_ objects;
+            each `numpy.ndarray` holds the coefficients of the
+            :attr:`function` fit to the coefficients of each PCA
+            component.
+        minx (:obj:`float`):
+            The minimum coordinate value used to rescale the
+            abscissa during the PCA coefficient fitting.
+        minx (:obj:`float`):
+            The minimum coordinate value used to rescale the
+            abscissa during the PCA coefficient fitting.
+        pypeitFits (:obj:`list`)
+            A `list` of `:class:pypeit.core.fitting.PypeItFit`
+            objects, one per PCA component with the best-fitting
+            function.
     """
+
+    # TODO: if we have self.pypeitFits, do we need fit_coeff, minx, maxx?
+
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
     def __init__(self, trace_cen=None, npca=None, pca_explained_var=99.0, reference_row=None,
                  coo=None):
 
+        # This call essentially instantiates all the attributes (mostly
+        # setting them to None).
+        self._reinit()
+
         # TODO: This is only here to allow for a class method that
         # instantiates the object from a file. Is there a better way to
         # do this?
-        if trace_cen is None:
-            self._reinit()
-        else:
+        if trace_cen is not None:
             self.decompose(trace_cen, npca=npca, pca_explained_var=pca_explained_var,
                            reference_row=reference_row, coo=coo)
 
@@ -130,7 +205,8 @@ class TracePCA:
         """
         Erase and/or define all the attributes of the class.
         """
-        self._is_empty = True
+        # The following are *all* objects assigned to self.
+        self.is_empty = True
         self.reference_row = None
         self.ntrace = None
         self.trace_coo = None
@@ -141,15 +217,16 @@ class TracePCA:
         self.pca_mean = None
         self.npca = None
         self.nspec = None
-        self.pca_bpm = None
         self.function = None
-        self.fit_coeff = None
-        self.minx = None
-        self.maxx = None
         self.lower = None
         self.upper = None
         self.maxrej = None
         self.maxiter = None
+        self.pca_bpm = None
+        self.fit_coeff = None
+        self.minx = None
+        self.maxx = None
+        self.pypeitFits = None  # list of PypeItFit objects
 
     def build_interpolator(self, order, ivar=None, weights=None, function='polynomial', lower=3.0,
                            upper=3.0, maxrej=1, maxiter=25, minx=None, maxx=None, debug=False):
@@ -166,7 +243,7 @@ class TracePCA:
         self.upper = upper
         self.maxrej = maxrej
         self.maxiter = maxiter
-        self.pca_bpm, self.fit_coeff, self.minx, self.maxx \
+        self.pca_bpm, self.fit_coeff, self.minx, self.maxx, self.pypeitFits \
                 = pca.fit_pca_coefficients(self.pca_coeffs, order, ivar=ivar, weights=weights,
                                            function=self.function, lower=lower, upper=upper,
                                            minx=minx, maxx=maxx, maxrej=maxrej, maxiter=maxiter,
@@ -200,8 +277,9 @@ class TracePCA:
             raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
         if self.fit_coeff is None:
             msgs.error('PCA coefficients have not been modeled; run model_coeffs first.')
-        return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
-                               function=self.function, minx=self.minx, maxx=self.maxx).T
+        return pca.pca_predict(x, self.pypeitFits, self.pca_components, self.pca_mean, x).T
+        #return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
+        #                       function=self.function, minx=self.minx, maxx=self.maxx).T
 
     def _output_dtype(self):
         """

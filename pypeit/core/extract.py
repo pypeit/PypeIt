@@ -1,16 +1,12 @@
 """ Module for PypeIt extraction code
 """
-import time
 import copy
-import inspect
 
 import numpy as np
 import scipy
 from matplotlib import pyplot as plt
 
 from IPython import embed
-
-from sklearn.decomposition import PCA
 
 from astropy import stats
 
@@ -24,8 +20,10 @@ from pypeit.display import display
 from pypeit.core import pydl
 from pypeit.core import pixels
 from pypeit.core import arc
+from pypeit.core import fitting
 from pypeit.core.trace import fit_trace
 from pypeit.core.moment import moment1d
+
 from IPython import embed
 
 def extract_optimal(sciimg,ivar, mask, waveimg, skyimg, rn2_img, thismask, oprof, box_radius, spec,
@@ -540,11 +538,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     indsp = (wave >= wave_min) & (wave <= wave_max) & \
              np.isfinite(flux_sm) & \
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
-    b_answer, bmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
+    b_answer, bmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    b_answer, bmask2  = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
+    b_answer, bmask2  = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    c_answer, cmask   = pydl.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
+    c_answer, cmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
                                      kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
     try:
@@ -556,7 +554,10 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     ind_nonzero = (sn2 > 0)
     nonzero = np.sum(ind_nonzero)
     if(nonzero >0):
-        (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2,sigma_lower=3.0,sigma_upper=5.0)
+        ## Select the top 30% data for estimating the med_sn2. This ensures the code still fit line only object and/or
+        ## high redshift quasars which might only have signal in part of the spectrum.
+        sn2_percentile = np.percentile(sn2,70)
+        (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
     else:
         med_sn2 = 0.0
 
@@ -690,7 +691,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     si = inside[np.argsort(sigma_x.flat[inside])]
     sr = si[::-1]
 
-    bset, bmask = pydl.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
+    bset, bmask = fitting.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
                                    nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
@@ -765,7 +766,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+        mode_shift_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
                                                norm_ivar.flat[inside], profile_basis,
                                                maxiter=1, kwargs_bspline={'nbkpts':nbkpts})
         # Check to see if the mode fit failed, if so punt and return a Gaussian
@@ -789,7 +790,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = utils.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+        mode_stretch_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
                                                  norm_ivar.flat[inside], profile_basis, maxiter=1,
                                                  fullbkpt=mode_shift_set.breakpoints)
         if not np.any(mode_stretch_out[1]):
@@ -826,7 +827,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, dtype=bool)
-            bset_out = utils.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
+            bset_out = fitting.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
                                              norm_ivar.flat[inside[ss]],pb[ss], nord=4,
                                              bkpt=bkpt[keep], maxiter=2)
             if not np.any(bset_out[1]):
@@ -852,7 +853,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = utils.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
+    bset_out = fitting.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
                                      norm_ivar.flat[ss[inside]], pb.flat[ss[inside]], nord=4,
                                      bkpt=bkpt, upper=10, lower=10)
     bset = bset_out[0]
@@ -971,8 +972,38 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     return (profile_model, xnew, fwhmfit, med_sn2)
 
 
+def parse_manual(manual_par):
+    """
+    Parse the rather klunky ManualExtractionPar parameters into more useful items
+
+    Args:
+        manual_par (:class:`pypeit.par.pypeitpar.ManualExtractionPar`):
+            Manual extract parameter object
+
+    Returns:
+        tuple: spats, specs, det, fwhm
+
+    """
+    if isinstance(manual_par['det'], list):
+        spat_spec = manual_par['spat_spec'].split(',')
+        det = [int(obj) for obj in manual_par['det'].split(',')]
+        fwhm = [float(obj) for obj in manual_par['fwhm'].split(',')]
+    else:
+        spat_spec = [manual_par['spat_spec']]
+        det = [manual_par['det']]
+        fwhm = [manual_par['fwhm']]
+    # Deal with spat_spec
+    spats, specs = [], []
+    for ispat_spec in spat_spec:
+        ps = ispat_spec.split(':')
+        spats.append(float(ps[0]))
+        specs.append(float(ps[1]))
+    # Return
+    return spats, specs, det, fwhm
+
+
 def parse_hand_dict(hand_extract_dict):
-    """ Utility routine for objfind to parase the hand_extract_dict dictionary for hand selected apertures
+    """ Utility routine for objfind to parse the hand_extract_dict dictionary for hand selected apertures
 
     Parameters
     ----------
@@ -999,13 +1030,13 @@ def parse_hand_dict(hand_extract_dict):
 
 
     if ('hand_extract_spec' not in hand_extract_dict.keys() | 'hand_extract_spat' not in hand_extract_dict.keys()):
-        raise ValueError('hand_extract_spec and hand_extract_spat must be set in the hand_extract_dict')
+        msgs.error('hand_extract_spec and hand_extract_spat must be set in the hand_extract_dict')
 
     hand_extract_spec=np.asarray(hand_extract_dict['hand_extract_spec'])
     hand_extract_spat=np.asarray(hand_extract_dict['hand_extract_spat'])
     hand_extract_det = np.asarray(hand_extract_dict['hand_extract_det'])
     if(hand_extract_spec.size == hand_extract_spat.size == hand_extract_det.size) == False:
-        raise ValueError('hand_extract_spec, hand_extract_spat, and hand_extract_det must have the same size in the hand_extract_dict')
+        msgs.error('hand_extract_spec, hand_extract_spat, and hand_extract_det must have the same size in the hand_extract_dict')
     nhand = hand_extract_spec.size
 
     hand_extract_fwhm = np.asarray(hand_extract_dict['hand_extract_fwhm'])
@@ -1067,7 +1098,7 @@ def create_skymask_fwhm(sobjs, thismask):
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
-            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1,
+            skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
             show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False, qa_title='objfind'):
 
     """
@@ -1099,9 +1130,13 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             Input mask image.
         spec_min_max: tuple of float or int, (2), default=None.
             This is tuple of two elements which defines the minimum and
-            maximum of the slit in the spectral direction on the
+            maximum of the SLIT in the spectral direction on the
             detector. If not passed in it will be determined
             automatically from the thismask
+        find_min_max: tuple of int, (2), default=None. It defines the minimum and maximum of your OBJECT
+                      in the spectral direction on the detector. It is only used for object finding.
+                      This parameter is helpful if your object only has emission lines or at high redshift
+                      and the trace only shows in part of the detector.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
         maxdev (float): default=2.0
@@ -1249,6 +1284,11 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                          fwgt=totmask.astype(float))[0]
     mask_spec = moment1d(totmask, (left_asym+righ_asym)/2, (righ_asym-left_asym),
                          fwgt=totmask.astype(float))[0] < 0.3
+    if find_min_max is not None:
+        find_spec_min,find_spec_max = int(find_min_max[0]), int(find_min_max[1])
+        flux_spec = flux_spec[find_spec_min:find_spec_max,:]
+        mask_spec = mask_spec[find_spec_min:find_spec_max,:]
+
     flux_mean, flux_median, flux_sig \
             = stats.sigma_clipped_stats(flux_spec, mask=mask_spec, axis=0, sigma=3.0,
                                         cenfunc='median', stdfunc=utils.nan_mad_std)
@@ -1520,12 +1560,14 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         # First Parse the hand_dict
         hand_extract_spec, hand_extract_spat, hand_extract_det, hand_extract_fwhm = parse_hand_dict(hand_extract_dict)
         # Determine if these hand apertures land on the slit in question
-        hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int), np.rint(hand_extract_spat).astype(int)]))[0]
+        hand_on_slit = np.where(np.array(thismask[np.rint(hand_extract_spec).astype(int),
+                                                  np.rint(hand_extract_spat).astype(int)]))[0]
         hand_extract_spec = hand_extract_spec[hand_on_slit]
         hand_extract_spat = hand_extract_spat[hand_on_slit]
         hand_extract_det  = hand_extract_det[hand_on_slit]
         hand_extract_fwhm = hand_extract_fwhm[hand_on_slit]
         nobj_hand = len(hand_extract_spec)
+        msgs.info("Implementing hand apertures for {} sources on the slit".format(nobj_hand))
 
         # Decide how to assign a trace to the hand objects
         if nobj_reg > 0:  # Use brightest object on slit?
@@ -1536,17 +1578,24 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         elif std_trace is not None:   # If no objects found, use the standard?
             trace_model = std_trace
         else:  # If no objects or standard use the slit boundary
+            msgs.warn("No source to use as a trace.  Using the slit boundary")
             trace_model = slit_left
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            thisobj = specobj.SpecObj('UNKNOWN', specobj_dict['det'], specobj_dict=specobj_dict)
+            # Hack me
+            tmp_dict = copy.deepcopy(specobj_dict)
+            for key in ['DET', 'PYPELINE']:
+                tmp_dict.pop(key)
+            # Proceed
+            thisobj = specobj.SpecObj(specobj_dict['PYPELINE'], specobj_dict['DET'], **tmp_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]
             thisobj.hand_extract_fwhm = hand_extract_fwhm[iobj]
             thisobj.hand_extract_flag = True
+            # SPAT_FRACPOS
             f_ximg = scipy.interpolate.RectBivariateSpline(spec_vec, spat_vec, ximg)
-            thisobj.SPAT_FRACPOS = f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False) # interpolate from ximg
+            thisobj.SPAT_FRACPOS = float(f_ximg(thisobj.hand_extract_spec, thisobj.hand_extract_spat, grid=False)) # interpolate from ximg
             thisobj.smash_peakflux = np.interp(thisobj.SPAT_FRACPOS*nsamp,np.arange(nsamp),fluxconv_cont) # interpolate from fluxconv
             # assign the trace
             spat_0 = np.interp(thisobj.hand_extract_spec, spec_vec, trace_model)
@@ -1555,6 +1604,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             thisobj.trace_spec = spec_vec
             thisobj.SPAT_PIXPOS = thisobj.TRACE_SPAT[specmid]
             thisobj.set_name()
+            # TODO -- I think FWHM *has* to be input
             if hand_extract_fwhm[iobj] is not None: # If a hand_extract_fwhm was input use that for the fwhm
                 thisobj.FWHM = hand_extract_fwhm[iobj]
             elif nobj_reg > 0: # Otherwise is None was input, then use the median of objects on this slit if they are present
@@ -1596,6 +1646,12 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
                 keep[reg_ind[close]] = False
 
         sobjs = sobjs[keep]
+
+    #
+    if len(sobjs) == 0:
+        msgs.info('No hand or normal objects found on this slit. Returning')
+        skymask = create_skymask_fwhm(sobjs,thismask)
+        return specobjs.SpecObjs(), skymask[thismask]
 
     # Sort objects according to their spatial location
     nobj = len(sobjs)
@@ -1677,7 +1733,7 @@ def remap_orders(xinit, spec_min_max, inverse=False):
     return xinit_remap
 
 
-def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits,
+def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslits, det=1,
                 inmask=None, spec_min_max=None,
                 fof_link=1.5, plate_scale=0.2, ir_redux=False,
                 std_trace=None, extrap_npoly=3, ncoeff=5, npca=None, coeff_npoly=None, max_snr=2.0, min_snr=1.0, nabove_min_snr=2,
@@ -1717,13 +1773,17 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         slit_righ:  float ndarray
             Left boundary of orders to be extracted (given as floating
             pt pixels). This a 2-d array with shape (nspec, norders)
-        order_vec (np.ndarray):
+        order_vec (`numpy.ndarray`_):
             Echelle orders.  This is written to the SpecObj objects.
             It is ok, but not recommended to provide np.arange(norders)
-        inmask: ndarray, bool, shape (nspec, nspat), default = None
+        maskslits (`numpy.ndarray`_):
+        det (:obj:`int`, optional):
+            Need for hand object
+        inmask (`numpy.ndarray`_): bool, shape (nspec, nspat), default = None
             Input mask for the input image.
         fwhm: float, default = 3.0
             Estimated fwhm of the objects in pixels
+        hand_extract_dict (dict, optional):
         maxdev (float): default=2.0
             Maximum deviation of pixels from polynomial fit to trace
             used to reject bad pixels in trace fitting.
@@ -1797,7 +1857,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
 
     if specobj_dict is None:
         specobj_dict = {'SLITID': 999, 'ECH_ORDERINDX': 999,
-                        'DET': 1, 'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
+                        'DET': det, 'OBJTYPE': 'unknown', 'PYPELINE': 'Echelle'}
 
 
     # TODO Update FOF algorithm here with the one from scikit-learn.
@@ -1844,6 +1904,24 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     for iord in range(norders):
         slit_spat_pos[iord, :] = (np.interp(slit_spec_pos, spec_vec, slit_left[:,iord]), np.interp(slit_spec_pos, spec_vec, slit_righ[:,iord]))
 
+
+    # Hand prep
+    #   Determine the location of the source on *all* of the orders
+    if hand_extract_dict is not None:
+        f_spats = []
+        for ss, spat, spec in zip(range(len(hand_extract_dict['hand_extract_spec'])),
+                              hand_extract_dict['hand_extract_spat'],
+                              hand_extract_dict['hand_extract_spec']):
+            # Find the input slit
+            ispec = int(np.clip(np.round(spec),0,nspec-1))
+            ispat = int(np.clip(np.round(spat),0,nspec-1))
+            slit = slitmask[ispec, ispat]
+            # Fractions
+            iord_hand = gdslit_spat.tolist().index(slit)
+            f_spat = (spat - slit_left[ispec, iord_hand]) / (
+                slit_righ[ispec, iord_hand] - slit_left[ispec, iord_hand])
+            f_spats.append(f_spat)
+
     # create the ouptut images skymask and objmask
     skymask_objfind = np.copy(allmask)
     # Loop over orders and find objects
@@ -1852,8 +1930,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     gdorders = np.arange(norders)[np.invert(maskslits)]
     for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
-        thismask = slitmask == gdslit_spat[iord]
-        inmask_iord = inmask & thismask
+        thisslit_gpm = slitmask == gdslit_spat[iord]
+        inmask_iord = inmask & thisslit_gpm
         specobj_dict['SLITID'] = iord
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = order_vec[iord]
@@ -1861,10 +1939,26 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             std_in = std_trace[:,iord]
         except TypeError:
             std_in = None
-        sobjs_slit, skymask_objfind[thismask] = \
-            objfind(image, thismask, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
+
+        # TODO JFH: Fix this. The way this code works, you should only need to create a single hand object,
+        # not one at every location on the order
+        if hand_extract_dict is not None:
+            new_hand_extract_dict = copy.deepcopy(hand_extract_dict)
+            for ss, spat, spec, f_spat in zip(range(len(hand_extract_dict['hand_extract_spec'])),
+                                      hand_extract_dict['hand_extract_spat'],
+                                      hand_extract_dict['hand_extract_spec'], f_spats):
+                ispec = int(spec)
+                new_hand_extract_dict['hand_extract_spec'][ss] = ispec
+                new_hand_extract_dict['hand_extract_spat'][ss] = slit_left[ispec,iord] + f_spat*(
+                    slit_righ[ispec,iord]-slit_left[ispec,iord])
+        else:
+            new_hand_extract_dict = None
+
+        # Run
+        sobjs_slit, skymask_objfind[thisslit_gpm] = \
+            objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
                     inmask=inmask_iord,std_trace=std_in, extrap_npoly=extrap_npoly, ncoeff=ncoeff, fwhm=fwhm, maxdev=maxdev,
-                    hand_extract_dict=hand_extract_dict, ir_redux=ir_redux,
+                    hand_extract_dict=new_hand_extract_dict, ir_redux=ir_redux,
                     nperslit=nperslit, bg_smth=bg_smth, extract_maskwidth=extract_maskwidth, sig_thresh=sig_thresh,
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
@@ -1966,19 +2060,19 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             frac_mean_good = np.mean(slit_frac_good, 0)
             # Perform a  linear fit to fractional slit position
             #TODO Do this as a S/N weighted fit similar to what is now in the pca_trace algorithm?
-            msk_frac, poly_coeff_frac = utils.robust_polyfit_djs(order_vec[goodorder], frac_mean_good, 1,
-                                                                 function='polynomial', maxiter=20, lower=2, upper=2,
-                                                                 use_mad= True, sticky=False,
-                                                                 minx = order_vec.min(), maxx=order_vec.max())
+            #msk_frac, poly_coeff_frac = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
+            pypeitFit = fitting.robust_fit(order_vec[goodorder], frac_mean_good, 1,
+                                           function='polynomial', maxiter=20, lower=2, upper=2,
+                                           use_mad= True, sticky=False,
+                                           minx = order_vec.min(), maxx=order_vec.max())
             frac_mean_new = np.zeros(norders)
-            frac_mean_new[badorder] = utils.func_val(poly_coeff_frac, order_vec[badorder], 'polynomial',
-                                                     minx = order_vec.min(),maxx=order_vec.max())
+            frac_mean_new[badorder] = pypeitFit.eval(order_vec[badorder])#, minx = order_vec.min(),maxx=order_vec.max())
             frac_mean_new[goodorder] = frac_mean_good
             # TODO This QA needs some work
             if show_pca:
-                frac_mean_fit = utils.func_val(poly_coeff_frac, order_vec, 'polynomial')
-                plt.plot(order_vec[goodorder][msk_frac], frac_mean_new[goodorder][msk_frac], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
-                plt.plot(order_vec[goodorder][np.invert(msk_frac)], frac_mean_new[goodorder][np.invert(msk_frac)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
+                frac_mean_fit = pypeitFit.eval(order_vec)
+                plt.plot(order_vec[goodorder][pypeitFit.bool_gpm], frac_mean_new[goodorder][pypeitFit.bool_gpm], 'ko', mfc='k', markersize=8.0, label='Good Orders Kept')
+                plt.plot(order_vec[goodorder][np.invert(pypeitFit.bool_gpm)], frac_mean_new[goodorder][np.invert(pypeitFit.bool_gpm)], 'ro', mfc='k', markersize=8.0, label='Good Orders Rejected')
                 plt.plot(order_vec[badorder], frac_mean_new[badorder], 'ko', mfc='None', markersize=8.0, label='Predicted Bad Orders')
                 plt.plot(order_vec,frac_mean_new,'+',color='cyan',markersize=12.0,label='Final Order Fraction')
                 plt.plot(order_vec, frac_mean_fit, 'r-', label='Fractional Order Position Fit')
@@ -2033,6 +2127,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     ivar_box = np.zeros((nspec, norders, nobj))
     mask_box = np.zeros((nspec, norders, nobj))
     SNR_arr = np.zeros((norders, nobj))
+    slitfracpos_arr = np.zeros((norders, nobj))
     for iobj in range(nobj):
         for iord in range(norders):
             iorder_vec = order_vec[iord]
@@ -2044,6 +2139,7 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             # TODO make the snippet below its own function quick_extraction()
             box_rad_pix = box_radius/plate_scale_ord[iord]
 
+            # TODO -- We probably shouldn't be operating on a SpecObjs but instead a SpecObj
             flux_tmp  = moment1d(image*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
                                  row=sobjs_align[indx][0].trace_spec)[0]
             var_tmp  = moment1d(varimg*inmask_iord, sobjs_align[indx][0].TRACE_SPAT, 2*box_rad_pix,
@@ -2062,6 +2158,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
             # ToDO assign this to sobjs_align for use in the extraction
             SNR_arr[iord,iobj] = med_sn
             sobjs_align[indx][0].ech_snr = med_sn
+            # For hand extractions
+            slitfracpos_arr[iord,iobj] = sobjs_align[indx][0].SPAT_FRACPOS
 
     # Purge objects with low SNR that don't show up in enough orders, sort the list of objects with respect to obj_id
     # and orderindx
@@ -2069,8 +2167,11 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     sobjs_trim = specobjs.SpecObjs()
     # objids are 1 based so that we can easily asign the negative to negative objects
     iobj_keep = 1
+    # TODO JFH: Fix this ugly and dangerous hack that was added to accomodate hand apertures
+    hand_frac = [-1000] if hand_extract_dict is None else [int(np.round(ispat*1000)) for ispat in f_spats]
     for iobj in range(nobj):
-        if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr):
+        if (SNR_arr[:,iobj].max() > max_snr) or (np.sum(SNR_arr[:,iobj] > min_snr) >= nabove_min_snr) \
+                or (int(np.round(slitfracpos_arr[0, iobj]*1000)) in hand_frac):
             keep_obj[iobj] = True
             ikeep = sobjs_align.ECH_OBJID == uni_obj_id[iobj]
             sobjs_keep = sobjs_align[ikeep].copy()

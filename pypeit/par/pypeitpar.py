@@ -833,7 +833,7 @@ class Coadd1DPar(ParSet):
                  sn_smooth_npix=None, wave_method=None, samp_fact=None, ref_percentile=None, maxiter_scale=None,
                  sigrej_scale=None, scale_method=None, sn_min_medscale=None, sn_min_polyscale=None, maxiter_reject=None,
                  lower=None, upper=None, maxrej=None, sn_clip=None, nbest=None, sensfuncfile=None, coaddfile=None,
-                 mag_type=None, filter=None, filter_mag=None, filter_mask=None):
+                 mag_type=None, filter=None, filter_mag=None, filter_mask=None, extrap_sens=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -859,6 +859,11 @@ class Coadd1DPar(ParSet):
         descr['flux_value'] = 'If True (default), the code will coadd the fluxed spectra (i.e. the FLAM) in the ' \
                               'spec1d files. If False, it will coadd the counts.'
 
+        # Fluxed?
+        defaults['extrap_sens'] = False
+        dtypes['extrap_sens'] = bool
+        descr['extrap_sens'] = 'If True (default), the code will barf in Echelle mode if one tries to use ' \
+                               'sensfunc beyond its allowed space.'
 
         # Mask edge pixels?
         defaults['nmaskedge'] = 2
@@ -1001,7 +1006,7 @@ class Coadd1DPar(ParSet):
                    'samp_fact', 'ref_percentile', 'maxiter_scale', 'sigrej_scale', 'scale_method',
                    'sn_min_medscale', 'sn_min_polyscale', 'maxiter_reject', 'lower', 'upper',
                    'maxrej', 'sn_clip', 'nbest', 'sensfuncfile', 'coaddfile',
-                   'filter', 'mag_type', 'filter_mag', 'filter_mask']
+                   'filter', 'mag_type', 'filter_mag', 'filter_mask', 'extrap_sens']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -1033,7 +1038,7 @@ class Coadd2DPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, offsets=None, weights=None):
+    def __init__(self, offsets=None, weights=None, use_slits4wvgrid=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1049,8 +1054,14 @@ class Coadd2DPar(ParSet):
         # Offsets
         defaults['offsets'] = None
         dtypes['offsets'] = list
-        descr['offsets'] = 'User-input list of offsets for the images being combined.'
+        descr['offsets'] = 'User-input list of offsets for the images being combined (spat pixels).'
 
+        # Offsets
+        defaults['use_slits4wvgrid'] = False
+        dtypes['use_slits4wvgrid'] = bool
+        descr['use_slits4wvgrid'] = 'If True, use the slits to set the trace down the center'
+
+        # TODO -- Provide all the weights options here
         # Weights
         defaults['weights'] = 'auto'
         dtypes['weights'] = [str, list]
@@ -1067,7 +1078,7 @@ class Coadd2DPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['offsets', 'weights']
+        parkeys = ['offsets', 'weights', 'use_slits4wvgrid']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -1242,7 +1253,8 @@ class SensFuncPar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None, IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
+    def __init__(self, extrap_blu=None, extrap_red=None, samp_fact=None, multi_spec_det=None, algorithm=None, UVIS=None,
+                 IR=None, polyorder=None, star_type=None, star_mag=None, star_ra=None,
                  star_dec=None, mask_abs_lines=None):
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1366,8 +1378,8 @@ class SensfuncUVISPar(ParSet):
     see :ref:`pypeitpar`.
     """
     def __init__(self, balm_mask_wid=None, std_file=None, std_obj_id=None, sensfunc=None, extinct_correct=None,
-                 telluric_correct=None, telluric=None,
-                 polycorrect=None, nresln=None, resolution=None, trans_thresh=None):
+                 telluric_correct=None, telluric=None, polycorrect=None,
+                 polyfunc=None, nresln=None, resolution=None, trans_thresh=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1419,6 +1431,10 @@ class SensfuncUVISPar(ParSet):
         dtypes['polycorrect'] = bool
         descr['polycorrect'] = 'Whether you want to correct the sensfunc with polynomial in the telluric and recombination line regions'
 
+        defaults['polyfunc'] = False
+        dtypes['polyfunc'] = bool
+        descr['polyfunc'] = 'Whether you want to use the polynomial fit as your final SENSFUNC'
+
 
         defaults['nresln'] = 20
         dtypes['nresln'] = [int, float]
@@ -1447,7 +1463,7 @@ class SensfuncUVISPar(ParSet):
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
         parkeys = ['balm_mask_wid',  'sensfunc', 'extinct_correct', 'telluric_correct', 'std_file',
-                   'std_obj_id', 'telluric', 'polycorrect', 'nresln', 'resolution', 'trans_thresh']
+                   'std_obj_id', 'telluric', 'polyfunc','polycorrect', 'nresln', 'resolution', 'trans_thresh']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -1675,7 +1691,7 @@ class TellFitPar(ParSet):
 
         defaults['tell_grid'] = None
         dtypes['tell_grid'] = str
-        descr['tell_grid'] = 'pca pickle file. needed when you use qso_telluric'
+        descr['tell_grid'] = 'telluric grid file. needed when you use qso_telluric'
 
         defaults['only_orders'] = None
         dtypes['only_orders'] = int
@@ -1810,8 +1826,6 @@ class TellFitPar(ParSet):
 
 class ManualExtractionPar(ParSet):
     """
-    DEPRECATED!!
-
     A parameter set holding the arguments for how to perform the
     manual extraction of a spectrum.
 
@@ -1834,7 +1848,7 @@ class ManualExtractionPar(ParSet):
 
 
     """
-    def __init__(self, frame=None, spec=None, spat = None, det = None, fwhm = None):
+    def __init__(self, spat_spec=None, det=None, fwhm=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1848,19 +1862,14 @@ class ManualExtractionPar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        dtypes['frame'] = str
-        descr['frame'] = 'The name of the fits file for a manual extraction'
-
-        dtypes['spec'] = [list, float, int]
-        descr['spec'] = 'List of spectral positions to hand extract '
-
-        dtypes['spat'] = [list, float, int]
-        descr['spat'] = 'List of spatial positions to hand extract '
+        dtypes['spat_spec'] = [list, str]
+        descr['spat_spec'] = 'List of spatial:spectral positions to hand extract, e.g. "1243.3:1200," or "1243.3:1200,1345:1200'
 
         dtypes['det'] = [list, int]
-        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with spec and spat lists, or a single integer which will be used for all members of that list.  Negative values indicated negative images.'
-        dtypes['fwhm'] = [list, int,float]
-        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec and spat lists, or a single number which will be used for all members of that list'
+        descr['det'] = 'List of detectors for hand extraction. This must be a list aligned with the spec_spat list.  Negative values indicate negative images.'
+
+        dtypes['fwhm'] = [list, float]
+        descr['fwhm'] = 'List of FWHM for hand extraction. This must be a list aligned with spec_spat'
 
         # Instantiate the parameter set
         super(ManualExtractionPar, self).__init__(list(pars.keys()),
@@ -1872,7 +1881,7 @@ class ManualExtractionPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = [ 'frame', 'spec','spat','det','fwhm']
+        parkeys = ['spat_spec','det','fwhm']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -1885,7 +1894,13 @@ class ManualExtractionPar(ParSet):
         return cls(**kwargs)
 
     def validate(self):
-        pass
+        if self.data['spat_spec'] is not None:
+            p1 = self.data['spat_spec']
+            p2 = self.data['det']
+            p3 = self.data['fwhm']
+            if isinstance(p1, list):
+                assert len(p1) == len(p2), 'Wrong length for det'
+                assert len(p1) == len(p3), 'Wrong length for fwhm'
 
 
 class ReduxPar(ParSet):
@@ -2398,7 +2413,7 @@ class EdgeTracePar(ParSet):
                                        'measurements of the detector data (as opposed to what ' \
                                        'should be included in any modeling approach; see '\
                                        'fit_min_spec_length).'
-        
+
         defaults['max_shift_abs'] = 0.5
         dtypes['max_shift_abs'] = [int, float]
         descr['max_shift_abs'] = 'Maximum spatial shift in pixels between an input edge ' \
@@ -3084,7 +3099,7 @@ class FindObjPar(ParSet):
     def __init__(self, trace_npoly=None, sig_thresh=None, find_trim_edge=None, find_cont_fit=None,
                  find_npoly_cont=None, find_maxdev=None, find_extrap_npoly=None, maxnumber=None,
                  find_fwhm=None, ech_find_max_snr=None, ech_find_min_snr=None,
-                 ech_find_nabove_min_snr=None, skip_second_find=None):
+                 ech_find_nabove_min_snr=None, skip_second_find=None, find_min_max=None):
         # Grab the parameter names and values from the function
         # arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -3157,6 +3172,12 @@ class FindObjPar(ParSet):
         dtypes['skip_second_find'] = bool
         descr['skip_second_find'] = 'Only perform one round of object finding (mainly for quick_look)'
 
+        defaults['find_min_max'] = None
+        dtypes['find_min_max'] = list
+        descr['find_min_max'] = 'It defines the minimum and maximum of your object in the spectral direction on the'\
+                                'detector. It only used for object finding. This parameter is helpful if your object only'\
+                                'has emission lines or at high redshift and the trace only shows in part of the detector.'
+
         # Instantiate the parameter set
         super(FindObjPar, self).__init__(list(pars.keys()),
                                         values=list(pars.values()),
@@ -3175,7 +3196,7 @@ class FindObjPar(ParSet):
                    'find_cont_fit', 'find_npoly_cont',
                    'find_extrap_npoly', 'maxnumber',
                    'find_maxdev', 'find_fwhm', 'ech_find_max_snr',
-                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find']
+                   'ech_find_min_snr', 'ech_find_nabove_min_snr', 'skip_second_find', 'find_min_max']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
@@ -3300,13 +3321,6 @@ class ExtractionPar(ParSet):
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         pars = OrderedDict([(k, values[k]) for k in args[1:]])  # "1:" to skip 'self'
 
-        # Check the manual input
-        if manual is not None:
-            if not isinstance(manual, (ParSet, dict, list)):
-                raise TypeError('Manual extraction input must be a ParSet, dictionary, or list.')
-            _manual = [manual] if isinstance(manual, (ParSet, dict)) else manual
-            pars['manual'] = _manual
-
         # Initialize the other used specifications for this parameter
         # set
         defaults = OrderedDict.fromkeys(pars.keys())
@@ -3348,8 +3362,10 @@ class ExtractionPar(ParSet):
                              'Turning this off may help with bright emission lines.'
 
 
-        dtypes['manual'] = list
-        descr['manual'] = 'List of manual extraction parameter sets'
+        defaults['manual'] = ManualExtractionPar()
+        dtypes['manual'] = [ ParSet, dict ]
+        descr['manual'] = 'Parameters for manual extraction'
+
 
         # Instantiate the parameter set
         super(ExtractionPar, self).__init__(list(pars.keys()),
@@ -3375,7 +3391,11 @@ class ExtractionPar(ParSet):
         kwargs = {}
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
-        kwargs['manual'] = util.get_parset_list(cfg, 'manual', ManualExtractionPar)
+
+        # Keywords that are ParSets
+        pk = 'manual'
+        kwargs[pk] = ManualExtractionPar.from_dict(cfg[pk]) if pk in k else None
+
         return cls(**kwargs)
 
     def validate(self):

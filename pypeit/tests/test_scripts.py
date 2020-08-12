@@ -131,10 +131,13 @@ def test_chk_edges():
     chk_edges.main(pargs)
 
 
+@cooked_required
 def test_view_fits():
     """ Only test the list option
     """
-    spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
 
 

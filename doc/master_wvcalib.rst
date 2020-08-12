@@ -45,5 +45,6 @@ Internally, the image is held in
 which is a :class:`pypeit.datamodel.DataContainer`.
 The datamodel written to disk is:
 
-TO APPEAR HERE
+.. include:: include/datamodel_wavecalib.rst
+
 

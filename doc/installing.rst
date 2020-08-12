@@ -34,7 +34,7 @@ package and version requirements for pypeit are:
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
-* `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
+* `extension-helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
 * `ginga <https://pypi.org/project/ginga/>`_ -- version 3.0 or later
 * `packaging <https://pypi.org/project/packaging/>`_ -- version 19.0 or later
 * `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later (see also below)

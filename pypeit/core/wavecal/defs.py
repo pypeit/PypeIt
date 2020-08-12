@@ -1,6 +1,6 @@
 """ Module for arcline definitions
 """
-from astropy.table import Table
+from pypeit.bitmask import BitMask
 
 # TODO: This doesn't belong here.
 def instruments():
@@ -29,12 +29,47 @@ def instruments():
     return instr_dict
 
 
+class LinesBitMask(BitMask):
+    """
+    Bits for arc lines
+    """
+    version = '1.0.0'
+
+    def __init__(self):
+        mask = dict([
+            ('ArI', 'Argon I'),
+            ('HgI', 'Comment'),
+            ('KrI', 'Comment'),
+            ('NeI', 'Comment'),
+            ('XeI', 'Comment'),
+            ('CdI', 'Comment'),
+            ('ZnI', 'Comment'),
+            ('HeI', 'Comment'),
+            ('FeI', 'Comment'),
+            ('ThAr', 'Comment'),
+            ('OH', 'Comment'),
+            ('UNKNWN', 'Comment'),
+            #('OH_R24000', 'Comment'),
+            #('OH_triplespec', 'Comment'),
+            ('CuI', 'Comment'),
+            ('ArII', 'Comment'),
+            #('OH_XSHOOTER', 'Comment'),
+            #('OH_GNIRS', 'Comment'),
+            #('OH_NIRES', 'Comment'),
+            #('OH_GMOS', 'Comment'),
+            #('OH_MODS', 'Comment'),
+            #('OH_FIRE_Echelle', 'Comment'),
+            #('Ar_IR_GNIRS', 'Comment'),
+            ('Ar', 'This is for Ar_IR_GNIRS which should specify the real ion'),
+        ])
+        super(LinesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+
+
 def lines():
     """
-    Dict of lines included in this database
+    Dict of line lists included in this database
 
     .. warning::
-
         Modifying any of the following is a *bad* idea.  Adding is ok
 
     Returns
@@ -67,8 +102,7 @@ def lines():
     line_dict['Ar_IR_GNIRS'] = 2**20  # R=6000
     line_dict['FeI'] = 2**21
     line_dict['FeII'] = 2**22
-
-
+    line_dict['UNKNWN'] = 2**23
 
     #
     return line_dict

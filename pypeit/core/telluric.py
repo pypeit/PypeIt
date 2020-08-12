@@ -1576,8 +1576,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         mask_tot = mask
 
     if fit_wv_min_max is not None:
-        mask_region = create_bal_mask(wave, fit_wv_min_max)
-        mask_tot = mask_tot & np.invert(mask_region)
+        mask_tot &= np.invert(create_bal_mask(wave, fit_wv_min_max))
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params,

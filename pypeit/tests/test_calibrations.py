@@ -136,9 +136,9 @@ def test_it_all(multi_caliBrate):
     assert slits.left_tweak is None, 'Tweaks should not exist'
 
     wv_calib = multi_caliBrate.get_wv_calib()
-    assert isinstance(wv_calib, dict)
-    assert wv_calib['175'] is not None
-    assert wv_calib['175']['rms'] < 0.2
+    assert isinstance(wv_calib, wavecalib.WaveCalib)
+    assert 175 in wv_calib.spat_id
+    assert wv_calib.wv_fits[0]['rms'] < 0.2
 
     waveTilts = multi_caliBrate.get_tilts()
     assert waveTilts.nslit == 1
@@ -153,7 +153,7 @@ def test_it_all(multi_caliBrate):
     tilts = waveTilts.fit2tiltimg(slitmask)
 
     #
-    mswave = wavecalib.build_waveimg(multi_caliBrate.spectrograph, tilts, slits, wv_calib)
+    mswave = wv_calib.build_waveimg(tilts, slits)
     assert mswave.shape == (2048,350)
 
 @dev_suite_required

@@ -368,15 +368,17 @@ class UVIS(SensFunc):
         """
 
         meta_table, out_table = flux_calib.sensfunc(self.wave, self.counts, self.counts_ivar, self.counts_mask,
-                                                              self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
-                                                              self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
-                                                              self.meta_spec['ECH_ORDERS'], 
-                                                              telluric=False, polyorder=self.par['polyorder'],
-                                                              balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
-                                                              nresln=self.par['UVIS']['nresln'],
-                                                              resolution=self.par['UVIS']['resolution'],
-                                                              trans_thresh=self.par['UVIS']['trans_thresh'],
-                                                              polycorrect=True, debug=self.debug)
+                                                    self.meta_spec['EXPTIME'], self.meta_spec['AIRMASS'], self.std_dict,
+                                                    self.meta_spec['LONGITUDE'], self.meta_spec['LATITUDE'],
+                                                    self.meta_spec['ECH_ORDERS'],
+                                                    telluric=False, polyorder=self.par['polyorder'],
+                                                    balm_mask_wid=self.par['UVIS']['balm_mask_wid'],
+                                                    nresln=self.par['UVIS']['nresln'],
+                                                    resolution=self.par['UVIS']['resolution'],
+                                                    trans_thresh=self.par['UVIS']['trans_thresh'],
+                                                    polycorrect=self.par['UVIS']['polycorrect'],
+                                                    polyfunc=self.par['UVIS']['polyfunc'],
+                                                    debug=self.debug)
         # Add the algorithm to the meta_table
         meta_table['ALGORITHM'] = self.par['algorithm']
 

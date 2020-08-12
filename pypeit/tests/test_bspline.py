@@ -9,7 +9,7 @@ import numpy as np
 
 from pypeit import bspline
 from pypeit.tests.tstutils import bspline_ext_required, data_path
-from pypeit.utils import bspline_profile
+from pypeit.core.fitting import bspline_profile
 
 @bspline_ext_required
 def test_model_versions():

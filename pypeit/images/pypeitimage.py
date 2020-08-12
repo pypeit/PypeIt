@@ -56,7 +56,7 @@ class PypeItImage(datamodel.DataContainer):
     minimum_useful_version = '1.0.0'
     version = '1.0.1'
     #
-    datamodel_v100 = {
+    datamodel = {
         'image': dict(otype=np.ndarray, atype=np.floating, desc='Main data image'),
         'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Main data inverse variance image'),
         'rn2img': dict(otype=np.ndarray, atype=np.floating, desc='Read noise squared image'),
@@ -68,7 +68,6 @@ class PypeItImage(datamodel.DataContainer):
         'spat_flexure': dict(otype=float, desc='Shift, in spatial pixels, between this image and SlitTrace'),
         'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
     }
-    datamodel = datamodel_v100.copy()
 
     # For masking
     bitmask = imagebitmask.ImageBitMask()
@@ -346,7 +345,9 @@ class PypeItImage(datamodel.DataContainer):
         new_sciImg.files = self.files + other.files
 
         #TODO: KW properly handle adding the bits
-        crmask_diff = new_sciImg.build_crmask(par)
+        #crmask_diff = new_sciImg.build_crmask(par)
+        # JFH changed to below because this was not respecting the desire not to mask_crs
+        crmask_diff = new_sciImg.build_crmask(par) if par['mask_cr'] else np.zeros_like(other.image, dtype=bool)
         # crmask_eff assumes evertything masked in the outmask_comb is a CR in the individual images
         new_sciImg.crmask = crmask_diff | np.invert(outmask_comb)
         # Note that the following uses the saturation and mincounts held in
