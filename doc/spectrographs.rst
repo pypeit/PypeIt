@@ -36,9 +36,9 @@ shane_kast_red          Lick 3m     Kast dual spectrometer; red camera
 shane_kast_red_ret      Lick 3m     Kast dual spectrometer; red reticon
 tng_dolores             TNG         DOLORES (LRS) spectrograph; LR-R
 vlt_fors2               VLT         FORS2 spectrometer; only a few gratings
-vlt_xshooter_uvb        VLT         X-Shooter spectrometer; UVB camera
-vlt_xshooter_vis        VLT         X-Shooter spectrometer; VIS camera
-vlt_xshooter_nir        VLT         X-Shooter spectrometer; NIR camera
+vlt_xshooter_uvb        VLT         :doc:`xshooter`; UVB camera
+vlt_xshooter_vis        VLT         :doc:`xshooter`; VIS camera
+vlt_xshooter_nir        VLT         :doc:`xshooter`; NIR camera
 wht_isis_blue           WHT         ISIS spectrometer; blue camera?
 p200_dbsp_blue          P200        DBSP spectrograph; blue camera
 p200_dbsp_red           P200        DBSP spectrograph; red camera

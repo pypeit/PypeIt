@@ -129,23 +129,47 @@ your observational data then this section is for you.
 Ideally, you will need to go not much further than the few links
 in this section take you.
 
+----
+
 .. toctree::
+   :caption: Getting started
    :maxdepth: 1
 
    codeconduct
    installing
    cookbook
    spectrographs
+   step-by-step
+
+----
+
+.. toctree::
+   :caption: Running
+   :maxdepth: 1
+
    setup
    running
    pypeit_par
-   calibrations
    object_finding
    extraction
+
+----
+
+.. toctree::
+   :caption: Standard outputs
+   :maxdepth: 1
+
+   calibrations
    outputs
+
+----
+
+.. toctree::
+   :caption: Further fussing
+   :maxdepth: 1
+
    fluxing
    coadd1d
-   step-by-step
 
 Contributors
 ============
