@@ -47,7 +47,7 @@ affiliations:
    index: 7
  - name: Max Planck Institut f\"ur Astrophysik
    index: 8
-date: 08 April 2020
+date: 12 August 2020
 bibliography: paper.bib
 ---
 
@@ -66,14 +66,15 @@ In what follows, we provide a brief description of the algorithms,
 but refer the interested reader to the online documentation for
 the most up-to-date information. 
 
-Release v1.0.3 serves the following spectrographs:
+Release v1.1 serves the following spectrographs:
 Gemini/GNIRS, Gemini/GMOS, Gemini/FLAMINGOS 2, Lick/Kast, Magellan/MagE,
 Magellan/Fire, MDM/OSMOS, Keck/DEIMOS (600ZD, 830G, 1200G), Keck/LRIS,
 Keck/MOSFIRE (Y, J, K gratings tested), Keck/NIRES, Keck/NIRSPEC
-(low-dispersion), LBT/Luci-I, Luci-II, LBT/MODS (beta), NOT/ALFOSC (grism4),
+(low-dispersion), LBT/Luci-I, Luci-II, LBT/MODS, MDM/OSMOS,
+MMT/MMIRS, MMT/binospec, NOT/ALFOSC, P200/DBSP,
 VLT/X-Shooter (VIS, NIR), VLT/FORS2 (300I, 300V). 
 
-This v1.0 release of ``PypeIt`` is designed to be used by both advanced
+This v1.1 release of ``PypeIt`` is designed to be used by both advanced
 spectroscopists with prior data reduction expertise and astronomers with
 no prior experience of data reduction. It is highly configurable and
 designed to be applied to any standard slit-imaging spectrograph, and

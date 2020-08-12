@@ -3,22 +3,83 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to PypeIt's documentation!
-==================================
+.. |DOI_latest| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3743493.svg
+   :target: https://doi.org/10.5281/zenodo.3743493
+
+.. |arxiv| image:: https://img.shields.io/badge/arxiv-2005.06505-black
+   :target: https://arxiv.org/abs/2005.06505
+
+.. |pypi| image:: https://img.shields.io/badge/pypi-latest-blue
+    :target: https://pypi.org/project/pypeit/
+
+.. |issues| image:: https://img.shields.io/github/issues/fpavogt/fcmaker.svg?colorB=b4001e
+   :target: https://github.com/fpavogt/fcmaker/issues
+
+.. |astropy| image:: http://img.shields.io/badge/powered%20by-AstroPy-orange.svg?style=flat
+    :target: http://www.astropy.org/
 
 
-PypeIt is a Python based data reduction pipeline (DRP) written
-oringinally for echelle spectroscopy and since expanded
-to low-resolution spectrometers.  This documentation details
-the code, how to run it, and what it produces.
+.. |stars| image:: https://img.shields.io/github/stars/fpavogt/fcmaker.svg?style=social&label=Stars
+   :target: https://github.com/pypeit/PypeIt
 
-Release 1.0
-===========
+.. |watch| image:: https://img.shields.io/github/watchers/fpavogt/fcmaker.svg?style=social&label=Watch
+   :target: https://github.com/pypeit/PypeIt
+
+
+.. |github| image:: https://img.shields.io/github/release/fpavogt/fcmaker.svg
+   :target: https://github.com/pypeit/PypeIt
+
+
+PypeIt 1.1.0 |stars| |watch|
+============================
+
+|pypi| |DOI_latest| |arxiv| |astropy|
+
+*PypeIt* is a Python package for semi-automated reduction of
+astronomical, spectroscopic data. Its algorithms build on
+decades-long development of previous data reduction pipelines by the
+developers. The reduction procedure - including a
+complete list of the input parameters and available functionality -
+is provided by this online documentation.
+*PypeIt* is a set of commands designed to perform the reduction without
+any additional coding.
+
+This v1.1 release of ``PypeIt`` is designed to be used by both advanced
+spectroscopists with prior data reduction expertise and astronomers with
+no prior experience of data reduction. It is highly configurable and
+designed to be applied to any standard slit-imaging spectrograph, and
+can accomodate longslit, multislit, as well as cross-dispersed echelle
+spectra.
+
 
 What this version provides
 ++++++++++++++++++++++++++
 
 * Support for 10+ :doc:`spectrographs`
+
+  * Gemini/GNIRS
+  * Gemini/GMOS
+  * Gemini/FLAMINGOS 2
+  * Lick/Kast
+  * Magellan/MagE
+  * Magellan/Fire
+  * MDM/OSMOS
+  * Keck/DEIMOS (600ZD, 830G, 1200G)
+  * Keck/LRIS
+  * Keck/MOSFIRE (Y, J, K gratings tested)
+  * Keck/NIRES
+  * Keck/NIRSPEC (low-dispersion)
+  * LBT/Luci-I
+  * Luci-II
+  * LBT/MODS
+  * MDM/OSMOS
+  * MMT/MMIRS
+  * MMT/binospec
+  * NOT/ALFOSC
+  * P200/DBSP
+  * VLT/X-Shooter (VIS, NIR)
+  * VLT/FORS2 (300I, 300V)
+
 * Default reduction algorithms
 
   * Flatfielding with illumination pattern correction
@@ -36,7 +97,10 @@ What this version provides
   * :doc:`cookbook`
   * Data Models for (nearly) all output files
   * :doc:`fluxing`
+  * :doc:`manual`
+  * :doc:`telluric`
   * :doc:`coadd1d`
+  * :doc:`coadd2d`
 
 * Scripts and Tools for Inspection
 
@@ -52,10 +116,8 @@ What this version is missing (i.e. what we are working on)
 
 * Documentation
 
-  * Telluric corrections
   * A-B image difference processing
-  * 2D Coadds
-  * Data model for MasterWaveCalib or MasterEdgeTrace calibration files
+  * Data model for MasterEdgeTrace calibration files
 
 
 Users
@@ -73,131 +135,30 @@ in this section take you.
    codeconduct
    installing
    cookbook
-
-Most of the docs that follow on this main page
-are for expert users or developers.
-
-Running PypeIt
-==============
-
-This section contains quick links to the docs
-describing the primary aspects of running PypeIt.
-
-But you should be referring to the :doc:`cookbook`
-for a full description of the process.
-
-.. toctree::
-   :maxdepth: 2
-
-   setup
-   pypeit_file
-   pypeit_par
-   running
-   quicklook
-
-
-Data Products
-+++++++++++++
-
-.. toctree::
-   :maxdepth: 2
-
-   outputs
-   qa
-   specobj
-
-Calibrations
-++++++++++++
-
-.. toctree::
-   :maxdepth: 2
-
-   bias_dark
-   flat_fielding
-   slit_tracing
-   wave_calib
-   wavetilts
-   fluxing
-   telluric
-
-MasterFrames
-++++++++++++
-
-.. toctree::
-   :maxdepth: 2
-
-   master_align
-   master_arc
-   master_bias
-   master_edges
-   master_flat
-   master_tilt
-   master_tilts
-   master_wave
-   master_wvcalib
-
-Spectrographs
-+++++++++++++
-
-.. toctree::
-   :maxdepth: 2
-
    spectrographs
-   deimos
-   lris
-   mage
-
-
-Reduction Algorithms
-++++++++++++++++++++
-
-.. toctree::
-   :maxdepth: 2
-
-   reduction_tips
-   object_finding
-
-Documentation
-+++++++++++++
-
-.. toctree::
-   :maxdepth: 1
-
-   flexure
-   frametype
-   internals
-
-For Developers
-++++++++++++++
-
-.. toctree::
-   :maxdepth: 1
-
-   code_flow
-   development
-   scripts
-   flow
-   new_spectrograph
-   images
-   PypeIt API <api/pypeit>
-   PypeIt Modules <api/modules>
-
-Orphaned Docs
-+++++++++++++
-
-.. toctree::
-   :maxdepth: 1
-
+   calibrations
+   extraction
+   fluxing
    coadd1d
-   inst_settings
-   gemini_gmos
-   heliocorr
-   mask
-   masters
-   metadata
-   rawdata
-   standards
-   xshooter
 
-.. _kast webpage: http://mthamilton.ucolick.org/techdocs/instruments/kast/
+Contributors
+============
+
+*PypeIt* is an open-source, community developed package.  Astronomers
+are encouragaed to join the project and should
+review the :doc:`codeconduct` and :doc:`development` notes.
+The would also likely benefit by first contacting
+the lead developers (JXP, JFH).
+
+The following persons have contributed substantially to the
+development of PypeIt.
+
+* J Xavier Prochaska
+* Joseph F. Hennawi
+* Kyle B. Westfall
+* Ryan J. Cooke
+* Feige Wang
+* Tiffany Hsyu
+* Frederick B. Davies
+* Emanuele Paolo Farina
 
