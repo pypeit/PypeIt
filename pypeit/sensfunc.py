@@ -10,7 +10,6 @@ import inspect
 from matplotlib import pyplot as plt
 
 from pypeit import msgs
-from pypeit import ginga
 from pypeit import specobjs
 from pypeit.core import flux_calib
 from pypeit.core import telluric

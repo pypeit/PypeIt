@@ -19,18 +19,11 @@ import subprocess
 # Most of the standard geometric types are in basic.py and there are specialized ones in utils.py, astro.py and layer.py. Looking at
 # the classes will also tell you which parameters are positional and which are keyword.
 
-
-# CANNOT LOAD DEBUGGER AS THIS MODULE IS CALLED BY ARDEBUG
-#from pypeit import ardebug as debugger
-#import pdb as debugger
-#from pypeit import scienceimage
+from astropy.io import fits
 
 from ginga.util import grc
 
-from astropy.io import fits
-
 from pypeit import msgs
-
 
 def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=False):
     """
@@ -54,14 +47,33 @@ def connect_to_ginga(host='localhost', port=9000, raise_err=False, allow_new=Fal
     # Start
     viewer = grc.RemoteClient(host, port)
     # Test
-    ginga = viewer.shell()
+    sh = viewer.shell()
     try:
-        tmp = ginga.get_current_workspace()
+        tmp = sh.get_current_workspace()
     except:
         if allow_new:
             subprocess.Popen(['ginga', '--modules=RC'])
-            time.sleep(3)
-            return grc.RemoteClient(host, port)
+
+            # NOTE: time.sleep(3) is now insufficient. The loop below
+            # continues to try to connect with the ginga viewer that
+            # was just instantiated for a maximum number of iterations.
+            # If the connection is remains unsuccessful, an error is
+            # thrown stating that the connection timed out.
+            maxiter = int(1e6)
+            for i in range(maxiter):
+                try:
+                    viewer = grc.RemoteClient(host, port)
+                    sh = viewer.shell()
+                    tmp = sh.get_current_workspace()
+                except:
+                    continue
+                else:
+                    break
+            if i == maxiter-1:
+                msgs.error('Timeout waiting for ginga to start.  If window does not appear, type '
+                           '`ginga --modules=RC` on the command line.  In either case, wait for '
+                           'the ginga viewer to open and try the pypeit command again.')
+            return viewer
 
         if raise_err:
             raise ValueError
@@ -141,16 +153,19 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
         for ch in chnames:
             shell.delete_channel(ch)
     ch = viewer.channel(chname)
-
     # Header
     header = {}
     header['NAXIS1'] = img.shape[1]
     header['NAXIS2'] = img.shape[0]
 
     # Giddy up
-    try:
-        ch.load_np(chname, img, 'fits', header, wcs_image=waveimg)
-    except:
+#    waveimg = None
+    if waveimg is not None:
+        sh = viewer.shell()
+        args = [chname, chname, grc.Blob(img.tobytes()), img.shape, img.dtype.name, header,
+                grc.Blob(waveimg.tobytes()), waveimg.dtype.name, {}]
+        sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
+    else:
         ch.load_np(chname, img, 'fits', header)
     canvas = viewer.canvas(ch._chname)
 

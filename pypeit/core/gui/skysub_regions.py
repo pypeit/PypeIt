@@ -38,7 +38,7 @@ class SkySubGUI(object):
     """
 
     def __init__(self, canvas, image, frame, outname, det, slits, axes, pypeline, spectrograph, printout=False,
-                 runtime=False, resolution=1000, initial=False, flexure=None, overwrite=False):
+                 runtime=False, resolution=None, initial=False, flexure=None, overwrite=False):
         """Controls for the interactive sky regions definition tasks in PypeIt.
 
         The main goal of this routine is to interactively select sky background
@@ -95,9 +95,10 @@ class SkySubGUI(object):
         self._currslit = -1
         self.slits = slits
         self._nslits = slits.nslits
-        self._resolution = int(resolution)
-        self._allreg = np.zeros(int(resolution), dtype=np.bool)
-        self._specx = np.arange(int(resolution))
+        self._maxslitlength = np.max(self.slits.get_slitlengths(initial=initial))
+        self._resolution = int(10.0 * self._maxslitlength) if resolution is None else int(resolution)
+        self._allreg = np.zeros(int(self._resolution), dtype=np.bool)
+        self._specx = np.arange(int(self._resolution))
         self._start = [0, 0]
         self._end = [0, 0]
 
@@ -294,12 +295,13 @@ class SkySubGUI(object):
         while True:
             print("")
             text = input("Enter the regions: ")
-            status, reg = skysub.read_userregions(text, resolution=self._resolution)
+            status, reg = skysub.read_userregions(text, self._nslits, self._maxslitlength)
             if status == 0:
-                print("Regions successful!")
+                print("Regions parsed successfully")
                 for rr in range(len(reg)):
-                    self._start[0], self._end[0] = reg[rr][0], reg[rr][1]
-                    self.add_region_all()
+                    # Apply to all slits
+                    for sl in range(self._nslits):
+                        self._skyreg[sl] = reg[rr].copy()
                 self.replot()
                 break
             elif status == 1:

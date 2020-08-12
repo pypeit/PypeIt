@@ -232,6 +232,8 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
     xsort = xdata.argsort()
     maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
     if 'oldset' in kwargs_bspline:
+        # TODO: I don't know if this is ever called, but it will fail
+        # if sset is a bspline object.
         sset = kwargs_bspline['oldset']
         sset.mask = True
         sset.coeff = 0
@@ -277,7 +279,12 @@ def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
     while (error != 0 or qdone is False) and iiter <= maxiter:
         goodbk = sset.mask.nonzero()[0]
         if maskwork.sum() <= 1 or not sset.mask.any():
-            sset.coeff = 0
+            # NOTE: this previous line of cause was failing (it
+            # apparently is virtually never called) because
+            # bspline.coeff is now required to be a numpy.ndarray
+            # object.
+#            sset.coeff = 0
+            sset.reinit_coeff()
             iiter = maxiter + 1 # End iterations
         else:
             if 'requiren' in kwargs_bspline:
