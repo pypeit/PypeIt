@@ -3,14 +3,18 @@ Module to run tests on scripts
 """
 import os
 import shutil
+import numpy as np
 
 import matplotlib
 matplotlib.use('agg')  # For Travis
 
+#import warnings
+#warnings.simplefilter('error', FutureWarning)
+
 from astropy.io import fits
 
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
-from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec
+from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit import edgetrace
 from pypeit import ginga
@@ -185,5 +189,6 @@ def test_coadd1d_2():
     # Clean up
     os.remove(parfile)
     os.remove(coadd_ofile)
+
 
 # TODO: Include tests for coadd2d, sensfunc, flux_calib

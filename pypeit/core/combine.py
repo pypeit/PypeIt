@@ -84,7 +84,7 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
               images with shape (nspec, nspat)
             - var_list_out: list: The list of ndarray propagated
               variance images with shape (nspec, nspat)
-            - outmask: bool ndarray, shape (nspec, nspat): Mask for
+            - gpm: bool ndarray, shape (nspec, nspat): Good pixel mask for
               combined image. True=Good, False=Bad
             - nused: int ndarray, shape (nspec, nspat): Image of
               integers indicating the number of images that contributed
@@ -108,9 +108,9 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
         var_list_out = []
         for var_stack in var_list:
             var_list_out.append(var_stack.reshape(img_shape))
-        outmask = inmask_stack.reshape(img_shape)
-        nused = outmask.astype(int)
-        return sci_list_out, var_list_out, outmask, nused
+        gpm = inmask_stack.reshape(img_shape)
+        nused = gpm.astype(int)
+        return sci_list_out, var_list_out, gpm, nused
 
     if sigma_clip and nimgs >= 3:
         if sigma_clip_stack is None:
@@ -152,9 +152,9 @@ def weighted_combine(weights, sci_list, var_list, inmask_stack,
     for var_stack in var_list:
         var_list_out.append(np.sum(var_stack * weights_mask_stack**2, axis=0) / (weights_sum + (weights_sum == 0.0))**2)
     # Was it masked everywhere?
-    outmask = np.any(mask_stack, axis=0)
+    gpm = np.any(mask_stack, axis=0)
 
-    return sci_list_out, var_list_out, outmask, nused
+    return sci_list_out, var_list_out, gpm, nused
 
 
 def img_list_error_check(sci_list, var_list):

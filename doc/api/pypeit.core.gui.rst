@@ -5,6 +5,7 @@ Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
    pypeit.core.gui.identify
    pypeit.core.gui.object_find

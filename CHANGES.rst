@@ -1,7 +1,53 @@
 
-
-1.0.4dev
+1.0.7dev
 --------
+ - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
+   wavelength coverage slits results in reidentification with a purely zero-padded array.
+ - Fixed another such bug arising from these zero-padded arrays. 
+ - (Hotfix) Deal with chk_calibs test
+
+1.0.6 (22 Jul 2020)
+-------------------
+
+ - (Hotfix) Deal with wavecalib crash
+ - Fix class and version check for DataContainer objects.
+ - Script to check for calibration files
+ - No longer require bias frames as default for DEIMOS
+ - Implement grism19 for NOT/ALFOSC
+ - Introduced another parameter used to identify box slits, as opposed
+   to erroneous "slits" found by the edge tracing algorithms.  Any slit
+   that has `minimum_slit_length < length < minimum_slit_length_sci` is
+   considered a `BOXSLIT`, any slit with `length < minimum_slit_length`
+   is considered a `SHORTSLIT`; the latter are always ignored.
+ - Introduced order matching code into EdgeTraceSet.
+    - This helps fix an issue for GNIRS_10L caused by the orders
+      shifting.
+    - Introduces two paramters in `EdgeTraceSetPar` to assist the
+      matching: `order_match` and `order_offset`
+    - Echelle spectrographs should now always have `ech_order` defined
+      in the SlitTraceSet object.
+    - Removes the need for `Spectrograph.slit2order` and
+      `Spectrograph.order_vec`.  Changes propagated, primarily in
+      `wavecalib.py`, `autoid.py`, and `reduce.py`.
+ - Adds in Keck/LRISr with the original detector
+ - Adds in Keck/LRISb with the FITS format
+
+1.0.5 (23 Jun 2020)
+-------------------
+
+ - Add median combining code
+ - Make biasframes median combine by default
+ - Implemented IFU reduction hooks
+ - KCWI reduction complete up to spec2D frames
+ - Implemented new flatfield DataContainer to separate
+   pixelflat and illumflat
+
+1.0.4 (27 May 2020)
+-------------------
+
+ - Add a script (pypeit_flux_setup) for creating fluxing,
+   coadd1d and tellfit pypeit files
+ - Add telluric fitting script, pypeit_tellfit
 
 
 1.0.3 (04 May 2020)
@@ -128,24 +174,6 @@
   algorithms.
 - Added support for additional near-IR spectrographs.
 - Restrict extrapolation in tilt fitting
-- Replaces usage of the `tslits_dict` dictionary with
-  `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
-  object is now the main master file used for passing around the slit
-  edges once the edges are determined by `EdgeTraceSet`.
-- Removes usage of `pypeit.pixels.tslits2mask` and replaces it with
-  `pypeit.slittrace.SlitTraceSet.slit_img`.
-- Significant changes to flat-fielding control flow.
-    - Added `rej_sticky`, `slit_trim`, `slit_pad`, `illum_iter`,
-      `illum_rej`, `twod_fit_npoly` parameters to FlatFieldPar.
-    - Illumination flat no longer removed if the user doesn't want to
-      apply it to the data.  The flat was always created, but all that
-      work was lost if the illumination correction wasn't requested.
-    - Replaced tweak edges method with a more direct algorithm.
-    - `pypeit.core.flat.fit_flat` moved to
-      `pypeit.flatfield.FlatField.fit`.
-- Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
-  sobel image to the ginga display.
-- Added `bspline_profile_qa` for generic QA of a bspline fit.
 - Implemented interactive sky region selection
 
 0.12.3 (13 Feb 2020)

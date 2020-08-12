@@ -4,7 +4,7 @@ Implements the flat-field class.
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
-import os
+import copy
 import inspect
 import numpy as np
 
@@ -19,9 +19,9 @@ from pypeit import utils
 from pypeit import ginga
 from pypeit import bspline
 
-from pypeit.par import pypeitpar
 from pypeit import datamodel
 from pypeit import masterframe
+from pypeit import wavecalib
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
@@ -30,7 +30,7 @@ from pypeit import slittrace
 
 class FlatImages(datamodel.DataContainer):
     """
-    Simple DataContainer for the output from BuildWaveTilts
+    Simple DataContainer for the output from Flatfield
 
     All of the items in the datamodel are required for instantiation,
       although they can be None (but shouldn't be)
@@ -48,19 +48,27 @@ class FlatImages(datamodel.DataContainer):
     master_file_format = 'fits'
 
     datamodel = {
-        'procflat':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined flats'),
-        'pixelflat': dict(otype=np.ndarray, atype=np.floating, desc='Pixel normalized flat'),
-        'flat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'pixelflat_raw': dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined pixel flats'),
+        'pixelflat_norm': dict(otype=np.ndarray, atype=np.floating, desc='Normalized pixel flat'),
+        'pixelflat_model': dict(otype=np.ndarray, atype=np.floating, desc='Model flat'),
+        'pixelflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                                        desc='B-spline models for pixel flat'),
+        'pixelflat_bpm': dict(otype=np.ndarray, atype=np.integer,
+                              desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
+        'pixelflat_spec_illum': dict(otype=np.ndarray, atype=np.floating, desc='Relative spectral illumination'),
+        'illumflat_raw': dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined illum flats'),
+        'illumflat_spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
+                                        desc='B-spline models for illum flat'),
+        'illumflat_bpm': dict(otype=np.ndarray, atype=np.integer,
+                              desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
         'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'bpmflats': dict(otype=np.ndarray, atype=np.integer,
-                         desc='Mirrors SlitTraceSet mask for the Flat-specific flags'),
-        'spat_bsplines': dict(otype=np.ndarray, atype=bspline.bspline,
-                              desc='B-spline models for Illumination flat'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
+        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id'),
     }
 
-    def __init__(self, procflat=None, pixelflat=None, bpmflats=None,
-                 flat_model=None, spat_bsplines=None, PYP_SPEC=None, spat_id=None):
+    def __init__(self, pixelflat_raw=None, pixelflat_norm=None, pixelflat_bpm=None,
+                 pixelflat_model=None, pixelflat_spat_bsplines=None, pixelflat_spec_illum=None,
+                 illumflat_raw=None, illumflat_spat_bsplines=None, illumflat_bpm=None,
+                 PYP_SPEC=None, spat_id=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         d = dict([(k,values[k]) for k in args[1:]])
@@ -74,9 +82,12 @@ class FlatImages(datamodel.DataContainer):
 
     def _validate(self):
         #
-        if self.spat_bsplines is not None and len(self.spat_bsplines) > 0:
-            if len(self.spat_id) != len(self.spat_bsplines):
-                msgs.error("Bsplines are out of sync with the slit IDs")
+        if self.pixelflat_spat_bsplines is not None and len(self.pixelflat_spat_bsplines) > 0:
+            if len(self.spat_id) != len(self.pixelflat_spat_bsplines):
+                msgs.error("Pixelflat Bsplines are out of sync with the slit IDs")
+        if self.illumflat_spat_bsplines is not None and len(self.illumflat_spat_bsplines) > 0:
+            if len(self.spat_id) != len(self.illumflat_spat_bsplines):
+                msgs.error("Illumflat Bsplines are out of sync with the slit IDs")
 
     def is_synced(self, slits):
         """
@@ -110,32 +121,149 @@ class FlatImages(datamodel.DataContainer):
             if self[key] is None:
                 continue
             # Array?
-            if self.datamodel[key]['otype'] == np.ndarray and key != 'spat_bsplines':
+            if self.datamodel[key]['otype'] == np.ndarray and \
+                    key != 'pixelflat_spat_bsplines' and \
+                    key != 'illumflat_spat_bsplines':
                 d.append({key: self[key]})
-            elif key == 'spat_bsplines':
+            elif key == 'pixelflat_spat_bsplines':
                 for ss, spat_bspl in enumerate(self[key]):
                     # Naming
-                    spat_bspl.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
+                    spat_bspl.hdu_prefix = 'PIXELFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
                     dkey = 'bspline-{}'.format(self.spat_id[ss])
                     # Save
-                    d.append({dkey: spat_bspl})
+                    d.append(copy.deepcopy({dkey: spat_bspl}))
+            elif key == 'illumflat_spat_bsplines':
+                for ss, spat_bspl in enumerate(self[key]):
+                    # Naming
+                    spat_bspl.hdu_prefix = 'ILLUMFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
+                    dkey = 'bspline-{}'.format(self.spat_id[ss])
+                    # Save
+                    d.append(copy.deepcopy({dkey: spat_bspl}))
             else: # Add to header of the primary image
                 d[0][key] = self[key]
         # Return
         return d
 
-    def fit2illumflat(self, slits, initial=False, flexure_shift=None):
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
+               hdu_prefix=None):
+        # Grab everything but the bspline's
+        _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
+        # Now the bsplines
+        list_of_pixbsplines, list_of_illbsplines = [], []
+        pixspat_ids, illspat_ids = [], []
+        has_pixel, has_illum = False, False   # Boolean flags to test if the input file has pixelflat and/or illumflat
+        for ihdu in hdu:
+            if 'PIXELFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
+                has_pixel = True
+                ibspl = bspline.bspline.from_hdu(ihdu)
+                if ibspl.version != bspline.bspline.version:
+                    msgs.warn("Your bspline is out of date!!")
+                list_of_pixbsplines.append(ibspl)
+                # Grab SPAT_ID for checking
+                i0 = ihdu.name.find('ID-')
+                i1 = ihdu.name.find('_BSP')
+                pixspat_ids.append(int(ihdu.name[i0+3:i1]))
+            if 'ILLUMFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
+                has_illum = True
+                ibspl = bspline.bspline.from_hdu(ihdu)
+                if ibspl.version != bspline.bspline.version:
+                    msgs.warn("Your bspline is out of date!!")
+                list_of_illbsplines.append(ibspl)
+                # Grab SPAT_ID for checking
+                i0 = ihdu.name.find('ID-')
+                i1 = ihdu.name.find('_BSP')
+                illspat_ids.append(int(ihdu.name[i0 + 3:i1]))
+        # Check
+        if pixspat_ids != _d['spat_id'].tolist() and has_pixel:
+            msgs.error("Bad parsing of pixelflat BSPLINE spat_id in the MasterFlat")
+        if illspat_ids != _d['spat_id'].tolist() and has_illum:
+            msgs.error("Bad parsing of illumflat BSPLINE spat_id in the MasterFlat")
+        # Finish
+        if has_pixel:
+            _d['pixelflat_spat_bsplines'] = np.asarray(list_of_pixbsplines)
+        if has_illum:
+            _d['illumflat_spat_bsplines'] = np.asarray(list_of_illbsplines)
+        return _d, dm_version_passed, dm_type_passed
+
+    def shape(self):
+        if self.pixelflat_raw is not None:
+            return self.pixelflat_raw.shape
+        elif self.illumflat_raw is not None:
+            return self.illumflat_raw.shape
+        else:
+            msgs.error("Shape of FlatImages could not be determined")
+
+    def get_procflat(self, frametype='pixel'):
+        if frametype == 'illum':
+            return self.illumflat_raw
+        else:
+            return self.pixelflat_raw
+
+    def get_bpmflats(self, frametype='pixel'):
+        # Check if both BPMs are none
+        if self.pixelflat_bpm is None and self.illumflat_bpm is None:
+            msgs.warn("FlatImages contains no BPM - trying to generate one")
+            return np.zeros(self.shape(), dtype=np.int)
+        # Now return the requested case, checking for None
+        if frametype == 'illum':
+            if self.illumflat_bpm is not None:
+                return self.illumflat_bpm
+            else:
+                msgs.warn("illumflat has no BPM - using the pixelflat BPM")
+                return self.pixelflat_bpm
+        else:
+            if self.pixelflat_bpm is not None:
+                return self.pixelflat_bpm
+            else:
+                msgs.warn("pixelflat has no BPM - using the illumflat BPM")
+                return self.illumflat_bpm
+
+    def get_spat_bsplines(self, frametype='illum'):
+        # Check if both spat bsplines are none
+        if self.pixelflat_spat_bsplines is None and self.illumflat_spat_bsplines is None:
+            msgs.error("FlatImages contains no spatial bspline fit")
+        # Now return the requested case, checking for None
+        if frametype == 'illum':
+            if self.illumflat_spat_bsplines is not None:
+                return self.illumflat_spat_bsplines
+            else:
+                msgs.warn("illumflat has no spatial bspline fit - using the pixelflat")
+                return self.pixelflat_spat_bsplines
+        else:
+            if self.pixelflat_spat_bsplines is not None:
+                return self.pixelflat_spat_bsplines
+            else:
+                msgs.warn("pixelflat has no spatial bspline fit - using the illumflat")
+                return self.illumflat_spat_bsplines
+
+    def get_pixelflat(self):
+        return self.pixelflat_norm
+
+    def get_spec_illum(self):
+        return self.pixelflat_spec_illum
+
+    def get_flat_model(self):
+        return self.pixelflat_model
+
+    def fit2illumflat(self, slits, frametype='illum', initial=False, flexure_shift=None):
         """
 
         Args:
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            frametype (str):
+                Should the pixel or illum flat spatial profile be generated? (options include: 'illum' or 'pixel').
+                The default is to use 'illum' unless frametype='pixel'.
             initial (bool, optional):
             flexure_shift (float, optional):
 
         Returns:
 
         """
-        illumflat = np.ones_like(self.procflat)
+        illumflat = np.ones(self.shape())
+        # Load spatial bsplines
+        spat_bsplines = self.get_spat_bsplines(frametype=frametype)
+
         # Loop
         for slit_idx in range(slits.nslits):
             # Skip masked
@@ -149,48 +277,24 @@ class FlatImages(datamodel.DataContainer):
                                                       initial=initial,
                                                       slitid_img=_slitid_img,
                                                       flexure_shift=flexure_shift)
-
-            illumflat[onslit] = self.spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
+            illumflat[onslit] = spat_bsplines[slit_idx].value(spat_coo[onslit])[0]
         # TODO -- Update the internal one?  Or remove it altogether??
         return illumflat
 
-    @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
-        # Grab everything but the bspline's
-        _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
-        # Now the bsplines
-        list_of_bsplines = []
-        spat_ids = []
-        for ihdu in hdu:
-            if 'BSPLINE' in ihdu.name:
-                ibspl = bspline.bspline.from_hdu(ihdu)
-                if ibspl.version != bspline.bspline.version:
-                    msgs.warn("Your bspline is out of date!!")
-                list_of_bsplines.append(ibspl)
-                # Grab SPAT_ID for checking
-                i0 = ihdu.name.find('ID-')
-                i1 = ihdu.name.find('_BSP')
-                spat_ids.append(int(ihdu.name[i0+3:i1]))
-        # Check
-        if spat_ids != _d['spat_id'].tolist():
-            msgs.error("Bad parsing of the MasterFlat")
-        # Finish
-        _d['spat_bsplines'] = np.asarray(list_of_bsplines)
-        return _d, dm_version_passed, dm_type_passed
-
-    def show(self, slits=None, wcs_match=True):
+    def show(self, frametype='all', slits=None, wcs_match=True):
         """
         Simple wrapper to show_flats()
 
         Args:
+            frametype (str):
+                Which flats should be displayed? Must be one of 'illum', 'pixel', or 'all' (default)
             slits:
             wcs_match:
 
         Returns:
 
         """
-        illumflat = None
+        illumflat_pixel, illumflat_illum = None, None
         # Try to grab the slits
         if slits is None:
             # Warning: This parses the filename, not the Header!
@@ -203,10 +307,35 @@ class FlatImages(datamodel.DataContainer):
                 msgs.warn('Could not load slits to show with flat-field images. Did you provide the master info??')
         if slits is not None:
             slits.mask_flats(self)
-            illumflat = self.fit2illumflat(slits)
-        # Show
-        show_flats(self.pixelflat, illumflat, self.procflat, self.flat_model,
-                   wcs_match=wcs_match, slits=slits)
+            illumflat_pixel = self.fit2illumflat(slits, frametype='pixel')
+            if self.illumflat_spat_bsplines is not None:
+                illumflat_illum = self.fit2illumflat(slits, frametype='illum')
+        # Decide which frames should be displayed
+        if frametype == 'pixel':
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw,
+                              self.pixelflat_model, self.pixelflat_spec_illum],
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
+                              'pixelflat_model', 'pixelflat_spec_illum'],
+                             [(0.9, 1.1), (0.9, 1.1), None, None,
+                              (0.8, 1.2)])
+        elif frametype == 'illum':
+            image_list = zip([illumflat_illum, self.illumflat_raw],
+                             ['illumflat_spat_illum', 'illumflat_raw'],
+                             [(0.9, 1.1), None])
+        else:
+            # Show everything that's available (anything that is None will not be displayed)
+            image_list = zip([self.pixelflat_norm, illumflat_pixel, self.pixelflat_raw,
+                              self.pixelflat_model, self.pixelflat_spec_illum,
+                              illumflat_illum, self.illumflat_raw],
+                             ['pixelflat_norm', 'pixelflat_spat_illum', 'pixelflat_raw',
+                              'pixelflat_model', 'pixelflat_spec_illum',
+                              'illumflat_spat_illum', 'illumflat_raw'],
+                             [(0.9, 1.1), (0.9, 1.1), None, None,
+                              (0.8, 1.2), (0.9, 1.1), None])
+        # Display frames
+        show_flats(image_list, wcs_match=wcs_match, slits=slits)
+
+
 
 class FlatField(object):
     """
@@ -228,6 +357,13 @@ class FlatField(object):
             The current slit traces.
         wavetilts (:class:`pypeit.wavetilts.WaveTilts`):
             The current wavelength tilt traces; see
+        spat_illum_only (boolean):
+            Only perform the spatial illumination calculation, and ignore
+            the 2D bspline fit. This should only be set to true if you
+            want the spatial illumination profile only. If you want to
+            simultaneously generate a pixel flat and a spatial
+            illumination profile from the same input, this should be
+            False (which is the default).
 
     Attributes:
         rawflatimg (:class:`pypeit.images.pypeitimage.PypeItImage`):
@@ -238,6 +374,8 @@ class FlatField(object):
         flat_model (`numpy.ndarray`_):
             Model of the flat
         list_of_spat_bsplines (list):
+        spec_illum (`numpy.ndarray`_):
+            Image of the relative spectral illumination for a multislit spectrograph
 
     """
 
@@ -246,7 +384,7 @@ class FlatField(object):
     master_type = 'Flat'
 
 
-    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts):
+    def __init__(self, rawflatimg, spectrograph, flatpar, slits, wavetilts, wv_calib, spat_illum_only=False):
 
         # Defaults
         self.spectrograph = spectrograph
@@ -256,6 +394,7 @@ class FlatField(object):
         # Input data
         self.slits = slits
         self.wavetilts = wavetilts
+        self.wv_calib = wv_calib
 
         # Worth a check
         self.wavetilts.is_synced(self.slits)
@@ -266,6 +405,8 @@ class FlatField(object):
         self.msillumflat = None     # Illumination flat
         self.flat_model = None      # Model flat
         self.list_of_spat_bsplines = None
+        self.spat_illum_only = spat_illum_only
+        self.spec_illum = None      # Relative spectral illumination image
 
         # Completed steps
         self.steps = []
@@ -351,30 +492,48 @@ class FlatField(object):
         #self.build_pixflat()
 
         # Fit it
-        # NOTE: Tilts do not change and self.slits is updated
-        # internally.
-        # TODO -- Move the infinitely long fit() code back here?
-        self.fit(debug=debug)
+        # NOTE: Tilts do not change and self.slits is updated internally.
+        self.fit(spat_illum_only=self.spat_illum_only, debug=debug)
 
         if show:
             # Global skysub is the first step in a new extraction so clear the channels here
             self.show(wcs_match=True)
 
         # Build the mask
+        bpmflats = self.build_mask()
+
+        # Return
+        if self.spat_illum_only:
+            # Illumination correction only
+            return FlatImages(illumflat_raw=self.rawflatimg.image,
+                              illumflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                              illumflat_bpm=bpmflats,
+                              PYP_SPEC=self.spectrograph.spectrograph,
+                              spat_id=self.slits.spat_id)
+        else:
+            # Pixel and illumination correction only
+            return FlatImages(pixelflat_raw=self.rawflatimg.image,
+                              pixelflat_norm=self.mspixelflat,
+                              pixelflat_model=self.flat_model,
+                              pixelflat_spat_bsplines=np.asarray(self.list_of_spat_bsplines),
+                              pixelflat_bpm=bpmflats,
+                              pixelflat_spec_illum=self.spec_illum,
+                              PYP_SPEC=self.spectrograph.spectrograph,
+                              spat_id=self.slits.spat_id)
+
+    def build_mask(self):
+        """
+        Generate bad pixel mask.
+
+        Returns:
+            :obj:`numpy.ndarray` : bad pixel mask
+        """
         bpmflats = np.zeros_like(self.slits.mask, dtype=self.slits.bitmask.minimum_dtype())
         for flag in ['SKIPFLATCALIB', 'BADFLATCALIB']:
             bpm = self.slits.bitmask.flagged(self.slits.mask, flag)
             if np.any(bpm):
                 bpmflats[bpm] = self.slits.bitmask.turn_on(bpmflats[bpm], flag)
-
-        # Return
-        return FlatImages(procflat=self.rawflatimg.image,
-                          pixelflat=self.mspixelflat,
-                          flat_model=self.flat_model,
-                          spat_bsplines=np.asarray(self.list_of_spat_bsplines),
-                          bpmflats=bpmflats,
-                          PYP_SPEC=self.spectrograph.spectrograph,
-                          spat_id=self.slits.spat_id)
+        return bpmflats
 
     def show(self, wcs_match=True):
         """
@@ -384,11 +543,13 @@ class FlatField(object):
             wcs_match (:obj:`bool`, optional):
                 Match the WCS of the flat-field images
         """
-        # Get the slits
-        show_flats(self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model,
-                   wcs_match=wcs_match, slits=self.slits)
+        # Prepare the images to show, their names and their cuts
+        image_list = zip([self.mspixelflat, self.msillumflat, self.rawflatimg.image, self.flat_model],
+                         ['pixelflat', 'spat_illum', 'raw', 'model', 'spec_illum'],
+                         [(0.9, 1.1), (0.9, 1.1), None, None, (0.8, 1.2)])
+        show_flats(image_list, wcs_match=wcs_match, slits=self.slits)
 
-    def fit(self, debug=False):
+    def fit(self, spat_illum_only=False, debug=False):
         """
         Construct a model of the flat-field image.
 
@@ -475,6 +636,10 @@ class FlatField(object):
             - 3-Sep-2018 Ported to python by J. F. Hennawi and significantly improved
 
         Args:
+            spat_illum_only (:obj:`bool`, optional):
+                If true, only the spatial illumination profile will be calculated.
+                The 2D bspline fit will not be performed. This is primarily used
+                to build an illumflat.
             debug (:obj:`bool`, optional):
                 Show plots useful for debugging. This will block
                 further execution of the code until the plot windows
@@ -485,8 +650,9 @@ class FlatField(object):
         # TODO: JFH I wrote all this code and will have to maintain it and I don't want to see it broken up.
         # TODO: JXP This definitely needs breaking up..
 
-        # Init
-        self.list_of_spat_bsplines = []
+        # Initialise with a series of bad splines (for when slits go wrong)
+        if self.list_of_spat_bsplines is None:
+            self.list_of_spat_bsplines = [bspline.bspline(None) for all in self.slits.spat_id]
 
         # Set parameters (for convenience;
         spec_samp_fine = self.flatpar['spec_samp_fine']
@@ -551,6 +717,7 @@ class FlatField(object):
         norm_spec = np.ones_like(rawflat)
         norm_spec_spat = np.ones_like(rawflat)
         twod_model = np.ones_like(rawflat)
+        twod_gpm_out = np.ones_like(rawflat, dtype=np.bool)
 
         # #################################################
         # Model each slit independently
@@ -558,7 +725,6 @@ class FlatField(object):
             # Is this a good slit??
             if self.slits.mask[slit_idx] != 0:
                 msgs.info('Skipping bad slit: {}'.format(slit_spat))
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             msgs.info('Modeling the flat-field response for slit spat_id={}: {}/{}'.format(
@@ -602,7 +768,6 @@ class FlatField(object):
                     # Should never get here
                     raise NotImplementedError('Unknown behavior for saturated slits: {0}'.format(
                                               saturated_slits))
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # Demand at least 10 pixels per row (on average) per degree
@@ -685,7 +850,6 @@ class FlatField(object):
                 msgs.warn('Flat-field spectral response bspline fit failed!  Not flat-fielding '
                           'slit {0} and continuing!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # Debugging/checking spectral fit
@@ -823,13 +987,15 @@ class FlatField(object):
             if exit_status <= 1:
                 # TODO -- JFH -- Check this is ok for flexure!!
                 self.msillumflat[onslit_tweak] = spat_bspl.value(spat_coo_final[onslit_tweak])[0]
-                self.list_of_spat_bsplines.append(spat_bspl)
+                self.list_of_spat_bsplines[slit_idx] = spat_bspl
+                # No need to proceed further if we just need the illumination profile
+                if spat_illum_only:
+                    continue
             else:
                 # Save the nada
                 msgs.warn('Slit illumination profile bspline fit failed!  Spatial profile not '
                           'included in flat-field model for slit {0}!'.format(slit_spat))
                 self.slits.mask[slit_idx] = self.slits.bitmask.turn_on(self.slits.mask[slit_idx], 'BADFLATCALIB')
-                self.list_of_spat_bsplines.append(bspline.bspline(None))
                 continue
 
             # ----------------------------------------------------------
@@ -864,7 +1030,7 @@ class FlatField(object):
             poly_basis = basis.fpoly(2.0*twod_spat_coo_data - 1.0, npoly)
 
             # Perform the full 2d fit
-            twod_bspl, twod_gpm_fit, twod_flat_fit, _ , exit_status \
+            twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
                     = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
                                             poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
@@ -923,6 +1089,8 @@ class FlatField(object):
                           'flat-field corrections included in model of slit {0}!'.format(slit_spat))
             else:
                 twod_model[twod_gpm] = twod_flat_fit[np.argsort(twod_srt)]
+                twod_gpm_out[twod_gpm] = twod_gpm_fit[np.argsort(twod_srt)]
+
 
             # Construct the full flat-field model
             # TODO: Why is the 0.05 here for the illumflat compared to the 0.01 above?
@@ -939,6 +1107,10 @@ class FlatField(object):
             # TODO: Add some code here to treat the edges and places where fits
             #  go bad?
 
+        # No need to continue if we're just doing the spatial illumination
+        if spat_illum_only:
+            return
+
         # Set the pixelflat to 1.0 wherever the flat was nonlinear
         self.mspixelflat[rawflat >= nonlinear_counts] = 1.0
         # Set the pixelflat to 1.0 within trim pixels of all the slit edges
@@ -946,10 +1118,13 @@ class FlatField(object):
         tweaked_slitid_img = self.slits.slit_img(initial=False)
         self.mspixelflat[(trimmed_slitid_img_new < 0) & (tweaked_slitid_img > 0)] = 1.0
 
-
         # Do not apply pixelflat field corrections that are greater than
         # 100% to avoid creating edge effects, etc.
         self.mspixelflat = np.clip(self.mspixelflat, 0.5, 2.0)
+
+        # Finally, using the above products, calculate the relative spectral illumination, if requested
+        if self.flatpar['slit_illum_relative']:
+            self.spec_illum = self.spectral_illumination(twod_gpm_out, debug=debug)
 
     def spatial_fit(self, norm_spec, spat_coo, median_slit_width, spat_gpm, gpm, debug=False):
         """
@@ -1011,8 +1186,192 @@ class FlatField(object):
         return exit_status, spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit, \
                spat_flat_fit, spat_flat_data_raw
 
+    def spectral_illumination(self, gpm=None, debug=False):
+        """
+        Generate a relative scaling image for a slit-based IFU. All
+        slits are scaled relative to the zeroth slit. There are three
+        stages in this approach:
 
-def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits=None):
+            #. Get a quick, rough scaling between the orders using a
+               low order polynomial
+
+            #. Using this rough scale, perform a joint b-spline fit
+               to all slits. This step ensures that a single
+               functional form is used in step 3 to fit all slits. It
+               also ensures that the model covers the min and max
+               wavelength range of all slits.
+
+            #. Calculate the relative scale of each slit, using the
+               joint model calculated in step (2).
+
+        Parameters
+        ----------
+        gpm : `numpy.ndarray`_, None
+            Good pixel mask
+        debug : bool
+            Debug the routine
+
+        Returns
+        -------
+        scale_model: `numpy.ndarray`_
+            An image containing the appropriate scaling
+        """
+        msgs.info("Deriving spectral illumination profile")
+        # Generate a wavelength image
+        msgs.info("Generating wavelength image")
+        flex = self.wavetilts.spat_flexure
+        slitmask = self.slits.slit_img(initial=True, flexure=flex)
+        tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+        waveimg = wavecalib.build_waveimg(self.spectrograph, tilts, self.slits, self.wv_calib, spat_flexure=flex)
+        msgs.info('Performing a joint fit to the flat-field response')
+        # Grab some parameters
+        trim = self.flatpar['slit_trim']
+        spec_samp_fine = self.flatpar['spec_samp_coarse']
+        rawflat = self.rawflatimg.image.copy() / self.msillumflat.copy()
+        # Grab the GPM and the slit images
+        if gpm is None:
+            gpm = np.ones_like(rawflat, dtype=bool) if self.rawflatimg.bpm is None else (
+                    1 - self.rawflatimg.bpm).astype(bool)
+        slitid_img_init = self.slits.slit_img(pad=0, initial=True)
+        slitid_img_trim = self.slits.slit_img(pad=-trim, initial=True)
+        # Find all good slits, and create a mask of pixels to include (True=include)
+        wgd = self.slits.spat_id[np.where(self.slits.mask == 0)]
+        # Obtain the minimum and maximum wavelength of all slits
+        mnmx_wv = np.zeros((self.slits.nslits, 2))
+        for slit_idx, slit_spat in enumerate(self.slits.spat_id):
+            onslit_init = (slitid_img_init == slit_spat)
+            mnmx_wv[slit_idx, 0] = np.min(waveimg[onslit_init])
+            mnmx_wv[slit_idx, 1] = np.max(waveimg[onslit_init])
+        # Sort by increasing minimum wavelength
+        swslt = np.argsort(mnmx_wv[:, 0])
+
+        ### STEP 1
+        # Go through the slits and calculate the overlapping flux
+        relscl_model = np.ones_like(rawflat)
+        # Get the minimum and maximum wavelengths that are covered in *all* slits.
+        minw, maxw = np.max(mnmx_wv, axis=0)[0], np.min(mnmx_wv, axis=0)[1]
+        # Prepare slit 0
+        # TODO :: Probably could do a bspline fit to slit 0... not sure about the small (< 1 pixel) extrapolation required
+        onslit_a = (slitid_img_trim == self.slits.spat_id[swslt[0]])
+        onslit_a_olap = onslit_a & gpm & (waveimg >= minw) & (waveimg <= maxw)
+        wsort = np.argsort(waveimg[onslit_a_olap])
+        # Generate a simple, quick spline for the first slit
+        sclspl = interpolate.interp1d(waveimg[onslit_a_olap][wsort], rawflat[onslit_a_olap][wsort],
+                                      kind='linear', bounds_error=False, fill_value="extrapolate")
+        # Now roughly calculate the flux scale relative to the first slit
+        for slit_idx in range(1, self.slits.spat_id.size):
+            # Only use the overlapping regions of the slits, where the same wavelength range is covered
+            onslit_b = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
+            onslit_b_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+            onslit_b_olap = onslit_b & gpm & (waveimg >= minw) & (waveimg <= maxw)
+            speca = sclspl(waveimg[onslit_b_olap])
+            # Fit a low order polynomial
+            xfit = (waveimg[onslit_b_olap] - minw) / (maxw - minw)
+            yfit = speca / rawflat[onslit_b_olap]
+            # Rough outlier rejection
+            msk = (yfit > 1/5) & (yfit < 5)
+            coeff = utils.func_fit(xfit[msk], yfit[msk], "legendre", 2, minx=0, maxx=1)
+            relscl_model[onslit_b_init] = utils.func_val(coeff,
+                                                         (waveimg[onslit_b_init] - minw) / (maxw - minw),
+                                                         "legendre", minx=0, maxx=1)
+
+        ### STEP 2
+        # Perform a simultaneous fit to all pixels in all slits to get a "global" shape of the flat spectrum.
+        # This ensures that the final fit smoothly covers the full wavelength range covered on the detector.
+        # Get the pixels containing good slits
+        spec_tot = np.isin(slitid_img_init, wgd)  # & (rawflat < nonlinear_counts)
+        # Apply the relative scaling
+        rawflatscl = rawflat * relscl_model
+        # Flat-field modeling is done in the log of the counts
+        flat_log = np.log(np.fmax(rawflatscl, 1.0))
+        gpm_log = (rawflatscl > 1.0) & gpm
+        # set errors to just be 0.5 in the log
+        ivar_log = gpm_log.astype(float) / 0.5 ** 2
+        # Only include the trimmed set of pixels in the flat-field
+        # fit along the spectral direction.
+        spec_gpm = np.isin((slitid_img_trim), wgd) & gpm_log  # & (rawflat < nonlinear_counts)
+        spec_nfit = np.sum(spec_gpm)
+        spec_ntot = np.sum(spec_tot)
+        msgs.info('Spectral fit of flatfield for {0}/{1} '.format(spec_nfit, spec_ntot)
+                  + ' pixels on all slits.')
+        # Sort the pixels by their spectral coordinate.
+        # TODO: Include ivar and sorted gpm in outputs?
+        spec_gpm, spec_srt, spec_coo_data, spec_flat_data \
+            = flat.sorted_flat_data(flat_log, waveimg, gpm=spec_gpm)
+        spec_ivar_data = ivar_log[spec_gpm].ravel()[spec_srt]
+        spec_gpm_data = gpm_log[spec_gpm].ravel()[spec_srt]
+
+        # Fit the spectral direction of the blaze.
+        logrej = 0.5
+        spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
+            = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+                                    np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
+                                    nord=4, upper=logrej, lower=logrej,
+                                    kwargs_bspline={'bkspace': spec_samp_fine},
+                                    kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+
+        ### STEP 3
+        # Redo the scale model, now using the bspline fit
+        scale_model = np.ones_like(self.rawflatimg.image)
+        for slit_idx in range(0, self.slits.spat_id.size):
+            msgs.info("Generating model relative response image for slit {0:d}".format(slit_idx))
+            # Only use the overlapping regions of the slits, where the same wavelength range is covered
+            onslit = (slitid_img_trim == self.slits.spat_id[swslt[slit_idx]])
+            onslit_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+            onslit_gpm = onslit & gpm
+            # Fit a low order polynomial
+            minw, maxw = mnmx_wv[slit_idx, 0], mnmx_wv[slit_idx, 1]
+            xfit = (waveimg[onslit_gpm] - minw) / (maxw - minw)
+            yfit = np.exp(spec_bspl.value(waveimg[onslit_gpm])[0]) / rawflat[onslit_gpm]
+            srtd = np.argsort(xfit)
+            # Rough outlier rejection
+            inmsk = (yfit > 1/5) & (yfit < 5)
+            slit_bspl, _, _, _, exit_status \
+                = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit), np.ones_like(xfit),
+                                        nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
+                                        kwargs_bspline={'bkspace': spec_samp_fine},
+                                        kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+            # TODO : Perhaps mask a slit if it fails...
+            if exit_status > 1:
+                msgs.warn("b-spline fit of relative scale failed for slit {0:d}".format(slit_idx))
+            else:
+                scale_model[onslit_init] = slit_bspl.value((waveimg[onslit_init] - minw) / (maxw - minw))[0]
+
+        if debug:
+            # This code generates the wavy patterns seen in KCWI
+            debug_model = np.ones_like(self.rawflatimg.image)
+            blaze_model = np.ones_like(self.rawflatimg.image)
+            if exit_status > 1:
+                msgs.warn("Joint blaze fit failed")
+            else:
+                blaze_model[...] = 1.
+                blaze_model[spec_tot] = np.exp(spec_bspl.value(waveimg[spec_tot])[0])
+                # Now take out the relative scaling
+                blaze_model /= scale_model
+                # Now, we want to use the raw flat image, corrected for spatial illumination and pixel-to-pixel variations
+                corr_model = self.msillumflat
+                corr_model *= self.mspixelflat
+                debug_model = self.rawflatimg.image.copy() / corr_model
+                debug_model /= blaze_model
+            import astropy.io.fits as fits
+            hdu = fits.PrimaryHDU(debug_model)
+            hdu.writeto('debug_model.fits', overwrite=True)
+
+            # Shift to approximately constant wavelength
+            shift_image = np.ones_like(self.rawflatimg.image.copy())
+            # ratio = ratio of twilight to internal flats
+            ratio = np.ones_like(self.rawflatimg.image.copy())  # placeholder... need to load "ratio" image from file
+            for slit_idx in range(0, self.slits.spat_id.size):
+                # Only use the overlapping regions of the slits, where the same wavelength range is covered
+                onslit_init = (slitid_img_init == self.slits.spat_id[swslt[slit_idx]])
+                onslit_olap = np.where(onslit_init & (waveimg >= minw) & (waveimg <= maxw))
+                shifted = (onslit_olap[0] - onslit_olap[0].min(), onslit_olap[1],)
+                shift_image[shifted] = ratio[onslit_olap]
+
+        return scale_model
+
+
+def show_flats(image_list, wcs_match=True, slits=None):
     """
     Interface to ginga to show a set of flat images
 
@@ -1021,6 +1380,7 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits
         illumflat (`numpy.ndarray`_ or None):
         procflat (`numpy.ndarray`_):
         flat_model (`numpy.ndarray`_):
+        spec_illum (`numpy.ndarray`_ or None):
         wcs_match (bool, optional):
         slits (:class:`pypeit.slittrace.SlitTraceSet`, optional):
 
@@ -1033,15 +1393,13 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits
         gpm = mask == 0
     # Loop me
     clear = True
-    for img, name, cut in zip([pixelflat, illumflat, procflat, flat_model],
-                         ['pixelflat', 'illumflat', 'flat', 'flat_model'],
-                         [(0.9, 1.1), (0.9, 1.1), None, None]):
+    for img, name, cut in image_list:
         if img is None:
             continue
         # TODO: Add an option that shows the relevant stuff in a
         # matplotlib window.
         viewer, ch = ginga.show_image(img, chname=name, cuts=cut,
-                                  wcs_match=wcs_match, clear=clear)
+                                      wcs_match=wcs_match, clear=clear)
         if slits is not None:
             ginga.show_slits(viewer, ch, left[:, gpm], right[:, gpm],
                              slit_ids=slits.spat_id[gpm])
@@ -1049,3 +1407,43 @@ def show_flats(pixelflat, illumflat, procflat, flat_model, wcs_match=True, slits
         if clear:
             clear = False
 
+
+def merge(init_cls, merge_cls):
+    """
+    Merge merge_cls into init_cls, and return a merged :class:`pypeit.flatfield.FlatImages` class.
+    If an element exists in both init_cls and merge_cls, the merge_cls value is taken
+
+    Parameters
+    ----------
+    init_cls : :class:`pypeit.flatfield.FlatImages`
+        Initial class (the elements of this class will be considered the default)
+    merge_cls : :class:`pypeit.flatfield.FlatImages`
+        The non-zero elements will be merged into init_cls.
+
+    Returns
+    -------
+    :class:`pypeit.flatfield.FlatImages` : A new instance of the FlatImages class with merged properties.
+    """
+    # Check the class to be merged in is not None
+    if merge_cls is None:
+        return init_cls
+    # Initialise variables
+    # extract all elements that are prefixed with 'pixelflat_' or 'illumflat_'
+    keys = [a for a in list(init_cls.__dict__.keys()) if '_' in a and a.split('_')[0] in ['illumflat', 'pixelflat']]
+    dd = dict()
+    for key in keys:
+        dd[key] = None
+    # Cherry pick the values from each class
+    dd['PYP_SPEC'] = merge_cls.PYP_SPEC if init_cls.PYP_SPEC is None else init_cls.PYP_SPEC
+    dd['spat_id'] = merge_cls.spat_id if init_cls.spat_id is None else init_cls.spat_id
+    for key in keys:
+        mrg = False
+        val = None
+        namespace = dict({'val': val, 'init_cls':init_cls, 'merge_cls':merge_cls, 'mrg':mrg})
+        exec("val = init_cls.{0:s}".format(key), namespace)
+        exec("mrg = merge_cls.{0:s} is not None".format(key), namespace)
+        if namespace['mrg']:
+            exec("val = merge_cls.{0:s}".format(key), namespace)
+        dd[key] = namespace['val']
+    # Construct the merged class
+    return FlatImages(**dd)

@@ -42,10 +42,6 @@ class PypeItImage(datamodel.DataContainer):
         spat_flexure (:obj:`float`, optional):
 
     Attributes:
-        hdu_prefix (str, optional):
-            Appended to the HDU name, if provided.
-            Mainly used to enable output of multiple PypeItImage objects
-            in more complex DataContainers
         head0 (astropy.io.fits.Header):
         detector (:class:`pypeit.images.detector_container.DetectorContainer`):
         files (list):
@@ -79,6 +75,11 @@ class PypeItImage(datamodel.DataContainer):
     bitmask = imagebitmask.ImageBitMask()
 
     hdu_prefix = None
+    """
+    Prefix for the HDU names. Can be None. Mainly used to enable
+    output of multiple PypeItImage objects in more complex
+    DataContainers.
+    """
 
     @classmethod
     def from_pypeitimage(cls, pypeitImage):
