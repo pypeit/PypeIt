@@ -117,6 +117,7 @@ class Spec2DObj(datamodel.DataContainer):
 
     def _init_internals(self):
         self.process_steps = None
+        self.head0 = None
 
     def _validate(self):
         """

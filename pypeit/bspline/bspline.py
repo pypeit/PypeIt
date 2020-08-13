@@ -242,9 +242,6 @@ class bspline(datamodel.DataContainer):
         self.coeff = np.zeros((self.npoly, nc), dtype=float) if self.npoly > 1 \
                         else np.zeros(nc, dtype=float)
 
-    def _init_internals(self):
-        self.hdu_prefix = None
-
     def _bundle(self):
         """
         Overload for the HDU name

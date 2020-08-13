@@ -311,6 +311,19 @@ class TracePCA(DataContainer):
                 break
         return d, version_passed, type_passed
 
+    @classmethod
+    def from_dict(cls, d=None):
+        """
+        Instantiate from a dictionary.
+
+        This is a basic wrapper for
+        :class:`pypeit.datamodel.DataContainer.from_dict` that
+        appropriately toggles :attr:`is_empty`.
+        """
+        self = super(TracePCA, cls).from_dict(d=d)
+        self.is_empty = False
+        return self
+
 
 # TODO: Like with the use of TracePCA in EdgeTraceSet, we should
 # integrate the elements of the function below into classes that trace

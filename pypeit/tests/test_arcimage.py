@@ -4,11 +4,11 @@ of master frame functionality
 """
 import os
 
-#import warnings
-#warnings.simplefilter('error', FutureWarning)
-
 import pytest
 import glob
+
+from IPython import embed
+
 import numpy as np
 
 from astropy.io import fits
@@ -46,3 +46,4 @@ def test_master_io():
     assert isinstance(_arcImage.detector, test_detector.detector_container.DetectorContainer)
     # Cleanup
     os.remove(master_filename)
+

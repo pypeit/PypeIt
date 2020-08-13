@@ -447,7 +447,7 @@ class EdgeTraceSet(DataContainer):
 
         # Check input types
         if not isinstance(traceimg, TraceImage):
-            msgs.error('Input trace_mg must be a TraceImage object.')
+            msgs.error('Input traceimg must be a TraceImage object.')
         if not isinstance(spectrograph, Spectrograph):
             msgs.error('Input spectrograph must be a Spectrograph object.')
         if not isinstance(par, EdgeTracePar):
@@ -520,83 +520,84 @@ class EdgeTraceSet(DataContainer):
     def nslits(self):
         if self.is_synced:
             return self.ntrace//2
-        # TODO: Maybe this should only throw a warning
         msgs.error('Number of slits undefined because edges are not left-right synchronized.')
 
-#    @staticmethod
-#    def empty_design_table(rows=None):
-#        """
-#        Construct an empty `design` table.
-#
-#        Args:
-#            rows (:obj:`int`, optional):
-#                Number of table rows for each table column, expected
-#                to be the number of matched slits. If None, the table
-#                has empty columns.
-#
-#        Returns:
-#            `astropy.table.Table`_: Instance of the empty design
-#            table.
-#        """
-#        length = 0 if rows is None else rows
-#        return table.Table([
-#                    table.Column(name='TRACEID', dtype=int, length=length,
-#                                 description='Trace ID Number'),
-#                    table.Column(name='TRACESROW', dtype=int, length=length,
-#                                 description='Spectral row for provided left and right edges.'),
-#                    table.Column(name='TRACELPIX', dtype=float, length=length,
-#                                 description='Spatial pixel coordinate for left edge'),
-#                    table.Column(name='TRACERPIX', dtype=float, length=length,
-#                                 description='Spatial pixel coordinate for right edge'),
-#                    table.Column(name='SLITID', dtype=int, length=length,
-#                                 description='Slit ID Number'),
-#                    table.Column(name='SLITLFOC', dtype=float, length=length,
-#                                 description='Left edge of the slit in mm at the focal plane'),
-#                    table.Column(name='SLITRFOC', dtype=float, length=length,
-#                                 description='Right edge of the slit in mm at the focal plane'),
-#                    table.Column(name='SLITRA', dtype=float, length=length,
-#                                 description='Right ascension of the slit center (deg)'),
-#                    table.Column(name='SLITDEC', dtype=float, length=length,
-#                                 description='Declination of the slit center (deg)'),
-#                    table.Column(name='SLITLEN', dtype=float, length=length,
-#                                 description='Slit length (arcsec)'),
-#                    table.Column(name='SLITWID', dtype=float, length=length,
-#                                 description='Slit width (arcsec)'),
-#                    table.Column(name='SLITPA', dtype=float, length=length,
-#                                 description='Slit position angle onsky (deg from N through E)'),
-#                    table.Column(name='ALIGN', dtype=np.int16, length=length,
-#                                 description='Slit used for alignment (1-yes; 0-no), not target '
-#                                             'observations.')
-#                           ])
-#
-#    @staticmethod
-#    def empty_objects_table(rows=None):
-#        """
-#        Construct an empty `objects` table.
-#
-#        Args:
-#            rows (:obj:`int`, optional):
-#                Number of table rows for each table column, expected
-#                to be the number of objects. If None, the table has
-#                empty columns.
-#
-#        Returns:
-#            `astropy.table.Table`_: Instance of the empty object
-#            table.
-#        """
-#        length = 0 if rows is None else rows
-#        return table.Table([
-#                    table.Column(name='OBJID', dtype=int, length=length,
-#                                 description='Object ID Number'),
-#                    table.Column(name='OBJRA', dtype=float, length=length,
-#                                 description='Right ascension of the object (deg)'),
-#                    table.Column(name='OBJDEC', dtype=float, length=length,
-#                                 description='Declination of the object (deg)'),
-#                    table.Column(name='SLITID', dtype=int, length=length,
-#                                 description='Slit ID Number'),
-#                    table.Column(name='SLITINDX', dtype=int, length=length,
-#                                 description='Row index of relevant slit in the design table')
-#                           ])
+    # TODO: Add self.design to the data model when we're ready to match
+    # to the slit-mask design data.
+    @staticmethod
+    def empty_design_table(rows=None):
+        """
+        Construct an empty `design` table.
+
+        Args:
+            rows (:obj:`int`, optional):
+                Number of table rows for each table column, expected
+                to be the number of matched slits. If None, the table
+                has empty columns.
+
+        Returns:
+            `astropy.table.Table`_: Instance of the empty design
+            table.
+        """
+        length = 0 if rows is None else rows
+        return table.Table([
+                    table.Column(name='TRACEID', dtype=int, length=length,
+                                 description='Trace ID Number'),
+                    table.Column(name='TRACESROW', dtype=int, length=length,
+                                 description='Spectral row for provided left and right edges.'),
+                    table.Column(name='TRACELPIX', dtype=float, length=length,
+                                 description='Spatial pixel coordinate for left edge'),
+                    table.Column(name='TRACERPIX', dtype=float, length=length,
+                                 description='Spatial pixel coordinate for right edge'),
+                    table.Column(name='SLITID', dtype=int, length=length,
+                                 description='Slit ID Number'),
+                    table.Column(name='SLITLFOC', dtype=float, length=length,
+                                 description='Left edge of the slit in mm at the focal plane'),
+                    table.Column(name='SLITRFOC', dtype=float, length=length,
+                                 description='Right edge of the slit in mm at the focal plane'),
+                    table.Column(name='SLITRA', dtype=float, length=length,
+                                 description='Right ascension of the slit center (deg)'),
+                    table.Column(name='SLITDEC', dtype=float, length=length,
+                                 description='Declination of the slit center (deg)'),
+                    table.Column(name='SLITLEN', dtype=float, length=length,
+                                 description='Slit length (arcsec)'),
+                    table.Column(name='SLITWID', dtype=float, length=length,
+                                 description='Slit width (arcsec)'),
+                    table.Column(name='SLITPA', dtype=float, length=length,
+                                 description='Slit position angle onsky (deg from N through E)'),
+                    table.Column(name='ALIGN', dtype=np.int16, length=length,
+                                 description='Slit used for alignment (1-yes; 0-no), not target '
+                                             'observations.')
+                           ])
+
+    @staticmethod
+    def empty_objects_table(rows=None):
+        """
+        Construct an empty `objects` table.
+
+        Args:
+            rows (:obj:`int`, optional):
+                Number of table rows for each table column, expected
+                to be the number of objects. If None, the table has
+                empty columns.
+
+        Returns:
+            `astropy.table.Table`_: Instance of the empty object
+            table.
+        """
+        length = 0 if rows is None else rows
+        return table.Table([
+                    table.Column(name='OBJID', dtype=int, length=length,
+                                 description='Object ID Number'),
+                    table.Column(name='OBJRA', dtype=float, length=length,
+                                 description='Right ascension of the object (deg)'),
+                    table.Column(name='OBJDEC', dtype=float, length=length,
+                                 description='Declination of the object (deg)'),
+                    table.Column(name='SLITID', dtype=int, length=length,
+                                 description='Slit ID Number'),
+                    table.Column(name='SLITINDX', dtype=int, length=length,
+                                 description='Row index of relevant slit in the design table')
+                           ])
 
     def rectify(self, flux, bpm=None, extract_width=None, mask_threshold=0.5, side='left'):
         r""""
@@ -657,8 +658,8 @@ class EdgeTraceSet(DataContainer):
         start = np.ceil(np.amax(np.amin(first_last_trace, axis=1))).astype(int)
         buffer = self.nspat - np.floor(np.amin(np.amax(first_last_trace, axis=1))).astype(int) \
                     + start
-        # TODO: This has its limitations if the PCA is highly non-linear
         # Rectify the image
+        # TODO: This has its limitations if the PCA is highly non-linear.
         ocol = np.arange(self.nspat+buffer)-start
         return sampling.rectify_image(flux, pca.predict(ocol), bpm=bpm, ocol=ocol,
                                       max_ocol=self.nspat-1, extract_width=extract_width,
@@ -970,6 +971,8 @@ class EdgeTraceSet(DataContainer):
         self.pcatype = None
 
         # No design or object data yet
+        # TODO: Move these to the datamodel when we have the slit-mask
+        # design matching working.
         self.design = None
         self.objects = None
 
@@ -1046,167 +1049,7 @@ class EdgeTraceSet(DataContainer):
                         or isinstance(self[key], DataContainer):
                     continue
                 _d[key] = self[key]
-
-        # Done
         return d
-
-#    # TODO: File name should default to master file. Can master_key be
-#    # pulled from the TraceImage?
-#    def save(self, outfile, overwrite=True, checksum=True, float_dtype='float32',
-#             master_dir=None, master_key=None):
-#        """
-#        Save the trace object for later re-instantiation.
-#
-#        Args:
-#            outfile (:obj:`str`):
-#                Full path for the output file.
-#            overwrite (:obj:`bool`, optional):
-#                Overwrite any existing file.
-#            checksum (:obj:`bool`, optional):
-#                Passed to `astropy.io.fits.HDUList.writeto`_ to add
-#                the DATASUM and CHECKSUM keywords fits header(s).
-#            float_dtype (:obj:`str`, optional):
-#                Convert floating-point data to this data type before
-#                writing.  Default is 32-bit precision.
-#            master_dir (:obj:`str`, optional):
-#                Directory for the master calibration files. If None,
-#                set to current working directory.
-#            master_key (:obj:`str`, optional):
-#                Key identifier for the master frame.  If None, ...
-#        """
-#        # First check if a trace is available
-#        if self.is_empty:
-#            msgs.error('No trace information available!')
-#
-#        # Check if the output file exists
-#        if os.path.exists(outfile) and not overwrite:
-#            msgs.error('Master file exists: {0}'.format(outfile) + msgs.newline()
-#                       + 'Set overwrite=True to overwrite it.')
-#
-#        # Ensure that the root directory exists
-#        root = os.path.split(outfile)[0]
-#        if not os.path.isdir(root):
-#            os.makedirs(root)
-#
-#        # Report name before starting to write it
-#        msgs.info('Writing master frame to {0}'.format(outfile))
-#
-#        # Build the primary header
-#        prihdr = io.initialize_header() if master_key is None \
-#                    else masterframe.build_master_header(self, master_key, master_dir,
-#                                                         raw_files=self.traceimg.files)
-#        #   - Add the qa path
-#        #prihdr['QADIR'] = (self.qa_path, 'PypeIt: QA directory')
-#        #   - List the processed raw files, if available
-#        # TODO: Add this to PypeItImage
-##        if self.trace_img.files is not None:
-##            nfiles = len(self.trace_img.files)
-##            ndig = int(np.log10(nfiles))+1
-##            for i in range(nfiles):
-##                prihdr['RAW{0}'.format(str(i+1).zfill(ndig))] \
-##                            = (self.trace_img.files[i], 'PypeIt: Processed raw file')
-#        # TODO: Make sure are written as part of PypeItImage
-##        #   - Add the binning
-##        prihdr['BINNING'] = (self.trace_image.binning, 'PypeIt: Binning')
-##        #   - Add the detector number
-##        prihdr['DET'] = (self.trace_img.det, 'PypeIt: Detector')
-#
-#        #   - Add the tracing parameters
-#        self.par.to_header(prihdr)
-#
-#        # TODO: Ignore this for now
-##        #   - List the completed methods, if there are any
-##        if self.log is not None and len(self.log) > 0:
-##            ndig = int(np.log10(len(self.log)))+1
-##            for i,m in enumerate(self.log):
-##                prihdr['LOG{0}'.format(str(i+1).zfill(ndig))] \
-##                        = (m, '{0}: Completed method'.format(self.__class__.__name__))
-#
-#        #   - PCA type, used for rebuilding the PCA when loading
-#        prihdr['PCATYPE'] = ('None' if self.pcatype is None else self.pcatype,
-#                             'PypeIt: Edge trace PCA type')
-#        #   - The dispersion name is needed in the setup of some
-#        #     spectrographs
-#        if self.spectrograph.dispname is not None:
-#            prihdr['DISPNAME'] = (self.spectrograph.dispname, 'Spectrograph disperser')
-#        #   - Indicate the type if fit (TODO: Keep the fit parameters?)
-#        fithdr = fits.Header()
-#        fithdr['FITTYP'] = 'None' if self.fittype is None else self.fittype
-#
-#        # Only put the definition of the bits in the trace mask in the
-#        # header of the appropriate extension.
-#        mskhdr = fits.Header()
-#        self.bitmask.to_header(mskhdr)
-#
-#        # If registered against slit-mask design data, include the
-#        # source file and fit parameters in the appropriate header
-#        designhdr = None
-#        if self.design is not None:
-#            designhdr = fits.Header()
-#            designhdr['MASKFILE'] = (self.design.meta['MASKFILE'],
-#                                     'File that provided slit-mask design data')
-#            designhdr['MASKOFF'] = (self.design.meta['MASKOFF'],
-#                                    'Best-fitting slit-mask design offset (pix)')
-#            designhdr['MASKSCL'] = (self.design.meta['MASKSCL'],
-#                                    'Best-fitting slit-mask design scale (pix per mm)')
-#
-#        # Determine if the file should be compressed
-#        compress = False
-#        if outfile.split('.')[-1] == 'gz':
-#            outfile = outfile[:outfile.rfind('.')]
-#            compress = True
-#
-#        # Build the list of extensions to write
-#        # TODO: Separately adding the design and object data is
-#        # necessary because of a bug in the behavior of empty binary
-#        # tables in gzipped files in astropy.io.fits (astropy==3.1.2).
-#        # This has since been fixed, but I need to check if it works in
-#        # the most recent release. If it is, building the hdu can be
-#        # done in one go, where the binary tables will just be empty if
-#        # no design/object data is avialable.
-#
-#        hdu = self.traceimg.to_hdu(add_primary=True, primary_hdr=prihdr)
-#
-#        hdu += [fits.ImageHDU(data=self.tracebpm.astype(np.int16), name='TRACEBPM'),
-#                fits.ImageHDU(data=self.sobelsig.astype(float_dtype), name='SOBELSIG'),
-#                fits.ImageHDU(data=self.traceid, name='TRACEID'),
-#                fits.ImageHDU(data=self.edge_cen.astype(float_dtype), name='CENTER'),
-#                fits.ImageHDU(data=self.edge_err.astype(float_dtype), name='CENTER_ERR'),
-#                fits.ImageHDU(header=mskhdr, data=self.edge_msk, name='CENTER_MASK'),
-#                fits.ImageHDU(header=fithdr, data=self.edge_fit.astype(float_dtype),
-#                              name='CENTER_FIT')]
-#
-#        # Add detector
-##        hdu += self.traceimg.detector.to_hdu()
-#
-#        # Add order ID, if available
-#        if self.orderid is not None:
-#            hdu += [fits.ImageHDU(data=self.orderid, name='ORDERID')]
-#        # Add PCA, if available. Should not produce both PCA and the
-#        # left-right PCAs.
-#        if self.pca is not None:
-#            hdu += self.pca.to_hdu()
-#        if self.left_pca is not None:
-#            hdu += self.left_pca.to_hdu()
-#            hdu[-1].name = 'LEFT_PCA'
-#        if self.right_pca is not None:
-#            hdu += self.right_pca.to_hdu()
-#            hdu[-1].name = 'RIGHT_PCA'
-#        # TODO: These things are going to go in slittrace.SlitTraceSet
-#        if self.design is not None:
-#            hdu += [fits.BinTableHDU(header=designhdr, data=self.design, name='DESIGN')]
-#        if self.objects is not None: 
-#            hdu += [fits.BinTableHDU(data=self.objects, name='OBJECTS')]
-#        # Write the fits file; note not everything is written. Some
-#        # arrays are reconstruced by the load function.
-#        hdu.writeto(outfile, overwrite=True, checksum=checksum)
-#
-#        # Compress the file if the output filename has a '.gz'
-#        # extension; this is slow but still faster than if you have
-#        # astropy.io.fits do it directly
-#        if compress:
-#            msgs.info('Compressing file to: {0}.gz'.format(outfile))
-#            io.compress_file(outfile, overwrite=overwrite)
 
     @classmethod
     def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
@@ -1243,16 +1086,16 @@ class EdgeTraceSet(DataContainer):
         # Instantiate the TraceImage from the header
         d['traceimg'] = TraceImage.from_hdu(hdu, chk_version=chk_version)
 
-        # Instantiate the TracePCAs. Unfortunately, this means they get
-        # parsed twice.
+        # Instantiate the TracePCAs using the data already parsed from
+        # the file.
         if d['pcatype'] is not None:
             hdu_names = [h.name for h in hdu]
             if 'PCA' in hdu_names:
-                d['pca'] = TracePCA.from_hdu(hdu['PCA'])
+                d['pca'] = TracePCA.from_dict(d=d['pca'])
             if 'LEFT_PCA' in hdu_names:
-                d['left_pca'] = TracePCA.from_hdu(hdu['LEFT_PCA'])
+                d['left_pca'] = TracePCA.from_dict(d=d['left_pca'])
             if 'RIGHT_PCA' in hdu_names:
-                d['right_pca'] = TracePCA.from_hdu(hdu['RIGHT_PCA'])
+                d['right_pca'] = TracePCA.from_dict(d=d['right_pca'])
 
         # Convert data types
         for key in d.keys():
@@ -1262,8 +1105,7 @@ class EdgeTraceSet(DataContainer):
                                         else cls.datamodel[key]['atype'])
 
         # Instantiate
-        self = super().__new__(cls)
-        DataContainer.__init__(self, d=d)
+        self = super(EdgeTraceSet, cls).from_dict(d=d)
 
         # Reinstantiate elements that are not part of the datamodel
         # NOTE: The SOBELSIG extension is used here as the reference
@@ -1279,183 +1121,8 @@ class EdgeTraceSet(DataContainer):
         if chk_version and hdr_bitmask.bits != self.bitmask.bits:
             msgs.error('The bitmask in this fits file appear to be out of date!  Recreate this '
                        'master frame either by rerunning run_pypeit or pypeit_trace_edges.')
-        
-        # Finish
+
         return self
-
-
-#    @classmethod
-#    def from_file(cls, filename, rebuild_pca=False, chk_version=True):
-#        """
-#        Instantiate using data from a file.
-#
-#        To reload data that has been saved for an existing
-#        instantiation, use :func:`load`.
-#
-#        Args:
-#            filename (:obj:`str`):
-#                Fits file produced by :func:`save`.
-#            rebuild_pca (:obj:`bool`, optional):
-#                Rebuild the PCA decomposition of the traces based on
-#                the loaded trace data, but only if the PCA had been
-#                originally produced for the saved object (as
-#                indicated by the fits header). Otherwise, any
-#                existing saved PCA data will be used to construct the
-#                PCA object(s). If the header indicates that the PCA
-#                was not originally performed, this is ignored.
-#        """
-#
-#        # TODO: Consolidate this with items_from_master_file in
-#        # masterframe.py?
-#
-#        # Check the file exists
-#        if not os.path.isfile(filename):
-#            msgs.error('File does not exit: {0}'.format(filename))
-#        msgs.info('Loading EdgeTraceSet data from: {0}'.format(filename))
-#        with fits.open(filename) as hdu:
-#            this = cls(TraceImage.from_hdu(hdu), 
-# load_spectrograph(hdu[0].header['PYP_SPEC']),
-#                       EdgeTracePar.from_header(hdu[0].header))
-#
-#            # Re-initialize and validate
-#            this._reinit(hdu, rebuild_pca=rebuild_pca)
-#        return this
-
-#    def _reinit(self, hdu, validate=True, rebuild_pca=False):
-#        """
-#        Reinitialize the internals based on the provided fits HDU.
-#
-#        Args:
-#            hdu (`astropy.io.fits.Header`):
-#                The fits data used to reinitialize the object written
-#                by :func:`save`.
-#            validate (:obj:`bool`, optional):
-#                Validate that the spectrograph, parameter set, and
-#                bitmask have not changed between the current internal
-#                values and the values read from the fits file. The
-#                method raises an error if the spectrograph or
-#                parameter set are different. If the bitmask is
-#                different, a warning is issued and the bitmask
-#                defined by the header is used instead of the existing
-#                :attr:`bitmask`.
-#            rebuild_pca (:obj:`bool`, optional):
-#                Rebuild the PCA decomposition of the traces based on
-#                the loaded trace data, but only if the PCA had been
-#                originally produced for the saved object (as
-#                indicated by the fits header). Otherwise, any
-#                existing saved PCA data will be used to construct the
-#                PCA object(s). If the header indicates that the PCA
-#                was not originally performed, this is ignored.
-#        """
-#        hdunames = [h.name for h in hdu]
-#
-##        # Read and assign data from the fits file
-##        self.files = io.parse_hdr_key_group(hdu[0].header, prefix='RAW')
-##        if len(self.files) == 0:
-##            self.files = None
-#
-#        # TODO: These now cast back to float64, regardless of how they
-#        # were written (typically float32). Not sure this is a great
-#        # idea, but I put it here so that get_slits always casts to
-#        # float64.  Not exactly sure what makes sense...
-#
-#        # TODO: When converting to DataContainer, convert these to
-#        # from_hdu methods to reconstruct self.traceimg.
-#
-#        self.traceimg = TraceImage.from_hdu(hdu)
-#        self.nspec, self.nspat = self.traceimg.shape
-#        self.tracebpm = hdu['TRACEBPM'].data.astype(bool)
-#
-#        self.sobelsig = hdu['SOBELSIG'].data.astype(float)
-#        self.traceid = hdu['TRACEID'].data
-#        self.edge_cen = hdu['CENTER'].data.astype(float)
-#        self.edge_err = hdu['CENTER_ERR'].data.astype(float)
-#        self.edge_msk = hdu['CENTER_MASK'].data
-#        self.edge_fit = hdu['CENTER_FIT'].data.astype(float)
-#        self.fittype = None if hdu['CENTER_FIT'].header['FITTYP'] == 'None' \
-#                                else hdu['CENTER_FIT'].header['FITTYP']
-#        # Get the order ID, design, and object data if they exist
-#        ext = [h.name for h in hdu]
-#        if 'ORDERID' in ext:
-#            self.orderid = hdu['ORDERID'].data
-#        if 'DESIGN' in ext:
-#            self.design = table.Table(hdu['DESIGN'].data)
-#            self.design.meta['MASKFILE'] = hdu['DESIGN'].header['MASKFILE']
-#            self.design.meta['MASKOFF'] = hdu['DESIGN'].header['MASKOFF']
-#            self.design.meta['MASKSCL'] = hdu['DESIGN'].header['MASKSCL']
-#        if 'OBJECTS' in ext:
-#            self.objects = table.Table(hdu['OBJECTS'].data)
-#
-#        # Set the integer pixel values
-#        self.edge_img = None if self.traceid is None \
-#                            else (np.round(self.edge_cen if self.edge_fit is None
-#                                    else self.edge_fit).astype(int))
-#
-#        # Read or rebuild the PCA if it existed previously
-#        self.pcatype = None if hdu[0].header['PCATYPE'] == 'None' else hdu[0].header['PCATYPE']
-#        self.pca = None
-#        self.left_pca = None
-#        self.right_pca = None
-#        if rebuild_pca:
-#            if not self.can_pca():
-#                msgs.error('Traces do not meet necessary criteria for the PCA decomposition.')
-#            self._reset_pca(True)
-#        elif self.pcatype is not None:
-#            if self.par['left_right_pca']:
-#                self.left_pca = TracePCA.from_hdu(hdu['LEFT_PCA'])
-#                self.right_pca = TracePCA.from_hdu(hdu['RIGHT_PCA'])
-#            else:
-#                self.pca = TracePCA.from_hdu(hdu['PCA'])
-#
-#        # Read the disperser if possible. This is needed for the
-#        # spec_min_max property of some spectrographs.
-#        self.dispname = None if hdu[0].header['DISPNAME'] == 'None' else hdu[0].header['DISPNAME']
-#        if self.spectrograph.dispname is None:
-#            self.spectrograph.dispname = self.dispname
-#
-#        # Read the log
-#        # TODO: Keep this?
-#        self.log = io.parse_hdr_key_group(hdu[0].header, prefix='LOG')
-#
-#        # Reinit the left and right sobel images
-#        self.sobelsig_left = None
-#        self.sobelsig_right = None
-#
-#        # Finished, if not validating
-#        if not validate:
-#            return
-#
-#        # Check the package versions used to create the file
-#        if not io.header_version_check(hdu['PRIMARY'].header):
-#            msgs.warn('This file was written with different package versions.  You may need to '
-#                      'redo the reductions to use the file within the current environment!')
-#
-#        # Test the bitmask has the same keys and key values
-#        hdr_bitmask = BitMask.from_header(hdu['CENTER_MASK'].header)
-#        if hdr_bitmask.bits != self.bitmask.bits:
-#            msgs.warn('The bitmask in this fits file appear to be out of date!  Will continue '
-#                      'by using old bitmask but errors may occur.  You should recreate this '
-#                      'master frame.')
-#            self.bitmask = hdr_bitmask
-#
-#        # Test the spectrograph is the same
-#        if self.spectrograph.spectrograph != hdu[0].header['PYP_SPEC']:
-#            msgs.error('Data used for this master frame was from a different spectrograph!')
-#
-#        # Check that the disperser is correct. NOTE: If disperser was
-#        # None when this method was called, this will automatically be
-#        # true.
-#        if self.spectrograph.dispname is not None \
-#                and self.spectrograph.dispname != hdu[0].header['DISPNAME']:
-#            msgs.error('Current spectrograph disperser does not match file data.')
-#
-#        # Test the parameters used are the same
-#        par = EdgeTracePar.from_header(hdu[0].header)
-#        if self.par.data != par.data:
-#            # TODO: The above inequality works for non-nested ParSets,
-#            # but will need to be more careful for nested ones, or just
-#            # avoid writing nested ParSets to headers...
-#            msgs.error('This master frame was generated using different parameter values!')
 
     @property
     def flagged_bits(self):
@@ -2601,9 +2268,9 @@ class EdgeTraceSet(DataContainer):
         if self.par['minimum_slit_length'] is not None \
                 or self.par['minimum_slit_length_sci'] is not None \
                 or self.par['minimum_slit_gap'] is not None:
-            platescale = parse.parse_binning(self.traceimg.binning)[1] \
+            platescale = parse.parse_binning(self.traceimg.detector.binning)[1] \
                             * self.traceimg.detector['platescale']
-            msgs.info('Binning: {0}'.format(self.traceimg.binning))
+            msgs.info('Binning: {0}'.format(self.traceimg.detector.binning))
             msgs.info('Platescale per binned pixel: {0}'.format(platescale))
             if self.par['minimum_slit_length'] is not None:
                 length_atol = self.par['minimum_slit_length']/platescale

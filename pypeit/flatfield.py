@@ -116,76 +116,55 @@ class FlatImages(datamodel.DataContainer):
             above.
         """
         d = []
-
-        # Rest of the datamodel
         for key in self.keys():
             # Skip None
             if self[key] is None:
                 continue
-            # Array?
-            if self.datamodel[key]['otype'] == np.ndarray and \
-                    key != 'pixelflat_spat_bsplines' and \
-                    key != 'illumflat_spat_bsplines':
-                d.append({key: self[key]})
-            elif key == 'pixelflat_spat_bsplines':
-                for ss, spat_bspl in enumerate(self[key]):
-                    # Naming
-                    spat_bspl.hdu_prefix = 'PIXELFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
-                    dkey = 'bspline-{}'.format(self.spat_id[ss])
-                    # Save
-                    d.append(copy.deepcopy({dkey: spat_bspl}))
-            elif key == 'illumflat_spat_bsplines':
-                for ss, spat_bspl in enumerate(self[key]):
-                    # Naming
-                    spat_bspl.hdu_prefix = 'ILLUMFLAT_SPAT_ID-{}_'.format(self.spat_id[ss])
-                    dkey = 'bspline-{}'.format(self.spat_id[ss])
-                    # Save
-                    d.append(copy.deepcopy({dkey: spat_bspl}))
-            else: # Add to header of the primary image
-                d[0][key] = self[key]
+            if self.datamodel[key]['otype'] == np.ndarray and 'bsplines' not in key:
+                d += [{key: self[key]}]
+            elif 'bsplines' in key:
+                flattype = 'pixelflat' if 'pixelflat' in key else 'illumflat'
+                d += [{'{0}_spat_id-{1}_bspline'.format(flattype, self.spat_id[ss]): self[key][ss]}
+                            for ss in range(len(self[key]))]
+            else:
+                if len(d) > 0:
+                    d[0][key] = self[key]
+                else:
+                    d += [{key: self[key]}]
         # Return
         return d
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False, hdu_prefix=None):
-        # Grab everything but the bspline's
-        _d, dm_version_passed, dm_type_passed = super(FlatImages, cls)._parse(hdu)
-        # Now the bsplines
-        list_of_pixbsplines, list_of_illbsplines = [], []
-        pixspat_ids, illspat_ids = [], []
-        has_pixel, has_illum = False, False   # Boolean flags to test if the input file has pixelflat and/or illumflat
-        for ihdu in hdu:
-            if 'PIXELFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
-                has_pixel = True
-                ibspl = bspline.bspline.from_hdu(ihdu)
-                if ibspl.version != bspline.bspline.version:
-                    msgs.warn("Your bspline is out of date!!")
-                list_of_pixbsplines.append(ibspl)
-                # Grab SPAT_ID for checking
-                i0 = ihdu.name.find('ID-')
-                i1 = ihdu.name.find('_BSP')
-                pixspat_ids.append(int(ihdu.name[i0+3:i1]))
-            if 'ILLUMFLAT' in ihdu.name and 'BSPLINE' in ihdu.name:
-                has_illum = True
-                ibspl = bspline.bspline.from_hdu(ihdu)
-                if ibspl.version != bspline.bspline.version:
-                    msgs.warn("Your bspline is out of date!!")
-                list_of_illbsplines.append(ibspl)
-                # Grab SPAT_ID for checking
-                i0 = ihdu.name.find('ID-')
-                i1 = ihdu.name.find('_BSP')
-                illspat_ids.append(int(ihdu.name[i0 + 3:i1]))
-        # Check
-        if pixspat_ids != _d['spat_id'].tolist() and has_pixel:
-            msgs.error("Bad parsing of pixelflat BSPLINE spat_id in the MasterFlat")
-        if illspat_ids != _d['spat_id'].tolist() and has_illum:
-            msgs.error("Bad parsing of illumflat BSPLINE spat_id in the MasterFlat")
-        # Finish
-        if has_pixel:
-            _d['pixelflat_spat_bsplines'] = np.asarray(list_of_pixbsplines)
-        if has_illum:
-            _d['illumflat_spat_bsplines'] = np.asarray(list_of_illbsplines)
-        return _d, dm_version_passed, dm_type_passed
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
+
+        # Grab everything but the bsplines. The bsplines are not parsed
+        # because the tailored extension names do not match any of the
+        # datamodel keys.
+        d, version_passed, type_passed = super(FlatImages, cls)._parse(hdu)
+
+        # Find bsplines, if they exist
+        nspat = len(d['spat_id'])
+        hdunames = [h.name for h in hdu]
+        for flattype in ['pixelflat', 'illumflat']:
+            ext = ['{0}_SPAT_ID-{1}_BSPLINE'.format(flattype.upper(), d['spat_id'][i])
+                   for i in range(nspat)]
+            indx = np.isin(ext, hdunames)
+            if np.any(indx) and not np.all(indx):
+                msgs.error('Expected {0} {1} bspline extensions, but only found {1}.'.format(
+                           nspat, flattype, np.sum(indx)))
+            if np.all(indx):
+                key = '{0}_spat_bsplines'.format(flattype)
+                try:
+                    d[key] = np.array([bspline.bspline.from_hdu(hdu[k]) for k in ext])
+                    version_passed &= np.all([d[key][i].version == bspline.bspline.version 
+                                              for i in range(nspat)])
+                except Exception as e:
+                    msgs.warn('Error in bspline extension read:\n {0}: {1}'.format(
+                                e.__class__.__name__, str(e)))
+                    # Assume this is because the type failed
+                    type_passed = False
+
+        return d, version_passed, type_passed
 
     def shape(self):
         if self.pixelflat_raw is not None:

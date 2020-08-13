@@ -647,8 +647,8 @@ def hdu_iter_by_ext(hdu, ext=None):
 
     # Allow user to provide single HDU
     if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
-        if ext is not None:
-            warnings.warn('Only one HDU provided; extension number/name is irrelevant.')
+#        if ext is not None:
+#            warnings.warn('Only one HDU provided; extension number/name is irrelevant.')
         ext = [0]
         _hdu = [hdu]
     else:

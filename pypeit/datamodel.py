@@ -529,12 +529,6 @@ class DataContainer:
             model attributes but with all of those attributes set to
             None.
 
-    Attributes:
-        filename (:obj:`str`):
-            Filename, if loaded from disk
-        head0 (`astropy.io.fits.Header`):
-            Primary header of the file (if loaded)
-
     """
 
     # Define the class version
@@ -549,14 +543,14 @@ class DataContainer:
     model changes during development.
     """
 
-    # Define hdu_prefix
     hdu_prefix = None
     """
-    If set, all HDUs generated for this DataContainer will have this prefix
-    Be wary of nested DataContainer's!!
+    If set, all HDUs generated for this DataContainer will have this
+    prefix. This can be set independently for each DataContainer
+    derived class; however, it always defaults to None for the base
+    class. Be wary of nested DataContainer's!!
     """
 
-    # Define output_to_disk
     output_to_disk = None
     """
     If set, this limits the HDU extensions that are written to the
@@ -564,11 +558,6 @@ class DataContainer:
     the hdu_prefix, not necessarily the names of specific datamodel
     components.
     """
-
-    # TODO: Enable multiple possible types for the datamodel elements?
-    # I.e., allow `otype` to be a tuple of the allowed object types? It
-    # looks like this is already possible at least for some types, see
-    # pypeit.tracepca.TracePCA.reference_row.
 
     # Define the data model
     datamodel = None
@@ -612,6 +601,11 @@ class DataContainer:
     `astropy.table.Table`_ objects. E.g., ``datamodel`` values for
     ``otype`` *cannot* be :obj:`dict`.
     """
+    # TODO: Enable multiple possible types for the datamodel elements?
+    # I.e., allow `otype` to be a tuple of the allowed object types? It
+    # looks like this is already possible at least for some types, see
+    # pypeit.tracepca.TracePCA.reference_row.
+
 
     def __init__(self, d=None):
         # Data model must be defined
@@ -622,10 +616,6 @@ class DataContainer:
 
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
-
-        # Initialize internals for all DataContainer objects
-        self.filename = None
-        self.head0 = None
 
         # Initialize other internals
         self._init_internals()
@@ -1201,19 +1191,16 @@ class DataContainer:
                 ext = list(d.keys())[0]
                 # Allow for embedded DataContainer's
                 if isinstance(d[ext], DataContainer):
-                    # TODO: This is a hack because I want to be able to
-                    # override the extension names of DataContainers
-                    # that are confined to a single HDU. At the moment,
-                    # this allows for the LEFT_PCA and RIGHT_PCA
-                    # extensions (both TracePCA DataContainers) in the
-                    # MasterEdge output file. We might be able to do
-                    # this with `hdu_prefix` if we made it an instance
-                    # attribute instead of a class attribute.
                     _hdu = d[ext].to_hdu(add_primary=False)
+                    # NOTE: The lines below allow extension names to be
+                    # overridden by the input dictionary keyword for
+                    # DataContainers that are confined to a single HDU.
+                    # This is necessary because `hdu_prefix` must be a
+                    # class attribute to allow for its inclusion in the
+                    # read methods (e.g., `_parse`)
                     if len(_hdu) == 1 and _hdu[0].name != ext:
                         _hdu[0].name = ext
                     hdu += _hdu
-#                    hdu += d[ext].to_hdu(add_primary=False)
                 else:
                     hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
                                             force_to_bintbl=force_to_bintbl)]
@@ -1225,12 +1212,7 @@ class DataContainer:
                 ihdu.name = self.hdu_prefix+ihdu.name
         # Limit?
         if limit_hdus:
-            # Wish I could do this as a list iterator...
-            new_hdu = []
-            for ihdu in hdu:
-                if ihdu.name in limit_hdus:
-                    new_hdu.append(ihdu)
-            hdu = new_hdu
+            hdu = [h for h in hdu if h.name in limit_hdus]
         # Return
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
@@ -1266,8 +1248,28 @@ class DataContainer:
             _f = msgs.error if chk_version else msgs.warn
             _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
                + ' does not match version used to write your HDU(s)!')
+        # Instantiate
+        return cls.from_dict(d=d)
 
-        # Finish
+    @classmethod
+    def from_dict(cls, d=None):
+        """
+        Instantiate from a dictionary.
+
+        This is primarily to allow for instantiating classes from a
+        file where the data has already been parsed. E.g., see how
+        the :class:`~pypeit.tracepca.TracePCA` objects are
+        instantiated in
+        :class:`pypeit.edgetrace.EdgeTraceSet.from_hdu`. However,
+        note that this does the bare minimum to instantiate the
+        object. Any class-specific operations that are needed to
+        complete the instantiation should be done by ovewritting this
+        method; e.g., see :func:`pypeit.tracepca.TracePCA.from_dict`.
+
+        Args:
+            d (:obj:`dict`, optional):
+                Dictionary with the data to use for instantiation.
+        """
         self = super().__new__(cls)
         DataContainer.__init__(self, d=d)
         return self
@@ -1373,19 +1375,23 @@ class DataContainer:
         # Do it
         with fits.open(ifile) as hdu:
             obj = cls.from_hdu(hdu, chk_version=chk_version)
-            obj.head0 = hdu[0].header
-            # Tack on filename
-            obj.filename = ifile
+            if hasattr(obj, 'head0'):
+                obj.head0 = hdu[0].header
+            if hasattr(obj, 'filename'):
+                obj.filename = ifile
 
             # Master this and that
             if hasattr(cls, 'master_type'):
                 obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
-                if 'MSTRTYP' in obj.head0.keys():
-                    if obj.head0['MSTRTYP'] != cls.master_type:
-                        msgs.error('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
-                            obj.head0['MSTRTYP'], cls.master_type))
-                else:
-                    msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
+                if hasattr(obj, 'head0'):
+                    if 'MSTRTYP' in obj.head0.keys():
+                        if obj.head0['MSTRTYP'] != cls.master_type:
+                            msgs.error('Master Type read from header incorrect!  '
+                                       'Found {0}; expected {1}'.format(obj.head0['MSTRTYP'],
+                                                                        cls.master_type))
+                    else:
+                        msgs.warn('DataContainer has `master_type` attribute but is missing the '
+                                  'MSTRTYP header keyword!')
         return obj
 
     def __repr__(self):

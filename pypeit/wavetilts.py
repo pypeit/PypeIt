@@ -29,16 +29,7 @@ class WaveTilts(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    # TODO: Is minimum version ever used? Can we get rid of it? (I
-    # can't remember what we decided about backwards compatibility.)
-    minimum_versio = '1.0.0'
     version = '1.1.0'
-
-    # TODO: These do not need to be redefined here if they're not
-    # different from the base class.
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-    hdu_prefix = None      # None required for this DataContainer
 
     # MasterFrame fun
     master_type = 'Tilts'
@@ -145,7 +136,7 @@ class WaveTilts(datamodel.DataContainer):
         return np.where(mtch)[0][0]
 
 
-class BuildWaveTilts(object):
+class BuildWaveTilts:
     """
     Class to guide slit/order tracing
 

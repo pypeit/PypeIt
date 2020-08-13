@@ -61,9 +61,6 @@ def main(args):
 
     from IPython import embed
 
-#    import warnings
-#    warnings.simplefilter('error', FutureWarning)
-
     if args.pypeit_file is not None:
         pypeit_file = args.pypeit_file
         if not os.path.isfile(pypeit_file):
