@@ -6,6 +6,9 @@ import os
 
 import pytest
 import glob
+
+from IPython import embed
+
 import numpy as np
 
 from astropy.io import fits
@@ -72,6 +75,10 @@ def test_flatimages():
     outfile = data_path('tst_flatimages.fits')
     flatImages.to_master_file(outfile)
     _flatImages = flatfield.FlatImages.from_file(outfile)
+
+    embed()
+    exit()
+
     # Test
     for key in instant_dict.keys():
         if key == 'pixelflat_spat_bsplines':
@@ -117,3 +124,6 @@ def test_flatimages():
 #    # Use the trace image
 #    flatImages = flatField.run()
 #    assert np.isclose(np.median(flatImages.pixelflat), 1.0)
+
+if __name__ == '__main__':
+    test_flatimages()

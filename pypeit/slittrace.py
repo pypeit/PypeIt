@@ -260,8 +260,7 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._parse`. Data is
         always read from the 'SLITS' extension.
         """
-        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True,
-                                               debug=True)
+        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
     def init_tweaked(self):
         """

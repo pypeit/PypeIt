@@ -566,7 +566,9 @@ class DataContainer:
     """
 
     # TODO: Enable multiple possible types for the datamodel elements?
-    # I.e., allow `otype` to be a tuple of the allowed object types?
+    # I.e., allow `otype` to be a tuple of the allowed object types? It
+    # looks like this is already possible at least for some types, see
+    # pypeit.tracepca.TracePCA.reference_row.
 
     # Define the data model
     datamodel = None
