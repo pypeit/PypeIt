@@ -117,7 +117,10 @@ What this version is missing (i.e. what we are working on)
 * Documentation
 
   * A-B image difference processing
-  * Data model for MasterEdgeTrace calibration files
+* Slitmask metadata slurping (e.g. Keck/DEIMOS)
+* Keck/HIRES, Keck/ESI support
+* Additional QA outputs
+* A dashboard
 
 
 Users

@@ -203,37 +203,12 @@ Or, alternatively::
 Over 100 tests should pass, nearly 100 will be skipped (unless
 you are a developer) and none should fail.
 
-3. Try running ``PypeIt`` on our extensive development test suite
------------------------------------------------------------------
-
-**The following should only be done for those wishing to develop the code.**
-Regardless, ask for help if you really want to do this.
-
-We have provided a suite of tests that you can download and run via
-this repo: `TestSuite
-<https://github.com/pypeit/PypeIt-development-suite>`_
-
-Install it by cloning the GitHub repository (do **not** install this
-in the ``PypeIt`` source directory tree)::
-
-	git clone https://github.com/pypeit/PypeIt-development-suite.git
-
-To run the test::
-
-	cd PypeIt-development-suite
-	./pypeit_test develop
-
-.. note::
-
-	``pypeit_test`` can also, e.g., take the argument ``kast``
-	instead of ``develop`` to only test data from the Shane Kast
-	spectrograph instead of the full development suite.
-
-The test takes a (long) while to run but should run without issue if all the
-packages have been properly installed.
 
 Developers
 ==========
 
 For developers, see :doc:`development`.
+
+Also, a test suite for development purposes is available at
+`PypeIt Development https://github.com/pypeit/PypeIt-development-suite`_.
 
