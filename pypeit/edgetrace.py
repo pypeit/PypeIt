@@ -1034,10 +1034,10 @@ class EdgeTraceSet(DataContainer):
                     d += [{key: self[key]}]
 
         # Find the element with sobelsig and add all the non-array,
-        # non-DataContainer elements to This is done after the first
-        # loop to just to make sure that the order of extensions
-        # matches the order in the datamodel (although that's not
-        # really necessary).
+        # non-DataContainer elements to that extension. This is done
+        # after the first loop to just to make sure that the order of
+        # extensions matches the order in the datamodel (although
+        # that's not really necessary).
         for _d in d:
             if list(_d.keys()) != ['sobelsig']:
                 continue
@@ -1243,7 +1243,8 @@ class EdgeTraceSet(DataContainer):
         # Instantiate the TraceImage from the header
         d['traceimg'] = TraceImage.from_hdu(hdu, chk_version=chk_version)
 
-        # Instantiate the TracePCAs.
+        # Instantiate the TracePCAs. Unfortunately, this means they get
+        # parsed twice.
         if d['pcatype'] is not None:
             hdu_names = [h.name for h in hdu]
             if 'PCA' in hdu_names:

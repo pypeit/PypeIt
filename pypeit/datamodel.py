@@ -1180,8 +1180,6 @@ class DataContainer:
             # needs to be cleaned up, as does masterframe more
             # generally...
             if np.sum(indx) > 1 or (np.sum(indx) == 1 and hdr_keys[indx] != 'PYP_SPEC'):
-                embed()
-                exit()
                 msgs.error('CODING ERROR: Primary header should not contain keywords that are the '
                            'same as the datamodel for {0}.'.format(self.__class__.__name__))
 
@@ -1191,8 +1189,6 @@ class DataContainer:
         # with any datamodel keys.
         if _hdr is not None \
                 and np.any(np.isin([k.upper() for k in self.keys()], list(_hdr.keys()))):
-            embed()
-            exit()
             msgs.error('CODING ERROR: Baseline header should not contain keywords that are the '
                        'same as the datamodel for {0}.'.format(self.__class__.__name__))
 
