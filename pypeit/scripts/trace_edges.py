@@ -61,6 +61,9 @@ def main(args):
 
     from IPython import embed
 
+#    import warnings
+#    warnings.simplefilter('error', FutureWarning)
+
     if args.pypeit_file is not None:
         pypeit_file = args.pypeit_file
         if not os.path.isfile(pypeit_file):
@@ -167,14 +170,13 @@ def main(args):
         print('Tracing for detector {0} finished in {1} s.'.format(det, time.perf_counter()-t))
         # Write the MasterEdges file
         edge_masterframe_name = masterframe.construct_file_name(edgetrace.EdgeTraceSet,
-                                                                master_key,
-                                                                master_dir=master_dir)
-        edges.save(edge_masterframe_name, master_dir=master_dir, master_key=master_key)
+                                                                master_key, master_dir=master_dir)
+        edges.to_master_file(edge_masterframe_name)
+
         # Write the MasterSlits file
         slit_masterframe_name = masterframe.construct_file_name(slittrace.SlitTraceSet,
                                                                 master_key, master_dir=master_dir)
-        edges.get_slits().to_master_file(slit_masterframe_name) #master_dir, master_key,  # Naming
-                              #spec.spectrograph)  # Header
+        edges.get_slits().to_master_file(slit_masterframe_name)
 
     return 0
 

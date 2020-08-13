@@ -62,7 +62,7 @@ class TracePCA(DataContainer):
     version = '1.0.0'
     """Datamodel version."""
 
-    datamodel = {'reference_row': dict(otype=int, 
+    datamodel = {'reference_row': dict(otype=(int, np.integer), 
                                        descr='The row (spectral position) used as the reference ' \
                                              'coordinate system for the PCA.'),
                  'trace_coo': dict(otype=np.ndarray, atype=(float,np.floating),

@@ -536,13 +536,15 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     
     .. note::
 
-        Compressing the file is generally slow, but following the
-        two-step process of running
-        `astropy.io.fits.HDUList.writeto`_ and then
-        :func:`compress_file` is generally faster than having
-        `astropy.io.fits.HDUList.writeto`_ do the compression,
-        particularly for files with many extensions (or at least this
-        was true in the past).
+        - If the root directory of the output does *not* exist, this
+          method will create it.
+        - Compressing the file is generally slow, but following the
+          two-step process of running
+          `astropy.io.fits.HDUList.writeto`_ and then
+          :func:`compress_file` is generally faster than having
+          `astropy.io.fits.HDUList.writeto`_ do the compression,
+          particularly for files with many extensions (or at least
+          this was true in the past).
 
     Args:
         d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_, `astropy.table.Table`_, `astropy.io.fits.HDUList`_):
@@ -565,6 +567,11 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     """
     if os.path.isfile(ofile) and not overwrite:
         raise FileExistsError('File already exists; to overwrite, set overwrite=True.')
+    
+    root = os.path.split(os.path.abspath(ofile))[0]
+    if not os.path.isdir(root):
+        warnings.warn('Making root directory for output file: {0}'.format(root))
+        os.makedirs(root)
 
     # Determine if the file should be compressed
     _ofile = ofile[:ofile.rfind('.')] if ofile.split('.')[-1] == 'gz' else ofile
