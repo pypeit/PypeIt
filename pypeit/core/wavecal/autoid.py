@@ -25,7 +25,6 @@ from pypeit.core import pca
 from pypeit import utils
 
 from pypeit import msgs
-from pypeit import debugger
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from matplotlib.backends.backend_pdf import PdfPages
@@ -2152,13 +2151,13 @@ class HolyGrail:
                     arr = self._all_tcent_weak.copy()[self._icut_weak]
                     err = self._all_ecent_weak.copy()[self._icut_weak]
                 else:
-                    debugger.set_trace()
+                    embed()
             else:
                 if cut:
                     arr = self._all_tcent.copy()[self._icut]
                     err = self._all_ecent.copy()[self._icut]
                 else:
-                    debugger.set_trace()
+                    embed()
         else:
             arr, err = arr_err[0], arr_err[1]
         # Return the appropriate tcent
@@ -2238,7 +2237,7 @@ class HolyGrail:
         # First run pattern recognition assuming pixels correlate with wavelength
         dindexp, lindexp, wvcenp, dispsp = generate_patterns(use_tcent, wavedata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
-        # Now run pattern recognition assuming pixels correlate with wavelength
+        # Now run pattern recognition assuming pixels anti-correlate with wavelength
         use_tcent, _ = self.get_use_tcent(-1, tcent_ecent)
         dindexm, lindexm, wvcenm, dispsm = generate_patterns(use_tcent, wavedata, self._npix,
                                                              detsrch, lstsrch, pix_tol)
@@ -2359,7 +2358,7 @@ class HolyGrail:
             nm = histimg.max() - histimg.min()
             ticks = np.arange(this_hist.min(),this_hist.max() + 1,1)
             cbar = fx.colorbar(cimg, ax=ax_image,ticks = ticks,drawedges = True, extend ='both',
-                               spacing = 'proporational',orientation ='horizontal')
+                               spacing = 'proportional',orientation ='horizontal')
             cbar.set_ticklabels(ticks)
             cbar.set_label('# of Occurences')
             ax_image.set_xlabel('Central Wavelength (Angstroms)')

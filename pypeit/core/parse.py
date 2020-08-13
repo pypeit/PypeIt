@@ -8,7 +8,6 @@ from multiprocessing import cpu_count
 import numpy as np
 
 from astropy.time import Time
-from pypeit import debugger
 
 
 # Logging

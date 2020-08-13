@@ -54,6 +54,12 @@ NAME = 'pypeit'
 VERSION = '1.0.7dev'
 RELEASE = 'dev' not in VERSION
 
+# To enable pypeit ginga global plugin
+entry_points = """
+[ginga.rv.plugins]
+SlitWavelength = pypeit.display:setup_SlitWavelength
+"""
+
 def run_setup(data_files, scripts, packages, install_requires):
 
     # TODO: Are any/all of the *'d keyword arguments needed? I.e., what
@@ -81,6 +87,7 @@ def run_setup(data_files, scripts, packages, install_requires):
           setup_requires=[ 'pytest-runner' ],
           tests_require=[ 'pytest' ],
           ext_modules=get_extensions(),
+          entry_points=entry_points,
           classifiers=[
               'Development Status :: 4 - Beta',
               'Intended Audience :: Science/Research',

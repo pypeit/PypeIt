@@ -896,7 +896,7 @@ class DataContainer:
         # Allow user to provide single HDU
         if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
             if ext is not None:
-                warnings.warn('Only one HDU provided; extension number/name is irrelevant.')
+                msgs.warn('Only one HDU provided; extension number/name is irrelevant.')
             ext = [0]
             _hdu = [hdu]
         else:
@@ -920,7 +920,7 @@ class DataContainer:
 
         # NOTE: The extension and keyword comparisons are complicated
         # because the fits standard is to force these all to be
-        # capitalized, while the datamodel doesn't (currently)
+        # capitalized, while the datamodel doesn't
         # implement this restriction.
 
         # Handle hdu_prefix
@@ -953,8 +953,7 @@ class DataContainer:
 
         for e in _ext:
             if 'DMODCLS' not in _hdu[e].header.keys() or 'DMODVER' not in _hdu[e].header.keys() \
-                    or _hdu[e].header['DMODCLS'] != cls.__name__ \
-                    or _hdu[e].header['DMODVER'] != cls.version:
+                    or _hdu[e].header['DMODCLS'] != cls.__name__:
                 # Can't be parsed
                 continue
             # Check for header elements, but do not over-ride existing items
@@ -1166,7 +1165,7 @@ class DataContainer:
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
     @classmethod
-    def from_hdu(cls, hdu, chk_version=True, hdu_prefix=None):
+    def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
         """
         Instantiate the object from an HDU extension.
 
@@ -1178,7 +1177,8 @@ class DataContainer:
             hdu_prefix (:obj:`str`, optional):
                 Passed to _parse()
             chk_version (:obj:`bool`, optional):
-                If True, raise an error if the datamodel version or type check failed
+                If True, raise an error if the datamodel version or
+                type check failed. If False, throw a warning only.
         """
         # NOTE: We can't use `cls(cls._parse(hdu))` here because this
         # will call the `__init__` method of the derived class and we
@@ -1190,12 +1190,13 @@ class DataContainer:
         # other base classes, like MasterFrame.
         d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
-        if chk_version:
-            if not dm_type_passed:
-                msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
-            if not dm_version_passed:
-                msgs.error('Current version of {0} object ({1})'.format(cls.__name__, cls.version)
-                           + ' does not match version used to write the HDU(s)!')
+        if not dm_type_passed:
+            msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
+        if not dm_version_passed:
+            _f = msgs.error if chk_version else msgs.warn
+            _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
+               + ' does not match version used to write your HDU(s)!')
+
         # Finish
         self = super().__new__(cls)
         DataContainer.__init__(self, d)
@@ -1273,7 +1274,7 @@ class DataContainer:
 
     # TODO: Add options to compare the checksum and/or check the package versions
     @classmethod
-    def from_file(cls, ifile, verbose=True):
+    def from_file(cls, ifile, verbose=True, chk_version=True):
         """
         Instantiate the object from an extension in the specified fits file.
 
@@ -1282,6 +1283,10 @@ class DataContainer:
         Args:
             ifile (:obj:`str`):
                 Fits file with the data to read
+            verbose (:obj:`bool`, optional):
+                Print informational messages
+            chk_version (:obj:`bool`, optional):
+                Passed to from_hdu().  See those docs for details
 
         Raises:
             FileNotFoundError:
@@ -1295,7 +1300,7 @@ class DataContainer:
 
         # Do it
         with fits.open(ifile) as hdu:
-            obj = cls.from_hdu(hdu)
+            obj = cls.from_hdu(hdu, chk_version=chk_version)
             obj.head0 = hdu[0].header
             # Tack on filename
             obj.filename = ifile

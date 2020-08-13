@@ -14,7 +14,6 @@ from pypeit.images import detector_container
 
 from pkg_resources import resource_filename
 
-from pypeit import debugger
 
 class VLTFORSSpectrograph(spectrograph.Spectrograph):
     """

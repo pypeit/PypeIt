@@ -42,7 +42,7 @@ class Spec2DObj(datamodel.DataContainer):
             Primary header if instantiated from a FITS file
 
     """
-    version = '1.0.0'
+    version = '1.0.2'
 
     # TODO 2d data model should be expanded to include:
     # waveimage  --  flexure and heliocentric corrections should be applied to the final waveimage and since this is unique to
@@ -51,17 +51,16 @@ class Spec2DObj(datamodel.DataContainer):
     # tslits_dict -- flexure compensation implies that each frame will have a unique set of slit boundaries, so we probably need to
     #                 write these for each file as well. Alternatively we could just write the offsets to the header.
 
-    # TODO -- Hold, save the non-wavelength images as FLOAT32 ??
-
-    # Becase we are including nested DataContainers, be careful not to duplicate variable names!!
+    # Because we are including nested DataContainers, be careful not to duplicate variable names!!
     datamodel = {
-        'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image'),
-        'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image'),
-        'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image'),
-        'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image'),
-        'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image'),
-        'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image'),
-        'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image'),
+        'sciimg': dict(otype=np.ndarray, atype=np.floating, desc='2D processed science image (float32)'),
+        'ivarraw': dict(otype=np.ndarray, atype=np.floating, desc='2D processed inverse variance image (float32)'),
+        'skymodel': dict(otype=np.ndarray, atype=np.floating, desc='2D sky model image (float32)'),
+        'objmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D object model image (float32)'),
+        'ivarmodel': dict(otype=np.ndarray, atype=np.floating, desc='2D ivar model image (float32)'),
+        'tilts': dict(otype=np.ndarray, atype=np.floating, desc='2D tilts image (float64)'),
+        'scaleimg': dict(otype=np.ndarray, atype=np.floating, desc='2D multiplicative scale image that has been applied to the science image (float32)'),
+        'waveimg': dict(otype=np.ndarray, atype=np.floating, desc='2D wavelength image (float64)'),
         'bpmmask': dict(otype=np.ndarray, atype=np.integer, desc='2D bad-pixel mask for the image'),
         'imgbitm': dict(otype=str, desc='List of BITMASK keys from ImageBitMask'),
         'slits': dict(otype=slittrace.SlitTraceSet, desc='SlitTraceSet defining the slits'),
@@ -71,7 +70,7 @@ class Spec2DObj(datamodel.DataContainer):
     }
 
     @classmethod
-    def from_file(cls, file, det):
+    def from_file(cls, file, det, chk_version=True):
         """
         Overload :func:`pypeit.datamodel.DataContainer.from_file` to allow det
         input and to slurp the header
@@ -79,6 +78,8 @@ class Spec2DObj(datamodel.DataContainer):
         Args:
             file (:obj:`str`):
             det (:obj:`int`):
+            chk_version (:obj:`bool`):
+                If False, allow a mismatch in datamodel to proceed
 
         Returns:
             `Spec2DObj`:
@@ -89,12 +90,12 @@ class Spec2DObj(datamodel.DataContainer):
         if not np.any(['DET{:02d}'.format(det) in hdu.name for hdu in hdul]):
             msgs.error("Requested detector {} is not in this file - {}".format(det, file))
         #
-        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det))
+        slf = super(Spec2DObj, cls).from_hdu(hdul, hdu_prefix=spec2d_hdu_prefix(det), chk_version=chk_version)
         slf.head0 = hdul[0].header
         return slf
 
     def __init__(self, det, sciimg, ivarraw, skymodel, objmodel, ivarmodel,
-                 waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
+                 scaleimg, waveimg, bpmmask, detector, sci_spat_flexure, slits, tilts):
         # Slurp
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
         _d = dict([(k,values[k]) for k in args[1:]])
@@ -140,7 +141,10 @@ class Spec2DObj(datamodel.DataContainer):
             # Array?
             if self.datamodel[key]['otype'] == np.ndarray:
                 tmp = {}
-                tmp[key] = self[key]
+                if self.datamodel[key]['atype'] == np.floating and key not in ['waveimg', 'tilts']:
+                    tmp[key] = self[key].astype(np.float32)
+                else:
+                    tmp[key] = self[key]
                 d.append(tmp)
             # Detector
             elif key == 'detector':
@@ -201,6 +205,9 @@ class Spec2DObj(datamodel.DataContainer):
             for imgname in ['sciimg','ivarraw','skymodel','objmodel','ivarmodel','waveimg','bpmmask']:
                 self[imgname][inmask] = spec2DObj[imgname][inmask]
 
+
+# TODO: In python3, you don't have to subclass from object. All classes
+# do so automatically.
 class AllSpec2DObj(object):
     """
     Simple object to hold Spec2DObj objects
