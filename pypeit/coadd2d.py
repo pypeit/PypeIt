@@ -470,7 +470,8 @@ class CoAdd2D(object):
         self.pseudo_dict=pseudo_dict
 
         return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, \
-               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, pseudo_dict['slits']
+               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, pseudo_dict['slits'], \
+               pseudo_dict['tilts'], pseudo_dict['waveimg']
 
 
 
