@@ -162,7 +162,8 @@ def show_image(inp, chname='Image', waveimg=None, bitmask=None, mask=None, exten
 #    waveimg = None
     if waveimg is not None:
         sh = viewer.shell()
-        args = [chname, chname, grc.Blob(img.tobytes()), img.shape, 'float', header, grc.Blob(waveimg.tobytes()), 'float', {}]
+        args = [chname, chname, grc.Blob(img.tobytes()), img.shape, img.dtype.name, header,
+                grc.Blob(waveimg.tobytes()), waveimg.dtype.name, {}]
         sh.call_global_plugin_method('SlitWavelength', 'load_buffer', args, {})
     else:
         ch.load_np(chname, img, 'fits', header)

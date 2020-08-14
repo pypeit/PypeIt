@@ -456,7 +456,7 @@ class Calibrations(object):
 
         # Check if a bias frame exists, and if a BPM should be generated
         msbias = None
-        if self.par['bpm_usebias'] and self._cached('bias', self.master_key_dict['bias']):
+        if self.par['bpm_usebias']:
             msbias = self.msbias
         # Build it
         self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=msbias)
@@ -629,8 +629,7 @@ class Calibrations(object):
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], bpm=self.msbpm,
                                                     auto=True)
-                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                master_key=self.master_key_dict['trace'])
+                self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested
                 if self.show:
@@ -905,7 +904,7 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
                         # Allow for pixelflat inserted
-                        if ftype is 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                        if ftype == 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
                             continue
                         # Otherwise fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)

@@ -320,15 +320,12 @@ def rect_slice_with_mask(image, mask, mask_val=1):
         mask_val (int,optiona): Value to mask on
 
     Returns:
-        np.ndarray, list:  Image at mask values, slices describing the mask
-
+        :obj:`tuple`: The image at mask values and a 2-tuple with the
+        :obj:`slice` objects that select the masked data.
     """
     pix = np.where(mask == mask_val)
-    slices = [slice(np.min(pix[0]), np.max(pix[0])+1),
-              slice(np.min(pix[1]), np.max(pix[1])+1)]
-    sub_img = image[tuple(slices)]
-    #
-    return sub_img, slices
+    slices = (slice(np.min(pix[0]), np.max(pix[0])+1), slice(np.min(pix[1]), np.max(pix[1])+1))
+    return image[slices], slices
 
 
 def subtract_overscan(rawframe, datasec_img, oscansec_img,
@@ -400,7 +397,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
             raise ValueError('Unrecognized overscan subtraction method: {0}'.format(method))
 
         # Subtract along the appropriate axis
-        no_overscan[tuple(data_slice)] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
+        no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
 
     return no_overscan
 
@@ -528,7 +525,7 @@ def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1
                 msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
                 continue
             model_pattern[ii, :] = cosfunc(xdata_all, *popt)
-        outframe[tuple(osd_slice)] -= model_pattern
+        outframe[osd_slice] -= model_pattern
 
     debug = False
     if debug:

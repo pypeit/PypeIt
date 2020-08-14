@@ -3,6 +3,9 @@ Module to run tests on scripts
 """
 import os
 import shutil
+
+from IPython import embed
+
 import numpy as np
 
 import matplotlib
@@ -35,7 +38,9 @@ def test_quicklook():
         raise IOError("You need to get the CALIBS folder as described above!!")
 
     # Define the output directories (HARDCODED!!)
-    outdir = os.path.join(os.getcwd(), 'keck_lris_blue_A')
+    cdir = os.getcwd()
+    os.chdir(data_path(''))
+    outdir = data_path('keck_lris_blue_A')
     # Remove them if they already exist
     if os.path.isdir(outdir):
         shutil.rmtree(outdir)
@@ -48,6 +53,10 @@ def test_quicklook():
                                '--user_pixflat={0}'.format(
                                    os.path.join(calib_dir,
                                         'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
+    
+    # Cleanup
+    os.chdir(cdir)
+    shutil.rmtree(outdir)
 
 @dev_suite_required
 def test_trace_edges():

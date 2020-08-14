@@ -64,6 +64,9 @@ def test_io():
     _sobj = specobj.SpecObj.from_file(ofile)
     assert np.array_equal(sobj.BOX_WAVE, _sobj.BOX_WAVE)
 
+    # Cleanup
+    os.remove(ofile)
+
 def test_iotwo():
     sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
     #
@@ -80,6 +83,9 @@ def test_iotwo():
     assert isinstance(sobj2, specobj.SpecObj)
     assert np.array_equal(sobj.BOX_WAVE, sobj2.BOX_WAVE)
     assert sobj2.PYPELINE == 'MultiSlit'
+
+    # Cleanup
+    os.remove(ofile)
 
 def test_copy():
     sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)

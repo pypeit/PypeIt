@@ -12,6 +12,7 @@ from pypeit.par import pypeitpar
 from pypeit.images import combineimage
 from pypeit.images import pypeitimage
 from pypeit.core import procimg
+from pypeit import utils
 
 from IPython import embed
 
@@ -188,7 +189,7 @@ def buildimage_fromlist(spectrograph, det, frame_par, file_list,
         finalImage = pypeitImage
     else:
         finalImage = None
-        embed(header='193 of buildimage')
+        embed(header=utils.embed_header())
 
     # Internals
     finalImage.process_steps = pypeitImage.process_steps

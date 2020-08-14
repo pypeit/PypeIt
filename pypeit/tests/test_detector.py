@@ -50,3 +50,5 @@ def test_io():
 
     _new_detector = detector.from_file(data_path('tmp_detector.fits'))
 
+    os.remove(data_path('tmp_detector.fits'))
+

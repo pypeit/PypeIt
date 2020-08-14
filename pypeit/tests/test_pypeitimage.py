@@ -26,6 +26,9 @@ def test_full():
     pypeitImage.to_file(outfile, overwrite=True)
     _pypeitImage = pypeitimage.PypeItImage.from_file(outfile)
 
+    # Cleanup
+    os.remove(outfile)
+
     # Test
     assert isinstance(_pypeitImage.image, np.ndarray)
     assert _pypeitImage.ivar is None
