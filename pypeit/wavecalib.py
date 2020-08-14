@@ -185,8 +185,8 @@ class WaveCalib(datamodel.DataContainer):
         # Setup
         #ok_slits = slits.mask == 0
         bpm = slits.mask.astype(bool)
-        bpm &= np.invert(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
-        ok_slits = np.invert(bpm)
+        bpm &= np.logical_not(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
+        ok_slits = np.logical_not(bpm)
         #
         image = np.zeros_like(tilts)
         slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
@@ -208,27 +208,13 @@ class WaveCalib(datamodel.DataContainer):
                 msgs.error("Something failed in wavelengths or masking..")
             if self.par['echelle']:
                 # # TODO: Put this in `SlitTraceSet`?
-                #order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
                 # evaluate solution --
                 image[thismask] = self.wv_fit2d.eval(
                     tilts[thismask], x2=np.full_like(tilts[thismask], slits.ech_order[islit]))
-
-
-                #image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
-                #                                 tilts[thismask],
-                #                                 wv_calib['fit2d']['func2d'],
-                #                                 x2=np.ones_like(tilts[thismask])*order,
-                #                                 minx=wv_calib['fit2d']['min_spec'],
-                #                                 maxx=wv_calib['fit2d']['max_spec'],
-                #                                 minx2=wv_calib['fit2d']['min_order'],
-                #                                 maxx2=wv_calib['fit2d']['max_order'])
                 image[thismask] /= slits.ech_order[islit]
             else:
-                #iwv_calib = wv_calib[str(slit)]
                 iwv_fits = self.wv_fits[islit]
                 image[thismask] = iwv_fits.pypeitfit.eval(tilts[thismask])
-                                                 #minx=iwv_calib['fmin'],
-                                                 #maxx=iwv_calib['fmax'])
         # Return
         return image
 

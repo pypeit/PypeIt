@@ -89,27 +89,10 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
                                    function=func2d, maxiter=100, lower=sigrej, upper=sigrej, minx=min_spec,maxx=max_spec,
                                    minx2=min_order, maxx2=max_order, use_mad=True, sticky=False)
     wv_order_mod = pypeitFit.eval(all_pix/xnspecmin1, x2=all_orders)
-    #fitmask, coeff2 = fitting.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
-    #                                           function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
-    #                                           minx=min_spec,maxx=max_spec, minx2=min_order, maxx2=max_order,
-    #                                           use_mad=True, sticky=False)
-    #wv_order_mod = fitting.func_val(coeff2, all_pix/xnspecmin1, func2d, x2=all_orders,
-    #                                           minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
-    #resid = (wv_order_mod[fitmask]-all_wv_order[fitmask])
-    #fin_rms = np.std(resid)
+
     fin_rms = pypeitFit.calc_fit_rms(x2=all_orders, apply_mask=True)
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
-    #orders = np.unique(all_orders)
-    #fit_dict = dict(coeffs=coeff2, orders=orders,
-    #                nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
-    #                min_spec=min_spec, max_spec=max_spec,
-    #                min_order=min_order, max_order=max_order,
-    #                nspec=nspec, all_pix=all_pix, all_wv=all_wv,
-    #                func2d=func2d,xnorm=xnspecmin1,
-    #                all_orders=all_orders, all_mask=fitmask)
-
-    #debug=True
     if debug:
         fit2darc_global_qa(pypeitFit, nspec)
         fit2darc_orders_qa(pypeitFit, nspec)

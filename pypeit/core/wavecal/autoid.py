@@ -74,11 +74,6 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     ax_spec.plot(np.arange(len(arc_spec)), arc_spec)
     ymin, ymax = np.min(arc_spec), np.max(arc_spec)
     ysep = ymax*0.03
-    #mask = fit['mask']
-    #pixel_fit = fit['pixel_fit'][mask]
-    #wave_fit = fit['wave_fit'][mask]
-    #ions = fit['ions'][mask]
-    #xnorm = fit['xnorm']
     for kk, x in enumerate(waveFit.pixel_fit):
         ind_left = np.fmax(int(x)-2, 0)
         ind_righ = np.fmin(int(x)+2,arc_spec.size-1)
@@ -111,15 +106,14 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     # Points
     ax_fit.scatter(waveFit.pixel_fit,waveFit.wave_fit, marker='x')
     # Rejections?
-    gpm = waveFit.pypeitfit.gpm.astype('bool')
-    bpm = np.invert(gpm)
+    gpm = waveFit.pypeitfit.bool_gpm
+    bpm = np.logical_not(gpm)
     if np.any(bpm):
         xrej = waveFit.pixel_fit[bpm]
         yrej = waveFit.wave_fit[bpm]
         ax_fit.scatter(xrej, yrej, marker='o', edgecolor='gray', facecolor='none')
     # Solution
     xval = np.arange(len(arc_spec))
-    #wave_soln = fit['wave_soln'] #utils.func_val(fit['fitc'], xval, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
     ax_fit.plot(xval, waveFit.wave_soln, 'r-')
     xmin, xmax = 0., len(arc_spec)
     ax_fit.set_xlim(xmin, xmax)
@@ -127,8 +121,8 @@ def arc_fit_qa(waveFit, outfile=None, ids_only=False, title=None):
     ax_fit.set_ylim((ymin, ymax))
     ax_fit.set_ylabel('Wavelength')
     ax_fit.get_xaxis().set_ticks([]) # Suppress labeling
+
     # Stats
-    #wave_soln_fit = utils.func_val(fit['fitc'], pixel_fit/xnorm, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
     wave_soln_fit = waveFit.pypeitfit.eval(waveFit.pixel_fit/waveFit.xnorm)#, 'legendre',minx=fit['fmin'], maxx=fit['fmax'])
     rms = np.sqrt(np.sum((waveFit.wave_fit[gpm]-wave_soln_fit[gpm])**2)/len(waveFit.pixel_fit[gpm])) # Ang
     dwv_pix = np.median(np.abs(waveFit.wave_soln-np.roll(waveFit.wave_soln,1)))
@@ -1777,10 +1771,6 @@ class HolyGrail:
             sign_good[islit] =  self._all_patt_dict[str(good_slits[islit])]['sign']
             # JFH stuff
             wave_soln = self._all_final_fit[str(good_slits[islit])].pypeitfit.eval(xrng / xnpixmin1)
-            #fitc = self._all_final_fit[str(good_slits[islit])]['fitc']
-            #fitfunc = self._all_final_fit[str(good_slits[islit])]['function']
-            #fmin, fmax = self._all_final_fit[str(good_slits[islit])]['fmin'], self._all_final_fit[str(good_slits[islit])]['fmax']
-            #wave_soln = utils.func_val(fitc, xrng/xnpixmin1, fitfunc, minx=fmin, maxx=fmax)
             wvc_good[islit] = wave_soln[self._npix // 2]
             disp_good[islit] = np.median(wave_soln - np.roll(wave_soln, 1))
 
@@ -1852,10 +1842,6 @@ class HolyGrail:
                     plt.show()
 
                 # Calculate wavelengths for all of the gsdet detections
-                #fitc = self._all_final_fit[str(gs)]['fitc']
-                #fitfunc = self._all_final_fit[str(gs)]['function']
-                #fmin, fmax = self._all_final_fit[str(gs)]['fmin'], self._all_final_fit[str(gs)]['fmax']
-                #wvval = utils.func_val(fitc, gsdet/xnpixmin1, fitfunc, minx=fmin, maxx=fmax)
                 wvval = self._all_final_fit[str(gs)].pypeitfit.eval(xrng / xnpixmin1)
                 # Loop over the bad slit line pixel detections and find the nearest good slit line
                 for dd in range(bsdet.size):
@@ -1925,6 +1911,7 @@ class HolyGrail:
         but we need a new routine that (based on an estimated central wavelength and dispersion) can successfully
         ID all of the lines.
         """
+        # DEPRECATED (NOT USED)
 
         # First determine the central wavelength and dispersion of every slit, using the known good solutions
         xplt = np.arange(self._nslit)
@@ -2567,10 +2554,6 @@ class HolyGrail:
             else:
                 signtxt = 'anitcorrelate'
             # Report
-            #centwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5,
-            #                          self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
-            #tempwave = utils.func_val(self._all_final_fit[st]['fitc'], 0.5 + 1.0/self._npix,
-            #                          self._all_final_fit[st]['function'], minx=0.0, maxx=1.0)
             centwave = self._all_final_fit[st].pypeitfit.eval(0.5)
             tempwave = self._all_final_fit[st].pypeitfit.eval(0.5 + 1.0/self._npix)
             centdisp = abs(centwave-tempwave)

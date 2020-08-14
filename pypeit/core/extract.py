@@ -538,11 +538,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     indsp = (wave >= wave_min) & (wave <= wave_max) & \
              np.isfinite(flux_sm) & \
              (flux_sm > -1000.0) & (fluxivar_sm > 0.0)
-    b_answer, bmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
+    b_answer, bmask   = bspline.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp],
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    b_answer, bmask2  = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
+    b_answer, bmask2  = bspline.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask,
                                      kwargs_bspline={'everyn': 1.5}, kwargs_reject={'groupbadpix':True,'maxrej':1})
-    c_answer, cmask   = fitting.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
+    c_answer, cmask   = bspline.iterfit(wave[indsp], flux_sm[indsp], invvar = fluxivar_sm[indsp]*bmask2,
                                      kwargs_bspline={'everyn': 30}, kwargs_reject={'groupbadpix':True,'maxrej':1})
     spline_flux, _ = b_answer.value(wave[indsp])
     try:
@@ -691,7 +691,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     si = inside[np.argsort(sigma_x.flat[inside])]
     sr = si[::-1]
 
-    bset, bmask = fitting.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
+    bset, bmask = bspline.iterfit(sigma_x.flat[si],norm_obj.flat[si], invvar = norm_ivar.flat[si],
                                    nord = 4, bkpt = bkpt, maxiter = 15, upper = 1, lower = 1)
     mode_fit, _ = bset.value(sigma_x.flat[si])
     median_fit = np.median(norm_obj[norm_ivar > 0.0])
@@ -766,7 +766,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         xx = np.sum(xtemp, 1)/nspat
         profile_basis = np.column_stack((mode_zero,mode_shift))
 
-        mode_shift_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+        mode_shift_out = bspline.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
                                                norm_ivar.flat[inside], profile_basis,
                                                maxiter=1, kwargs_bspline={'nbkpts':nbkpts})
         # Check to see if the mode fit failed, if so punt and return a Gaussian
@@ -790,7 +790,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         trace_corr = trace_corr + delta_trace_corr
 
         profile_basis = np.column_stack((mode_zero,mode_stretch))
-        mode_stretch_out = fitting.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
+        mode_stretch_out = bspline.bspline_profile(xtemp.flat[inside], norm_obj.flat[inside],
                                                  norm_ivar.flat[inside], profile_basis, maxiter=1,
                                                  fullbkpt=mode_shift_set.breakpoints)
         if not np.any(mode_stretch_out[1]):
@@ -827,7 +827,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
             keep = (bkpt >= sigma_x.flat[inside].min()) & (bkpt <= sigma_x.flat[inside].max())
             if keep.sum() == 0:
                 keep = np.ones(bkpt.size, dtype=bool)
-            bset_out = fitting.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
+            bset_out = bspline.bspline_profile(sigma_x.flat[inside[ss]], norm_obj.flat[inside[ss]],
                                              norm_ivar.flat[inside[ss]],pb[ss], nord=4,
                                              bkpt=bkpt[keep], maxiter=2)
             if not np.any(bset_out[1]):
@@ -853,7 +853,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                        np.isfinite(norm_obj.flat[ss]) &
                        np.isfinite(norm_ivar.flat[ss]))
     pb = (np.outer(area, np.ones(nspat,dtype=float)))
-    bset_out = fitting.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
+    bset_out = bspline.bspline_profile(sigma_x.flat[ss[inside]], norm_obj.flat[ss[inside]],
                                      norm_ivar.flat[ss[inside]], pb.flat[ss[inside]], nord=4,
                                      bkpt=bkpt, upper=10, lower=10)
     bset = bset_out[0]
@@ -985,9 +985,9 @@ def parse_manual(manual_par):
 
     """
     if isinstance(manual_par['det'], list):
-        spat_spec = manual_par['spat_spec'].split(',')
-        det = [int(obj) for obj in manual_par['det'].split(',')]
-        fwhm = [float(obj) for obj in manual_par['fwhm'].split(',')]
+        spat_spec = manual_par['spat_spec']#.split(',')
+        det = [int(obj) for obj in manual_par['det']] #.split(',')]
+        fwhm = [float(obj) for obj in manual_par['fwhm']]#.split(',')]
     else:
         spat_spec = [manual_par['spat_spec']]
         det = [manual_par['det']]

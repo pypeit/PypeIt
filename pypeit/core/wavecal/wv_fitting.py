@@ -322,14 +322,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             flg_penultimate = True
 
     # Final fit (originals can now be rejected)
-    #fmin, fmax = 0., 1.
-    #xfit, yfit, wfit = tcent[ifit]/(nspec-1), all_ids[ifit], weights[ifit]
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
-    #mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_final,
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
-    irej = np.where(np.logical_not(pypeitFit.gpm))[0]
+    irej = np.where(np.logical_not(pypeitFit.bool_gpm))[0]
     if len(irej) > 0:
         xrej = xfit[irej]
         yrej = yfit[irej]
@@ -341,27 +338,16 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         xrej = []
         yrej = []
 
-    #xfit = xfit[mask == 0]
-    #yfit = yfit[mask == 0]
-    #wfit = wfit[mask == 0]
     ions = all_idsion[ifit]
-#    ions = all_idsion[ifit][mask == 0]
     # Final RMS
-    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)#xfit[pypeitFit.gpm == 0] / xnspecmin1,
-                                     #yfit[pypeitFit.gpm == 0],
-                                     #weights=wfit[pypeitFit.gpm == 0])
-#    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, func,
-#                                 minx=fmin, maxx=fmax, weights=wfit)
+    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
     rms_pix = rms_ang/disp
 
     # Pack up fit
     spec_vec = np.arange(nspec)
-    #wave_soln = utils.func_val(fit,spec_vec/xnspecmin1, func, minx=fmin, maxx=fmax)
-    wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)#, func, minx=fmin, maxx=fmax)
-    #cen_wave = utils.func_val(fit, float(nspec)/2/xnspecmin1, func, minx=fmin, maxx=fmax)
-    cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)#, func, minx=fmin, maxx=fmax)
-    #cen_wave_min1 = utils.func_val(fit, (float(nspec)/2 - 1.0)/xnspecmin1, func, minx=fmin, maxx=fmax)
-    cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)#, func, minx=fmin, maxx=fmax)
+    wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)
+    cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)
+    cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)
     cen_disp = cen_wave - cen_wave_min1
 
     # Ions bit
@@ -370,25 +356,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         ion_bits[kk] = WaveFit.bitmask.turn_on(ion_bits[kk], ion)
 
     # DataContainer time
-    final_fit = WaveFit(pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, #weights=wfit,
-                        ion_bits=ion_bits, xnorm=xnspecmin1, #, nspec=nspec,
+    final_fit = WaveFit(pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit,
+                        ion_bits=ion_bits, xnorm=xnspecmin1,
                         cen_wave=cen_wave, cen_disp=cen_disp,
-                       #xrej=xrej, yrej=yrej, mask=(mask == 0),
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,
                         shift=0., tcent=tcent, rms=rms_pix)
-
-    # If set to True, this will output a file that can then be included in the tests
-    #saveit = False
-    #if saveit:
-        #from linetools import utils as ltu
-        #jdict = ltu.jsonify(final_fit)
-        #if plot_fil is None:
-            #outname = "temp"
-            #print("You should have set the plot_fil directory to save wavelength fits... using 'temp' as a filename")
-        #else:
-            #outname = plot_fil
-        #ltu.savejson(outname + '.json', jdict, easy_to_read=True, overwrite=True)
-        #print(" Wrote: {:s}".format(outname + '.json'))
 
     # QA
     if plot_fil is not None:

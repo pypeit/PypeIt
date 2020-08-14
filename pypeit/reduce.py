@@ -687,7 +687,7 @@ class Reduce(object):
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['frame']))
             # Good slitord
             radec = ltu.radec_to_coord((ra, dec))
-            gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
+            gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
             vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, gd_slitord,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],

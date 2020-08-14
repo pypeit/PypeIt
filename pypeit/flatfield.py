@@ -20,7 +20,6 @@ from pypeit import bspline
 
 from pypeit import datamodel
 from pypeit import masterframe
-from pypeit import wavecalib
 from pypeit.display import display
 from pypeit.core import flat
 from pypeit.core import tracewave
@@ -839,7 +838,7 @@ class FlatField(object):
             # TODO: Can we add defaults to bspline_profile so that we
             #  don't have to instantiate invvar and profile_basis
             spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-                    = fitting.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+                    = bspline.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
                                             np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
@@ -854,7 +853,7 @@ class FlatField(object):
 
             # Debugging/checking spectral fit
             if debug:
-                fitting.bspline_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
+                bspline.bspline_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
                                  spec_flat_fit, xlabel='Spectral Pixel', ylabel='log(flat counts)',
                                  title='Spectral Fit for slit={:d}'.format(slit_spat))
 
@@ -1031,7 +1030,7 @@ class FlatField(object):
 
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
-                    = fitting.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
+                    = bspline.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
                                             poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
@@ -1178,7 +1177,7 @@ class FlatField(object):
         # TODO: Can we add defaults to bspline_profile so that we
         #  don't have to instantiate invvar and profile_basis
         spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-            = fitting.bspline_profile(spat_coo_data, spat_flat_data,
+            = bspline.bspline_profile(spat_coo_data, spat_flat_data,
                                     np.ones_like(spat_flat_data),
                                     np.ones_like(spat_flat_data), nord=4, upper=5.0,
                                     lower=5.0, fullbkpt=spat_bspl.breakpoints)
@@ -1280,7 +1279,7 @@ class FlatField(object):
         # Fit the spectral direction of the blaze.
         logrej = 0.5
         spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-            = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+            = bspline.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
                                     np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                     nord=4, upper=logrej, lower=logrej,
                                     kwargs_bspline={'bkspace': spec_samp_fine},
@@ -1305,7 +1304,7 @@ class FlatField(object):
             mad = 1.4826*np.median(np.abs(med-yfit))
             inmsk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
             slit_bspl, _, _, _, exit_status \
-                = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit)/mad**2, np.ones_like(xfit),
+                = bspline.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit)/mad**2, np.ones_like(xfit),
                                         nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
                                         kwargs_bspline={'bkspace': spec_samp_fine},
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 5})
