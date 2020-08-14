@@ -359,7 +359,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 the median slit length of each slit is returned.
 
         Returns:
-            :obj:numpy.ndarray_: Slit lengths.
+            `numpy.ndarray`_: Slit lengths.
         """
         left, right, _ = self.select_edges(initial=initial)
         slitlen = right - left

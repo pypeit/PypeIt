@@ -21,6 +21,7 @@ Submodules
    pypeit.core.coadd
    pypeit.core.combine
    pypeit.core.extract
+   pypeit.core.fitting_ToBeMerged
    pypeit.core.flat
    pypeit.core.flexure
    pypeit.core.flux_calib
