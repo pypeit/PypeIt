@@ -23,7 +23,7 @@ from pypeit.images import imagebitmask
 from IPython import embed
 
 
-class CombineImage(object):
+class CombineImage:
     """
     Class to generate an image from one or more files (and other pieces).
 

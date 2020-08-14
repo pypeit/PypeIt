@@ -32,16 +32,13 @@ def test_addrm_slit():
     edges.add_user_traces(add_user_slits)
     assert edges.is_synced, 'Added slit caused object to de-synchronize.'
     assert edges.ntrace//2 == nslits + 1, 'Number of slits incorrect.'
-    xcen0 = np.median(np.mean(edges.spat_fit[:,:2], axis=0))
+    xcen0 = np.median(np.mean(edges.edge_fit[:,:2], axis=0))
     assert np.absolute(xcen0-170) < 3, 'Unexpected slit center coordinate'
 
     # Remove it
     rm_user_slits = [[1024, 170]]
     edges.rm_user_traces(rm_user_slits)
     assert edges.ntrace//2 == nslits, 'Did not remove trace.'
-
-#if __name__ == '__main__':
-#    test_addrm_slit()
 
 
 # TODO: Can we (and is it useful to) get these tests back?

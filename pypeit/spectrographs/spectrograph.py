@@ -36,9 +36,8 @@ from pkg_resources import resource_filename
 import numpy as np
 from astropy.io import fits
 
-from linetools import utils as ltu
-
 from pypeit import msgs
+from pypeit import utils
 from pypeit.core.wavecal import wvutils
 from pypeit.core import parse
 from pypeit.core import procimg
@@ -50,7 +49,8 @@ from IPython import embed
 # TODO: Create an EchelleSpectrograph derived class that holds all of
 # the echelle specific methods.
 
-class Spectrograph(object):
+class Spectrograph:
+    # TODO: This docstring needs to be updated.
     """
     Abstract base class whose derived classes dictate
     instrument-specific behavior in PypeIt.
@@ -95,7 +95,6 @@ class Spectrograph(object):
         self.dispname = None
         self.detector = None
         self.naxis = None
-#        self.raw_naxis = None
         self.rawdatasec_img = None
         self.oscansec_img = None
         self.slitmask = None
@@ -106,12 +105,8 @@ class Spectrograph(object):
         # Default extension with the primary header data
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
-        #self.numhead = 0
 
-        self.minexp = 0  # NEED TO TIE TO INSTRUMENT PAR INSTEAD
-
-        # Init Calibrations Par
-#        self._set_calib_par()
+        self.minexp = 0  # TODO: NEED TO TIE TO INSTRUMENT PAR INSTEAD
 
         # Init meta
         self.meta_data_model = meta.get_meta_data_model()
@@ -516,8 +511,10 @@ class Spectrograph(object):
         # Raw image
         raw_img = hdu[detector['dataext']].data.astype(float)
         # TODO -- Move to FLAMINGOS2 spectrograph
-        # raw data from some spectrograph (i.e. FLAMINGOS2) have an addition extention, so I add the following two lines.
-        # it's easier to change here than writing another get_rawimage function in the spectrograph file.
+        # Raw data from some spectrograph (i.e. FLAMINGOS2) have an
+        # addition extention, so I add the following two lines. It's
+        # easier to change here than writing another get_rawimage
+        # function in the spectrograph file.
         if raw_img.ndim == 3:
             raw_img = raw_img[0]
 
@@ -619,18 +616,11 @@ class Spectrograph(object):
             value: value or list of values
 
         """
-        if isinstance(inp, str):
-            headarr = self.get_headarr(inp)
-        else:
-            headarr = inp
+        headarr = self.get_headarr(inp) if isinstance(inp, str) else inp
 
         # Loop?
         if isinstance(meta_key, list):
-            values = []
-            for mdict in meta_key:
-                values.append(self.get_meta_value(headarr, mdict, required=required))
-            #
-            return values
+            return [self.get_meta_value(headarr, mdict, required=required) for mdict in meta_key]
 
         # Are we prepared to provide this meta data?
         if meta_key not in self.meta.keys():
@@ -660,6 +650,7 @@ class Spectrograph(object):
                 value = headarr[self.meta[meta_key]['ext']][self.meta[meta_key]['card']]
             except (KeyError, TypeError):
                 value = None
+
         # Return now?
         if no_fussing:
             return value
@@ -670,8 +661,9 @@ class Spectrograph(object):
                                 self.get_meta_value(headarr, 'dec', no_fussing=True))
             value = ra if meta_key == 'ra' else dec
 
-        # JFH Added this bit of code to deal with situations where the header card is there but the wrong type, e.g.
-        # MJD-OBS = 'null'
+        # JFH Added this bit of code to deal with situations where the
+        # header card is there but the wrong type, e.g. MJD-OBS =
+        # 'null'
         try:
             if self.meta_data_model[meta_key]['dtype'] == str:
                 retvalue = str(value).strip()
@@ -680,16 +672,18 @@ class Spectrograph(object):
             elif self.meta_data_model[meta_key]['dtype'] == float:
                 retvalue = float(value)
             elif self.meta_data_model[meta_key]['dtype'] == tuple:
-                assert isinstance(value, tuple)
+                if not isinstance(value, tuple):
+                    msgs.error('dtype for {0} is tuple, but value '.format(meta_key)
+                               + 'provided is {0}.  Casting is not possible.'.format(type(value)))
                 retvalue = value
             castable = True
         except:
             retvalue = None
             castable = False
 
-
-        # JFH Added the typing to prevent a crash below when the header value exists, but is the wrong type. This
-        # causes a crash below  when the value is cast.
+        # JFH Added the typing to prevent a crash below when the header
+        # value exists, but is the wrong type. This causes a crash
+        # below when the value is cast.
         if value is None or not castable:
             # Was this required?
             if required:
@@ -699,16 +693,18 @@ class Spectrograph(object):
                     if ('required_ftypes' in self.meta[meta_key]) and (usr_row is not None):
                         kerror = False
                         # Is it required?
+                        # TODO: Use numpy.isin ?
                         for ftype in usr_row['frametype'].split(','):
                             if ftype in self.meta[meta_key]['required_ftypes']:
                                 kerror = True
                     # Bomb out?
                     if kerror:
-                        embed(header='spectrograph.get_meta_value()')
-                        msgs.error('Required meta "{:s}" did not load!  You may have a corrupt header'.format(meta_key))
+                        embed(header=utils.embed_header())
+                        msgs.error('Required meta "{0}" did not load!'.format(meta_key)
+                                   + 'You may have a corrupt header.')
                 else:
-                    msgs.warn("Required card {:s} missing from your header.  Proceeding with risk..".format(
-                        self.meta[meta_key]['card']))
+                    msgs.warn('Required card {0} missing '.format(self.meta[meta_key]['card'])
+                              + 'from your header.  Proceeding with risk...')
             return None
 
         # Return
@@ -822,11 +818,6 @@ class Spectrograph(object):
         raise NotImplementedError('Header keyword with frame type not defined for {0}.'.format(
                                   self.spectrograph))
 
-    #@property
-    #def ndet(self):
-    #    """Return the number of detectors."""
-    #    return 0 if self.detector is None else len(self.detector)
-
     @property
     def pypeline(self):
         return 'MultiSlit'
@@ -876,23 +867,6 @@ class Spectrograph(object):
         """
         pass
 
-#    def order_vec(self, slit_spat_pos):
-#        """
-#        Convert an array of slit_spat_pos values to order numbers
-#
-#        Args:
-#            slit_spat_pos (np.ndarray): Slit positions
-#
-#        Returns:
-#            np.ndarray: Order numbers
-#
-#        """
-#        order_vec = np.zeros(slit_spat_pos.size, dtype=int)
-#        for kk, ipos in enumerate(slit_spat_pos):
-#            order_vec[kk], indx= self.slit2order(ipos)
-#        # Return
-#        return order_vec
-
     @property
     def norders(self):
         return None
@@ -909,10 +883,6 @@ class Spectrograph(object):
     def order_spat_pos(self):
         return None
 
-#    @property
-#    def match_tol_spat_pos(self):
-#        return 0.05
-
     @property
     def orders(self):
         return None
@@ -928,41 +898,6 @@ class Spectrograph(object):
     @property
     def loglam_minmax(self):
         return None
-
-#    def slit2order(self, slit_spat_pos):
-#        """
-#        This routine is only for fixed-format echelle spectrographs.
-#        It returns the order of the input slit based on its slit_pos
-#
-#        Args:
-#            slit_spat_pos (float):  Slit position (spatial at 1/2 the way up)
-#
-#        Returns:
-#            order, indx
-#
-#            order (int): order number
-#            indx  (int): order index
-#
-#        """
-#        indx = np.arange(self.norders)
-#        # Find closest
-#        try:
-#            iorder = [np.argmin(np.abs(slit-self.order_spat_pos)) for slit in slit_spat_pos]
-#        except TypeError:
-#            iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
-#
-#        embed(header='line 954 spectrograph.py')
-#        exit()
-#
-#        # Check
-#        if np.any(np.abs(self.order_spat_pos[iorder] - slit_spat_pos) > self.match_tol_spat_pos):
-#            msgs.warn("Bad echelle format for VLT-XSHOOTER or you are performing a 2-d coadd with different order locations."
-#                      "Returning order vector with the same number of orders you requested")
-#            iorder = np.arange(slit_spat_pos.size)
-#            return self.orders[iorder], indx[iorder]
-#        else:
-#            return self.orders[iorder], indx[iorder]
-
 
     # TODO : This code needs serious work.  e.g. eliminate the try/except
     def slit_minmax(self, slit_spat_pos, binspectral=1):
@@ -991,7 +926,6 @@ class Spectrograph(object):
                 iorder = np.argmin(np.abs(slit_spat_pos-self.order_spat_pos))
             return self.spec_min_max[:, iorder]/binspectral
 
-
     def wavegrid(self, binning=None, midpoint=False,samp_fact=1.0):
         """
         Routine to generate a fixed wavelength grid in log_10 lambda. Mostly used by echelle spectrographs
@@ -1004,7 +938,6 @@ class Spectrograph(object):
         Returns:
 
         """
-
         binspectral, binspatial = parse.parse_binning(binning)
         logmin, logmax = self.loglam_minmax
         loglam_grid = wvutils.wavegrid(logmin, logmax, self.dloglam*binspectral, samp_fact=samp_fact)
@@ -1012,8 +945,6 @@ class Spectrograph(object):
             loglam_grid = loglam_grid + self.dloglam*binspectral/samp_fact/2.0
 
         return np.power(10.0,loglam_grid)
-
-
 
     def __repr__(self):
         # Generate string

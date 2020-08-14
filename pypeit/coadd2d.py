@@ -31,7 +31,7 @@ from pypeit import calibrations
 from pypeit import spec2dobj
 
 
-class CoAdd2D(object):
+class CoAdd2D:
 
     """
     Main routine to run the extraction for 2d coadds.
