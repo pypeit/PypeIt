@@ -8,8 +8,11 @@ import numpy as np
 import warnings
 
 from scipy import interpolate
+from scipy.io import readsav
 
 from astropy.io import fits
+
+from pkg_resources import resource_filename
 
 from pypeit import msgs
 from pypeit import telescopes
@@ -703,23 +706,63 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             raise ValueError('Ruling should be 0 if slider in position 2.')
 
         # Use the calibrated coefficients
+        # These orientation coefficients are the newest ones and are meant for
+        # observations obtained Post-2016 Servicing.
+        # TODO: Figure out the impact of these coefficients on the slits identification.
+        # We may not need to change them according to when the observations were taken
         _ruling = int(ruling) if int(ruling) in [600, 831, 900, 1200] else 'other'
-        orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6e-4, -0.182],
-                                      831: [ 0.143,  0.000, 5.6e-4, -0.182],
-                                      900: [ 0.141,  0.000, 5.6e-4, -0.134],
-                                     1200: [ 0.145,  0.055, 5.6e-4, -0.181],
-                                  'other': [ 0.145,  0.000, 5.6e-4, -0.182] },
-                              4: {    600: [-0.065,  0.063, 6.9e-4, -0.298],
-                                      831: [-0.034,  0.060, 6.9e-4, -0.196],
-                                      900: [-0.064,  0.083, 6.9e-4, -0.277],
-                                     1200: [-0.052,  0.122, 6.9e-4, -0.294],
-                                  'other': [-0.050,  0.080, 6.9e-4, -0.250] } }
+        orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6e-4, -0.146],
+                                      831: [ 0.143,  0.000, 5.6e-4, -0.018],
+                                      900: [ 0.141,  0.000, 5.6e-4, -0.118],
+                                     1200: [ 0.145,  0.055, 5.6e-4, -0.141],
+                                  'other': [ 0.145,  0.000, 5.6e-4, -0.141] },
+                              4: {    600: [-0.065,  0.063, 6.9e-4, -0.108],
+                                      831: [-0.034,  0.060, 6.9e-4, -0.038],
+                                      900: [-0.064,  0.083, 6.9e-4, -0.060],
+                                     1200: [-0.052,  0.122, 6.9e-4, -0.110],
+                                  'other': [-0.050,  0.080, 6.9e-4, -0.110] } }
+
+        # Orientation coefficients meant for observations taken Pre-2016 Servicing
+        # orientation_coeffs = {3: {    600: [ 0.145, -0.008, 5.6e-4, -0.182],
+        #                               831: [ 0.143,  0.000, 5.6e-4, -0.182],
+        #                               900: [ 0.141,  0.000, 5.6e-4, -0.134],
+        #                              1200: [ 0.145,  0.055, 5.6e-4, -0.181],
+        #                           'other': [ 0.145,  0.000, 5.6e-4, -0.182] },
+        #                       4: {    600: [-0.065,  0.063, 6.9e-4, -0.298],
+        #                               831: [-0.034,  0.060, 6.9e-4, -0.196],
+        #                               900: [-0.064,  0.083, 6.9e-4, -0.277],
+        #                              1200: [-0.052,  0.122, 6.9e-4, -0.294],
+        #                           'other': [-0.050,  0.080, 6.9e-4, -0.250] } }
 
         # Return calbirated roll, yaw, and tilt
         return orientation_coeffs[slider][_ruling][0], \
                 orientation_coeffs[slider][_ruling][1], \
                 tilt*(1-orientation_coeffs[slider][_ruling][2]) \
                     + orientation_coeffs[slider][_ruling][3]
+
+
+
+    def get_amapbmap(self, filename):
+        """
+        Select the pre-grating (amap) and post-grating (bmap) maps according to the slider.
+        """
+        hdu = fits.open(filename)
+
+        # Grating slider
+        slider = hdu[0].header['GRATEPOS']
+
+        mp_dir = resource_filename('pypeit', 'data/static_calibs/keck_deimos/')
+
+        if slider in [3,4]:
+            self.amap=readsav(mp_dir+'amap.s{}.2003mar04.sav'.format(slider))
+            self.bmap=readsav(mp_dir+'bmap.s{}.2003mar04.sav'.format(slider))
+        else:
+            raise ValueError('No amap/bmap available for slider {0}'.format(slider))
+        #TODO: Figure out which amap and bmap to use for slider 2
+
+        return self.amap, self.bmap
+
+
 
     def mask_to_pixel_coordinates(self, x=None, y=None, wave=None, order=1, filename=None,
                                   corners=False):
@@ -795,6 +838,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 self.get_slitmask(filename)
             # Reset the grating
             self.get_grating(filename)
+            # Load pre- and post-grating maps
+            self.get_amapbmap(filename)
+
+        if self.amap is None and self.bmap is None:
+            raise ValueError('Must select amap and bmap; provide a file or use get_amapbmap()')
 
         # Check that any coordinates are available
         if x is None and y is None and self.slitmask is None:
@@ -821,16 +869,17 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Instantiate the detector map, if necessary
         self.get_detector_map()
 
-        # Compute the detector image plane coordinates (mm)
-        x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, wave=wave,
-                                                                      order=order)
+        # Compute the detector image plane coordinates
+        x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, self.amap, self.bmap,
+                                                                      nslits=self.slitmask.nslits,
+                                                                      wave=wave, order=order)
         # Reshape if computing the corner positions
         if corners:
             x_img = x_img.reshape(self.slitmask.corners.shape[:2])
             y_img = y_img.reshape(self.slitmask.corners.shape[:2])
 
         # Use the detector map to convert to the detector coordinates
-        return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img)
+        return (x_img, y_img) + self.detector_map.ccd_coordinates(x_img, y_img, in_mm=False)
 
 
 class DEIMOSOpticalModel(OpticalModel):
