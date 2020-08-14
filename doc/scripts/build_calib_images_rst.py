@@ -37,7 +37,7 @@ def build_tbl(objimgty):
         if obj.hdu_prefix is not None:
             _k = obj.hdu_prefix+_k
         alternate_keys.append(_k)
-        data_table[i+1,0] = to_string(_k, use_repr=False, verbatum=True)
+        data_table[i+1,0] = to_string(_k, use_repr=False, verbatim=True)
         # Object Type
         if isinstance(data_model[k]['otype'], (list,tuple)):
             data_table[i+1,1] = ', '.join([t.__name__ for t in data_model[k]['otype']])
