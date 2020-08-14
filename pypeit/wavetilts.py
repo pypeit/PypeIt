@@ -49,8 +49,8 @@ class WaveTilts(datamodel.DataContainer):
                  'spec_order': dict(otype=np.ndarray, atype=np.integer,
                                     descr='Order for spectral fit (nslit)'),
                  'func2d': dict(otype=str, descr='Function used for the 2D fit'),
-                 'PYP_SPEC': dict(otype=str, desc ='PypeIt spectrograph name'),
-                 'spat_flexure': dict(otype=float, desc ='Flexure shift from the input TiltImage')}
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'spat_flexure': dict(otype=float, descr='Flexure shift from the input TiltImage')}
 
     def __init__(self, coeffs, nslit, spat_id, spat_order, spec_order, func2d, bpmtilts=None,
                  spat_flexure=None, PYP_SPEC=None):

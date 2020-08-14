@@ -464,7 +464,7 @@ class EdgeTraceSet(DataContainer):
         self.par = par                                  # Parameters used for slit edge tracing
         self.qa_path = qa_path                          # Directory for QA plots
 
-        # NOTE: This mean that, no matter what, every instance of
+        # NOTE: This means that, no matter what, every instance of
         # EdgeTraceSet should have a sobelsig attribute that is *not*
         # None.
         if auto:

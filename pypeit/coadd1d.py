@@ -91,6 +91,7 @@ class OneSpec(datamodel.DataContainer):
 
     def _init_internals(self):
         self.head0 = None
+        self.filename = None
         self.spec_meta = None
         self.spectrograph = None
         self.spect_meta = None

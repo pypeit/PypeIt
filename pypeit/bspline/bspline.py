@@ -96,9 +96,9 @@ class bspline(datamodel.DataContainer):
                  'mask': dict(otype=np.ndarray, atype=np.bool_, descr='Mask'),
                  'coeff': dict(otype=np.ndarray, atype=np.floating, descr='Fit coefficients'),
                  'icoeff': dict(otype=np.ndarray, atype=np.floating, descr='??'),
-                 'xmin': dict(otype=float, desc='Normalization for input data'),
-                 'xmax': dict(otype=float, desc='Normalization for input data'),
-                 'funcname': dict(otype=str, desc='Function of fit')}
+                 'xmin': dict(otype=float, descr='Normalization for input data'),
+                 'xmax': dict(otype=float, descr='Normalization for input data'),
+                 'funcname': dict(otype=str, descr='Function of fit')}
 
     # ToDO Consider refactoring the argument list so that there are no kwargs
     def __init__(self, x, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0, verbose=False,
