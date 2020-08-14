@@ -78,6 +78,7 @@ class FlatImages(datamodel.DataContainer):
         datamodel.DataContainer.__init__(self, d=d)
 
     def _init_internals(self):
+        self.filename = None
         # Master stuff
         self.master_key = None
         self.master_dir = None

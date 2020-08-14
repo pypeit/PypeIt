@@ -1107,6 +1107,11 @@ class EdgeTraceSet(DataContainer):
         # Instantiate
         self = super(EdgeTraceSet, cls).from_dict(d=d)
 
+        # Set the integer pixel values
+        self.edge_img = None if self.traceid is None \
+                            else (np.round(self.edge_cen if self.edge_fit is None
+                                    else self.edge_fit).astype(int))
+
         # Reinstantiate elements that are not part of the datamodel
         # NOTE: The SOBELSIG extension is used here as the reference
         # header because some headers are overwritten by the TraceImage
@@ -3731,6 +3736,7 @@ class EdgeTraceSet(DataContainer):
             # Trace cen
             new_traces[:,kk*2] = x_spat0
             new_traces[:,kk*2+1] = x_spat1
+
         # Insert
         self.insert_traces(np.array(sides), new_traces, mode='user')
         # Sync
