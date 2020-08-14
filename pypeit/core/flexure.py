@@ -128,7 +128,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
             Spectrum of the sky related to our object
         arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
             Archived sky spectrum
-        arx_lines (list): Line information returned by arc.detect_lines for
+        arx_lines (tuple): Line information returned by arc.detect_lines for
             the Archived sky spectrum
         mxshft (float, optional):
             Maximum allowed shift from flexure;  note there are cases that
