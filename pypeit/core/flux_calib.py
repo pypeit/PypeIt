@@ -955,7 +955,7 @@ def standard_sensfunc(wave, flux, ivar, mask_bad, flux_std, mask_balm=None, mask
 
         # init_breakpoints = fullbkpt
         msgs.info("Bspline fit on magfunc. ")
-        bset1, bmask = bspline.iterfit(wave_obs, magfunc, invvar=logivar_obs, inmask=msk_fit_sens, upper=upper, lower=lower,
+        bset1, bmask = fitting.iterfit(wave_obs, magfunc, invvar=logivar_obs, inmask=msk_fit_sens, upper=upper, lower=lower,
                                     fullbkpt=init_breakpoints, maxiter=maxiter, kwargs_bspline=kwargs_bspline,
                                     kwargs_reject=kwargs_reject)
         logfit1, _ = bset1.value(wave_obs)

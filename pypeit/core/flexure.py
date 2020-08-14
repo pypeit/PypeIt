@@ -23,7 +23,6 @@ from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import fitting
-from pypeit import bspline
 
 from IPython import embed
 
@@ -246,13 +245,13 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     # Deal with underlying continuum
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
-    pypeitFit_obj, _ = bspline.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
+    pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
                                        nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
                                        maxiter = 15, upper = 3.0, lower = 3.0)
     obj_sky_cont, _ = pypeitFit_obj.value(obj_skyspec.wavelength.value)
 
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
-    pypeitFit_sky, _ = bspline.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
+    pypeitFit_sky, _ = fitting.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
                                        nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
                                        maxiter = 15, upper = 3.0, lower = 3.0)
     arx_sky_cont, _ = pypeitFit_sky.value(arx_skyspec.wavelength.value)
