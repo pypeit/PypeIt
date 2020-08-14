@@ -320,7 +320,7 @@ def pca_predict(x, pypeitFits, pca_components, pca_mean, mean):
             Vectors with the PCA components.  Shape must be
             :math:`(N_{\rm comp}, N_{\rm pix})`.
         pca_mean (`numpy.ndarray`_):
-            The mean offset of the PCA decomposotion for each pixel.
+            The mean offset of the PCA decomposition for each pixel.
             Shape is :math:`(N_{\rm pix},)`.
         mean (:obj:`float`, `numpy.ndarray`_):
             The mean offset of each trace coordinate to use for the

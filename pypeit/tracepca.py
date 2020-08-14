@@ -143,6 +143,7 @@ class TracePCA(DataContainer):
     def _init_internals(self):
         """Add any attributes that are *not* part of the datamodel."""
         self.is_empty = True
+        self.pypeitFits = None
 
     def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
                   coo=None):
@@ -225,7 +226,7 @@ class TracePCA(DataContainer):
         self.fit_coeff = None
         self.minx = None
         self.maxx = None
-        self.pypeitFits = None  # list of PypeItFit objects
+        self.pypeitFits = None
 
     def build_interpolator(self, order, ivar=None, weights=None, function='polynomial', lower=3.0,
                            upper=3.0, maxrej=1, maxiter=25, minx=None, maxx=None, debug=False):
