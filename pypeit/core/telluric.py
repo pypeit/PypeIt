@@ -12,7 +12,7 @@ import pickle
 from pypeit.core import load, flux_calib
 from pypeit.core.wavecal import wvutils
 from astropy import table
-from pypeit.core import coadd
+from pypeit.core import coadd, fitting
 from pypeit import specobjs
 from pypeit import utils
 from pypeit import msgs
@@ -658,16 +658,22 @@ def init_sensfunc_model(obj_params, iord, wave, flux, ivar, mask, tellmodel):
     sensguess = np.log(sensguess_arg)
     fitmask = mask & np.isfinite(sensguess) & (sensguess_arg > 0.0) & np.isfinite(flam_true_mask)
     # Perform an initial fit to the sensitivity function to set the starting point for optimization
-    mask, coeff = utils.robust_polyfit_djs(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
-                                       minx=wave.min(), maxx=wave.max(), inmask=fitmask,
-                                       lower=obj_params['sigrej'], upper=obj_params['sigrej'],
-                                       use_mad=True)
-    sensfit_guess = np.exp(utils.func_val(coeff, wave, obj_params['func'], minx=wave.min(), maxx=wave.max()))
+    pypeitFit = fitting.robust_fit(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
+                                   minx=wave.min(), maxx=wave.max(), in_gpm=fitmask,
+                                   lower=obj_params['sigrej'], upper=obj_params['sigrej'],
+                                   use_mad=True)
+    sensfit_guess = np.exp(pypeitFit.eval(wave))
+
+    #mask, coeff = utils.robust_polyfit_djs(wave, sensguess, obj_params['polyorder_vec'][iord], function=obj_params['func'],
+    #                                   minx=wave.min(), maxx=wave.max(), inmask=fitmask,
+    #                                   lower=obj_params['sigrej'], upper=obj_params['sigrej'],
+    #                                   use_mad=True)
+    # sensfit_guess = np.exp(utils.func_val(coeff, wave, obj_params['func'], minx=wave.min(), maxx=wave.max()))
 
     # Polynomial coefficient bounds
     bounds_obj = [(np.fmin(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][0], obj_params['minmax_coeff_bounds'][0]),
                    np.fmax(np.abs(this_coeff)*obj_params['delta_coeff_bounds'][1], obj_params['minmax_coeff_bounds'][1]))
-                   for this_coeff in coeff]
+                   for this_coeff in pypeitFit.fitc]
     # Create the obj_dict
     obj_dict = dict(wave=wave, wave_min=wave.min(), wave_max=wave.max(),
                     exptime=obj_params['exptime'], flam_true=flam_true, func=obj_params['func'],
@@ -714,7 +720,8 @@ def eval_sensfunc_model(theta, obj_dict):
     func = obj_dict['func']
     exptime = obj_dict['exptime']
 
-    sensfunc = np.exp(utils.func_val(theta, wave_star, func, minx=wave_min, maxx=wave_max))
+    sensfunc = np.exp(fitting.evaluate_fit(theta, func, wave_star, minx=wave_min, maxx=wave_max))
+    # sensfunc = np.exp(utils.func_val(theta, wave_star, func, minx=wave_min, maxx=wave_max))
     counts_model = exptime*flam_true/(sensfunc + (sensfunc == 0.0))
 
     return counts_model, (sensfunc > 0.0)
@@ -1254,7 +1261,8 @@ def sensfunc_telluric(wave, counts, counts_ivar, counts_mask, exptime, airmass, 
         wave_min = out_table[iord]['WAVE_MIN']
         wave_max = out_table[iord]['WAVE_MAX']
         coeff = TelObj.out_table[iord]['OBJ_THETA'][0:polyorder_vec[iord] + 2]
-        out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
+        out_table[iord]['SENSFUNC'][gdwave] = np.exp(fitting.evaluate_fit(coeff, func, wave_in_gd, minx=wave_min, maxx=wave_max))
+        # out_table[iord]['SENSFUNC'][gdwave] = np.exp(utils.func_val(coeff, wave_in_gd, func, minx=wave_min, maxx=wave_max))
         out_table[iord]['SENSFUNC_GPM'][gdwave] = True
 
     #if outfile is not None:
