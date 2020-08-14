@@ -1479,11 +1479,13 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
             med = np.median(yfit)
             mad = 1.4826*np.median(np.abs(med-yfit))
             msk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
-            msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1,
-                                                  lower=5, upper=5)
-            relscl_model[onslit_b_init] = utils.func_val(coeff,
-                                                         (waveimg[onslit_b_init] - minw) / (maxw - minw),
-                                                         "legendre", minx=0, maxx=1)
+            pypeitFit = fitting.robust_fit(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1, lower=5, upper=5)
+            relscl_model[onslit_b_init] = pypeitFit.eval((waveimg[onslit_b_init] - minw) / (maxw - minw))
+            #msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1,
+            #                                      lower=5, upper=5)
+            #relscl_model[onslit_b_init] = utils.func_val(coeff,
+            #                                             (waveimg[onslit_b_init] - minw) / (maxw - minw),
+            #                                             "legendre", minx=0, maxx=1)
 
         minv, maxv = np.min(relscl_model), np.max(relscl_model)
         msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))

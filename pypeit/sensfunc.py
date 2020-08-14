@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 from pypeit import msgs
 from pypeit import specobjs
 from pypeit.core import flux_calib
-from pypeit.core import telluric
+from pypeit.core import telluric, fitting
 from pypeit.spectrographs.util import load_spectrograph
 from astropy.io import fits
 from astropy import table
@@ -342,7 +342,8 @@ class IR(SensFunc):
         polyorder_vec = self.meta_table['POLYORDER_VEC'][0]
         func = self.meta_table['FUNC'][0]
         coeff = self.out_table[iorddet]['OBJ_THETA'][0:polyorder_vec[iorddet] + 2]
-        sensfunc = np.exp(utils.func_val(coeff, wave, func, minx=wave_min, maxx=wave_max))
+        sensfunc = np.exp(fitting.evaluate_fit(coeff, func, wave, minx=wave_min, maxx=wave_max))
+        #sensfunc = np.exp(utils.func_val(coeff, wave, func, minx=wave_min, maxx=wave_max))
         return sensfunc
 
 
