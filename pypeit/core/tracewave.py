@@ -623,7 +623,7 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     nspat = trc_tilt_dict['nspat']
     use_tilt = trc_tilt_dict['use_tilt']  # mask for good/bad tilts, based on aggregate fit, frac good pixels
     nuse = np.sum(use_tilt)
-    tilts = trc_tilt_dict['tils']  # legendre polynomial fit
+    tilts = trc_tilt_dict['tilts']  # legendre polynomial fit
     # JFH Before we were fitting the fits. Now we fit the actual flux weighted centroided tilts.
     tilts_err = trc_tilt_dict['tilts_err']  # flux weighted centroidding error
     tilts_bpm = trc_tilt_dict['tilts_bpm']  # centroid bad-pixel mask

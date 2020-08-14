@@ -801,7 +801,7 @@ def iterfit(xdata, ydata, invvar=None, inmask=None, upper=5, lower=5, x2=None,
             #        if 'fullbkpt' in kwargs:
             #            fullbkpt = kwargs['fullbkpt']
             else:
-                sset = bspline.bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline)
+                sset = bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt, **kwargs_bspline)
                 if maskwork.sum() < sset.nord:
                     print('Number of good data points fewer than nord.')
                     return (sset, outmask)
