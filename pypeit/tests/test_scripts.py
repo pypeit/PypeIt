@@ -3,6 +3,9 @@ Module to run tests on scripts
 """
 import os
 import shutil
+
+from IPython import embed
+
 import numpy as np
 
 import matplotlib
@@ -52,8 +55,8 @@ def test_quicklook():
                                         'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
     
     # Cleanup
-    shutil.rmtree(outdir)
     os.chdir(cdir)
+    shutil.rmtree(outdir)
 
 @dev_suite_required
 def test_trace_edges():

@@ -26,7 +26,7 @@ from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 
 
-class CoAdd2D(object):
+class CoAdd2D:
 
     """
     Main routine to run the extraction for 2d coadds.

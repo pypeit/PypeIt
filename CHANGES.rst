@@ -24,6 +24,8 @@
  - `linetools` is now listed in `pypeit/requirements.txt` until I can
    check if it still causes readthedocs to fail...
  - Modify Spec2DObj 2D model for float32 images
+ - `pypeit.tracepca.TracePCA` and `pypeit.edgetrace.EdgeTraceSet` now
+   subclass from `pypeit.datamodel.DataContainer`
  - Refactor WaveCalib into a DataContainer
  - Refactor fitting + PypeItFit DataContainer
  - Coadd2D bug fixes

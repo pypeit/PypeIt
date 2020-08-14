@@ -299,7 +299,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
         inmask=coeff_used[:,i]
     # Return arrays that match the shape of the input data
     if coeff.ndim == 1:
-        return np.invert(coeff_used)[0], fit_coeff[0], minx, maxx
+        return np.logical_not(coeff_used)[0], fit_coeff[0], minx, maxx
     return np.logical_not(coeff_used), fit_coeff, minx, maxx, pypeitFits
 
 
@@ -316,6 +316,9 @@ def pca_predict(x, pypeitFits, pca_components, pca_mean, mean):
             echelle order number.
         pypeitFits (:obj:`list`):
             List of :class:`pypeit.fitting.PypeItFit` objects
+        pca_components (`numpy.ndarray`_):
+            Vectors with the PCA components.  Shape must be
+            :math:`(N_{\rm comp}, N_{\rm pix})`.
         pca_mean (`numpy.ndarray`_):
             The mean offset of the PCA decomposotion for each pixel.
             Shape is :math:`(N_{\rm pix},)`.
