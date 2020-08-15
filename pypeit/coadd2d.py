@@ -579,20 +579,20 @@ class CoAdd2D:
             nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
             waves = np.zeros((self.nspec, nslits_tot*3))
             gpm = np.zeros_like(waves, dtype=bool)
+            box_radius = 3.
             indx = 0
             # Loop on the exposures
             for waveimg, slitmask, slits in zip(self.stack_dict['waveimg_stack'],
                                                 self.stack_dict['slitmask_stack'],
                                                 self.stack_dict['slits_list']):
+                slits_left, slits_righ, _ = slits.select_edges()
+                row = np.arange(slits_left.shape[0])
                 # Loop on the slits
                 for kk, spat_id in enumerate(slits.spat_id):
                     mask = slitmask == spat_id
-                    slits_left, slits_righ, _ = slits.select_edges()
-                    # Create apertures at 5%, 50%, and 95% of the slit width to cover the full range of wavelengths
+                    # Create apertures at 5%, 50%, and 95% of the slit width to cover full range of wavelengths
                     # on this slit
-                    trace_spat = slits_left +  np.outer((slits_righ - slits_left),[0.05,0.5,0.95])
-                    row = np.arange(trace_spat.shape[0])
-                    box_radius = 3.
+                    trace_spat = slits_left[:, kk][:,np.newaxis] +  np.outer((slits_righ[:,kk] - slits_left[:,kk]),[0.05,0.5,0.95])
                     box_denom = moment1d(waveimg * mask > 0.0, trace_spat, 2 * box_radius, row=row)[0]
                     wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))
