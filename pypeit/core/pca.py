@@ -9,7 +9,7 @@ from IPython import embed
 import numpy as np
 
 from matplotlib import pyplot as plt
-
+import copy
 from sklearn.decomposition import PCA
 
 from pypeit import msgs
@@ -274,7 +274,7 @@ def fit_pca_coefficients(coeff, order, ivar=None, weights=None, function='legend
                                            maxrej=maxrej, sticky=False, use_mad=_ivar is None,
                                            minx=minx, maxx=maxx)
         coeff_used[:,i], fit_coeff[i] = pypeitFit.gpm, pypeitFit.fitc
-        pypeitFits.append(pypeitFit)
+        pypeitFits.append(copy.deepcopy(pypeitFit))
         if debug:
             # Visually check the fits
             xvec = np.linspace(np.amin(coo), np.amax(coo), num=100)

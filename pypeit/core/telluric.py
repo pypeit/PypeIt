@@ -1297,7 +1297,7 @@ def create_bal_mask(wave, bal_wv_min_max):
     for ibal in range(nbal):
         bal_bpm |=  (wave > wav_min_max[ibal,0]) & (wave < wav_min_max[ibal,1])
 
-    return np.invert(bal_bpm)
+    return np.logical_not(bal_bpm)
 
 
 
@@ -1584,7 +1584,7 @@ def poly_telluric(spec1dfile, telgridfile, telloutfile, outfile, z_obj=0.0, func
         mask_tot = mask
 
     if fit_wv_min_max is not None:
-        mask_tot &= np.invert(create_bal_mask(wave, fit_wv_min_max))
+        mask_tot &= np.logical_not(create_bal_mask(wave, fit_wv_min_max))
 
     # parameters lowered for testing
     TelObj = Telluric(wave, flux, ivar, mask_tot, telgridfile, obj_params,
@@ -1986,7 +1986,7 @@ class Telluric(object):
         sig_now = np.sqrt(utils.inverse(self.ivar_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]))
         mask_now = self.mask_arr[self.ind_lower[iord]:self.ind_upper[iord]+1, iord]
         model_now = self.tellmodel_list[iord]*self.obj_model_list[iord]
-        rejmask = mask_now & np.invert(self.outmask_list[iord])
+        rejmask = mask_now & np.logical_not(self.outmask_list[iord])
 
         fig = plt.figure(figsize=(12, 8))
         plt.plot(wave_now, flux_now, drawstyle='steps-mid',
@@ -1995,7 +1995,7 @@ class Telluric(object):
         plt.plot(wave_now, model_now, drawstyle='steps-mid', color='red', linewidth=1.0, label='model',
                  zorder=7, alpha=0.7)
         plt.plot(wave_now[rejmask], flux_now[rejmask], 's', zorder=10, mfc='None', mec='blue', label='rejected pixels')
-        plt.plot(wave_now[np.invert(mask_now)], flux_now[np.invert(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
+        plt.plot(wave_now[np.logical_not(mask_now)], flux_now[np.logical_not(mask_now)], 'v', zorder=9, mfc='None', mec='orange',
                  label='originally masked')
         plt.ylim(-0.1 * model_now[mask_now].max(), 1.3 * model_now[mask_now].max())
         plt.legend()
@@ -2137,7 +2137,7 @@ class Telluric(object):
             wave_grid_ma = np.ma.array(np.copy(self.wave_grid))
             # For the ind lower and upper, use the good wavelength mask, not the data mask. This gives
             # us the model everywhere where wavelengths are not zero
-            wave_grid_ma.mask = np.invert(self.wave_mask_arr[:, iord])
+            wave_grid_ma.mask = np.logical_not(self.wave_mask_arr[:, iord])
             #wave_grid_ma.mask = np.invert(self.mask_arr[:,iord])
             ind_lower[iord] = np.ma.argmin(wave_grid_ma)
             ind_upper[iord] = np.ma.argmax(wave_grid_ma)
