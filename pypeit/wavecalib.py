@@ -121,7 +121,7 @@ class WaveCalib(datamodel.DataContainer):
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
                hdu_prefix=None):
         # Grab everything but the bspline's
-        _d, dm_version_passed, dm_type_passed = super(WaveCalib, cls)._parse(hdu)
+        _d, dm_version_passed, dm_type_passed, parsed_hdus = super(WaveCalib, cls)._parse(hdu)
         # Now the wave_fits
         list_of_wave_fits = []
         spat_ids = []
@@ -132,12 +132,14 @@ class WaveCalib(datamodel.DataContainer):
                     iwavefit = wv_fitting.WaveFit()
                 else:
                     iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
+                    parsed_hdus += ihdu.name
                     if iwavefit.version != wv_fitting.WaveFit.version:
                         msgs.warn("Your WaveFit is out of date!!")
                     # Grab PypeItFit (if it exists)
                     hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
                     if hdname in [khdu.name for khdu in hdu]:
                         iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
+                        parsed_hdus += hdname
                 list_of_wave_fits.append(iwavefit)
                 # Grab SPAT_ID for checking
                 i0 = ihdu.name.find('ID-')
@@ -145,12 +147,13 @@ class WaveCalib(datamodel.DataContainer):
                 spat_ids.append(int(ihdu.name[i0+3:i1]))
             elif ihdu.name == 'PYPEITFIT': # 2D fit
                 _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
+                parsed_hdus += ihdu.name
         # Check
         if spat_ids != _d['spat_id'].tolist():
             msgs.error("Bad parsing of the MasterFlat")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
-        return _d, dm_version_passed, dm_type_passed
+        return _d, dm_version_passed, dm_type_passed, parsed_hdus
 
     @property
     def par(self):

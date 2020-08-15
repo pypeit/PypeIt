@@ -141,7 +141,7 @@ class FlatImages(datamodel.DataContainer):
         # Grab everything but the bsplines. The bsplines are not parsed
         # because the tailored extension names do not match any of the
         # datamodel keys.
-        d, version_passed, type_passed = super(FlatImages, cls)._parse(hdu)
+        d, version_passed, type_passed, parsed_hdus = super(FlatImages, cls)._parse(hdu)
 
         # Find bsplines, if they exist
         nspat = len(d['spat_id'])
@@ -157,15 +157,17 @@ class FlatImages(datamodel.DataContainer):
                 key = '{0}_spat_bsplines'.format(flattype)
                 try:
                     d[key] = np.array([bspline.bspline.from_hdu(hdu[k]) for k in ext])
-                    version_passed &= np.all([d[key][i].version == bspline.bspline.version 
-                                              for i in range(nspat)])
                 except Exception as e:
                     msgs.warn('Error in bspline extension read:\n {0}: {1}'.format(
                                 e.__class__.__name__, str(e)))
                     # Assume this is because the type failed
                     type_passed = False
+                else:
+                    version_passed &= np.all([d[key][i].version == bspline.bspline.version 
+                                              for i in range(nspat)])
+                    parsed_hdus += ext
 
-        return d, version_passed, type_passed
+        return d, version_passed, type_passed, parsed_hdus
 
     def shape(self):
         if self.pixelflat_raw is not None:

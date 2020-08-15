@@ -1122,7 +1122,7 @@ class EdgeTraceSet(DataContainer):
         # parse traceimg because it's not a single-extension
         # DataContainer. It *will* parse pca, left_pca, and right_pca,
         # if they exist, but not their model components.
-        d, version_passed, type_passed, hdus_parsed = super(EdgeTraceSet, cls)._parse(hdu)
+        d, version_passed, type_passed, parsed_hdus = super(EdgeTraceSet, cls)._parse(hdu)
         if not type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
         if not version_passed:
@@ -1134,17 +1134,17 @@ class EdgeTraceSet(DataContainer):
         d['traceimg'] = TraceImage.from_hdu(hdu, chk_version=chk_version)
 
         # Check if there should be any PCAs
-        parsed_pcas = np.any(['PCA' in h for h in hdus_parsed]) 
+        parsed_pcas = np.any(['PCA' in h for h in parsed_hdus]) 
         if d['pcatype'] is not None and not parsed_pcas:
             msgs.error('CODING ERROR: Expect to parse PCA headers if pcatype is present.')
 
         # Instantiate the TracePCAs using the appropriate hdus.
         if d['pcatype'] is not None:
-            if 'PCA' in hdus_parsed:
+            if 'PCA' in parsed_hdus:
                 d['pca'] = TracePCA.from_hdu(hdu, hdu_prefix=None)
-            if 'LEFT_PCA' in hdus_parsed:
+            if 'LEFT_PCA' in parsed_hdus:
                 d['left_pca'] = TracePCA.from_hdu(hdu, hdu_prefix='LEFT_')
-            if 'RIGHT_PCA' in hdus_parsed:
+            if 'RIGHT_PCA' in parsed_hdus:
                 d['right_pca'] = TracePCA.from_hdu(hdu, hdu_prefix='RIGHT_')
 
         # Convert data types

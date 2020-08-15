@@ -24,7 +24,7 @@ from pypeit import slittrace
 from IPython import embed
 
 
-class SpecObjs(object):
+class SpecObjs:
     """
     Object to hold a set of :class:`~pypeit.specobj.SpecObj` objects
 

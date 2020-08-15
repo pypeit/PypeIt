@@ -303,22 +303,23 @@ class TracePCA(DataContainer):
         argument descriptions.
         """
         # Run the default parser to get most of the data
-        d, version_passed, type_passed, hdus \
+        d, version_passed, type_passed, parsed_hdus \
                 = super(TracePCA, cls)._parse(hdu, hdu_prefix=hdu_prefix)
 
         # This should only ever read one hdu!
-        if len(hdus) > 1:
+        if len(parsed_hdus) > 1:
             msgs.error('CODING ERROR: Parsing saved TracePCA instances should only parse 1 HDU, '
                        'independently of the PCA PypeItFit models.')
 
         # Check if any models exist
-        if hasattr(hdu, '__len__') and np.any(['{0}_MODEL'.format(hdus[0]) in h.name for h in hdu]):
+        if hasattr(hdu, '__len__') \
+                and np.any(['{0}_MODEL'.format(parsed_hdus[0]) in h.name for h in hdu]):
             # Parse the models
-            model_ext = ['{0}_MODEL_{1}'.format(hdus[0],i+1) for i in range(d['npca'])]
+            model_ext = ['{0}_MODEL_{1}'.format(parsed_hdus[0],i+1) for i in range(d['npca'])]
             d['pca_coeffs_model'] = np.array([PypeItFit.from_hdu(hdu[e]) for e in model_ext])
-            hdus += model_ext
+            parsed_hdus += model_ext
 
-        return d, version_passed, type_passed, hdus
+        return d, version_passed, type_passed, parsed_hdus
 
     @classmethod
     def from_dict(cls, d=None):
