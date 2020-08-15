@@ -418,13 +418,9 @@ def scale_minmax(x, minx=None, maxx=None):
         `numpy.ndarray`_: Scaled x values
 
     """
-    if minx is None or maxx is None:
-        if np.size(x) == 1:
-            xmin, xmax = -1.0, 1.0
-        else:
-            xmin, xmax = np.min(x), np.max(x)
-    else:
-        xmin, xmax = minx, maxx
+    xmin = (-1.0 if np.size(x)==1 else np.min(x)) if minx is None else minx
+    xmax = ( 1.0 if np.size(x)==1 else np.max(x)) if maxx is None else maxx
+
     xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
     return xv, xmin, xmax
 

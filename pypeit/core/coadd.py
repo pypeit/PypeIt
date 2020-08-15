@@ -847,7 +847,7 @@ def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
                 else:
                     msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                           "further and recreate your sensfunc.  Or set extrap_sens=True.")
+                           "further and recreate your sensfunc.  Or set par['sensfunc']['extrap_sens']=True.")
             weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:
@@ -2917,15 +2917,15 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     nspec_coadd, nspat_coadd = imgminsky.shape
     spat_img_coadd, spec_img_coadd = np.meshgrid(np.arange(nspat_coadd), np.arange(nspec_coadd))
 
-    if np.any(np.invert(outmask)) and interp_dspat:
+    if np.any(np.logical_not(outmask)) and interp_dspat:
         points_good = np.stack((spec_img_coadd[outmask], spat_img_coadd[outmask]), axis=1)
-        points_bad = np.stack((spec_img_coadd[np.invert(outmask)],
-                                spat_img_coadd[np.invert(outmask)]), axis=1)
+        points_bad = np.stack((spec_img_coadd[np.logical_not(outmask)],
+                                spat_img_coadd[np.logical_not(outmask)]), axis=1)
         values_dspat = dspat[outmask]
         # JFH Changed to nearest on 5-26-20 because cubic is incredibly slow
         dspat_bad = scipy.interpolate.griddata(points_good, values_dspat, points_bad,
                                                method='nearest')
-        dspat[np.invert(outmask)] = dspat_bad
+        dspat[np.logical_not(outmask)] = dspat_bad
         # Points outside the convex hull of the data are set to nan. We
         # identify those and simply assume them values from the
         # dspat_img_fake, which is what dspat would be on a regular
