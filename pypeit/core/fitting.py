@@ -20,29 +20,41 @@ from IPython import embed
 
 class PypeItFit(DataContainer):
     # Set the version of this class
-    minimum_useful_version = '1.0.0'
     version = '1.0.0'
-    #
-    datamodel = {
-        'xval': dict(otype=np.ndarray, atype=np.floating, desc='x inputs'),
-        'yval': dict(otype=np.ndarray, atype=np.floating, desc='y inputs'),
-        'order': dict(otype=np.ndarray, atype=np.integer, desc='The order of the polynomial to be used in the fitting. This is a 2d array for 2d fits'),
-        'x2': dict(otype=np.ndarray, atype=np.floating, desc='x2 inputs, second independent variable'),
-        'weights': dict(otype=np.ndarray, atype=np.floating, desc='Weights'),
-        'fitc': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
-        'fitcov': dict(otype=np.ndarray, atype=np.floating, desc='Covariance of the coefficients'),
-        'gpm': dict(otype=np.ndarray, atype=np.integer, desc='Mask (1=good)'),
-        'success': dict(otype=int, desc='Flag indicating whether fit was successful (success=1) or if it failed (success=0)'),
-        'func': dict(otype=str, desc='Fit function (polynomial, legendre, chebyshev, polynomial2d, legendre2d)'),
-        'minx': dict(otype=float,
-                     desc='minimum value in the array (or the left limit for a legendre / chebyshev polynomial)'),
-        'maxx': dict(otype=float,
-                     desc='maximum value in the array (or the right limit for a legendre / chebyshev polynomial)'),
-        'minx2': dict(otype=float, desc='Same as minx for the second independent variable x2'),
-        'maxx2': dict(otype=float, desc='Same as maxx for the second independent variable x2'),
-    }
+
+    datamodel = {'xval': dict(otype=np.ndarray, atype=np.floating, descr='x inputs'),
+                 'yval': dict(otype=np.ndarray, atype=np.floating, descr='y inputs'),
+                 'order': dict(otype=np.ndarray, atype=np.integer,
+                               descr='The order of the polynomial to be used in the fitting. '
+                                     'This is a 2d array for 2d fits'),
+                 'x2': dict(otype=np.ndarray, atype=np.floating,
+                            descr='x2 inputs, second independent variable'),
+                 'weights': dict(otype=np.ndarray, atype=np.floating, descr='Weights'),
+                 'fitc': dict(otype=np.ndarray, atype=np.floating, descr='Fit coefficients'),
+                 'fitcov': dict(otype=np.ndarray, atype=np.floating,
+                                descr='Covariance of the coefficients'),
+                 # TODO: Can we make this boolean?
+                 'gpm': dict(otype=np.ndarray, atype=np.integer, descr='Mask (1=good)'),
+                 'success': dict(otype=int,
+                                 descr='Flag indicating whether fit was successful (success=1) '
+                                       'or if it failed (success=0)'),
+                 'func': dict(otype=str,
+                              descr='Fit function (polynomial, legendre, chebyshev, polynomial2d,'
+                                    ' legendre2d)'),
+                 'minx': dict(otype=float,
+                              descr='minimum value in the array (or the left limit for a '
+                                    'legendre / chebyshev polynomial)'),
+                 'maxx': dict(otype=float,
+                              descr='maximum value in the array (or the right limit for a '
+                                    'legendre / chebyshev polynomial)'),
+                 'minx2': dict(otype=float,
+                               descr='Same as minx for the second independent variable x2'),
+                 'maxx2': dict(otype=float,
+                               descr='Same as maxx for the second independent variable x2')}
 
     # This needs to contain all datamodel items
+    # TODO: It depends on how you use it, but the above statement isn't
+    # strictly true; see, e.g., TracePCA as one example.
     def __init__(self, xval=None, yval=None, order=None, x2=None, weights=None, fitc=None,
                  fitcov=None, func=None, minx=None, maxx=None, minx2=None,
                  maxx2=None, gpm=None, success=None):
@@ -52,14 +64,14 @@ class PypeItFit(DataContainer):
         # Init
         super(PypeItFit, self).__init__(d=_d)
 
-    def _bundle(self):
+    def _bundle(self, ext='PYPEITFIT'):
         """
         Bundle the data in preparation for writing to a fits file.
 
         See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
         always written to a 'PYPEITFIT' extension.
         """
-        return super(PypeItFit, self)._bundle(ext='PYPEITFIT')
+        return super(PypeItFit, self)._bundle(ext=ext)
 
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
                limit_hdus=None, force_to_bintbl=True):

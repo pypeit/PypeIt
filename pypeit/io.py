@@ -593,7 +593,7 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     pypeit.msgs.info('File written to: {0}'.format(ofile))
 
 
-def hdu_iter_by_ext(hdu, ext=None):
+def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
     """
     Convert the input to lists that can be iterated through by an
     extension index/name.
@@ -620,6 +620,9 @@ def hdu_iter_by_ext(hdu, ext=None):
             One or more extensions to include in the iteration. If
             None, the returned list will enable iteration through all
             HDU extensions.
+        hdu_prefix (:obj:`str`, optional):
+            In addition to the restricted list of extensions
+            (``ext``), only include extensions with this prefix.
 
     Returns:
         :obj:`tuple`: Returns two objects: a :obj:`list` with the
@@ -644,6 +647,12 @@ def hdu_iter_by_ext(hdu, ext=None):
                     raise TypeError('Provided ext elements  must be a str or int.')
     if ext is None and isinstance(hdu, fits.HDUList):
         ext = [h.name if h.name != '' else i for i,h in enumerate(hdu)]
+
+    # Further restrict ext to only include those with the designated
+    # prefix
+    if hdu_prefix is not None:
+        ext = [e for e in ext if not isinstance(e, (int, numpy.integer)) 
+                                 and e.startswith(hdu_prefix)]
 
     # Allow user to provide single HDU
     if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):

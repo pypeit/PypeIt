@@ -17,6 +17,7 @@ from pypeit import utils
 from pypeit.io import hdu_iter_by_ext
 from pypeit.core import trace
 from pypeit.core import pca
+from pypeit.core.fitting import PypeItFit
 from pypeit.datamodel import DataContainer
 
 # TODO: This is even more general than a "trace" PCA. Rename to
@@ -59,7 +60,7 @@ class TracePCA(DataContainer):
             argument of :func:`pypeit.core.pca.pca_decomposition`.
     """
 
-    version = '1.0.0'
+    version = '1.1.0'
     """Datamodel version."""
 
     datamodel = {'reference_row': dict(otype=(int, np.integer),
@@ -89,43 +90,49 @@ class TracePCA(DataContainer):
                  'pca_mean': dict(otype=np.ndarray, atype=(float,np.floating),
                                   descr=r'The mean offset of the PCA decomposotion for each '
                                         r' spectral pixel. Shape is :math:`(N_{\rm spec},)`.'),
-                 'pca_bpm': dict(otype=np.ndarray, atype=(bool, np.bool_),
-                                 descr='A boolean numpy.ndarray masking data PCA component '
-                                       'coefficients that were rejected during the polynomial '
-                                       'fitting. Shape is the same as ``pca_coeff``.'),
-                 'function': dict(otype=str,
-                                  descr='Function type used to model the PCA coefficients as a '
-                                        'function of spatial position.'),
-                 'fit_coeff': dict(otype=list,
-                                   descr=r'A list of numpy.ndarray objects (or a single '
-                                         r'numpy.ndarray), one per PCA component where the length'
-                                         r'of the 1D array is the number of coefficients fit to '
-                                         r'the PCA-component coefficients. The number of function '
-                                         r'coefficients is typically :math:`N_{\rm coeff} = o+1`, '
-                                         r'where :math:`o` is the order of the fit.'),
-                 'minx': dict(otype=(float,np.floating),
-                              descr='The minimum spatial coordiante used to rescale the trace '
-                                    'coordinates.'),
-                 'maxx': dict(otype=(float,np.floating),
-                              descr='The maximum spatial coordiante used to rescale the trace '
-                                    'coordinates.'),
-                 'lower': dict(otype=(float,np.floating),
-                               descr='Number of standard deviations used for rejecting data '
-                                     '**below** the mean residual. If None, no rejection was '
-                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
-                 'upper': dict(otype=(float,np.floating),
-                               descr='Number of standard deviations used for rejecting data '
-                                     '**above** the mean residual. If None, no rejection was '
-                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
-                 'maxrej': dict(otype=int,
-                                descr='Maximum number of points to reject during fit iterations. '
-                                      'See :func:`utils.robust_polyfit_djs`.'),
-                 'maxiter': dict(otype=int,
-                                 descr='Maximum number of rejection iterations allows; will be 0 '
-                                       ' if no rejectsion were performed.')}
-    """Object datamodel."""
+                 'pca_coeffs_model': dict(otype=np.ndarray, atype=PypeItFit,
+                                          descr='An array of PypeItFit objects, one per PCA '
+                                                'component, that models the trend of the PCA '
+                                                'component coefficients with the reference '
+                                                'coordinate of each vector.  These models are '
+                                                r'used by :func:`predict` to model the expected '
+                                                'coefficients at a new reference coordinate.')}
+#                 'pca_bpm': dict(otype=np.ndarray, atype=(bool, np.bool_),
+#                                 descr='A boolean numpy.ndarray masking data PCA component '
+#                                       'coefficients that were rejected during the polynomial '
+#                                       'fitting. Shape is the same as ``pca_coeff``.'),
+#                 'function': dict(otype=str,
+#                                  descr='Function type used to model the PCA coefficients as a '
+#                                        'function of spatial position.'),
+#                 'fit_coeff': dict(otype=list,
+#                                   descr=r'A list of numpy.ndarray objects (or a single '
+#                                         r'numpy.ndarray), one per PCA component where the length'
+#                                         r'of the 1D array is the number of coefficients fit to '
+#                                         r'the PCA-component coefficients. The number of function '
+#                                         r'coefficients is typically :math:`N_{\rm coeff} = o+1`, '
+#                                         r'where :math:`o` is the order of the fit.'),
+#                 'minx': dict(otype=(float,np.floating),
+#                              descr='The minimum spatial coordiante used to rescale the trace '
+#                                    'coordinates.'),
+#                 'maxx': dict(otype=(float,np.floating),
+#                              descr='The maximum spatial coordiante used to rescale the trace '
+#                                    'coordinates.'),
+#                 'lower': dict(otype=(float,np.floating),
+#                               descr='Number of standard deviations used for rejecting data '
+#                                     '**below** the mean residual. If None, no rejection was '
+#                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
+#                 'upper': dict(otype=(float,np.floating),
+#                               descr='Number of standard deviations used for rejecting data '
+#                                     '**above** the mean residual. If None, no rejection was '
+#                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
+#                 'maxrej': dict(otype=int,
+#                                descr='Maximum number of points to reject during fit iterations. '
+#                                      'See :func:`utils.robust_polyfit_djs`.'),
+#                 'maxiter': dict(otype=int,
+#                                 descr='Maximum number of rejection iterations allows; will be 0 '
+#                                       ' if no rejectsion were performed.')}
 
-    # TODO: if we have self.pypeitFits, do we need fit_coeff, minx, maxx?
+    """Object datamodel."""
 
     # TODO: Add a show method that plots the pca coefficients and the
     # current fit, if there is one
@@ -143,7 +150,7 @@ class TracePCA(DataContainer):
     def _init_internals(self):
         """Add any attributes that are *not* part of the datamodel."""
         self.is_empty = True
-        self.pypeitFits = None
+#        self.pypeitFits = None
 
     def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
                   coo=None):
@@ -217,16 +224,17 @@ class TracePCA(DataContainer):
         self.pca_mean = None
         self.npca = None
         self.nspec = None
-        self.function = None
-        self.lower = None
-        self.upper = None
-        self.maxrej = None
-        self.maxiter = None
-        self.pca_bpm = None
-        self.fit_coeff = None
-        self.minx = None
-        self.maxx = None
-        self.pypeitFits = None
+#        self.function = None
+#        self.lower = None
+#        self.upper = None
+#        self.maxrej = None
+#        self.maxiter = None
+#        self.pca_bpm = None
+#        self.fit_coeff = None
+#        self.minx = None
+#        self.maxx = None
+#        self.pypeitFits = None
+        self.pca_coeffs_model = None
 
     def build_interpolator(self, order, ivar=None, weights=None, function='polynomial', lower=3.0,
                            upper=3.0, maxrej=1, maxiter=25, minx=None, maxx=None, debug=False):
@@ -236,16 +244,9 @@ class TracePCA(DataContainer):
         """
         if self.is_empty:
             raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
-        # Save the input
-        # TODO: Keep the ivar and weights?
-        self.function = function
-        self.lower = lower
-        self.upper = upper
-        self.maxrej = maxrej
-        self.maxiter = maxiter
-        self.pca_bpm, self.fit_coeff, self.minx, self.maxx, self.pypeitFits \
+        self.pca_coeffs_model \
                 = pca.fit_pca_coefficients(self.pca_coeffs, order, ivar=ivar, weights=weights,
-                                           function=self.function, lower=lower, upper=upper,
+                                           function=function, lower=lower, upper=upper,
                                            minx=minx, maxx=maxx, maxrej=maxrej, maxiter=maxiter,
                                            coo=self.trace_coo, debug=debug)
 
@@ -275,27 +276,26 @@ class TracePCA(DataContainer):
         """
         if self.is_empty:
             raise ValueError('TracePCA object is empty; re-instantiate or run decompose().')
-        if self.fit_coeff is None:
-            msgs.error('PCA coefficients have not been modeled; run model_coeffs first.')
-        return pca.pca_predict(x, self.pypeitFits, self.pca_components, self.pca_mean, x).T
-        #return pca.pca_predict(x, self.fit_coeff, self.pca_components, self.pca_mean, x,
-        #                       function=self.function, minx=self.minx, maxx=self.maxx).T
+        if self.pca_coeffs_model is None:
+            msgs.error('PCA coefficients have not been modeled; run build_interpolator first.')
+        return pca.pca_predict(x, self.pca_coeffs_model, self.pca_components, self.pca_mean, x).T
 
     def _bundle(self, ext='PCA'):
         """Bundle the data for writing."""
         d = super(TracePCA, self)._bundle(ext=ext)
-        if self.fit_coeff is None:
+        if self.pca_coeffs_model is None:
             return d
 
-        # Fix the default bundling to handle the fact that fit_coeff is a list of arrays.
+        # Fix the default bundling to handle the fact that
+        # pca_coeffs_model is an array of PypeItFit instances.
         _d = d[0] if ext is None else d[0][ext]
-        del _d['fit_coeff']
-        for i in range(self.npca):
-            _d['fit_coeff_{0}'.format(i+1)] = self.fit_coeff[i]
+        del _d['pca_coeffs_model']
+        d += [{'{0}_MODEL_{1}'.format(ext,i+1): self.pca_coeffs_model[i]} 
+                for i in range(self.npca)]
         return d
 
     @classmethod
-    def _parse(cls, hdu, ext='PCA', hdu_prefix=None):
+    def _parse(cls, hdu, hdu_prefix=None):
         """
         Parse the data from the provided HDU.
 
@@ -303,19 +303,22 @@ class TracePCA(DataContainer):
         argument descriptions.
         """
         # Run the default parser to get most of the data
-        d, version_passed, type_passed = super(TracePCA, cls)._parse(hdu, ext=ext,
-                                                                     hdu_prefix=hdu_prefix)
-        # Fix the parsing of fit_coeff
-        _ext, _hdu = hdu_iter_by_ext(hdu, ext=ext)
-        for e in _ext:
-            if isinstance(_hdu[e], fits.BinTableHDU) \
-                    and _hdu[e].header['DMODCLS'] == cls.__name__ \
-                    and np.any(['fit_coeff' in n for n in _hdu[e].columns.names]):
-                d['fit_coeff'] = [None]*d['npca']
-                for i in range(d['npca']):
-                    d['fit_coeff'][i] = _hdu[e].data['fit_coeff_{0}'.format(i+1)][0]
-                break
-        return d, version_passed, type_passed
+        d, version_passed, type_passed, hdus \
+                = super(TracePCA, cls)._parse(hdu, hdu_prefix=hdu_prefix)
+
+        # This should only ever read one hdu!
+        if len(hdus) > 1:
+            msgs.error('CODING ERROR: Parsing saved TracePCA instances should only parse 1 HDU, '
+                       'independently of the PCA PypeItFit models.')
+
+        # Check if any models exist
+        if hasattr(hdu, '__len__') and np.any(['{0}_MODEL'.format(hdus[0]) in h.name for h in hdu]):
+            # Parse the models
+            model_ext = ['{0}_MODEL_{1}'.format(hdus[0],i+1) for i in range(d['npca'])]
+            d['pca_coeffs_model'] = np.array([PypeItFit.from_hdu(hdu[e]) for e in model_ext])
+            hdus += model_ext
+
+        return d, version_passed, type_passed, hdus
 
     @classmethod
     def from_dict(cls, d=None):
