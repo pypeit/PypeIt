@@ -67,7 +67,7 @@ class WaveFit(datamodel.DataContainer):
 
     def _bundle(self, **kwargs):
         """
-        Over-ride DataContainer._bundle() to deal with DETECTOR
+        Over-ride DataContainer._bundle() to deal with PYPEITFIT
 
         Args:
             kwargs:

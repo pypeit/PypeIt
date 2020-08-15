@@ -105,6 +105,9 @@ class WaveCalib(datamodel.DataContainer):
                     else:
                         kwv_fit = wv_fit
                     kwv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
+                    # This is required to deal with the single HDU WaveFit()
+                    if kwv_fit.pypeitfit is None:
+                        dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_id[ss])
                     # Save
                     _d.append({dkey: kwv_fit})
             elif key == 'wv_fit2d':

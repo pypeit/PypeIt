@@ -46,6 +46,18 @@ def test_wavefit():
     # Finish
     os.remove(out_file)
 
+    # No fit
+    waveFit3 = wv_fitting.WaveFit(pypeitfit=None, pixel_fit=np.arange(10).astype(float),
+                                 wave_fit=np.linspace(1.,10.,10), sigrej=3.,
+                                 ion_bits=ion_bits)
+    waveFit3.to_file(out_file)
+    waveFit4 = wv_fitting.WaveFit.from_file(out_file)
+    assert waveFit4.pypeitfit is None
+
+    # Clean up
+    os.remove(out_file)
+
+
 
 def test_wavecalib():
     "Fuss with the WaveCalib DataContainer"
@@ -82,3 +94,12 @@ def test_wavecalib():
 
     # Finish
     os.remove(out_file)
+
+
+    # With None (failed wave)
+    waveCalib3 = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit()]),
+                                    nslits=2, spat_id=np.asarray([232, 949]),
+                                    wv_fit2d=pypeitFit2)
+    waveCalib3.to_file(out_file)
+    waveCalib4 = wavecalib.WaveCalib.from_file(out_file)
+
