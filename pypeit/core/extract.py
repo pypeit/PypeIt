@@ -445,7 +445,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 
 def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
-                inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, #, wvmnx = (2900.0,30000.0),
+                inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
                 maskwidth=None, prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
                 show_profile=False):
 
@@ -479,8 +479,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         maximum trace correction to apply
     sn_gauss : float [default = 3.0], optional
         S/N ratio below which code just uses a Gaussian
-    wvmnx : float [default = [2900.0,30000.0], optional
-        wavelength range of usable part of spectrum
+    percentile_sn2: float [default = 70.0], optional
+        Estimates the S/N of an object from pixels in the upper percentile_sn2 percentile of wavelength values.
+        For example if percentile_sn2 = 70.0 then the upper 30% of spectrals are used.
+        This ensures the code can still fit line only objects and/or high redshift quasars which might only have
+        signal in reddest part of a spectrum.
     maskwidth : float [default = None], optional
         object maskwidth determined from object finding algorithm. If = None,
         code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
@@ -556,7 +559,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     if(nonzero >0):
         ## Select the top 30% data for estimating the med_sn2. This ensures the code still fit line only object and/or
         ## high redshift quasars which might only have signal in part of the spectrum.
-        sn2_percentile = np.percentile(sn2,70)
+        sn2_percentile = np.percentile(sn2,percentile_sn2)
         (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
     else:
         med_sn2 = 0.0

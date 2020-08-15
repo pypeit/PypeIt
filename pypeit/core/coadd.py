@@ -847,7 +847,7 @@ def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
                 else:
                     msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                           "further and recreate your sensfunc.  Or set par['sensfunc']['extrap_sens']=True.")
+                           "further and recreate your sensfunc.  Or set par['coadd1d']['extrap_sens']=True.")
             weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:

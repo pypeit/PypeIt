@@ -862,8 +862,8 @@ class Coadd1DPar(ParSet):
         # Fluxed?
         defaults['extrap_sens'] = False
         dtypes['extrap_sens'] = bool
-        descr['extrap_sens'] = 'If True (default), the code will barf in Echelle mode if one tries to use ' \
-                               'sensfunc beyond its allowed space.'
+        descr['extrap_sens'] = 'If False (default), the code will barf in Echelle mode if one tries to use ' \
+                               'sensfunc beyond its defined domain. The  space.'
 
         # Mask edge pixels?
         defaults['nmaskedge'] = 2
