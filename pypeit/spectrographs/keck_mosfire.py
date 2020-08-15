@@ -157,6 +157,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
                 return headarr[0].get('KOAIMTYP')
             else:
                 try:
+                    # TODO: This should be changed to except on a specific error.
                     FLATSPEC = int(headarr[0].get('FLATSPEC'))
                     PWSTATA7 = int(headarr[0].get('PWSTATA7'))
                     PWSTATA8 = int(headarr[0].get('PWSTATA8'))

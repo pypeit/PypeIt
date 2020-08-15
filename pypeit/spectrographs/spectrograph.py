@@ -657,6 +657,7 @@ class Spectrograph:
 
         # Deal with 'special' cases
         if meta_key in ['ra', 'dec'] and value is not None:
+            # TODO: Can we get rid of the try/except here and instead get to the heart of the issue?
             try:
                 ra, dec = meta.convert_radec(self.get_meta_value(headarr, 'ra', no_fussing=True),
                                     self.get_meta_value(headarr, 'dec', no_fussing=True))

@@ -342,6 +342,8 @@ class SpecObjs(object):
                 index = self.ECH_OBJID < 0
             elif self[0].PYPELINE == 'MultiSlit':
                 index = self.OBJID < 0
+            elif self[0].PYPELINE == 'IFU':
+                index = self.OBJID < 0
             else:
                 msgs.error("Should not get here")
             try:
