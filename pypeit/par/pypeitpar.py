@@ -862,8 +862,10 @@ class Coadd1DPar(ParSet):
         # Fluxed?
         defaults['extrap_sens'] = False
         dtypes['extrap_sens'] = bool
-        descr['extrap_sens'] = 'If False (default), the code will barf in Echelle mode if one tries to use ' \
-                               'sensfunc beyond its defined domain. The  space.'
+        descr['extrap_sens'] = "If False (default), the code will barf in Echelle mode if one tries to use " \
+                               "sensfunc at wavelengths outside its defined domain. By changing the par['sensfunc']['extrap_blu']" \
+                               "and par['sensfunc']['extrap_red'] this domain can be extended. If True the code " \
+                               "will blindly extrapolate."
 
         # Mask edge pixels?
         defaults['nmaskedge'] = 2
@@ -1208,7 +1210,11 @@ class FluxCalibratePar(ParSet):
 
         defaults['extrap_sens'] = False
         dtypes['extrap_sens'] = bool
-        descr['extrap_sens'] = 'Over-ride the default to crash out when the sensitivity function does not cover the full wavelength range.'
+        descr['extrap_sens'] = "If False (default), the code will barf if one tries to use " \
+                               "sensfunc at wavelengths outside its defined domain. By changing the " \
+                               "par['sensfunc']['extrap_blu'] and par['sensfunc']['extrap_red'] this domain " \
+                               "can be extended. If True the code will blindly extrapolate."
+
 
         defaults['extinct_correct'] = True
         dtypes['extinct_correct'] = bool
