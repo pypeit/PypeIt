@@ -1,4 +1,7 @@
-""" Module for PypeIt extraction code
+"""
+Module for PypeIt extraction code
+
+.. include:: ../links.rst
 """
 import copy
 

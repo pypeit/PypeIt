@@ -43,16 +43,18 @@ class WaveCalib(datamodel.DataContainer):
     master_type = 'WaveCalib'
     master_file_format = 'fits'
 
-    datamodel = {
-        'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
-                              desc='WaveFit to each 1D wavelength solution'),
-        'wv_fit2d': dict(otype=fitting.PypeItFit, desc='2D wavelength solution (echelle)'),
-        'arc_spectra': dict(otype=np.ndarray, atype=np.floating, desc='2D array: 1D extracted spectra, slit by slit (nspec, nslits)'),
-        'nslits': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'strpar': dict(otype=str, desc='Parameters as a string'),
-    }
+    datamodel = {'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
+                                 descr='WaveFit to each 1D wavelength solution'),
+                 'wv_fit2d': dict(otype=fitting.PypeItFit,
+                                  descr='2D wavelength solution (echelle)'),
+                 'arc_spectra': dict(otype=np.ndarray, atype=np.floating,
+                                     descr='2D array: 1D extracted spectra, slit by slit '
+                                           '(nspec, nslits)'),
+                 'nslits': dict(otype=int,
+                                descr='Total number of slits.  This can include masked slits'),
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id '),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'strpar': dict(otype=str, descr='Parameters as a string')}
 
     def __init__(self, wv_fits=None, nslits=None, spat_id=None, PYP_SPEC=None,
                  strpar=None, wv_fit2d=None, arc_spectra=None):
