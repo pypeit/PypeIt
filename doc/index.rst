@@ -168,6 +168,15 @@ Documentation
    frametype
    internals
 
+Misc
+++++
+
+.. toctree::
+   :maxdepth: 1
+
+   manual
+   coadd2d
+
 For Developers
 ++++++++++++++
 
