@@ -9,7 +9,7 @@ from IPython import embed
 import numpy as np
 
 from matplotlib import pyplot as plt
-import copy
+
 from sklearn.decomposition import PCA
 
 from pypeit import msgs

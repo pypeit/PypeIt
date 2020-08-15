@@ -97,41 +97,6 @@ class TracePCA(DataContainer):
                                                 'coordinate of each vector.  These models are '
                                                 r'used by :func:`predict` to model the expected '
                                                 'coefficients at a new reference coordinate.')}
-#                 'pca_bpm': dict(otype=np.ndarray, atype=(bool, np.bool_),
-#                                 descr='A boolean numpy.ndarray masking data PCA component '
-#                                       'coefficients that were rejected during the polynomial '
-#                                       'fitting. Shape is the same as ``pca_coeff``.'),
-#                 'function': dict(otype=str,
-#                                  descr='Function type used to model the PCA coefficients as a '
-#                                        'function of spatial position.'),
-#                 'fit_coeff': dict(otype=list,
-#                                   descr=r'A list of numpy.ndarray objects (or a single '
-#                                         r'numpy.ndarray), one per PCA component where the length'
-#                                         r'of the 1D array is the number of coefficients fit to '
-#                                         r'the PCA-component coefficients. The number of function '
-#                                         r'coefficients is typically :math:`N_{\rm coeff} = o+1`, '
-#                                         r'where :math:`o` is the order of the fit.'),
-#                 'minx': dict(otype=(float,np.floating),
-#                              descr='The minimum spatial coordiante used to rescale the trace '
-#                                    'coordinates.'),
-#                 'maxx': dict(otype=(float,np.floating),
-#                              descr='The maximum spatial coordiante used to rescale the trace '
-#                                    'coordinates.'),
-#                 'lower': dict(otype=(float,np.floating),
-#                               descr='Number of standard deviations used for rejecting data '
-#                                     '**below** the mean residual. If None, no rejection was '
-#                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
-#                 'upper': dict(otype=(float,np.floating),
-#                               descr='Number of standard deviations used for rejecting data '
-#                                     '**above** the mean residual. If None, no rejection was '
-#                                     'performed. See :func:`utils.robust_polyfit_djs`.'),
-#                 'maxrej': dict(otype=int,
-#                                descr='Maximum number of points to reject during fit iterations. '
-#                                      'See :func:`utils.robust_polyfit_djs`.'),
-#                 'maxiter': dict(otype=int,
-#                                 descr='Maximum number of rejection iterations allows; will be 0 '
-#                                       ' if no rejectsion were performed.')}
-
     """Object datamodel."""
 
     # TODO: Add a show method that plots the pca coefficients and the
@@ -150,7 +115,6 @@ class TracePCA(DataContainer):
     def _init_internals(self):
         """Add any attributes that are *not* part of the datamodel."""
         self.is_empty = True
-#        self.pypeitFits = None
 
     def decompose(self, trace_cen, npca=None, pca_explained_var=99.0, reference_row=None,
                   coo=None):
@@ -224,16 +188,6 @@ class TracePCA(DataContainer):
         self.pca_mean = None
         self.npca = None
         self.nspec = None
-#        self.function = None
-#        self.lower = None
-#        self.upper = None
-#        self.maxrej = None
-#        self.maxiter = None
-#        self.pca_bpm = None
-#        self.fit_coeff = None
-#        self.minx = None
-#        self.maxx = None
-#        self.pypeitFits = None
         self.pca_coeffs_model = None
 
     def build_interpolator(self, order, ivar=None, weights=None, function='polynomial', lower=3.0,

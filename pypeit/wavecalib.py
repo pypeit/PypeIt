@@ -32,12 +32,7 @@ class WaveCalib(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_version = '1.0.0'
     version = '1.0.0'
-
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-    hdu_prefix = None      # None required for this DataContainer
 
     # MasterFrame fun
     master_type = 'WaveCalib'
@@ -229,7 +224,7 @@ class WaveCalib(datamodel.DataContainer):
 
 
 
-class BuildWaveCalib(object):
+class BuildWaveCalib:
     """
     Class to guide wavelength calibration
 

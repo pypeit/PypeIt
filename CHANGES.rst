@@ -82,8 +82,6 @@
    coadd1d and tellfit pypeit files
  - Add telluric fitting script, pypeit_tellfit
 
-
-
 1.0.3 (04 May 2020)
 -------------------
 

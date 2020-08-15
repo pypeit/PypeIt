@@ -25,27 +25,27 @@ class WaveFit(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_version = '1.0.0'
     version = '1.0.0'
 
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-
-    datamodel = {
-        'pypeitfit': dict(otype=fitting.PypeItFit, desc='Fit to 1D wavelength solutions'),
-        'pixel_fit': dict(otype=np.ndarray, atype=np.floating, desc='Pixel values of arc lines'),
-        'wave_fit': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength IDs assigned'),
-        'xnorm': dict(otype=float, desc='Normalization for fit'),
-        'ion_bits': dict(otype=np.ndarray, atype=np.integer, desc='Ion bit values for the Ion names'),
-        'cen_wave': dict(otype=float, desc='Central wavelength'),
-        'cen_disp': dict(otype=float, desc='Approximate wavelength dispersion'),
-        'spec': dict(otype=np.ndarray, atype=np.floating, desc='Arc spectrum'),
-        'wave_soln': dict(otype=np.ndarray, atype=np.floating, desc='Evaluated wavelengths at pixel_fit'),
-        'sigrej': dict(otype=float, desc='Final sigma rejection applied'),
-        'shift': dict(otype=float, desc='Shift applied'),
-        'tcent': dict(otype=np.ndarray, atype=np.floating, desc='Pixel centroids of all arc lines found'),
-        'rms': dict(otype=float, desc='RMS of the solution'),
-    }
+    datamodel = {'pypeitfit': dict(otype=fitting.PypeItFit,
+                                   descr='Fit to 1D wavelength solutions'),
+                 'pixel_fit': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Pixel values of arc lines'),
+                 'wave_fit': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='Wavelength IDs assigned'),
+                 'xnorm': dict(otype=float, descr='Normalization for fit'),
+                 'ion_bits': dict(otype=np.ndarray, atype=np.integer,
+                                  descr='Ion bit values for the Ion names'),
+                 'cen_wave': dict(otype=float, descr='Central wavelength'),
+                 'cen_disp': dict(otype=float, descr='Approximate wavelength dispersion'),
+                 'spec': dict(otype=np.ndarray, atype=np.floating, descr='Arc spectrum'),
+                 'wave_soln': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Evaluated wavelengths at pixel_fit'),
+                 'sigrej': dict(otype=float, descr='Final sigma rejection applied'),
+                 'shift': dict(otype=float, descr='Shift applied'),
+                 'tcent': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Pixel centroids of all arc lines found'),
+                 'rms': dict(otype=float, descr='RMS of the solution')}
 
     bitmask = defs.LinesBitMask()
 
