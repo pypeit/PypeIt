@@ -58,6 +58,7 @@ def test_quicklook():
     os.chdir(cdir)
     shutil.rmtree(outdir)
 
+
 @dev_suite_required
 def test_trace_edges():
     # Define the output directories (HARDCODED!!)
