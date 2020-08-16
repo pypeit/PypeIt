@@ -196,6 +196,11 @@ class PypeItFit(DataContainer):
 
         """
         msk = self.bool_gpm
+        
+        if self.weights is None:
+            weights = np.ones(self.xval.size)
+        else:
+            weights = self.weights
         if apply_mask:
             xval = self.xval[msk]
             yval = self.yval[msk]
@@ -209,12 +214,7 @@ class PypeItFit(DataContainer):
         weights /= np.sum(weights)
         values = self.eval(xval, x2=x2_val)
         # RMS
-        rms = np.square(yval - values)
-        # Weights
-        if self.weights is not None:
-            rms *= self.weights / np.sum(self.weights)
-        # Return
-        return np.sqrt(np.sum(rms))
+        return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
 def evaluate_fit(fitc, func, x, x2=None, minx=None, maxx=None, minx2=None, maxx2=None):

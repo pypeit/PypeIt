@@ -651,15 +651,17 @@ def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
     # Further restrict ext to only include those with the designated
     # prefix
     if hdu_prefix is not None:
-        ext = [e for e in ext if not isinstance(e, (int, numpy.integer)) 
+        if isinstance(hdu, fits.HDUList):
+            ext = [e for e in ext if not isinstance(e, (int, numpy.integer))
                                  and e.startswith(hdu_prefix)]
 
     # Allow user to provide single HDU
     if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
-#        if ext is not None:
-#            warnings.warn('Only one HDU provided; extension number/name is irrelevant.')
         ext = [0]
         _hdu = [hdu]
+        if hdu_prefix is not None:
+            if hdu_prefix not in hdu.name:
+                raise ValueError("Bad hdu_prefix for this HDU!")
     else:
         _hdu = hdu
 

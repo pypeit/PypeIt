@@ -98,10 +98,9 @@ class WaveCalib(datamodel.DataContainer):
                     dkey = 'WAVEFIT-{}'.format(self.spat_id[ss])
                     # Generate a dummy?
                     if wv_fit is None:
-                        kwv_fit = wv_fitting.WaveFit()
+                        kwv_fit = wv_fitting.WaveFit(self.spat_id[ss])
                     else:
                         kwv_fit = wv_fit
-                    kwv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
                     # This is required to deal with a single HDU WaveFit() bundle
                     if kwv_fit.pypeitfit is None:
                         dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_id[ss])
@@ -126,7 +125,7 @@ class WaveCalib(datamodel.DataContainer):
             if 'WAVEFIT' in ihdu.name:
                 # Allow for empty
                 if len(ihdu.data) == 0:
-                    iwavefit = wv_fitting.WaveFit()
+                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
                 else:
                     iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
                     parsed_hdus += ihdu.name
@@ -139,9 +138,7 @@ class WaveCalib(datamodel.DataContainer):
                         parsed_hdus += hdname
                 list_of_wave_fits.append(iwavefit)
                 # Grab SPAT_ID for checking
-                i0 = ihdu.name.find('ID-')
-                i1 = ihdu.name.find('_WAV')
-                spat_ids.append(int(ihdu.name[i0+3:i1]))
+                spat_ids.append(iwavefit.spat_id)
             elif ihdu.name == 'PYPEITFIT': # 2D fit
                 _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
                 parsed_hdus += ihdu.name
@@ -377,15 +374,6 @@ class BuildWaveCalib:
                                                     sigdetect=self.par['sigdetect'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
-#        elif method == 'basic':
-#            final_fit = {}
-#            for slit in ok_mask:
-#                status, ngd_match, match_idx, scores, ifinal_fit = \
-#                        autoid.basic(arccen[:, slit], self.par['lamps'], self.par['wv_cen'],
-#                                     self.par['disp'], nonlinear_counts=self.nonlinear_counts)
-#                final_fit[str(slit)] = ifinal_fit.copy()
-#                if status != 1:
-#                    self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, nonlinear_counts=self.nonlinear_counts)
@@ -420,12 +408,15 @@ class BuildWaveCalib:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
         # Build the DataContainer
+        # Loop on WaveFit items
         tmp = []
         for idx in range(self.slits.nslits):
             item = final_fit.pop(str(idx))
             if item is None:  # Add an empty WaveFit
-                tmp.append(wv_fitting.WaveFit())
+                tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx]))
             else:
+                # This is for I/O naming
+                item.spat_id = self.slits.spat_id[idx]
                 tmp.append(item)
         self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   arc_spectra=arccen,
