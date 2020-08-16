@@ -966,7 +966,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     # Normalize profile
     norm = np.outer(np.sum(profile_model, 1), np.ones(nspat))
     if (np.sum(norm) > 0.0):
-        profile_model = profile_model / norm
+        profile_model = (norm > 0.0)*profile_model/(norm + (norm == 0.0))
 
     info_string = "FWHM range:" + "{:5.2f}".format(fwhmfit.min()) + " - {:5.2f}".format(fwhmfit.max()) \
                   + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)) + ", median(chi^2)={:8.3f}".format(chi_med)
