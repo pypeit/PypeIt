@@ -686,7 +686,7 @@ class DataContainer:
                     sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
                     for key in sub_datamodel.keys():
                         # Check  this is not a duplicate
-                        if key not in full_datamodel.keys():
+                        if key in full_datamodel.keys():
                             msgs.error("Duplicate key in DataModel.  Deal with it..")
                         # Assign
                         full_datamodel[key] = sub_datamodel[key]

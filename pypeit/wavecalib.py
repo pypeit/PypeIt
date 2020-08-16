@@ -47,11 +47,11 @@ class WaveCalib(datamodel.DataContainer):
                                            '(nspec, nslits)'),
                  'nslits': dict(otype=int,
                                 descr='Total number of slits.  This can include masked slits'),
-                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id '),
+                 'spat_ids': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_ids. Named distinctly from that in WaveFit '),
                  'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
                  'strpar': dict(otype=str, descr='Parameters as a string')}
 
-    def __init__(self, wv_fits=None, nslits=None, spat_id=None, PYP_SPEC=None,
+    def __init__(self, wv_fits=None, nslits=None, spat_ids=None, PYP_SPEC=None,
                  strpar=None, wv_fit2d=None, arc_spectra=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -78,13 +78,13 @@ class WaveCalib(datamodel.DataContainer):
         _d = []
 
         # Spat_ID first
-        if self.spat_id is None:
-            msgs.error("Cannot write WaveCalib without spat_id")
-        _d.append(dict(spat_id=self.spat_id))
+        if self.spat_ids is None:
+            msgs.error("Cannot write WaveCalib without spat_ids")
+        _d.append(dict(spat_ids=self.spat_ids))
 
         # Rest of the datamodel
         for key in self.keys():
-            if key == 'spat_id':
+            if key == 'spat_ids':
                 continue
             # Skip None
             if self[key] is None:
@@ -95,15 +95,15 @@ class WaveCalib(datamodel.DataContainer):
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
                     # Naming
-                    dkey = 'WAVEFIT-{}'.format(self.spat_id[ss])
+                    dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
-                        kwv_fit = wv_fitting.WaveFit(self.spat_id[ss])
+                        kwv_fit = wv_fitting.WaveFit(self.spat_ids[ss])
                     else:
                         kwv_fit = wv_fit
                     # This is required to deal with a single HDU WaveFit() bundle
                     if kwv_fit.pypeitfit is None:
-                        dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_id[ss])
+                        dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_ids[ss])
                     # Save
                     _d.append({dkey: kwv_fit})
             elif key == 'wv_fit2d':
@@ -143,7 +143,7 @@ class WaveCalib(datamodel.DataContainer):
                 _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
                 parsed_hdus += ihdu.name
         # Check
-        if spat_ids != _d['spat_id'].tolist():
+        if spat_ids != _d['spat_ids'].tolist():
             msgs.error("Bad parsing of the MasterFlat")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
@@ -163,7 +163,7 @@ class WaveCalib(datamodel.DataContainer):
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
         """
-        if not np.array_equal(self.spat_id, slits.spat_id):
+        if not np.array_equal(self.spat_ids, slits.spat_id):
             msgs.error("Your wvcalib solutions are out of sync with your slits.  Remove Masters and start from scratch")
 
     def build_waveimg(self, tilts, slits, spat_flexure=None):
@@ -421,7 +421,7 @@ class BuildWaveCalib:
         self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   arc_spectra=arccen,
                                   nslits=self.slits.nslits,
-                                  spat_id=self.slits.spat_id,
+                                  spat_ids=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.spectrograph,
                                   )
 

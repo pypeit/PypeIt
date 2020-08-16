@@ -77,7 +77,7 @@ def test_wavecalib():
                                  wave_fit=np.linspace(1.,10.,10))
 
     waveCalib = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit]),
-                                    nslits=1, spat_id=np.asarray([232]),
+                                    nslits=1, spat_ids=np.asarray([232]),
                                     wv_fit2d=pypeitFit2)
 
     # Write
@@ -87,7 +87,7 @@ def test_wavecalib():
     waveCalib2 = wavecalib.WaveCalib.from_file(out_file)
 
     # Test
-    assert np.array_equal(waveCalib.spat_id, waveCalib2.spat_id), 'Bad spat_id'
+    assert np.array_equal(waveCalib.spat_ids, waveCalib2.spat_ids), 'Bad spat_ids'
     assert np.array_equal(waveCalib.wv_fits[0].pypeitfit.fitc,
                           waveCalib2.wv_fits[0].pypeitfit.fitc), 'Bad fitc'
     assert np.array_equal(waveCalib.wv_fit2d.xval, waveCalib2.wv_fit2d.xval)
@@ -101,7 +101,7 @@ def test_wavecalib():
 
     # With None (failed wave)
     waveCalib3 = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
-                                    nslits=2, spat_id=np.asarray([232, 949]),
+                                    nslits=2, spat_ids=np.asarray([232, 949]),
                                     wv_fit2d=pypeitFit2)
     waveCalib3.to_file(out_file)
     waveCalib4 = wavecalib.WaveCalib.from_file(out_file)
