@@ -886,10 +886,10 @@ if __name__ == '__main__':
     flg += 2**31
 
     # MMT MMIRS
-    #flg += 2**31
+    #flg += 2**32
 
     # LBT MODS
-    flg += 2**32
+    flg += 2**33
 
     main(flg)
 

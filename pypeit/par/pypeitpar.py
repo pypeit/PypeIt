@@ -1905,8 +1905,38 @@ class ManualExtractionPar(ParSet):
             p2 = self.data['det']
             p3 = self.data['fwhm']
             if isinstance(p1, list):
-                assert len(p1) == len(p2), 'Wrong length for det'
-                assert len(p1) == len(p3), 'Wrong length for fwhm'
+                if len(p1) != len(p2):
+                    raise ValueError("Each of these lists need the same length")
+                if len(p2) != len(p3):
+                    raise ValueError("Each of these lists need the same length")
+
+    def dict_for_objfind(self):
+        """
+        Parse the rather klunky parameters into a dict
+
+        Returns:
+            dict or None: To be passed (eventually) into reduce.find_objects()
+
+        """
+        if self.data['spat_spec'] is None:
+            return None
+        if isinstance(self.data['det'], list):
+            spat_spec = self.data['spat_spec']
+            det = [int(obj) for obj in self.data['det']]
+            fwhm = [float(obj) for obj in self.data['fwhm']]
+        else:
+            spat_spec = [self.data['spat_spec']]
+            det = [self.data['det']]
+            fwhm = [self.data['fwhm']]
+        # Deal with spat_spec
+        spats, specs = [], []
+        for ispat_spec in spat_spec:
+            ps = ispat_spec.split(':')
+            spats.append(float(ps[0]))
+            specs.append(float(ps[1]))
+        # dict and return
+        return dict(hand_extract_spec=specs, hand_extract_spat=spats,
+                    hand_extract_det=det, hand_extract_fwhm=fwhm)
 
 
 class ReduxPar(ParSet):

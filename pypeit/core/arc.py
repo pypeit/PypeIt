@@ -106,13 +106,12 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     Parameters
     ----------
-    pypeitFit: dict
-      dict of the 2D arc solution
-    outfile:
+    pypeitFit: :class:`pypeit.core.fitting.PypeItFit`:
+      Fit object for the 2D arc solution
+    nspec: int
+    outfile: str
       parameter for QA
 
-    Returns
-    -------
     """
 
     msgs.info("Creating QA for 2D wavelength solution")
@@ -198,8 +197,8 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     Parameters
     ----------
-    pypeitFit: dict
-      dict of the 2D arc solution
+    pypeitFit: :class:`pypeit.core.fitting.PypeItFit`:
+      Fit object for the 2D arc solution
     outfile:
       parameter for QA
 

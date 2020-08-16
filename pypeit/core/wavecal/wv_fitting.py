@@ -58,13 +58,6 @@ class WaveFit(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
-    def _init_internals(self):
-        """
-        Set some internal attributes
-        """
-        # Needs to be here so we can set it in WaveCalib
-        self.hdu_prefix = None
-
     def _bundle(self, **kwargs):
         """
         Over-ride DataContainer._bundle() to deal with PYPEITFIT
@@ -84,22 +77,17 @@ class WaveFit(datamodel.DataContainer):
         # Return
         return _d
 
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
+        """ Over-ride for force_to_bintbl
 
-    # TODO -- This snippet shows up in 3 places now.  Can we genrealize somehow KW??
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=True):
-        """
-        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
-        a BinTableHDU
+        See :class:`pypeit.datamodel.DataContainer.to_hdu` for Arguments
 
-        See that func for Args and Returns
+        Returns:
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
+            where the type depends on the value of ``add_primary``.
         """
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Force
-        _d['force_to_bintbl'] = True
-        # Do it
-        return super(WaveFit, self).to_hdu(**_d)
+        return super(WaveFit, self).to_hdu(hdr=hdr, add_primary=add_primary, primary_hdr=primary_hdr,
+                                           limit_hdus=limit_hdus, force_to_bintbl=True)
 
     @property
     def ions(self):

@@ -433,14 +433,9 @@ class CoAdd2D:
         #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
-        if self.par['reduce']['extraction']['manual']['spat_spec'] is not None:
-            spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
-            hand_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,
-                                     hand_extract_det=dets, hand_extract_fwhm=fwhms)
-        else:
-            hand_extract_dict = None
-        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks,
-                                                           manual_extract_dict=hand_extract_dict)
+        sobjs_obj, nobj, skymask_init = redux.find_objects(
+            sciImage.image, show_peaks=show_peaks,
+            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
