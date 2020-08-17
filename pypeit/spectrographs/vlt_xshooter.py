@@ -106,9 +106,7 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             list:
 
         """
-        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
-        pypeit_keys += ['dither']
-        return pypeit_keys
+        return super(VLTXShooterSpectrograph, self).pypeit_file_keys() + ['dither']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
