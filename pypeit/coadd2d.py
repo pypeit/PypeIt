@@ -121,7 +121,6 @@ class CoAdd2D:
         self.offsets = offsets
         self.weights = weights
         self.ir_redux = ir_redux
-        #self.master_dir = os.getcwd() if master_dir is None else master_dir
         self.show = show
         self.show_peaks = show_peaks
         self.debug_offsets = debug_offsets

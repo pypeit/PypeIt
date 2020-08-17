@@ -563,7 +563,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         ## Select the top 30% data for estimating the med_sn2. This ensures the code still fit line only object and/or
         ## high redshift quasars which might only have signal in part of the spectrum.
         sn2_percentile = np.percentile(sn2,percentile_sn2)
-        (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
+        mean, med_sn2, stddev = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
     else:
         med_sn2 = 0.0
 
@@ -1239,9 +1239,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         show_cont = True
 
     if specobj_dict is None:
-        #specobj_dict = dict(setup=None, SLITID=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
-        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown',
-                            PYPELINE='MultiSlit')
+        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit')
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1586,14 +1584,17 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         else:  # If no objects or standard use the slit boundary
             msgs.warn("No source to use as a trace.  Using the slit boundary")
             trace_model = slit_left
+
+        # Hack me
+        #tmp_dict = copy.deepcopy(specobj_dict)
+        #for key in ['DET', 'PYPELINE']:
+        #    tmp_dict.pop(key)
+
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            # Hack me
-            tmp_dict = copy.deepcopy(specobj_dict)
-            for key in ['DET', 'PYPELINE']:
-                tmp_dict.pop(key)
             # Proceed
-            thisobj = specobj.SpecObj(specobj_dict['PYPELINE'], specobj_dict['DET'], **tmp_dict)
+            # thisobj = specobj.SpecObj(specobj_dict['PYPELINE'], specobj_dict['DET'], **tmp_dict)
+            thisobj = specobj.SpecObj(**specobj_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]
