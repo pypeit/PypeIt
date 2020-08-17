@@ -229,7 +229,7 @@ class Reduce(object):
         dets = np.atleast_1d(manual_dict['hand_extract_det'])
         # Grab the ones we want
         gd_det = dets > 0
-        if neg is False:
+        if not neg:
             gd_det = np.invert(gd_det)
         # Any?
         if not np.any(gd_det):
@@ -310,7 +310,7 @@ class Reduce(object):
         pass
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
-            std_trace=None, manual_extract_dict=None, show_peaks=False, return_negative=False):
+            std_trace=None, show_peaks=False, return_negative=False):
         """
         Primary code flow for PypeIt reductions
 
@@ -327,7 +327,6 @@ class Reduce(object):
                 Required if helio-centric correction is to be applied
             std_trace (np.ndarray, optional):
                 Trace of the standard star
-            manual_extract_dict (dict, optional):
             show_peaks (bool, optional):
                 Show peaks in find_objects methods
 
@@ -362,7 +361,7 @@ class Reduce(object):
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
-                              manual_extract_dict=manual_extract_dict)
+                              manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -377,7 +376,7 @@ class Reduce(object):
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
-                                  manual_extract_dict=manual_extract_dict)
+                                  manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
@@ -660,9 +659,7 @@ class Reduce(object):
                                                  self.par['flexure']['spectrum'],
                                                  mxshft=self.par['flexure']['spec_maxshift'])
             # QA
-            # TODO -- These needs to be turned back on!!
-            if False:
-                flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
+            flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')

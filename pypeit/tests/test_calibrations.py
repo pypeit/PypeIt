@@ -137,7 +137,7 @@ def test_it_all(multi_caliBrate):
 
     wv_calib = multi_caliBrate.get_wv_calib()
     assert isinstance(wv_calib, wavecalib.WaveCalib)
-    assert 175 in wv_calib.spat_id
+    assert 175 in wv_calib.spat_ids
     assert wv_calib.wv_fits[0]['rms'] < 0.2
 
     waveTilts = multi_caliBrate.get_tilts()

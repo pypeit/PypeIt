@@ -7,6 +7,8 @@
 import numpy as np
 import inspect
 
+from astropy.io import fits
+
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import defs
 from pypeit.core import fitting
@@ -27,7 +29,8 @@ class WaveFit(datamodel.DataContainer):
     """
     version = '1.0.0'
 
-    datamodel = {'pypeitfit': dict(otype=fitting.PypeItFit,
+    datamodel = {'spat_id': dict(otype=(int,np.integer), descr='Spatial position of slit/order for this fit. Required for I/O'),
+                 'pypeitfit': dict(otype=fitting.PypeItFit,
                                    descr='Fit to 1D wavelength solutions'),
                  'pixel_fit': dict(otype=np.ndarray, atype=np.floating,
                                    descr='Pixel values of arc lines'),
@@ -49,7 +52,12 @@ class WaveFit(datamodel.DataContainer):
 
     bitmask = defs.LinesBitMask()
 
-    def __init__(self, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
+    @staticmethod
+    def hduext_prefix_from_spatid(spat_id):
+        """ Naming for HDU extensions"""
+        return 'SPAT_ID-{}_'.format(spat_id)
+
+    def __init__(self, spat_id, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None):
         # Parse
@@ -57,13 +65,6 @@ class WaveFit(datamodel.DataContainer):
         d = dict([(k,values[k]) for k in args[1:]])
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
-
-    def _init_internals(self):
-        """
-        Set some internal attributes
-        """
-        # Needs to be here so we can set it in WaveCalib
-        self.hdu_prefix = None
 
     def _bundle(self, **kwargs):
         """
@@ -77,29 +78,44 @@ class WaveFit(datamodel.DataContainer):
             list:
 
         """
-        _d = super(WaveFit, self)._bundle(ext='WAVEFIT', **kwargs)
-        # Pull the fit out
-        if _d[0]['WAVEFIT']['pypeitfit'] is not None:
-            _d.append(dict(PYPEITFIT=_d[0]['WAVEFIT'].pop('pypeitfit')))
+        # Extension prefix (for being unique with slits)
+        hdue_pref = self.hduext_prefix_from_spatid(self.spat_id)
+        # Without PypeItFit
+        _d = super(WaveFit, self)._bundle(
+            ext=hdue_pref+'WAVEFIT', **kwargs)
+        # Deal with PypeItFit
+        if _d[0][hdue_pref+'WAVEFIT']['pypeitfit'] is not None:
+            _d.append({hdue_pref+'PYPEITFIT': _d[0][hdue_pref + 'WAVEFIT'].pop('pypeitfit')})
         # Return
         return _d
 
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
+        """ Over-ride for force_to_bintbl
 
-    # TODO -- This snippet shows up in 3 places now.  Can we genrealize somehow KW??
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=True):
-        """
-        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
-        a BinTableHDU
+        See :class:`pypeit.datamodel.DataContainer.to_hdu` for Arguments
 
-        See that func for Args and Returns
+        Returns:
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
+            where the type depends on the value of ``add_primary``.
         """
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Force
-        _d['force_to_bintbl'] = True
-        # Do it
-        return super(WaveFit, self).to_hdu(**_d)
+        return super(WaveFit, self).to_hdu(hdr=hdr, add_primary=add_primary, primary_hdr=primary_hdr,
+                                           limit_hdus=limit_hdus, force_to_bintbl=True)
+
+    @classmethod
+    def from_hdu(cls, hdu, chk_version=True):
+        """
+        Parse the data from the provided HDU.
+
+        See :func:`pypeit.datamodel.DataContainer._parse` for the
+        argument descriptions.
+        """
+        # Set hdu_prefix
+        if isinstance(hdu, fits.HDUList):
+            hdu_prefix = cls.hduext_prefix_from_spatid(hdu[1].header['SPAT_ID'])
+        else:
+            hdu_prefix = cls.hduext_prefix_from_spatid(hdu.header['SPAT_ID'])
+        # Run the default parser to get the data
+        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix)
 
     @property
     def ions(self):
@@ -251,8 +267,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     Returns
     -------
-    final_fit: dict
-      Dictionary containing the full fitting results and the final best guess of the line IDs
+    final_fit: :class:`pypeit.core.wavecal.wv_fitting.WaveFit`
     """
 
     #TODO JFH add error checking here to ensure that IDs and ifit have the same size!
@@ -356,7 +371,8 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         ion_bits[kk] = WaveFit.bitmask.turn_on(ion_bits[kk], ion)
 
     # DataContainer time
-    final_fit = WaveFit(pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit,
+    # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
+    final_fit = WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit,
                         ion_bits=ion_bits, xnorm=xnspecmin1,
                         cen_wave=cen_wave, cen_disp=cen_disp,
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,

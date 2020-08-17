@@ -73,20 +73,17 @@ class PypeItFit(DataContainer):
         """
         return super(PypeItFit, self)._bundle(ext=ext)
 
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=True):
+    def to_hdu(self, **kwargs):
         """
         Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
         a BinTableHDU
 
         See that func for Args and Returns
         """
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Force
-        _d['force_to_bintbl'] = True
-        # Do it
-        return super(PypeItFit, self).to_hdu(**_d)
+        if 'force_to_bintbl' in kwargs and not kwargs['force_to_bintbl']:
+            msgs.warn('PypeItFits objects must always be forced to a BinaryTableHDU for writing.')
+        kwargs['force_to_bintbl'] = True
+        return super(PypeItFit, self).to_hdu(**kwargs)
 
     @property
     def bool_gpm(self):
@@ -199,6 +196,7 @@ class PypeItFit(DataContainer):
 
         """
         msk = self.bool_gpm
+        
         if self.weights is None:
             weights = np.ones(self.xval.size)
         else:
@@ -215,10 +213,8 @@ class PypeItFit(DataContainer):
         # Normalise
         weights /= np.sum(weights)
         values = self.eval(xval, x2=x2_val)
-        # rms = np.std(yfit-values)
-        rms = np.sqrt(np.sum(weights * (yval - values) ** 2))
-        # Return
-        return rms
+        # RMS
+        return np.sqrt(np.sum(weights * (yval - values) ** 2))
 
 
 def evaluate_fit(fitc, func, x, x2=None, minx=None, maxx=None, minx2=None, maxx2=None):
@@ -470,14 +466,11 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None):
             Weights
 
     Returns:
-        tuple: fitc, fitcov
+        tuple: Fit coefficients, fit covariance
 
     """
     if guesses is None:
         ampl, cent, sigma = guess_gauss(x_out, y_out)
-        # As first guess choose slope and intercept to be zero
-        b = 0
-        m = 0
     else:
         ampl, cent, sigma = guesses
     # Error
@@ -485,9 +478,7 @@ def fit_gauss(x_out, y_out, guesses=None, w_out=None):
         sig_y = 1. / w_out
     else:
         sig_y = None
-    fitc, fitcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
-                                           sigma=sig_y)
-    return fitc, fitcov
+    return curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma], sigma=sig_y)
 
 
 def gauss_2deg(x,ampl,sigm):

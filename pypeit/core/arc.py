@@ -106,13 +106,12 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     Parameters
     ----------
-    pypeitFit: dict
-      dict of the 2D arc solution
-    outfile:
+    pypeitFit: :class:`pypeit.core.fitting.PypeItFit`:
+      Fit object for the 2D arc solution
+    nspec: int
+    outfile: str
       parameter for QA
 
-    Returns
-    -------
     """
 
     msgs.info("Creating QA for 2D wavelength solution")
@@ -198,8 +197,8 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
     Parameters
     ----------
-    pypeitFit: dict
-      dict of the 2D arc solution
+    pypeitFit: :class:`pypeit.core.fitting.PypeItFit`:
+      Fit object for the 2D arc solution
     outfile:
       parameter for QA
 
@@ -1178,47 +1177,47 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
 
 
 # JFH I think this is all deprecated code as it is in wavecalib.py now
-def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
-    """Holy grail algorithms for wavelength calibration
-
-    Uses arcparam to guide the analysis
-
-    Parameters
-    ----------
-    aparm
-    spec
-    use_method : str, optional
-
-    Returns
-    -------
-    final_fit : dict
-      Dict of fit info
-    """
-    raise DeprecationWarning("THIS HAS BEEN MOVED INSIDE wavecalib.py")
-    assert False
-
-    if ok_mask is None:
-        ok_mask = np.arange(spec.shape[1])
-
-    if use_method == "semi-brute":
-        final_fit = {}
-        for slit in ok_mask:
-            best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
-                                                      fit_parm=aparm, min_nsig=aparm['min_nsig'], nonlinear_counts= aparm['nonlinear_counts'])
-            final_fit[str(slit)] = ifinal_fit.copy()
-    elif use_method == "basic":
-        final_fit = {}
-        for slit in ok_mask:
-            status, ngd_match, match_idx, scores, ifinal_fit =\
-                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'], nonlinear_counts = aparm['nonlinear_counts'])
-            final_fit[str(slit)] = ifinal_fit.copy()
-    else:
-        # Now preferred
-        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
-                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'],
-                                   rms_threshold=aparm['rms_threshold'])
-        patt_dict, final_fit = arcfitter.get_results()
-    return final_fit
+#def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
+#    """Holy grail algorithms for wavelength calibration
+#
+#    Uses arcparam to guide the analysis
+#
+#    Parameters
+#    ----------
+#    aparm
+#    spec
+#    use_method : str, optional
+#
+#    Returns
+#    -------
+#    final_fit : dict
+#      Dict of fit info
+#    """
+#    raise DeprecationWarning("THIS HAS BEEN MOVED INSIDE wavecalib.py")
+#    assert False
+#
+#    if ok_mask is None:
+#        ok_mask = np.arange(spec.shape[1])
+#
+#    if use_method == "semi-brute":
+#        final_fit = {}
+#        for slit in ok_mask:
+#            best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
+#                                                      fit_parm=aparm, min_nsig=aparm['min_nsig'], nonlinear_counts= aparm['nonlinear_counts'])
+#            final_fit[str(slit)] = ifinal_fit.copy()
+#    elif use_method == "basic":
+#        final_fit = {}
+#        for slit in ok_mask:
+#            status, ngd_match, match_idx, scores, ifinal_fit =\
+#                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'], nonlinear_counts = aparm['nonlinear_counts'])
+#            final_fit[str(slit)] = ifinal_fit.copy()
+#    else:
+#        # Now preferred
+#        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
+#                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'],
+#                                   rms_threshold=aparm['rms_threshold'])
+#        patt_dict, final_fit = arcfitter.get_results()
+#    return final_fit
 
 
 def order_saturation(satmask, ordcen, ordwid):
