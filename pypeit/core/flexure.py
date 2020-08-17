@@ -487,7 +487,8 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
             fit = this_flex_dict['polyfit'][cntr]
             xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] #+ flex_dict['shift'][o]
             #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-            model = utils.func_val(fit, xval, 'polynomial')
+            model = fit.eval(xval)
+            #model = utils.func_val(fit, xval, 'polynomial')
             mxmod = np.max(model)
             ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
             ylim = [ylim_min, 1.3]
