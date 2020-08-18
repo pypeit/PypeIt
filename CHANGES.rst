@@ -5,6 +5,9 @@
  - Fixed a bug fixes a bug in full_template wavelength reidentification
    for situations where extreme wavelength coverage slits results in
    reidentification with a purely zero-padded array.
+ - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
+   wavelength coverage slits results in reidentification with a purely zero-padded array.
+ - Fixed another such bug arising from these zero-padded arrays.
  - (Hotfix) Deal with chk_calibs test
  - Script to generate combined datacubes for IFU data.
  - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
