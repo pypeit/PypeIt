@@ -100,11 +100,20 @@ def test_wavecalib():
 
 
     # With None (failed wave)
+    spat_ids = np.asarray([232, 949])
     waveCalib3 = wavecalib.WaveCalib(wv_fits=np.asarray([waveFit, wv_fitting.WaveFit(949)]),
-                                    nslits=2, spat_ids=np.asarray([232, 949]),
+                                    nslits=2, spat_ids=spat_ids,
                                     wv_fit2d=pypeitFit2)
     waveCalib3.to_file(out_file)
     waveCalib4 = wavecalib.WaveCalib.from_file(out_file)
+
+    # Check masking
+    slits = slittrace.SlitTraceSet(left_init=np.full((1000,2), 2, dtype=float),
+                         right_init=np.full((1000,2), 8, dtype=float),
+                         pypeline='MultiSlit', spat_id=spat_ids,
+                         nspat=2, PYP_SPEC='dummy')
+    slits.mask_wvcalib(waveCalib3)
+    assert slits.bitmask.flagged(slits.mask[1], flag='BADWVCALIB')
 
     # Finish
     os.remove(out_file)
