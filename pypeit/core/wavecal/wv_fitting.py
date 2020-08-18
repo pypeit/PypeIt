@@ -368,7 +368,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
     # Ions bit
     ion_bits = np.zeros(len(ions), dtype=WaveFit.bitmask.minimum_dtype())
     for kk,ion in enumerate(ions):
-        ion_bits[kk] = WaveFit.bitmask.turn_on(ion_bits[kk], ion)
+        ion_bits[kk] = WaveFit.bitmask.turn_on(ion_bits[kk], ion.replace(' ', ''))
 
     # DataContainer time
     # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
