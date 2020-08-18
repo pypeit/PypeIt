@@ -1907,7 +1907,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
     gdorders = np.arange(norders)[np.invert(maskslits)]
     for iord in gdorders: #range(norders):
         msgs.info('Finding objects on order # {:d}'.format(order_vec[iord]))
-        inmask_iord = inmask & (slitmask == gdslit_spat[iord])
+        thisslit_gpm = slitmask == gdslit_spat[iord]
+        inmask_iord = inmask & thisslit_gpm
         specobj_dict['SLITID'] = iord
         specobj_dict['ECH_ORDERINDX'] = iord
         specobj_dict['ECH_ORDER'] = order_vec[iord]
