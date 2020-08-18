@@ -736,7 +736,7 @@ class SlitTraceSet(datamodel.DataContainer):
 
         """
         for islit in range(self.nslits):
-            if wv_calib.wv_fits[islit] is None:
+            if wv_calib.wv_fits[islit] is None or wv_calib.wv_fits[islit].pypeitfit is None:
                 self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):

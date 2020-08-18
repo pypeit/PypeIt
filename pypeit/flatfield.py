@@ -203,6 +203,16 @@ class FlatImages(datamodel.DataContainer):
                 return self.illumflat_bpm
 
     def get_spat_bsplines(self, frametype='illum'):
+        """
+        Grab a list of bspline fits
+
+        Args:
+            frametype (str):
+
+        Returns:
+            list:
+
+        """
         # Check if both spat bsplines are none
         if self.pixelflat_spat_bsplines is None and self.illumflat_spat_bsplines is None:
             msgs.error("FlatImages contains no spatial bspline fit")
@@ -408,41 +418,6 @@ class FlatField(object):
         Return the number of slits.  Pulled directly from :attr:`slits`, if it exists.
         """
         return 0 if self.slits is None else self.slits.nslits
-
-#    def build_pixflat(self, trim=True, force=False):
-#        """
-#        Process the flat flat images.
-#
-#        Processing steps are the result of
-#        :func:`pypeit.core.procimg.init_process_steps`, ``trim``
-#        (based on the input argument), ``apply_gain``, and ``orient``.
-#        Currently, cosmic-ray rejection (``cr_reject``) is not done.
-#
-#        Args:
-#            trim (:obj:`bool`, optional):
-#                Trim the image down to just the data section.
-#            force (:obj:`bool`, optional):
-#                Force the flat to be reconstructed if it already exists
-#
-#        Returns:
-#            pypeitimage.PypeItImage:  The image with the unnormalized pixel-flat data.
-#        """
-#        if self.rawflatimg is None or force:
-#            # Process steps
-#            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
-#            if trim:
-#                self.process_steps += ['trim']
-#            self.process_steps += ['apply_gain']
-#            self.process_steps += ['orient']
-#            # Turning this on leads to substantial edge-tracing problems when last tested
-#            #     JXP November 22, 2019
-#            #if self.par['cr_reject']:
-#            #    self.process_steps += ['crmask']
-#            self.steps.append(inspect.stack()[0][3])
-#            # Do it
-#            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
-#                                                                 ignore_saturation=True)
-#        return self.rawflatimg
 
     # TODO: Need to add functionality to use a different frame for the
     # ilumination flat, e.g. a sky flat
@@ -821,12 +796,15 @@ class FlatField(object):
             #  the edges of the chip in spec direction
             # TODO: Can we add defaults to bspline_profile so that we
             #  don't have to instantiate invvar and profile_basis
-            spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
+            try:
+                spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
                     = fitting.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
                                             np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+            except:
+                embed(header='808 of flatfield')
 
             if exit_status > 1:
                 # TODO -- MAKE A FUNCTION

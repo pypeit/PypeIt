@@ -603,7 +603,6 @@ class BuildWaveCalib:
                     self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
-        #self.wv_calib['steps'] = self.steps
         sv_par = self.par.data.copy()
         j_par = ltu.jsonify(sv_par)
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
