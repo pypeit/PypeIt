@@ -529,12 +529,6 @@ class DataContainer:
             model attributes but with all of those attributes set to
             None.
 
-    Attributes:
-        filename (:obj:`str`):
-            Filename, if loaded from disk
-        head0 (`astropy.io.fits.Header`):
-            Primary header of the file (if loaded)
-
     """
 
     # Define the class version
@@ -549,11 +543,20 @@ class DataContainer:
     model changes during development.
     """
 
-    # Define hdu_prefix
     hdu_prefix = None
     """
-    If set, all HDUs generated for this DataContainer will have this prefix
-    Be wary of nested DataContainer's!!
+    If set, all HDUs generated for this DataContainer will have this
+    prefix. This can be set independently for each DataContainer
+    derived class; however, it always defaults to None for the base
+    class. Be wary of nested DataContainer's!!
+    """
+
+    output_to_disk = None
+    """
+    If set, this limits the HDU extensions that are written to the
+    output file. Note this is the name of the extension, including
+    the hdu_prefix, not necessarily the names of specific datamodel
+    components.
     """
 
     # Define the data model
@@ -598,20 +601,21 @@ class DataContainer:
     `astropy.table.Table`_ objects. E.g., ``datamodel`` values for
     ``otype`` *cannot* be :obj:`dict`.
     """
+    # TODO: Enable multiple possible types for the datamodel elements?
+    # I.e., allow `otype` to be a tuple of the allowed object types? It
+    # looks like this is already possible at least for some types, see
+    # pypeit.tracepca.TracePCA.reference_row.
+
 
     def __init__(self, d=None):
         # Data model must be defined
         if self.datamodel is None:
             raise ValueError('Data model for {0} is undefined!'.format(self.__class__.__name__))
+        if self.version is None:
+            raise ValueError('Must define a version for the class.')
 
-        # Copy the dictionary
-#        self.__dict__ = copy.deepcopy(d)
         # Ensure the dictionary has all the expected keys
         self.__dict__.update(dict.fromkeys(self.datamodel.keys()))
-
-        # Initialize internals for all DataContainer objects
-        self.filename = None
-        self.head0 = None
 
         # Initialize other internals
         self._init_internals()
@@ -652,9 +656,6 @@ class DataContainer:
 
         # Validate the object
         self._validate()
-
-        if self.version is None:
-            raise ValueError('Must define a version for the class.')
 
     @classmethod
     def full_datamodel(cls, include_parent=True):
@@ -741,7 +742,8 @@ class DataContainer:
         The default behavior implemented by this base class just
         parses the attributes into a single dictionary based on the
         datamodel and is returned such that it all is written to a
-        single fits extension.  Note that this will fault if the datamodel contains:
+        single fits extension. Note that this will fault if the
+        datamodel contains:
 
             - a dictionary object
             - more than one `astropy.table.Table`_,
@@ -805,8 +807,7 @@ class DataContainer:
         return [d] if ext is None else [{ext:d}]
 
     @classmethod
-    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
-               hdu_prefix=None):
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
         """
         Parse data read from a set of HDUs.
 
@@ -850,8 +851,7 @@ class DataContainer:
             the HDU type.
 
         Args:
-            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_,
-                 `astropy.io.fits.BinTableHDU`_):
+            hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
                 The HDU(s) to parse into the instantiation dictionary.
             ext (:obj:`int`, :obj:`str`, :obj:`list`, optional):
                 One or more extensions with the data. If None, the
@@ -864,8 +864,6 @@ class DataContainer:
             hdu_prefix (:obj:`str`, optional):
                 Decorate the HDUs with this prefix
                 Note, this over-rides any internally set hdu_prefix value
-            debug (:obj:`bool`, optional):
-                Perform debuggin
 
         Returns:
             :obj:`tuple`: Return three objects
@@ -882,27 +880,9 @@ class DataContainer:
         dm_version_passed = True
         dm_type_passed = True
 
-        # Get the (list of) extension(s) to parse
-        if ext is not None:
-            if not isinstance(ext, (str, int, list)):
-                raise TypeError('Provided ext object must be a str, int, or list.')
-            if isinstance(ext, list):
-                for e in ext:
-                    if not isinstance(ext, (str, int)):
-                        raise TypeError('Provided ext elements  must be a str or int.')
-        if ext is None and isinstance(hdu, fits.HDUList):
-            ext = [h.name for h in hdu]
-
-        # Allow user to provide single HDU
-        if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
-            if ext is not None:
-                msgs.warn('Only one HDU provided; extension number/name is irrelevant.')
-            ext = [0]
-            _hdu = [hdu]
-        else:
-            _hdu = hdu
-
-        _ext = np.atleast_1d(np.array(ext, dtype=object))
+        # Setup to iterate through the provided HDUs
+        _ext, _hdu = io.hdu_iter_by_ext(hdu, ext=ext)
+        _ext = np.atleast_1d(np.array(_ext, dtype=object))
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext])
 
         # Construct instantiation dictionary
@@ -941,6 +921,9 @@ class DataContainer:
                 #  Are we a DataContainer?
                 if obj_is_data_container(cls.datamodel[e]['otype']):
                     # Parse it!
+                    # TODO: This only works with single extension
+                    # DataContainers. Do we want this to be from_hdu
+                    # instead and add chk_version to _parse?
                     _d[e], p1, p2 = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
                     dm_version_passed &= p1
                     dm_type_passed &= p2
@@ -1053,13 +1036,14 @@ class DataContainer:
             return
         # Check data type
         if not isinstance(value, self.datamodel[item]['otype']):
-            raise TypeError('Incorrect data type for {0}!'.format(item) +
+            raise TypeError('Incorrect data type for {0}!  '.format(item) +
                             'Allowed type(s) are: {0}'.format(self.datamodel[item]['otype']))
         # Array?
         if 'atype' in self.datamodel[item].keys():
             if not isinstance(value.flat[0], self.datamodel[item]['atype']):
-                raise IOError('Wrong data type for array: {}\n'.format(item)
-                              + 'Allowed type(s) for the array are: {}'.format(self.datamodel[item]['atype']))
+                raise TypeError('Wrong data type for array: {}\n'.format(item)
+                                + 'Allowed type(s) for the array are: {}'.format(
+                                    self.datamodel[item]['atype']))
         # Set
         self.__dict__[item] = value
 
@@ -1075,6 +1059,56 @@ class DataContainer:
             :obj:`dict_keys`: The iterable with the data model keys.
         """
         return self.datamodel.keys()
+
+    def _primary_header(self, hdr=None):
+        """
+        Construct a primary header that is included with the primary
+        HDU extension produced by :func:`to_hdu`.
+
+        Additional data can be added to the header for individual HDU
+        extensions in :func:`to_hdu` as desired, but this function
+        **should not** add any elements from the datamodel to the
+        header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_, optional):
+                Header for the primary extension. If None, set by
+                :func:`pypeit.io.initialize_header()`.
+
+        Returns:
+            `astropy.io.fits.Header`_: Header object to include in
+            the primary HDU.
+        """
+        return io.initialize_header() if hdr is None else hdr.copy()
+
+    def _base_header(self, hdr=None):
+        """
+        Construct a base header that is included with all HDU
+        extensions produced by :func:`to_hdu` (unless they are
+        overwritten by a nested :class:`DataContainer`).
+
+        Additional data can be added to the header for individual HDU
+        extensions in :func:`to_hdu` as desired, but this function
+        **should not** add any elements from the datamodel to the
+        header.
+
+        Args:
+            hdr (`astropy.io.fits.Header`_, optional):
+                Baseline header to add to all returned HDUs. If None,
+                set by :func:`pypeit.io.initialize_header()`.
+
+        Returns:
+            `astropy.io.fits.Header`_: Header object to include in
+            all HDU extensions.
+        """
+        # Copy primary header to all subsequent headers
+        _hdr = self._primary_header(hdr=hdr)
+        # Add DataContainer class name and datamodel version number.
+        # This is not added to the primary header because single output
+        # files can contain multiple DataContainer objects.
+        _hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
+        _hdr['DMODVER'] = (self.version, 'Datamodel version')
+        return _hdr
 
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
@@ -1117,7 +1151,8 @@ class DataContainer:
             limit_hdus (list, optional):
                 Limit the HDUs that can be written to the items in this list
             force_to_bintbl (bool, optional):
-                Force any dict into a BinTableHDU (e.g. for SpecObj)
+                Force any dict into a BinTableHDU (e.g. for
+                :class:`pypeit.specobj.SpecObj`)
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -1127,14 +1162,27 @@ class DataContainer:
         data = self._bundle()
 
         # Initialize the primary header (only used if add_primary=True)
-        _primary_hdr = io.initialize_header() if primary_hdr is None else primary_hdr
-        #_primary_hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
-        #_primary_hdr['DMODVER'] = (self.version, 'Datamodel version')
+        _primary_hdr = self._primary_header(hdr=primary_hdr)
+        # Check that the keywords in the primary header do not overlap
+        # with any datamodel keys.
+        if _primary_hdr is not None:
+            hdr_keys = np.array([k.upper() for k in self.keys()])
+            indx = np.isin(hdr_keys, list(_primary_hdr.keys()))
+            # TODO: This is a hack to deal with PYP_SPEC, but this
+            # needs to be cleaned up, as does masterframe more
+            # generally...
+            if np.sum(indx) > 1 or (np.sum(indx) == 1 and hdr_keys[indx] != 'PYP_SPEC'):
+                msgs.error('CODING ERROR: Primary header should not contain keywords that are the '
+                           'same as the datamodel for {0}.'.format(self.__class__.__name__))
 
         # Initialize the base header
-        _hdr = io.initialize_header() if hdr is None else hdr
-        _hdr['DMODCLS'] = (self.__class__.__name__, 'Datamodel class')
-        _hdr['DMODVER'] = (self.version, 'Datamodel version')
+        _hdr = self._base_header(hdr=hdr)
+        # Check that the keywords in the base header do not overlap
+        # with any datamodel keys.
+        if _hdr is not None \
+                and np.any(np.isin([k.upper() for k in self.keys()], list(_hdr.keys()))):
+            msgs.error('CODING ERROR: Baseline header should not contain keywords that are the '
+                       'same as the datamodel for {0}.'.format(self.__class__.__name__))
 
         # Construct the list of HDUs
         hdu = []
@@ -1143,7 +1191,16 @@ class DataContainer:
                 ext = list(d.keys())[0]
                 # Allow for embedded DataContainer's
                 if isinstance(d[ext], DataContainer):
-                    hdu += d[ext].to_hdu(add_primary=False)
+                    _hdu = d[ext].to_hdu(add_primary=False)
+                    # NOTE: The lines below allow extension names to be
+                    # overridden by the input dictionary keyword for
+                    # DataContainers that are confined to a single HDU.
+                    # This is necessary because `hdu_prefix` must be a
+                    # class attribute to allow for its inclusion in the
+                    # read methods (e.g., `_parse`)
+                    if len(_hdu) == 1 and _hdu[0].name != ext:
+                        _hdu[0].name = ext
+                    hdu += _hdu
                 else:
                     hdu += [io.write_to_hdu(d[ext], name=ext, hdr=_hdr,
                                             force_to_bintbl=force_to_bintbl)]
@@ -1155,12 +1212,7 @@ class DataContainer:
                 ihdu.name = self.hdu_prefix+ihdu.name
         # Limit?
         if limit_hdus:
-            # Wish I could do this as a list iterator...
-            new_hdu = []
-            for ihdu in hdu:
-                if ihdu.name in limit_hdus:
-                    new_hdu.append(ihdu)
-            hdu = new_hdu
+            hdu = [h for h in hdu if h.name in limit_hdus]
         # Return
         return fits.HDUList([fits.PrimaryHDU(header=_primary_hdr)] + hdu) if add_primary else hdu
 
@@ -1196,10 +1248,30 @@ class DataContainer:
             _f = msgs.error if chk_version else msgs.warn
             _f('Current version of {0} object in code (v{1})'.format(cls.__name__, cls.version)
                + ' does not match version used to write your HDU(s)!')
+        # Instantiate
+        return cls.from_dict(d=d)
 
-        # Finish
+    @classmethod
+    def from_dict(cls, d=None):
+        """
+        Instantiate from a dictionary.
+
+        This is primarily to allow for instantiating classes from a
+        file where the data has already been parsed. E.g., see how
+        the :class:`~pypeit.tracepca.TracePCA` objects are
+        instantiated in
+        :class:`pypeit.edgetrace.EdgeTraceSet.from_hdu`. However,
+        note that this does the bare minimum to instantiate the
+        object. Any class-specific operations that are needed to
+        complete the instantiation should be done by ovewritting this
+        method; e.g., see :func:`pypeit.tracepca.TracePCA.from_dict`.
+
+        Args:
+            d (:obj:`dict`, optional):
+                Dictionary with the data to use for instantiation.
+        """
         self = super().__new__(cls)
-        DataContainer.__init__(self, d)
+        DataContainer.__init__(self, d=d)
         return self
 
     def to_file(self, ofile, overwrite=False, checksum=True, primary_hdr=None, hdr=None,
@@ -1235,6 +1307,8 @@ class DataContainer:
                                      limit_hdus=limit_hdus),
                          ofile, overwrite=overwrite, checksum=checksum, hdr=hdr)
 
+    # TODO: This requires that master_key be an attribute... This
+    # method is a bit too ad hoc for me...
     def to_master_file(self, master_filename=None, **kwargs):
         """
         Wrapper on to_file() that deals with masterframe naming and header
@@ -1301,19 +1375,23 @@ class DataContainer:
         # Do it
         with fits.open(ifile) as hdu:
             obj = cls.from_hdu(hdu, chk_version=chk_version)
-            obj.head0 = hdu[0].header
-            # Tack on filename
-            obj.filename = ifile
+            if hasattr(obj, 'head0'):
+                obj.head0 = hdu[0].header
+            if hasattr(obj, 'filename'):
+                obj.filename = ifile
 
             # Master this and that
             if hasattr(cls, 'master_type'):
                 obj.master_key, obj.master_dir = masterframe.grab_key_mdir(ifile)
-                if 'MSTRTYP' in obj.head0.keys():
-                    if obj.head0['MSTRTYP'] != cls.master_type:
-                        msgs.error('Master Type read from header incorrect!  Found {0}; expected {1}'.format(
-                            obj.head0['MSTRTYP'], cls.master_type))
-                else:
-                    msgs.warn('DataContainer is a Master type but header does not contain MSTRTYP!')
+                if hasattr(obj, 'head0'):
+                    if 'MSTRTYP' in obj.head0.keys():
+                        if obj.head0['MSTRTYP'] != cls.master_type:
+                            msgs.error('Master Type read from header incorrect!  '
+                                       'Found {0}; expected {1}'.format(obj.head0['MSTRTYP'],
+                                                                        cls.master_type))
+                    else:
+                        msgs.warn('DataContainer has `master_type` attribute but is missing the '
+                                  'MSTRTYP header keyword!')
         return obj
 
     def __repr__(self):

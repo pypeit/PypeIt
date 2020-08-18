@@ -2,12 +2,14 @@
 Module to test TracePCA object.
 """
 import os
+from IPython import embed
 import numpy as np
 import pytest
 
 from astropy.io import fits
 
 from pypeit.tracepca import TracePCA
+from pypeit.tests.tstutils import data_path
 
 @pytest.fixture
 def vec_coo():
@@ -44,7 +46,19 @@ def test_prediction(vec_coo, bogus_vectors):
     # TODO: More checks?
 
 
-def test_write(vec_coo, bogus_vectors):
+def test_rms():
+    """Test on some real data."""
+    center = np.load(data_path('example_trace_deimos_1200G_M_7750.npz'))['center']
+
+    pca = TracePCA(trace_cen=center, npca=2)
+    pca.build_interpolator(np.array([3,1]), function='legendre') #, debug=True)
+    pca_center = pca.predict(center[pca.reference_row,:])
+
+    rms = np.std(center-pca_center, axis=0)
+    assert np.sum(rms > 0.2) == 1, 'Change in the accuracy of the PCA.'
+
+
+def test_to_hdu(vec_coo, bogus_vectors):
 
     pca = TracePCA(trace_cen=bogus_vectors, npca=2, coo=vec_coo)
     pca.build_interpolator([1,2])
@@ -52,19 +66,26 @@ def test_write(vec_coo, bogus_vectors):
     ofile = 'junkpca.fits'
     if os.path.isfile(ofile):
         os.remove(ofile)
-    fits.HDUList([fits.PrimaryHDU(), pca.to_hdu()]).writeto(ofile)
+    fits.HDUList([fits.PrimaryHDU()] + pca.to_hdu()).writeto(ofile)
     os.remove(ofile)
 
+def test_write(vec_coo, bogus_vectors):
+    pca = TracePCA(trace_cen=bogus_vectors, npca=2, coo=vec_coo)
+    pca.build_interpolator([1,2])
+    ofile = 'junkpca.fits'
+    if os.path.isfile(ofile):
+        os.remove(ofile)
+    pca.to_file(ofile)
+    os.remove(ofile)
 
 def test_read(vec_coo, bogus_vectors):
 
     pca = TracePCA(trace_cen=bogus_vectors, npca=2, coo=vec_coo)
     pca.build_interpolator([1,2])
-
     ofile = 'junkpca.fits'
     if os.path.isfile(ofile):
         os.remove(ofile)
-    fits.HDUList([fits.PrimaryHDU(), pca.to_hdu()]).writeto(ofile)
+    pca.to_file(ofile)
     readpca = TracePCA.from_file(ofile)
 
     assert np.array_equal(pca.trace_coo, readpca.trace_coo), 'Bad read'
@@ -72,10 +93,11 @@ def test_read(vec_coo, bogus_vectors):
     assert np.array_equal(pca.pca_coeffs, readpca.pca_coeffs), 'Bad read'
     assert np.array_equal(pca.pca_components, readpca.pca_components), 'Bad read'
     assert np.array_equal(pca.pca_bpm, readpca.pca_bpm), 'Bad read'
+    assert np.array_equal(pca.fit_coeff[0], readpca.fit_coeff[0]), 'Bad read'
+    assert np.array_equal(pca.fit_coeff[1], readpca.fit_coeff[1]), 'Bad read'
     assert pca.npca == readpca.npca, 'Bad read'
     assert pca.nspec == readpca.nspec, 'Bad read'
     for i in range(pca.npca):
         assert np.array_equal(pca.fit_coeff[i], readpca.fit_coeff[i]), 'Bad read'
 
     os.remove(ofile)
-

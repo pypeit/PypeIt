@@ -42,18 +42,19 @@ class OneSpec(datamodel.DataContainer):
     """
     version = '1.0.0'
 
-    datamodel = {
-        'wave': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength array'),
-        'flux': dict(otype=np.ndarray, atype=np.floating, desc='Flux/counts array'),
-        'ivar': dict(otype=np.ndarray, atype=np.floating, desc='Inverse variance array'),
-        'mask': dict(otype=np.ndarray, atype=np.integer, desc='Mask array (0=Good???)'),
-        'telluric': dict(otype=np.ndarray, atype=np.floating, desc='Telluric model'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt: Spectrograph name'),
-        'obj_model': dict(otype=np.ndarray, atype=np.floating, desc='Object model for tellurics'),
-        'ext_mode': dict(otype=str, desc='Extraction mode (options: BOX, OPT)'),
-        'fluxed': dict(otype=bool, desc='Fluxed?'),
-        'spect_meta': dict(otype=dict, desc='header dict'),
-    }
+    # TODO: Fix the description of mask; is 0 good or bad?
+    datamodel = {'wave': dict(otype=np.ndarray, atype=np.floating, descr='Wavelength array'),
+                 'flux': dict(otype=np.ndarray, atype=np.floating, descr='Flux/counts array'),
+                 'ivar': dict(otype=np.ndarray, atype=np.floating, descr='Inverse variance array'),
+                 'mask': dict(otype=np.ndarray, atype=np.integer, descr='Mask array (0=Good???)'),
+                 'telluric': dict(otype=np.ndarray, atype=np.floating, descr='Telluric model'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt: Spectrograph name'),
+                 'obj_model': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Object model for tellurics'),
+                 'ext_mode': dict(otype=str, descr='Extraction mode (options: BOX, OPT)'),
+                 'fluxed': dict(otype=bool, descr='Fluxed?'),
+                 'spect_meta': dict(otype=dict, descr='header dict')}
+
     @classmethod
     def from_file(cls, ifile):
         """
@@ -90,6 +91,7 @@ class OneSpec(datamodel.DataContainer):
 
     def _init_internals(self):
         self.head0 = None
+        self.filename = None
         self.spec_meta = None
         self.spectrograph = None
         self.spect_meta = None

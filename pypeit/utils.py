@@ -52,6 +52,77 @@ def embed_header():
     return '{0} {1} {2}'.format(info.lineno, info.function, os.path.split(info.filename)[1])
 
 
+# Pulled from `pypeit.par.ParSet`. Maybe move these to
+# doc/scripts/util.py?
+def to_string(data, use_repr=True, verbatim=False):
+    """
+    Convert a single datum into a string
+
+    Simply return strings, recursively convert the elements of any
+    objects with a :attr:`__len__` attribute, and use the object's
+    own :attr:`__repr__` attribute for all other objects.
+
+    Args:
+        data (object):
+            The object to stringify.
+        use_repr (:obj:`bool`, optional):
+            Use the objects :attr:`__repr__` method; otherwise, use a
+            direct string conversion.
+        verbatim (:obj:`bool`, optional):
+            Use quotes around the provided string to indicate that
+            the string should be represented in a verbatim (fixed
+            width) font.
+        
+    Returns:
+        :obj:`str`: A string representation of the provided ``data``.
+    """
+    if isinstance(data, str):
+        return data if not verbatim else '``' + data + '``'
+    if hasattr(data, '__len__'):
+        return '[]' if isinstance(data, list) and len(data) == 0 \
+                    else ', '.join([to_string(d, use_repr=use_repr, verbatim=verbatim) 
+                                        for d in data ])
+    return data.__repr__() if use_repr else str(data)
+
+
+def string_table(tbl, delimeter='print'):
+    """
+    Provided the array of data, format it with equally spaced columns
+    and add a header (first row) and contents delimeter.
+
+    Args:
+        tbl (`numpy.ndarray`_):
+            Array of string representations of the data to print.
+        delimeter (:obj:`str`, optional):
+            Delimeter between first table row, which should contain
+            the column headings, and the column data. Use ``'print'``
+            for a simple line of hyphens, anything else results in an
+            ``rst`` style table formatting.
+
+    Returns:
+        :obj:`str`: Single long string with the data table.
+    """
+    nrows, ncols = tbl.shape
+    col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
+    row_string = ['']*(nrows+1) if delimeter == 'print' else ['']*(nrows+3)
+    start = 2 if delimeter == 'print' else 3
+    for i in range(start,nrows+start-1):
+        row_string[i] = '  '.join([tbl[1+i-start,j].ljust(col_width[j]) for j in range(ncols)])
+    if delimeter == 'print':
+        # Heading row
+        row_string[0] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+        # Delimiter
+        row_string[1] = '-'*len(row_string[0])
+        return '\n'.join(row_string)+'\n'
+
+    # For an rst table
+    row_string[0] = '  '.join([ '='*col_width[j] for j in range(ncols)])
+    row_string[1] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+    row_string[2] = row_string[0]
+    row_string[-1] = row_string[0]
+    return '\n'.join(row_string)+'\n'
+
+
 def spec_atleast_2d(wave, flux, ivar, mask):
     """
     Utility routine to repackage spectra to have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp)

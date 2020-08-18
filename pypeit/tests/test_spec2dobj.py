@@ -172,4 +172,3 @@ def test_all2dobj_update_image(init_dict):
     assert np.array_equal(allspec2D_2[1].sciimg, spec2DObj1.sciimg)
 
     os.remove(ofile)
-

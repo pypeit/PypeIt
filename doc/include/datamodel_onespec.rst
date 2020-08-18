@@ -3,7 +3,7 @@
 Version: 1.0.0
 
 ==============  ========  ==========  ===================================
-Obj             Obj Type  Array Type  Description                        
+Obj Key         Obj Type  Array Type  Description                        
 ==============  ========  ==========  ===================================
 ``PYP_SPEC``    str                   PypeIt: Spectrograph name          
 ``ext_mode``    str                   Extraction mode (options: BOX, OPT)
