@@ -20,7 +20,7 @@ by executing::
     pip install -r requirements.txt
 
 However, we highly recommend that you use `Anaconda
-<https://www.continuum.io/downloads/>`_, as described below. The
+<https://www.anaconda.com/>`_, as described below. The
 package and version requirements for pypeit are:
 
 * `python <http://www.python.org/>`_ version 3.7 or later
