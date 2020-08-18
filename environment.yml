@@ -1,0 +1,21 @@
+name: pypeit
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.7
+  - numpy
+  - astropy
+  - scipy
+  - matplotlib
+  - numba
+  - pyqt
+  - yaml
+  - pyyaml
+  - configobj
+  - scikit-learn
+  - ipython
+  - requests
+  - packaging
+  - pytest
+  
+  
