@@ -435,7 +435,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         namps = hdu[0].header['NUMAMPS']
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
-        if namps == 2:
+        if namps == 2 or ((namps==4) & (len(hdu)==3)):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             detector.gain = np.atleast_1d(np.mean(detector.gain))
             detector.ronoise = np.atleast_1d(np.mean(detector.ronoise))
@@ -733,7 +733,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         namps = hdu[0].header['NUMAMPS']
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
-        if namps == 2:
+        if namps == 2 or ((namps==4) & (len(hdu)==3)):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             # Long silt mode
             if hdu[0].header['AMPPSIZE'] == '[1:1024,1:4096]':
