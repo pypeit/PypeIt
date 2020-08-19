@@ -157,6 +157,9 @@ related to extraction and sky subtraction for your spectra.
 PypeIt provides routines for :doc:`fluxing` your spectra.
 These are run separately from and after the main run.
 
+Note that this is a two-stage process.  One to generate
+a sensitivity function and one to apply it.
+
 7. Coadding
 ===========
 
