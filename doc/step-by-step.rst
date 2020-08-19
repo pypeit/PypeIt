@@ -292,3 +292,11 @@ See :doc:`out_spec1D` for further details.
 
 Fluxing
 =======
+
+Now that we have a reduced standard star spectrum, we can
+use that to generate a sensitivity file.  Here is the
+call for this example, which I run in the Science/ folder::
+
+
+
+See :doc:`fluxing` for further details.
