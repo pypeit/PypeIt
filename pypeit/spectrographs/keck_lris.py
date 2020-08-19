@@ -226,7 +226,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         raw_file : str
           Filename
         det (int or None):
-          Detector number; Default = both
+          Detector number;
+          If None, grab both [if both are there]
         Returns
         -------
         tuple
@@ -294,6 +295,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         postpix = postpix // xbin
 
         # Deal with detectors
+        embed(header='298 of keck_lris')
         if det in [1, 2]:
             nx = nx // 2
             n_ext = n_ext // 2
