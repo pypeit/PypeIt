@@ -297,6 +297,6 @@ Now that we have a reduced standard star spectrum, we can
 use that to generate a sensitivity file.  Here is the
 call for this example, which I run in the Science/ folder::
 
-
+    pypeit_sensfunc spec1d_b24-Feige66_KASTb_2015May20T041246.960.fits -o Kastb_feige66_sens.fits
 
 See :doc:`fluxing` for further details.
