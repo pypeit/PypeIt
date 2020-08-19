@@ -289,3 +289,6 @@ This uses the
 from the *linetools* package.
 
 See :doc:`out_spec1D` for further details.
+
+Fluxing
+=======

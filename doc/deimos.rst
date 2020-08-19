@@ -29,6 +29,12 @@ for DEIMOS
 These are tuned to the standard calibration
 set taken with DEIMOS.
 
+Edge Tracing
+============
+
+It has been reported that the default `edge_thresh` of 50
+for DEIMOS is too high for some setups.
+
 Calibrations
 ============
 
