@@ -3,7 +3,11 @@
 import glob
 import os
 import numpy as np
+
+import datetime
+
 from astropy.io import fits
+from astropy import time
 
 from pkg_resources import resource_filename
 
@@ -295,7 +299,6 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         postpix = postpix // xbin
 
         # Deal with detectors
-        embed(header='298 of keck_lris')
         if det in [1, 2]:
             nx = nx // 2
             n_ext = n_ext // 2
@@ -348,7 +351,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        return self.get_detector_par(hdu, det if det is None else 1), \
+        return self.get_detector_par(hdu, det if det is not None else 1), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
     def subheader_for_spec(self, row_fitstbl, raw_header):
@@ -389,6 +392,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 HDUList of the image of interest.
                 Ought to be the raw file, or else..
             det (int):
+                Detector ID.  1 or 2
 
         Returns:
             :class:`pypeit.images.detector_container.DetectorContainer`:
@@ -425,7 +429,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
-        detector = detector_container.DetectorContainer(**detector_dicts[det])
+        detector = detector_container.DetectorContainer(**detector_dicts[det-1])
 
         # Deal with number of amps
         namps = hdu[0].header['NUMAMPS']
@@ -661,6 +665,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         self.camera = 'LRISr'
 
     def get_detector_par(self, hdu, det):
+        """
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+                Detector ID.  1 or 2
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
 
@@ -690,9 +707,27 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             ronoise=np.atleast_1d([4.54, 4.62])
         ))
 
+        # Allow for post COVID detector issues
+        t2020_1 = time.Time("2020-06-30", format='isot')  # First run
+        t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
+        date = time.Time(hdu[0].header['MJD-OBS'], format='mjd')
+
+        if date < t2020_1:
+            pass
+        elif date > t2020_2:  # This is the 2020 July 29 run
+            detector_dict1['gain'] = np.atleast_1d([1.45])
+            detector_dict2['gain'] = np.atleast_1d([1.25])
+            detector_dict1['ronoise'] = np.atleast_1d([4.47])
+            detector_dict2['ronoise'] = np.atleast_1d([4.75])
+        else:  # This is for the June 30 2020 run
+            detector_dict1['gain'] = np.atleast_1d([37.6])
+            detector_dict2['gain'] = np.atleast_1d([1.26])
+            detector_dict1['ronoise'] = np.atleast_1d([99.])
+            detector_dict2['ronoise'] = np.atleast_1d([5.2])
+
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
-        detector = detector_container.DetectorContainer(**detector_dicts[det])
+        detector = detector_container.DetectorContainer(**detector_dicts[det-1])
 
         # Deal with number of amps
         namps = hdu[0].header['NUMAMPS']
