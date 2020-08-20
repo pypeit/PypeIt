@@ -1162,6 +1162,7 @@ def get_orig_rawimage(raw_file, debug=False):
     # Open
     hdul = fits.open(raw_file)
     head0 = hdul[0].header
+    # TODO -- Check date here and error/warn if not after the upgrade
     image = hdul[0].data.astype(float)
 
     # Get post, pre-pix values
