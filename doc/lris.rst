@@ -53,7 +53,9 @@ Pixel Flat
 
 It is recommend to correct for pixel-to-pixel variations using a slitless
 flat.  If you did not take such calibration frames or cannot process them,
-you may wish to use an archival.  Request it from the developers.
+you may wish to use an archival.
+`This link <https://drive.google.com/drive/folders/1YmDgCgXrsRbkuH_Pc_MLShWVdSrMkoFP?usp=sharing>`_
+has the existing ones staged by the PypeIt team.
 
 And then set the following in your :doc:`pypeit_file`::
 
