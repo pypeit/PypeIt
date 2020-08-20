@@ -5,6 +5,7 @@
    wavelength coverage slits results in reidentification with a purely zero-padded array.
  - Fixed another such bug arising from these zero-padded arrays. 
  - (Hotfix) Deal with chk_calibs test
+ - Correct det bug in keck_lris
 
 1.0.6 (22 Jul 2020)
 -------------------

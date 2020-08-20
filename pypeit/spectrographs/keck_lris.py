@@ -346,7 +346,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return
-        return self.get_detector_par(hdu, det if det is None else 1), \
+        return self.get_detector_par(hdu, det if det is not None else 1), \
                 array.T, hdu, exptime, rawdatasec_img.T, oscansec_img.T
 
     def subheader_for_spec(self, row_fitstbl, raw_header):
@@ -423,7 +423,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
-        detector = detector_container.DetectorContainer(**detector_dicts[det])
+        detector = detector_container.DetectorContainer(**detector_dicts[det-1])
 
         # Deal with number of amps
         namps = hdu[0].header['NUMAMPS']
@@ -694,7 +694,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
-        detector = detector_container.DetectorContainer(**detector_dicts[det])
+        detector = detector_container.DetectorContainer(**detector_dicts[det-1])
 
         # Deal with number of amps
         namps = hdu[0].header['NUMAMPS']
