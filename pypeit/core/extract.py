@@ -1338,7 +1338,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma == 0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
         good = fluxconv_cont > 0.0
-        if np.any(good) == True:
+        if np.any(good):
             mean, med_sn2, skythresh = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
             mean, med_sn2, sigma = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
