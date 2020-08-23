@@ -103,6 +103,10 @@ an end-to-end run from calibrations through to
 The :doc:`running` doc describes the process in a bit
 more detail.
 
+There are details below as regards calibrations and
+outputs.  See :doc:`object_finding` and :doc:`extraction`
+for tips/customizing those.
+
 4. Examine Calibrations
 =======================
 

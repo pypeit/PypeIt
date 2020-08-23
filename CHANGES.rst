@@ -29,6 +29,18 @@
  - Modify Spec2DObj 2D model for float32 images
  - `pypeit.tracepca.TracePCA` and `pypeit.edgetrace.EdgeTraceSet` now
    subclass from `pypeit.datamodel.DataContainer`
+ - Refactor WaveCalib into a DataContainer
+ - Refactor fitting + PypeItFit DataContainer
+ - Coadd2D bug fixes
+ - Coadd2D without spec1d files
+ - Coadd2D offsets
+ - Some Coadd2D docs
+ - Manual extraction
+ - Improve LBT/LUCI
+ - Add MMT/MMIRS
+ - QL script for Keck/MOSFIRE
+ - Script to generate combined datacubes for IFU data.
+ - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
 
 1.0.6 (22 Jul 2020)
 -------------------
@@ -72,7 +84,6 @@
  - Add a script (pypeit_flux_setup) for creating fluxing,
    coadd1d and tellfit pypeit files
  - Add telluric fitting script, pypeit_tellfit
-
 
 1.0.3 (04 May 2020)
 -------------------

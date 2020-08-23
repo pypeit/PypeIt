@@ -18,7 +18,8 @@ from pypeit import msgs
 from pypeit import utils
 #from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import wvutils
-from pypeit.core.wavecal import fitting
+from pypeit.core.wavecal import wv_fitting
+from pypeit.core import fitting
 from IPython import embed
 
 
@@ -36,7 +37,7 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
     all_wv: `numpy.ndarray`_
      wavelength of the identified lines
     all_pix: `numpy.ndarray`_
-      y-centroid position of the identified lines
+      Spectral direction centroid position of the identified lines
     all_orders: `numpy.ndarray`_
       order number of the identified lines
     nspec: int
@@ -52,8 +53,8 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     Returns
     -------
-    fit_dict : dict
-        Dictionary with the fitting results
+    pypeitFit : pypeit.fitting.PypeItFit
+        Fitting results
 
     """
 
@@ -84,72 +85,52 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     # Fit the product of wavelength and order number with a 2d legendre polynomial
     all_wv_order = all_wv * all_orders
-    fitmask, coeff2 = utils.robust_polyfit_djs(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),x2=all_orders,
-                                               function=func2d, maxiter=100, lower=sigrej, upper=sigrej,
-                                               minx=min_spec,maxx=max_spec, minx2=min_order, maxx2=max_order,
-                                               use_mad=True, sticky=False)
-    wv_order_mod = utils.func_val(coeff2, all_pix/xnspecmin1, func2d, x2=all_orders,
-                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
-    resid = (wv_order_mod[fitmask]-all_wv_order[fitmask])
-    fin_rms = np.std(resid)
+    pypeitFit = fitting.robust_fit(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff), x2=all_orders,
+                                   function=func2d, maxiter=100, lower=sigrej, upper=sigrej, minx=min_spec,maxx=max_spec,
+                                   minx2=min_order, maxx2=max_order, use_mad=True, sticky=False)
+    wv_order_mod = pypeitFit.eval(all_pix/xnspecmin1, x2=all_orders)
+
+    fin_rms = pypeitFit.calc_fit_rms(x2=all_orders, apply_mask=True)
     msgs.info("RMS: {0:.5f} Ang*Order#".format(fin_rms))
 
-    orders = np.unique(all_orders)
-    fit_dict = dict(coeffs=coeff2, orders=orders,
-                    nspec_coeff=nspec_coeff, norder_coeff=norder_coeff,
-                    min_spec=min_spec, max_spec=max_spec,
-                    min_order=min_order, max_order=max_order,
-                    nspec=nspec, all_pix=all_pix, all_wv=all_wv,
-                    func2d=func2d,xnorm=xnspecmin1,
-                    all_orders=all_orders, all_mask=fitmask)
-
-
     if debug:
-        fit2darc_global_qa(fit_dict)
-        fit2darc_orders_qa(fit_dict)
+        fit2darc_global_qa(pypeitFit, nspec)
+        fit2darc_orders_qa(pypeitFit, nspec)
 
-    return fit_dict
+    return pypeitFit
 
 
 
-def fit2darc_global_qa(fit_dict, outfile=None):
+def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
     """ QA on 2D fit of the wavelength solution.
 
     Parameters
     ----------
-    fit_dict: dict
-      dict of the 2D arc solution
-    outfile:
+    pypeitFit: :class:`pypeit.core.fitting.PypeItFit`:
+      Fit object for the 2D arc solution
+    nspec: int
+    outfile: str
       parameter for QA
 
-    Returns
-    -------
     """
 
     msgs.info("Creating QA for 2D wavelength solution")
 
     utils.pyplot_rcparams()
 
-    # Extract info from fit_dict
-    nspec = fit_dict['nspec']
-    orders = fit_dict['orders']
-    nspec_coeff = fit_dict['nspec_coeff']
-    norder_coeff = fit_dict['norder_coeff']
-    all_wv = fit_dict['all_wv']
-    all_pix = fit_dict['all_pix']
-    all_orders = fit_dict['all_orders']
-    fitmask = fit_dict['all_mask']
-    coeffs = fit_dict['coeffs']
-    func2d = fit_dict['func2d']
-    min_spec = fit_dict['min_spec']
-    max_spec = fit_dict['max_spec']
-    min_order = fit_dict['min_order']
-    max_order = fit_dict['max_order']
-    xnorm = fit_dict['xnorm']
+    # Extract info from pypeitFit
+    xnspecmin1 = float(nspec - 1)
+    all_orders = pypeitFit['x2']
+    orders = np.unique(pypeitFit['x2'])
+    all_wv = pypeitFit['yval']/pypeitFit['x2']
+    all_pix =  pypeitFit['xval']*xnspecmin1
+    gpm = pypeitFit.bool_gpm
+    nspec_coeff = pypeitFit['order'][0]
+    norder_coeff = pypeitFit['order'][1]
     resid_wl_global = []
 
     # Define pixels array
-    spec_vec_norm = np.arange(nspec)/xnorm
+    spec_vec_norm = np.arange(nspec)/xnspecmin1
 
     # Define figure properties
     plt.figure(figsize=(8, 5))
@@ -167,20 +148,17 @@ def fit2darc_global_qa(fit_dict, outfile=None):
         bb = (ii - np.min(orders)) / (np.max(orders) - np.min(orders))
 
         # evaluate solution
-        wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=np.ones_like(spec_vec_norm)*ii,
-                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+        wv_order_mod = pypeitFit.eval(spec_vec_norm, x2=np.ones_like(spec_vec_norm)*ii)
         # Plot solution
-        plt.plot(wv_order_mod / ii, spec_vec_norm*xnorm, color=(rr, gg, bb),
-                 linestyle='-', linewidth=2.5)
+        plt.plot(wv_order_mod / ii, spec_vec_norm*xnspecmin1, color=(rr, gg, bb), linestyle='-', linewidth=2.5)
 
         # Evaluate residuals at each order
         on_order = all_orders == ii
         this_pix = all_pix[on_order]
         this_wv = all_wv[on_order]
-        this_msk = fitmask[on_order]
+        this_msk = gpm[on_order]
         this_order = all_orders[on_order]
-        wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
-                                               minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+        wv_order_mod_resid = pypeitFit.eval(this_pix/xnspecmin1, x2=this_order)
         resid_wl = (wv_order_mod_resid / ii - this_wv)
         resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
         plt.scatter((wv_order_mod_resid[~this_msk] / ii) + \
@@ -194,7 +172,7 @@ def fit2darc_global_qa(fit_dict, outfile=None):
 
     rms_global = np.std(resid_wl_global)
 
-    plt.text(mx, np.max(spec_vec_norm*xnorm), r'residuals $\times$100', \
+    plt.text(mx, np.max(spec_vec_norm*xnspecmin1), r'residuals $\times$100', \
              ha="right", va="top")
     plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
         norder_coeff, nspec_coeff, rms_global))
@@ -212,15 +190,15 @@ def fit2darc_global_qa(fit_dict, outfile=None):
     utils.pyplot_rcparams_default()
 
 
-def fit2darc_orders_qa(fit_dict, outfile=None):
+def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
     """ QA on 2D fit of the wavelength solution of an Echelle spectrograph.
     Each panel contains a single order with the global fit and the
     residuals.
 
     Parameters
     ----------
-    fit_dict: dict
-      dict of the 2D arc solution
+    pypeitFit: :class:`pypeit.core.fitting.PypeItFit`:
+      Fit object for the 2D arc solution
     outfile:
       parameter for QA
 
@@ -232,27 +210,21 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
 
     utils.pyplot_rcparams()
 
-    # Extract info from fit_dict
-    # Extract info from fit_dict
-    nspec = fit_dict['nspec']
-    orders = fit_dict['orders']
-    nspec_coeff = fit_dict['nspec_coeff']
-    norder_coeff = fit_dict['norder_coeff']
-    all_wv = fit_dict['all_wv']
-    all_pix = fit_dict['all_pix']
-    all_orders = fit_dict['all_orders']
-    fitmask = fit_dict['all_mask']
-    coeffs = fit_dict['coeffs']
-    func2d = fit_dict['func2d']
-    min_spec = fit_dict['min_spec']
-    max_spec = fit_dict['max_spec']
-    min_order = fit_dict['min_order']
-    max_order = fit_dict['max_order']
-    xnorm = fit_dict['xnorm']
+    # Extract info from pypeitFit
+
+    # Extract info from pypeitFit
+    xnspecmin1 = float(nspec - 1)
+    all_orders = pypeitFit['x2']
+    orders = np.unique(pypeitFit['x2'])
+    all_wv = pypeitFit['yval']/pypeitFit['x2']
+    all_pix =  pypeitFit['xval']*xnspecmin1
+    gpm = pypeitFit.bool_gpm
+    nspec_coeff = pypeitFit['order'][0]
+    norder_coeff = pypeitFit['order'][1]
     resid_wl_global = []
 
     # Define pixels array
-    spec_vec_norm = np.arange(nspec)/xnorm
+    spec_vec_norm = np.arange(nspec)/xnspecmin1
 
     # set the size of the plot
     nrow = np.int(2)
@@ -281,26 +253,24 @@ def fit2darc_orders_qa(fit_dict, outfile=None):
 
                 # Evaluate function
                 # evaluate solution
-                wv_order_mod = utils.func_val(coeffs, spec_vec_norm, func2d, x2=ii*np.ones_like(spec_vec_norm),
-                                              minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+                wv_order_mod = pypeitFit.eval(spec_vec_norm, x2=ii*np.ones_like(spec_vec_norm))
                 # Evaluate delta lambda
-                dwl = (wv_order_mod[-1] - wv_order_mod[0])/ii/xnorm/(spec_vec_norm[-1] - spec_vec_norm[0])
+                dwl = (wv_order_mod[-1] - wv_order_mod[0])/ii/xnspecmin1/(spec_vec_norm[-1] - spec_vec_norm[0])
 
                 # Estimate the residuals
                 on_order = all_orders == ii
                 this_order = all_orders[on_order]
                 this_pix = all_pix[on_order]
                 this_wv = all_wv[on_order]
-                this_msk = fitmask[on_order]
+                this_msk = gpm[on_order]
 
-                wv_order_mod_resid = utils.func_val(coeffs, this_pix/xnorm, func2d, x2=this_order,
-                                              minx=min_spec, maxx=max_spec, minx2=min_order, maxx2=max_order)
+                wv_order_mod_resid = pypeitFit.eval(this_pix/xnspecmin1, x2=this_order)
                 resid_wl = (wv_order_mod_resid/ii - this_wv)
                 resid_wl_global = np.append(resid_wl_global, resid_wl[this_msk])
 
                 # Plot the fit
                 ax0.set_title('Order = {0:0.0f}'.format(ii))
-                ax0.plot(spec_vec_norm*xnorm, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
+                ax0.plot(spec_vec_norm*xnspecmin1, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
                          linewidth=2.5)
                 ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid[~this_msk] / ii / 10000.) + \
                             100. * resid_wl[~this_msk] / 10000., marker='x', color='black', \
@@ -706,6 +676,7 @@ def _plot(x, mph, mpd, threshold, edge, valley, ax, ind):
     # plt.grid()
     plt.show()
 
+
 def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_cont = 3, cont_samp = 30, cont_frac_fwhm=1.0,
                    cont_mask_neg=False, qa_title='', npoly=None, debug_peak_find=False, debug=False):
     """
@@ -786,9 +757,11 @@ def iter_continuum(spec, inmask=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, nit
         cont_med = utils.fast_running_median(spec[cont_mask], samp_width)
         if npoly is not None:
             # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-            msk, poly = utils.robust_polyfit_djs(spec_vec[cont_mask], cont_med, npoly, function='polynomial', maxiter=25,
-                                                 upper=3.0, lower=3.0, minx=0.0, maxx=float(nspec-1))
-            cont_now = utils.func_val(poly, spec_vec, 'polynomial')
+            pypeitFit = fitting.robust_fit(spec_vec[cont_mask].astype(float), cont_med,
+                                           npoly, function='polynomial', maxiter=25,
+                                           upper=3.0, lower=3.0, minx=0.0,
+                                           maxx=float(nspec-1))
+            cont_now = pypeitFit.eval(spec_vec.astype(float))
         else:
             cont_now = np.interp(spec_vec,spec_vec[cont_mask],cont_med)
 
@@ -1095,11 +1068,12 @@ def fit_arcspec(xarray, yarray, pixt, fitp):
 #            continue  # Probably won't be a good solution
         # Fit the gaussian
         try:
-            popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3, return_errors=True)
-            ampl[p] = popt[0]
-            cent[p] = popt[1]
-            widt[p] = popt[2]
-            centerr[p] = pcov[1, 1]
+            #pypeitFit = fitting.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 3)#, return_errors=True)
+            fitc, fitcov = fitting.fit_gauss(xarray[pmin:pmax], yarray[pmin:pmax])
+            ampl[p], cent[p], widt[p] = fitc
+            #ampl[p], cent[p], widt[p] = pypeitFit.fitc
+            centerr[p] = fitcov[1, 1]
+            #centerr[p] = pypeitFit.fitcov[1, 1]
             #popt, pcov = utils.func_fit(xarray[pmin:pmax], yarray[pmin:pmax], "gaussian", 4, return_errors=True)
             #b[p]    = popt[0]
             #ampl[p] = popt[1]
@@ -1195,7 +1169,7 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
 
     # Debug
     disp = (ids[-1]-ids[0])/(tcent[idx_str[-1]]-tcent[idx_str[0]])
-    final_fit = fitting.iterative_fitting(censpec, tcent, idx_str, ids,
+    final_fit = wv_fitting.iterative_fitting(censpec, tcent, idx_str, ids,
                                           llist, disp, verbose=False, n_final=n_final)
     # Return
     return final_fit
@@ -1203,47 +1177,47 @@ def simple_calib(llist, censpec, n_final=5, get_poly=False,
 
 
 # JFH I think this is all deprecated code as it is in wavecalib.py now
-def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
-    """Holy grail algorithms for wavelength calibration
-
-    Uses arcparam to guide the analysis
-
-    Parameters
-    ----------
-    aparm
-    spec
-    use_method : str, optional
-
-    Returns
-    -------
-    final_fit : dict
-      Dict of fit info
-    """
-    raise DeprecationWarning("THIS HAS BEEN MOVED INSIDE wavecalib.py")
-    assert False
-
-    if ok_mask is None:
-        ok_mask = np.arange(spec.shape[1])
-
-    if use_method == "semi-brute":
-        final_fit = {}
-        for slit in ok_mask:
-            best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
-                                                      fit_parm=aparm, min_nsig=aparm['min_nsig'], nonlinear_counts= aparm['nonlinear_counts'])
-            final_fit[str(slit)] = ifinal_fit.copy()
-    elif use_method == "basic":
-        final_fit = {}
-        for slit in ok_mask:
-            status, ngd_match, match_idx, scores, ifinal_fit =\
-                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'], nonlinear_counts = aparm['nonlinear_counts'])
-            final_fit[str(slit)] = ifinal_fit.copy()
-    else:
-        # Now preferred
-        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
-                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'],
-                                   rms_threshold=aparm['rms_threshold'])
-        patt_dict, final_fit = arcfitter.get_results()
-    return final_fit
+#def calib_with_arclines(aparm, spec, ok_mask=None, use_method="general"):
+#    """Holy grail algorithms for wavelength calibration
+#
+#    Uses arcparam to guide the analysis
+#
+#    Parameters
+#    ----------
+#    aparm
+#    spec
+#    use_method : str, optional
+#
+#    Returns
+#    -------
+#    final_fit : dict
+#      Dict of fit info
+#    """
+#    raise DeprecationWarning("THIS HAS BEEN MOVED INSIDE wavecalib.py")
+#    assert False
+#
+#    if ok_mask is None:
+#        ok_mask = np.arange(spec.shape[1])
+#
+#    if use_method == "semi-brute":
+#        final_fit = {}
+#        for slit in ok_mask:
+#            best_dict, ifinal_fit = autoid.semi_brute(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'],
+#                                                      fit_parm=aparm, min_nsig=aparm['min_nsig'], nonlinear_counts= aparm['nonlinear_counts'])
+#            final_fit[str(slit)] = ifinal_fit.copy()
+#    elif use_method == "basic":
+#        final_fit = {}
+#        for slit in ok_mask:
+#            status, ngd_match, match_idx, scores, ifinal_fit =\
+#                autoid.basic(spec[:, slit], aparm['lamps'], aparm['wv_cen'], aparm['disp'], nonlinear_counts = aparm['nonlinear_counts'])
+#            final_fit[str(slit)] = ifinal_fit.copy()
+#    else:
+#        # Now preferred
+#        arcfitter = autoid.General(spec, aparm['lamps'], ok_mask=ok_mask, fit_parm=aparm, min_nsig=aparm['min_nsig'],
+#                                   lowest_nsig=aparm['lowest_nsig'], nonlinear_counts = aparm['nonlinear_counts'],
+#                                   rms_threshold=aparm['rms_threshold'])
+#        patt_dict, final_fit = arcfitter.get_results()
+#    return final_fit
 
 
 def order_saturation(satmask, ordcen, ordwid):

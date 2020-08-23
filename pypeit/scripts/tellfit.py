@@ -55,7 +55,7 @@ def read_tellfile(ifile):
 def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse', formatter_class=SmartFormatter)
     parser.add_argument("spec1dfile", type=str,
-                        help="spec1d file for the standard that will be used to compute sensitivity function")
+                        help="spec1d file that will be used for telluric correction.")
     parser.add_argument("--objmodel", type=str, default=None, choices=['qso', 'star', 'poly'],
                         help="R|science object model used in the fitting.\n"
                         "The options are:\n"
@@ -134,11 +134,13 @@ def main(args):
 
     if args.tell_grid is not None:
         par['tellfit']['tell_grid'] = args.tell_grid
-    elif par['sensfunc']['IR']['telgridfile'] is not None:
-        par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
-    else:
-        msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
-        par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
+
+    if par['tellfit']['tell_grid'] is None:
+        if par['sensfunc']['IR']['telgridfile'] is not None:
+            par['tellfit']['tell_grid'] = par['sensfunc']['IR']['telgridfile']
+        else:
+            msgs.warn('No telluric grid file given. Using {:}'.format('TelFit_MaunaKea_3100_26100_R20000.fits'))
+            par['tellfit']['tell_grid'] = resource_filename('pypeit', '/data/telluric/TelFit_MaunaKea_3100_26100_R20000.fits')
 
     # Write the par to disk
     print("Writing the parameters to {}".format(args.par_outfile))

@@ -664,7 +664,7 @@ class bspline(datamodel.DataContainer):
 
         return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
-
+# TODO: I don't think we need to make this reproducible with the IDL version anymore, and can opt for speed instead.
 # TODO: Move this somewhere for more common access?
 # Faster than previous version but not as fast as if we could switch to
 # np.unique.
@@ -712,7 +712,7 @@ def uniq(x, index=None):
     Examples
     --------
     >>> import numpy as np
-    >>> from pydl import uniq
+    >>> from pypeit.core.pydl import uniq
     >>> data = np.array([ 1, 2, 3, 1, 5, 6, 1, 7, 3, 2, 5, 9, 11, 1 ])
     >>> print(uniq(np.sort(data)))
     [ 3  5  7  9 10 11 12 13]
@@ -723,4 +723,5 @@ def uniq(x, index=None):
         return np.flatnonzero(np.concatenate(([True], x[1:] != x[:-1], [True])))[1:]-1
     _x = x[index]
     return np.flatnonzero(np.concatenate(([True], _x[1:] != _x[:-1], [True])))[1:]-1
+
 
