@@ -658,7 +658,7 @@ class DataContainer:
         self._validate()
 
     @classmethod
-    def full_datamodel(cls, include_parent=True):
+    def full_datamodel(cls, include_parent=True, include_children=True):
         """
         Expand out the datamodel into a single dict
         This needs to be a class method to access the datamodel without instantiation
@@ -666,6 +666,9 @@ class DataContainer:
         Args:
             include_parent (bool, optional):
                 If True, include the parent entry in additional to its pieces
+            include_children (bool, optional):
+                If True, expand any items that are DataModel's
+
 
         Returns:
             dict: All the keys, items of the nested datamodel's
@@ -678,13 +681,17 @@ class DataContainer:
             if obj_is_data_container(cls.datamodel[key]['otype']):
                 if include_parent:
                     full_datamodel[key] = cls.datamodel[key]
-                # Now run through the others
-                sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
-                for key in sub_datamodel.keys():
-                    # Check  this is not a duplicate
-                    assert key not in full_datamodel.keys()
-                    # Assign
-                    full_datamodel[key] = sub_datamodel[key]
+                if include_children:
+                    # Now run through the others
+                    sub_datamodel = cls.datamodel[key]['otype'].full_datamodel()
+                    for key in sub_datamodel.keys():
+                        # Check  this is not a duplicate
+                        if key in full_datamodel.keys():
+                            msgs.error("Duplicate key in DataModel.  Deal with it..")
+                        # Assign
+                        full_datamodel[key] = sub_datamodel[key]
+                else:
+                    full_datamodel[key] = cls.datamodel[key]
             else:
                 full_datamodel[key] = cls.datamodel[key]
         #
@@ -809,7 +816,7 @@ class DataContainer:
     @classmethod
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, hdu_prefix=None):
         """
-        Parse data read from a set of HDUs.
+        Parse data read from one or more HDUs.
 
         This method is the counter-part to :func:`_bundle`, and
         parses data from the HDUs into a dictionary that can be used
@@ -830,7 +837,7 @@ class DataContainer:
 
             - Because the `astropy.table.Table`_ methods are used
               directly, any metadata associated with the Table will
-              also be included in the HDUs construced by
+              also be included in the HDUs constructed by
               :func:`to_hdu`. However, the
               `astropy.table.Table.read`_ method always returns the
               metadata with capitalized keys. This means that,
@@ -862,8 +869,10 @@ class DataContainer:
                 tables. This is meant to invert the use of
                 ``transpose_arrays`` in :func:`_bound`.
             hdu_prefix (:obj:`str`, optional):
-                Decorate the HDUs with this prefix
-                Note, this over-rides any internally set hdu_prefix value
+                Only parse HDUs with extension names matched to this
+                prefix. If None, :attr:`hdu_prefix` is used. If the
+                latter is also None, all HDUs are parsed. See
+                :func:`pypeit.io.hdu_iter_by_ext`.
 
         Returns:
             :obj:`tuple`: Return three objects
@@ -881,7 +890,7 @@ class DataContainer:
         dm_type_passed = True
 
         # Setup to iterate through the provided HDUs
-        _ext, _hdu = io.hdu_iter_by_ext(hdu, ext=ext)
+        _ext, _hdu = io.hdu_iter_by_ext(hdu, ext=ext, hdu_prefix=hdu_prefix)
         _ext = np.atleast_1d(np.array(_ext, dtype=object))
         str_ext = np.logical_not([isinstance(e, (int, np.integer)) for e in _ext])
 
@@ -909,6 +918,9 @@ class DataContainer:
         else:
             prefix = '' if cls.hdu_prefix is None else cls.hdu_prefix
 
+        # Save the list of hdus that have been parsed
+        parsed_hdus = []
+
         # HDUs can have dictionary elements directly.
         keys = np.array(list(_d.keys()))
         prefkeys = np.array([prefix+key.upper() for key in keys])
@@ -917,17 +929,18 @@ class DataContainer:
             found_data = True
             for e in keys[indx]:
                 hduindx = prefix+e.upper()
-                # Check version (and type)?
-                #  Are we a DataContainer?
+                # Add it to the list of parsed HDUs
+                parsed_hdus += [hduindx]
                 if obj_is_data_container(cls.datamodel[e]['otype']):
-                    # Parse it!
+                    # Parse the DataContainer
                     # TODO: This only works with single extension
                     # DataContainers. Do we want this to be from_hdu
                     # instead and add chk_version to _parse?
-                    _d[e], p1, p2 = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
+                    _d[e], p1, p2, _ = cls.datamodel[e]['otype']._parse(_hdu[hduindx])
                     dm_version_passed &= p1
                     dm_type_passed &= p2
                 else:
+                    # Parse the Image or Table data
                     dm_type_passed &= hdu[hduindx].header['DMODCLS'] == cls.__name__
                     dm_version_passed &= hdu[hduindx].header['DMODVER'] == cls.version
                     # Grab it
@@ -943,6 +956,7 @@ class DataContainer:
             indx = np.isin([key.upper() for key in keys], list(_hdu[e].header.keys()))
             if np.any(indx):
                 found_data = True
+                parsed_hdus += [e if _hdu[e].name == '' else _hdu[e].name]
                 dm_type_passed &= _hdu[e].header['DMODCLS'] == cls.__name__
                 dm_version_passed &= _hdu[e].header['DMODVER'] == cls.version
                 for key in keys[indx]:
@@ -956,6 +970,7 @@ class DataContainer:
             # Parse BinTableHDUs
             if isinstance(_hdu[e], fits.BinTableHDU) \
                     and np.any(np.isin(list(cls.datamodel.keys()), _hdu[e].columns.names)):
+                parsed_hdus += [e if _hdu[e].name is None else _hdu[e].name]
                 found_data = True
                 # Datamodel checking
                 dm_type_passed &= _hdu[e].header['DMODCLS'] == cls.__name__
@@ -983,7 +998,9 @@ class DataContainer:
                 _d[key] = _d[key].astype(_d[key].dtype.type)
 
         # Return
-        return _d, dm_version_passed and found_data, dm_type_passed and found_data
+        return _d, dm_version_passed and found_data, dm_type_passed and found_data, \
+                    np.unique(parsed_hdus).tolist()
+
 
     def __getattr__(self, item):
         """Maps values to attributes.
@@ -1113,7 +1130,7 @@ class DataContainer:
     # TODO: Always have this return an HDUList instead of either that
     # or a normal list?
     def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=False):
+               limit_hdus=None, force_to_bintbl=False, hdu_prefix=None):
         """
         Construct one or more HDU extensions with the data.
 
@@ -1148,11 +1165,15 @@ class DataContainer:
                 are identical.
             primary_hdr (`astropy.io.fits.Header`, optional):
                 Header to add to the primary if add_primary=True
-            limit_hdus (list, optional):
+            limit_hdus (:obj:`list`, optional):
                 Limit the HDUs that can be written to the items in this list
-            force_to_bintbl (bool, optional):
+            force_to_bintbl (:obj:`bool`, optional):
                 Force any dict into a BinTableHDU (e.g. for
                 :class:`pypeit.specobj.SpecObj`)
+            hdu_prefix (:obj:`str`, optional):
+                Prefix for the HDU names. If None, will use
+                :attr:`hdu_prefix`. If the latter is also None, no
+                prefix is added.
 
         Returns:
             :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
@@ -1207,9 +1228,11 @@ class DataContainer:
             else:
                 hdu += [io.write_to_hdu(d, hdr=_hdr, force_to_bintbl=force_to_bintbl)]
         # Prefixes
-        if self.hdu_prefix is not None:
+        _hdu_prefix = (None if self.hdu_prefix is None else self.hdu_prefix) \
+                        if hdu_prefix is None else hdu_prefix
+        if _hdu_prefix is not None:
             for ihdu in hdu:
-                ihdu.name = self.hdu_prefix+ihdu.name
+                ihdu.name = _hdu_prefix+ihdu.name
         # Limit?
         if limit_hdus:
             hdu = [h for h in hdu if h.name in limit_hdus]
@@ -1240,7 +1263,7 @@ class DataContainer:
         # result. The call to `DataContainer.__init__` is explicit to
         # deal with objects inheriting from both DataContainer and
         # other base classes, like MasterFrame.
-        d, dm_version_passed, dm_type_passed = cls._parse(hdu, hdu_prefix=hdu_prefix)
+        d, dm_version_passed, dm_type_passed, parsed_hdus = cls._parse(hdu, hdu_prefix=hdu_prefix)
         # Check version and type?
         if not dm_type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
@@ -1403,7 +1426,7 @@ class DataContainer:
                 rdict[attr] = True
             else:
                 rdict[attr] = False
-        repr += ' images={}'.format(rdict)
+        repr += ' items={}'.format(rdict)
         repr = repr + '>'
         return repr
 
