@@ -743,20 +743,25 @@ def reidentify(spec, spec_arxiv_in, wave_soln_arxiv_in, line_list, nreid_min, de
         corr_local[denom == 0.0] = -1.0
 
         # Loop over the current slit line pixel detections and find the nearest arxiv spectrum line
-        for iline in range(detections.size):
-            # match to pixel in shifted/stretch arxiv spectrum
-            pdiff = np.abs(detections[iline] - det_arxiv_ss)
-            bstpx = np.argmin(pdiff)
-            # If a match is found within 2 pixels, consider this a successful match
-            if pdiff[bstpx] < match_toler:
-                # Using the arxiv arc wavelength solution, search for the nearest line in the line list
-                bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
-                # This is a good wavelength match if it is within match_toler disperion elements
-                if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
-                    line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
-                    det_indx = np.append(det_indx, iline)             # index of this line in the detected line array detections
-                    line_cc = np.append(line_cc,np.interp(detections[iline],xrng,corr_local)) # local cross-correlation at this match
-                    line_iarxiv = np.append(line_iarxiv,iarxiv)
+        # JFH added this if statement to prevent crashes for cases where no arc lines where found. This is because
+        # full_template keeps passing in tiny snippets of mostly junk padded spectra that cause all kind of crashes.
+        # A better approach would be to fix full_template so as to not enter reidentify unless the "arxiv_arcs"
+        # are not almost entirely zero padded snippets.
+        if det_arxiv_ss.size > 0:
+            for iline in range(detections.size):
+                # match to pixel in shifted/stretch arxiv spectrum
+                pdiff = np.abs(detections[iline] - det_arxiv_ss)
+                bstpx = np.argmin(pdiff)
+                # If a match is found within 2 pixels, consider this a successful match
+                if pdiff[bstpx] < match_toler:
+                    # Using the arxiv arc wavelength solution, search for the nearest line in the line list
+                    bstwv = np.abs(wvdata - wvval_arxiv[bstpx])
+                    # This is a good wavelength match if it is within match_toler disperion elements
+                    if bstwv[np.argmin(bstwv)] < match_toler*disp_arxiv[iarxiv]:
+                        line_indx = np.append(line_indx, np.argmin(bstwv))  # index in the line list array wvdata of this match
+                        det_indx = np.append(det_indx, iline)             # index of this line in the detected line array detections
+                        line_cc = np.append(line_cc,np.interp(detections[iline],xrng,corr_local)) # local cross-correlation at this match
+                        line_iarxiv = np.append(line_iarxiv,iarxiv)
 
     narxiv_used = np.sum(wcen != 0.0)
     # Initialise the patterns dictionary, sigdetect not used anywhere
@@ -929,8 +934,11 @@ def full_template(spec, par, ok_mask, det, binspectral, nsnippet=2, debug_xcorr=
             tsnippet = ispec[j0:j1]
             msnippet = mspec[j0:j1]
             mwvsnippet = mwv[j0:j1]
-            # JFH This continue statement deals with the case when the msnippet derives from *entirely* zero-padded
-            # pixels, and allows the code to continue with crashing.
+            # TODO: JFH This continue statement deals with the case when the msnippet derives from *entirely* zero-padded
+            # pixels, and allows the code to continue with crashing. This code is constantly causing reidentify to crash
+            # by passing in these junk snippets that are almost entirely zero-padded for large shifts. We should
+            # be checking for this intelligently rather than constantly calling reidentify with basically junk arxiv
+            # spectral snippets.
             if not np.any(msnippet):
                 continue
             # Run reidentify

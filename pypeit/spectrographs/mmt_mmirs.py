@@ -105,7 +105,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         return detector_container.DetectorContainer(**detector_dict)
 
     @staticmethod
-    def default_pypeit_par(self):
+    def default_pypeit_par():
         """
         Set default parameters for the reductions.
         """
