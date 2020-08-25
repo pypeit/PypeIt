@@ -906,7 +906,9 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     xrng = np.arange(detns.size, dtype=np.float)
 
     if cont_subtract:
-        cont_now, cont_mask = iter_continuum(detns, inmask=None if bpm is None else np.invert(bpm),
+        # FW: for trimmed orders (i.e. set spec_max or spec_min in spectrograph file), you will have lot zeros.
+        # so I mask those zeros if bpm is not given.
+        cont_now, cont_mask = iter_continuum(detns, inmask= (detns!=0) if bpm is None else np.invert(bpm),
                                              fwhm=fwhm, niter_cont=niter_cont, cont_samp=cont_samp,
                                              cont_frac_fwhm=cont_frac_fwhm)
     else:
