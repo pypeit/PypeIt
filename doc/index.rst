@@ -85,7 +85,7 @@ What this version provides
   * Flatfielding with illumination pattern correction
   * :doc:`flexure` (spatial and spectral)
   * Full 2D wavelength solution (no rectification)
-  * A-B image differencing
+  * :doc:`A-B_differencing`
   * Global and local sky subtraction
   * Optimal (and boxcar) extractions
 
