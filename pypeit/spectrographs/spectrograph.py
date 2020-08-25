@@ -585,9 +585,8 @@ class Spectrograph:
             lampkey = 'lampstat{:02d}'.format(kk)
             if lampkey not in self.meta.keys():
                 break
-            ext = self.meta[lampkey]['ext']
-            card = self.meta[lampkey]['card']
-            lampstat += [str(headarr[ext][card])]
+            # Pull value from header
+            lampstat += self.get_meta_value(headarr, lampkey)
             kk += 1
         return "_".join(lampstat)
 
