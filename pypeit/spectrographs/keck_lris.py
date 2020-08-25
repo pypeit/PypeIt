@@ -53,8 +53,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]    # This may be too low for LRISb
-        par['calibrations']['traceframe']['exprng'] = [None, 30]
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
+        par['calibrations']['traceframe']['exprng'] = [None, 60]
+        par['calibrations']['standardframe']['exprng'] = [None, 30]
 
         # Flexure
         # Always correct for spectral flexure, starting with default parameters
@@ -65,7 +66,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['spat_flexure_correct'] = True
         par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
-        par['scienceframe']['exprng'] = [29, None]
+        par['scienceframe']['exprng'] = [60, None]
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -141,16 +142,28 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
             binning = parse.binning2string(binspec, binspatial)
             return binning
         elif 'lampstat' in meta_key:
+            idx = int(meta_key[-2:])
             curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
             # Modern
             t_newlamp = time.Time("2010-06-01", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
                 lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
                               'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-                idx = int(meta_key[-2:])
                 return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
-            else:
-                embed(header='153 of keck_lris')
+            else:  # Original lamps
+                plamps = headarr[0]['LAMPS'].split(',')
+                # https: // www2.keck.hawaii.edu / inst / lris / instrument_key_list.html
+                old_lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN']
+                if idx <= 5: # Arcs
+                    return ('off' if plamps[idx - 1] == '0' else 'on')
+                elif idx == 10:  # Current FLAMP1
+                    return headarr[0]['FLIMAGIN'].strip()
+                elif idx == 11:  # Current FLAMP2
+                    return headarr[0]['FLSPECTR'].strip()
+                elif idx == 12:  # Current Halogen slot
+                    return ('off' if plamps[len(old_lamp_names)-1] == '0' else 'on')
+                else:  # Lamp didn't exist.  Set to None
+                    return 'None'
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -177,9 +190,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+        if ftype == 'standard':
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
         if ftype in ['pinhole', 'dark']:
