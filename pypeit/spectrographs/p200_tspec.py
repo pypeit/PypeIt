@@ -102,12 +102,12 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Reidentification parameters
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
-        #par['calibrations']['wavelengths']['ech_fix_format'] = True
+        par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_triplespec.fits'
+        par['calibrations']['wavelengths']['ech_fix_format'] = True
         # Echelle parameters
         par['calibrations']['wavelengths']['echelle'] = True
         par['calibrations']['wavelengths']['ech_nspec_coeff'] = 4
@@ -143,7 +143,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 60]
         par['calibrations']['arcframe']['exprng'] = [100, None]
         par['calibrations']['tiltframe']['exprng'] = [100, None]
-        par['calibrations']['darkframe']['exprng'] = [60, None]
+        par['calibrations']['darkframe']['exprng'] = [0, None]
         par['scienceframe']['exprng'] = [60, None]
 
         # Sensitivity function parameters
@@ -181,15 +181,13 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
 
-        if ftype in 'pinhole':
+        if ftype in ['pinhole','bias']:
             # No pinhole frames
             return np.zeros(len(fitstbl), dtype=bool)
-        if ftype == 'bias':
+        if ftype == 'dark':
             return good_exp & (fitstbl['target'] == 'lamp_off')
         if ftype == 'standard':
             return good_exp & ((fitstbl['idname'] == 'object') | (fitstbl['idname'] == 'Object'))
-        if ftype == 'dark':
-            return good_exp & (fitstbl['idname'] == 'dark')
         if ftype in ['pixelflat', 'trace']:
             return good_exp & (fitstbl['target'] == 'lamp_on')
         if ftype in 'science':
