@@ -15,7 +15,7 @@ from pkg_resources import resource_filename
 
 class P200TSPECSpectrograph(spectrograph.Spectrograph):
     """
-    Child to handle Keck/NIRES specific code
+    Child to handle P200/TripleSpec specific code
     """
     ndet = 1
 
@@ -23,7 +23,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         # Get it started
         super(P200TSPECSpectrograph, self).__init__()
         self.spectrograph = 'p200_tspec'
-        self.telescope = telescopes.KeckTelescopePar()
+        self.telescope = telescopes.P200TelescopePar()
         self.camera = 'TSPEC'
         self.numhead = 1
 
@@ -243,8 +243,6 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
     def order_platescale(self, order_vec, binning=None):
         """
-        NIRES has no binning
-
         Args:
             order_vec (np.ndarray):
             binning (optional):
@@ -254,7 +252,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
         """
         norders = order_vec.size
-        return np.full(norders, 0.15)
+        return np.full(norders, 0.37)
 
     @property
     def dloglam(self):
