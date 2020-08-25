@@ -4,8 +4,6 @@ import glob
 import os
 import numpy as np
 
-import datetime
-
 from astropy.io import fits
 from astropy import time
 
@@ -131,20 +129,28 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Red only, but grabbing here
         meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
 
-        # Lamps
-        lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
-                      'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-        for kk,lamp_name in enumerate(lamp_names):
-            meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        # Lamps -- Have varied in time..
+        for kk in range(12): # This needs to match the length of LAMPS below
+            meta['lampstat{:02d}'.format(kk+1)] = dict(card=None, compound=True)
         # Ingest
         self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'binning':
-#            return '1,1'
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif 'lampstat' in meta_key:
+            curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+            # Modern
+            t_newlamp = time.Time("2010-06-01", format='isot')  # LAMPS changed in Header
+            if curr_date > t_newlamp:
+                lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
+                              'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
+                idx = int(meta_key[-2:])
+                return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
+            else:
+                embed(header='153 of keck_lris')
         else:
             msgs.error("Not ready for this compound meta")
 
