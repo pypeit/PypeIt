@@ -97,12 +97,14 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'p200_tspec'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.3
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
-        par['calibrations']['wavelengths']['method'] = 'reidentify'
+        #par['calibrations']['wavelengths']['method'] = 'reidentify'
+        par['calibrations']['wavelengths']['method'] = 'holy-grail'
+
         # Reidentification parameters
         #par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_nires.fits'
         #par['calibrations']['wavelengths']['ech_fix_format'] = True
@@ -112,8 +114,8 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['ech_norder_coeff'] = 6
         par['calibrations']['wavelengths']['ech_sigrej'] = 3.0
 
-        par['calibrations']['slitedges']['trace_thresh'] = 10.
-        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.4
+        par['calibrations']['slitedges']['trace_thresh'] = 5.
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.3
         par['calibrations']['slitedges']['left_right_pca'] = True
         par['calibrations']['slitedges']['fwhm_gaussian'] = 4.0
 
@@ -232,7 +234,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
     @property
     def order_spat_pos(self):
-        ord_spat_pos = np.array([0.22773035, 0.40613574, 0.56009658, 0.70260714, 0.86335914])
+        ord_spat_pos = np.array([0.3096, 0.4863, 0.6406, 0.7813, 0.9424])
         return ord_spat_pos
 
     @property
