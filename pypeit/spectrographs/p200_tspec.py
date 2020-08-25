@@ -80,7 +80,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
             gain            = np.atleast_1d(3.8),
             ronoise         = np.atleast_1d(3.5),
             datasec         = np.atleast_1d('[:,:]'),
-            oscansec        = np.atleast_1d('[:,:]')  # Is this a hack??
+            oscansec        = np.atleast_1d('[:,:]')
             )
         detector = detector_container.DetectorContainer(**detector_dict)
         return detector
@@ -91,7 +91,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
 
     def default_pypeit_par(self):
         """
-        Set default parameters for Shane Kast Blue reductions.
+        Set default parameters for P200 TripleSpec reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'p200_tspec'
@@ -103,7 +103,6 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['wavelengths']['n_final']= [3,4,4,4,4]
         par['calibrations']['wavelengths']['lamps'] = ['OH_NIRES']
         par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['method'] = 'holy-grail'
 
         # Reidentification parameters
         par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_triplespec.fits'
@@ -219,10 +218,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         """
         msgs.info("Custom bad pixel mask for TSPEC")
         bpm_img = self.empty_bpm(filename, det, shape=shape)
-
-        # Fill in bad pixels if a master bias frame is provided
-        if msbias is not None:
-            return self.bpm_frombias(msbias, det, bpm_img)
+        # ToDo: Build a custom bad pixel mask.
 
         return bpm_img
 
