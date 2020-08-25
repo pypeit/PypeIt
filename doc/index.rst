@@ -118,9 +118,10 @@ What this version is missing (i.e. what we are working on)
 
   * A-B image difference processing
 * Slitmask metadata slurping (e.g. Keck/DEIMOS)
+* Full 2D coadd support
 * Keck/HIRES, Keck/ESI support
 * Additional QA outputs
-* A dashboard
+* A dashboard to monitor/control PypeIt
 
 
 Users
