@@ -68,15 +68,16 @@ What this version provides
   * Keck/LRIS
   * Keck/MOSFIRE (Y, J, K gratings tested)
   * Keck/NIRES
-  * Keck/NIRSPEC (low-dispersion)
+  * Keck/NIRSPEC (low-dispersion; old detector)
   * LBT/Luci-I
-  * Luci-II
+  * LBT/Luci-II
   * LBT/MODS
   * MDM/OSMOS
   * MMT/MMIRS
   * MMT/binospec
   * NOT/ALFOSC
   * P200/DBSP
+  * P200/TripleSpec
   * VLT/X-Shooter (VIS, NIR)
   * VLT/FORS2 (300I, 300V)
 
