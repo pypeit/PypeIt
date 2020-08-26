@@ -144,8 +144,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         elif 'lampstat' in meta_key:
             idx = int(meta_key[-2:])
             curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
-            # Modern
-            t_newlamp = time.Time("2010-06-01", format='isot')  # LAMPS changed in Header
+            # Modern -- This is estimated.  True date is not known so this many need to be modified
+            t_newlamp = time.Time("2010-03-16", format='isot')  # LAMPS changed in Header
             if curr_date > t_newlamp:
                 lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
                               'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
@@ -489,6 +489,10 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['match_toler'] = 2.5
         par['calibrations']['wavelengths']['method'] = 'full_template'
 
+        # Allow for longer exposure times on blue side (especially if using the Dome lamps)
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
+        par['calibrations']['traceframe']['exprng'] = [None, 300]
+
 
         return par
 
@@ -735,16 +739,18 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
 
         if date < t2020_1:
             pass
-        elif date > t2020_2:  # This is the 2020 July 29 run
-            detector_dict1['gain'] = np.atleast_1d([1.45])
-            detector_dict2['gain'] = np.atleast_1d([1.25])
-            detector_dict1['ronoise'] = np.atleast_1d([4.47])
-            detector_dict2['ronoise'] = np.atleast_1d([4.75])
-        else:  # This is for the June 30 2020 run
+        elif date < t2020_2: # This is for the June 30 2020 run
+            msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
             detector_dict1['gain'] = np.atleast_1d([37.6])
             detector_dict2['gain'] = np.atleast_1d([1.26])
             detector_dict1['ronoise'] = np.atleast_1d([99.])
             detector_dict2['ronoise'] = np.atleast_1d([5.2])
+        else: # This is the 2020 July 29 run
+            msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
+            detector_dict1['gain'] = np.atleast_1d([1.45])
+            detector_dict2['gain'] = np.atleast_1d([1.25])
+            detector_dict1['ronoise'] = np.atleast_1d([4.47])
+            detector_dict2['ronoise'] = np.atleast_1d([4.75])
 
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
