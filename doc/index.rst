@@ -83,12 +83,12 @@ What this version provides
 
 * Default reduction algorithms
 
-  * Flatfielding with illumination pattern correction
+  * :doc:`flat_fielding` with illumination pattern correction
+  * Full 2D :doc:`wave_calib` (no rectification)
   * :doc:`flexure` (spatial and spectral)
-  * Full 2D wavelength solution (no rectification)
-  * :doc:`A-B_differencing`
   * Global and local sky subtraction
-  * Optimal (and boxcar) extractions
+  * Optimal (and boxcar) :doc:`extraction`
+  * :doc:`A-B_differencing`
 
 * Documentation
 
@@ -115,9 +115,6 @@ What this version provides
 What this version is missing (i.e. what we are working on)
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-* Documentation
-
-  * A-B image difference processing
 * Slitmask metadata slurping (e.g. Keck/DEIMOS)
 * Full 2D coadd support
 * Keck/HIRES, Keck/ESI support
