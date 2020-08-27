@@ -3,21 +3,19 @@ channels:
   - conda-forge
 dependencies:
   - python>=3.7
-  - yaml
-  - pyyaml
-  - requests
-  - packaging
-  - numpy
-  - scipy
-  - scikit-learn
-  - astropy
-  - pyqt
-  - h5py
-  - setuptools
-  - numba
-  - matplotlib
-  - hdf5
-  - ginga
-  - configobj
-  - ipython
-  - extension-helpers
+  - pyyaml>=5.1
+  - requests>=2.23
+  - packaging>=19.0
+  - numpy>=1.18
+  - scipy>=1.4
+  - scikit-learn>=0.20
+  - astropy>=4.0
+  - pyqt5>=5.14
+  - setuptools>=46.4
+  - numba>=0.39
+  - matplotlib>=3.1
+  - configobj>=5.0.6
+  - ipython>=7.2
+  - extension-helpers>=0.1
+  - ginga>=3.0
+  - linetools>=0.2

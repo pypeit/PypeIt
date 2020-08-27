@@ -2,7 +2,7 @@
 Installation
 ============
 
-This document describes how to install PypeIt for both users and developers.
+This document describes how to install ``PypeIt`` for both users and developers.
 
 Installing Dependencies
 =======================
@@ -115,14 +115,14 @@ First, clone the repository::
 
     git clone https://github.com/pypeit/PypeIt.git
 
-This will create a ``PypeIt/`` directory in your current path. Then,
+This will create a ``PypeIt`` directory in your current path. Then,
 install with::
 
     cd PypeIt
     python setup.py develop
 
 (Installing this way ensures that virtually all changes to files in
-the ``PypeIt/`` directory take immediate effect the next time you
+the ``PypeIt`` directory take immediate effect the next time you
 import the code.)
 
 Again, do a test run as above to check you have all the requirements.
@@ -209,6 +209,6 @@ Developers
 
 For developers, see :doc:`development`.
 
-Also, a test suite for development purposes is available at
-`PypeIt Development https://github.com/pypeit/PypeIt-development-suite`_.
+Also, test scripts for development purposes are available at the
+`PypeIt Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.
 
