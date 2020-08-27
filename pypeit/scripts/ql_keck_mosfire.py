@@ -6,15 +6,13 @@
 """
 This script runs PypeIt on a pair of NIRES images (A-B)
 """
-import argparse
 
-from pypeit import msgs
 import os
-import sys
+import argparse
 import numpy as np
 import copy
+
 from astropy.io import fits
-from IPython import embed
 
 from pypeit import pypeit
 from pypeit import par, msgs
@@ -23,17 +21,17 @@ from pypeit import wavecalib
 from pypeit import wavetilts
 from pypeit import spec2dobj
 from pypeit import coadd2d
-from pypeit.core import framematch
 from pypeit import specobjs
-from pypeit.images import buildimage
 from pypeit import slittrace
-from pypeit.spectrographs.util import load_spectrograph
 from pypeit import reduce
 from pypeit import calibrations
-from pypeit import ginga
+from pypeit import display
+from pypeit.images import buildimage
+from pypeit.spectrographs.util import load_spectrograph
 from pypeit.core.parse import get_dnum
-from astropy.stats import sigma_clipped_stats
-import warnings
+
+from IPython import embed
+
 
 
 
@@ -346,7 +344,7 @@ def main(pargs):
     ##########################
     # Now display the images #
     ##########################
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.display.connect_to_ginga(raise_err=True, allow_new=True)
     # Bug in ginga prevents me from using cuts here for some reason
     #mean, med, sigma = sigma_clipped_stats(pseudo_dict['imgminsky'][pseudo_dict['inmask']], sigma_lower=5.0,sigma_upper=5.0)
     #cut_min = mean - 4.0 * sigma

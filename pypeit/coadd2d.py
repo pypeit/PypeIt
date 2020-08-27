@@ -26,7 +26,7 @@ from pypeit import spec2dobj
 from pypeit.core.moment import moment1d
 
 
-class CoAdd2D(object):
+class CoAdd2D:
 
     """
     Main routine to run the extraction for 2d coadds.
@@ -121,7 +121,6 @@ class CoAdd2D(object):
         self.offsets = offsets
         self.weights = weights
         self.ir_redux = ir_redux
-        #self.master_dir = os.getcwd() if master_dir is None else master_dir
         self.show = show
         self.show_peaks = show_peaks
         self.debug_offsets = debug_offsets
@@ -433,14 +432,9 @@ class CoAdd2D(object):
         #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
         #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
         #  2d coadd reduce
-        if self.par['reduce']['extraction']['manual']['spat_spec'] is not None:
-            spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
-            hand_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,
-                                     hand_extract_det=dets, hand_extract_fwhm=fwhms)
-        else:
-            hand_extract_dict = None
-        sobjs_obj, nobj, skymask_init = redux.find_objects(sciImage.image, show_peaks=show_peaks,
-                                                           manual_extract_dict=hand_extract_dict)
+        sobjs_obj, nobj, skymask_init = redux.find_objects(
+            sciImage.image, show_peaks=show_peaks,
+            manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Local sky-subtraction
         global_sky_pseudo = np.zeros_like(pseudo_dict['imgminsky']) # No global sky for co-adds since we go straight to local
@@ -470,7 +464,8 @@ class CoAdd2D(object):
         self.pseudo_dict=pseudo_dict
 
         return pseudo_dict['imgminsky'], pseudo_dict['sciivar'], skymodel_pseudo, \
-               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, pseudo_dict['slits']
+               objmodel_pseudo, ivarmodel_pseudo, outmask_pseudo, sobjs, sciImage.detector, pseudo_dict['slits'], \
+               pseudo_dict['tilts'], pseudo_dict['waveimg']
 
 
 
@@ -578,20 +573,20 @@ class CoAdd2D(object):
             nslits_tot = np.sum([slits.nslits for slits in self.stack_dict['slits_list']])
             waves = np.zeros((self.nspec, nslits_tot*3))
             gpm = np.zeros_like(waves, dtype=bool)
+            box_radius = 3.
             indx = 0
             # Loop on the exposures
             for waveimg, slitmask, slits in zip(self.stack_dict['waveimg_stack'],
                                                 self.stack_dict['slitmask_stack'],
                                                 self.stack_dict['slits_list']):
+                slits_left, slits_righ, _ = slits.select_edges()
+                row = np.arange(slits_left.shape[0])
                 # Loop on the slits
                 for kk, spat_id in enumerate(slits.spat_id):
                     mask = slitmask == spat_id
-                    slits_left, slits_righ, _ = slits.select_edges()
-                    # Create apertures at 5%, 50%, and 95% of the slit width to cover the full range of wavelengths
+                    # Create apertures at 5%, 50%, and 95% of the slit width to cover full range of wavelengths
                     # on this slit
-                    trace_spat = slits_left +  np.outer((slits_righ - slits_left),[0.05,0.5,0.95])
-                    row = np.arange(trace_spat.shape[0])
-                    box_radius = 3.
+                    trace_spat = slits_left[:, kk][:,np.newaxis] +  np.outer((slits_righ[:,kk] - slits_left[:,kk]),[0.05,0.5,0.95])
                     box_denom = moment1d(waveimg * mask > 0.0, trace_spat, 2 * box_radius, row=row)[0]
                     wave_box = moment1d(waveimg * mask, trace_spat, 2 * box_radius,
                                     row=row)[0] / (box_denom + (box_denom == 0.0))

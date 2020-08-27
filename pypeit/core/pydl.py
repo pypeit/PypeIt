@@ -7,7 +7,6 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import bspline
 from pypeit.core import basis
 from pypeit.core import fitting
 
@@ -326,11 +325,8 @@ class TraceSet(object):
         When initialized with x,y positions, this contains the fitted y
         values.
     pypeitFits : list
-        Holds the fits
+        Holds a list of :class:`pypeit.fitting.PypeItFit` fits
     """
-    #_func_map = {'poly': fpoly, 'legendre': flegendre,
-    #                'chebyshev': fchebyshev}
-
     # ToDO Remove the kwargs and put in all the djs_reject parameters here
     def __init__(self, *args, **kwargs):
         """This class can be initialized either with a set of xy positions,
@@ -442,8 +438,6 @@ class TraceSet(object):
                 else:
                     thisinvvar = invvar[iTrace, :]
 
-                # TODO -- This may cause a circular import
-                #mask_djs, poly_coeff = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
                 pypeitFit = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
                                                                 in_gpm = inmask[iTrace, :], invvar = thisinvvar,
@@ -451,17 +445,16 @@ class TraceSet(object):
                                                                 minx = self.xmin, maxx = self.xmax,
                                                                 maxdev=self.maxdev,
                                                                 grow=0,use_mad=False,sticky=False)
-                ycurfit_djs = pypeitFit.eval(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
+                ycurfit_djs = pypeitFit.eval(xvec)
                 self.pypeitFits.append(pypeitFit)
 
                 # Load
-                self.yfit[iTrace, :] = ycurfit_djs #ycurfit
-                self.coeff[iTrace, :] = pypeitFit.fitc #[:-1] #res
-                self.outmask[iTrace, :] = pypeitFit.gpm  #thismask
+                self.yfit[iTrace, :] = ycurfit_djs
+                self.coeff[iTrace, :] = pypeitFit.fitc
+                self.outmask[iTrace, :] = pypeitFit.gpm
 
         else:
             msgs.error('Wrong number of arguments to TraceSet!')
-            #raise PydlutilsException("Wrong number of arguments to TraceSet!")
 
     def xy(self, xpos=None, ignore_jump=False):
         """Convert from a trace set to an array of x,y positions.

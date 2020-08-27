@@ -119,5 +119,5 @@ Current Coadd2D Data Model
 ==========================
 
 The outputs are identical to the standard run, as
-described in :doc:`out_spec1D.rst` and :doc:`out_spec2D.rst`.
+described in :doc:`out_spec1D` and :doc:`out_spec2D`.
 

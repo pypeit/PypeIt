@@ -629,8 +629,7 @@ class Calibrations(object):
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], bpm=self.msbpm,
                                                     auto=True)
-                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                master_key=self.master_key_dict['trace'])
+                self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested
                 if self.show:

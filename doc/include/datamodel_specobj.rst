@@ -3,7 +3,7 @@
 Version: 1.1.0
 
 ====================  =================  ==========  ============================================================================================================================================
-Obj                   Obj Type           Array Type  Description                                                                                                                                 
+Obj Key               Obj Type           Array Type  Description                                                                                                                                 
 ====================  =================  ==========  ============================================================================================================================================
 ``BOX_CHI2``          ndarray            float       Reduced chi2 of the model fit for this spectral pixel                                                                                       
 ``BOX_COUNTS``        ndarray            float       Boxcar flux (counts)                                                                                                                        
@@ -16,7 +16,7 @@ Obj                   Obj Type           Array Type  Description
 ``BOX_FLAM_IVAR``     ndarray            float       Boxcar flux inverse variance (erg/s/cm^2/Ang)^-2                                                                                            
 ``BOX_FLAM_SIG``      ndarray            float       Boxcar flux uncertainty (erg/s/cm^2/Ang)                                                                                                    
 ``BOX_FRAC_USE``      ndarray            float       Fraction of pixels in the object profile subimage used for this extraction                                                                  
-``BOX_MASK``          ndarray            bool        Good pixel mask for boxcar extracted flux                                                                                                   
+``BOX_MASK``          ndarray            bool        Mask for optimally extracted flux                                                                                                           
 ``BOX_NPIX``          ndarray            float       Number of pixels used for the boxcar extraction; can be fractional                                                                          
 ``BOX_RADIUS``        float                          Size of boxcar radius (pixels)                                                                                                              
 ``BOX_WAVE``          ndarray            float       Boxcar Wavelengths (Angstroms)                                                                                                              
@@ -46,7 +46,7 @@ Obj                   Obj Type           Array Type  Description
 ``OPT_FLAM_IVAR``     ndarray            float       Optimal flux inverse variance (erg/s/cm^2/Ang)^-2                                                                                           
 ``OPT_FLAM_SIG``      ndarray            float       Optimal flux uncertainty (erg/s/cm^2/Ang)                                                                                                   
 ``OPT_FRAC_USE``      ndarray            float       Fraction of pixels in the object profile subimage used for this extraction                                                                  
-``OPT_MASK``          ndarray            bool        Good pixel mask for optimally extracted flux.                                                                                               
+``OPT_MASK``          ndarray            bool        Mask for optimally extracted flux                                                                                                           
 ``OPT_WAVE``          ndarray            float       Optimal Wavelengths (Angstroms)                                                                                                             
 ``PYPELINE``          str                            Name of the PypeIt pipeline mode                                                                                                            
 ``RA``                float                          Right Ascension (J2000) decimal degree                                                                                                      

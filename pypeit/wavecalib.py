@@ -32,29 +32,26 @@ class WaveCalib(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_version = '1.0.0'
     version = '1.0.0'
-
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-    hdu_prefix = None      # None required for this DataContainer
 
     # MasterFrame fun
     master_type = 'WaveCalib'
     master_file_format = 'fits'
 
-    datamodel = {
-        'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
-                              desc='WaveFit to each 1D wavelength solution'),
-        'wv_fit2d': dict(otype=fitting.PypeItFit, desc='2D wavelength solution (echelle)'),
-        'arc_spectra': dict(otype=np.ndarray, atype=np.floating, desc='2D array: 1D extracted spectra, slit by slit (nspec, nslits)'),
-        'nslits': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'strpar': dict(otype=str, desc='Parameters as a string'),
-    }
+    datamodel = {'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
+                                 descr='WaveFit to each 1D wavelength solution'),
+                 'wv_fit2d': dict(otype=fitting.PypeItFit,
+                                  descr='2D wavelength solution (echelle)'),
+                 'arc_spectra': dict(otype=np.ndarray, atype=np.floating,
+                                     descr='2D array: 1D extracted spectra, slit by slit '
+                                           '(nspec, nslits)'),
+                 'nslits': dict(otype=int,
+                                descr='Total number of slits.  This can include masked slits'),
+                 'spat_ids': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_ids. Named distinctly from that in WaveFit '),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'strpar': dict(otype=str, descr='Parameters as a string')}
 
-    def __init__(self, wv_fits=None, nslits=None, spat_id=None, PYP_SPEC=None,
+    def __init__(self, wv_fits=None, nslits=None, spat_ids=None, PYP_SPEC=None,
                  strpar=None, wv_fit2d=None, arc_spectra=None):
         # Parse
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -81,13 +78,13 @@ class WaveCalib(datamodel.DataContainer):
         _d = []
 
         # Spat_ID first
-        if self.spat_id is None:
-            msgs.error("Cannot write WaveCalib without spat_id")
-        _d.append(dict(spat_id=self.spat_id))
+        if self.spat_ids is None:
+            msgs.error("Cannot write WaveCalib without spat_ids")
+        _d.append(dict(spat_ids=self.spat_ids))
 
         # Rest of the datamodel
         for key in self.keys():
-            if key == 'spat_id':
+            if key == 'spat_ids':
                 continue
             # Skip None
             if self[key] is None:
@@ -98,13 +95,15 @@ class WaveCalib(datamodel.DataContainer):
             elif key == 'wv_fits':
                 for ss, wv_fit in enumerate(self[key]):
                     # Naming
-                    dkey = 'WAVEFIT-{}'.format(self.spat_id[ss])
+                    dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
                     # Generate a dummy?
                     if wv_fit is None:
-                        kwv_fit = wv_fitting.WaveFit()
+                        kwv_fit = wv_fitting.WaveFit(self.spat_ids[ss])
                     else:
                         kwv_fit = wv_fit
-                    kwv_fit.hdu_prefix = 'SPAT_ID-{}_'.format(self.spat_id[ss])
+                    # This is required to deal with a single HDU WaveFit() bundle
+                    if kwv_fit.pypeitfit is None:
+                        dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_ids[ss])
                     # Save
                     _d.append({dkey: kwv_fit})
             elif key == 'wv_fit2d':
@@ -118,7 +117,7 @@ class WaveCalib(datamodel.DataContainer):
     def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
                hdu_prefix=None):
         # Grab everything but the bspline's
-        _d, dm_version_passed, dm_type_passed = super(WaveCalib, cls)._parse(hdu)
+        _d, dm_version_passed, dm_type_passed, parsed_hdus = super(WaveCalib, cls)._parse(hdu)
         # Now the wave_fits
         list_of_wave_fits = []
         spat_ids = []
@@ -126,28 +125,29 @@ class WaveCalib(datamodel.DataContainer):
             if 'WAVEFIT' in ihdu.name:
                 # Allow for empty
                 if len(ihdu.data) == 0:
-                    iwavefit = wv_fitting.WaveFit()
+                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
                 else:
                     iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
+                    parsed_hdus += ihdu.name
                     if iwavefit.version != wv_fitting.WaveFit.version:
                         msgs.warn("Your WaveFit is out of date!!")
                     # Grab PypeItFit (if it exists)
                     hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
                     if hdname in [khdu.name for khdu in hdu]:
                         iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
+                        parsed_hdus += hdname
                 list_of_wave_fits.append(iwavefit)
                 # Grab SPAT_ID for checking
-                i0 = ihdu.name.find('ID-')
-                i1 = ihdu.name.find('_WAV')
-                spat_ids.append(int(ihdu.name[i0+3:i1]))
+                spat_ids.append(iwavefit.spat_id)
             elif ihdu.name == 'PYPEITFIT': # 2D fit
                 _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
+                parsed_hdus += ihdu.name
         # Check
-        if spat_ids != _d['spat_id'].tolist():
+        if spat_ids != _d['spat_ids'].tolist():
             msgs.error("Bad parsing of the MasterFlat")
         # Finish
         _d['wv_fits'] = np.asarray(list_of_wave_fits)
-        return _d, dm_version_passed, dm_type_passed
+        return _d, dm_version_passed, dm_type_passed, parsed_hdus
 
     @property
     def par(self):
@@ -163,7 +163,7 @@ class WaveCalib(datamodel.DataContainer):
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
         """
-        if not np.array_equal(self.spat_id, slits.spat_id):
+        if not np.array_equal(self.spat_ids, slits.spat_id):
             msgs.error("Your wvcalib solutions are out of sync with your slits.  Remove Masters and start from scratch")
 
     def build_waveimg(self, tilts, slits, spat_flexure=None):
@@ -185,8 +185,8 @@ class WaveCalib(datamodel.DataContainer):
         # Setup
         #ok_slits = slits.mask == 0
         bpm = slits.mask.astype(bool)
-        bpm &= np.invert(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
-        ok_slits = np.invert(bpm)
+        bpm &= np.logical_not(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
+        ok_slits = np.logical_not(bpm)
         #
         image = np.zeros_like(tilts)
         slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
@@ -208,34 +208,20 @@ class WaveCalib(datamodel.DataContainer):
                 msgs.error("Something failed in wavelengths or masking..")
             if self.par['echelle']:
                 # # TODO: Put this in `SlitTraceSet`?
-                #order, indx = spectrograph.slit2order(slit_spat_pos[slits.spatid_to_zero(slit_spat)])
                 # evaluate solution --
                 image[thismask] = self.wv_fit2d.eval(
                     tilts[thismask], x2=np.full_like(tilts[thismask], slits.ech_order[islit]))
-
-
-                #image[thismask] = utils.func_val(wv_calib['fit2d']['coeffs'],
-                #                                 tilts[thismask],
-                #                                 wv_calib['fit2d']['func2d'],
-                #                                 x2=np.ones_like(tilts[thismask])*order,
-                #                                 minx=wv_calib['fit2d']['min_spec'],
-                #                                 maxx=wv_calib['fit2d']['max_spec'],
-                #                                 minx2=wv_calib['fit2d']['min_order'],
-                #                                 maxx2=wv_calib['fit2d']['max_order'])
                 image[thismask] /= slits.ech_order[islit]
             else:
-                #iwv_calib = wv_calib[str(slit)]
                 iwv_fits = self.wv_fits[islit]
                 image[thismask] = iwv_fits.pypeitfit.eval(tilts[thismask])
-                                                 #minx=iwv_calib['fmin'],
-                                                 #maxx=iwv_calib['fmax'])
         # Return
         return image
 
 
 
 
-class BuildWaveCalib(object):
+class BuildWaveCalib:
     """
     Class to guide wavelength calibration
 
@@ -388,15 +374,6 @@ class BuildWaveCalib(object):
                                                     sigdetect=self.par['sigdetect'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
-#        elif method == 'basic':
-#            final_fit = {}
-#            for slit in ok_mask:
-#                status, ngd_match, match_idx, scores, ifinal_fit = \
-#                        autoid.basic(arccen[:, slit], self.par['lamps'], self.par['wv_cen'],
-#                                     self.par['disp'], nonlinear_counts=self.nonlinear_counts)
-#                final_fit[str(slit)] = ifinal_fit.copy()
-#                if status != 1:
-#                    self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
             arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, nonlinear_counts=self.nonlinear_counts)
@@ -431,17 +408,20 @@ class BuildWaveCalib(object):
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
         # Build the DataContainer
+        # Loop on WaveFit items
         tmp = []
         for idx in range(self.slits.nslits):
             item = final_fit.pop(str(idx))
             if item is None:  # Add an empty WaveFit
-                tmp.append(wv_fitting.WaveFit())
+                tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx]))
             else:
+                # This is for I/O naming
+                item.spat_id = self.slits.spat_id[idx]
                 tmp.append(item)
         self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
                                   arc_spectra=arccen,
                                   nslits=self.slits.nslits,
-                                  spat_id=self.slits.spat_id,
+                                  spat_ids=self.slits.spat_id,
                                   PYP_SPEC=self.spectrograph.spectrograph,
                                   )
 
@@ -623,7 +603,6 @@ class BuildWaveCalib(object):
                     self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
-        #self.wv_calib['steps'] = self.steps
         sv_par = self.par.data.copy()
         j_par = ltu.jsonify(sv_par)
         self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))

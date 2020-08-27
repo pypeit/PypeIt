@@ -709,9 +709,6 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     # Evaluate the tilts on the padded image grid
     tiltpix = spec_img_pad[thismask_grow] + xnspecmin1 \
               * pypeitFit.eval(spec_img_nrm[thismask_grow], x2=dspat_img_nrm[thismask_grow])
-              #* utils.func_val(coeff2, spec_img_nrm[thismask_grow], func2d,
-              #                 x2=dspat_img_nrm[thismask_grow], minx=0.0, maxx=1.0,
-              #                 minx2=-1.0, maxx2=1.0)
 
     # Now do one last fit to invert the function above to obtain the
     # final tilts model in normalized image coordinates
@@ -746,11 +743,6 @@ def fit_tilts(trc_tilt_dict, thismask, slit_cen, spat_order=3, spec_order=4, max
     msgs.info('Rejected {0}/{1} pixels in final inversion tilts image fit'.format(
         np.sum(irej), np.sum(inmask)))
     # normalized tilts image
-    # tilts_img = utils.func_val(coeff2_tilts, spec_img/xnspecmin1, func2d, x2=spat_img/xnspatmin1,
-    #                           minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
-    # tilts_img = np.fmax(np.fmin(tilts_img, 1.2),-0.2)
-    # ginga.show_image(tilts_img*thismask)
-
     # TODO -- This should be a DataContainer
     tilt_fit_dict = dict(nspec=nspec, nspat=nspat, ngood_lines=np.sum(use_tilt),
                          npix_fit=np.sum(tot_mask), npix_rej=np.sum(np.invert(fitmask)),
@@ -834,8 +826,6 @@ def fit2tilts(shape, coeff2, func2d, spat_shift=None):
     pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
                                   minx2=0.0, maxx2=1.0, func=func2d)
     tilts = pypeitFit.eval(spec_img / xnspecmin1, x2=spat_img / xnspatmin1)
-    #tilts = utils.func_val(coeff2, spec_img / xnspecmin1, func2d, x2=spat_img / xnspatmin1,
-    #                       minx=0.0, maxx=1.0, minx2=0.0, maxx2=1.0)
     # Added this to ensure that tilts are never crazy values due to extrapolation of fits which can break
     # wavelength solution fitting
     return np.fmax(np.fmin(tilts, 1.2), -0.2)

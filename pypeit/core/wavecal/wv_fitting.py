@@ -7,6 +7,8 @@
 import numpy as np
 import inspect
 
+from astropy.io import fits
+
 from pypeit.core.wavecal import autoid
 from pypeit.core.wavecal import defs
 from pypeit.core import fitting
@@ -25,31 +27,37 @@ class WaveFit(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_version = '1.0.0'
     version = '1.0.0'
 
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-
-    datamodel = {
-        'pypeitfit': dict(otype=fitting.PypeItFit, desc='Fit to 1D wavelength solutions'),
-        'pixel_fit': dict(otype=np.ndarray, atype=np.floating, desc='Pixel values of arc lines'),
-        'wave_fit': dict(otype=np.ndarray, atype=np.floating, desc='Wavelength IDs assigned'),
-        'xnorm': dict(otype=float, desc='Normalization for fit'),
-        'ion_bits': dict(otype=np.ndarray, atype=np.integer, desc='Ion bit values for the Ion names'),
-        'cen_wave': dict(otype=float, desc='Central wavelength'),
-        'cen_disp': dict(otype=float, desc='Approximate wavelength dispersion'),
-        'spec': dict(otype=np.ndarray, atype=np.floating, desc='Arc spectrum'),
-        'wave_soln': dict(otype=np.ndarray, atype=np.floating, desc='Evaluated wavelengths at pixel_fit'),
-        'sigrej': dict(otype=float, desc='Final sigma rejection applied'),
-        'shift': dict(otype=float, desc='Shift applied'),
-        'tcent': dict(otype=np.ndarray, atype=np.floating, desc='Pixel centroids of all arc lines found'),
-        'rms': dict(otype=float, desc='RMS of the solution'),
-    }
+    datamodel = {'spat_id': dict(otype=(int,np.integer), descr='Spatial position of slit/order for this fit. Required for I/O'),
+                 'pypeitfit': dict(otype=fitting.PypeItFit,
+                                   descr='Fit to 1D wavelength solutions'),
+                 'pixel_fit': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Pixel values of arc lines'),
+                 'wave_fit': dict(otype=np.ndarray, atype=np.floating,
+                                  descr='Wavelength IDs assigned'),
+                 'xnorm': dict(otype=float, descr='Normalization for fit'),
+                 'ion_bits': dict(otype=np.ndarray, atype=np.integer,
+                                  descr='Ion bit values for the Ion names'),
+                 'cen_wave': dict(otype=float, descr='Central wavelength'),
+                 'cen_disp': dict(otype=float, descr='Approximate wavelength dispersion'),
+                 'spec': dict(otype=np.ndarray, atype=np.floating, descr='Arc spectrum'),
+                 'wave_soln': dict(otype=np.ndarray, atype=np.floating,
+                                   descr='Evaluated wavelengths at pixel_fit'),
+                 'sigrej': dict(otype=float, descr='Final sigma rejection applied'),
+                 'shift': dict(otype=float, descr='Shift applied'),
+                 'tcent': dict(otype=np.ndarray, atype=np.floating,
+                               descr='Pixel centroids of all arc lines found'),
+                 'rms': dict(otype=float, descr='RMS of the solution')}
 
     bitmask = defs.LinesBitMask()
 
-    def __init__(self, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
+    @staticmethod
+    def hduext_prefix_from_spatid(spat_id):
+        """ Naming for HDU extensions"""
+        return 'SPAT_ID-{}_'.format(spat_id)
+
+    def __init__(self, spat_id, pypeitfit=None, pixel_fit=None, wave_fit=None, ion_bits=None,
                  cen_wave=None, cen_disp=None, spec=None, wave_soln=None,
                  sigrej=None, shift=None, tcent=None, rms=None, xnorm=None):
         # Parse
@@ -58,16 +66,9 @@ class WaveFit(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=d)
 
-    def _init_internals(self):
-        """
-        Set some internal attributes
-        """
-        # Needs to be here so we can set it in WaveCalib
-        self.hdu_prefix = None
-
     def _bundle(self, **kwargs):
         """
-        Over-ride DataContainer._bundle() to deal with DETECTOR
+        Over-ride DataContainer._bundle() to deal with PYPEITFIT
 
         Args:
             kwargs:
@@ -77,29 +78,44 @@ class WaveFit(datamodel.DataContainer):
             list:
 
         """
-        _d = super(WaveFit, self)._bundle(ext='WAVEFIT', **kwargs)
-        # Pull the fit out
-        if _d[0]['WAVEFIT']['pypeitfit'] is not None:
-            _d.append(dict(PYPEITFIT=_d[0]['WAVEFIT'].pop('pypeitfit')))
+        # Extension prefix (for being unique with slits)
+        hdue_pref = self.hduext_prefix_from_spatid(self.spat_id)
+        # Without PypeItFit
+        _d = super(WaveFit, self)._bundle(
+            ext=hdue_pref+'WAVEFIT', **kwargs)
+        # Deal with PypeItFit
+        if _d[0][hdue_pref+'WAVEFIT']['pypeitfit'] is not None:
+            _d.append({hdue_pref+'PYPEITFIT': _d[0][hdue_pref + 'WAVEFIT'].pop('pypeitfit')})
         # Return
         return _d
 
+    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None, limit_hdus=None):
+        """ Over-ride for force_to_bintbl
 
-    # TODO -- This snippet shows up in 3 places now.  Can we genrealize somehow KW??
-    def to_hdu(self, hdr=None, add_primary=False, primary_hdr=None,
-               limit_hdus=None, force_to_bintbl=True):
-        """
-        Over-ride :func:`pypeit.datamodel.DataContainer.to_hdu` to force to
-        a BinTableHDU
+        See :class:`pypeit.datamodel.DataContainer.to_hdu` for Arguments
 
-        See that func for Args and Returns
+        Returns:
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
+            where the type depends on the value of ``add_primary``.
         """
-        args, _, _, values = inspect.getargvalues(inspect.currentframe())
-        _d = dict([(k,values[k]) for k in args[1:]])
-        # Force
-        _d['force_to_bintbl'] = True
-        # Do it
-        return super(WaveFit, self).to_hdu(**_d)
+        return super(WaveFit, self).to_hdu(hdr=hdr, add_primary=add_primary, primary_hdr=primary_hdr,
+                                           limit_hdus=limit_hdus, force_to_bintbl=True)
+
+    @classmethod
+    def from_hdu(cls, hdu, chk_version=True):
+        """
+        Parse the data from the provided HDU.
+
+        See :func:`pypeit.datamodel.DataContainer._parse` for the
+        argument descriptions.
+        """
+        # Set hdu_prefix
+        if isinstance(hdu, fits.HDUList):
+            hdu_prefix = cls.hduext_prefix_from_spatid(hdu[1].header['SPAT_ID'])
+        else:
+            hdu_prefix = cls.hduext_prefix_from_spatid(hdu.header['SPAT_ID'])
+        # Run the default parser to get the data
+        return super(WaveFit, cls).from_hdu(hdu, hdu_prefix=hdu_prefix)
 
     @property
     def ions(self):
@@ -251,8 +267,7 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
 
     Returns
     -------
-    final_fit: dict
-      Dictionary containing the full fitting results and the final best guess of the line IDs
+    final_fit: :class:`pypeit.core.wavecal.wv_fitting.WaveFit`
     """
 
     #TODO JFH add error checking here to ensure that IDs and ifit have the same size!
@@ -322,14 +337,11 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
             flg_penultimate = True
 
     # Final fit (originals can now be rejected)
-    #fmin, fmax = 0., 1.
-    #xfit, yfit, wfit = tcent[ifit]/(nspec-1), all_ids[ifit], weights[ifit]
     xfit, yfit, wfit = tcent[ifit], all_ids[ifit], weights[ifit]
-    #mask, fit = utils.robust_polyfit(xfit/xnspecmin1, yfit, n_order, function=func, sigma=sigrej_final,
     pypeitFit = fitting.robust_fit(xfit/xnspecmin1, yfit, n_order, function=func,
                                    lower=sigrej_final, upper=sigrej_final,
                                    minx=fmin, maxx=fmax, weights=wfit)#, debug=True)
-    irej = np.where(np.logical_not(pypeitFit.gpm))[0]
+    irej = np.where(np.logical_not(pypeitFit.bool_gpm))[0]
     if len(irej) > 0:
         xrej = xfit[irej]
         yrej = yfit[irej]
@@ -341,54 +353,30 @@ def iterative_fitting(spec, tcent, ifit, IDs, llist, disp,
         xrej = []
         yrej = []
 
-    #xfit = xfit[mask == 0]
-    #yfit = yfit[mask == 0]
-    #wfit = wfit[mask == 0]
     ions = all_idsion[ifit]
-#    ions = all_idsion[ifit][mask == 0]
     # Final RMS
-    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)#xfit[pypeitFit.gpm == 0] / xnspecmin1,
-                                     #yfit[pypeitFit.gpm == 0],
-                                     #weights=wfit[pypeitFit.gpm == 0])
-#    rms_ang = utils.calc_fit_rms(xfit, yfit, fit, func,
-#                                 minx=fmin, maxx=fmax, weights=wfit)
+    rms_ang = pypeitFit.calc_fit_rms(apply_mask=True)
     rms_pix = rms_ang/disp
 
     # Pack up fit
     spec_vec = np.arange(nspec)
-    #wave_soln = utils.func_val(fit,spec_vec/xnspecmin1, func, minx=fmin, maxx=fmax)
-    wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)#, func, minx=fmin, maxx=fmax)
-    #cen_wave = utils.func_val(fit, float(nspec)/2/xnspecmin1, func, minx=fmin, maxx=fmax)
-    cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)#, func, minx=fmin, maxx=fmax)
-    #cen_wave_min1 = utils.func_val(fit, (float(nspec)/2 - 1.0)/xnspecmin1, func, minx=fmin, maxx=fmax)
-    cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)#, func, minx=fmin, maxx=fmax)
+    wave_soln = pypeitFit.eval(spec_vec/xnspecmin1)
+    cen_wave = pypeitFit.eval(float(nspec)/2/xnspecmin1)
+    cen_wave_min1 = pypeitFit.eval((float(nspec)/2 - 1.0)/xnspecmin1)
     cen_disp = cen_wave - cen_wave_min1
 
     # Ions bit
     ion_bits = np.zeros(len(ions), dtype=WaveFit.bitmask.minimum_dtype())
     for kk,ion in enumerate(ions):
-        ion_bits[kk] = WaveFit.bitmask.turn_on(ion_bits[kk], ion)
+        ion_bits[kk] = WaveFit.bitmask.turn_on(ion_bits[kk], ion.replace(' ', ''))
 
     # DataContainer time
-    final_fit = WaveFit(pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit, #weights=wfit,
-                        ion_bits=ion_bits, xnorm=xnspecmin1, #, nspec=nspec,
+    # spat_id is set to an arbitrary -1 here and is updated in wavecalib.py
+    final_fit = WaveFit(-1, pypeitfit=pypeitFit, pixel_fit=xfit, wave_fit=yfit,
+                        ion_bits=ion_bits, xnorm=xnspecmin1,
                         cen_wave=cen_wave, cen_disp=cen_disp,
-                       #xrej=xrej, yrej=yrej, mask=(mask == 0),
                         spec=spec, wave_soln = wave_soln, sigrej=sigrej_final,
                         shift=0., tcent=tcent, rms=rms_pix)
-
-    # If set to True, this will output a file that can then be included in the tests
-    #saveit = False
-    #if saveit:
-        #from linetools import utils as ltu
-        #jdict = ltu.jsonify(final_fit)
-        #if plot_fil is None:
-            #outname = "temp"
-            #print("You should have set the plot_fil directory to save wavelength fits... using 'temp' as a filename")
-        #else:
-            #outname = plot_fil
-        #ltu.savejson(outname + '.json', jdict, easy_to_read=True, overwrite=True)
-        #print(" Wrote: {:s}".format(outname + '.json'))
 
     # QA
     if plot_fil is not None:

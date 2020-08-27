@@ -3,9 +3,6 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
-import sys
-import os
-
 import numpy as np
 
 from scipy import ndimage
@@ -20,7 +17,6 @@ from pypeit.core import basis, pixels, extract
 from pypeit.core import fitting
 from pypeit import msgs, utils, bspline, slittrace
 from pypeit.display import display
-from pypeit.core.moment import moment1d
 
 def skysub_npoly(thismask):
     """
@@ -753,8 +749,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                         thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
                         prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
                         show_profile=show_profile)
-                    #proc_list.append(show_proc)
-
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].TRACE_SPAT = trace_new
@@ -762,11 +756,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                     sobjs[iobj].FWHM = np.median(fwhmfit)
                     mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
                     maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
-                    if sobjs[iobj].prof_nsigma is None:
-                        sobjs[iobj].maskwidth = maskwidth
-                    else:
-                        sobjs[iobj].maskwidth = sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
-
+                    sobjs[iobj].maskwidth = maskwidth if sobjs[iobj].prof_nsigma is None else \
+                        sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
                 else:
                     msgs.warn("Bad extracted wavelengths in local_skysub_extract")
                     msgs.warn("Skipping this profile fit and continuing.....")
@@ -785,9 +776,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
 
                 skymask = outmask & np.invert(edgmask)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(
-                    piximg.flat[isub], sciimg.flat[isub], (modelivar * skymask).flat[isub],
-                    obj_profiles_flat[isub, :], sortpix, spatial=spatial_img.flat[isub],
-                    fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
+                        piximg.flat[isub], sciimg.flat[isub], (modelivar * skymask).flat[isub],
+                        obj_profiles_flat[isub, :], sortpix, spatial=spatial_img.flat[isub],
+                        fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
                 iterbsp = iterbsp + 1
                 if (not sky_bmodel.any()) & (iterbsp <= 3):
                     msgs.warn('***************************************')

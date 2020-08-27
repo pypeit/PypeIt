@@ -24,7 +24,7 @@ from pypeit import slittrace
 from IPython import embed
 
 
-class SpecObjs(object):
+class SpecObjs:
     """
     Object to hold a set of :class:`~pypeit.specobj.SpecObj` objects
 
@@ -341,6 +341,8 @@ class SpecObjs(object):
             if self[0].PYPELINE == 'Echelle':
                 index = self.ECH_OBJID < 0
             elif self[0].PYPELINE == 'MultiSlit':
+                index = self.OBJID < 0
+            elif self[0].PYPELINE == 'IFU':
                 index = self.OBJID < 0
             else:
                 msgs.error("Should not get here")

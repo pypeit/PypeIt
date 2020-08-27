@@ -16,6 +16,7 @@ PypeIt Name             Telescope   Instrument
 ======================  =========   =======================================
 gemini_gmos_north_ham   Gemini      GMOS-N spectrometer; Hamamatsu detector (R400, B600)
 gemini_gnirs            Gemini      GNIRS spectrometer
+gemini_flamingos        Gemini      Gemini FLAMINGOS spectrometer
 keck_kcwi               Keck        KCWI slit-based IFU (BM, BH2)
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
@@ -26,10 +27,16 @@ keck_nirspec_low        Keck        NIRSPEC spectrometer; low-dispersion
 keck_deimos             Keck        :doc:`deimos` spectrometer (600ZD, 830G, 1200G)
 lbt_luci1               LBT         LUCI-I spectrometer
 lbt_luci2               LBT         LUCI-II spectrometer
+lbt_mods1r              LBT         MODS-I red spectrometer
+lbt_mods1b              LBT         MODS-I blue spectrometer
+lbt_mods2r              LBT         MODS-II red spectrometer
+lbt_mods2b              LBT         MODS-II blue spectrometer
 magellan_fire           Magellan    FIRE spectrometer; Echelle mode
 magellan_fire_long      Magellan    FIRE spectrometer; Longslit high throughput mode
 magellan_mage           Magellan    MagE spectrometer
 mdm_osmos               MDM         OSMOS spectrometer
+mmt_mmirs               MMT         MMIRS spectrometer
+mmt_binospec            MMT         BINSOSPEC spectrometer
 not_alfosc              NOT         ALFOSC spectrometer (grisms 4, 19)
 shane_kast_blue         Lick 3m     Kast dual spectrometer; blue camera
 shane_kast_red          Lick 3m     Kast dual spectrometer; red camera

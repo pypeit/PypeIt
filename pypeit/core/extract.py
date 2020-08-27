@@ -1,4 +1,7 @@
-""" Module for PypeIt extraction code
+"""
+Module for PypeIt extraction code
+
+.. include:: ../links.rst
 """
 import copy
 
@@ -445,7 +448,7 @@ def return_gaussian(sigma_x, norm_obj, fwhm, med_sn2, obj_string, show_profile,
 
 
 def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, fluxivar,
-                inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, #, wvmnx = (2900.0,30000.0),
+                inmask=None, thisfwhm=4.0, max_trace_corr=2.0, sn_gauss=4.0, percentile_sn2=70.0,
                 maskwidth=None, prof_nsigma=None, no_deriv=False, gauss=False, obj_string='',
                 show_profile=False):
 
@@ -479,8 +482,11 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
         maximum trace correction to apply
     sn_gauss : float [default = 3.0], optional
         S/N ratio below which code just uses a Gaussian
-    wvmnx : float [default = [2900.0,30000.0], optional
-        wavelength range of usable part of spectrum
+    percentile_sn2: float [default = 70.0], optional
+        Estimates the S/N of an object from pixels in the upper percentile_sn2 percentile of wavelength values.
+        For example if percentile_sn2 = 70.0 then the upper 30% of spectrals are used.
+        This ensures the code can still fit line only objects and/or high redshift quasars which might only have
+        signal in reddest part of a spectrum.
     maskwidth : float [default = None], optional
         object maskwidth determined from object finding algorithm. If = None,
         code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
@@ -556,8 +562,8 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     if(nonzero >0):
         ## Select the top 30% data for estimating the med_sn2. This ensures the code still fit line only object and/or
         ## high redshift quasars which might only have signal in part of the spectrum.
-        sn2_percentile = np.percentile(sn2,70)
-        (mean, med_sn2, stddev) = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
+        sn2_percentile = np.percentile(sn2,percentile_sn2)
+        mean, med_sn2, stddev = stats.sigma_clipped_stats(sn2[sn2>sn2_percentile],sigma_lower=3.0,sigma_upper=5.0)
     else:
         med_sn2 = 0.0
 
@@ -960,7 +966,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     # Normalize profile
     norm = np.outer(np.sum(profile_model, 1), np.ones(nspat))
     if (np.sum(norm) > 0.0):
-        profile_model = profile_model / norm
+        profile_model = (norm > 0.0)*profile_model/(norm + (norm == 0.0))
 
     info_string = "FWHM range:" + "{:5.2f}".format(fwhmfit.min()) + " - {:5.2f}".format(fwhmfit.max()) \
                   + ", S/N=" + "{:8.3f}".format(np.sqrt(med_sn2)) + ", median(chi^2)={:8.3f}".format(chi_med)
@@ -970,36 +976,6 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
                        l_limit = l_limit, r_limit = r_limit, ind = ss[inside], xlim = prof_nsigma, title = title_string)
 
     return (profile_model, xnew, fwhmfit, med_sn2)
-
-
-def parse_manual(manual_par):
-    """
-    Parse the rather klunky ManualExtractionPar parameters into more useful items
-
-    Args:
-        manual_par (:class:`pypeit.par.pypeitpar.ManualExtractionPar`):
-            Manual extract parameter object
-
-    Returns:
-        tuple: spats, specs, det, fwhm
-
-    """
-    if isinstance(manual_par['det'], list):
-        spat_spec = manual_par['spat_spec'].split(',')
-        det = [int(obj) for obj in manual_par['det'].split(',')]
-        fwhm = [float(obj) for obj in manual_par['fwhm'].split(',')]
-    else:
-        spat_spec = [manual_par['spat_spec']]
-        det = [manual_par['det']]
-        fwhm = [manual_par['fwhm']]
-    # Deal with spat_spec
-    spats, specs = [], []
-    for ispat_spec in spat_spec:
-        ps = ispat_spec.split(':')
-        spats.append(float(ps[0]))
-        specs.append(float(ps[1]))
-    # Return
-    return spats, specs, det, fwhm
 
 
 def parse_hand_dict(hand_extract_dict):
@@ -1233,9 +1209,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         show_cont = True
 
     if specobj_dict is None:
-        #specobj_dict = dict(setup=None, SLITID=999, det=1, objtype='unknown', pypeline='MultiSlit', orderindx=999)
-        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown',
-                            PYPELINE='MultiSlit')
+        specobj_dict = dict(SLITID=999, DET=1, OBJTYPE='unknown', PYPELINE='MultiSlit')
 
     # Check that peak_thresh values make sense
     if ((peak_thresh >=0.0) & (peak_thresh <=1.0)) == False:
@@ -1364,7 +1338,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         skythresh = sigma
     elif(skythresh == 0.0) & (sigma == 0.0):  # if both SKYTHRESH and sigma are zero mask out the zero pixels and reavaluate
         good = fluxconv_cont > 0.0
-        if np.any(good) == True:
+        if np.any(good):
             mean, med_sn2, skythresh = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=1.5)
             mean, med_sn2, sigma = stats.sigma_clipped_stats(fluxconv_cont[good], sigma=2.5)
         else:
@@ -1580,14 +1554,17 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         else:  # If no objects or standard use the slit boundary
             msgs.warn("No source to use as a trace.  Using the slit boundary")
             trace_model = slit_left
+
+        # Hack me
+        #tmp_dict = copy.deepcopy(specobj_dict)
+        #for key in ['DET', 'PYPELINE']:
+        #    tmp_dict.pop(key)
+
         # Loop over hand_extract apertures and create and assign specobj
         for iobj in range(nobj_hand):
-            # Hack me
-            tmp_dict = copy.deepcopy(specobj_dict)
-            for key in ['DET', 'PYPELINE']:
-                tmp_dict.pop(key)
             # Proceed
-            thisobj = specobj.SpecObj(specobj_dict['PYPELINE'], specobj_dict['DET'], **tmp_dict)
+            # thisobj = specobj.SpecObj(specobj_dict['PYPELINE'], specobj_dict['DET'], **tmp_dict)
+            thisobj = specobj.SpecObj(**specobj_dict)
             thisobj.hand_extract_spec = hand_extract_spec[iobj]
             thisobj.hand_extract_spat = hand_extract_spat[iobj]
             thisobj.hand_extract_det = hand_extract_det[iobj]

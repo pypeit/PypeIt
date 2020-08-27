@@ -3,7 +3,7 @@
 Version: 1.0.2
 
 ====================  =================  ==========  ==================================================================================
-Obj                   Obj Type           Array Type  Description                                                                       
+Obj Key               Obj Type           Array Type  Description                                                                       
 ====================  =================  ==========  ==================================================================================
 ``bpmmask``           ndarray            integer     2D bad-pixel mask for the image                                                   
 ``det``               int                            Detector index                                                                    

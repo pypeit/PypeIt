@@ -33,14 +33,6 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         self.telescope = telescopes.MMTTelescopePar()
         self.camera = 'MMIRS'
 
-    @staticmethod
-    def default_pypeit_par():
-        """
-        Set default parameters for the reductions.
-        """
-        par = pypeitpar.PypeItPar()
-        return par
-
     def init_meta(self):
         """
         Generate the meta data dict
@@ -112,7 +104,8 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
             )
         return detector_container.DetectorContainer(**detector_dict)
 
-    def default_pypeit_par(self):
+    @staticmethod
+    def default_pypeit_par():
         """
         Set default parameters for the reductions.
         """
