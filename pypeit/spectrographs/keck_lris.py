@@ -989,7 +989,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            platescale=0.135,  # TO BE UPDATED!!
+            platescale=0.21,  # TO BE UPDATED!!
             darkcurr=0.0,
             saturation=65535.,
             nonlinear=0.76,
