@@ -30,6 +30,9 @@ authors:
   - name: Emanuele Paolo Farina
     orcid: 0000-0002-6822-2254
     affiliation: "2, 8"
+  - name: Debora Pelliccia
+    orcid: 0000-0002-3007-0013
+    affiliation: 4
 affiliations:
  - name: University of California, Santa Cruz
    index: 1
