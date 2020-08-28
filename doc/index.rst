@@ -35,21 +35,22 @@ PypeIt 1.1.0 |stars| |watch|
 
 |pypi| |DOI_latest| |arxiv| |astropy|
 
-*PypeIt* is a Python package for semi-automated reduction of
+``PypeIt`` is a Python package for semi-automated reduction of
 astronomical, spectroscopic data. Its algorithms build on
 decades-long development of previous data reduction pipelines by the
-developers. The reduction procedure - including a
-complete list of the input parameters and available functionality -
-is provided by this online documentation.
-*PypeIt* is a set of commands designed to perform the reduction without
-any additional coding.
+developers. The reduction procedure - including a complete list of
+the input parameters and available functionality - is provided by
+this online documentation.
 
-This v1.1 release of ``PypeIt`` is designed to be used by both advanced
-spectroscopists with prior data reduction expertise and astronomers with
-no prior experience of data reduction. It is highly configurable and
-designed to be applied to any standard slit-imaging spectrograph, and
-can accomodate longslit, multislit, as well as cross-dispersed echelle
-spectra.
+``PypeIt`` is a set of commands designed to perform the reduction
+without any additional coding.
+
+This v1.1 release of ``PypeIt`` is designed to be used by both
+advanced spectroscopists with prior data reduction expertise and
+astronomers with no prior experience of data reduction. It is highly
+configurable and designed to be applied to any standard slit-imaging
+spectrograph, and can accommodate long-slit, multi-slit, as well as
+cross-dispersed echelle spectra.
 
 
 What this version provides
@@ -119,17 +120,21 @@ What this version is missing (i.e. what we are working on)
 * Full 2D coadd support
 * Keck/HIRES, Keck/ESI support
 * Additional QA outputs
-* A dashboard to monitor/control PypeIt
+* A dashboard to monitor/control ``PypeIt``
 
 
 Users
 =====
 
-If you are mainly here to use PypeIt to reduce
-your observational data then this section is for you.
+If you are mainly here to use ``PypeIt`` to reduce your observational
+data then this section is for you. Ideally, you will need to go not
+much further than the few links in this section take you.
 
-Ideally, you will need to go not much further than the few links
-in this section take you.
+If you have problems, we have a very active "PypeIt Users" Slack
+workspace. We periodically update the invitation `here
+<https://github.com/pypeit/PypeIt/issues/676>`__. If you find a bug
+or have a feature request, please `submit an issue
+<https://github.com/pypeit/PypeIt/issues>`__.
 
 ----
 
@@ -176,14 +181,14 @@ in this section take you.
 Contributors
 ============
 
-*PypeIt* is an open-source, community developed package.  Astronomers
-are encouragaed to join the project and should
-review the :doc:`codeconduct` and :doc:`development` notes.
-The would also likely benefit by first contacting
-the lead developers (JXP, JFH).
+``PypeIt`` is an open-source, community developed package.
+Astronomers are encouraged to join the project and should review our
+:doc:`codeconduct` and :doc:`development`. We would also appreciate
+if you contact the lead developers (JXP, JFH) before beginning
+development activities.
 
 The following persons have contributed substantially to the
-development of PypeIt.
+development of ``PypeIt``.
 
 * J Xavier Prochaska
 * Joseph F. Hennawi
