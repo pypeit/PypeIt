@@ -475,18 +475,21 @@ def main(flg):
     if flg & (2**35):  # 1200B
         binspec = 1
         outroot='keck_deimos_1200B.fits'
-        # 0 = blue  4063 - 5382.8
-        # 0 = red   5394.4 - 6709.2
-        ifiles = [0, 1]
-        slits = [0, 0]  # Not used
-        wv_cuts = [5382.]
+        # file1 = blue  4063 - 5382.8
+        # file2 = blue  ??   - 5425.
+        # file3 = red   5394.4 - 6709.2
+        ifiles = [0, 1]#, 2]
+        slits = [0, 0] #, 0]  # Not used
+        #wv_cuts = [5100., 5400]
+        wv_cuts = [5400]
         # Outputs from IRAF by Carlos
-        wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_bluechip_1200B_tilt5200.dat')
-        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_redchip_1200B_tilt5200.dat')
+        #wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_bluechip_1200B_tilt5200.dat')
+        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_bluechip_1200B_tilt5200_slit2.dat')
+        wfile3 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_redchip_1200B_tilt5200.dat')
         # det_dict
         det_cut = None
         #
-        build_template([wfile1,wfile2], slits, wv_cuts, binspec, outroot,
+        build_template([wfile2,wfile3], slits, wv_cuts, binspec, outroot,
                        ascii_tbl=True, ifiles=ifiles, det_cut=det_cut,
                        chk=True, normalize=True, lowredux=False, in_vac=False,
                        subtract_conti=True)
