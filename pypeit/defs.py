@@ -11,4 +11,4 @@ pypeit_spectrographs = ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_
             'magellan_fire', 'magellan_fire_long', 'magellan_mage',
             'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'lbt_luci1', 'lbt_luci2',
             'mmt_binospec', 'mmt_mmirs', 'mdm_osmos_mdm4k', 'not_alfosc',
-            'p200_dbsp_blue', 'p200_dbsp_red']
+            'p200_dbsp_blue', 'p200_dbsp_red', 'p200_tspec']
