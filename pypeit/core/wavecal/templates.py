@@ -4,6 +4,8 @@ import os
 import numpy as np
 from IPython import embed
 
+from matplotlib import pyplot as plt
+
 from pkg_resources import resource_filename
 from scipy.io import readsav
 
@@ -40,7 +42,7 @@ outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
                    normalize=False, subtract_conti=False, wvspec=None,
                    lowredux=True, ifiles=None, det_cut=None, chk=False,
-                   miny=None, overwrite=True):
+                   miny=None, overwrite=True, ascii_tbl=False, in_vac=True):
     """
     Generate a full_template for a given instrument
 
@@ -75,6 +77,10 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             snippet to have the same maximum amplitude.
         subtract_conti (bool, optional):
             Subtract the continuum for the final archive
+        ascii_tbl (bool, optional):
+            Table is a simple ASCII 2 column wave,flux table
+        in_vac (bool, optional):
+            True if input wavelengths are in vacuum
     """
     if outdir is None:
         outdir = outpath
@@ -94,6 +100,8 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
             in_file = in_files[ifiles[kk]]
             if lowredux:
                 wv_vac, spec = xidl_arcspec(in_file, slit)
+            elif ascii_tbl:
+                wv_vac, spec = read_ascii(in_file, in_vac=in_vac)
             else:
                 wv_vac, spec = pypeit_arcspec(in_file, slit)
         else:
@@ -138,8 +146,11 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
         nwspec = np.maximum(nwspec, miny)
     # Check
     if chk:
-#        debugger.plot1d(nwwv, nwspec)
-        embed(header='123')
+        plt.clf()
+        ax = plt.gca()
+        ax.plot(nwwv, nwspec)
+        plt.show()
+        embed(header='152')
     # Generate the table
     write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
 
@@ -290,7 +301,43 @@ def poly_val(coeff, x, nrm):
     return y
 
 
+def read_ascii(tbl_file, in_vac=True):
+    """
+
+    The columns need to be wave, flux
+    And the data should be monoonically increasing in wavelength
+
+    Args:
+        tbl_file:
+        in_vac:
+
+    Returns:
+
+    """
+    arc_spec = Table.read(tbl_file, format='ascii')
+
+    # Wavelengths
+    wv_vac = arc_spec['wave']
+    if not in_vac:
+        wv_vac = airtovac(wv_vac * units.AA)
+
+    # Return
+    return wv_vac.value, arc_spec['flux']
+
+
 def xidl_arcspec(xidl_file, slit):
+    """
+    Read an XIDL format solution
+
+    Note:  These are in air
+
+    Args:
+        xidl_file (str):
+        slit (int):
+
+    Returns:
+
+    """
     xidl_dict = readsav(xidl_file)
     if xidl_dict['archive_arc'].ndim == 2:
         nspec = xidl_dict['archive_arc'].shape[0]
@@ -402,7 +449,7 @@ def main(flg):
         build_template([wfile1,wfile2], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut)
 
-    if flg & (2**9):  # 1200
+    if flg & (2**9):  # 1200G
         binspec = 1
         outroot='keck_deimos_1200G.fits'
         # 3-3 = blue  6268.23 -- 7540
@@ -424,6 +471,26 @@ def main(flg):
         #
         build_template([wfile1,wfile2,wfile3], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut, chk=True)
+
+    if flg & (2**35):  # 1200B
+        binspec = 1
+        outroot='keck_deimos_1200B.fits'
+        # 0 = blue  4063 - 5382.8
+        # 0 = red   5394.4 - 6709.2
+        ifiles = [0, 1]
+        slits = [0, 0]  # Not used
+        wv_cuts = [5382.]
+        # Outputs from IRAF by Carlos
+        wfile1 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_bluechip_1200B_tilt5200.dat')
+        wfile2 = os.path.join(template_path, 'Keck_DEIMOS', '1200B', 'deimos_calibrated_arc_redchip_1200B_tilt5200.dat')
+        # det_dict
+        det_cut = None
+        #
+        build_template([wfile1,wfile2], slits, wv_cuts, binspec, outroot,
+                       ascii_tbl=True, ifiles=ifiles, det_cut=det_cut,
+                       chk=True, normalize=True, lowredux=False, in_vac=False,
+                       subtract_conti=True)
+
 
     # ###############################################3
     # Keck/LRISr
@@ -862,12 +929,11 @@ if __name__ == '__main__':
     # Keck/DEIMOS
     #flg += 2**7  # 600
     #flg += 2**8  # 830G
-    #flg += 2**9  # 1200
+    #flg += 2**9  # 1200G
 
     # Keck/LRISr
     #flg += 2**10  # R400
     #flg += 2**11  # R1200
-    #flg += 2**12  # R600/5000
 
     # Shane/Kastr
     #  Need several arcs to proceed this way
@@ -924,7 +990,10 @@ if __name__ == '__main__':
     #flg += 2**33
 
     # P200 Triplespec
-    flg += 2**34
+    #flg += 2**34
+
+    # Keck/DEIMOS
+    flg += 2**35  # 1200B
 
     main(flg)
 
