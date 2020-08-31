@@ -43,7 +43,7 @@ def test_run_pypeit_calib_only():
                    'MasterBias_A_1_01.fits',
                    'MasterTilts_A_1_01.fits', 'MasterEdges_A_1_01.fits.gz',
                    'MasterFlat_A_1_01.fits',
-                   'MasterWaveCalib_A_1_01.json']
+                   'MasterWaveCalib_A_1_01.fits']
 
     # Just get a few files
     for ss, sub_files, masters in zip(range(3),
@@ -145,7 +145,7 @@ def test_run_pypeit():
     assert specObjs[0].VEL_CORR != 0., 'Heliocentric not calculated!'
 
     # Now re-use those master files
-    pargs = run_pypeit.parser([pyp_file, '-o', '-m', '-r', configdir])
+    pargs = run_pypeit.parser([pyp_file, '-o', '-r', configdir])
     run_pypeit.main(pargs)
 
     # Clean-up

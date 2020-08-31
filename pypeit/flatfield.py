@@ -20,11 +20,11 @@ from pypeit import bspline
 
 from pypeit import datamodel
 from pypeit import masterframe
-from pypeit import wavecalib
 from pypeit.display import display
 from pypeit.core import flat
 from pypeit.core import tracewave
 from pypeit.core import basis
+from pypeit.core import fitting
 from pypeit import slittrace
 
 
@@ -78,6 +78,7 @@ class FlatImages(datamodel.DataContainer):
         datamodel.DataContainer.__init__(self, d=d)
 
     def _init_internals(self):
+        self.filename = None
         # Master stuff
         self.master_key = None
         self.master_dir = None
@@ -140,7 +141,7 @@ class FlatImages(datamodel.DataContainer):
         # Grab everything but the bsplines. The bsplines are not parsed
         # because the tailored extension names do not match any of the
         # datamodel keys.
-        d, version_passed, type_passed = super(FlatImages, cls)._parse(hdu)
+        d, version_passed, type_passed, parsed_hdus = super(FlatImages, cls)._parse(hdu)
 
         # Find bsplines, if they exist
         nspat = len(d['spat_id'])
@@ -156,15 +157,17 @@ class FlatImages(datamodel.DataContainer):
                 key = '{0}_spat_bsplines'.format(flattype)
                 try:
                     d[key] = np.array([bspline.bspline.from_hdu(hdu[k]) for k in ext])
-                    version_passed &= np.all([d[key][i].version == bspline.bspline.version 
-                                              for i in range(nspat)])
                 except Exception as e:
                     msgs.warn('Error in bspline extension read:\n {0}: {1}'.format(
                                 e.__class__.__name__, str(e)))
                     # Assume this is because the type failed
                     type_passed = False
+                else:
+                    version_passed &= np.all([d[key][i].version == bspline.bspline.version 
+                                              for i in range(nspat)])
+                    parsed_hdus += ext
 
-        return d, version_passed, type_passed
+        return d, version_passed, type_passed, parsed_hdus
 
     def shape(self):
         if self.pixelflat_raw is not None:
@@ -200,6 +203,16 @@ class FlatImages(datamodel.DataContainer):
                 return self.illumflat_bpm
 
     def get_spat_bsplines(self, frametype='illum'):
+        """
+        Grab a list of bspline fits
+
+        Args:
+            frametype (str):
+
+        Returns:
+            list:
+
+        """
         # Check if both spat bsplines are none
         if self.pixelflat_spat_bsplines is None and self.illumflat_spat_bsplines is None:
             msgs.error("FlatImages contains no spatial bspline fit")
@@ -405,41 +418,6 @@ class FlatField(object):
         Return the number of slits.  Pulled directly from :attr:`slits`, if it exists.
         """
         return 0 if self.slits is None else self.slits.nslits
-
-#    def build_pixflat(self, trim=True, force=False):
-#        """
-#        Process the flat flat images.
-#
-#        Processing steps are the result of
-#        :func:`pypeit.core.procimg.init_process_steps`, ``trim``
-#        (based on the input argument), ``apply_gain``, and ``orient``.
-#        Currently, cosmic-ray rejection (``cr_reject``) is not done.
-#
-#        Args:
-#            trim (:obj:`bool`, optional):
-#                Trim the image down to just the data section.
-#            force (:obj:`bool`, optional):
-#                Force the flat to be reconstructed if it already exists
-#
-#        Returns:
-#            pypeitimage.PypeItImage:  The image with the unnormalized pixel-flat data.
-#        """
-#        if self.rawflatimg is None or force:
-#            # Process steps
-#            self.process_steps = procimg.init_process_steps(self.msbias, self.par['process'])
-#            if trim:
-#                self.process_steps += ['trim']
-#            self.process_steps += ['apply_gain']
-#            self.process_steps += ['orient']
-#            # Turning this on leads to substantial edge-tracing problems when last tested
-#            #     JXP November 22, 2019
-#            #if self.par['cr_reject']:
-#            #    self.process_steps += ['crmask']
-#            self.steps.append(inspect.stack()[0][3])
-#            # Do it
-#            self.rawflatimg = super(FlatField, self).build_image(bias=self.msbias, bpm=self.msbpm,
-#                                                                 ignore_saturation=True)
-#        return self.rawflatimg
 
     # TODO: Need to add functionality to use a different frame for the
     # ilumination flat, e.g. a sky flat
@@ -818,12 +796,15 @@ class FlatField(object):
             #  the edges of the chip in spec direction
             # TODO: Can we add defaults to bspline_profile so that we
             #  don't have to instantiate invvar and profile_basis
-            spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-                    = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+            try:
+                spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
+                    = fitting.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
                                             np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                             nord=4, upper=logrej, lower=logrej,
                                             kwargs_bspline={'bkspace': spec_samp_fine},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 5})
+            except:
+                embed(header='808 of flatfield')
 
             if exit_status > 1:
                 # TODO -- MAKE A FUNCTION
@@ -834,7 +815,7 @@ class FlatField(object):
 
             # Debugging/checking spectral fit
             if debug:
-                utils.bspline_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
+                fitting.bspline_qa(spec_coo_data, spec_flat_data, spec_bspl, spec_gpm_fit,
                                  spec_flat_fit, xlabel='Spectral Pixel', ylabel='log(flat counts)',
                                  title='Spectral Fit for slit={:d}'.format(slit_spat))
 
@@ -931,7 +912,7 @@ class FlatField(object):
             # Add an approximate pixel axis at the top
             if debug:
                 # TODO: Move this into a qa plot that gets saved
-                ax = utils.bspline_qa(spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit,
+                ax = fitting.bspline_qa(spat_coo_data, spat_flat_data, spat_bspl, spat_gpm_fit,
                                       spat_flat_fit, show=False)
                 ax.scatter(spat_coo_data, spat_flat_data_raw, marker='.', s=1, zorder=0, color='k',
                            label='raw data')
@@ -1011,7 +992,7 @@ class FlatField(object):
 
             # Perform the full 2d fit
             twod_bspl, twod_gpm_fit, twod_flat_fit, _, exit_status \
-                    = utils.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
+                    = fitting.bspline_profile(twod_spec_coo_data, twod_flat_data, twod_ivar_data,
                                             poly_basis, ingpm=twod_gpm_data, nord=4,
                                             upper=twod_sigrej, lower=twod_sigrej,
                                             kwargs_bspline={'bkspace': spec_samp_coarse},
@@ -1156,9 +1137,9 @@ class FlatField(object):
                                     bkspace=np.fmax(1.0 / median_slit_width / 10.0,
                                                     1.2 * np.median(np.diff(spat_coo_data))))
         # TODO: Can we add defaults to bspline_profile so that we
-        # don't have to instantiate invvar and profile_basis
+        #  don't have to instantiate invvar and profile_basis
         spat_bspl, spat_gpm_fit, spat_flat_fit, _, exit_status \
-            = utils.bspline_profile(spat_coo_data, spat_flat_data,
+            = fitting.bspline_profile(spat_coo_data, spat_flat_data,
                                     np.ones_like(spat_flat_data),
                                     np.ones_like(spat_flat_data), nord=4, upper=5.0,
                                     lower=5.0, fullbkpt=spat_bspl.breakpoints)
@@ -1202,7 +1183,8 @@ class FlatField(object):
         flex = self.wavetilts.spat_flexure
         slitmask = self.slits.slit_img(initial=True, flexure=flex)
         tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
-        waveimg = wavecalib.build_waveimg(self.spectrograph, tilts, self.slits, self.wv_calib, spat_flexure=flex)
+        #waveimg = wavecalib.build_waveimg(self.spectrograph, tilts, self.slits, self.wv_calib, spat_flexure=flex)
+        waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
         msgs.info('Performing a joint fit to the flat-field response')
         # Grab some parameters
         trim = self.flatpar['slit_trim']
@@ -1259,7 +1241,7 @@ class FlatField(object):
         # Fit the spectral direction of the blaze.
         logrej = 0.5
         spec_bspl, spec_gpm_fit, spec_flat_fit, _, exit_status \
-            = utils.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
+            = fitting.bspline_profile(spec_coo_data, spec_flat_data, spec_ivar_data,
                                     np.ones_like(spec_coo_data), ingpm=spec_gpm_data,
                                     nord=4, upper=logrej, lower=logrej,
                                     kwargs_bspline={'bkspace': spec_samp_fine},
@@ -1284,7 +1266,7 @@ class FlatField(object):
             mad = 1.4826*np.median(np.abs(med-yfit))
             inmsk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
             slit_bspl, _, _, _, exit_status \
-                = utils.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit)/mad**2, np.ones_like(xfit),
+                = fitting.bspline_profile(xfit[srtd], yfit[srtd], np.ones_like(xfit)/mad**2, np.ones_like(xfit),
                                         nord=4, upper=3, lower=3, ingpm=inmsk[srtd],
                                         kwargs_bspline={'bkspace': spec_samp_fine},
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -1458,11 +1440,13 @@ def illum_profile_spectral(rawimg, waveimg, slits, model=None, gpmask=None, skym
             med = np.median(yfit)
             mad = 1.4826*np.median(np.abs(med-yfit))
             msk = (yfit-med > -10*mad) & (yfit-med < 10*mad)
-            msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1,
-                                                  lower=5, upper=5)
-            relscl_model[onslit_b_init] = utils.func_val(coeff,
-                                                         (waveimg[onslit_b_init] - minw) / (maxw - minw),
-                                                         "legendre", minx=0, maxx=1)
+            pypeitFit = fitting.robust_fit(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1, lower=5, upper=5)
+            relscl_model[onslit_b_init] = pypeitFit.eval((waveimg[onslit_b_init] - minw) / (maxw - minw))
+            #msk, coeff = utils.robust_polyfit_djs(xfit[msk], yfit[msk], 3, function="legendre", minx=0, maxx=1,
+            #                                      lower=5, upper=5)
+            #relscl_model[onslit_b_init] = utils.func_val(coeff,
+            #                                             (waveimg[onslit_b_init] - minw) / (maxw - minw),
+            #                                             "legendre", minx=0, maxx=1)
 
         minv, maxv = np.min(relscl_model), np.max(relscl_model)
         msgs.info("Iteration {0:d} :: Minimum/Maximum scales = {1:.5f}, {2:.5f}".format(rr + 1, minv, maxv))

@@ -22,7 +22,7 @@ from pypeit import utils
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import qa
-from pypeit.core.fitting_ToBeMerged import twoD_Gaussian
+from pypeit.core import fitting
 
 from IPython import embed
 
@@ -97,7 +97,7 @@ def spat_flexure_shift(sciimg, slits, debug=False, maxlag=20):
         all_left_flexure, all_right_flexure, mask = slits.select_edges(flexure=lag_max[0])
         gpm = mask == 0
         viewer, ch = display.show_image(_sciimg)
-        display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
+        #display.show_slits(viewer, ch, left_flexure[:,gpm], right_flexure)[:,gpm]#, slits.id) #, args.det)
         embed(header='83 of flexure.py')
 
     return lag_max[0]
@@ -120,7 +120,7 @@ def load_sky_spectrum(sky_file):
     return xspectrum1d.XSpectrum1D.from_file(sky_file)
 
 
-def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
+def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
     """ Calculate shift between object sky spectrum and archive sky spectrum
 
     Args:
@@ -128,6 +128,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
             Spectrum of the sky related to our object
         arx_skyspec (:class:`linetools.spectra.xspectrum1d.XSpectrum1d`):
             Archived sky spectrum
+        arx_lines (tuple): Line information returned by arc.detect_lines for
+            the Archived sky spectrum
         mxshft (float, optional):
             Maximum allowed shift from flexure;  note there are cases that
             have been known to exceed even 30 pixels..
@@ -141,7 +143,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     # Determine the brightest emission lines
     msgs.warn("If we use Paranal, cut down on wavelength early on")
     arx_amp, arx_amp_cont, arx_cent, arx_wid, _, arx_w, arx_yprep, nsig \
-            = arc.detect_lines(arx_skyspec.flux.value)
+            = arx_lines
     obj_amp, obj_amp_cont, obj_cent, obj_wid, _, obj_w, obj_yprep, nsig_obj \
             = arc.detect_lines(obj_skyspec.flux.value)
 
@@ -222,22 +224,26 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     obj_skyspec.data['flux'][0,:2] = 0.
     obj_skyspec.data['flux'][0,-2:] = 0.
 
+    # Set minimum to 0.  For bad rebinning and for pernicious extractions
+    obj_skyspec.data['flux'][0,:] = np.maximum(obj_skyspec.data['flux'][0,:], 0.)
+    arx_skyspec.data['flux'][0,:] = np.maximum(arx_skyspec.data['flux'][0,:], 0.)
+
     # Normalize spectra to unit average sky count
     norm = np.sum(obj_skyspec.flux.value)/obj_skyspec.npix
-    obj_skyspec.flux = obj_skyspec.flux / norm
     norm2 = np.sum(arx_skyspec.flux.value)/arx_skyspec.npix
-    arx_skyspec.flux = arx_skyspec.flux / norm2
-    if norm < 0:
+    if norm <= 0:
         msgs.warn("Bad normalization of object in flexure algorithm")
         msgs.warn("Will try the median")
         norm = np.median(obj_skyspec.flux.value)
-        if norm < 0:
+        if norm <= 0:
             msgs.warn("Improper sky spectrum for flexure.  Is it too faint??")
             return None
-    if norm2 < 0:
+    if norm2 <= 0:
         msgs.warn('Bad normalization of archive in flexure. You are probably using wavelengths '
                    'well beyond the archive.')
         return None
+    obj_skyspec.flux = obj_skyspec.flux / norm
+    arx_skyspec.flux = arx_skyspec.flux / norm2
 
     # Deal with bad pixels
     msgs.work("Need to mask bad pixels")
@@ -245,14 +251,16 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
     # Deal with underlying continuum
     msgs.work("Consider taking median first [5 pixel]")
     everyn = obj_skyspec.npix // 20
-    bspline_par = dict(everyn=everyn)
-    mask, ct = utils.robust_polyfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value, 3,
-                                    function='bspline', sigma=3., bspline_par=bspline_par)
-    obj_sky_cont = utils.func_val(ct, obj_skyspec.wavelength.value, 'bspline')
+    pypeitFit_obj, _ = fitting.iterfit(obj_skyspec.wavelength.value, obj_skyspec.flux.value,
+                                       nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
+                                       maxiter = 15, upper = 3.0, lower = 3.0)
+    obj_sky_cont, _ = pypeitFit_obj.value(obj_skyspec.wavelength.value)
+
     obj_sky_flux = obj_skyspec.flux.value - obj_sky_cont
-    mask, ct_arx = utils.robust_polyfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value, 3,
-                                        function='bspline', sigma=3., bspline_par=bspline_par)
-    arx_sky_cont = utils.func_val(ct_arx, arx_skyspec.wavelength.value, 'bspline')
+    pypeitFit_sky, _ = fitting.iterfit(arx_skyspec.wavelength.value, arx_skyspec.flux.value,
+                                       nord = 3,  kwargs_bspline={'everyn': everyn}, kwargs_reject={'groupbadpix':True,'maxrej':1},
+                                       maxiter = 15, upper = 3.0, lower = 3.0)
+    arx_sky_cont, _ = pypeitFit_sky.value(arx_skyspec.wavelength.value)
     arx_sky_flux = arx_skyspec.flux.value - arx_sky_cont
 
     # Consider sharpness filtering (e.g. LowRedux)
@@ -271,11 +279,15 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, mxshft=20):
 
     #Fit a 2-degree polynomial to peak of correlation function. JFH added this if/else to not crash for bad slits
     if np.any(np.isfinite(corr[subpix_grid.astype(np.int)])):
-        fit = utils.func_fit(subpix_grid, corr[subpix_grid.astype(np.int)], 'polynomial', 2)
+        fit = fitting.PypeItFit(xval=subpix_grid, yval=corr[subpix_grid.astype(np.int)],
+                                func='polynomial', order=np.atleast_1d(2))
+        fit.fit()
         success = True
-        max_fit = -0.5 * fit[1] / fit[2]
+        max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
     else:
-        fit = utils.func_fit(subpix_grid, 0.0*subpix_grid, 'polynomial', 2)
+        fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
+                                funct='polynomial', order=np.atleast_1d(2))
+        fit.fit()
         success = False
         max_fit = 0.0
         msgs.warn('Flexure compensation failed for one of your objects')
@@ -314,8 +326,11 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     """
     sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
-    # Load Archive
+
+    # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
+    # multiple times
     sky_spectrum = load_sky_spectrum(sky_file)
+    sky_lines = arc.detect_lines(sky_spectrum.flux.value)
 
     nslits = len(bpm)
     gdslits = np.where(np.invert(bpm))[0]
@@ -358,7 +373,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
             obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
 
             # Calculate the shift
-            fdict = spec_flex_shift(obj_sky, sky_spectrum, mxshft=mxshft)
+            fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines, mxshft=mxshft)
             punt = False
             if fdict is None:
                 msgs.warn("Flexure shift calculation failed for this spectrum.")
@@ -472,7 +487,8 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
             fit = this_flex_dict['polyfit'][cntr]
             xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] #+ flex_dict['shift'][o]
             #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-            model = utils.func_val(fit, xval, 'polynomial')
+            model = fit.eval(xval)
+            #model = utils.func_val(fit, xval, 'polynomial')
             mxmod = np.max(model)
             ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
             ylim = [ylim_min, 1.3]
@@ -609,7 +625,7 @@ def calculate_image_offset(image, im_ref, nfit=3):
     xx, yy = np.meshgrid(x, y, indexing='ij')
 
     # Fit the neighborhood of the maximum to calculate the offset
-    popt, _ = opt.curve_fit(twoD_Gaussian, (xx, yy),
+    popt, _ = opt.curve_fit(fitting.twoD_Gaussian, (xx, yy),
                             ccorr[amax[0]-nfit:amax[0]+nfit+1, amax[1]-nfit:amax[1]+nfit+1].ravel(),
                             p0=initial_guess)
     # Return the RA and DEC shift, in pixels

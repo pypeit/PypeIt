@@ -359,7 +359,7 @@ class SlitTraceSet(datamodel.DataContainer):
                 the median slit length of each slit is returned.
 
         Returns:
-            :obj:numpy.ndarray_: Slit lengths.
+            `numpy.ndarray`_: Slit lengths.
         """
         left, right, _ = self.select_edges(initial=initial)
         slitlen = right - left
@@ -735,12 +735,8 @@ class SlitTraceSet(datamodel.DataContainer):
             wv_calib (:obj:`dict`):
 
         """
-        #for kk, spat_id in enumerate(self.spat_id):
-        #    if wv_calib[str(spat_id)] is None:
-        #        self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
         for islit in range(self.nslits):
-            if wv_calib[str(self.slitord_id[islit])] is None \
-                    or len(wv_calib[str(self.slitord_id[islit])]) == 0:
+            if wv_calib.wv_fits[islit] is None or wv_calib.wv_fits[islit].pypeitfit is None:
                 self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):

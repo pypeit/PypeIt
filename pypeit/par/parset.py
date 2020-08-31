@@ -377,7 +377,7 @@ class ParSet(object):
 
 
     @staticmethod
-    def _data_string(data, use_repr=True, verbatum=False):
+    def _data_string(data, use_repr=True, verbatim=False):
         """
         Convert a single datum into a string
         
@@ -391,20 +391,20 @@ class ParSet(object):
             use_repr (:obj:`bool`, optional):
                 Use the objects :attr:`__repr__` method; otherwise, use
                 a direct string conversion.
-            verbatum (:obj:`bool`, optional):
+            verbatim (:obj:`bool`, optional):
                 Use quotes around the provided string to indicate that
-                the string should be representated in a verbatum (fixed
+                the string should be representated in a verbatim (fixed
                 width) font.
         
         Returns:
             str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
-            return data if not verbatum else '``' + data + '``'
+            return data if not verbatim else '``' + data + '``'
         if hasattr(data, '__len__'):
             return '[]' if isinstance(data, list) and len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
-                                                             verbatum=verbatum) for d in data ])
+                                                             verbatim=verbatim) for d in data ])
         return data.__repr__() if use_repr else str(data)
 
     def _wrap_print(self, head, output, tcols):
@@ -741,7 +741,7 @@ class ParSet(object):
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
         sorted_keys = numpy.sort(self.keys())
         for i,k in enumerate(sorted_keys):
-            data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatum=True)
+            data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatim=True)
             if isinstance(self.data[k], ParSet):
                 if type(self.data[k]).__name__ not in parsets_listed:
                     new_parsets += [k]
@@ -752,11 +752,11 @@ class ParSet(object):
                 data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
                 data_table[i+1,3] = '..' if self.default[k] is None \
                                     else ParSet._data_string(self.default[k], use_repr=False,
-                                                             verbatum=True)
+                                                             verbatim=True)
 
             data_table[i+1,2] = '..' if self.options[k] is None \
                                     else ParSet._data_string(self.options[k], use_repr=False,
-                                                             verbatum=True)
+                                                             verbatim=True)
             data_table[i+1,4] = '..' if self.descr[k] is None \
                                     else ParSet._data_string(self.descr[k])
 

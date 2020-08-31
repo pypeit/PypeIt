@@ -144,6 +144,9 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'mmt_binospec':
         return spectrographs.mmt_binospec.MMTBINOSPECSpectrograph()
 
+    if spectrograph == 'mmt_mmirs':
+        return spectrographs.mmt_mmirs.MMTMMIRSSpectrograph()
+
     if spectrograph == 'mdm_osmos_mdm4k':
         return spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
 

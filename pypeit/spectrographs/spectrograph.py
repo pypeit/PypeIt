@@ -585,9 +585,8 @@ class Spectrograph:
             lampkey = 'lampstat{:02d}'.format(kk)
             if lampkey not in self.meta.keys():
                 break
-            ext = self.meta[lampkey]['ext']
-            card = self.meta[lampkey]['card']
-            lampstat += [str(headarr[ext][card])]
+            # Pull value from header
+            lampstat += self.get_meta_value(headarr, lampkey)
             kk += 1
         return "_".join(lampstat)
 
@@ -657,8 +656,13 @@ class Spectrograph:
 
         # Deal with 'special' cases
         if meta_key in ['ra', 'dec'] and value is not None:
-            ra, dec = meta.convert_radec(self.get_meta_value(headarr, 'ra', no_fussing=True),
-                                self.get_meta_value(headarr, 'dec', no_fussing=True))
+            # TODO: Can we get rid of the try/except here and instead get to the heart of the issue?
+            try:
+                ra, dec = meta.convert_radec(self.get_meta_value(headarr, 'ra', no_fussing=True),
+                                    self.get_meta_value(headarr, 'dec', no_fussing=True))
+            except:
+                msgs.warn('Encounter invalid value of your coordinates. Give zeros for both RA and DEC')
+                ra, dec = 0.0, 0.0
             value = ra if meta_key == 'ra' else dec
 
         # JFH Added this bit of code to deal with situations where the

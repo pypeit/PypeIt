@@ -106,7 +106,7 @@ def check_frame_exptime(exptime, exprng):
     if exprng[0] is not None:
         indx[indx] &= (exptime[indx] > exprng[0])
     if exprng[1] is not None:
-        indx[indx] &= (exptime[indx] < exprng[1])
+        indx[indx] &= (exptime[indx] <= exprng[1])
     return indx
 
 

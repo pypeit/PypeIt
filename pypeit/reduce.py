@@ -217,6 +217,7 @@ class Reduce(object):
         Args:
             manual_dict (dict or None):
             neg (bool, optional):
+                Negative image
 
         Returns:
             None or dict:  None if no matches; dict if there are for manual extraction
@@ -225,21 +226,21 @@ class Reduce(object):
         if manual_dict is None:
             return None
         #
-        dets = manual_dict['hand_extract_det']
+        dets = np.atleast_1d(manual_dict['hand_extract_det'])
         # Grab the ones we want
         gd_det = dets > 0
-        if neg:
+        if not neg:
             gd_det = np.invert(gd_det)
         # Any?
         if not np.any(gd_det):
-            return None
+            return manual_dict
         # Fill
         manual_extract_dict = {}
         for key in manual_dict.keys():
             sgn = 1
             if key == 'hand_extract_det':
                 sgn = -1
-            manual_extract_dict[key] = sgn*manual_dict[key][gd_det]
+            manual_extract_dict[key] = sgn*np.atleast_1d(manual_dict[key])[gd_det]
         # Return
         return manual_extract_dict
 
@@ -261,8 +262,7 @@ class Reduce(object):
 
             # This will hold the extracted objects
             self.sobjs = self.sobjs_obj.copy()
-            # Only extract positive objects
-            self.sobjs.purge_neg()
+            # Purge out the negative objects if this was a near-IR reduction unless negative objects are requested
 
             # Quick loop over the objects
             for iobj in range(self.sobjs.nobj):
@@ -277,6 +277,7 @@ class Reduce(object):
                                                global_sky, self.sciImg.rn2img,
                                                self.par['reduce']['extraction']['boxcar_radius']/plate_scale,
                                                sobj)
+
             # Fill up extra bits and pieces
             self.objmodel = np.zeros_like(self.sciImg.image)
             self.ivarmodel = np.copy(self.sciImg.ivar)
@@ -288,6 +289,8 @@ class Reduce(object):
                                           model_noise=(not self.ir_redux),
                                           show_profile=self.reduce_show,
                                           show=self.reduce_show)
+
+
         # Return
         return self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs
 
@@ -307,7 +310,7 @@ class Reduce(object):
         pass
 
     def run(self, basename=None, ra=None, dec=None, obstime=None,
-            std_trace=None, manual_extract_dict=None, show_peaks=False):
+            std_trace=None, show_peaks=False, return_negative=False):
         """
         Primary code flow for PypeIt reductions
 
@@ -324,7 +327,6 @@ class Reduce(object):
                 Required if helio-centric correction is to be applied
             std_trace (np.ndarray, optional):
                 Trace of the standard star
-            manual_extract_dict (dict, optional):
             show_peaks (bool, optional):
                 Show peaks in find_objects methods
 
@@ -351,15 +353,15 @@ class Reduce(object):
 
         # Wavelengths (on unmasked slits)
         msgs.info("Generating wavelength image")
-        self.waveimg = wavecalib.build_waveimg(self.spectrograph, self.tilts, self.slits,
-                                               self.wv_calib, spat_flexure=self.spat_flexure_shift)
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
+                                               spat_flexure=self.spat_flexure_shift)
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
             self.find_objects(self.sciImg.image, std_trace=std_trace,
                               show_peaks=show_peaks,
                               show=self.reduce_show & (not self.std_redux),
-                              manual_extract_dict=manual_extract_dict)
+                              manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
 
         # Check if the user wants to overwrite the skymask with a pre-defined sky regions file
         skymask_init, usersky = self.load_skyregions(skymask_init)
@@ -374,7 +376,7 @@ class Reduce(object):
                                   std_trace=std_trace,
                                   show=self.reduce_show,
                                   show_peaks=show_peaks,
-                                  manual_extract_dict=manual_extract_dict)
+                                  manual_extract_dict=self.par['reduce']['extraction']['manual'].dict_for_objfind())
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
@@ -389,6 +391,9 @@ class Reduce(object):
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
+            if self.ir_redux:
+                self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
+
         else:  # No objects, pass back what we have
             self.skymodel = self.initial_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
@@ -399,10 +404,6 @@ class Reduce(object):
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
-        # Purge out the negative objects if this was a near-IR reduction.
-        if self.ir_redux:
-            self.sobjs.purge_neg()
-
         # Finish up
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
@@ -412,8 +413,7 @@ class Reduce(object):
             if not self.std_redux:
                 self.spec_flexure_correct(self.sobjs, basename)
             # Heliocentric
-            radec = ltu.radec_to_coord((ra, dec))
-            self.helio_correct(self.sobjs, radec, obstime)
+            self.helio_correct(self.sobjs, ra, dec, obstime)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -513,7 +513,7 @@ class Reduce(object):
             show_objs (bool, optional):
 
         Returns:
-            numpy.ndarray: image of the the global sky model
+            `numpy.ndarray`_: image of the the global sky model
 
         """
         # Prep
@@ -552,7 +552,7 @@ class Reduce(object):
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.reduce_bpm[slit_idx] = True
 
-        if update_crmask:
+        if update_crmask and self.par['scienceframe']['process']['mask_cr']:
             # Find CRs with sky subtraction
             self.sciImg.build_crmask(self.par['scienceframe']['process'],
                                      subtract_img=self.global_sky)
@@ -590,12 +590,12 @@ class Reduce(object):
 
         Parameters
         ----------
-        skymask_init :  numpy.ndarray
+        skymask_init :  `numpy.ndarray`_
             A boolean array of sky pixels (True is pixel is a sky region)
 
         Returns
         -------
-        skymask_init :  numpy.ndarray
+        skymask_init :  `numpy.ndarray`_
             A boolean array of sky pixels (True is pixel is a sky region)
         usersky : bool
             If the user has defined the sky, set this variable to True (otherwise False).
@@ -652,7 +652,6 @@ class Reduce(object):
             basename (str):
 
         """
-
         if self.par['flexure']['spec_method'] != 'skip':
             # Measure
             flex_list = flexure.spec_flexure_obj(sobjs, self.slits.slitord_id, self.reduce_bpm,
@@ -665,7 +664,7 @@ class Reduce(object):
         else:
             msgs.info('Skipping flexure correction.')
 
-    def helio_correct(self, sobjs, radec, obstime):
+    def helio_correct(self, sobjs, ra, dec, obstime):
         """ Perform a heliocentric correction
 
         Wrapper to wave.geomotion_correct()
@@ -684,7 +683,8 @@ class Reduce(object):
             # TODO change this keyword to refframe instead of frame
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['frame']))
             # Good slitord
-            gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
+            radec = ltu.radec_to_coord((ra, dec))
+            gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
             vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, gd_slitord,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
@@ -901,6 +901,7 @@ class MultiSlitReduce(Reduce):
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
+                                find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
                                 debug_all=debug)
             sobjs.add_sobj(sobjs_slit)
@@ -1084,12 +1085,13 @@ class EchelleReduce(Reduce):
         plate_scale = self.spectrograph.order_platescale(self.order_vec, binning=self.binning)
         inmask = self.sciImg.fullmask == 0
         # Find objects
+        # TODO -- Eliminate this specobj_dict thing
         specobj_dict = {'SLITID': 999, #'orderindx': 999,
                         'DET': self.det, 'OBJTYPE': self.objtype, 'PYPELINE': self.pypeline}
 
         sobjs_ech, skymask[self.slitmask > -1] = extract.ech_objfind(
             image, self.sciImg.ivar, self.slitmask, self.slits_left, self.slits_right,
-            self.order_vec, self.reduce_bpm,
+            self.order_vec, self.reduce_bpm, det=self.det,
             spec_min_max=np.vstack((self.slits.specmin, self.slits.specmax)),
             inmask=inmask, ir_redux=self.ir_redux, ncoeff=self.par['reduce']['findobj']['trace_npoly'],
             hand_extract_dict=manual_extract_dict, plate_scale=plate_scale,

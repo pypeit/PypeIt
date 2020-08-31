@@ -464,7 +464,7 @@ class EdgeTraceSet(DataContainer):
         self.par = par                                  # Parameters used for slit edge tracing
         self.qa_path = qa_path                          # Directory for QA plots
 
-        # NOTE: This mean that, no matter what, every instance of
+        # NOTE: This means that, no matter what, every instance of
         # EdgeTraceSet should have a sobelsig attribute that is *not*
         # None.
         if auto:
@@ -793,15 +793,16 @@ class EdgeTraceSet(DataContainer):
         # slits first is that we may have to sync the slits again.
         ad_rm = False
         if self.par['rm_slits'] is not None:
-            rm_user_slits = trace.parse_user_slits(self.par['rm_slits'], self.traceimg.det,
-                                                   rm=True)
+            rm_user_slits = trace.parse_user_slits(self.par['rm_slits'],
+                                                   self.traceimg.detector.det, rm=True)
             if rm_user_slits is not None:
                 ad_rm = True
                 self.rm_user_traces(rm_user_slits)
 
         # Add user traces
         if self.par['add_slits'] is not None:
-            add_user_slits = trace.parse_user_slits(self.par['add_slits'], self.traceimg.det)
+            add_user_slits = trace.parse_user_slits(self.par['add_slits'],
+                                                    self.traceimg.detector.det)
             if add_user_slits is not None:
                 ad_rm = True
                 self.add_user_traces(add_user_slits)
@@ -1049,7 +1050,53 @@ class EdgeTraceSet(DataContainer):
                         or isinstance(self[key], DataContainer):
                     continue
                 _d[key] = self[key]
+
         return d
+
+    def to_hdu(self, **kwargs):
+        """
+        Construct the HDUList to write.
+
+        This overrides :func:`pypeit.datamodel.DataContainer.to_hdu`
+        and has the same calling sequence (i.e., ``kwargs`` are
+        passed directly to the base class method). This is needed to
+        deal with the multiple :class:`~pypeit.tracepca.TracePCA`
+        objects included in the output.
+
+        Returns:
+            :obj:`list`, `astropy.io.fits.HDUList`_: A list of HDUs,
+            where the type depends on the value of ``add_primary``.
+        """
+        if self.pcatype is None or self.par['left_right_pca'] is False:
+            # Do not need to change the default behavior if the PCA
+            # doesn't exist or there is only one PCA for both left and
+            # right edges.
+            return super(EdgeTraceSet, self).to_hdu(**kwargs)
+
+        # TODO: We need a better solution for multiple levels of nested
+        # DataContainers. Here the commpication is that we're writing
+        # many DataContainers of a single derived class (TracePCA) to
+        # the same file.
+
+        # Temporarily erase the left and right pca so
+        # they're not written
+        _left_pca, _right_pca = self.left_pca, self.right_pca
+        self.left_pca, self.right_pca = None, None
+
+        # Run the default (with add_primary = False)
+        hdu = super(EdgeTraceSet, self).to_hdu(**kwargs)
+
+        # Reset them
+        self.left_pca, self.right_pca = _left_pca, _right_pca
+
+        # Add in the left and right PCAs with the correct extension
+        # names. Can only append on HDU at a time ...
+        for h in self.left_pca.to_hdu(add_primary=False, hdu_prefix='LEFT_'):
+            hdu.append(h)
+        for h in self.right_pca.to_hdu(add_primary=False, hdu_prefix='RIGHT_'):
+            hdu.append(h)
+        # Finally return the full list
+        return hdu
 
     @classmethod
     def from_hdu(cls, hdu, hdu_prefix=None, chk_version=True):
@@ -1057,9 +1104,10 @@ class EdgeTraceSet(DataContainer):
         Instantiate the object from an HDU extension.
 
         This overrides the base-class method. Overriding this method
-        is preferrable because it makes it easier to deal with the
-        muliple :class:`~pypeit.datamodel.DataContainer` objects
-        contained by :class:`EdgeTraceSet`.
+        is preferrable to overriding the ``_parse`` method because it
+        makes it easier to deal with the muliple
+        :class:`~pypeit.datamodel.DataContainer` objects contained by
+        :class:`EdgeTraceSet`.
 
         Args:
             hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
@@ -1074,8 +1122,8 @@ class EdgeTraceSet(DataContainer):
         # Run the default parser to get most of the data. This won't
         # parse traceimg because it's not a single-extension
         # DataContainer. It *will* parse pca, left_pca, and right_pca,
-        # if they exist.
-        d, version_passed, type_passed = super(EdgeTraceSet, cls)._parse(hdu)
+        # if they exist, but not their model components.
+        d, version_passed, type_passed, parsed_hdus = super(EdgeTraceSet, cls)._parse(hdu)
         if not type_passed:
             msgs.error('The HDU(s) cannot be parsed by a {0} object!'.format(cls.__name__))
         if not version_passed:
@@ -1086,16 +1134,19 @@ class EdgeTraceSet(DataContainer):
         # Instantiate the TraceImage from the header
         d['traceimg'] = TraceImage.from_hdu(hdu, chk_version=chk_version)
 
-        # Instantiate the TracePCAs using the data already parsed from
-        # the file.
+        # Check if there should be any PCAs
+        parsed_pcas = np.any(['PCA' in h for h in parsed_hdus]) 
+        if d['pcatype'] is not None and not parsed_pcas:
+            msgs.error('CODING ERROR: Expect to parse PCA headers if pcatype is present.')
+
+        # Instantiate the TracePCAs using the appropriate hdus.
         if d['pcatype'] is not None:
-            hdu_names = [h.name for h in hdu]
-            if 'PCA' in hdu_names:
-                d['pca'] = TracePCA.from_dict(d=d['pca'])
-            if 'LEFT_PCA' in hdu_names:
-                d['left_pca'] = TracePCA.from_dict(d=d['left_pca'])
-            if 'RIGHT_PCA' in hdu_names:
-                d['right_pca'] = TracePCA.from_dict(d=d['right_pca'])
+            if 'PCA' in parsed_hdus:
+                d['pca'] = TracePCA.from_hdu(hdu, hdu_prefix=None)
+            if 'LEFT_PCA' in parsed_hdus:
+                d['left_pca'] = TracePCA.from_hdu(hdu, hdu_prefix='LEFT_')
+            if 'RIGHT_PCA' in parsed_hdus:
+                d['right_pca'] = TracePCA.from_hdu(hdu, hdu_prefix='RIGHT_')
 
         # Convert data types
         for key in d.keys():
@@ -1106,6 +1157,11 @@ class EdgeTraceSet(DataContainer):
 
         # Instantiate
         self = super(EdgeTraceSet, cls).from_dict(d=d)
+
+        # Set the integer pixel values
+        self.edge_img = None if self.traceid is None \
+                            else (np.round(self.edge_cen if self.edge_fit is None
+                                    else self.edge_fit).astype(int))
 
         # Reinstantiate elements that are not part of the datamodel
         # NOTE: The SOBELSIG extension is used here as the reference
@@ -1204,6 +1260,8 @@ class EdgeTraceSet(DataContainer):
 
         # TODO: Clean and consolidate the objects needed for either the
         # ginga or matplotlib methods so that this isn't as onerous.
+
+        # TODO: Currently barfs if object is empty!
 
         # Build the slit edge data to plot.
         if slits is None:
@@ -3731,6 +3789,7 @@ class EdgeTraceSet(DataContainer):
             # Trace cen
             new_traces[:,kk*2] = x_spat0
             new_traces[:,kk*2+1] = x_spat1
+
         # Insert
         self.insert_traces(np.array(sides), new_traces, mode='user')
         # Sync
@@ -4045,7 +4104,8 @@ class EdgeTraceSet(DataContainer):
             # Set the offset based on the location of this detector
             offset = self.spectrograph.detector_map.image_coordinates(
                             self.spectrograph.detector_map.npix[0]/2,
-                            self.spectrograph.detector_map.npix[1]/2, detector=self.traceimg.det,
+                            self.spectrograph.detector_map.npix[1]/2,
+                            detector=self.traceimg.detector.det,
                             in_mm=False)[0][0] - self.spectrograph.detector_map.npix[0]/2
             # Set the bounds to some nominal fraction of the detector
             # size and pix/mm scale; allow for a +/- 10% deviation in

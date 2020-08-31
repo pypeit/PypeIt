@@ -13,7 +13,7 @@ from linetools import utils as ltu
 from IPython import embed
 
 from pypeit.par import pypeitpar
-from pypeit.core.wavecal import fitting, waveio, wvutils, templates
+from pypeit.core.wavecal import wv_fitting, waveio, wvutils, templates
 from pypeit import utils, msgs
 from astropy.io import ascii as ascii_io
 from astropy.table import Table
@@ -608,7 +608,7 @@ class Identify(object):
             bdisp = self.fitsol_deriv(self.specdata.size/2) # Angstroms/pixel at the centre of the spectrum
             try:
                 #n_final = wvutils.parse_param(self.par, 'n_final', self._slit)
-                final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det,
+                final_fit = wv_fitting.iterative_fitting(self.specdata, self._detns, gd_det,
                                                       self._lineids[gd_det], self._line_lists, bdisp,
                                                       verbose=False, n_first=self._fitdict["polyorder"],
                                                       match_toler=self.par['match_toler'],
@@ -1020,7 +1020,7 @@ class Identify(object):
             bdisp = self.fitsol_deriv(self.specdata.size / (2*self._fitdict["scale"]))  # Angstroms/pixel at the centre of the spectrum
             # Then try a detailed fit
             try:
-                final_fit = fitting.iterative_fitting(self.specdata, self._detns, gd_det[0],
+                final_fit = wv_fitting.iterative_fitting(self.specdata, self._detns, gd_det[0],
                                                       self._lineids[gd_det[0]], self._line_lists, bdisp,
                                                       verbose=False, n_first=min(2, self._fitdict["polyorder"]),
                                                       match_toler=self.par['match_toler'],

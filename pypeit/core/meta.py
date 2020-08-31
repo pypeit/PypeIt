@@ -128,6 +128,7 @@ def define_additional_meta(nlamps=20):
                        'detector': dict(dtype=str, comment='Name of detector'),
                        'arm': dict(dtype=str, comment='Name of arm (e.g. NIR for X-Shooter)'),
                        'datasec': dict(dtype=str, comment='Data section (windowing)'),
+                       'dither': dict(dtype=float, comment='Dither amount in arcsec'),
                        'idname': dict(dtype=str, comment='Instrument supplied frametype (e.g. bias)'),
                        'obstime': dict(dtype=str, comment='Observation time'),
                        'pressure': dict(dtype=float, comment='Pressure at obstime'),
