@@ -12,6 +12,9 @@ from pypeit import defs
 def parser(options=None):
     # TODO: Add argument that specifies the log file
     parser = argparse.ArgumentParser(description="Script to setup a PypeIt run [v3]")
+
+    # TODO: This construction is no longer useful if a pypeit file
+    # cannot be supplied. Just have root be a required argument.
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-r', '--root', type=str, default=None,
                        help='File path+root, e.g. /data/Kast/b ')
@@ -70,6 +73,8 @@ def main(args):
                                         output_path=sort_dir)
     else:
         # Should never reach here
+        # TODO: See parser comment. Just have root be a required
+        # argument.
         raise IOError('Need to set -r !!')
 
     # Run the setup

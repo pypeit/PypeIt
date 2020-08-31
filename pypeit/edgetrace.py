@@ -1261,6 +1261,8 @@ class EdgeTraceSet(DataContainer):
         # TODO: Clean and consolidate the objects needed for either the
         # ginga or matplotlib methods so that this isn't as onerous.
 
+        # TODO: Currently barfs if object is empty!
+
         # Build the slit edge data to plot.
         if slits is None:
             # Use the internals. Any masked data is excluded; masked
