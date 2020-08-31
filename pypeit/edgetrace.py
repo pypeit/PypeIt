@@ -793,15 +793,16 @@ class EdgeTraceSet(DataContainer):
         # slits first is that we may have to sync the slits again.
         ad_rm = False
         if self.par['rm_slits'] is not None:
-            rm_user_slits = trace.parse_user_slits(self.par['rm_slits'], self.traceimg.det,
-                                                   rm=True)
+            rm_user_slits = trace.parse_user_slits(self.par['rm_slits'],
+                                                   self.traceimg.detector.det, rm=True)
             if rm_user_slits is not None:
                 ad_rm = True
                 self.rm_user_traces(rm_user_slits)
 
         # Add user traces
         if self.par['add_slits'] is not None:
-            add_user_slits = trace.parse_user_slits(self.par['add_slits'], self.traceimg.det)
+            add_user_slits = trace.parse_user_slits(self.par['add_slits'],
+                                                    self.traceimg.detector.det)
             if add_user_slits is not None:
                 ad_rm = True
                 self.add_user_traces(add_user_slits)
@@ -4101,7 +4102,8 @@ class EdgeTraceSet(DataContainer):
             # Set the offset based on the location of this detector
             offset = self.spectrograph.detector_map.image_coordinates(
                             self.spectrograph.detector_map.npix[0]/2,
-                            self.spectrograph.detector_map.npix[1]/2, detector=self.traceimg.det,
+                            self.spectrograph.detector_map.npix[1]/2,
+                            detector=self.traceimg.detector.det,
                             in_mm=False)[0][0] - self.spectrograph.detector_map.npix[0]/2
             # Set the bounds to some nominal fraction of the detector
             # size and pix/mm scale; allow for a +/- 10% deviation in
