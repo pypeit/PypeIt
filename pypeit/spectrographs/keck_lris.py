@@ -3,7 +3,9 @@
 import glob
 import os
 import numpy as np
+
 from astropy.io import fits
+from astropy import time
 
 from pkg_resources import resource_filename
 
@@ -51,8 +53,9 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
         par['calibrations']['pinholeframe']['exprng'] = [999999, None]  # No pinhole frames
-        par['calibrations']['pixelflatframe']['exprng'] = [None, 30]    # This may be too low for LRISb
-        par['calibrations']['traceframe']['exprng'] = [None, 30]
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 60]
+        par['calibrations']['traceframe']['exprng'] = [None, 60]
+        par['calibrations']['standardframe']['exprng'] = [None, 30]
 
         # Flexure
         # Always correct for spectral flexure, starting with default parameters
@@ -63,7 +66,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         par['scienceframe']['process']['spat_flexure_correct'] = True
         par['calibrations']['standardframe']['process']['spat_flexure_correct'] = True
 
-        par['scienceframe']['exprng'] = [29, None]
+        par['scienceframe']['exprng'] = [60, None]
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -127,20 +130,40 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         # Red only, but grabbing here
         meta['dispangle'] = dict(ext=0, card='GRANGLE', rtol=1e-2)
 
-        # Lamps
-        lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
-                      'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
-        for kk,lamp_name in enumerate(lamp_names):
-            meta['lampstat{:02d}'.format(kk+1)] = dict(ext=0, card=lamp_name)
+        # Lamps -- Have varied in time..
+        for kk in range(12): # This needs to match the length of LAMPS below
+            meta['lampstat{:02d}'.format(kk+1)] = dict(card=None, compound=True)
         # Ingest
         self.meta = meta
 
     def compound_meta(self, headarr, meta_key):
         if meta_key == 'binning':
-#            return '1,1'
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning
+        elif 'lampstat' in meta_key:
+            idx = int(meta_key[-2:])
+            curr_date = time.Time(headarr[0]['MJD-OBS'], format='mjd')
+            # Modern -- Assuming the change occurred with the new red detector
+            t_newlamp = time.Time("2010-12-03", format='isot')  # LAMPS changed in Header
+            if curr_date > t_newlamp:
+                lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'KRYPTON', 'XENON',
+                              'FEARGON', 'DEUTERI', 'FLAMP1', 'FLAMP2', 'HALOGEN']
+                return headarr[0][lamp_names[idx-1]]  # Use this index is offset by 1
+            else:  # Original lamps
+                plamps = headarr[0]['LAMPS'].split(',')
+                # https: // www2.keck.hawaii.edu / inst / lris / instrument_key_list.html
+                old_lamp_names = ['MERCURY', 'NEON', 'ARGON', 'CADMIUM', 'ZINC', 'HALOGEN']
+                if idx <= 5: # Arcs
+                    return ('off' if plamps[idx - 1] == '0' else 'on')
+                elif idx == 10:  # Current FLAMP1
+                    return headarr[0]['FLIMAGIN'].strip()
+                elif idx == 11:  # Current FLAMP2
+                    return headarr[0]['FLSPECTR'].strip()
+                elif idx == 12:  # Current Halogen slot
+                    return ('off' if plamps[len(old_lamp_names)-1] == '0' else 'on')
+                else:  # Lamp didn't exist.  Set to None
+                    return 'None'
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -167,9 +190,11 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
+        if ftype == 'standard':
+            return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & self.lamps(fitstbl, 'off') & (fitstbl['hatch'] == 'closed')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp & self.lamps(fitstbl, 'dome') & (fitstbl['hatch'] == 'open')
         if ftype in ['pinhole', 'dark']:
@@ -226,7 +251,8 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         raw_file : str
           Filename
         det (int or None):
-          Detector number; Default = both
+          Detector number;
+          If None, grab both [if both are there]
         Returns
         -------
         tuple
@@ -387,6 +413,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
                 HDUList of the image of interest.
                 Ought to be the raw file, or else..
             det (int):
+                Detector ID.  1 or 2
 
         Returns:
             :class:`pypeit.images.detector_container.DetectorContainer`:
@@ -429,7 +456,7 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         namps = hdu[0].header['NUMAMPS']
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
-        if namps == 2:
+        if namps == 2 or ((namps==4) & (len(hdu)==3)):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             detector.gain = np.atleast_1d(np.mean(detector.gain))
             detector.ronoise = np.atleast_1d(np.mean(detector.ronoise))
@@ -461,6 +488,10 @@ class KeckLRISBSpectrograph(KeckLRISSpectrograph):
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
         par['calibrations']['wavelengths']['method'] = 'full_template'
+
+        # Allow for longer exposure times on blue side (especially if using the Dome lamps)
+        par['calibrations']['pixelflatframe']['exprng'] = [None, 300]
+        par['calibrations']['traceframe']['exprng'] = [None, 300]
 
 
         return par
@@ -659,6 +690,19 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         self.camera = 'LRISr'
 
     def get_detector_par(self, hdu, det):
+        """
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+                Detector ID.  1 or 2
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
         # Binning
         binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
 
@@ -688,6 +732,26 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
             ronoise=np.atleast_1d([4.54, 4.62])
         ))
 
+        # Allow for post COVID detector issues
+        t2020_1 = time.Time("2020-06-30", format='isot')  # First run
+        t2020_2 = time.Time("2020-07-29", format='isot')  # Second run
+        date = time.Time(hdu[0].header['MJD-OBS'], format='mjd')
+
+        if date < t2020_1:
+            pass
+        elif date < t2020_2: # This is for the June 30 2020 run
+            msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
+            detector_dict1['gain'] = np.atleast_1d([37.6])
+            detector_dict2['gain'] = np.atleast_1d([1.26])
+            detector_dict1['ronoise'] = np.atleast_1d([99.])
+            detector_dict2['ronoise'] = np.atleast_1d([5.2])
+        else: # This is the 2020 July 29 run
+            msgs.warn("We are using LRISr gain/RN values based on WMKO estimates.")
+            detector_dict1['gain'] = np.atleast_1d([1.45])
+            detector_dict2['gain'] = np.atleast_1d([1.25])
+            detector_dict1['ronoise'] = np.atleast_1d([4.47])
+            detector_dict2['ronoise'] = np.atleast_1d([4.75])
+
         # Instantiate
         detector_dicts = [detector_dict1, detector_dict2]
         detector = detector_container.DetectorContainer(**detector_dicts[det-1])
@@ -696,7 +760,7 @@ class KeckLRISRSpectrograph(KeckLRISSpectrograph):
         namps = hdu[0].header['NUMAMPS']
         # The website does not give values for single amp per detector so we take the mean
         #   of the values provided
-        if namps == 2:
+        if namps == 2 or ((namps==4) & (len(hdu)==3)):  # Longslit readout mode is the latter.  This is a hack..
             detector.numamplifiers = 1
             # Long silt mode
             if hdu[0].header['AMPPSIZE'] == '[1:1024,1:4096]':
@@ -925,7 +989,7 @@ class KeckLRISROrigSpectrograph(KeckLRISRSpectrograph):
             specaxis=1,
             specflip=False,
             spatflip=False,
-            platescale=0.135,  # TO BE UPDATED!!
+            platescale=0.21,  # TO BE UPDATED!!
             darkcurr=0.0,
             saturation=65535.,
             nonlinear=0.76,
@@ -1125,6 +1189,7 @@ def get_orig_rawimage(raw_file, debug=False):
     # Open
     hdul = fits.open(raw_file)
     head0 = hdul[0].header
+    # TODO -- Check date here and error/warn if not after the upgrade
     image = hdul[0].data.astype(float)
 
     # Get post, pre-pix values

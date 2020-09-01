@@ -2,68 +2,85 @@
 Installation
 ============
 
-This document describes how to install PypeIt for both users and developers.
+This document describes how to install ``PypeIt`` for both users and developers.
+
+----
+
+.. _dependencies:
 
 Installing Dependencies
 =======================
 
-Installing pypeit will not automatically ensure that all the
+Installing ``PypeIt`` will not automatically ensure that all the
 dependencies (and their appropriate versions) are installed and
-up-to-date.  This must be done manually.
+up-to-date. Below we provide two ways of ensuring that the relevant
+dependencies are available.
 
-The required packages for pypeit are listed in the `requirements.txt
-file
-<https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
-If you download the file, you can install/update all the dependencies
-by executing::
-
-    pip install -r requirements.txt
-
-However, we highly recommend that you use `Anaconda
-<https://www.continuum.io/downloads/>`_, as described below. The
-package and version requirements for pypeit are:
+The package and version requirements for ``PypeIt`` are:
 
 * `python <http://www.python.org/>`_ version 3.7 or later
 * `numpy <http://www.numpy.org/>`_ version 1.18.0 or later
 * `astropy <http://www.astropy.org/>`_ version 4.0 or later
 * `scipy <http://www.scipy.org/>`_ version 1.4 or later
 * `matplotlib <http://matplotlib.org/>`_  version 3.1 or later
-* `numba <https://numba.pydata.org/>`_ version 0.39.0 or later (optional - some speed ups, inc. wavecal)
-* `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5 (needed for linetools)
+* `numba <https://numba.pydata.org/>`_ version 0.39.0 or later
+* `PyQT5 <https://wiki.python.org/moin/PyQt/>`_ version 5
 * `pyyaml <https://pyyaml.org/>`_ -- version 5.1
 * `configobj <https://pypi.org/project/configobj/>`_ -- version 5.0.6 or later
 * `scikit-learn <https://scikit-learn.org/stable/>`_ -- version 0.20 or later
 * `IPython <https://ipython.org>`_ -- version 7.2.0 or later
-* `extension-helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
 * `ginga <https://pypi.org/project/ginga/>`_ -- version 3.0 or later
+* `requests <https://requests.readthedocs.io/en/master/>`_ -- version 2.23 or later
 * `packaging <https://pypi.org/project/packaging/>`_ -- version 19.0 or later
-* `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later (see also below)
+* `linetools <https://pypi.org/project/linetools/>`_ -- version 0.2 or later
+* `extension_helpers <https://pypi.org/project/extension-helpers/>`_ -- version 0.1 or later
 * `pytest <https://pypi.org/project/pytest/>`_ -- version 3.0.7 or later
 
-With Anaconda, you can check the presence of these packages with::
+Create a conda environment (recommended)
+----------------------------------------
 
-	conda list "^python$|numpy|astropy$|scipy$|matplotlib|numba|PyQT|ginga|pyyaml|h5py"
+We highly recommend using `Anaconda <https://www.anaconda.com/>`_ as
+a package and environment manager. We provide a yaml file that can be
+used to setup a conda environment called ``PypeIt``.  To use this:
 
-If the packages have been installed, this command should print out
-all the packages and their version numbers.
+ #. Download `environment.yml <https://github.com/pypeit/PypeIt/blob/master/environment.yml>`__.
 
-If any of the packages are out-of-date, they can be updated with a
-command like::
+ #. Create the conda environment::
 
-	conda update scipy
+        conda env create -f environment.yml
 
-The only exception (true for ginga?) is that you *must* use ``pip
-install`` to install ``linetools``::
+ #. Activate it::
 
-    pip install linetools
+        conda activate pypeit
+
+ #. Verify that the new environment was installed correctly::
+
+        conda env list
+
+Install via ``pip`` 
+-------------------
+
+To install the dependencies using `pip <https://pypi.org/project/pip/>`_:
+
+ #. Download `requirements.txt <https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__.
+
+ #. Install the dependencies::
+
+        pip install -r requirements.txt
+
+Note that this is a "system-wide" installation, and will
+replace/upgrade any current versions of the packages you already have
+installed.
+
+----
 
 Installing PypeIt
 =================
 
-Please read all of the text in this sub-section before choosing how you
-wish to install ``PypeIt``.
-
-There are two methods you can use to install ``PypeIt``:
+Please read all of the text in this sub-section before choosing which
+of the two methods described below for how you wish to install
+``PypeIt``. Once you've completed the installation steps, you should
+:ref:`test_installation`.
 
 Install using pip
 -----------------
@@ -81,18 +98,6 @@ the issue). If you have problems, instead try::
 If that also fails, please `submit an issue
 <https://github.com/pypeit/PypeIt/issues>`__.
 
-A simple check of the installation can be done by trying to call the
-main ``PypeIt`` executable to provide the usage help::
-
-    run_pypeit -h
-
-This should fail if any of the requirements are not satisfied. As
-stated above, you can download the `requirements.txt file
-<https://github.com/pypeit/PypeIt/blob/master/pypeit/requirements.txt>`__
-to install/update all of the dependencies::
-
-    pip install -r requirements.txt
-
 Install from the git source
 ---------------------------
 
@@ -100,21 +105,20 @@ If ``pip`` is unsuccessful or if you are planning to use any of the
 ``PypeIt`` development branches, then you should install directly
 from GitHub.
 
-First, clone the repository::
+ #. Clone the repository::
 
-    git clone https://github.com/pypeit/PypeIt.git
+        git clone https://github.com/pypeit/PypeIt.git
 
-This will create a ``PypeIt/`` directory in your current path. Then,
-install with::
+ #. This will create a ``PypeIt`` directory in your current path. To install::
 
-    cd PypeIt
-    python setup.py develop
+        cd PypeIt
+        python setup.py develop
 
-(Installing this way ensures that virtually all changes to files in
-the ``PypeIt/`` directory take immediate effect the next time you
-import the code.)
+Installing the code this way ensures that virtually all changes to files in
+the ``PypeIt`` directory take immediate effect the next time you
+import the code.
 
-Again, do a test run as above to check you have all the requirements.
+----
 
 Compiled Code and Plug-ins
 ==========================
@@ -159,8 +163,12 @@ If the check is unsuccessful, you will see an error message listing
 the missing plugins. If you have a problem, please `submit an issue
 <https://github.com/pypeit/PypeIt/issues>`__.
 
-Testing the Installation
-========================
+----
+
+.. _test_installation:
+
+Test Your Installation
+======================
 
 In order to assess whether ``PypeIt`` has been properly installed, we
 suggest you run the following tests:
@@ -173,6 +181,9 @@ directory) and run the main executable. E.g.,::
 
 	cd
 	run_pypeit -h
+
+This should fail if any of the requirements are not satisfied; see
+:ref:`dependencies`.
 
 
 2. Run the ``PypeIt`` unit tests
@@ -189,38 +200,16 @@ Or, alternatively::
     cd PypeIt/pypeit/tests
     python -m pytest . -W ignore
 
+Over 100 tests should pass, nearly 100 will be skipped (unless
+you are a developer) and none should fail.
 
-3. Try running ``PypeIt`` on our extensive development test suite
------------------------------------------------------------------
-
-**This should only be done for those wishing to develop the code.**
-Regardless, ask for help if you really want to do this.
-
-We have provided a suite of tests that you can download and run via
-this repo: `TestSuite
-<https://github.com/pypeit/PypeIt-development-suite>`_
-
-Install it by cloning the GitHub repository (do **not** install this
-in the ``PypeIt`` source directory tree)::
-
-	git clone https://github.com/pypeit/PypeIt-development-suite.git
-
-To run the test::
-
-	cd PypeIt-development-suite
-	./pypeit_test develop
-
-.. note::
-
-	``pypeit_test`` can also, e.g., take the argument ``kast``
-	instead of ``develop`` to only test data from the Shane Kast
-	spectrograph.
-
-The test takes a while to run but should run without issue if all the
-packages have been properly installed.
+----
 
 Developers
 ==========
 
 For developers, see :doc:`development`.
+
+Also, test scripts for development purposes are available at the
+`PypeIt Development Suite <https://github.com/pypeit/PypeIt-development-suite>`_.
 

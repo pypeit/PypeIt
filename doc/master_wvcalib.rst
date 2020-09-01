@@ -34,7 +34,9 @@ Trouble Shooting
 ================
 
 Wavelength solutions are amongst the most challenging
-part of data reduction.
+part of data reduction.  See :doc:`wave_calib` for
+extensive details on how PypeIt performs wavelength
+calibration and related issues.
 
 
 Current WaveCalib Data Model

@@ -32,6 +32,8 @@ aligmment Used to align spatial positions in multiple slits. This frame
 arc       Spectrum of one or more calibration arc lamps
 bias      Bias frame;  typically a 0s exposure with the shutter closed
 dark      Dark frame;  typically a >0s exposure to assess dark current (shutter closed)
+illumflat Spectrum taken to correct illumination profile of the slit(s).
+          This is often the same as the trace flat (below).
 pinhole   Spectrum taken through a pinhole slit (i.e. a very short slit
           length), and is used to define the centre if a slit (currently,
           this frame is only used for echelle data reduction). Often this
@@ -44,8 +46,7 @@ pixelflat Spectrum taken to correct for pixel-to-pixel detector variations
 science   Spectrum of one or more science targets
 standard  Spectrum of spectrophotometric standard star
           PypeIt includes a list of pre-defined standards
-trace     Spectrum taken to define the slit edges and correct for
-          illumination variations across the slit. Often this is an
+trace     Spectrum taken to define the slit edges. Often this is an
           exposure using a flat lamp, but for observations in the very
           blue, this may be on-sky. The slit length of a trace frame
           should be the same as the science slit.
