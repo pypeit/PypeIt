@@ -1236,8 +1236,8 @@ class PypeItMetaData:
                 msgs.error("Check these files before continuing")
     
         # Now identify the dark frames
-        # TODO: This should not be here.  Move to instrument specific
-        # selection as above
+        # TODO: !!!!!!!!!!!!!!!! This should not be here. Move to
+        # instrument specific selection as above
         indx = self.type_bitmask.flagged(type_bits, flag='bias') \
                         & (self['exptime'].data.astype(float) > self.spectrograph.minexp)
         type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], 'dark')
