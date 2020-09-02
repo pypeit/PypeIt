@@ -135,3 +135,4 @@ def test_lris_blue_pypeit_overwrite():
     assert fitstbl_usr['target'][0] == 'test', 'Grating name changed in pypeit file'
     assert fitstbl['target'][0] != fitstbl_usr['target'][0], \
             'Fits header value and input pypeit file value expected to be different.'
+
