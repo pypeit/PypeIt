@@ -72,7 +72,7 @@ def main(args):
     # Use PypeItMetaData to write the complete PypeIt file
     # TODO: Set cfg_split to 'all' by default?
     if args.cfg_split is not None:
-        ps.fitstbl.write_pypeit(output_path, cfg_lines=ps.user_cfg,
+        ps.fitstbl.write_pypeit(args.output_path, cfg_lines=ps.user_cfg,
                                 write_bkg_pairs=args.background,
                                 configs=[item.strip() for item in args.cfg_split.split(',')])
 
