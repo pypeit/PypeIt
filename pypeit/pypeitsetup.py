@@ -20,7 +20,9 @@ from pypeit.spectrographs.util import load_spectrograph
 
 from IPython import embed
 
-class PypeItSetup(object):
+# TODO: Instantiation should just automatically trigger the run
+# method...
+class PypeItSetup:
     """
     Prepare for a pypeit run.
 
