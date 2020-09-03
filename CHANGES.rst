@@ -38,9 +38,7 @@
  - Manual extraction
  - Improve LBT/LUCI
  - Add MMT/MMIRS
- - QL script for Keck/MOSFIRE
- - Script to generate combined datacubes for IFU data.
- - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
+ - QL script for Keck/MOSFIRE (beta version)
  - Correct det bug in keck_lris
  - Modifications to allow for flailing LRISr detector
  - Modifications for parse LRIS LAMPS prior to 2010 upgrade

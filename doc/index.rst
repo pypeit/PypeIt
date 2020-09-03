@@ -155,10 +155,13 @@ or have a feature request, please `submit an issue
 
    spectrographs
    setup
-   running
    pypeit_par
+   pypeit_file
+   running
+   quicklook
    object_finding
    extraction
+   scripts
 
 ----
 
@@ -168,15 +171,24 @@ or have a feature request, please `submit an issue
 
    calibrations
    outputs
+   qa
 
 ----
 
 .. toctree::
-   :caption: Further fussing
+   :caption: Further processing
    :maxdepth: 1
 
    fluxing
    coadd1d
+
+----
+
+.. toctree::
+   :caption: For developers
+   :maxdepth: 1
+
+   development
 
 Contributors
 ============
