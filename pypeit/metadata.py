@@ -1211,6 +1211,7 @@ class PypeItMetaData:
         if 'ra' not in self.keys() or 'dec' not in self.keys():
             msgs.warn('Cannot associate standard with science frames without sky coordinates.')
         else:
+            # TODO: Do we want to do this here?
             indx = self.type_bitmask.flagged(type_bits, flag='standard')
             for b, f, ra, dec in zip(type_bits[indx], self['filename'][indx], self['ra'][indx],
                                      self['dec'][indx]):
@@ -1220,7 +1221,7 @@ class PypeItMetaData:
                               + msgs.newline() + 'missed by the automatic identification.')
                     b = self.type_bitmask.turn_off(b, flag='standard')
                     continue
-    
+
                 # If an object exists within 20 arcmins of a listed standard,
                 # then it is probably a standard star
                 foundstd = flux_calib.find_standard_file(ra, dec, check=True)
@@ -1235,12 +1236,10 @@ class PypeItMetaData:
             if not flag_unknown:
                 msgs.error("Check these files before continuing")
     
-        # Now identify the dark frames
-        # TODO: !!!!!!!!!!!!!!!! This should not be here. Move to
-        # instrument specific selection as above
-        indx = self.type_bitmask.flagged(type_bits, flag='bias') \
-                        & (self['exptime'].data.astype(float) > self.spectrograph.minexp)
-        type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], 'dark')
+#        # Now identify the dark frames
+#        indx = self.type_bitmask.flagged(type_bits, flag='bias') \
+#                        & (self['exptime'].data.astype(float) > self.spectrograph.minexp)
+#        type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], 'dark')
     
         # Finish up (note that this is called above if user is not None!)
         msgs.info("Typing completed!")
