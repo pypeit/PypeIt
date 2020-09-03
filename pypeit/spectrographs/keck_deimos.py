@@ -45,6 +45,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         self.grating = None
         self.optical_model = None
         self.detector_map = None
+        self.amap = None
+        self.bmap = None
 
     def get_detector_par(self, hdu, det):
         """
