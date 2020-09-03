@@ -955,7 +955,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -969,7 +969,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -979,6 +979,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -997,7 +998,7 @@ Alterations to the default parameters are::
           sync_center = gap
           minimum_slit_length_sci = 6
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           spat_flexure_correct = True
@@ -1038,7 +1039,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -1052,7 +1053,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -1062,6 +1063,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -1081,7 +1083,7 @@ Alterations to the default parameters are::
           maxdev2d = 1.0
           sigrej2d = 5.0
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           sigclip = 5.0
@@ -1127,7 +1129,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -1141,7 +1143,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 60
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -1151,6 +1153,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -1170,7 +1173,7 @@ Alterations to the default parameters are::
           maxdev2d = 1.0
           sigrej2d = 5.0
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           sigclip = 5.0
@@ -1216,7 +1219,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               satpix = nothing
               use_pixelflat = False
@@ -1230,7 +1233,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
+          exprng = None, 300
           [[[process]]]
               use_pixelflat = False
               use_illumflat = False
@@ -1240,6 +1243,7 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[standardframe]]
+          exprng = None, 30
           [[[process]]]
               mask_cr = True
               spat_flexure_correct = True
@@ -1258,7 +1262,7 @@ Alterations to the default parameters are::
           sync_center = gap
           minimum_slit_length_sci = 6
   [scienceframe]
-      exprng = 29, None
+      exprng = 60, None
       [[process]]
           mask_cr = True
           spat_flexure_correct = True
