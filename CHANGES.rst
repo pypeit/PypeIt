@@ -44,6 +44,10 @@
  - Correct det bug in keck_lris
  - Modifications to allow for flailing LRISr detector
  - Modifications for parse LRIS LAMPS prior to 2010 upgrade
+ - Added "amap" and "bmap" files in `pypeit/data/static_calibs/keck_deimos/` for DEIMOS
+   optical model
+ - Added `pypeit/core/slitdesign_matching.py` and `maskdesign_matching` to `EdgeTraceSet`
+ - Pypeit registers `maskdef_id` in SlitTraceSet if instrument is `keck_deimos`
 
 1.0.6 (22 Jul 2020)
 -------------------
