@@ -3,15 +3,15 @@ import os
 import pytest
 import numpy as np
 
-from astropy.io import fits
-from astropy.table import Table
+# from astropy.io import fits
+# from astropy.table import Table
 
 from pypeit.images import buildimage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.edgetrace import EdgeTraceSet
-from pypeit.slittrace import SlitTraceSet
-from pypeit import masterframe
+# from pypeit.slittrace import SlitTraceSet
+# from pypeit import masterframe
 
 
 # This test check that `maskdesign_matching` method is properly assigning DEIMOS slit-mask design IDs
@@ -23,6 +23,7 @@ def deimos_flat_files():
     return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '1200G_Cooper', ifile)
                 for ifile in ['d0115_0023.fits.gz', 'd0115_0024.fits.gz', 'd0115_0025.fits.gz']]
 
+@dev_suite_required
 def test_maskdef_id():
     # Load instrument
     keck_deimos = load_spectrograph('keck_deimos')
@@ -46,14 +47,11 @@ def test_maskdef_id():
     edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, bpm=msbpm, auto=True, maskdesign=True,
                                            debug=False, show_stages=False,qa_path=None)
 
-    # Save masterEdge and masterSlit to file
-    edge_masterframe_name = masterframe.construct_file_name(EdgeTraceSet, master_key, master_dir=master_dir)
-    edges.to_master_file(edge_masterframe_name)
+    slits = edges.get_slits()
+    # Check that the `maskdef_id` assigned to the first and last slits is correct
+    assert slits.maskdef_id[0] == 1098247, 'maskdef_id not found or wrong'
+    assert slits.maskdef_id[-1] == 1098226, 'maskdef_id not found or wrong'
+    # `maskdef_id` is the slit_id ("dSlitId") from the DEIMOS slit-mask design. If the matching is done
+    # correctly these are the slit_id values that the first and last slits should have. These values are
+    # coming from a reduction run with DEEP2 IDL-based pipeline.
 
-    slit_masterframe_name = masterframe.construct_file_name(SlitTraceSet,master_key, master_dir=master_dir)
-    edges.get_slits().to_master_file(slit_masterframe_name)
-
-    # Check that the `maskdef_id` assigned to the first and last lists is correct
-    tab=Table(fits.getdata(slit_masterframe_name))
-    assert tab['maskdef_id'][0] == 1098247, 'maskdef_id not found or wrong'
-    assert tab['maskdef_id'][-1] == 1098226, 'maskdef_id not found or wrong'
