@@ -802,7 +802,7 @@ class EdgeTraceSet(DataContainer):
         # [DP] `maskdesign_matching` for now is only matching the traces found with the ones predicted by
         # the slit-mask design. If we include the piece of code in which `maskdesign_matching` recovers
         # missing traces, we should move the following 2 lines before `self.sync()`
-        if maskdesign is True:
+        if maskdesign is True and self.pcatype is not None:
             self.maskdesign_matching(offsets_range=[-50, 50], step=1, debug=False)
 
         # First manually remove some traces, just in case a user
@@ -4009,7 +4009,7 @@ class EdgeTraceSet(DataContainer):
 
         Args:
             offsets_range (:obj:`list`):
-                range of offsets in pixels between the slit positions predicted by
+                range of offsets in pixels allowed between the slit positions predicted by
                  the mask design and the traced slit positions.
             step (:obj:`int`):
                 step in pixels used to generate a list of possible offsets within
@@ -4021,7 +4021,7 @@ class EdgeTraceSet(DataContainer):
 
         # Check that there are traces to match!
         if self.is_empty:
-            msgs.error('No traces to refine.')
+            msgs.error('No traces to match.')
 
         # The PCA decomposition must have already been determined
         if self.pcatype is None:
@@ -4107,7 +4107,7 @@ class EdgeTraceSet(DataContainer):
         wh = model_xt != model_xb
         switched = np.mean(model_xt[wh] - model_xb[wh]) < 0
         # Matching
-        if switched == False:
+        if not switched:
             # Bottom slit edge
             xb_det_new, ind_b, coeff_b, sigres_b = slitdesign_matching.slit_match(xb_det, model_xb,
                                                 step=step, xlag_range=offsets_range, print_matches=debug, edge='bottom')
