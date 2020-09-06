@@ -21,11 +21,14 @@ from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.display import display
 from pypeit import edgetrace
+from pypeit import utils
+from pypeit.pypeitsetup import PypeItSetup
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 @dev_suite_required
 def test_quicklook():
@@ -78,6 +81,50 @@ def test_trace_edges():
 
     # Generate the Masters folder
     os.mkdir(masterdir)
+
+    # Define the pypeit file (HARDCODED!!)
+    pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')
+
+    # Run the tracing
+    trace_edges.main(trace_edges.parser(['-f', pypeit_file]))
+
+    # Define the edges master file (HARDCODED!!)
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+
+    # Check that the correct number of traces were found
+    edges = edgetrace.EdgeTraceSet.from_file(trace_file)
+    assert edges.ntrace == 2, 'Did not find the expected number of traces.'
+
+    # Clean up
+    shutil.rmtree(setupdir)
+    shutil.rmtree(outdir)
+
+@dev_suite_required
+def test_trace_add_rm():
+    # Define the output directories (HARDCODED!!)
+    setupdir = os.path.join(os.getcwd(), 'setup_files')
+    outdir = os.path.join(os.getcwd(), 'shane_kast_blue_A')
+    masterdir = os.path.join(os.getcwd(), 'shane_kast_blue_A', 'Masters')
+    # Remove them if they already exist
+    if os.path.isdir(setupdir):
+        shutil.rmtree(setupdir)
+    if os.path.isdir(outdir):
+        shutil.rmtree(outdir)
+
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
+
+    # Run the setup
+    ps = PypeItSetup.from_file_root(droot, 'shane_kast_blue', output_path=setupdir)
+    ps.run(setup_only=True, sort_dir=setupdir)
+
+    # Add lines to remove and add slits. This removes the one slit that
+    # is found and adds another.
+    ps.user_cfg += ['[calibrations]', '[[slitedges]]', 'rm_slits = 1:1028:170',
+                    'add_slits = 1:1028:30:300']
+
+    # Use PypeItMetaData to write the complete PypeIt file
+    pypeit_file = os.path.join(os.getcwd(), 'shane_kast_blue.pypeit')
+    ps.fitstbl.write_pypeit(pypeit_file, cfg_lines=ps.user_cfg, configs=['all'])
 
     # Define the pypeit file (HARDCODED!!)
     pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')

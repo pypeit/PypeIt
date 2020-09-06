@@ -8,8 +8,6 @@ import string
 import numpy as np
 import yaml
 
-from collections import OrderedDict
-
 import datetime
 from astropy import table, coordinates, time, units
 
@@ -21,7 +19,6 @@ from pypeit.core import parse
 from pypeit.core import meta
 from pypeit.par import PypeItPar
 from pypeit.par.util import make_pypeit_file
-from pypeit.par import ManualExtractionPar
 from pypeit.bitmask import BitMask
 from IPython import embed
 
@@ -112,9 +109,6 @@ class PypeItMetaData:
         # Build table
         self.table = table.Table(data if files is None 
                                  else self._build(files, strict=strict, usrdata=usrdata))
-
-        # Sort on filename
-        #self.table.sort('filename')  # JXP -- This was causing issues with merging, and I think we sort on MJD later
 
         # Merge with user data, if present
         if usrdata is not None:

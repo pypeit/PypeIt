@@ -42,6 +42,8 @@
  - Script to generate combined datacubes for IFU data.
  - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
  - Correct det bug in keck_lris
+ - Modifications to allow for flailing LRISr detector
+ - Modifications for parse LRIS LAMPS prior to 2010 upgrade
 
 1.0.6 (22 Jul 2020)
 -------------------
