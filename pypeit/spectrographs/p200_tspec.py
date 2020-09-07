@@ -1,4 +1,4 @@
-""" Module for Keck/NIRES specific codes
+""" Module for P200/Triplespec specific codes
 """
 import numpy as np
 from astropy.time import Time
