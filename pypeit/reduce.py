@@ -380,6 +380,7 @@ class Reduce(object):
         else:
             msgs.info("Skipping 2nd run of finding objects")
 
+
         # Do we have any positive objects to proceed with?
         if self.nobj > 0:
             # Global sky subtraction second pass. Uses skymask from object finding
@@ -395,6 +396,9 @@ class Reduce(object):
                 self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
 
         else:  # No objects, pass back what we have
+            #Could have negative objects but no positive objects so purge them
+            if self.ir_redux:
+                self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
             self.skymodel = self.initial_sky
             self.objmodel = np.zeros_like(self.sciImg.image)
             # Set to sciivar. Could create a model but what is the point?
