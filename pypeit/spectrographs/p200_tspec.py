@@ -253,15 +253,3 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         """
         norders = order_vec.size
         return np.full(norders, 0.37)
-
-    @property
-    def dloglam(self):
-        # This number was determined using the resolution and sampling quoted on the TripleSpec website
-        # https://www.astro.caltech.edu/palomar/observer/200inchResources/tspecspecs.html
-        R = 2600.0 * 2.7
-        dloglam = 1.0 / R / np.log(10.0)
-        return dloglam
-
-    @property
-    def loglam_minmax(self):
-        return np.log10(9500.0), np.log10(25000)
