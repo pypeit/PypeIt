@@ -162,7 +162,7 @@ class CoAdd1D(object):
             header = fits.getheader(spec1dfiles[0])
             self.spectrograph = load_spectrograph(header['PYP_SPEC'])
         if par is None:
-            self.par = spectrograph.default_pypeit_par()['coadd1d']
+            self.par = self.spectrograph.default_pypeit_par()['coadd1d']
         else:
             self.par = par
         #
