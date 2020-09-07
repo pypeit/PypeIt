@@ -1,7 +1,8 @@
 
 1.1.0dev
 --------
-
+ - Fixed a bug for IR reductions for cases where only negative object traces are identified.
+   These were accidentally being written to the spec1d file.
  - Fixed a bug fixes a bug in full_template wavelength reidentification
    for situations where extreme wavelength coverage slits results in
    reidentification with a purely zero-padded array.
