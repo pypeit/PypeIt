@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+
+"""
+Plot a spectrum with an interactive QT GUI
+"""
+
+import pypeit.scripts.show_coadd1d as show_coadd1d
+
+if __name__ == '__main__':
+    args = show_coadd1d.parser()
+    show_coadd1d.main(args)
