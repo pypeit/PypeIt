@@ -65,7 +65,7 @@ by the extraction mode.
 Therefore, the integrated counts for a boxcar extraction are given by the
 BOXCAR_COUNTS array with variance BOXCAR_VAR.
 
-.. _pypeit-1dspec:
+.. _pypeit_show_1dspec:
 
 pypeit_show_1dspec
 ==================

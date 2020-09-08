@@ -157,7 +157,7 @@ typical call::
     pypeit_flux_calib flux_file.txt
 
 Again, the :doc:`out_spec1D` files are modified in place.
-See :ref:`pypeit-1dspec` for details on how to view them.
+See :ref:`pypeit_show_1dspec` for details on how to view them.
 
 FluxSpec Class
 ==============

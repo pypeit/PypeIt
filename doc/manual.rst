@@ -16,7 +16,7 @@ Process
 Here is the standard recipe:
 
 1. Reduce the spectral image(s)
-2. Examine the spec2d images with :ref:`pypeit-2dspec`
+2. Examine the spec2d images with :ref:`pypeit_show_2dspec`
 3. Record the spatial and spectral pixel where the trace should cross
 4. Modify the PypeIt file as described below
 5. :ref:`run-pypeit` again

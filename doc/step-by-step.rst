@@ -1,4 +1,4 @@
-====================
+=_===================
 Step by Step Example
 ====================
 
@@ -173,7 +173,7 @@ slit of the Kast instrument, there is only one slit.
 
 Here is a screen shot from the first tab in the *ginga*
 window after using
-the :ref:`pypeit_chk_edges`_ script, with this explicit call::
+the :ref:`pypeit_chk_edges` script, with this explicit call::
 
     pypeit_chk_edges Masters/MasterEdges_A_1_01.fits.gz
 
@@ -231,7 +231,7 @@ pixel-to-pixel variations and illumination of the detector.
 
 Here is a screen shot from the first tab in the *ginga*
 window (pixflat_norm) after using
-:ref:`pypeit_chk_flats`_, with this explicit call::
+:ref:`pypeit_chk_flats`, with this explicit call::
 
     pypeit_chk_flats Masters/MasterFlat_A_1_01.fits
 
@@ -258,7 +258,7 @@ Spec2D
 
 Here is a screen shot from the third tab in the *ginga*
 window (sky_resid-det01) after using
-:ref:`pypeit_show_2dspec`_, with this explicit call::
+:ref:`pypeit_show_2dspec`, with this explicit call::
 
     pypeit_show_2dspec Science/spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
@@ -278,7 +278,7 @@ Spec1D
 
 Here is a screen shot from the GUI showing the
 1D spectrum after using
-:ref:`pypeit_show_1dspec`_, with this explicit call::
+:ref:`pypeit_show_1dspec`, with this explicit call::
 
     pypeit_show_1dspec Science/spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits
 
