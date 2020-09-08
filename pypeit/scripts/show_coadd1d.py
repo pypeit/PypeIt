@@ -100,7 +100,7 @@ def main(args):
         ax2 = plt.subplot(gs[1])
         ax1.plot(wave,telluric*0.9*ymax,linestyle='-',color='0.7',lw=1.0)
         ax1.plot(wave,flux,'k-',lw=0.5)
-        ax1.plot(wave,sig,'-',color='lightskyblue',lw=0.5)
+        ax1.plot(wave,sig,'-',color='steelblue',lw=0.5)
         ax1.set_xlim(wave[gpm].min(),wave[gpm].max())
         ax1.set_ylim(ymin,ymax)
 
