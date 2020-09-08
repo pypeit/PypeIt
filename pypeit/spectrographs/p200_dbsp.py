@@ -16,6 +16,7 @@ from pypeit.core import parse
 from pypeit.images import detector_container
 
 from typing import List
+from pkg_resources import resource_filename
 
 def flip_fits_slice(s: str) -> str:
     return '[' + ','.join(s.strip('[]').split(',')[::-1]) + ']'
@@ -168,8 +169,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         if meta_key == 'binning':
             binspatial, binspec = headarr[0]['CCDSUM'].split(' ')
             return parse.binning2string(binspec, binspatial)
-        else:
-            msgs.error("Not ready for this compound meta")
+        msgs.error("Not ready for this compound meta")
 
     def get_detector_par(self, hdu: fits.HDUList, det: int):
         """
@@ -207,7 +207,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             )
         
         header = hdu[0].header
-        datasec = header['DSEC1']
+        datasec = header['TSEC1']
         oscansec = header['BSEC1']
 
         detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
@@ -225,6 +225,7 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
 
         # Ignore PCA
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
+        par['calibrations']['slitedges']['fit_min_spec_length'] = 0.55
 
 
         par['scienceframe']['process']['use_overscan'] = True
@@ -250,6 +251,8 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['arcframe']['exprng'] = [None, 120]
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
+
+        par['sensfunc']['UVIS']['nresln'] = 5
 
         return par
 
@@ -280,6 +283,24 @@ class P200DBSPBlueSpectrograph(P200DBSPSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_blue_600_4000_d55.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the blue arm of DBSP.')
+
+        angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
+        slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
+        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) / u.mm
+
+        theta_m = 38.5 * 2*np.pi / 360. - angle
+        order = 2. if lines_mm == 158. * u.mm else 1.
+        platescale = 0.389 * u.arcsec / u.pix
+        pix_size = 15 * u.um
+
+        disp = np.cos(theta_m)/(lines_mm * 9 * u.imperial.inch) * 1e7 * u.AA / u.mm
+        cen_wv = np.abs(1/lines_mm * (np.sin(theta_m) - np.sin(angle)) / order)
+        dlam = slitwidth / platescale * pix_size / u.pix * disp
+
+        resolving_power = cen_wv / dlam
+
+        par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
+        
         return par
 
 
@@ -358,7 +379,7 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
 
         header = hdu[0].header
 
-        datasec = header['DSEC1']
+        datasec = header['TSEC1']
         oscansec = header['BSEC1']
 
         detector_dict['datasec'] = np.atleast_1d(flip_fits_slice(datasec))
@@ -402,6 +423,9 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
         par['calibrations']['standardframe']['exprng'] = [None, 120]
         par['scienceframe']['exprng'] = [90, None]
 
+        par['sensfunc']['algorithm'] = 'UVIS'
+        par['sensfunc']['UVIS']['polycorrect'] = False
+        par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_Lick_3100_11100_R10000.fits')
         return par
 
     def config_specific_par(self, scifile, inp_par=None):
@@ -431,5 +455,23 @@ class P200DBSPRedSpectrograph(P200DBSPSpectrograph):
             par['calibrations']['wavelengths']['reid_arxiv'] = 'p200_dbsp_red_316_7500_d55.fits'
         else:
             msgs.error("Your grating " + disp + ' needs a template spectrum for the red arm of DBSP.')
+
+
+        angle = Angle(self.get_meta_value(scifile, 'dispangle'), unit=u.deg).rad
+        slitwidth = self.get_meta_value(scifile, 'slitwid') * u.arcsec
+        lines_mm = float(self.get_meta_value(scifile, 'dispname').split('/')[0]) / u.mm
+
+        theta_m = 35.0 * 2*np.pi / 360. - angle
+        order = 1.
+        platescale = 0.293 * u.arcsec / u.pix
+        pix_size = 15 * u.um
+
+        disp = np.cos(theta_m)/(lines_mm * 12 * u.imperial.inch) * 1e7 * u.AA / u.mm
+        cen_wv = np.abs(1/lines_mm * (np.sin(theta_m) - np.sin(angle)) / order)
+        dlam = slitwidth / platescale * pix_size / u.pix * disp
+
+        resolving_power = cen_wv / dlam
+
+        par['sensfunc']['UVIS']['resolution'] = resolving_power.decompose().value
 
         return par
