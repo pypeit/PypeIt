@@ -1,4 +1,24 @@
--r pypeit/requirements.txt
+# This line barfs because of linetools.  This file now just lists all
+# the *other* requirements separately.
+# -r pypeit/requirements.txt
+#
+# I'm not actually sure which of the requirements below are *actually*
+# required by readthedocs
+
+packaging>=19.0
+numpy>=1.18.0
+scipy>=1.4
+matplotlib>=3.1
+astropy>=4.0
+extension-helpers>=0.1
+PyYAML>=5.1
+configobj>=5.0.6
+scikit-learn>=0.20
+IPython>=7.2.0
+ginga>=3.0
+numba>=0.39.0
+pytest>=3.0.7
+
 Sphinx>=3.0
 sphinx-automodapi>=0.12
 
