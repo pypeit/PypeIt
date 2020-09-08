@@ -1,6 +1,6 @@
-**********
-Quick Look
-**********
+*********************
+Quick Look Reductions
+*********************
 
 Overview
 ========
@@ -124,7 +124,7 @@ Before running this script, you will need to
 - Download the folder of `NIRES Master calibration frames <https://drive.google.com/open?id=1_m3Y9xz2jEiTsWjVqej6UgARyTlApLGy>`_.
 - You may place this folder anywhere.
 - Point the Environmental variable *NIRES_MASTERS* at this folder.
-   - e.g. export NIRES_MASTERS=/data/Keck_NIRES/Masters_NIRES
+   - e.g. export NIRES_MASTERS=/data/Keck_NIRES/NIRES_MASTERS
 
 .. _nires-options:
 
@@ -163,5 +163,5 @@ Output
 
 If all goes smoothly, the code will generate four spectral
 output files, with 2 each with extensions of spec1d and
-spec2d.  These can be viewed with :ref:`pypeit-1dspec`
-and :ref:`pypeit-2dspec`.
+spec2d.  These can be viewed with :ref:`pypeit_show_1dspec`
+and :ref:`pypeit_show_2dspec`.

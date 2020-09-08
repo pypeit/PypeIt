@@ -103,7 +103,7 @@ Applying the Sensitivity Function
 Once you have generated a `Sensitivity Function`_, you may apply
 it to one or more :doc:`out_spec1D` files.
 The files are modified in place, filling the OPT_FLAM, BOX_FLAM, etc.
-entries, as described in :doc:`specobj`.
+entries, as described in :doc:`out_spec1D`.
 
 Flux File
 ---------
@@ -157,7 +157,7 @@ typical call::
     pypeit_flux_calib flux_file.txt
 
 Again, the :doc:`out_spec1D` files are modified in place.
-See :ref:`pypeit-1dspec` for details on how to view them.
+See :ref:`pypeit_show_1dspec` for details on how to view them.
 
 FluxSpec Class
 ==============
@@ -185,3 +185,17 @@ Extra kudos if you submit this as a PR for others benefit.
 
 If your standard star is even more non-traditional, contact
 the developers.
+
+Additional Reading
+==================
+
+Here are additional docs on somewhat common edits that
+PypeIt users make:
+
+.. toctree::
+   :caption: More reading
+   :maxdepth: 1
+
+   standards
+   telluric
+

@@ -36,7 +36,7 @@ You can open this image in ds9 and play around.
 But we highly recommend using the `pypeit_show_2dspec`_ script
 which interfaces with *ginga*.
 
-.. _pypeit-2dspec:
+.. _pypeit_show_2dspec:
 
 pypeit_show_2dspec
 ------------------

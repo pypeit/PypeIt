@@ -470,11 +470,11 @@ def dict_to_hdu(d, name=None, hdr=None, force_to_bintbl=False):
     # row. Otherwise, save the data as a multi-row table.
     cols = []
     for key in array_keys:
+        _d = numpy.asarray(d[key])
         cols += [fits.Column(name=key,
-                             format=rec_to_fits_type(numpy.asarray(d[key]), single_row=single_row),
-                             dim=rec_to_fits_col_dim(d[key], single_row=single_row),
-                             array=numpy.expand_dims(d[key], 0) if single_row 
-                                   else numpy.asarray(d[key]))]
+                             format=rec_to_fits_type(_d, single_row=single_row),
+                             dim=rec_to_fits_col_dim(_d, single_row=single_row),
+                             array=numpy.expand_dims(_d, 0) if single_row else _d)]
     return fits.BinTableHDU.from_columns(cols, header=_hdr, name=name)
 
 
@@ -536,13 +536,15 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     
     .. note::
 
-        Compressing the file is generally slow, but following the
-        two-step process of running
-        `astropy.io.fits.HDUList.writeto`_ and then
-        :func:`compress_file` is generally faster than having
-        `astropy.io.fits.HDUList.writeto`_ do the compression,
-        particularly for files with many extensions (or at least this
-        was true in the past).
+        - If the root directory of the output does *not* exist, this
+          method will create it.
+        - Compressing the file is generally slow, but following the
+          two-step process of running
+          `astropy.io.fits.HDUList.writeto`_ and then
+          :func:`compress_file` is generally faster than having
+          `astropy.io.fits.HDUList.writeto`_ do the compression,
+          particularly for files with many extensions (or at least
+          this was true in the past).
 
     Args:
         d (:obj:`dict`, :obj:`list`, `numpy.ndarray`_, `astropy.table.Table`_, `astropy.io.fits.HDUList`_):
@@ -565,6 +567,11 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
     """
     if os.path.isfile(ofile) and not overwrite:
         raise FileExistsError('File already exists; to overwrite, set overwrite=True.')
+    
+    root = os.path.split(os.path.abspath(ofile))[0]
+    if not os.path.isdir(root):
+        warnings.warn('Making root directory for output file: {0}'.format(root))
+        os.makedirs(root)
 
     # Determine if the file should be compressed
     _ofile = ofile[:ofile.rfind('.')] if ofile.split('.')[-1] == 'gz' else ofile
@@ -585,4 +592,78 @@ def write_to_fits(d, ofile, name=None, hdr=None, overwrite=False, checksum=True)
         compress_file(_ofile, overwrite=True)
     pypeit.msgs.info('File written to: {0}'.format(ofile))
 
+
+def hdu_iter_by_ext(hdu, ext=None, hdu_prefix=None):
+    """
+    Convert the input to lists that can be iterated through by an
+    extension index/name.
+
+    If ``hdu`` is an `astropy.io.fits.HDUList`_ on input, it is
+    simply returned; otherwise, the 2nd returned item is a
+    single-element :obj:`list` with the provided HDU.
+
+    If ``ext`` is None and ``hdu`` is not an
+    `astropy.io.fits.HDUList`_, the returned list just selects the
+    individual HDU provided (i.e., ``ext = [0]``). If ``ext`` is None
+    and ``hdu`` *is* an `astropy.io.fits.HDUList`_, the returned list
+    of extensions includes all extensions in the provided ``hdu``.
+
+    .. warning::
+
+        The method does not check that all input ``ext`` are valid
+        for the provided ``hdu``!
+
+    Args:
+        hdu (`astropy.io.fits.HDUList`_, `astropy.io.fits.ImageHDU`_, `astropy.io.fits.BinTableHDU`_):
+            The HDU(s) to iterate through.
+        ext (:obj:`int`, :obj:`str`, :obj:`list`, optional):
+            One or more extensions to include in the iteration. If
+            None, the returned list will enable iteration through all
+            HDU extensions.
+        hdu_prefix (:obj:`str`, optional):
+            In addition to the restricted list of extensions
+            (``ext``), only include extensions with this prefix.
+
+    Returns:
+        :obj:`tuple`: Returns two objects: a :obj:`list` with the
+        extensions to iterate through and either a :obj:`list` or an
+        `astropy.io.fits.HDUList`_ with the list of HDUs.
+
+    Raises:
+        TypeError:
+            Raised if ``ext`` is not a string, integer, or list, if
+            any element of ``ext`` is not a string or integer, or if
+            ``hdu`` is not one of the approved types.
+    """
+    if not isinstance(hdu, (fits.HDUList, fits.ImageHDU, fits.BinTableHDU)):
+        raise TypeError('Provided hdu has incorrect type: {0}'.format(type(hdu)))
+    # Check that the input ext has valid types
+    if ext is not None:
+        if not isinstance(ext, (str, int, list)):
+            raise TypeError('Provided ext object must be a str, int, or list.')
+        if isinstance(ext, list):
+            for e in ext:
+                if not isinstance(ext, (str, int)):
+                    raise TypeError('Provided ext elements  must be a str or int.')
+    if ext is None and isinstance(hdu, fits.HDUList):
+        ext = [h.name if h.name != '' else i for i,h in enumerate(hdu)]
+
+    # Further restrict ext to only include those with the designated
+    # prefix
+    if hdu_prefix is not None:
+        if isinstance(hdu, fits.HDUList):
+            ext = [e for e in ext if not isinstance(e, (int, numpy.integer))
+                                 and e.startswith(hdu_prefix)]
+
+    # Allow user to provide single HDU
+    if isinstance(hdu, (fits.ImageHDU, fits.BinTableHDU)):
+        ext = [0]
+        _hdu = [hdu]
+        if hdu_prefix is not None:
+            if hdu_prefix not in hdu.name:
+                raise ValueError("Bad hdu_prefix for this HDU!")
+    else:
+        _hdu = hdu
+
+    return ext if isinstance(ext, list) else [ext], _hdu
 

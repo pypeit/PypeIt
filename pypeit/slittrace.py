@@ -95,8 +95,8 @@ class SlitTraceSet(datamodel.DataContainer):
     bitmask = SlitTraceBitMask()
 
     # Define the data model
-    datamodel = {'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-                 'pypeline': dict(otype=str, desc='PypeIt pypeline name'),
+    datamodel = {'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'pypeline': dict(otype=str, descr='PypeIt pypeline name'),
                  'nspec': dict(otype=int,
                                descr='Number of pixels in the image spectral direction.'),
                  'nspat': dict(otype=int,
@@ -147,7 +147,6 @@ class SlitTraceSet(datamodel.DataContainer):
                                 descr='Maximum spectral position allowed for each slit/order.  '
                                       'Shape is Nslits.')}
     """Provides the class data model."""
-    # NOTE: The docstring above is for the ``datamodel`` attribute.
 
     # TODO: Allow tweaked edges to be arguments?
     # TODO: May want nspat to be a required argument.
@@ -261,8 +260,7 @@ class SlitTraceSet(datamodel.DataContainer):
         See :func:`pypeit.datamodel.DataContainer._parse`. Data is
         always read from the 'SLITS' extension.
         """
-        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True,
-                                               debug=True)
+        return super(SlitTraceSet, cls)._parse(hdu, ext='SLITS', transpose_table_arrays=True)
 
     def init_tweaked(self):
         """
@@ -340,6 +338,84 @@ class SlitTraceSet(datamodel.DataContainer):
             return np.where(self.ech_order == slitord)[0][0]
         else:
             msgs.error('Unrecognized Pypeline {:}'.format(self.pypeline))
+
+    def get_slitlengths(self, initial=False, median=False):
+        """
+        Get the length of each slit in pixels.
+
+        By default, the method will return the tweaked slit lengths
+        if they have been defined. If they haven't been defined the
+        nominal edges (:attr:`left` and :attr:`right`) are returned.
+        Use ``initial=True`` to return the nominal edges regardless
+        of the presence of the tweaked edges.
+
+        Args:
+            initial (:obj:`bool`, optional):
+                To use the initial edges regardless of the presence of
+                the tweaked edges, set this to True.
+            median (:obj:`bool`, optional):
+                The default is to return the slit length as a function
+                of the spectral coordinate. If median is set to true,
+                the median slit length of each slit is returned.
+
+        Returns:
+            `numpy.ndarray`_: Slit lengths.
+        """
+        left, right, _ = self.select_edges(initial=initial)
+        slitlen = right - left
+        if median is True:
+            slitlen = np.median(slitlen, axis=1)
+        return slitlen
+
+    def get_radec_image(self, wcs, initial=True, flexure=None, trace_cen=None):
+        """Generate an RA and DEC image for every pixel in the frame
+
+        Parameters
+        ----------
+        wcs : astropy.wcs
+            The World Coordinate system of a science frame
+        maxslitlen : int
+            This is the slit length in pixels, and it should be the same
+            value that was passed to get_wcs() to generate the WCS that
+            is passed into this function as an argument.
+        initial : bool
+            Select the initial slit edges?
+        flexure : float, optional
+            If provided, offset each slit by this amount.
+        trace_cen : `numpy.ndarray`_, optional
+            Central traces of each slit. Shape should be (slits.nspec, slits.nslits).
+            If None, the average of the left and right slit edges will be used
+
+        Returns
+        -------
+        ndimage, ndimage : Two 2D numpy array of shape (nspec, nspat), where the
+                           first ndarray is the RA image, and the second ndarray
+                           is the DEC image. RA and DEC are in units degrees.
+        """
+        # Grab the central trace, if none was provided
+        if trace_cen is None:
+            left, right, _ = self.select_edges(initial=initial, flexure=flexure)
+            trace_cen = 0.5 * (left + right)
+
+        # Initialise the output
+        raimg = np.zeros((self.nspec, self.nspat))
+        decimg = np.zeros((self.nspec, self.nspat))
+        minmax = np.zeros((self.nslits, 2))
+
+        # Get the slit information
+        slitid_img_init = self.slit_img(pad=0, initial=initial, flexure=flexure)
+        for slit_idx, spatid in enumerate(self.spat_id):
+            onslit = (slitid_img_init == spatid)
+            onslit_init = np.where(onslit)
+            evalpos = onslit_init[1] - trace_cen[onslit_init[0], slit_idx]
+            minmax[:, 0] = np.min(evalpos)
+            minmax[:, 1] = np.max(evalpos)
+            slitID = np.ones(evalpos.size) * slit_idx - wcs.wcs.crpix[0]
+            world_ra, world_dec, _ = wcs.wcs_pix2world(slitID, evalpos, onslit_init[0], 0)
+            # Set the RA first and DEC next
+            raimg[onslit] = world_ra.copy()
+            decimg[onslit] = world_dec.copy()
+        return raimg, decimg, minmax
 
     def select_edges(self, initial=False, flexure=None):
         """
@@ -659,12 +735,8 @@ class SlitTraceSet(datamodel.DataContainer):
             wv_calib (:obj:`dict`):
 
         """
-        #for kk, spat_id in enumerate(self.spat_id):
-        #    if wv_calib[str(spat_id)] is None:
-        #        self.mask[kk] = self.bitmask.turn_on(self.mask[kk], 'BADWVCALIB')
         for islit in range(self.nslits):
-            if wv_calib[str(self.slitord_id[islit])] is None \
-                    or len(wv_calib[str(self.slitord_id[islit])]) == 0:
+            if wv_calib.wv_fits[islit] is None or wv_calib.wv_fits[islit].pypeitfit is None:
                 self.mask[islit] = self.bitmask.turn_on(self.mask[islit], 'BADWVCALIB')
 
     def mask_wavetilts(self, waveTilts):
@@ -679,6 +751,7 @@ class SlitTraceSet(datamodel.DataContainer):
         bad_tilts = waveTilts.bpmtilts > 0
         if np.any(bad_tilts):
             self.mask[bad_tilts] = self.bitmask.turn_on(self.mask[bad_tilts], 'BADTILTCALIB')
+
 
 def parse_slitspatnum(slitspatnum):
     """
@@ -699,4 +772,3 @@ def parse_slitspatnum(slitspatnum):
         spat_ids.append(int(spt[1]))
     # Return
     return np.array(dets).astype(int), np.array(spat_ids).astype(int)
-

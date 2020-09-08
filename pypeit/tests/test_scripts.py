@@ -3,6 +3,9 @@ Module to run tests on scripts
 """
 import os
 import shutil
+
+from IPython import embed
+
 import numpy as np
 
 import matplotlib
@@ -16,13 +19,16 @@ from astropy.io import fits
 from pypeit.scripts import setup, show_1dspec, coadd_1dspec, chk_edges, view_fits, chk_flats
 from pypeit.scripts import trace_edges, run_pypeit, ql_mos, show_2dspec, tellfit, flux_setup
 from pypeit.tests.tstutils import dev_suite_required, cooked_required
+from pypeit.display import display
 from pypeit import edgetrace
-from pypeit import ginga
+from pypeit import utils
+from pypeit.pypeitsetup import PypeItSetup
 
 
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
 
 @dev_suite_required
 def test_quicklook():
@@ -35,7 +41,9 @@ def test_quicklook():
         raise IOError("You need to get the CALIBS folder as described above!!")
 
     # Define the output directories (HARDCODED!!)
-    outdir = os.path.join(os.getcwd(), 'keck_lris_blue_A')
+    cdir = os.getcwd()
+    os.chdir(data_path(''))
+    outdir = data_path('keck_lris_blue_A')
     # Remove them if they already exist
     if os.path.isdir(outdir):
         shutil.rmtree(outdir)
@@ -48,6 +56,11 @@ def test_quicklook():
                                '--user_pixflat={0}'.format(
                                    os.path.join(calib_dir,
                                         'PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz'))]))
+    
+    # Cleanup
+    os.chdir(cdir)
+    shutil.rmtree(outdir)
+
 
 @dev_suite_required
 def test_trace_edges():
@@ -86,6 +99,50 @@ def test_trace_edges():
     shutil.rmtree(setupdir)
     shutil.rmtree(outdir)
 
+@dev_suite_required
+def test_trace_add_rm():
+    # Define the output directories (HARDCODED!!)
+    setupdir = os.path.join(os.getcwd(), 'setup_files')
+    outdir = os.path.join(os.getcwd(), 'shane_kast_blue_A')
+    masterdir = os.path.join(os.getcwd(), 'shane_kast_blue_A', 'Masters')
+    # Remove them if they already exist
+    if os.path.isdir(setupdir):
+        shutil.rmtree(setupdir)
+    if os.path.isdir(outdir):
+        shutil.rmtree(outdir)
+
+    droot = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA/shane_kast_blue/600_4310_d55')
+
+    # Run the setup
+    ps = PypeItSetup.from_file_root(droot, 'shane_kast_blue', output_path=setupdir)
+    ps.run(setup_only=True, sort_dir=setupdir)
+
+    # Add lines to remove and add slits. This removes the one slit that
+    # is found and adds another.
+    ps.user_cfg += ['[calibrations]', '[[slitedges]]', 'rm_slits = 1:1028:170',
+                    'add_slits = 1:1028:30:300']
+
+    # Use PypeItMetaData to write the complete PypeIt file
+    pypeit_file = os.path.join(os.getcwd(), 'shane_kast_blue.pypeit')
+    ps.fitstbl.write_pypeit(pypeit_file, cfg_lines=ps.user_cfg, configs=['all'])
+
+    # Define the pypeit file (HARDCODED!!)
+    pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')
+
+    # Run the tracing
+    trace_edges.main(trace_edges.parser(['-f', pypeit_file]))
+
+    # Define the edges master file (HARDCODED!!)
+    trace_file = os.path.join(outdir, 'Masters', 'MasterEdges_A_1_01.fits.gz')
+
+    # Check that the correct number of traces were found
+    edges = edgetrace.EdgeTraceSet.from_file(trace_file)
+    assert edges.ntrace == 2, 'Did not find the expected number of traces.'
+
+    # Clean up
+    shutil.rmtree(setupdir)
+    shutil.rmtree(outdir)
+
 
 @cooked_required
 def test_show_1dspec():
@@ -101,7 +158,7 @@ def test_show_2dspec():
     spec2d_file = os.path.join(droot, 'Science',
                              'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     # Ginga needs to be open in RC mode
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     # Save
     cdir = os.getcwd()
     os.chdir(droot)
@@ -119,16 +176,19 @@ def test_chk_edges():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Trace',
                                 'MasterEdges_KeckLRISr_400_8500_det1.fits.gz')
     # Ginga needs to be open in RC mode
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     #
     pargs = chk_edges.parser([mstrace_root])
     chk_edges.main(pargs)
 
 
+@cooked_required
 def test_view_fits():
     """ Only test the list option
     """
-    spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    spec_file = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Science',
+                            'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
+    #spec_file = data_path('spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     pargs = view_fits.parser([spec_file, '--list', 'shane_kast_blue'])
 
 
@@ -137,7 +197,7 @@ def test_chk_flat():
     mstrace_root = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue',
                                 'MasterFlat_A_1_01.fits')
     # Ginga needs to be open in RC mode
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     #
     pargs = chk_flats.parser([mstrace_root])
     chk_flats.main(pargs)

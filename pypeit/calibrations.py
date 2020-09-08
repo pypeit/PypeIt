@@ -74,7 +74,7 @@ class Calibrations(object):
         msarc (:class:`pypeit.images.buildimage.ArcImage`):
             Master arc-lamp image.
         alignments (:class:`pypeit.alignframe.Alignments`):
-        wv_calib (:obj:`dict`):
+        wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
         slits (:class:`pypeit.slittrace.SlitTraceSet`):
 
         write_qa
@@ -456,7 +456,7 @@ class Calibrations(object):
 
         # Check if a bias frame exists, and if a BPM should be generated
         msbias = None
-        if self.par['bpm_usebias'] and self._cached('bias', self.master_key_dict['bias']):
+        if self.par['bpm_usebias']:
             msbias = self.msbias
         # Build it
         self.msbpm = self.spectrograph.bpm(sci_image_file, self.det, msbias=msbias)
@@ -629,8 +629,7 @@ class Calibrations(object):
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], bpm=self.msbpm,
                                                     auto=True)
-                self.edges.save(edge_masterframe_name, master_dir=self.master_dir,
-                                master_key=self.master_key_dict['trace'])
+                self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested
                 if self.show:
@@ -678,23 +677,23 @@ class Calibrations(object):
         # TODO : Do this internally when we have a wv_calib DataContainer
         binspec, binspat = parse.parse_binning(self.msarc.detector.binning)
 
-        # Instantiate
-        self.waveCalib = wavecalib.WaveCalib(self.msarc, self.slits, self.spectrograph,
+        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib,
+                                                           self.master_key_dict['arc'],
+                                                           master_dir=self.master_dir)
+        if os.path.isfile(masterframe_name) and self.reuse_masters:
+            self.wv_calib = wavecalib.WaveCalib.from_file(masterframe_name)
+            self.wv_calib.chk_synced(self.slits)
+            self.slits.mask_wvcalib(self.wv_calib)
+        else:
+            # Instantiate
+            self.waveCalib = wavecalib.BuildWaveCalib(self.msarc, self.slits, self.spectrograph,
                                              self.par['wavelengths'], binspectral=binspec,
                                              det=self.det,
                                              master_key=self.master_key_dict['arc'],  # For QA naming
                                              qa_path=self.qa_path, msbpm=self.msbpm)
-        # Load from disk (MasterFrame)?
-        masterframe_name = masterframe.construct_file_name(wavecalib.WaveCalib, self.master_key_dict['arc'],
-                                                           master_dir=self.master_dir)
-        if os.path.isfile(masterframe_name) and self.reuse_masters:
-            # Load from disk
-            self.wv_calib = self.waveCalib.load(masterframe_name)
-            self.slits.mask_wvcalib(self.wv_calib)
-        else:
             self.wv_calib = self.waveCalib.run(skip_QA=(not self.write_qa))
             # Save to Masters
-            self.waveCalib.save(outfile=masterframe_name)
+            self.wv_calib.to_master_file(masterframe_name)
 
         # Return
         return self.wv_calib
@@ -905,7 +904,7 @@ def check_for_calibs(par, fitstbl, raise_error=True, cut_cfg=None):
                     rows = fitstbl.find_frames(ftype, calib_ID=calib_ID, index=True)
                     if len(rows) == 0:
                         # Allow for pixelflat inserted
-                        if ftype is 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
+                        if ftype == 'pixelflat' and par['calibrations']['flatfield']['pixelflat_file'] is not None:
                             continue
                         # Otherwise fail
                         msg = "No frames of type={} provide for the *{}* processing step. Add them to your PypeIt file!".format(ftype, key)

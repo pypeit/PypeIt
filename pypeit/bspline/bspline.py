@@ -88,17 +88,17 @@ class bspline(datamodel.DataContainer):
     """
     version = '1.0.0'
 
-    datamodel = {
-        'breakpoints':  dict(otype=np.ndarray, atype=np.floating, desc='Breakpoint locations'),
-        'nord': dict(otype=int, desc='Order of the bspline fit'),
-        'npoly': dict(otype=int, desc='Order of the bspline polynomial'),
-        'mask': dict(otype=np.ndarray, atype=np.bool_, desc='Mask'),
-        'coeff': dict(otype=np.ndarray, atype=np.floating, desc='Fit coefficients'),
-        'icoeff': dict(otype=np.ndarray, atype=np.floating, desc='??'),
-        'xmin': dict(otype=float, desc='Normalization for input data'),
-        'xmax': dict(otype=float, desc='Normalization for input data'),
-        'funcname': dict(otype=str, desc='Function of fit'),
-    }
+    # TODO: Fix the description of icoeff
+    datamodel = {'breakpoints':  dict(otype=np.ndarray, atype=np.floating,
+                                      descr='Breakpoint locations'),
+                 'nord': dict(otype=int, descr='Order of the bspline fit'),
+                 'npoly': dict(otype=int, descr='Order of the bspline polynomial'),
+                 'mask': dict(otype=np.ndarray, atype=np.bool_, descr='Mask'),
+                 'coeff': dict(otype=np.ndarray, atype=np.floating, descr='Fit coefficients'),
+                 'icoeff': dict(otype=np.ndarray, atype=np.floating, descr='??'),
+                 'xmin': dict(otype=float, descr='Normalization for input data'),
+                 'xmax': dict(otype=float, descr='Normalization for input data'),
+                 'funcname': dict(otype=str, descr='Function of fit')}
 
     # ToDO Consider refactoring the argument list so that there are no kwargs
     def __init__(self, x, fullbkpt=None, nord=4, npoly=1, bkpt=None, bkspread=1.0, verbose=False,
@@ -107,8 +107,7 @@ class bspline(datamodel.DataContainer):
         structure returned by the create_bspline function.
         """
         # Setup the DataContainer with everything None
-        _d = {}
-        datamodel.DataContainer.__init__(self, d=_d)
+        datamodel.DataContainer.__init__(self)
         # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
         # as it goes
         fullbkpt1 = copy.copy(fullbkpt)
@@ -238,8 +237,10 @@ class bspline(datamodel.DataContainer):
             self.xmax = 1.0
             self.funcname = kwargs['funcname'] if 'funcname' in kwargs else 'legendre'
 
-    def _init_internals(self):
-        self.hdu_prefix = None
+    def reinit_coeff(self):
+        nc = self.breakpoints.size - self.nord
+        self.coeff = np.zeros((self.npoly, nc), dtype=float) if self.npoly > 1 \
+                        else np.zeros(nc, dtype=float)
 
     def _bundle(self):
         """
@@ -663,7 +664,7 @@ class bspline(datamodel.DataContainer):
 
         return 0, self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)[0]
 
-
+# TODO: I don't think we need to make this reproducible with the IDL version anymore, and can opt for speed instead.
 # TODO: Move this somewhere for more common access?
 # Faster than previous version but not as fast as if we could switch to
 # np.unique.
@@ -711,7 +712,7 @@ def uniq(x, index=None):
     Examples
     --------
     >>> import numpy as np
-    >>> from pydl import uniq
+    >>> from pypeit.core.pydl import uniq
     >>> data = np.array([ 1, 2, 3, 1, 5, 6, 1, 7, 3, 2, 5, 9, 11, 1 ])
     >>> print(uniq(np.sort(data)))
     [ 3  5  7  9 10 11 12 13]
@@ -722,4 +723,5 @@ def uniq(x, index=None):
         return np.flatnonzero(np.concatenate(([True], x[1:] != x[:-1], [True])))[1:]-1
     _x = x[index]
     return np.flatnonzero(np.concatenate(([True], _x[1:] != _x[:-1], [True])))[1:]-1
+
 

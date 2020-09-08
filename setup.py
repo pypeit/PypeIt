@@ -51,8 +51,14 @@ def get_requirements():
 
 NAME = 'pypeit'
 # do not use x.x.x-dev.  things complain.  instead use x.x.xdev
-VERSION = '1.0.7dev'
+VERSION = '1.1.0'
 RELEASE = 'dev' not in VERSION
+
+# To enable pypeit ginga global plugin
+entry_points = """
+[ginga.rv.plugins]
+SlitWavelength = pypeit.display:setup_SlitWavelength
+"""
 
 def run_setup(data_files, scripts, packages, install_requires):
 
@@ -81,6 +87,7 @@ def run_setup(data_files, scripts, packages, install_requires):
           setup_requires=[ 'pytest-runner' ],
           tests_require=[ 'pytest' ],
           ext_modules=get_extensions(),
+          entry_points=entry_points,
           classifiers=[
               'Development Status :: 4 - Beta',
               'Intended Audience :: Science/Research',

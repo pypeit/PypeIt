@@ -13,9 +13,8 @@ from matplotlib import pyplot as plt
 
 from astropy import stats, visualization
 
-from pypeit import msgs
-from pypeit import datamodel
-from pypeit import ginga
+from pypeit import msgs, datamodel
+from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import tracewave
 
@@ -30,32 +29,29 @@ class WaveTilts(datamodel.DataContainer):
       although they can be None (but shouldn't be)
 
     """
-    minimum_versio = '1.0.0'
     version = '1.1.0'
-
-    # I/O
-    output_to_disk = None  # This writes all items that are not None
-    hdu_prefix = None      # None required for this DataContainer
 
     # MasterFrame fun
     master_type = 'Tilts'
     master_file_format = 'fits'
 
-    datamodel = {
-        'coeffs': dict(otype=np.ndarray, atype=np.floating, desc='2D coefficents for the fit on the initial slits.' \
-                       'One set per slit/order (3D array).'),
-        'bpmtilts': dict(otype=np.ndarray, atype=np.integer,
-                         desc='Bad pixel mask for tilt solutions. Keys are taken from SlitTraceSetBitmask'),
-        'nslit': dict(otype=int, desc='Total number of slits.  This can include masked slits'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
-        'spat_order': dict(otype=np.ndarray, atype=np.integer,
-                           desc='Order for spatial fit (nslit)'),
-        'spec_order': dict(otype=np.ndarray, atype=np.integer,
-                           desc='Order for spectral fit (nslit)'),
-        'func2d': dict(otype=str,desc='Function used for the 2D fit'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_flexure': dict(otype=float, desc='Flexure shift from the input TiltImage'),
-    }
+    datamodel = {'coeffs': dict(otype=np.ndarray, atype=np.floating,
+                                descr='2D coefficents for the fit on the initial slits.  One '
+                                      'set per slit/order (3D array).'),
+                 'bpmtilts': dict(otype=np.ndarray, atype=np.integer,
+                                  descr='Bad pixel mask for tilt solutions. Keys are taken from '
+                                        'SlitTraceSetBitmask'),
+                 'nslit': dict(otype=int,
+                               descr='Total number of slits.  This can include masked slits'),
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id '),
+                 'spat_order': dict(otype=np.ndarray, atype=np.integer,
+                                    descr='Order for spatial fit (nslit)'),
+                 'spec_order': dict(otype=np.ndarray, atype=np.integer,
+                                    descr='Order for spectral fit (nslit)'),
+                 'func2d': dict(otype=str, descr='Function used for the 2D fit'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'spat_flexure': dict(otype=float, descr='Flexure shift from the input TiltImage')}
+
     def __init__(self, coeffs, nslit, spat_id, spat_order, spec_order, func2d, bpmtilts=None,
                  spat_flexure=None, PYP_SPEC=None):
 
@@ -75,7 +71,7 @@ class WaveTilts(datamodel.DataContainer):
         Bundle the data in preparation for writing to a fits file.
 
         See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
-        always written to a 'SLITS' extension.
+        always written to a 'TILTS' extension.
         """
         return super(WaveTilts, self)._bundle(ext='TILTS')
 
@@ -140,7 +136,7 @@ class WaveTilts(datamodel.DataContainer):
         return np.where(mtch)[0][0]
 
 
-class BuildWaveTilts(object):
+class BuildWaveTilts:
     """
     Class to guide slit/order tracing
 
@@ -324,6 +320,8 @@ class BuildWaveTilts(object):
         """
         Fit the tilts
 
+        all_fit_dict and all_trace_dict are filled in place
+
         Args:
             trc_tilt_dict (dict): Contains information from tilt tracing
             slit_cen (ndarray): (nspec,) Central trace for this slit
@@ -340,10 +338,7 @@ class BuildWaveTilts(object):
                 Show additional plots useful for debugging.
 
         Returns:
-           (tilts, coeffs)
-            tilts: ndarray (nspec, nspat)
-               tilts image
-            coeff: ndarray (spat_order + 1, spec_order+1)
+            `numpy.ndarray`_: coeff: ndarray (spat_order + 1, spec_order+1)
                Array containing the coefficients for the 2d legendre polynomial fit
         """
         # Index
@@ -589,7 +584,7 @@ class BuildWaveTilts(object):
 
         # TODO sort out show methods for debugging
         if show:
-            viewer,ch = ginga.show_image(self.mstilt.image*(self.slitmask > -1),chname='tilts')
+            viewer,ch = display.show_image(self.mstilt.image*(self.slitmask > -1),chname='tilts')
 
         # Loop on all slits
         for slit_idx, slit_spat in enumerate(self.slits.spat_id):
@@ -620,7 +615,7 @@ class BuildWaveTilts(object):
             # TODO: Show the traces before running the 2D fit
 
             if show:
-                ginga.show_tilts(viewer, ch, self.trace_dict)
+                display.show_tilts(viewer, ch, self.trace_dict)
 
             self.spat_order[slit_idx] = self._parse_param(self.par, 'spat_order', slit_idx)
             self.spec_order[slit_idx] = self._parse_param(self.par, 'spec_order', slit_idx)

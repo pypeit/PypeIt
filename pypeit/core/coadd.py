@@ -24,6 +24,7 @@ from astropy import constants
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import utils
+from pypeit.core import fitting
 from pypeit import specobjs
 from pypeit import sensfunc
 from pypeit import msgs
@@ -303,11 +304,11 @@ def poly_model_eval(theta, func, model, wave, wave_min, wave_max):
     """
     # Evaluate the polynomial for rescaling
     if 'poly' in model:
-        ymult = utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max)
+        ymult = fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)
     elif 'square' in model:
-        ymult = (utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max)) ** 2
+        ymult = (fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max)) ** 2
     elif 'exp' in model:
-        ymult = np.exp(utils.func_val(theta, wave, func, minx=wave_min, maxx=wave_max))
+        ymult = np.exp(fitting.evaluate_fit(theta, func, wave, minx=wave_min, maxx=wave_max))
     else:
         msgs.error('Unrecognized value of model requested')
 
@@ -794,7 +795,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
 
 
 
-def sensfunc_weights(sensfile, waves, debug=False):
+def sensfunc_weights(sensfile, waves, debug=False, extrap_sens=False):
     """
     Get the weights based on the sensfunc
 
@@ -836,9 +837,17 @@ def sensfunc_weights(sensfile, waves, debug=False):
                 sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
                                                            bounds_error=True)(waves_stack[wave_mask, iord, iexp])
             except ValueError:
-                msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                if extrap_sens:
+                    sensfunc_iord = scipy.interpolate.interp1d(wave_sens[:, iord], sens[:, iord],
+                                                               bounds_error=False, fill_value=9e99)(
+                        waves_stack[wave_mask, iord, iexp])
+                    msgs.warn("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
+                               "You may wish to adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
+                               "further and recreate your sensfunc.")
+                else:
+                    msgs.error("Your data extends beyond the bounds of your sensfunc. " + msgs.newline() +
                            "Adjust the par['sensfunc']['extrap_blu'] and/or par['sensfunc']['extrap_red'] to extrapolate "
-                           "further and recreate your sensfunc.")
+                           "further and recreate your sensfunc.  Or set par['coadd1d']['extrap_sens']=True.")
             weights_stack[wave_mask, iord, iexp] = utils.inverse(sensfunc_iord)
 
     if debug:
@@ -2286,18 +2295,21 @@ def multi_combspec(waves, fluxes, ivars, masks, sn_smooth_npix=None,
 
     return wave_stack, flux_stack, ivar_stack, mask_stack
 
+
 def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method='log10',
                  dwave=None, dv=None, dloglam=None, samp_fact=1.0, wave_grid_min=None, wave_grid_max=None,
                  ref_percentile=70.0, maxiter_scale=5, niter_order_scale=3, sigrej_scale=3.0, scale_method='auto',
                  hand_scale=None, sn_min_polyscale=2.0, sn_min_medscale=0.5,
                  sn_smooth_npix=None, const_weights=False, maxiter_reject=5, sn_clip=30.0, lower=3.0, upper=3.0,
                  maxrej=None, qafile=None, debug_scale=False, debug=False, show_order_stacks=False, show_order_scale=False,
-                 show_exp=False, show=False, verbose=False):
+                 show_exp=False, show=False, verbose=False, extrap_sens=False):
     """
     Driver routine for coadding Echelle spectra. Calls combspec which is the main stacking algorithm. It will deliver
     three fits files: spec1d_order_XX.fits (stacked individual orders, one order per extension), spec1d_merge_XX.fits
     (straight combine of stacked individual orders), spec1d_stack_XX.fits (a giant stack of all exposures and all orders).
     In most cases, you should use spec1d_stack_XX.fits for your scientific analyses since it reject most outliers.
+
+    ..todo.. -- Clean up the doc formatting
 
     Args:
         waves (ndarray):
@@ -2394,6 +2406,8 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
             Show interactive QA plots for the rescaling of the spectra so that the overlap regions match from order to order
         show: bool, default=False,
              Show key QA plots or not
+        extrap_sens (bool, optional):
+            If True, allow the sensitivity function to extrapolate (and ignore it)
 
     Returns:
         tuple: Returns the following:
@@ -2455,7 +2469,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     best_orders = np.argsort(mean_sn_ord)[::-1][0:nbest]
     rms_sn_per_exp = np.mean(rms_sn[best_orders, :], axis=0)
     weights_exp = np.tile(rms_sn_per_exp**2, (nspec, norder, 1))
-    weights_sens = sensfunc_weights(sensfile, waves, debug=debug)
+    weights_sens = sensfunc_weights(sensfile, waves, debug=debug, extrap_sens=extrap_sens)
     weights = weights_exp*weights_sens
     #
     # Old code below for ivar weights if the sensfile was not passed in
@@ -2592,7 +2606,7 @@ def ech_combspec(waves, fluxes, ivars, masks, sensfile, nbest=None, wave_method=
     ## Stack with an altnernative method: combine the stacked individual order spectra directly. This is deprecated
     merge_stack = False
     if merge_stack:
-        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug)
+        order_weights = sensfunc_weights(sensfile, waves_stack_orders, debug=debug, extrap_sens=extrap_sens)
         wave_merge, flux_merge, ivar_merge, mask_merge, nused_merge = compute_stack(
             wave_grid, waves_stack_orders, fluxes_stack_orders, ivars_stack_orders, masks_stack_orders, order_weights)
         if show_order_stacks:
@@ -2638,6 +2652,8 @@ def det_error_msg(exten, sdet):
 def get_wave_ind(wave_grid, wave_min, wave_max):
     """
     Utility routine used by coadd2d to determine the starting and ending indices of a wavelength grid.
+
+    ..todo.. Make this doc string Google or numpy but not both
 
     Args:
         wave_grid: float ndarray
@@ -2707,6 +2723,8 @@ def get_wave_bins(thismask_stack, waveimg_stack, wave_grid):
 def get_spat_bins(thismask_stack, trace_stack):
     """
 
+    ..todo.. Explain what this method does
+
     Parameters
     ----------
     thismask_stack : array of shape (nimgs, nspec, nspat)
@@ -2752,7 +2770,7 @@ def get_spat_bins(thismask_stack, trace_stack):
 
 def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack,
                     inmask_stack, tilts_stack,
-                    thismask_stack, waveimg_stack, wave_grid, weights='uniform'):
+                    thismask_stack, waveimg_stack, wave_grid, weights='uniform', interp_dspat=True):
     """
     Construct a 2d co-add of a stack of PypeIt spec2d reduction outputs.
 
@@ -2761,6 +2779,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     The rectification uses nearest grid point interpolation to avoid
     covariant errors.  Dithering is supported as all images are centered
     relative to a set of reference traces in trace_stack.
+
+    ..todo.. -- These docs appear out-of-date
 
     Args:
         trace_stack (`numpy.ndarray`_):
@@ -2851,6 +2871,8 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     """
     nimgs, nspec, nspat = sciimg_stack.shape
 
+    # TODO -- If weights is a numpy.ndarray, how can this not crash?
+    #   Maybe the doc string above is inaccurate?
     if 'uniform' in weights:
         msgs.info('No weights were provided. Using uniform weights.')
         weights = np.ones(nimgs)/float(nimgs)
@@ -2895,14 +2917,15 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
     nspec_coadd, nspat_coadd = imgminsky.shape
     spat_img_coadd, spec_img_coadd = np.meshgrid(np.arange(nspat_coadd), np.arange(nspec_coadd))
 
-    if np.any(np.invert(outmask)):
+    if np.any(np.logical_not(outmask)) and interp_dspat:
         points_good = np.stack((spec_img_coadd[outmask], spat_img_coadd[outmask]), axis=1)
-        points_bad = np.stack((spec_img_coadd[np.invert(outmask)],
-                                spat_img_coadd[np.invert(outmask)]), axis=1)
+        points_bad = np.stack((spec_img_coadd[np.logical_not(outmask)],
+                                spat_img_coadd[np.logical_not(outmask)]), axis=1)
         values_dspat = dspat[outmask]
+        # JFH Changed to nearest on 5-26-20 because cubic is incredibly slow
         dspat_bad = scipy.interpolate.griddata(points_good, values_dspat, points_bad,
-                                               method='cubic')
-        dspat[np.invert(outmask)] = dspat_bad
+                                               method='nearest')
+        dspat[np.logical_not(outmask)] = dspat_bad
         # Points outside the convex hull of the data are set to nan. We
         # identify those and simply assume them values from the
         # dspat_img_fake, which is what dspat would be on a regular
@@ -2911,6 +2934,9 @@ def compute_coadd2d(ref_trace_stack, sciimg_stack, sciivar_stack, skymodel_stack
         if np.any(nanpix):
             dspat_img_fake = spat_img_coadd + dspat_mid[0]
             dspat[nanpix] = dspat_img_fake[nanpix]
+    else:
+        dspat_img_fake = spat_img_coadd + dspat_mid[0]
+        dspat[np.invert(outmask)] = dspat_img_fake[np.invert(outmask)]
 
     return dict(wave_bins=wave_bins, dspat_bins=dspat_bins, wave_mid=wave_mid, wave_min=wave_min,
                 wave_max=wave_max, dspat_mid=dspat_mid, sciimg=sciimg, sciivar=sciivar,

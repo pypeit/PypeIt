@@ -10,8 +10,6 @@ from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pkg_resources import resource_filename
 
-from pypeit import debugger
-
 class KeckNIRSPECSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRSPEC specific code

@@ -37,8 +37,10 @@ def main(args):
     from pypeit.spectrographs import keck_lris
     from pypeit.spectrographs import keck_deimos
     from pypeit.spectrographs import gemini_gmos
+    from pypeit.display import display
+    from pypeit.spectrographs import mmt_binospec
+    from pypeit.spectrographs import mmt_mmirs
     from pypeit import msgs
-    from pypeit import ginga
 
     # List only?
     if args.list:
@@ -70,9 +72,19 @@ def main(args):
         # Need to figure out the number of amps
         gen_gmos = gemini_gmos.GeminiGMOSSpectrograph()
         img = gen_gmos.get_rawimage(args.file, args.det)[1]
+    # RAW_BinoSpec
+    elif args.spectrograph == 'mmt_binospec':
+        #
+        gen_bino = mmt_binospec.MMTBINOSPECSpectrograph()
+        img = gen_bino.get_rawimage(args.file, args.det)[1]
+    # RAW_MMIRS
+    elif args.spectrograph == 'mmt_mmirs':
+        #
+        gen_mmirs = mmt_mmirs.MMTMMIRSSpectrograph()
+        img = gen_mmirs.get_rawimage(args.file, args.det)[1]
     else:
         hdu = fits.open(args.file)
         img = hdu[args.exten].data
         # Write
 
-    ginga.show_image(img)
+    display.show_image(img)

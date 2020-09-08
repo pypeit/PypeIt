@@ -7,8 +7,8 @@ import numpy as np
 
 from pypeit import msgs
 from pypeit import utils
-from pypeit import bspline
 from pypeit.core import basis
+from pypeit.core import fitting
 
 """This module corresponds to the image directory in idlutils.
 """
@@ -173,148 +173,6 @@ def djs_maskinterp(yval, mask, xval=None, axis=None, const=False):
     return ynew
 
 
-def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
-            maxiter=10, nord = 4, bkpt = None, fullbkpt = None, kwargs_bspline={}, kwargs_reject={}):
-    """Iteratively fit a b-spline set to data, with rejection.
-
-    Parameters
-    ----------
-    xdata : :class:`numpy.ndarray`
-        Independent variable.
-    ydata : :class:`numpy.ndarray`
-        Dependent variable.
-    invvar : :class:`numpy.ndarray`
-        Inverse variance of `ydata`.  If not set, it will be calculated based
-        on the standard deviation.
-    upper : :class:`int` or :class:`float`
-        Upper rejection threshold in units of sigma, defaults to 5 sigma.
-    lower : :class:`int` or :class:`float`
-        Lower rejection threshold in units of sigma, defaults to 5 sigma.
-    x2 : :class:`numpy.ndarray`, optional
-        Orthogonal dependent variable for 2d fits.
-    maxiter : :class:`int`, optional
-        Maximum number of rejection iterations, default 10.  Set this to
-        zero to disable rejection.
-
-    Returns
-    -------
-    :func:`tuple`
-        A tuple containing the fitted bspline object and an output mask.
-    """
-    #from .math import djs_reject
-    nx = xdata.size
-    if ydata.size != nx:
-        raise ValueError('Dimensions of xdata and ydata do not agree.')
-    if invvar is not None:
-        if invvar.size != nx:
-            raise ValueError('Dimensions of xdata and invvar do not agree.')
-    else:
-        #
-        # This correction to the variance makes it the same
-        # as IDL's variance()
-        #
-        var = ydata.var()*(float(nx)/float(nx-1))
-        if var == 0:
-            var = 1.0
-        invvar = np.ones(ydata.shape, dtype=ydata.dtype)/var
-
-    if inmask is None:
-        inmask = invvar > 0.0
-
-    if x2 is not None:
-        if x2.size != nx:
-            raise ValueError('Dimensions of xdata and x2 do not agree.')
-    yfit = np.zeros(ydata.shape)
-    if invvar.size == 1:
-        outmask = True
-    else:
-        outmask = np.ones(invvar.shape, dtype='bool')
-    xsort = xdata.argsort()
-    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
-    if 'oldset' in kwargs_bspline:
-        sset = kwargs_bspline['oldset']
-        sset.mask = True
-        sset.coeff = 0
-    else:
-        if not maskwork.any():
-            raise ValueError('No valid data points.')
-            # return (None,None)
-        # JFH comment this out for now
-        #        if 'fullbkpt' in kwargs:
-        #            fullbkpt = kwargs['fullbkpt']
-        else:
-            sset = bspline.bspline(xdata[xsort[maskwork]], nord=nord, bkpt=bkpt, fullbkpt=fullbkpt,
-                                   **kwargs_bspline)
-            if maskwork.sum() < sset.nord:
-                print('Number of good data points fewer than nord.')
-                return (sset, outmask)
-            if x2 is not None:
-                if 'xmin' in kwargs_bspline:
-                    xmin = kwargs_bspline['xmin']
-                else:
-                    xmin = x2.min()
-                if 'xmax' in kwargs_bspline:
-                    xmax = kwargs_bspline['xmax']
-                else:
-                    xmax = x2.max()
-                if xmin == xmax:
-                    xmax = xmin + 1
-                sset.xmin = xmin
-                sset.xmax = xmax
-                if 'funcname' in kwargs_bspline:
-                    sset.funcname = kwargs_bspline['funcname']
-    xwork = xdata[xsort]
-    ywork = ydata[xsort]
-    invwork = invvar[xsort]
-    if x2 is not None:
-        x2work = x2[xsort]
-    else:
-        x2work = None
-    iiter = 0
-    error = -1
-    # JFH fixed major bug here. Codes were not iterating
-    qdone = False
-    while (error != 0 or qdone is False) and iiter <= maxiter:
-        goodbk = sset.mask.nonzero()[0]
-        if maskwork.sum() <= 1 or not sset.mask.any():
-            sset.coeff = 0
-            iiter = maxiter + 1 # End iterations
-        else:
-            if 'requiren' in kwargs_bspline:
-                i = 0
-                while xwork[i] < sset.breakpoints[goodbk[sset.nord]] and i < nx-1:
-                    i += 1
-                ct = 0
-                for ileft in range(sset.nord, sset.mask.sum()-sset.nord+1):
-                    while (xwork[i] >= sset.breakpoints[goodbk[ileft]] and
-                           xwork[i] < sset.breakpoints[goodbk[ileft+1]] and
-                           i < nx-1):
-                        ct += invwork[i]*maskwork[i] > 0
-                        i += 1
-                    if ct >= kwargs_bspline['requiren']:
-                        ct = 0
-                    else:
-                        sset.mask[goodbk[ileft]] = False
-            error, yfit = sset.fit(xwork, ywork, invwork*maskwork,
-                                   x2=x2work)
-        iiter += 1
-        inmask_rej = maskwork
-        if error == -2:
-
-            return (sset, outmask)
-        elif error == 0:
-            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
-            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring stick to be set is the more transparent behavior.
-            maskwork, qdone = djs_reject(ywork, yfit, invvar=invwork,
-                                         inmask=inmask_rej, outmask=maskwork,
-                                         upper=upper, lower=lower,**kwargs_reject)
-        else:
-            pass
-    outmask[xsort] = maskwork
-    temp = yfit
-    yfit[xsort] = temp
-    return (sset, outmask)
 
 
 def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
@@ -430,6 +288,7 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
     return res, yfit
 
 
+# TODO -- This class needs to become a DataContainer
 class TraceSet(object):
     """Implements the idea of a trace set.
 
@@ -465,10 +324,9 @@ class TraceSet(object):
     yfit : array-like
         When initialized with x,y positions, this contains the fitted y
         values.
+    pypeitFits : list
+        Holds a list of :class:`pypeit.fitting.PypeItFit` fits
     """
-    #_func_map = {'poly': fpoly, 'legendre': flegendre,
-    #                'chebyshev': fchebyshev}
-
     # ToDO Remove the kwargs and put in all the djs_reject parameters here
     def __init__(self, *args, **kwargs):
         """This class can be initialized either with a set of xy positions,
@@ -572,6 +430,7 @@ class TraceSet(object):
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
+            self.pypeitFits = []
             for iTrace in range(self.nTrace):
                 xvec = self.xnorm(xpos[iTrace, :], do_jump)
                 if invvar is None:
@@ -579,35 +438,23 @@ class TraceSet(object):
                 else:
                     thisinvvar = invvar[iTrace, :]
 
-                mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
+                pypeitFit = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
-                                                                inmask = inmask[iTrace, :], invvar = thisinvvar,
+                                                                in_gpm = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minx = self.xmin, maxx = self.xmax,
-                                                                maxdev=self.maxdev,maxrej=None,groupdim=None,
-                                                                groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
-                ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minx=self.xmin, maxx=self.xmax)
+                                                                maxdev=self.maxdev,
+                                                                grow=0,use_mad=False,sticky=False)
+                ycurfit_djs = pypeitFit.eval(xvec)
+                self.pypeitFits.append(pypeitFit)
 
-                ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
-                #while (not qdone) and (iIter <= maxiter):
-                #    res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
-                #        invvar=tempivar*thismask, function_name=self.func)#function_name='poly')
-                #    #ToDo: is this doing rejection? I think not???? THIS IS A MASSIVE BUG!!!! See IDL code.
-                #    # ADd kwargs_reject in here like with iterfit
-                #    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
-                #                                invvar=tempivar)
-                #    #thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=3,upper=3)
-                #    iIter += 1
-                #self.yfit[iTrace, :] = ycurfit
-                #self.coeff[iTrace, :] = res
-                #self.outmask[iTrace, :] = thismask
-                self.yfit[iTrace, :] = ycurfit_djs #ycurfit
-                self.coeff[iTrace, :] = poly_coeff#[:-1] #res
-                self.outmask[iTrace, :] = mask_djs #thismask
+                # Load
+                self.yfit[iTrace, :] = ycurfit_djs
+                self.coeff[iTrace, :] = pypeitFit.fitc
+                self.outmask[iTrace, :] = pypeitFit.gpm
 
         else:
             msgs.error('Wrong number of arguments to TraceSet!')
-            #raise PydlutilsException("Wrong number of arguments to TraceSet!")
 
     def xy(self, xpos=None, ignore_jump=False):
         """Convert from a trace set to an array of x,y positions.
@@ -633,7 +480,8 @@ class TraceSet(object):
         for iTrace in range(self.nTrace):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
             #legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
-            ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
+            #ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
+            ypos[iTrace, :] =  self.pypeitFits[iTrace].eval(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
 #            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 

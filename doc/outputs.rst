@@ -19,6 +19,7 @@ Contents
 
    Naming <naming>
    master_bias
+   master_align
    master_arc
    master_tilt
    master_edges

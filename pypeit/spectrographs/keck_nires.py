@@ -12,8 +12,6 @@ from pypeit.images import detector_container
 from pkg_resources import resource_filename
 
 
-from pypeit import debugger
-
 class KeckNIRESSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/NIRES specific code
@@ -260,18 +258,6 @@ class KeckNIRESSpectrograph(spectrograph.Spectrograph):
         """
         norders = order_vec.size
         return np.full(norders, 0.15)
-
-
-    @property
-    def dloglam(self):
-        # This number was determined using the resolution and sampling quoted on the NIRES website
-        R = 2700.0 * 2.7
-        dloglam = 1.0 / R / np.log(10.0)
-        return dloglam
-
-    @property
-    def loglam_minmax(self):
-        return np.log10(9400.0), np.log10(26000)
 
 
 

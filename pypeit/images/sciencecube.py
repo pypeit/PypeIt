@@ -2,20 +2,12 @@
 This module also includes the build_from_list() method
 which is how the ScienceImage is most frequently generated. """
 
-import inspect
-
-import os
 import numpy as np
 from shapely.geometry import Polygon
 
 from pypeit import msgs
-
-from pypeit.core import procimg
 from pypeit.par import pypeitpar
-from pypeit import utils
-
 from pypeit.images import pypeitimage
-from pypeit.images import combineimage
 
 from IPython import embed
 
@@ -48,12 +40,12 @@ class ScienceCube(pypeitimage.PypeItImage):
     """
     frametype = 'cube'
 
-    def __init__(self, spectrograph, det, par, image, ivar, bpm, rn2img=None,
+    def __init__(self, spectrograph, det, par, cube, ivar, bpm, rn2img=None,
                  crmask=None, mask=None, files=None):
 
         # Init me
-        pypeitimage.PypeItImage.__init__(self, image, ivar=ivar, rn2img=rn2img,
-                                         bpm=bpm, crmask=crmask, mask=mask)
+        pypeitimage.PypeItImage.__init__(self, cube, ivar=ivar, rn2img=rn2img,
+                                         bpm=bpm, crmask=crmask, fullmask=mask)
 
         if files is None:
             files = []

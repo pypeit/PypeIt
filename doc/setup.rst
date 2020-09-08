@@ -160,5 +160,5 @@ and within it will be a file named `keck_lris_blue_A.pypeit`.
 
 If you wish to specify pairs (or groups) of files to use for background
 subtraction (e.g. A-B), then include the `-b` option.
-This should already be the default for most near-IR spectrographs.
+This should already be the default for most near-IR spectrographs. See :doc:`A-B_differencing`.
 

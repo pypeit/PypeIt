@@ -8,9 +8,9 @@ import inspect
 import numpy as np
 from IPython import embed
 
-from pypeit import ginga, msgs
+from pypeit.display import display
 from pypeit.core import extract
-from pypeit import datamodel
+from pypeit import datamodel, msgs
 
 
 class Alignments(datamodel.DataContainer):
@@ -32,15 +32,15 @@ class Alignments(datamodel.DataContainer):
     master_type = 'Alignment'
     master_file_format = 'fits'
 
-    datamodel = {
-        'alignframe':  dict(otype=np.ndarray, atype=np.floating, desc='Processed, combined alignment frames'),
-        'nspec':  dict(otype=int, desc='The number of spectral elements'),
-        'nalign': dict(otype=int, desc='Number of alignment traces in each slit'),
-        'nslits':  dict(otype=int, desc='The number of slits'),
-        'traces': dict(otype=np.ndarray, atype=np.floating, desc='Traces of the alignment frame'),
-        'PYP_SPEC': dict(otype=str, desc='PypeIt spectrograph name'),
-        'spat_id': dict(otype=np.ndarray, atype=np.integer, desc='Slit spat_id '),
-    }
+    datamodel = {'alignframe': dict(otype=np.ndarray, atype=np.floating,
+                                    descr='Processed, combined alignment frames'),
+                 'nspec': dict(otype=int, descr='The number of spectral elements'),
+                 'nalign': dict(otype=int, descr='Number of alignment traces in each slit'),
+                 'nslits': dict(otype=int, descr='The number of slits'),
+                 'traces': dict(otype=np.ndarray, atype=np.floating,
+                                descr='Traces of the alignment frame'),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'spat_id': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_id ')}
 
     def __init__(self, alignframe=None, nspec=None, nalign=None, nslits=None,
                  traces=None, PYP_SPEC=None, spat_id=None):
@@ -289,14 +289,14 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
     -------
 
     """
-    ginga.connect_to_ginga(raise_err=True, allow_new=True)
+    display.connect_to_ginga(raise_err=True, allow_new=True)
     ch_name = 'alignment'
-    viewer, channel = ginga.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
+    viewer, channel = display.show_image(alignframe, chname=ch_name, clear=clear, wcs_match=False)
 
     # Display the slit edges
     if slits is not None and viewer is not None:
         left, right, mask = slits.select_edges()
-        ginga.show_slits(viewer, channel, left, right)
+        display.show_slits(viewer, channel, left, right)
 
     # Display the alignment traces
     if align_traces is not None and viewer is not None:
@@ -307,4 +307,4 @@ def show_alignment(alignframe, align_traces=None, slits=None, clear=False):
                 if slt%2 == 0:
                     color = 'magenta'
                 # Display the trace
-                ginga.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)
+                display.show_trace(viewer, channel, align_traces[:, bar, slt], trc_name="", color=color)
