@@ -1,20 +1,24 @@
 
-1.1.0dev
---------
- - Fixed a bug for IR reductions for cases where only negative object traces are identified.
-   These were accidentally being written to the spec1d file.
- - Fixed a bug fixes a bug in full_template wavelength reidentification
-   for situations where extreme wavelength coverage slits results in
-   reidentification with a purely zero-padded array.
- - Fixed a bug fixes a bug in full_template wavelength reidentification for situations where extreme
-   wavelength coverage slits results in reidentification with a purely zero-padded array.
- - Fixed another such bug arising from these zero-padded arrays.
- - (Hotfix) Deal with chk_calibs test
- - Script to generate combined datacubes for IFU data.
- - Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
- - Allow show2d_spec, chk_edges, chk_flats to load older Spec2DObj datamodel versions
- - Implemented a plugin kindly provided by the ginga developers to
-   display images with a secondary wavelength image WCS.
+1.1.0 (8 Sep 2020)
+------------------
+
+- Fixed a bug for IR reductions for cases where only negative object
+  traces are identified.  These were accidentally being written to the
+  spec1d file.
+- Fixed a bug fixes a bug in full_template wavelength reidentification
+  for situations where extreme wavelength coverage slits results in
+  reidentification with a purely zero-padded array.
+- Fixed a bug fixes a bug in full_template wavelength reidentification
+  for situations where extreme wavelength coverage slits results in
+  reidentification with a purely zero-padded array.
+- Fixed another such bug arising from these zero-padded arrays.
+- (Hotfix) Deal with chk_calibs test
+- Script to generate combined datacubes for IFU data.
+- Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
+- Allow show2d_spec, chk_edges, chk_flats to load older Spec2DObj
+  datamodel versions
+- Implemented a plugin kindly provided by the ginga developers to
+  display images with a secondary wavelength image WCS.
     - Removes dependency on @profxj's ginga fork, and avoids a bug when
       using WCS image registration in that fork.
     - `pypeit/ginga.py` moved to `pypeit/display/display.py` and ginga
@@ -23,42 +27,42 @@
     - Added a script to check that the plugins are all available.
     - Installation docs updated.  Both `ginga` and `linetools` are now
       installed via pip.
- - Deprecated `pypeit/debugger.py` and `pypeit/data/settings`
- - Removed h5py as a dependency
- - `linetools` is now listed in `pypeit/requirements.txt` until I can
-   check if it still causes readthedocs to fail...
- - Modify Spec2DObj 2D model for float32 images
- - `pypeit.tracepca.TracePCA` and `pypeit.edgetrace.EdgeTraceSet` now
-   subclass from `pypeit.datamodel.DataContainer`
- - Refactor WaveCalib into a DataContainer
- - Refactor fitting + PypeItFit DataContainer
- - Coadd2D bug fixes
- - Coadd2D without spec1d files
- - Coadd2D offsets
- - Some Coadd2D docs
- - Manual extraction
- - Improve LBT/LUCI
- - Add MMT/MMIRS
- - QL script for Keck/MOSFIRE (beta version)
- - Correct det bug in keck_lris
- - Modifications to allow for flailing LRISr detector
- - Modifications for parse LRIS LAMPS prior to 2010 upgrade
- - Add P200/TripleSpec
+- Deprecated `pypeit/debugger.py` and `pypeit/data/settings`
+- Removed h5py as a dependency
+- `linetools` is now listed in `pypeit/requirements.txt` until I can
+  check if it still causes readthedocs to fail...
+- Modify Spec2DObj 2D model for float32 images
+- `pypeit.tracepca.TracePCA` and `pypeit.edgetrace.EdgeTraceSet` now
+  subclass from `pypeit.datamodel.DataContainer`
+- Refactor WaveCalib into a DataContainer
+- Refactor fitting + PypeItFit DataContainer
+- Coadd2D bug fixes
+- Coadd2D without spec1d files
+- Coadd2D offsets
+- Some Coadd2D docs
+- Manual extraction
+- Improve LBT/LUCI
+- Add MMT/MMIRS
+- QL script for Keck/MOSFIRE (beta version)
+- Correct det bug in keck_lris
+- Modifications to allow for flailing LRISr detector
+- Modifications for parse LRIS LAMPS prior to 2010 upgrade
+- Add P200/TripleSpec
 
 1.0.6 (22 Jul 2020)
 -------------------
 
- - (Hotfix) Deal with wavecalib crash
- - Fix class and version check for DataContainer objects.
- - Script to check for calibration files
- - No longer require bias frames as default for DEIMOS
- - Implement grism19 for NOT/ALFOSC
- - Introduced another parameter used to identify box slits, as opposed
-   to erroneous "slits" found by the edge tracing algorithms.  Any slit
-   that has `minimum_slit_length < length < minimum_slit_length_sci` is
-   considered a `BOXSLIT`, any slit with `length < minimum_slit_length`
-   is considered a `SHORTSLIT`; the latter are always ignored.
- - Introduced order matching code into EdgeTraceSet.
+- (Hotfix) Deal with wavecalib crash
+- Fix class and version check for DataContainer objects.
+- Script to check for calibration files
+- No longer require bias frames as default for DEIMOS
+- Implement grism19 for NOT/ALFOSC
+- Introduced another parameter used to identify box slits, as opposed to
+  erroneous "slits" found by the edge tracing algorithms.  Any slit that
+  has `minimum_slit_length < length < minimum_slit_length_sci` is
+  considered a `BOXSLIT`, any slit with `length < minimum_slit_length`
+  is considered a `SHORTSLIT`; the latter are always ignored.
+- Introduced order matching code into EdgeTraceSet.
     - This helps fix an issue for GNIRS_10L caused by the orders
       shifting.
     - Introduces two paramters in `EdgeTraceSetPar` to assist the
@@ -68,53 +72,53 @@
     - Removes the need for `Spectrograph.slit2order` and
       `Spectrograph.order_vec`.  Changes propagated, primarily in
       `wavecalib.py`, `autoid.py`, and `reduce.py`.
- - Adds in Keck/LRISr with the original detector
- - Adds in Keck/LRISb with the FITS format
+- Adds in Keck/LRISr with the original detector
+- Adds in Keck/LRISb with the FITS format
 
 1.0.5 (23 Jun 2020)
 -------------------
 
- - Add median combining code
- - Make biasframes median combine by default
- - Implemented IFU reduction hooks
- - KCWI reduction complete up to spec2D frames
- - Implemented new flatfield DataContainer to separate
-   pixelflat and illumflat
+- Add median combining code
+- Make biasframes median combine by default
+- Implemented IFU reduction hooks
+- KCWI reduction complete up to spec2D frames
+- Implemented new flatfield DataContainer to separate pixelflat and
+  illumflat
 
 1.0.4 (27 May 2020)
 -------------------
 
- - Add a script (pypeit_flux_setup) for creating fluxing,
-   coadd1d and tellfit pypeit files
- - Add telluric fitting script, pypeit_tellfit
+- Add a script (pypeit_flux_setup) for creating fluxing, coadd1d and
+  tellfit pypeit files
+- Add telluric fitting script, pypeit_tellfit
 
 1.0.3 (04 May 2020)
 -------------------
 
- - Add illumflat frametype
- - Enable dark image subtraction
- - Refactor of Calibrations (remove cache, add get_dark)
- - Enable calibration-only run
- - Clean up flat, bias handling
- - Make re-use masters the default mode of run_pypeit
- - Require Python 3.7
- - Fixed a bug in NIRES order finding. 
- - Add NOT/ALFOSC
- - Fluxing docs
- - Fix flexure and heliocentric bugs
- - Identify GUI updates
+- Add illumflat frametype
+- Enable dark image subtraction
+- Refactor of Calibrations (remove cache, add get_dark)
+- Enable calibration-only run
+- Clean up flat, bias handling
+- Make re-use masters the default mode of run_pypeit
+- Require Python 3.7
+- Fixed a bug in NIRES order finding. 
+- Add NOT/ALFOSC
+- Fluxing docs
+- Fix flexure and heliocentric bugs
+- Identify GUI updates
 
 1.0.2 (30 Apr 2020)
 -------------------
 
- - Various doc hotfixes
- - wavelength algorithm hotfix, such that they must now generate an
-   entry for every slit, bad or good.
+- Various doc hotfixes
+- wavelength algorithm hotfix, such that they must now generate an entry
+  for every slit, bad or good.
 
 1.0.1 (13 Apr 2020)
 -------------------
 
- - Various hot fixes
+- Various hot fixes
 
 1.0.0 (07 Apr 2020)
 -------------------
