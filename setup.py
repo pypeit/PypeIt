@@ -51,7 +51,7 @@ def get_requirements():
 
 NAME = 'pypeit'
 # do not use x.x.x-dev.  things complain.  instead use x.x.xdev
-VERSION = '1.1.0dev'
+VERSION = '1.1.0'
 RELEASE = 'dev' not in VERSION
 
 # To enable pypeit ginga global plugin
