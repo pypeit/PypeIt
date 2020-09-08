@@ -1,7 +1,8 @@
 
 1.1.0dev
 --------
-
+ - Fixed a bug for IR reductions for cases where only negative object traces are identified.
+   These were accidentally being written to the spec1d file.
  - Fixed a bug fixes a bug in full_template wavelength reidentification
    for situations where extreme wavelength coverage slits results in
    reidentification with a purely zero-padded array.
@@ -44,6 +45,7 @@
  - Correct det bug in keck_lris
  - Modifications to allow for flailing LRISr detector
  - Modifications for parse LRIS LAMPS prior to 2010 upgrade
+ - Add P200/TripleSpec
 
 1.0.6 (22 Jul 2020)
 -------------------
