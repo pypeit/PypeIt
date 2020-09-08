@@ -41,6 +41,7 @@ def parser(options=None):
     parser = argparse.ArgumentParser(description='Parse')
     parser.add_argument("file", type=str, help="Spectral file")
     parser.add_argument("-b", "--rebin", type=int, default=0, help="rebin the spectrum by how many pixels")
+    parser.add_argument("-o", "--outfile", type=str, default=None, help="output file name of the plot")
 
     if options is None:
         args = parser.parse_args()
@@ -110,7 +111,6 @@ def main(args):
         ax2.set_xlabel(r'Wavelength ($\rm \AA$)', fontsize=14)
         ax2.set_ylabel(r'$f_{\rm \lambda} ~ {\rm (10^{-17}~erg~s^{-1}~cm^{-2}~\AA^{-1})}$', fontsize=14)
         ax2.yaxis.set_label_coords(-0.06, 1.0)
-        plt.show()
 
     else:
         f = plt.figure(figsize=(10, 5))
@@ -121,6 +121,13 @@ def main(args):
         plt.ylim(ymin,ymax)
         plt.xlabel(r'Wavelength ($\rm \AA$)', fontsize=14)
         plt.ylabel(r'$f_{\rm \lambda} ~ {\rm (10^{-17}~erg~s^{-1}~cm^{-2}~\AA^{-1})}$', fontsize=14)
-        plt.show()
 
+    if args.outfile is not None:
+        if args.outfile[-3:] not in ['png','pdf','jpg']:
+            outfile = args.outfile+'.png'
+        else:
+            outfile = args.outfile
+        plt.savefig(outfile, dpi=300)
+
+    plt.show()
 
