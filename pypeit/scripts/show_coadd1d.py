@@ -5,6 +5,7 @@ Wrapper to the linetools XSpecGUI
 import argparse
 from scipy import interpolate
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
 
 from pypeit import coadd1d
 from pypeit.core import coadd
@@ -90,19 +91,36 @@ def main(args):
     plt.rcParams["mathtext.default"] = "regular"
     plt.rcParams["text.usetex"] = True
 
-    f = plt.figure(figsize=(10, 5))
-    f.subplots_adjust(left=0.09, right=0.97, bottom=0.12, top=0.95, wspace=0, hspace=0)
     if telluric is not None:
-        telluric *= 0.9*ymax
-        plt.plot(wave,telluric,linestyle='-',color='0.7',lw=1.0)
-    plt.plot(wave,flux,'k-',lw=0.5)
-    if telluric is not None:
-        plt.plot(wave,model,linestyle='-',color='m',lw=1.0)
-    plt.plot(wave,sig,':',color='r',lw=0.5)
-    plt.xlim(wave[gpm].min(),wave[gpm].max())
-    plt.ylim(ymin,ymax)
-    plt.xlabel(r'Wavelength ($\rm \AA$)', fontsize=14)
-    plt.ylabel(r'$f_{\rm \lambda} ~ {\rm (10^{-17}~erg~s^{-1}~cm^{-2}~\AA^{-1})}$', fontsize=14)
-    plt.show()
+        f = plt.figure(figsize=(10, 5))
+        f.subplots_adjust(left=0.09, right=0.97, bottom=0.12, top=0.95, wspace=0, hspace=0)
+        gs = gridspec.GridSpec(2, 1, hspace=0, wspace=0.2)
+        ax1 = plt.subplot(gs[0])
+        ax2 = plt.subplot(gs[1])
+        ax1.plot(wave,telluric*0.9*ymax,linestyle='-',color='0.7',lw=1.0)
+        ax1.plot(wave,flux,'k-',lw=0.5)
+        ax1.plot(wave,sig,'-',color='lightskyblue',lw=0.5)
+        ax1.set_xlim(wave[gpm].min(),wave[gpm].max())
+        ax1.set_ylim(ymin,ymax)
+
+        ax2.plot(wave, flux*telluric,'k-',lw=0.5)
+        ax2.plot(wave, model*telluric,'-',color='darkorange',lw=1)
+        ax2.set_xlim(wave[gpm].min(),wave[gpm].max())
+        ax2.set_ylim(ymin,ymax)
+        ax2.set_xlabel(r'Wavelength ($\rm \AA$)', fontsize=14)
+        ax2.set_ylabel(r'$f_{\rm \lambda} ~ {\rm (10^{-17}~erg~s^{-1}~cm^{-2}~\AA^{-1})}$', fontsize=14)
+        ax2.yaxis.set_label_coords(-0.06, 1.0)
+        plt.show()
+
+    else:
+        f = plt.figure(figsize=(10, 5))
+        f.subplots_adjust(left=0.09, right=0.97, bottom=0.12, top=0.95, wspace=0, hspace=0)
+        plt.plot(wave,flux,'k-',lw=0.5)
+        plt.plot(wave,sig,':',color='lightskyblue',lw=0.5)
+        plt.xlim(wave[gpm].min(),wave[gpm].max())
+        plt.ylim(ymin,ymax)
+        plt.xlabel(r'Wavelength ($\rm \AA$)', fontsize=14)
+        plt.ylabel(r'$f_{\rm \lambda} ~ {\rm (10^{-17}~erg~s^{-1}~cm^{-2}~\AA^{-1})}$', fontsize=14)
+        plt.show()
 
 
