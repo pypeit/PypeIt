@@ -6,6 +6,7 @@ import argparse
 from scipy import interpolate
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+from astropy.io import fits
 
 from pypeit import coadd1d
 from pypeit.core import coadd
@@ -53,30 +54,41 @@ def main(args):
     """ Runs the XSpecGui on an input file
     """
 
-    onespec = coadd1d.OneSpec.from_file(args.file)
+    try:
+        onespec = coadd1d.OneSpec.from_file(args.file)
 
-    # Unpack
-    wave = onespec.wave
-    flux = onespec.flux
-    telluric = onespec.telluric
-    model = onespec.obj_model #* telluric
-    ivar = onespec.ivar
-    gpm = onespec.mask.astype(bool)
-    #spect_dict = onespec.spect_meta
-    head = onespec.head0
-    sig = np.sqrt(utils.inverse(ivar))
+        # Unpack
+        wave = onespec.wave
+        flux = onespec.flux
+        telluric = onespec.telluric
+        model = onespec.obj_model #* telluric
+        ivar = onespec.ivar
+        gpm = onespec.mask.astype(bool)
+        #spect_dict = onespec.spect_meta
+        head = onespec.head0
+        sig = np.sqrt(utils.inverse(ivar))
+    except:
+        par = fits.open(args.file)
+        wave, flux, sig = par[2].data, par[0].data, par[1].data
+        gpm = sig>0.0
+        telluric = None
+        model = None
+        head = par[0].header
+        head['PYPELINE'] = 'Echelle'
 
-    if (args.rebin!=0) and (telluric is not None):
-        tck_model = interpolate.splrep(wave, model, s=0)
-        tck_telluric = interpolate.splrep(wave, telluric, s=0)
+    if args.rebin!=0:
+        if telluric is not None:
+            tck_model = interpolate.splrep(wave, model, s=0)
+            tck_telluric = interpolate.splrep(wave, telluric, s=0)
 
         if 'Echelle' in head['PYPELINE']:
             wave, flux, sig, gpm = rebinspec(wave, flux, sig, gpm=gpm, nbin=args.rebin, wave_method='velocity')
         else:
             wave, flux, sig, gpm = rebinspec(wave, flux, sig, gpm=gpm, nbin=args.rebin, wave_method='linear')
 
-        model = interpolate.splev(wave, tck_model, der=0)
-        telluric = interpolate.splev(wave, tck_telluric, der=0)
+        if telluric is not None:
+            model = interpolate.splev(wave, tck_model, der=0)
+            telluric = interpolate.splev(wave, tck_telluric, der=0)
 
 
     ymax = 1.5*np.percentile(flux[gpm],95)
@@ -99,12 +111,12 @@ def main(args):
         ax1 = plt.subplot(gs[0])
         ax2 = plt.subplot(gs[1])
         ax1.plot(wave,telluric*0.9*ymax,linestyle='-',color='0.7',lw=1.0)
-        ax1.plot(wave,flux,'k-',lw=0.5)
-        ax1.plot(wave,sig,'-',color='steelblue',lw=0.5)
+        ax1.plot(wave,flux,'k-',lw=0.7)
+        ax1.plot(wave,sig,'-',color='steelblue',lw=0.7)
         ax1.set_xlim(wave[gpm].min(),wave[gpm].max())
         ax1.set_ylim(ymin,ymax)
 
-        ax2.plot(wave, flux*telluric,'k-',lw=0.5)
+        ax2.plot(wave, flux*telluric,'k-',lw=0.7)
         ax2.plot(wave, model*telluric,'-',color='darkorange',lw=1)
         ax2.set_xlim(wave[gpm].min(),wave[gpm].max())
         ax2.set_ylim(ymin,ymax)
@@ -115,8 +127,8 @@ def main(args):
     else:
         f = plt.figure(figsize=(10, 5))
         f.subplots_adjust(left=0.09, right=0.97, bottom=0.12, top=0.95, wspace=0, hspace=0)
-        plt.plot(wave,flux,'k-',lw=0.5)
-        plt.plot(wave,sig,':',color='lightskyblue',lw=0.5)
+        plt.plot(wave,flux,'k-',lw=0.7)
+        plt.plot(wave,sig,':',color='steelblue',lw=0.7)
         plt.xlim(wave[gpm].min(),wave[gpm].max())
         plt.ylim(ymin,ymax)
         plt.xlabel(r'Wavelength ($\rm \AA$)', fontsize=14)
