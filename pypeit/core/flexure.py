@@ -296,7 +296,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
                 corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
 
 
-def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
+def spec_flexure_obj(slitord, bpm, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
     Args:
@@ -418,7 +418,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     return flex_list
 
 
-def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
+def spec_flexure_qa(slitords, bpm, basename, det, flex_list,
                slit_cen=False, out_dir=None):
     """
 

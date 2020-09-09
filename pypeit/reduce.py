@@ -386,6 +386,16 @@ class Reduce(object):
                 self.global_sky = self.initial_sky.copy()
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
+
+            # Apply flexure correction to each slit
+            if not self.std_redux:
+                # Flexure correction if this is not a standard star
+                self.spec_flexure_correct(basename)
+            # Correct to user-specified reference frame
+            radec = ltu.radec_to_coord((ra, dec))
+            self.helio_correct(radec, obstime)
+
+
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
@@ -406,14 +416,6 @@ class Reduce(object):
         # Finish up
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
-        else:
-            # TODO -- Should we move these to redux.run()?
-            # Flexure correction if this is not a standard star
-            if not self.std_redux:
-                self.spec_flexure_correct(self.sobjs, basename)
-            # Heliocentric
-            radec = ltu.radec_to_coord((ra, dec))
-            self.helio_correct(self.sobjs, radec, obstime)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -640,7 +642,7 @@ class Reduce(object):
                 usersky = True
         return skymask_init, usersky
 
-    def spec_flexure_correct(self, sobjs, basename):
+    def spec_flexure_correct(self, basename):
         """ Correct for spectral flexure
 
         Spectra are modified in place (wavelengths are shifted)
@@ -648,24 +650,23 @@ class Reduce(object):
         Wrapper to flexure.flexure_obj()
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
             basename (str):
 
         """
 
         if self.par['flexure']['spec_method'] != 'skip':
             # Measure
-            flex_list = flexure.spec_flexure_obj(sobjs, self.slits.slitord_id, self.reduce_bpm,
+            flex_list = flexure.spec_flexure_obj(self.slits.slitord_id, self.reduce_bpm,
                                                  self.par['flexure']['spec_method'],
                                                  self.par['flexure']['spectrum'],
                                                  mxshft=self.par['flexure']['spec_maxshift'])
             # QA
-            flexure.spec_flexure_qa(sobjs, self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
+            flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')
 
-    def helio_correct(self, sobjs, radec, obstime):
+    def helio_correct(self, radec, obstime):
         """ Perform a heliocentric correction
 
         Wrapper to wave.geomotion_correct()
@@ -673,7 +674,6 @@ class Reduce(object):
         Input objects are modified in place
 
         Args:
-            sobjs (:class:`pypeit.specobjs.SpecObjs`):
             radec (astropy.coordiantes.SkyCoord):
             obstime (:obj:`astropy.time.Time`):
 
@@ -681,11 +681,10 @@ class Reduce(object):
         # Helio, correct Earth's motion
         if (self.par['calibrations']['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
-            # TODO change this keyword to refframe instead of frame
-            msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['frame']))
+            msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
             # Good slitord
             gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
-            vel, vel_corr = wave.geomotion_correct(sobjs, radec, obstime, gd_slitord,
+            vel, vel_corr = wave.geomotion_correct(radec, obstime, gd_slitord,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
                                                    self.spectrograph.telescope['elevation'],
