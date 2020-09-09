@@ -395,7 +395,6 @@ class Reduce(object):
             radec = ltu.radec_to_coord((ra, dec))
             self.refframe_correct(radec, obstime)
 
-
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
@@ -656,6 +655,9 @@ class Reduce(object):
 
         if self.par['flexure']['spec_method'] != 'skip':
             # Loop through all good slits
+            gdslits = np.where(np.invert(self.reduce_bpm))[0]
+            for slit_idx in gdslits:
+                slit_spat = self.slits.spat_id[slit_idx]
 
             # Measure
             flex_list = flexure.spec_flexure_obj(self.slits.slitord_id, self.reduce_bpm,
