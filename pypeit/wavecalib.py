@@ -432,8 +432,7 @@ class WaveCalib(object):
                 try:
                     idx = self.slits.spatid_to_zero(int(key))
                 except:
-                    idx=17
-                    #embed(header='428 of wavecalib')
+                    embed(header='428 of wavecalib')
                 self.wvc_bpm[idx] = True
 
     def run(self, skip_QA=False, debug=False):

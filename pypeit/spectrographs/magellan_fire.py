@@ -173,8 +173,8 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
 
         # Set slits and tilts parameters
         par['calibrations']['tilts']['tracethresh'] = 5
-        par['calibrations']['slitedges']['edge_thresh'] = 10.
-        par['calibrations']['slitedges']['trace_thresh'] = 10.
+        par['calibrations']['slitedges']['edge_thresh'] = 5.
+        par['calibrations']['slitedges']['trace_thresh'] = 5.
         par['calibrations']['slitedges']['fit_order'] = 5
         par['calibrations']['slitedges']['max_shift_adj'] = 0.5
         par['calibrations']['slitedges']['fit_min_spec_length'] = 0.5
