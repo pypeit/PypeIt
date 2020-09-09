@@ -391,9 +391,9 @@ class Reduce(object):
             if not self.std_redux:
                 # Flexure correction if this is not a standard star
                 self.spec_flexure_correct(basename)
-            # Correct to user-specified reference frame
+            # Correct wavelength image to the user-specified reference frame
             radec = ltu.radec_to_coord((ra, dec))
-            self.helio_correct(radec, obstime)
+            self.refframe_correct(radec, obstime)
 
 
             # Extract + Return
@@ -655,6 +655,8 @@ class Reduce(object):
         """
 
         if self.par['flexure']['spec_method'] != 'skip':
+            # Loop through all good slits
+
             # Measure
             flex_list = flexure.spec_flexure_obj(self.slits.slitord_id, self.reduce_bpm,
                                                  self.par['flexure']['spec_method'],
@@ -666,33 +668,29 @@ class Reduce(object):
         else:
             msgs.info('Skipping flexure correction.')
 
-    def helio_correct(self, radec, obstime):
-        """ Perform a heliocentric correction
-
-        Wrapper to wave.geomotion_correct()
-
-        Input objects are modified in place
+    def refframe_correct(self, radec, obstime):
+        """ Correct the calibrated wavelength to the user-supplied reference frame
 
         Args:
             radec (astropy.coordiantes.SkyCoord):
             obstime (:obj:`astropy.time.Time`):
 
         """
-        # Helio, correct Earth's motion
-        if (self.par['calibrations']['wavelengths']['frame'] in ['heliocentric', 'barycentric']) \
+        # Correct Telescope's motion
+        if (self.par['calibrations']['wavelengths']['refframe'] in ['heliocentric', 'barycentric']) \
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
-            # Good slitord
-            gd_slitord = self.slits.slitord_id[np.invert(self.reduce_bpm)]
-            vel, vel_corr = wave.geomotion_correct(radec, obstime, gd_slitord,
+            # Calculate correction
+            vel, vel_corr = wave.geomotion_correct(radec, obstime,
                                                    self.spectrograph.telescope['longitude'],
                                                    self.spectrograph.telescope['latitude'],
                                                    self.spectrograph.telescope['elevation'],
-                                                   self.par['calibrations']['wavelengths']['frame'])
+                                                   self.par['calibrations']['wavelengths']['refframe'])
+            # Apply correction
+            msgs.info('Applying {0} correction = {1:0.5f}'.format(self.par['calibrations']['wavelengths']['refframe'], vel))
+            self.waveimg *= vel_corr
         else:
             msgs.info('A wavelength reference-frame correction will not be performed.')
-            vel_corr = None
-
         return
 
     def show(self, attr, image=None, showmask=False, sobjs=None,
