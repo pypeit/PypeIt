@@ -415,6 +415,14 @@ class Reduce(object):
         # Finish up
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
+        # else:
+        #     # TODO -- Should we move these to redux.run()?
+        #     # Flexure correction if this is not a standard star
+        #     if not self.std_redux:
+        #         self.spec_flexure_correct(self.sobjs, basename)
+        #     # Heliocentric
+        #     radec = ltu.radec_to_coord((ra, dec))
+        #     self.helio_correct(self.sobjs, radec, obstime)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -654,16 +662,12 @@ class Reduce(object):
         """
 
         if self.par['flexure']['spec_method'] != 'skip':
-            # Loop through all good slits
-            gdslits = np.where(np.invert(self.reduce_bpm))[0]
-            for slit_idx in gdslits:
-                slit_spat = self.slits.spat_id[slit_idx]
-
             # Measure
-            flex_list = flexure.spec_flexure_obj(self.slits.slitord_id, self.reduce_bpm,
-                                                 self.par['flexure']['spec_method'],
-                                                 self.par['flexure']['spectrum'],
-                                                 mxshft=self.par['flexure']['spec_maxshift'])
+            traces = 0.5*(self.slits_left+self.slits_right)
+            self.waveimg, flex_list = flexure.spec_flexure_slit(self.waveimg, self.global_sky, traces, self.slits,
+                                                                self.slitmask, self.reduce_bpm,
+                                                                self.par['flexure']['spectrum'],
+                                                                mxshft=self.par['flexure']['spec_maxshift'])
             # QA
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))

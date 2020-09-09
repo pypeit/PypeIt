@@ -8,6 +8,7 @@ Module to compute moments.
 import numpy as np
 from scipy import special
 
+
 def moment1d(flux, col, width, ivar=None, bpm=None, fwgt=None, row=None, weighting='uniform',
              order=0, bounds=None, fill_error=-1., mesh=False):
     r"""

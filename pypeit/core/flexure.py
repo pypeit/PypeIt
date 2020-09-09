@@ -14,6 +14,7 @@ from astropy import stats
 from astropy import units
 import scipy.signal
 import scipy.optimize as opt
+from scipy import interpolate
 
 from linetools.spectra import xspectrum1d
 
@@ -23,6 +24,7 @@ from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core.fitting_ToBeMerged import twoD_Gaussian
+from pypeit.core.moment import moment1d
 
 from IPython import embed
 
@@ -296,6 +298,121 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
                 corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
 
 
+def flexure_interp(sky_wave, fdict, xin=None):
+    """
+    Apply interpolation with the flexure dict
+
+    Args:
+        sky_wave (`numpy.ndarray`_):
+            Wavelengths of the extracted sky
+        fdict (dict):
+            Holds the various flexure items
+        xin (`numpy.ndarray`_):
+            spectral values (in pixels) to apply flexure correction (normalized to a value between 0-1)
+
+    Returns:
+        xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
+
+    """
+    # Simple interpolation to apply
+    npix = len(sky_wave)
+    x = np.linspace(0., 1., npix)
+    # Apply
+    msgs.info("Applying flexure correction")
+    f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
+    if xin is None: return f(x + fdict['shift'] / (npix - 1))
+    else: return f(xin + fdict['shift'] / (npix - 1))
+
+
+def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, sky_file, mxshft=None):
+    """Correct wavelengths for flexure, slit by slit
+
+    Args:
+        waveimg (`numpy.ndarray`_):
+            A 2D array providing the wavelength (in A) of each pixel of an image
+        skyimg (`numpy.ndarray`_):
+            A 2D array of the global sky model for each slit
+        traces (`numpy.ndarray`_):
+            The central trace of each slit
+        slits (:class:`pypeit.slittrace.SlitTraceSet`_):
+            Slit trace set
+        slitmask (`numpy.ndarray`_):
+            Slit mask
+        bpm (`numpy.ndarray`_):
+            True = masked slit
+        sky_file (str):
+            Sky file
+        mxshft (int, optional):
+            Passed to flex_shift()
+
+    Returns:
+        numpy.ndarray: The input waveimg, corrected for spectral flexure
+        list:  list of dicts containing flexure results of each slit
+            Filled with a basically empty dict if the slit is skipped
+    """
+    msgs.work("Consider doing 2 passes in flexure as in LowRedux")
+    waveimg_flex_corr = waveimg.copy()
+
+    # Load Archive. Save the line information to avoid the performance hit from calling it on the archive sky spectrum
+    # multiple times
+    sky_spectrum = load_sky_spectrum(sky_file)
+    sky_lines = arc.detect_lines(sky_spectrum.flux.value)
+
+    nslits = len(bpm)
+    gpm = np.invert(bpm)
+    gdslits = np.where(gpm)[0]
+
+    # Loop on objects
+    flex_list = []
+
+    # Loop over slits, and then over objects here
+    nspec = slits.nspec
+    spec_vec = np.arange(nspec)
+    for islit in range(nslits):
+        msgs.info("Working on spectral flexure of slit: {:d}".format(islit))
+
+        # Reset
+        flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
+                         corr_cen=[], spec_file=sky_file, smooth=[],
+                         arx_spec=[], sky_spec=[])
+        # If no objects on this slit append an empty dictionary
+        if islit not in gdslits:
+            flex_list.append(flex_dict.copy())
+            continue
+
+        slit_spat = slits.spat_id[islit]
+        mask = (slitmask == slit_spat) & gpm
+
+        # Fill in the boxcar extraction tags
+        box_denom = moment1d(waveimg * mask > 0.0, traces[:, islit], 2, row=spec_vec)[0]
+        wghts = (box_denom + (box_denom == 0.0))
+        sky_flux = moment1d(skyimg * mask, traces[:, islit], 2, row=spec_vec)[0] / wghts
+        # Denom is computed in case the trace goes off the edge of the image
+        sky_wave = moment1d(waveimg * mask, traces[:, islit], 2, row=spec_vec)[0] / wghts
+
+        # Generate 1D spectrum for object
+        obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
+
+        # Calculate the shift
+        fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines, mxshft=mxshft)
+        # Failed?
+        if fdict is not None:
+            # Interpolate
+            new_sky = flexure_interp(sky_wave, fdict)
+            # Update dict
+            for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
+                flex_dict[key].append(fdict[key])
+            flex_dict['sky_spec'].append(new_sky)
+            # Now correct the waveimg
+            waveimg_nrm = (waveimg[slitmask == slit_spat] - sky_wave.min()) / (sky_wave.max() - sky_wave.min())
+            waveimg_flex_corr[slitmask == slit_spat] = flexure_interp(sky_wave, fdict, xin=waveimg_nrm)
+
+        # Append, this will be an empty dictionary if the flexure failed
+        flex_list.append(flex_dict.copy())
+
+    return waveimg_flex_corr, flex_list
+
+
 def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     """Correct wavelengths for flexure, object by object
 
@@ -306,7 +423,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
         bpm (`numpy.ndarray`_):
             True = masked slit
         method (:obj:`str`)
-          'boxcar' -- Recommneded
+          'boxcar' -- Recommended
           'slitpix' --
         sky_file (str):
             Sky file
@@ -418,7 +535,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     return flex_list
 
 
-def spec_flexure_qa(slitords, bpm, basename, det, flex_list,
+def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
                slit_cen=False, out_dir=None):
     """
 
