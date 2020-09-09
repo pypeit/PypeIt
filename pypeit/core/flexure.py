@@ -397,12 +397,11 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, sky_file, m
         fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines, mxshft=mxshft)
         # Failed?
         if fdict is not None:
-            # Interpolate
-            new_sky = flexure_interp(sky_wave, fdict)
             # Update dict
             for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                 flex_dict[key].append(fdict[key])
-            flex_dict['sky_spec'].append(new_sky)
+            # Interpolate
+            flex_dict['sky_spec'] = flexure_interp(sky_wave, fdict)
             # Now correct the waveimg
             waveimg_nrm = (waveimg[slitmask == slit_spat] - sky_wave.min()) / (sky_wave.max() - sky_wave.min())
             waveimg_flex_corr[slitmask == slit_spat] = flexure_interp(sky_wave, fdict, xin=waveimg_nrm)
@@ -535,12 +534,10 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
     return flex_list
 
 
-def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
-               slit_cen=False, out_dir=None):
+def spec_flexure_qa(slitords, bpm, basename, det, flex_list, out_dir=None):
     """
 
     Args:
-        specobjs:
         slitords (`numpy.ndarray`_):
             Array of slit/order numbers
         bpm (`numpy.ndarray`_):
@@ -566,77 +563,53 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
         # Slit/order number
         slitord = slitords[islit]
         # Parse
-        indx = specobjs.slitorder_indices(slitord)
-        this_specobjs = specobjs[indx]
         this_flex_dict = flex_list[islit]
 
         # Setup
-        if slit_cen:
-            nobj = 1
-            ncol = 1
-        else:
-            nobj = np.sum(indx)
-            ncol = min(3, nobj)
-        #
-        if nobj == 0:
-            continue
+        nobj = 1
+        ncol = 1
+
         nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
         outfile = qa.set_qa_filename(basename, method + '_corr', det=det, slit=slitord, out_dir=out_dir)
         plt.figure(figsize=(8, 5.0))
         plt.clf()
         gs = gridspec.GridSpec(nrow, ncol)
-        # TODO -- This cntr is crummy and needs to be replaced by a DataContainer
-        #  for flex_dict and flex_list
-        cntr = 0
-        for specobj in this_specobjs:
-            if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
-                continue
-            # Correlation QA
-            ax = plt.subplot(gs[cntr//ncol, cntr % ncol])
-            # Fit
-            fit = this_flex_dict['polyfit'][cntr]
-            xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr] #+ flex_dict['shift'][o]
-            #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
-            model = utils.func_val(fit, xval, 'polynomial')
-            mxmod = np.max(model)
-            ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
-            ylim = [ylim_min, 1.3]
-            ax.plot(xval-this_flex_dict['corr_cen'][cntr], model/mxmod, 'k-')
-            # Measurements
-            ax.scatter(this_flex_dict['subpix'][cntr]-this_flex_dict['corr_cen'][cntr],
-                       this_flex_dict['corr'][cntr]/mxmod, marker='o')
-            # Final shift
-            ax.plot([this_flex_dict['shift'][cntr]]*2, ylim, 'g:')
-            # Label
-            if slit_cen:
-                ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
-            else:
-                ax.text(0.5, 0.25, '{:s}'.format(specobj.NAME), transform=ax.transAxes, size='large', ha='center')
-            ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
-                    transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
-            # Axes
-            ax.set_ylim(ylim)
-            ax.set_xlabel('Lag')
-            cntr += 1
+        # Correlation QA
+        ax = plt.subplot(gs[0, 0])
+        # Fit
+        fit = this_flex_dict['polyfit']
+        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'] #+ flex_dict['shift'][o]
+        #model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+        model = utils.func_val(fit, xval, 'polynomial')
+        mxmod = np.max(model)
+        ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
+        ylim = [ylim_min, 1.3]
+        ax.plot(xval-this_flex_dict['corr_cen'], model/mxmod, 'k-')
+        # Measurements
+        ax.scatter(this_flex_dict['subpix']-this_flex_dict['corr_cen'],
+                   this_flex_dict['corr']/mxmod, marker='o')
+        # Final shift
+        ax.plot([this_flex_dict['shift']]*2, ylim, 'g:')
+        # Label
+        ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
+        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift']),
+                transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
+        # Axes
+        ax.set_ylim(ylim)
+        ax.set_xlabel('Lag')
+
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)
         plt.close()
 
-        # Sky line QA (just one object)
-        if slit_cen:
-            iobj = 0
-        else:
-            iobj = 0
-            specobj = this_specobjs[iobj]
-
         if len(this_flex_dict['shift']) == 0:
             return
 
         # Repackage
-        sky_spec = this_flex_dict['sky_spec'][iobj]
-        arx_spec = this_flex_dict['arx_spec'][iobj]
+        sky_spec = this_flex_dict['sky_spec']
+        arx_spec = this_flex_dict['arx_spec']
 
         # Sky lines
         sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
@@ -658,10 +631,7 @@ def spec_flexure_qa(specobjs, slitords, bpm, basename, det, flex_list,
         plt.clf()
         nrow, ncol = 2, 3
         gs = gridspec.GridSpec(nrow, ncol)
-        if slit_cen:
-            plt.suptitle('Sky Comparison for Slit Center', y=1.05)
-        else:
-            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=1.05)
+        plt.suptitle('Sky Comparison for Slit Center', y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]
