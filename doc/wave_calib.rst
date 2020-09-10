@@ -40,6 +40,8 @@ spectrum.  Fits to the identified lines (vs. pixel) are
 performed with the same, iterative algorithm to generate
 the final wavelength solution.
 
+.. _wvcalib-holygrail:
+
 Holy Grail
 ----------
 
@@ -92,9 +94,10 @@ observations, long-slit observations where wavelengths
 vary (e.g. grating tilts).  We are likely to implement
 this for echelle observations (e.g. HIRES).
 
+.. _wvcalib-byhand:
+
 By-Hand Approach
 ================
-
 
 Identify
 --------
@@ -190,7 +193,7 @@ or if the calibrations for Echelle are considerably
 different from expectation.
 
 As regards Multislit, the standard failure modes of
-the :ref:`full-template` method that is now preferred
+the :ref:`wvcalib-fulltemplate` method that is now preferred
 are:
 
  1. The lamps used are different from those archived.
@@ -255,41 +258,44 @@ By default, the code will calculate a flexure shift based on the
 extracted sky spectrum (boxcar). See :doc:`flexure` for
 further details.
 
-Wavelength Frame
-================
-
-THESE ARE OUT OF DATE
-
-PypeIt offers several frames of reference that can used for the
-wavelength scale. The first choice is whether you would like the
-data to be calibrated to air or vacuum wavelengths. This option
-is controlled by the argument::
-
-    reduce calibrate wavelength air
-
-where the default value is to calibrate to vacuum. You can also
-specify 'pixel', which will save the pixel values instead of the
-wavelength values (i.e. a wavelength calibration will not be
-performed).  The calibration follows the Ciddor schema
-(Ciddor 1996, Applied Optics 62, 958).
-
-
-You can also choose if you want the wavelength scale corrected
-to the heliocentric (Sun-centered), barycentric (Solar system
-barycentre), or topocentric (telescope centered). None is also
-an option, but this defaults to topocentric. This option
-is governed by the command::
-
-    reduce calibrate refframe barycentric
-
-where the default value is a heliocentric wavelength scale.
-More details are provided in :doc:`heliocorr`.
-
+.. _wvcalib-develop:
 
 Developers
 ==========
 
-.. _full-template:
+Adding a new Solution
+---------------------
+
+When adding a new instrument or grating, one generally has
+to perform a series of steps to enable accurate and precise
+wavelength calibration with PypeIt.  We recommend the following
+procedure, when possible:
+
+- Perform wavelength calibration with a previous pipeline
+   * Record a calibrated, arc spectrum, i.e. wavelength vs. counts
+   * In vaccuum or convert from air to vacuum
+
+- If no other DRP exists..
+   * Try running PypeIt with the :ref:`wvcalib-holygrail` algorithm and use that output
+   * And if that fails, generate a solution with the :ref:`wvcalib-byhand`
+
+- Build a template from the arc spectrum
+   * For fixed-format spectrographs, one spectrum (or one per order) should
+     be sufficient.
+   * For gratings that tilt, one may need to splice together a series
+     of arc spectra to cover the full spectral range.
+   * See examples in the `templates.py` module.
+
+- Augment the line list
+   * We are very conservative about adding new lines to the existing line lists.
+     One bad line can have large, negative consequences.
+   * Therefore, carefully vet the line by insuring it is frequently
+     detected
+   * And that it does not have large systematic residuals in good
+     wavelength solutions.
+   * Then add to one of the files in data/arc_lines/lists
+
+.. _full-template-dev:
 
 Full Template Dev
 -----------------
@@ -335,8 +341,3 @@ be necessary to generate detector specific templates (ugh).
 This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
-Validation
-==========
-
-See the iPython Notebook under test_suite for a comparison of the
-wavelength solution for PypeIt vs. LowRedux.

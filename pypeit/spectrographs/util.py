@@ -144,6 +144,9 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'mmt_binospec':
         return spectrographs.mmt_binospec.MMTBINOSPECSpectrograph()
 
+    if spectrograph == 'mmt_mmirs':
+        return spectrographs.mmt_mmirs.MMTMMIRSSpectrograph()
+
     if spectrograph == 'mdm_osmos_mdm4k':
         return spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
 
@@ -155,6 +158,10 @@ def load_spectrograph(spectrograph):
     
     if spectrograph == 'p200_dbsp_blue':
         return spectrographs.p200_dbsp.P200DBSPBlueSpectrograph()
+
+    if spectrograph == 'p200_tspec':
+        return spectrographs.p200_tspec.P200TSPECSpectrograph()
+
 
     msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 

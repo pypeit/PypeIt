@@ -71,7 +71,7 @@ class WaveTilts(datamodel.DataContainer):
         Bundle the data in preparation for writing to a fits file.
 
         See :func:`pypeit.datamodel.DataContainer._bundle`. Data is
-        always written to a 'SLITS' extension.
+        always written to a 'TILTS' extension.
         """
         return super(WaveTilts, self)._bundle(ext='TILTS')
 
@@ -320,6 +320,8 @@ class BuildWaveTilts:
         """
         Fit the tilts
 
+        all_fit_dict and all_trace_dict are filled in place
+
         Args:
             trc_tilt_dict (dict): Contains information from tilt tracing
             slit_cen (ndarray): (nspec,) Central trace for this slit
@@ -336,10 +338,7 @@ class BuildWaveTilts:
                 Show additional plots useful for debugging.
 
         Returns:
-           (tilts, coeffs)
-            tilts: ndarray (nspec, nspat)
-               tilts image
-            coeff: ndarray (spat_order + 1, spec_order+1)
+            `numpy.ndarray`_: coeff: ndarray (spat_order + 1, spec_order+1)
                Array containing the coefficients for the 2d legendre polynomial fit
         """
         # Index

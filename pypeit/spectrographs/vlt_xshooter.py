@@ -66,6 +66,9 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
         meta['dispname'] = dict(ext=0, card=None, default='default')
         meta['idname'] = dict(ext=0, card='HIERARCH ESO DPR CATG')
         meta['arm'] = dict(ext=0, card='HIERARCH ESO SEQ ARM')
+        # Dithering
+        meta['dither'] = dict(ext=0, card='HIERARCH ESO SEQ CUMOFF Y',
+                              required_ftypes=['science', 'standard'])
 
         # Ingest
         self.meta = meta
@@ -86,8 +89,24 @@ class VLTXShooterSpectrograph(spectrograph.Spectrograph):
             msgs.error("Not ready for this compound meta")
 
     def configuration_keys(self):
+        """
+        Additional configuration keys
+
+        Returns:
+            list
+
+        """
         return ['arm']
 
+    def pypeit_file_keys(self):
+        """
+        Add additional keys
+
+        Returns:
+            list:
+
+        """
+        return super(VLTXShooterSpectrograph, self).pypeit_file_keys() + ['dither']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
@@ -299,9 +318,48 @@ class VLTXShooterNIRSpectrograph(VLTXShooterSpectrograph):
         self.meta['decker'] = dict(ext=0, card='HIERARCH ESO INS OPTI5 NAME')
 
     def pypeit_file_keys(self):
-        pypeit_keys = super(VLTXShooterSpectrograph, self).pypeit_file_keys()
+        """
+        Add additional keys
+
+        Returns:
+            list:
+
+        """
+        pypeit_keys = super(VLTXShooterNIRSpectrograph, self).pypeit_file_keys()
         pypeit_keys += ['calib', 'comb_id', 'bkg_id']
         return pypeit_keys
+
+    def check_frame_type(self, ftype, fitstbl, exprng=None):
+        """
+        Check for frames of the provided type.
+        """
+        good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
+        # TODO: Allow for 'sky' frame type, for now include sky in
+        # 'science' category
+        if ftype == 'science':
+            return good_exp & ((fitstbl['idname'] == 'SCIENCE')
+                                | (fitstbl['target'] == 'STD,TELLURIC')
+                                | (fitstbl['target'] == 'STD,SKY'))
+        if ftype == 'standard':
+            return good_exp & (fitstbl['target'] == 'STD,FLUX')
+        if ftype == 'bias':
+            return good_exp & (fitstbl['target'] == 'BIAS')
+        if ftype == 'dark':
+            return good_exp & (fitstbl['target'] == 'DARK')
+        if ftype in ['pixelflat', 'trace']:
+            # Flats and trace frames are typed together
+            return good_exp & ((fitstbl['target'] == 'LAMP,DFLAT')
+                               | (fitstbl['target'] == 'LAMP,QFLAT')
+                               | (fitstbl['target'] == 'LAMP,FLAT'))
+        if ftype == 'pinhole':
+            # Don't type pinhole
+            return np.zeros(len(fitstbl), dtype=bool)
+        if ftype in ['arc', 'tilt']:
+            return good_exp & ((fitstbl['target'] == 'LAMP,WAVE') | (fitstbl['target'] == 'SCIENCE'))
+
+        msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
+        return np.zeros(len(fitstbl), dtype=bool)
+
 
     def bpm(self, filename, det, shape=None, msbias=None):
         """
@@ -562,6 +620,12 @@ class VLTXShooterVISSpectrograph(VLTXShooterSpectrograph):
 
     @property
     def order_spat_pos(self):
+        """
+        ..todo.. I need a doc string
+
+        Returns:
+
+        """
         ord_spat_pos = np.array([0.13540436, 0.21055672, 0.2817009, 0.34907542,
                                  0.41289127, 0.4733839 , 0.53072208, 0.58509916,
                                  0.63671413, 0.685754, 0.73236772, 0.77676367,

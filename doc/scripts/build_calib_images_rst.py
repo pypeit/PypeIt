@@ -13,6 +13,7 @@ from pypeit.utils import to_string, string_table
 from pypeit.images import buildimage
 from pypeit.flatfield import FlatImages
 from pypeit.wavetilts import WaveTilts
+from pypeit.wavecalib import WaveCalib
 
 from IPython import embed
 
@@ -21,9 +22,9 @@ def link_string(p):
 
 #-----------------------------------------------------------------------------
 
-def build_tbl(objimgty):
+def build_tbl(obj):
 
-    data_model = obj.full_datamodel()
+    data_model = obj.full_datamodel(include_children=False)
     keys = list(data_model.keys())
     keys.sort()
 
@@ -72,11 +73,11 @@ if __name__ == '__main__':
     # Set the output directory
     output_root = os.path.join(os.path.split(os.path.abspath(resource_filename('pypeit', '')))[0],
                                'doc', 'include')
-    for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.TiltImage, WaveTilts,
+    for obj in [buildimage.ArcImage, buildimage.BiasImage, buildimage.TiltImage, WaveCalib, WaveTilts,
                 FlatImages]:
 
         ofile = os.path.join(output_root, 'datamodel_{0}.rst'.format(obj.__name__.lower()))
-        
+
         # Build the Table
         lines = build_tbl(obj)
         lines = [''] + ['Version {:s}'.format(obj.version)] + [''] + lines

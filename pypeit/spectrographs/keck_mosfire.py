@@ -46,7 +46,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             specaxis        = 1,
             specflip        = False,
             spatflip        = False,
-            platescale      = 0.193,
+            platescale      = 0.1798,
             darkcurr        = 0.8,
             saturation      = 1e9, # ADU, this is hacked for now
             nonlinear       = 1.00,  # docs say linear to 90,000 but our flats are usually higher
@@ -67,7 +67,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'keck_mosfire'
         # Wavelengths
         # 1D wavelength solution
-        par['calibrations']['wavelengths']['rms_threshold'] = 0.20 #0.20  # Might be grating dependent..
+        par['calibrations']['wavelengths']['rms_threshold'] = 0.30 #0.20  # Might be grating dependent..
         par['calibrations']['wavelengths']['sigdetect']=5.0
         par['calibrations']['wavelengths']['fwhm']= 5.0
         par['calibrations']['wavelengths']['n_final']= 4
@@ -133,7 +133,7 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
         meta['exptime'] = dict(ext=0, card='TRUITIME')
         meta['airmass'] = dict(ext=0, card='AIRMASS')
         # Extras for config and frametyping
-        meta['dispname'] = dict(ext=0, card='GRATMODE')
+        meta['dispname'] = dict(ext=0, card='OBSMODE')
         meta['idname'] = dict(card=None, compound=True)
         # Filter
         meta['filter1'] = dict(ext=0, card='FILTER')
@@ -156,15 +156,19 @@ class KeckMOSFIRESpectrograph(spectrograph.Spectrograph):
             if headarr[0].get('KOAIMTYP', None) is not None:
                 return headarr[0].get('KOAIMTYP')
             else:
-                FLATSPEC = int(headarr[0].get('FLATSPEC'))
-                PWSTATA7 = int(headarr[0].get('PWSTATA7'))
-                PWSTATA8 = int(headarr[0].get('PWSTATA8'))
-                if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
-                    return 'object'
-                elif FLATSPEC == 1:
-                    return 'flatlamp'
-                elif PWSTATA7 == 1 or PWSTATA8 == 1:
-                    return 'arclamp'
+                try:
+                    # TODO: This should be changed to except on a specific error.
+                    FLATSPEC = int(headarr[0].get('FLATSPEC'))
+                    PWSTATA7 = int(headarr[0].get('PWSTATA7'))
+                    PWSTATA8 = int(headarr[0].get('PWSTATA8'))
+                    if FLATSPEC == 0 and PWSTATA7 == 0 and PWSTATA8 == 0:
+                        return 'object'
+                    elif FLATSPEC == 1:
+                        return 'flatlamp'
+                    elif PWSTATA7 == 1 or PWSTATA8 == 1:
+                        return 'arclamp'
+                except:
+                    return 'unknown'
         else:
             msgs.error("Not ready for this compound meta")
 

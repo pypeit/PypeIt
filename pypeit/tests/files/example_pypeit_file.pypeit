@@ -15,6 +15,12 @@
 [scienceframe]
     [[process]]
         n_lohi = 8, 8
+[reduce]
+  [[extraction]]
+     [[[manual]]]
+        spat_spec = 120.:1200,134.:1200
+        det = 1,2
+        fwhm = 3.,3.
 
 # Setup
 setup read

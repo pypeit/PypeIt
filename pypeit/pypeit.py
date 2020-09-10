@@ -15,8 +15,8 @@ from pypeit.images import buildimage
 from pypeit.display import display
 from pypeit import reduce
 from pypeit import spec2dobj
-from pypeit.core import qa, flat
-from pypeit import utils
+from pypeit.core import qa
+from pypeit.core import extract
 from pypeit import specobjs
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import slittrace
@@ -634,6 +634,7 @@ class PypeIt(object):
                 buildimage.buildimage_fromlist(
                 self.spectrograph, det, frame_par,bg_file_list,
                 bpm=self.caliBrate.msbpm, bias=self.caliBrate.msbias,
+                dark=self.caliBrate.msdark,
                 flatimages=self.caliBrate.flatimages,
                 slits=self.caliBrate.slits,  # For flexure correction
                 ignore_saturation=False), frame_par['process'])
@@ -656,10 +657,21 @@ class PypeIt(object):
                             slits=True, clear=True)
 
         # Prep for manual extraction (if requested)
-        manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
+        #manual_extract_dict = self.fitstbl.get_manual_extract(frames, det)
+        # TODO:
+        #  Object finding, this appears inevitable for the moment, since we need to be able to call find_objects
+        #  outside of reduce. I think the solution here is to create a method in reduce for that performs the modified
+        #  2d coadd reduce
+        #if self.par['reduce']['extraction']['manual']['spat_spec'] is not None:
+        #    #spats, specs, dets, fwhms = extract.parse_manual(self.par['reduce']['extraction']['manual'])
+        #    spats, specs, dets, fwhms = self.par['reduce']['extraction']['manual'].parse()
+        #    manual_extract_dict = dict(hand_extract_spec=specs, hand_extract_spat=spats,
+        #                             hand_extract_det=dets, hand_extract_fwhm=fwhms)
+        #else:
+        #    manual_extract_dict = None
 
         skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run(
-            std_trace=std_trace, manual_extract_dict=manual_extract_dict, show_peaks=self.show,
+            std_trace=std_trace, show_peaks=self.show,
             basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 

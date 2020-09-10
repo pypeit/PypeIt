@@ -3,9 +3,6 @@
 .. include common links, assuming primary doc root is up one directory
 .. include:: ../links.rst
 """
-import sys
-import os
-
 import numpy as np
 
 from scipy import ndimage
@@ -17,9 +14,9 @@ from IPython import embed
 
 from pypeit.images import imagebitmask
 from pypeit.core import basis, pixels, extract
+from pypeit.core import fitting
 from pypeit import msgs, utils, bspline, slittrace
 from pypeit.display import display
-from pypeit.core.moment import moment1d
 
 def skysub_npoly(thismask):
     """
@@ -141,7 +138,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             #lsky_ivar = np.full(lsky.shape, 0.1)
             # Init bspline to get the sky breakpoints (kludgy)
             lskyset, outmask, lsky_fit, red_chi, exit_status \
-                    = utils.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
+                    = fitting.bspline_profile(pix[pos_sky], lsky, lsky_ivar, np.ones_like(lsky),
                                             ingpm=inmask_fit[pos_sky], upper=sigrej, lower=sigrej,
                                             kwargs_bspline={'bkspace':bsp},
                                             kwargs_reject={'groupbadpix': True, 'maxrej': 10})
@@ -161,7 +158,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     # Perform the full fit now
     msgs.info("Full fit in global sky sub.")
     skyset, outmask, yfit, _, exit_status \
-            = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+            = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
                                     upper=sigrej, lower=sigrej, maxiter=maxiter,
                                     kwargs_bspline={'bkspace':bsp},
                                     kwargs_reject={'groupbadpix':True, 'maxrej': 10})
@@ -176,7 +173,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
         poly_basis = np.ones_like(sky)
         # Perform the full fit now
         skyset, outmask, yfit, _, exit_status \
-                = utils.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
+                = fitting.bspline_profile(pix, sky, sky_ivar, poly_basis, ingpm=inmask_fit, nord=4,
                                         upper=sigrej, lower=sigrej, maxiter=maxiter,
                                         kwargs_bspline={'bkspace': bsp},
                                         kwargs_reject={'groupbadpix': False, 'maxrej': 10})
@@ -272,7 +269,7 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
 
     if ngood > 0:
         sset1, outmask_good1, yfit1, red_chi1, exit_status \
-                = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
+                = fitting.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good, :],
                                         fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
                                         relative=relative,
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 5})
@@ -291,7 +288,7 @@ def skyoptimal(wave, data, ivar, oprof, sortpix, sigrej=3.0, npoly=1, spatial=No
     msgs.info('Iter     Chi^2     Rejected Pts')
     if np.any(mask1):
         sset, outmask_good, yfit, red_chi, exit_status \
-                = utils.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good,:],
+                = fitting.bspline_profile(wave[good], data[good], ivar[good], profile_basis[good,:],
                                         ingpm=mask1, fullbkpt=fullbkpt, upper=sigrej, lower=sigrej,
                                         relative=relative,
                                         kwargs_reject={'groupbadpix': True, 'maxrej': 1})
@@ -624,9 +621,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
     # Set up the prof_nsigma
     if (prof_nsigma is None):
         prof_nsigma1 = np.full(len(sobjs), None)
-    elif len(prof_nsigma) == 1:
+    elif np.size(prof_nsigma) == 1:
         prof_nsigma1 = np.full(nobj, prof_nsigma)
-    elif len(prof_nsigma) == nobj:
+    elif np.size(prof_nsigma) == nobj:
         prof_nsigma1 = prof_nsigma
     else:
         raise ValueError('Invalid size for prof_nsigma.')
@@ -736,7 +733,7 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                     extract.extract_optimal(sciimg, modelivar, (outmask & objmask), waveimg, skyimage, rn2_img, thismask,
                                             last_profile, box_rad, sobjs[iobj])
                     # If the extraction is bad do not update
-                    if 'OPT_MASK' in sobjs[iobj].keys():
+                    if sobjs[iobj].OPT_MASK is not None:
                         if sobjs[iobj].OPT_MASK.any():
                             flux = sobjs[iobj].OPT_COUNTS
                             fluxivar = sobjs[iobj].OPT_COUNTS_IVAR*sobjs[iobj].OPT_MASK
@@ -752,8 +749,6 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                         thisfwhm=sobjs[iobj].FWHM, maskwidth=sobjs[iobj].maskwidth,
                         prof_nsigma=sobjs[iobj].prof_nsigma, sn_gauss=sn_gauss, obj_string=obj_string,
                         show_profile=show_profile)
-                    #proc_list.append(show_proc)
-
                     # Update the object profile and the fwhm and mask parameters
                     obj_profiles[ipix[0], ipix[1], ii] = profile_model
                     sobjs[iobj].TRACE_SPAT = trace_new
@@ -761,11 +756,8 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
                     sobjs[iobj].FWHM = np.median(fwhmfit)
                     mask_fact = 1.0 + 0.5 * np.log10(np.fmax(np.sqrt(np.fmax(med_sn2, 0.0)), 1.0))
                     maskwidth = extract_maskwidth*np.median(fwhmfit) * mask_fact
-                    if sobjs[iobj].prof_nsigma is None:
-                        sobjs[iobj].maskwidth = maskwidth
-                    else:
-                        sobjs[iobj].maskwidth = sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
-
+                    sobjs[iobj].maskwidth = maskwidth if sobjs[iobj].prof_nsigma is None else \
+                        sobjs[iobj].prof_nsigma * (sobjs[iobj].FWHM / 2.3548)
                 else:
                     msgs.warn("Bad extracted wavelengths in local_skysub_extract")
                     msgs.warn("Skipping this profile fit and continuing.....")
@@ -784,9 +776,9 @@ def local_skysub_extract(sciimg, sciivar, tilts, waveimg, global_sky, rn2_img,
 
                 skymask = outmask & np.invert(edgmask)
                 sky_bmodel, obj_bmodel, outmask_opt = skyoptimal(
-                    piximg.flat[isub], sciimg.flat[isub], (modelivar * skymask).flat[isub],
-                    obj_profiles_flat[isub, :], sortpix, spatial=spatial_img.flat[isub],
-                    fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
+                        piximg.flat[isub], sciimg.flat[isub], (modelivar * skymask).flat[isub],
+                        obj_profiles_flat[isub, :], sortpix, spatial=spatial_img.flat[isub],
+                        fullbkpt=fullbkpt, sigrej=sigrej_eff, npoly=npoly)
                 iterbsp = iterbsp + 1
                 if (not sky_bmodel.any()) & (iterbsp <= 3):
                     msgs.warn('***************************************')
@@ -1035,11 +1027,12 @@ def ech_local_skysub_extract(sciimg, sciivar, fullmask, tilts, waveimg, global_s
                         minx = 0.0
                         maxx = fwhm_here[other_orders].max()
                         # ToDO robust_poly_fit needs to return minv and maxv as outputs for the fits to be usable downstream
-                        fit_mask, fwhm_coeffs = utils.robust_polyfit_djs(order_vec[other_orders], fwhm_here[other_orders],1,
+                        #fit_mask, fwhm_coeffs = fitting.robust_fit(order_vec[other_orders], fwhm_here[other_orders],1,
+                        pypeitFit = fitting.robust_fit(order_vec[other_orders], fwhm_here[other_orders],1,
                                                                         function='polynomial',maxiter=25,lower=2.0, upper=2.0,
                                                                         maxrej=1,sticky=False, minx=minx, maxx=maxx)
-                        fwhm_this_ord = utils.func_val(fwhm_coeffs, order_vec[iord], 'polynomial', minx=minx, maxx=maxx)
-                        fwhm_all = utils.func_val(fwhm_coeffs, order_vec, 'polynomial', minx=minx, maxx=maxx)
+                        fwhm_this_ord = pypeitFit.eval(order_vec[iord])#, 'polynomial', minx=minx, maxx=maxx)
+                        fwhm_all = pypeitFit.eval(order_vec)#, 'polynomial', minx=minx, maxx=maxx)
                         fwhm_str = 'linear fit'
                     else:
                         fit_mask = np.ones_like(order_vec[other_orders],dtype=bool)

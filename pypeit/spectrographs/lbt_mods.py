@@ -10,6 +10,7 @@ from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
 from pypeit.core import parse
+from pypeit.images import detector_container
 
 # FW ToDo: test MODS1B and MODS2B
 
@@ -107,7 +108,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
                    & (fitstbl['dispname'] != 'Flat')
         if ftype == 'bias':
             return good_exp  & (fitstbl['idname'] == 'BIAS')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
             return good_exp  & (fitstbl['idname'] == 'FLAT') & (fitstbl['decker'] != 'Imaging')
         if ftype in ['pinhole', 'dark']:
@@ -150,7 +151,8 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         # TODO These parameters should probably be stored in the detector par
 
         # Number of amplifiers (could pull from DetectorPar but this avoids needing the spectrograph, e.g. view_fits)
-        numamp = 4
+        detector_par = self.get_detector_par(hdu, det if det is None else 1)
+        numamp = detector_par['numamplifiers']
 
         # get the x and y binning factors...
         xbin, ybin = head['CCDXBIN'], head['CCDYBIN']
@@ -188,7 +190,7 @@ class LBTMODSSpectrograph(spectrograph.Spectrograph):
         # Need the exposure time
         exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
         # Return, transposing array back to orient the overscan properly
-        return np.flipud(array), hdu, exptime, np.flipud(rawdatasec_img), np.flipud(oscansec_img)
+        return detector_par,np.flipud(array), hdu, exptime, np.flipud(rawdatasec_img), np.flipud(oscansec_img)
 
 
 class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
@@ -202,6 +204,35 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         self.camera = 'MODS1R'
         self.numhead = 1
 
+    def get_detector_par(self, hdu, det):
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.123,
+            darkcurr        = 0.4,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.38,2.50,2.46,2.81]),
+            ronoise         = np.atleast_1d([3.78,4.04,4.74,4.14]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+
 
     def default_pypeit_par(self):
         """
@@ -209,6 +240,7 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         """
         par = LBTMODSSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'lbt_mods1r'
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
@@ -217,14 +249,12 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
-        #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
 
         # Set wave tilts order
         par['calibrations']['tilts']['spat_order'] = 5
@@ -232,17 +262,40 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
 
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
+        return par
 
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super(LBTMODS1RSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
+        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods1r_red.fits'
 
         return par
 
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Parameters
@@ -259,6 +312,9 @@ class LBTMODS1RSpectrograph(LBTMODSSpectrograph):
 
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
 
         msgs.info("Using hard-coded BPM for  MODS1R")
 
@@ -294,6 +350,35 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         self.camera = 'MODS1B'
         self.numhead = 1
 
+    def get_detector_par(self, hdu, det):
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.120,
+            darkcurr        = 0.5,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([2.55,1.91,2.09,2.02]),
+            ronoise         = np.atleast_1d([3.41,2.93,2.92,2.76]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+
 
     def default_pypeit_par(self):
         """
@@ -301,34 +386,27 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         """
         par = LBTMODSSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'lbt_mods1b'
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
-
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-
-
         return par
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Parameters
@@ -346,6 +424,9 @@ class LBTMODS1BSpectrograph(LBTMODSSpectrograph):
         #       and modify the BPM accordingly
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
 
         msgs.info("Using hard-coded BPM for  MODS1B")
 
@@ -377,6 +458,35 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         self.camera = 'MODS2R'
         self.numhead = 1
 
+    def get_detector_par(self, hdu, det):
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.123,
+            darkcurr        = 0.4,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.70,1.67,1.66,1.66]),
+            ronoise         = np.atleast_1d([2.95,2.65,2.78,2.87]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+
 
     def default_pypeit_par(self):
         """
@@ -384,6 +494,7 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         """
         par = LBTMODSSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'lbt_mods2r'
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
@@ -392,31 +503,52 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         #par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']]
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
         #par['calibrations']['wavelengths']['lamps'] = ['OH_MODS']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
-        #par['calibrations']['wavelengths']['n_final'] = 4
         par['calibrations']['wavelengths']['match_toler'] = 2.5
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 300.
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
-
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-
-
         return par
 
-    def bpm(self, filename, det, shape=None):
+    def config_specific_par(self, scifile, inp_par=None):
+        """
+        Modify the PypeIt parameters to hard-wired values used for
+        specific instrument configurations.
+
+        .. todo::
+            Document the changes made!
+
+        Args:
+            scifile (str):
+                File to use when determining the configuration and how
+                to adjust the input parameters.
+            inp_par (:class:`pypeit.par.parset.ParSet`, optional):
+                Parameter set used for the full run of PypeIt.  If None,
+                use :func:`default_pypeit_par`.
+
+        Returns:
+            :class:`pypeit.par.parset.ParSet`: The PypeIt paramter set
+            adjusted for configuration specific parameter values.
+        """
+        # Start with instrument wide
+        par = super(LBTMODS2RSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+
+        if self.get_meta_value(scifile, 'dispname') == 'G670L':
+            par['calibrations']['wavelengths']['method'] = 'full_template'
+            par['calibrations']['wavelengths']['reid_arxiv'] = 'lbt_mods2r_red.fits'
+
+        #
+        return par
+
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Parameters
@@ -432,6 +564,9 @@ class LBTMODS2RSpectrograph(LBTMODSSpectrograph):
         """
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
 
         msgs.info("Using hard-coded BPM for  MODS2R")
 
@@ -468,6 +603,35 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         self.camera = 'MODS2B'
         self.numhead = 1
 
+    def get_detector_par(self, hdu, det):
+        # Binning
+        xbin = hdu[0].header['CCDXBIN']
+        ybin = hdu[0].header['CCDYBIN']
+        binning = '{:},{:}'.format(xbin,ybin)
+
+        # Detector 1
+        detector_dict = dict(
+            binning= binning,
+            det=1,
+            dataext         = 0,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.120,
+            darkcurr        = 0.5,
+            saturation      = 65535.,
+            nonlinear       = 0.99,
+            mincounts       = -1e10,
+            numamplifiers   = 4,
+            gain            = np.atleast_1d([1.99,2.06,1.96,2.01]),
+            ronoise         = np.atleast_1d([3.66,3.62,3.72,3.64]),
+            datasec         = np.atleast_1d('[:,:]'),
+            oscansec        = np.atleast_1d('[:,:]')
+            )
+        detector = detector_container.DetectorContainer(**detector_dict)
+        return detector
+
+
 
     def default_pypeit_par(self):
         """
@@ -475,34 +639,27 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
         """
         par = LBTMODSSpectrograph.default_pypeit_par()
         par['rdx']['spectrograph'] = 'lbt_mods2b'
+        par['flexure']['spec_method'] = 'boxcar'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['sigdetect'] = 5.
         par['calibrations']['wavelengths']['rms_threshold'] = 0.20
         par['calibrations']['wavelengths']['lamps'] = ['XeI','ArII','ArI','NeI','KrI']
-        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 1
 
         # slit
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
-        par['calibrations']['slitedges']['edge_thresh'] = 700.
+        par['calibrations']['slitedges']['edge_thresh'] = 100.
 
         # Set wave tilts order
-        par['calibrations']['tilts']['spat_order'] = 3
+        par['calibrations']['tilts']['spat_order'] = 5
         par['calibrations']['tilts']['spec_order'] = 5
         par['calibrations']['tilts']['maxdev_tracefit'] = 0.02
         par['calibrations']['tilts']['maxdev2d'] = 0.02
 
-        # reidentification stuff
-        #par['calibrations']['wavelengths']['method'] = 'reidentify'
-        #par['calibrations']['wavelengths']['reid_arxiv'] = 'shane_kast_blue_600_4310_d55.json'
-
-        #par['calibrations']['biasframe']['useframe'] = 'bias'
-
-
         return par
 
-    def bpm(self, filename, det, shape=None):
+    def bpm(self, filename, det, shape=None, msbias=None):
         """ Generate a BPM
 
         Parameters
@@ -521,6 +678,9 @@ class LBTMODS2BSpectrograph(LBTMODSSpectrograph):
 
         # Get the empty bpm: force is always True
         bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
 
         msgs.info("Using hard-coded BPM for  MODS2B")
 

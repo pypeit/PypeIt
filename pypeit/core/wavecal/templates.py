@@ -17,7 +17,10 @@ from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
 from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
-from pypeit.core.wavecal import fitting
+from pypeit.core.wavecal import wv_fitting
+
+from astropy.io import fits
+from pypeit.spectrographs.util import load_spectrograph
 
 # Data Model
 # FITS table
@@ -510,7 +513,7 @@ def main(flg):
             # Reidentify
             detections, spec_cont_sub, patt_dict = autoid.reidentify(fx, fx, wv, llist, 1)
             # Fit
-            final_fit = fitting.fit_slit(fx, patt_dict, detections, llist)
+            final_fit = wv_fitting.fit_slit(fx, patt_dict, detections, llist)
             # Output
             outfile=os.path.join(outpath, 'MagE_order{:2d}_IDs.pdf'.format(order))
             autoid.arc_fit_qa(final_fit, outfile=outfile, ids_only=True)
@@ -767,7 +770,7 @@ def main(flg):
         slits = [1026, 1021]
         lcut = [4350.0, 8000.0]
         build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-    
+
     # P200 DBSP r
     if flg & (2 ** 30):
         # HeNeAr
@@ -777,7 +780,7 @@ def main(flg):
         slits = [221]
         lcut = None # only matters if >1 slit
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
-    
+
     # P200 DBSP b
     if flg & (2 ** 31):
         # FeAr
@@ -787,6 +790,58 @@ def main(flg):
         slits = [231]
         lcut = None
         build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+
+    # MMT/MMIRS
+    if flg & (2**32):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['mmt_mmirs_HK_zJ.json','mmt_mmirs_J_zJ.json','mmt_mmirs_K3000_Kspec.json']
+        outroot=['mmt_mmirs_HK_zJ.fits','mmt_mmirs_J_zJ.fits','mmt_mmirs_K3000_Kspec.fits']
+        binspec = 1
+        slits = [1020,1020,1020]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
+    # LBT/MODS
+    if flg & (2**33):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['lbt_mods1r_red.json','lbt_mods2r_red.json']
+        outroot=['lbt_mods1r_red.fits','lbt_mods2r_red.fits']
+        binspec = 1
+        slits = [[1557],[1573]]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits[ii], lcut, binspec, outroot[ii], lowredux=False)
+    # P200 Triplespec
+    if flg & (2**34):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'p200_triplespec_MasterWaveCalib.fits'
+        iout = 'p200_triplespec.fits'
+        # Load
+        old_file = os.path.join(reid_path, iroot)
+        par = fits.open(old_file)
+        pyp_spec = par[0].header['PYP_SPEC']
+        spectrograph  = load_spectrograph(pyp_spec)
+        orders = spectrograph.orders
+
+        # Do it
+        all_wave = np.zeros((par[2].data['spec'].size, orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk, order in enumerate(orders):
+            all_flux[:, kk] = par[2*kk+2].data['spec']
+            all_wave[:, kk] = par[2*kk+2].data['wave_soln']
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = os.path.join(reid_path, iout)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
 
 # Command line execution
 if __name__ == '__main__':
@@ -857,10 +912,19 @@ if __name__ == '__main__':
     #flg += 2**29
 
     # P200 DBSP r
-    flg += 2**30
+    #flg += 2**30
 
     # P200 DBSP b
-    flg += 2**31
+    #flg += 2**31
+
+    # MMT MMIRS
+    #flg += 2**32
+
+    # LBT MODS
+    #flg += 2**33
+
+    # P200 Triplespec
+    flg += 2**34
 
     main(flg)
 

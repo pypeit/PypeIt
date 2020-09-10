@@ -162,7 +162,7 @@ class CoAdd1D(object):
             header = fits.getheader(spec1dfiles[0])
             self.spectrograph = load_spectrograph(header['PYP_SPEC'])
         if par is None:
-            self.par = spectrograph.default_pypeit_par()['coadd1d']
+            self.par = self.spectrograph.default_pypeit_par()['coadd1d']
         else:
             self.par = par
         #
@@ -202,7 +202,7 @@ class CoAdd1D(object):
             if not np.any(indx):
                 msgs.error("No matching objects for {:s}.  Odds are you input the wrong OBJID".format(self.objids[iexp]))
             wave_iexp, flux_iexp, ivar_iexp, mask_iexp, meta_spec, header = \
-                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'])
+                    sobjs[indx].unpack_object(ret_flam=self.par['flux_value'], extract_type=self.par['ex_value'])
             # Allocate arrays on first iteration
             if iexp == 0:
                 waves = np.zeros(wave_iexp.shape + (self.nexp,))
@@ -327,6 +327,6 @@ class EchelleCoAdd1D(CoAdd1D):
             scale_method=self.par['scale_method'], sn_min_medscale=self.par['sn_min_medscale'],
             sn_min_polyscale=self.par['sn_min_polyscale'], maxiter_reject=self.par['maxiter_reject'],
             lower=self.par['lower'], upper=self.par['upper'], maxrej=self.par['maxrej'], sn_clip=self.par['sn_clip'],
-            debug = self.debug, show = self.show)
+            debug = self.debug, show = self.show, extrap_sens=self.par['extrap_sens'])
 
         return wave_coadd, flux_coadd, ivar_coadd, mask_coadd
