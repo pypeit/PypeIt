@@ -2260,7 +2260,7 @@ class WavelengthSolutionPar(ParSet):
         options['refframe'] = WavelengthSolutionPar.valid_reference_frames()
         dtypes['refframe'] = str
         descr['refframe'] = 'Frame of reference for the wavelength calibration.  ' \
-                         'Options are: {0}'.format(', '.join(options['frame']))
+                         'Options are: {0}'.format(', '.join(options['refframe']))
 
         # Instantiate the parameter set
         super(WavelengthSolutionPar, self).__init__(list(pars.keys()),

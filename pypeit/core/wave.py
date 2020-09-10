@@ -28,8 +28,7 @@ def geomotion_calculate(radec, time, longitude, latitude, elevation, refframe):
     return geomotion_velocity(obstime, radec, frame=refframe)
 
 
-def geomotion_correct(radec, time, longitude, latitude,
-                      elevation, refframe):
+def geomotion_correct(radec, time, longitude, latitude, elevation, refframe):
     """
     Correct the wavelength of every pixel to a barycentric/heliocentric frame.
 
