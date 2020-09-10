@@ -1,4 +1,10 @@
 
+1.1.1 (10 Sep 2020)
+-------------------
+
+- (Hotfix) Fluxing doc edits
+- (Hotfix) Fix sdist pip installation
+
 1.1.0 (8 Sep 2020)
 ------------------
 
