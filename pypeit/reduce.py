@@ -679,14 +679,18 @@ class Reduce(object):
 
         """
         # Correct Telescope's motion
-        if (self.par['calibrations']['wavelengths']['refframe'] in ['heliocentric', 'barycentric']) \
+        refframe = self.par['calibrations']['wavelengths']['refframe']
+        if (refframe in ['heliocentric', 'barycentric']) \
                 and (self.par['calibrations']['wavelengths']['reference'] != 'pixel'):
             msgs.info("Performing a {0} correction".format(self.par['calibrations']['wavelengths']['refframe']))
             # Calculate correction
             vel, vel_corr = wave.geomotion_correct(radec, obstime,
                                                    self.spectrograph.telescope['longitude'],
+                                                   self.spectrograph.telescope['latitude'],
+                                                   self.spectrograph.telescope['elevation'],
+                                                   refframe)
             # Apply correction
-            msgs.info('Applying {0} correction = {1:0.5f}'.format(self.par['calibrations']['wavelengths']['refframe'], vel))
+            msgs.info('Applying {0} correction = {1:0.5f}'.format(refframe, vel))
             self.waveimg *= vel_corr
         else:
             msgs.info('A wavelength reference-frame correction will not be performed.')
