@@ -670,7 +670,7 @@ class FlexurePar(ParSet):
     For a table with the current keywords, defaults, and descriptions,
     see :ref:`pypeitpar`.
     """
-    def __init__(self, spec_method=None, spec_maxshift=None, spectrum=None):
+    def __init__(self, perform=None, spec_maxshift=None, spectrum=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -686,13 +686,9 @@ class FlexurePar(ParSet):
 
         # Fill out parameter specifications.  Only the values that are
         # *not* None (i.e., the ones that are defined) need to be set
-        defaults['spec_method'] = 'skip'
-        options['spec_method'] = FlexurePar.valid_methods()
-        dtypes['spec_method'] = str
-        descr['spec_method'] = 'Method used to correct for flexure. Use skip for no correction.  If ' \
-                          'slitcen is used, the flexure correction is performed before the ' \
-                          'extraction of objects (not recommended).  ' \
-                          'Options are: None, {0}'.format(', '.join(options['spec_method']))
+        defaults['perform'] = False
+        dtypes['perform'] = bool
+        descr['perform'] = 'Perform a spectral flexure correction?'
 
         defaults['spec_maxshift'] = 20
         dtypes['spec_maxshift'] = [int, float]
@@ -715,7 +711,7 @@ class FlexurePar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['spec_method', 'spec_maxshift', 'spectrum']
+        parkeys = ['perform', 'spec_maxshift', 'spectrum']
 #                   'spat_frametypes']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
@@ -726,14 +722,6 @@ class FlexurePar(ParSet):
         for pk in parkeys:
             kwargs[pk] = cfg[pk] if pk in k else None
         return cls(**kwargs)
-
-    @staticmethod
-    def valid_methods():
-        """
-        Return the valid flat-field methods
-        TODO :: Remove boxcar as an option, because slitcen is used
-        """
-        return ['boxcar', 'slitcen', 'skip']
 
     def validate(self):
         """

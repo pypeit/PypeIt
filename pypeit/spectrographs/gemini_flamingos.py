@@ -155,7 +155,7 @@ class GeminiFLAMINGOS2Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [10,10]
         # Do not correct for flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['perform'] = False
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'
@@ -303,7 +303,7 @@ class GeminiFLAMINGOS1Spectrograph(GeminiFLAMINGOSSpectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
 
         # Do not correct for flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['perform'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]

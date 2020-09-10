@@ -131,7 +131,7 @@ class P200TSPECSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['sn_gauss'] = 4.0
 
         # Flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['perform'] = False
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] ='nothing'

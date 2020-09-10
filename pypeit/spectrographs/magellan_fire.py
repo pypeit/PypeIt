@@ -185,7 +185,7 @@ class MagellanFIREEchelleSpectrograph(MagellanFIRESpectrograph):
         turn_off = dict(use_illumflat=False, use_biasimage=False, use_overscan=False, use_darkimage=False)
         par.reset_all_processimages_par(**turn_off)
         # Do not correct for flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['perform'] = False
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 60]
@@ -369,7 +369,7 @@ class MagellanFIRELONGSpectrograph(MagellanFIRESpectrograph):
         par['reduce']['findobj']['sig_thresh'] = 5
         #par['reduce']['maxnumber'] = 2
         par['reduce']['findobj']['find_trim_edge'] = [50,50]
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['perform'] = False
 
         par['sensfunc']['IR']['telgridfile'] = resource_filename('pypeit', '/data/telluric/TelFit_LasCampanas_3100_26100_R20000.fits')
 

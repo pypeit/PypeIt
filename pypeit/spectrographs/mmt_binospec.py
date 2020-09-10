@@ -147,7 +147,7 @@ class MMTBINOSPECSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['global_sky_std']  = False
 
         # Flexure
-        par['flexure']['spec_method'] = 'boxcar'
+        par['flexure']['perform'] = True
 
         # cosmic ray rejection parameters for science frames
         par['scienceframe']['process']['sigclip'] = 5.0

@@ -161,7 +161,7 @@ class MMTMMIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['skysub']['sky_sigrej'] = 5.0
         par['reduce']['findobj']['find_trim_edge'] = [5,5]
         # Do not correct for flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['perform'] = False
 
         # Sensitivity function parameters
         par['sensfunc']['algorithm'] = 'IR'

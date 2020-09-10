@@ -117,7 +117,7 @@ class MagellanMAGESpectrograph(spectrograph.Spectrograph):
         par['reduce']['findobj']['find_trim_edge'] = [4,4]    # Slit is too short to trim 5,5 especially with 2x binning
         # Always flux calibrate, starting with default parameters
         # Do not correct for flexure
-        par['flexure']['spec_method'] = 'skip'
+        par['flexure']['perform'] = False
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['standardframe']['exprng'] = [None, 20]
         par['calibrations']['arcframe']['exprng'] = [20, None]

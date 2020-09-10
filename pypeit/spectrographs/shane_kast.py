@@ -42,7 +42,7 @@ class ShaneKastSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Always correct for flexure, starting with default parameters
-        par['flexure']['spec_method'] = 'boxcar'
+        par['flexure']['perform'] = True
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['biasframe']['exprng'] = [None, 1]
         par['calibrations']['darkframe']['exprng'] = [999999, None]     # No dark frames
