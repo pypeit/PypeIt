@@ -58,7 +58,7 @@
 - Correct det bug in keck_lris
 - Modifications to allow for flailing LRISr detector
 - Modifications for parse LRIS LAMPS prior to 2010 upgrade
-- Add P200/TripleSpec
+- Added support for P200/DBSP and P200/TripleSpec
 
 1.0.6 (22 Jul 2020)
 -------------------
