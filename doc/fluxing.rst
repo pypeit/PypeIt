@@ -173,8 +173,8 @@ Problem with Empty filename
 ---------------------------
 If you encounter this error when doing flux calibration with the IR algorithm, please do the following steps:
 
- - Download the atmosphere telluric models at `this link <https://drive.google.com/open?id=1x5d2_L8pwLDmvvoFUCa-vIoluv3GpowA>`_
-   If you do not find one specified for your instrument, you can use the Maunakea one as a proximation. It includes a large grid
+ - Download the atmosphere telluric models at `this link <https://drive.google.com/open?id=1x5d2_L8pwLDmvvoFUCa-vIoluv3GpowA>`_.
+   If you do not find a specified model for your observatory, you can use the Maunakea model as a proximation. It includes a large grid
    of different parameters and should be good enough for most purposes.
  - Put the telluric models into the directory: your_path/Pypeit/pypeit/data/telluric
  - Write the filename of the corresponding file for your observatory in the parameter telgridfile (i.e. keck_lris_sens.txt), e.g. ::
@@ -187,7 +187,7 @@ If you encounter this error when doing flux calibration with the IR algorithm, p
 
  - Run pypeit_sensfunc with the --sens_file option, e.g.::
 
-   pypeit_sensfunc your_spec1dfile -o your_output.fits --sens_file keck_lris_sens.txt
+    pypeit_sensfunc your_spec1dfile -o your_output.fits --sens_file keck_lris_sens.txt
 
 
 Problem with bspline knot
