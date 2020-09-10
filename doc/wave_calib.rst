@@ -341,3 +341,14 @@ be necessary to generate detector specific templates (ugh).
 This is especially true if the spectrum is partial on the
 detector (e.g. the 830G grating).
 
+
+Additional Reading
+==================
+
+.. toctree::
+   :caption: More reading
+   :maxdepth: 1
+
+   flexure
+   heliocorr
+   wavetilts

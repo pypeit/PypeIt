@@ -5,7 +5,6 @@ Spec1D Output
 Overview
 ========
 
-
 A primary data product for PypeIt are 1D, calibrated spectra
 for extracted sources.  The most fundamental spectrum may be
 described by two arrays: flux, wavelength.  These together
@@ -16,10 +15,12 @@ products.
 
 .. _spec1d-output-arrays:
 
-See :doc:`specobj` for a full description of the data model.
 
 Naming
 ======
+
+File
+----
 
 The 1D spectra files have names like::
 
@@ -30,9 +31,41 @@ The model is::
     Prefix_frame-objname_spectrograph_timestamp.fits
 
 
+Objects
+-------
+
+Each object is named by its:
+ - spatial position (pixel number) on the reduced image [SPAT]
+ - the slit position (pixel number) on the reduced image [SLIT]
+ - the detector number [DET]
+
+For example::
+
+    SPAT0176-SLIT0185-DET01
 
 
-.. _pypeit-1dspec:
+Extraction
+==========
+
+Because there are several modes of extraction in PypeIt, there may
+be multiple outputs of the spectral arrays.  These are then prefixed
+by the extraction mode.
+
++-----------------+------------------------------------------------------------+
+| Extraction Mode | Description                                                |
++=================+============================================================+
+| BOXCAR          | Top-hat extraction around the trace.  The precise window   |
+|                 | used is defined by the BOXCAR_APERTURE, in pixels.         |
++-----------------+------------------------------------------------------------+
+| OPTIMAL         | Standard Horne algorithm for extraction using the fitted   |
+|                 | spatial profile.  An estimate of this profile is given by  |
+|                 | OBJ_FWHM                                                   |
++-----------------+------------------------------------------------------------+
+
+Therefore, the integrated counts for a boxcar extraction are given by the
+BOXCAR_COUNTS array with variance BOXCAR_VAR.
+
+.. _pypeit_show_1dspec:
 
 pypeit_show_1dspec
 ==================
@@ -91,7 +124,7 @@ This prints a list to the screen of all the objects extracted.  An example::
     EXT0000012 = SPAT0093-SLIT0000-DET02
     EXT0000013 = SPAT0130-SLIT0001-DET02
 
-This indicates the extension of the object with this :ref:`specobj:Naming`.
+This indicates the extension of the object with this :ref:`out_spec1D:Naming`.
 
 --exten
 +++++++
@@ -107,9 +140,29 @@ Plot this object.
 --extract
 +++++++++
 
-Choice of :ref:`specobj:Extraction` method
+Choice of :ref:`out_spec1D:Extraction` method
 
 --flux
 ++++++
 
 Show the fluxed spectrum (only if it has been fluxed!)
+
+Current Data Model
+==================
+
+Internally, the spectrum for a single object is held in
+:class:`pypeit.specobj.SpecObj`.  Here is its datamodel,
+which is written as a BinTblHDU n the FITS file with this `Naming`_.
+In addition, one :class:`pypeit.images.detector_container.DetectorContainer`
+is written to an HDU (e.g. DET01-DETECTOR) for each detector
+with at least one spectrum extracted.
+
+The :class:`pypeit.specobj.SpecObj` objects are held
+interally by a
+:class:`pypeit.specobjs.SpecObjs` object.
+
+
+
+.. include:: include/datamodel_specobj.rst
+
+

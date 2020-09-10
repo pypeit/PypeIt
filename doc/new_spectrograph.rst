@@ -1,5 +1,3 @@
-.. highlight:: rest
-
 ****************
 New Spectrograph
 ****************
@@ -21,6 +19,6 @@ Near-IR
 +++++++
 
 If this is a near-IR instrument, you may wish to turn
-off overscan subtraction.  See Gemini_GNIRS for an example.
+off calibration steps.  See Gemini_GNIRS for an example.
 
 
