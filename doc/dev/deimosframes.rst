@@ -78,20 +78,20 @@ The test requires that you have downloaded the ``PypeIt``
 variable that points to the relevant directory. The algorithm of the
 test is as follows:
 
-    #. Find all the directories in the :ref:`dev-suite` with Keck
+    1. Find all the directories in the :ref:`dev-suite` with Keck
        DEIMOS data.
 
-    #. For each directory (i.e., instrument setup):
+    2. For each directory (i.e., instrument setup):
 
-        #. Make sure there is a "by-hand" version of the pypeit file
+        a. Make sure there is a "by-hand" version of the pypeit file
            for this setup where a human (one of the pypeit
            developers) has ensured the frame types are correct.
 
-        #. Effectively run :ref:`pypeit_setup` on each of the
+        b. Effectively run :ref:`pypeit_setup` on each of the
            instrument setups to construct a new pypeit file with the
            automatically generated frame types.
            
-        #. Read both the by-hand and automatically generated frame
+        c. Read both the by-hand and automatically generated frame
            types from these two pypeit files and check that they are
            identical. This check is *only* performed for the
            calibration frames, not any ``science`` or ``standard``
