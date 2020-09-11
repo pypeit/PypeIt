@@ -1,0 +1,10 @@
+# User-defined coadding parameters
+[coadd1d]
+   coaddfile = J1217p3905_coadd.fits
+   flux_value = False
+
+# Read in the data
+coadd1d read
+  spec1d_b27.fits SPAT0176-SLIT0175-DET01
+  spec1d_b28.fits SPAT0175-SLIT0175-DET01
+coadd1d end

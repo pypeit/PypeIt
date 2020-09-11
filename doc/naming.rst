@@ -24,7 +24,7 @@ Prefix
 
 The file type is indicated by its prefix, a short label.
 The following Table lists all formats for the 
-:ref:`outputs-compactness-compact` output format of PypeIt.
+:ref:`outputs` of PypeIt.
 We describe each and include the likely suffix(es). 
 
 =======   ===========================================  ======
@@ -87,8 +87,8 @@ Source Identifiers
 
 PypeIt reduces each detector separately and associates identified
 slits and objects to that detector.  Therefore, sources are 
-uniquely identified by a combination of these :ref:`source-id-values`.  
-If requested (:ref:`outputs-compactness-explode`), the Spec1D files
+uniquely identified by a combination of these `source-id-values` (out of date!).  
+If requested, the Spec1D files
 can be exploded to yield one FITS file per source.  In this
 case, the filenames are appended by the source identifiers::
 

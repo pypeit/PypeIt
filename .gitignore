@@ -1,9 +1,12 @@
 # Folders#
 .idea/
+.vscode/
+build/*
+dist/*
 
 # Compiled source #
 ###################
-*.c
+# *.c
 *.com
 *.class
 *.dll
@@ -48,4 +51,7 @@ Thumbs.db
 *.ipynb_checkpoints
 *.pytest_cache
 *.swp
+pypeit/_compiler.c
+pypeit/data/telluric/*.fits
+pypeit/data/telluric/*.fits.gz
 

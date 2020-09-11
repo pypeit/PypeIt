@@ -1,134 +1,345 @@
 """
 Module for guiding 1D Wavelength Calibration
+
+.. include:: ../links.rst
 """
 import os
 import copy
 import inspect
+import json
+
+from IPython import embed
 
 import numpy as np
 
 from matplotlib import pyplot as plt
 
+from linetools import utils as ltu
+
 from pypeit import msgs
-from pypeit import masterframe
-from pypeit.core import arc, qa, pixels
-from pypeit.core.wavecal import autoid, waveio
-from pypeit.core import trace_slits
+from pypeit.core import arc, qa
+from pypeit.core import fitting
+from pypeit.core.wavecal import autoid, waveio, wv_fitting
+from pypeit.core.gui.identify import Identify
+from pypeit import utils
+from pypeit import datamodel
 
-from pypeit import debugger
-from IPython import embed
+class WaveCalib(datamodel.DataContainer):
+    """
+    DataContainer for the output from BuildWaveCalib
 
-class WaveCalib(masterframe.MasterFrame):
+    All of the items in the datamodel are required for instantiation,
+      although they can be None (but shouldn't be)
+
+    """
+    version = '1.0.0'
+
+    # MasterFrame fun
+    master_type = 'WaveCalib'
+    master_file_format = 'fits'
+
+    datamodel = {'wv_fits': dict(otype=np.ndarray, atype=wv_fitting.WaveFit,
+                                 descr='WaveFit to each 1D wavelength solution'),
+                 'wv_fit2d': dict(otype=fitting.PypeItFit,
+                                  descr='2D wavelength solution (echelle)'),
+                 'arc_spectra': dict(otype=np.ndarray, atype=np.floating,
+                                     descr='2D array: 1D extracted spectra, slit by slit '
+                                           '(nspec, nslits)'),
+                 'nslits': dict(otype=int,
+                                descr='Total number of slits.  This can include masked slits'),
+                 'spat_ids': dict(otype=np.ndarray, atype=np.integer, descr='Slit spat_ids. Named distinctly from that in WaveFit '),
+                 'PYP_SPEC': dict(otype=str, descr='PypeIt spectrograph name'),
+                 'strpar': dict(otype=str, descr='Parameters as a string')}
+
+    def __init__(self, wv_fits=None, nslits=None, spat_ids=None, PYP_SPEC=None,
+                 strpar=None, wv_fit2d=None, arc_spectra=None):
+        # Parse
+        args, _, _, values = inspect.getargvalues(inspect.currentframe())
+        d = dict([(k,values[k]) for k in args[1:]])
+        # Setup the DataContainer
+        datamodel.DataContainer.__init__(self, d=d)
+
+    def _init_internals(self):
+        # Master stuff
+        self.master_key = None
+        self.master_dir = None
+
+    def _bundle(self):
+        """
+        Over-write default _bundle() method to write one
+        HDU per image.  Any extras are in the HDU header of
+        the primary image.
+
+        Returns:
+            :obj:`list`: A list of dictionaries, each list element is
+            written to its own fits extension. See the description
+            above.
+        """
+        _d = []
+
+        # Spat_ID first
+        if self.spat_ids is None:
+            msgs.error("Cannot write WaveCalib without spat_ids")
+        _d.append(dict(spat_ids=self.spat_ids))
+
+        # Rest of the datamodel
+        for key in self.keys():
+            if key == 'spat_ids':
+                continue
+            # Skip None
+            if self[key] is None:
+                continue
+            # Array?
+            if self.datamodel[key]['otype'] == np.ndarray and key != 'wv_fits':
+                _d.append({key: self[key]})
+            elif key == 'wv_fits':
+                for ss, wv_fit in enumerate(self[key]):
+                    # Naming
+                    dkey = 'WAVEFIT-{}'.format(self.spat_ids[ss])
+                    # Generate a dummy?
+                    if wv_fit is None:
+                        kwv_fit = wv_fitting.WaveFit(self.spat_ids[ss])
+                    else:
+                        kwv_fit = wv_fit
+                    # This is required to deal with a single HDU WaveFit() bundle
+                    if kwv_fit.pypeitfit is None:
+                        dkey = 'SPAT_ID-{}_WAVEFIT'.format(self.spat_ids[ss])
+                    # Save
+                    _d.append({dkey: kwv_fit})
+            elif key == 'wv_fit2d':
+                _d.append({key: self[key]})
+            else: # Add to header of the spat_id image
+                _d[0][key] = self[key]
+        # Return
+        return _d
+
+    @classmethod
+    def _parse(cls, hdu, ext=None, transpose_table_arrays=False, debug=False,
+               hdu_prefix=None):
+        # Grab everything but the bspline's
+        _d, dm_version_passed, dm_type_passed, parsed_hdus = super(WaveCalib, cls)._parse(hdu)
+        # Now the wave_fits
+        list_of_wave_fits = []
+        spat_ids = []
+        for ihdu in hdu:
+            if 'WAVEFIT' in ihdu.name:
+                # Allow for empty
+                if len(ihdu.data) == 0:
+                    iwavefit = wv_fitting.WaveFit(ihdu.header['SPAT_ID'])
+                else:
+                    iwavefit = wv_fitting.WaveFit.from_hdu(ihdu)
+                    parsed_hdus += ihdu.name
+                    if iwavefit.version != wv_fitting.WaveFit.version:
+                        msgs.warn("Your WaveFit is out of date!!")
+                    # Grab PypeItFit (if it exists)
+                    hdname = ihdu.name.replace('WAVEFIT', 'PYPEITFIT')
+                    if hdname in [khdu.name for khdu in hdu]:
+                        iwavefit.pypeitfit = fitting.PypeItFit.from_hdu(hdu[hdname])
+                        parsed_hdus += hdname
+                list_of_wave_fits.append(iwavefit)
+                # Grab SPAT_ID for checking
+                spat_ids.append(iwavefit.spat_id)
+            elif ihdu.name == 'PYPEITFIT': # 2D fit
+                _d['wv_fit2d'] = fitting.PypeItFit.from_hdu(ihdu)
+                parsed_hdus += ihdu.name
+        # Check
+        if spat_ids != _d['spat_ids'].tolist():
+            msgs.error("Bad parsing of the MasterFlat")
+        # Finish
+        _d['wv_fits'] = np.asarray(list_of_wave_fits)
+        return _d, dm_version_passed, dm_type_passed, parsed_hdus
+
+    @property
+    def par(self):
+        return json.loads(self.strpar)
+
+    def chk_synced(self, slits):
+        """
+        Confirm the slits in WaveCalib are aligned to that in SlitTraceSet
+
+        Barfs if not
+
+        Args:
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+
+        """
+        if not np.array_equal(self.spat_ids, slits.spat_id):
+            msgs.error("Your wvcalib solutions are out of sync with your slits.  Remove Masters and start from scratch")
+
+    def build_waveimg(self, tilts, slits, spat_flexure=None):
+        """
+        Main algorithm to build the wavelength image
+
+        Only applied to good slits, which means any non-flagged or flagged
+         in the exclude_for_reducing list
+
+        Args:
+            tilts (`numpy.ndarray`_):
+                Image holding tilts
+            slits (:class:`pypeit.slittrace.SlitTraceSet`):
+            spat_flexure (float, optional):
+
+        Returns:
+            `numpy.ndarray`_: The wavelength image.
+        """
+        # Setup
+        #ok_slits = slits.mask == 0
+        bpm = slits.mask.astype(bool)
+        bpm &= np.logical_not(slits.bitmask.flagged(slits.mask, flag=slits.bitmask.exclude_for_reducing))
+        ok_slits = np.logical_not(bpm)
+        #
+        image = np.zeros_like(tilts)
+        slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
+
+        slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
+
+        # If this is echelle print out a status message and do some error checking
+        if self.par['echelle']:
+            msgs.info('Evaluating 2-d wavelength solution for echelle....')
+            # TODO UPDATE THIS!!
+            #if len(wv_calib['fit2d']['orders']) != np.sum(ok_slits):
+            #    msgs.error('wv_calib and ok_slits do not line up. Something is very wrong!')
+
+        # Unpack some 2-d fit parameters if this is echelle
+        for islit in np.where(ok_slits)[0]:
+            slit_spat = slits.spat_id[islit]
+            thismask = (slitmask == slit_spat)
+            if not np.any(thismask):
+                msgs.error("Something failed in wavelengths or masking..")
+            if self.par['echelle']:
+                # # TODO: Put this in `SlitTraceSet`?
+                # evaluate solution --
+                image[thismask] = self.wv_fit2d.eval(
+                    tilts[thismask], x2=np.full_like(tilts[thismask], slits.ech_order[islit]))
+                image[thismask] /= slits.ech_order[islit]
+            else:
+                iwv_fits = self.wv_fits[islit]
+                image[thismask] = iwv_fits.pypeitfit.eval(tilts[thismask])
+        # Return
+        return image
+
+
+
+
+class BuildWaveCalib:
     """
     Class to guide wavelength calibration
 
     Args:
-        msarc (np.ndarray or None): Arc image, created by the ArcImage class
-        tslits_dict (dict or None):  TraceSlits dict
+        msarc (:class:`pypeit.images.pypeitimage.PypeItImage` or None):
+            Arc image, created by the ArcImage class
+        slits (:class:`pypeit.slittrace.SlitTraceSet`, None):
+            Slit edges
         spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph` or None):
             The `Spectrograph` instance that sets the
             instrument used to take the observations.  Used to set
             :attr:`spectrograph`.
         par (:class:`pypeit.par.pypeitpar.WaveSolutionPar` or None):
             The parameters used for the wavelength solution
+            Uses ['calibrations']['wavelengths']
         binspectral (int, optional): Binning of the Arc in the spectral dimension
         det (int, optional): Detector number
-        master_key (str, optional)
-        master_dir (str, optional): Path to master frames
-        reuse_masters (bool, optional):  Load from disk if possible
-        qa_path (str, optional):  For QA
         msbpm (ndarray, optional): Bad pixel mask image
+        qa_path (str, optional):  For QA
+        master_key (:obj:`str`, optional):  For naming QA only
 
     Attributes:
-        frametype : str
-          Hard-coded to 'wv_calib'
         steps : list
-          List of the processing steps performed
+            List of the processing steps performed
         wv_calib : dict
-          Primary output
-          Keys
-            0, 1, 2, 3 -- Solution for individual slit
-            steps
-        arccen (ndarray): (nwave, nslit) Extracted arc(s) down the center of the slit(s)
+            Primary output.  Keys 0, 1, 2, 3 are solution for individual
+            previously slit steps
+        arccen (ndarray):
+            (nwave, nslit) Extracted arc(s) down the center of the slit(s)
         maskslits : ndarray (nslit); bool
-          Slits to ignore because they were not extracted
-          WARNING: Outside of this Class, it is best to regenerate
-          the mask using  make_maskslits()
+            Slits to ignore because they were not extracted. WARNING:
+            Outside of this Class, it is best to regenerate the mask
+            using  make_maskslits()
+        gpm (`numpy.ndarray`_):
+            Good pixel mask
+            Eventually, we might attach this to self.msarc although that would then
+            require that we write it to disk with self.msarc.image
+        nonlinear_counts (float):
+            Specifies saturation level for the arc lines
+        wvc_bpm (`numpy.ndarray`_):  Mask for slits attempted to have a wv_calib solution
     """
 
-    # Frametype is a class attribute
     frametype = 'wv_calib'
-    master_type = 'WaveCalib'
 
-    def __init__(self, msarc, tslits_dict, spectrograph, par, binspectral=None, det=1,
-                 master_key=None, master_dir=None, reuse_masters=False, qa_path=None,
-                 msbpm=None):
-
-        # MasterFrame
-        masterframe.MasterFrame.__init__(self, self.master_type, master_dir=master_dir,
-                                         master_key=master_key, file_format='json',
-                                         reuse_masters=reuse_masters)
+    def __init__(self, msarc, slits, spectrograph, par, binspectral=None, det=1,
+                 qa_path=None, msbpm=None, master_key=None):
 
         # Required parameters (but can be None)
         self.msarc = msarc
-        self.tslits_dict = tslits_dict
+        self.slits = slits
         self.spectrograph = spectrograph
         self.par = par
 
         # Optional parameters
         self.bpm = msbpm
+        if self.bpm is None:
+            if msarc is not None:  # Can be None for load;  will remove this for DataContainer
+                self.bpm = msarc.bpm
         self.binspectral = binspectral
         self.qa_path = qa_path
         self.det = det
         self.master_key = master_key
 
         # Attributes
-        self.steps = []    # steps executed
-        self.wv_calib = {} # main output
-        self.arccen = None # central arc spectrum
+        self.steps = []     # steps executed
+        self.wv_calib = {}  # main output
+        self.arccen = None  # central arc spectrum
+
+        # Get the non-linear count level
+        self.nonlinear_counts = 1e10 if self.spectrograph is None \
+            else self.spectrograph.nonlinear_counts(self.msarc.detector)
+            #else self.spectrograph.nonlinear_counts(self.det)
 
         # --------------------------------------------------------------
         # TODO: Build another base class that does these things for both
         # WaveTilts and WaveCalib?
 
-        # Get the non-linear count level
-        self.nonlinear_counts = 1e10 if self.spectrograph is None \
-                                    else self.spectrograph.nonlinear_counts(det=self.det)
-
         # Set the slitmask and slit boundary related attributes that the
         # code needs for execution. This also deals with arcimages that
         # have a different binning then the trace images used to defined
         # the slits
-        if self.tslits_dict is not None and self.msarc is not None:
-            self.slitmask_science = pixels.tslits2mask(self.tslits_dict)
-            inmask = self.bpm == 0 if self.bpm is not None \
-                                    else np.ones_like(self.slitmask_science, dtype=bool)
+        if self.slits is not None and self.msarc is not None:
+            # Load up slits
+            # TODO -- Allow for flexure
+            all_left, all_right, mask = self.slits.select_edges(initial=True, flexure=None)  # Grabs all, init slits + flexure
+            self.orders = self.slits.ech_order  # Can be None
+#            self.spat_coo = self.slits.spatial_coordinates()  # All slits, even masked
+            # Internal mask for failed wv_calib analysis
+            # TODO -- Allow for an option to re-attempt those previously flagged as BADWVCALIB?
+            self.wvc_bpm = np.invert(mask == 0)
+            self.wvc_bpm_init = self.wvc_bpm.copy()
+            # Slitmask -- Grabs only unmasked, initial slits
+            self.slitmask_science = self.slits.slit_img(initial=True, flexure=None)
+            # Resize
             self.shape_science = self.slitmask_science.shape
-            self.shape_arc = self.msarc.shape
-            self.nslits = self.tslits_dict['slit_left'].shape[1]
-            self.slit_left = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.tslits_dict['slit_left'])
-            self.slit_righ = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.tslits_dict['slit_righ'])
-            self.slitcen   = arc.resize_slits2arc(self.shape_arc, self.shape_science,
-                                                  self.tslits_dict['slitcen'])
-            self.slitmask  = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
-            self.inmask = arc.resize_mask2arc(self.shape_arc, inmask)
-            # TODO: Remove the following two lines if deemed ok
+            self.shape_arc = self.msarc.image.shape
+            # slitcen is padded to include slits that may be masked, for convenience in coding downstream
+            self.slitcen = arc.resize_slits2arc(self.shape_arc, self.shape_science, (all_left+all_right)/2)
+            self.slitmask = arc.resize_mask2arc(self.shape_arc, self.slitmask_science)
+            # Mask
+            gpm = self.bpm == 0 if self.bpm is not None \
+                else np.ones_like(self.slitmask_science, dtype=bool)
+            self.gpm = arc.resize_mask2arc(self.shape_arc, gpm)
+            # We want even the saturated lines in full_template for the cross-correlation
+            #   They will be excised in the detect_lines() method on the extracted arc
             if self.par['method'] != 'full_template':
-                self.inmask &= self.msarc < self.nonlinear_counts
-            self.slit_spat_pos = trace_slits.slit_spat_pos(self.tslits_dict)
+                self.gpm &= self.msarc.image < self.nonlinear_counts
+
         else:
+            self.orders = None
+            self.wvc_bpm = None
+            self.wvc_bpm_init = None
             self.slitmask_science = None
             self.shape_science = None
             self.shape_arc = None
-            self.nslits = 0
-            self.slit_left = None
-            self.slit_righ = None
             self.slitcen = None
             self.slitmask = None
-            self.inmask = None
-        # --------------------------------------------------------------
+            self.gpm = None
 
     def build_wv_calib(self, arccen, method, skip_QA=False):
         """
@@ -143,6 +354,7 @@ class WaveCalib(masterframe.MasterFrame):
               'arclines' -- arc.calib_with_arclines
               'holy-grail' -- wavecal.autoid.HolyGrail
               'reidentify' -- wavecal.auotid.ArchiveReid
+              'identify' -- wavecal.identify.Identify
               'full_template' -- wavecal.auotid.full_template
             skip_QA (bool, optional)
 
@@ -150,115 +362,138 @@ class WaveCalib(masterframe.MasterFrame):
             dict:  self.wv_calib
         """
         # Obtain a list of good slits
-        ok_mask = np.where(~self.maskslits)[0]
+        ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
 
         # Obtain calibration for all slits
         if method == 'simple':
             lines = self.par['lamps']
             line_lists = waveio.load_line_lists(lines)
 
-            self.wv_calib = arc.simple_calib_driver(self.msarc, line_lists, arccen, ok_mask,
-                                                    nfitpix=self.par['nfitpix'],
+            final_fit = arc.simple_calib_driver(line_lists, arccen, ok_mask_idx,
+                                                    n_final=self.par['n_final'],
+                                                    sigdetect=self.par['sigdetect'],
                                                     IDpixels=self.par['IDpixels'],
                                                     IDwaves=self.par['IDwaves'])
-        elif method == 'semi-brute':
-            # TODO: THIS IS CURRENTLY BROKEN
-            debugger.set_trace()
-            final_fit = {}
-            for slit in ok_mask:
-                # HACKS BY JXP
-                self.par['wv_cen'] = 8670.
-                self.par['disp'] = 1.524
-                # ToDO remove these hacks and use the parset in semi_brute
-                best_dict, ifinal_fit \
-                        = autoid.semi_brute(arccen[:, slit], self.par['lamps'], self.par['wv_cen'],
-                                            self.par['disp'], match_toler=self.par['match_toler'],
-                                            func=self.par['func'], n_first=self.par['n_first'],
-                                            sigrej_first=self.par['n_first'],
-                                            n_final=self.par['n_final'],
-                                            sigrej_final=self.par['sigrej_final'],
-                                            sigdetect=self.par['sigdetect'],
-                                            nonlinear_counts= self.nonlinear_counts)
-                final_fit[str(slit)] = ifinal_fit.copy()
-        elif method == 'basic':
-            final_fit = {}
-            for slit in ok_mask:
-                status, ngd_match, match_idx, scores, ifinal_fit = \
-                        autoid.basic(arccen[:, slit], self.par['lamps'], self.par['wv_cen'],
-                                     self.par['disp'], nonlinear_counts=self.nonlinear_counts)
-                final_fit[str(slit)] = ifinal_fit.copy()
-                if status != 1:
-                    self.maskslits[slit] = True
         elif method == 'holy-grail':
             # Sometimes works, sometimes fails
-            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask)
+            arcfitter = autoid.HolyGrail(arccen, par=self.par, ok_mask=ok_mask_idx, nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
+        elif method == 'identify':
+            final_fit = {}
+            # Manually identify lines
+            msgs.info("Initializing the wavelength calibration tool")
+            embed(header='line 222 wavecalib.py')
+            for slit_idx in ok_mask_idx:
+                arcfitter = Identify.initialise(arccen, self.slits, slit=slit_idx, par=self.par)
+                final_fit[str(slit_idx)] = arcfitter.get_results()
+                arcfitter.store_solution(final_fit[str(slit_idx)], "", self.binspectral,
+                                         specname=self.spectrograph.spectrograph,
+                                         gratname="UNKNOWN", dispangl="UNKNOWN")
         elif method == 'reidentify':
             # Now preferred
             # Slit positions
-            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask,
-                                           slit_spat_pos=self.slit_spat_pos)
+            arcfitter = autoid.ArchiveReid(arccen, self.spectrograph, self.par, ok_mask=ok_mask_idx,
+                                           #slit_spat_pos=self.spat_coo,
+                                           orders=self.orders,
+                                           nonlinear_counts=self.nonlinear_counts)
             patt_dict, final_fit = arcfitter.get_results()
         elif method == 'full_template':
             # Now preferred
             if self.binspectral is None:
                 msgs.error("You must specify binspectral for the full_template method!")
-            final_fit = autoid.full_template(arccen, self.par, ok_mask, self.det, self.binspectral,
+            final_fit = autoid.full_template(arccen, self.par, ok_mask_idx, self.det,
+                                             self.binspectral, nonlinear_counts=self.nonlinear_counts,
                                              nsnippet=self.par['nsnippet'])
         else:
             msgs.error('Unrecognized wavelength calibration method: {:}'.format(method))
 
-        self.wv_calib = final_fit
+        # Build the DataContainer
+        # Loop on WaveFit items
+        tmp = []
+        for idx in range(self.slits.nslits):
+            item = final_fit.pop(str(idx))
+            if item is None:  # Add an empty WaveFit
+                tmp.append(wv_fitting.WaveFit(self.slits.spat_id[idx]))
+            else:
+                # This is for I/O naming
+                item.spat_id = self.slits.spat_id[idx]
+                tmp.append(item)
+        self.wv_calib = WaveCalib(wv_fits=np.asarray(tmp),
+                                  arc_spectra=arccen,
+                                  nslits=self.slits.nslits,
+                                  spat_ids=self.slits.spat_id,
+                                  PYP_SPEC=self.spectrograph.spectrograph,
+                                  )
 
-        # Remake mask (*mainly for the QA that follows*)
-        self.maskslits = self.make_maskslits(len(self.maskslits))
-        ok_mask = np.where(~self.maskslits)[0]
+        # Update mask
+        self.update_wvmask()
+
+        #TODO For generalized echelle (not hard wired) assign order number here before, i.e. slits.ech_order
 
         # QA
         if not skip_QA:
-            for slit in ok_mask:
-                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=slit,
+            ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+            for slit_idx in ok_mask_idx:
+                outfile = qa.set_qa_filename(self.master_key, 'arc_fit_qa', slit=self.slits.slitord_id[slit_idx],
                                              out_dir=self.qa_path)
-                autoid.arc_fit_qa(self.wv_calib[str(slit)], outfile = outfile)
+                #
+                #autoid.arc_fit_qa(self.wv_calib[str(self.slits.slitord_id[slit_idx])],
+                #                  outfile=outfile)
+                autoid.arc_fit_qa(self.wv_calib.wv_fits[slit_idx],
+                                  #str(self.slits.slitord_id[slit_idx]),
+                                  outfile=outfile)
+
 
         # Return
         self.steps.append(inspect.stack()[0][3])
         return self.wv_calib
 
+    # TODO: Point to the datamodel for wv_calib in the docstring
     def echelle_2dfit(self, wv_calib, debug=False, skip_QA=False):
         """
-        Evaluate 2-d wavelength solution for echelle data. Unpacks
-        wv_calib for slits to be input into  arc.fit2darc
+        Fit a two-dimensional wavelength solution for echelle data.
+
+        Primarily a wrapper for :func:`pypeit.core.arc.fit2darc`,
+        using data unpacked from the ``wv_calib`` dictionary.
 
         Args:
-            wv_calib (dict): Wavelength calibration
-            debug (bool, optional):  Show debugging info
-            skip_QA (bool, optional): Skip QA
+            wv_calib (:class:`pypeit.wavecalib.WaveCalib`):
+                Wavelength calibration object
+            debug (:obj:`bool`, optional):
+                Show debugging info
+            skip_QA (:obj:`bool`, optional):
+                Flag to skip construction of the nominal QA plots.
 
         Returns:
-            dict: dictionary containing information from 2-d fit
-
+            :class:`pypeit.fitting.PypeItFit`: object containing information from 2-d fit.
         """
+        if self.spectrograph.pypeline != 'Echelle':
+            msgs.error('Cannot execute echelle_2dfit for a non-echelle spectrograph.')
+
         msgs.info('Fitting 2-d wavelength solution for echelle....')
         all_wave = np.array([], dtype=float)
         all_pixel = np.array([], dtype=float)
         all_order = np.array([],dtype=float)
 
         # Obtain a list of good slits
-        ok_mask = np.where(~self.maskslits)[0]
-        nspec = self.msarc.shape[0]
-        for islit in wv_calib.keys():
-            if int(islit) not in ok_mask:
+        ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
+        ok_mask_order = self.slits.slitord_id[ok_mask_idx]
+        nspec = self.msarc.image.shape[0]
+        # Loop
+        for ii in range(wv_calib.nslits):
+            iorder = self.slits.ech_order[ii]
+            if iorder not in ok_mask_order:
                 continue
-            iorder = self.spectrograph.slit2order(self.slit_spat_pos[int(islit)])
-            mask_now = wv_calib[islit]['mask']
-            all_wave = np.append(all_wave, wv_calib[islit]['wave_fit'][mask_now])
-            all_pixel = np.append(all_pixel, wv_calib[islit]['pixel_fit'][mask_now])
-            all_order = np.append(all_order, np.full_like(wv_calib[islit]['pixel_fit'][mask_now],
+            # Slurp
+            mask_now = wv_calib.wv_fits[ii].pypeitfit.bool_gpm
+            all_wave = np.append(all_wave, wv_calib.wv_fits[ii]['wave_fit'][mask_now])
+            all_pixel = np.append(all_pixel, wv_calib.wv_fits[ii]['pixel_fit'][mask_now])
+            all_order = np.append(all_order, np.full_like(wv_calib.wv_fits[ii]['pixel_fit'][mask_now],
                                                           float(iorder)))
 
         # Fit
-        fit2d_dict = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
+        # THIS NEEDS TO BE DEVELOPED
+        fit2d = arc.fit2darc(all_wave, all_pixel, all_order, nspec,
                                   nspec_coeff=self.par['ech_nspec_coeff'],
                                   norder_coeff=self.par['ech_norder_coeff'],
                                   sigrej=self.par['ech_sigrej'], debug=debug)
@@ -266,124 +501,52 @@ class WaveCalib(masterframe.MasterFrame):
         self.steps.append(inspect.stack()[0][3])
 
         # QA
+        # TODO -- TURN QA BACK ON!
+        #skip_QA = True
         if not skip_QA:
             outfile_global = qa.set_qa_filename(self.master_key, 'arc_fit2d_global_qa',
                                                 out_dir=self.qa_path)
-            arc.fit2darc_global_qa(fit2d_dict, outfile=outfile_global)
+            arc.fit2darc_global_qa(fit2d, nspec, outfile=outfile_global)
             outfile_orders = qa.set_qa_filename(self.master_key, 'arc_fit2d_orders_qa',
                                                 out_dir=self.qa_path)
-            arc.fit2darc_orders_qa(fit2d_dict, outfile=outfile_orders)
+            arc.fit2darc_orders_qa(fit2d, nspec, outfile=outfile_orders)
 
-        return fit2d_dict
+        return fit2d
 
     # TODO: JFH this method is identical to the code in wavetilts.
     # SHould we make it a separate function?
-    def extract_arcs(self, slitcen, slitmask, msarc, inmask):
+    def extract_arcs(self, slitIDs=None):
         """
         Extract the arcs down each slit/order
 
         Wrapper to arc.get_censpec()
 
-        Returns
-        -------
-        (self.arccen, self.arc_maskslit_
-           self.arccen: ndarray, (nspec, nslit)
-              arc spectrum for all slits
-            self.arc_maskslit: ndarray, bool (nsit)
-              boolean array containing a mask indicating which slits are good
+        Args:
+            slitIDs (:obj:`list`, optional):
+                A list of the slit IDs to extract (if None, all slits will be extracted)
+
+        Returns:
+            tuple: Returns the following:
+                - self.arccen: ndarray, (nspec, nslit): arc spectrum for
+                  all slits
+                - self.arc_maskslit: ndarray, bool (nsit): boolean array
+                  containing a mask indicating which slits are good
+                  True = masked (bad)
 
         """
-        # Full template kludge
-        if self.par['method'] == 'full_template':
-            nonlinear = 1e10
-        else:
-            nonlinear = self.nonlinear_counts
-        # Do it
-        # TODO: Consider *not* passing in nonlinear_counts;  Probably
-        # should not mask saturated lines at this stage
-        arccen, arc_maskslit = arc.get_censpec(slitcen, slitmask, msarc, inmask=inmask,
-                                               nonlinear_counts=nonlinear)
+        # Do it on the slits not masked in self.slitmask
+        arccen, arccen_bpm, arc_maskslit = arc.get_censpec(
+            self.slitcen, self.slitmask, self.msarc.image, gpm=self.gpm, slit_bpm=self.wvc_bpm, slitIDs=slitIDs)
         # Step
         self.steps.append(inspect.stack()[0][3])
-        return arccen, arc_maskslit
 
-    def save(self, outfile=None, overwrite=True):
-        """
-        Save the wavelength calibration data to a master frame.
+        # Update the mask
+        self.wvc_bpm |= arc_maskslit
 
-        This is largely a wrapper for
-        :func:`pypeit.core.wavecal.waveio.save_wavelength_calibration`.
+        return arccen, self.wvc_bpm
 
-        Args:
-            outfile (:obj:`str`, optional):
-                Name for the output file.  Defaults to
-                :attr:`file_path`.
-            overwrite (:obj:`bool`, optional):
-                Overwrite any existing file.
-        """
-        _outfile = self.file_path if outfile is None else outfile
-        # Check if it exists
-        if os.path.exists(_outfile) and not overwrite:
-            msgs.warn('Master file exists: {0}'.format(_outfile) + msgs.newline()
-                      + 'Set overwrite=True to overwrite it.')
-            return
 
-        # Report and save
-        waveio.save_wavelength_calibration(_outfile, self.wv_calib, overwrite=overwrite)
-        msgs.info('Master frame written to {0}'.format(_outfile))
-
-    def load(self, ifile=None):
-        """
-        Load a full (all slit) wavelength calibration.
-
-        This is largely a wrapper for
-        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
-
-        Args:
-            ifile (:obj:`str`, optional):
-                Name of the master frame file.  Defaults to
-                :attr:`file_path`.
-
-        Returns:
-            dict or None: self.wv_calib
-        """
-        if not self.reuse_masters:
-            # User does not want to load masters
-            msgs.warn('PypeIt will not reuse masters!')
-            return None
-
-        # Check the input path
-        _ifile = self.file_path if ifile is None else ifile
-
-        if not os.path.isfile(_ifile):
-            # Master file doesn't exist
-            msgs.warn('No Master {0} frame found: {1}'.format(self.master_type, self.file_path))
-            return None
-
-        # Read, save it to self, return
-        # TODO: Need to save it to self?
-        msgs.info('Loading Master {0} frame: {1}'.format(self.master_type, _ifile))
-        self.wv_calib = waveio.load_wavelength_calibration(_ifile)
-        return self.wv_calib
-
-    @staticmethod
-    def load_from_file(filename):
-        """
-        Load a full (all slit) wavelength calibration.
-
-        This simply executes
-        :func:`pypeit.core.wavecal.waveio.load_wavelength_calibration`.
-
-        Args:
-            filename (:obj:`str`):
-                Name of the master frame file.
-
-        Returns:
-            dict: The wavelength calibration data.
-        """
-        return waveio.load_wavelength_calibration(filename)
-
-    def make_maskslits(self, nslit):
+    def update_wvmask(self):
         """
         (re)Generate the mask for wv_calib based on its contents
         This is the safest way to go...
@@ -392,25 +555,21 @@ class WaveCalib(masterframe.MasterFrame):
             nslit (int): Number of slits/orders
 
         Returns:
-            ndarray: self.maskslits, boolean array -- True = masked, i.e. do not use
+            `numpy.ndarray`_: self.wvc_bpm, boolean array -- True = masked, i.e. do not use
 
         """
-        # Set mask based on wv_calib
-        mask = np.array([True]*nslit)
-        for key in self.wv_calib.keys():
-            if key in ['steps', 'par', 'fit2d']:
-                continue
-            if (self.wv_calib[key] is not None) and (len(self.wv_calib[key]) > 0):
-                mask[int(key)] = False
-        self.maskslits = mask
-        return self.maskslits
+        # Update mask based on wv_calib
+        for kk, fit in enumerate(self.wv_calib.wv_fits):
+            if fit is None or fit.pypeitfit is None:
+                self.wvc_bpm[kk] = True
+
 
     def run(self, skip_QA=False, debug=False):
         """
         Main driver for wavelength calibration
 
         Code flow:
-          1. Extract 1D arc spectra down the center of each slit/order
+          1. Extract 1D arc spectra down the center of each unmasked slit/order
           2. Load the parameters guiding wavelength calibration
           3. Generate the 1D wavelength fits
           4. Generate a mask
@@ -419,31 +578,36 @@ class WaveCalib(masterframe.MasterFrame):
             skip_QA : bool, optional
 
         Returns:
-            dict, ndarray:  wv_calib dict and maskslits bool array
+            dict:  wv_calib dict
 
         """
         ###############
         # Extract an arc down each slit
-        self.arccen, self.maskslits = self.extract_arcs(self.slitcen, self.slitmask, self.msarc,
-                                                        self.inmask)
+        self.arccen, self.wvc_bpm = self.extract_arcs()
 
         # Fill up the calibrations and generate QA
         self.wv_calib = self.build_wv_calib(self.arccen, self.par['method'], skip_QA=skip_QA)
 
-        # Return
-        if self.par['echelle'] is True:
-            fit2d_dict = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
-            self.wv_calib['fit2d'] = fit2d_dict
+        # Fit 2D?
+        if self.par['echelle']:
+            fit2d = self.echelle_2dfit(self.wv_calib, skip_QA = skip_QA, debug=debug)
+            self.wv_calib.wv_fit2d = fit2d
 
-        # Build mask
-        self.make_maskslits(self.nslits)
+        # Deal with mask
+        self.update_wvmask()
+
+        # Any masked during this analysis?
+        wv_masked = np.where(np.invert(self.wvc_bpm_init) & self.wvc_bpm)[0]
+        if len(wv_masked) > 0:
+            self.slits.mask[wv_masked] = self.slits.bitmask.turn_on(
+                    self.slits.mask[wv_masked], 'BADWVCALIB')
 
         # Pack up
-        self.wv_calib['steps'] = self.steps
         sv_par = self.par.data.copy()
-        self.wv_calib['par'] = sv_par
+        j_par = ltu.jsonify(sv_par)
+        self.wv_calib['strpar'] = json.dumps(j_par)#, sort_keys=True, indent=4, separators=(',', ': '))
 
-        return self.wv_calib, self.maskslits
+        return self.wv_calib
 
     def show(self, item, slit=None):
         """
@@ -488,5 +652,4 @@ class WaveCalib(masterframe.MasterFrame):
             txt = txt[:-2]+']'  # Trim the trailing comma
         txt += '>'
         return txt
-
 

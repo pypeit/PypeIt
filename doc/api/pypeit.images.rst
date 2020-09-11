@@ -5,17 +5,22 @@ Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
-   pypeit.images.calibrationimage
-   pypeit.images.maskimage
-   pypeit.images.processrawimage
+   pypeit.images.buildimage
+   pypeit.images.combineimage
+   pypeit.images.detector_container
+   pypeit.images.imagebitmask
    pypeit.images.pypeitimage
+   pypeit.images.rawimage
+   pypeit.images.sciencecube
    pypeit.images.scienceimage
 
 Module contents
 ---------------
 
 .. automodule:: pypeit.images
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

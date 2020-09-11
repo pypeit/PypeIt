@@ -2,6 +2,7 @@ pypeit.images.pypeitimage module
 ================================
 
 .. automodule:: pypeit.images.pypeitimage
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

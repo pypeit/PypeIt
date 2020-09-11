@@ -2,6 +2,7 @@ pypeit.calibrations module
 ==========================
 
 .. automodule:: pypeit.calibrations
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

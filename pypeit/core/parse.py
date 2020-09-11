@@ -8,7 +8,6 @@ from multiprocessing import cpu_count
 import numpy as np
 
 from astropy.time import Time
-from pypeit import debugger
 
 
 # Logging
@@ -611,16 +610,22 @@ def is_keyword(v):
 
 def binning2string(binspectral, binspatial):
     """
+    Convert the binning from integers to a string following the PypeIt
+    convention order, spectral then spatial.
 
     Args:
-        binspectral (int):
+        binspectral (:obj:`int`):
+            Number of on-detector pixels binned in the spectral
+            direction (along the first axis in the PypeIt convention).
         binspatial (int):
+            Number of on-detector pixels binned in the spatial direction
+            (along the second axis in the PypeIt convention).
 
     Returns:
-        str: Binning in binspectral, binspatial order, e.g. '2,1'
-
+        str: Comma-separated binning along the spectral and spatial
+        directions; e.g., '2,1'
     """
-    return '{:d},{:d}'.format(binspectral, binspatial) # ,binspectral)
+    return '{0},{1}'.format(binspectral, binspatial)
 
 
 def parse_binning(binning):
@@ -715,6 +720,7 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
     # object
     slices = []
     for s,b in zip(sections,_binning):
+        flipped = False
         # Must be able to find the colon
         if ':' not in s:
             raise ValueError('Unrecognized slice string: {0}'.format(s))
@@ -725,6 +731,12 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
         if len(_s) < 3:
             # Include step
             _s += [ None ]
+        # Must check order first so "include_last" and "one_indexed" are correctly applied
+        # Check that the first two elements of the slice are ordered correctly
+        if _s[0] is not None and _s[1] is not None:
+            if _s[0] > _s[1]:
+                flipped = True
+                _s = [_s[1], _s[0], _s[2]]
         if one_indexed:
             # Decrement to convert from 1- to 0-indexing
             _s = [ None if x is None else x-1 for x in _s ]
@@ -732,6 +744,11 @@ def sec2slice(subarray, one_indexed=False, include_end=False, require_dim=None, 
             # Increment to include last 
             _s[1] += 1
         _s = [ None if ss is None else ss//b for ss in _s ]
+        if flipped:
+            if _s[0] == 0:
+                _s = [_s[1]-1, None, -1]
+            else:
+                _s = [_s[1]-1, _s[0]-1, -1]
         # Append the new slice
         slices += [slice(*_s)]
 

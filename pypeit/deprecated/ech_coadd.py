@@ -72,7 +72,7 @@ def order_phot_scale(spectra, phot_scale_dicts, nsig=3.0, niter=5, debug=False):
     Return a new scaled XSpectrum1D spectra
     '''
 
-    from pypeit.core.flux import scale_in_filter
+    from pypeit.core.flux_calib import scale_in_filter
 
     norder = spectra.nspec
 

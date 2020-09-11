@@ -1,10 +1,11 @@
-'''
-Implements DEIMOS-specific functions, including reading in slitmask design files.
-'''
+""" Implements DEIMOS-specific functions, including reading in slitmask design files.
+"""
+
 import glob
 import re
 import os
 import numpy as np
+import warnings
 
 from scipy import interpolate
 
@@ -16,204 +17,161 @@ from pypeit.core import parse
 from pypeit.core import framematch
 from pypeit.par import pypeitpar
 from pypeit.spectrographs import spectrograph
+from pypeit.images import detector_container
+
+from pypeit.utils import index_of_x_eq_y
 
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
-
-from pypeit import debugger
+from IPython import embed
 
 class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle Keck/DEIMOS specific code
     """
+    ndet = 8
+
     def __init__(self):
         # Get it started
         super(KeckDEIMOSSpectrograph, self).__init__()
         self.spectrograph = 'keck_deimos'
         self.telescope = telescopes.KeckTelescopePar()
         self.camera = 'DEIMOS'
-        self.detector = [
-                # Detector 1
-                pypeitpar.DetectorPar(
-                            dataext         = 1,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1185,
-                            darkcurr        = 4.19,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.226,
-                            ronoise         = 2.570,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_01'
-                            ),
-                # Detector 2
-                pypeitpar.DetectorPar(
-                            dataext         = 2,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1185,
-                            darkcurr        = 3.46,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.188,
-                            ronoise         = 2.491,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_02'
-                            ),
-                # Detector 3
-                pypeitpar.DetectorPar(
-                            dataext         = 3,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1185,
-                            darkcurr        = 4.03,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.248,
-                            ronoise         = 2.618,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_03'
-                            ),
-                # Detector 4
-                pypeitpar.DetectorPar(
-                            dataext         = 4,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1185,
-                            darkcurr        = 3.80,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.220,
-                            ronoise         = 2.557,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_04'
-                            ),
-                # Detector 5
-                pypeitpar.DetectorPar(
-                            dataext         = 5,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1185,
-                            darkcurr        = 4.71,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.184,
-                            ronoise         = 2.482,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_05'
-                            ),
-                # Detector 6
-                pypeitpar.DetectorPar(
-                            dataext         = 6,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1185,
-                            darkcurr        = 4.28,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.177,
-                            ronoise         = 2.469,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_06'
-                            ),
-                # Detector 7
-                pypeitpar.DetectorPar(
-                            dataext         = 7,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1.,
-                            platescale      = 0.1185,
-                            darkcurr        = 3.33,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.201,
-                            ronoise         = 2.518,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_07'),
-                # Detector 8
-                pypeitpar.DetectorPar(
-                            dataext         = 8,
-                            specaxis        = 0,
-                            specflip        = False,
-                            xgap            = 0.,
-                            ygap            = 0.,
-                            ysize           = 1., 
-                            platescale      = 0.1185,
-                            darkcurr        = 3.69,
-                            saturation      = 65535.,
-                            nonlinear       = 0.86,
-                            numamplifiers   = 1,
-                            gain            = 1.230,
-                            ronoise         = 2.580,
-                            datasec         = '',       # These are provided by read_deimos
-                            oscansec        = '',
-                            suffix          = '_08'
-                            )]
-        self.numhead = 9
-        # Uses default timeunit
-        # Uses default primary_hdrext
-        # self.sky_file ?
 
         # Don't instantiate these until they're needed
         self.grating = None
         self.optical_model = None
         self.detector_map = None
 
+    def get_detector_par(self, hdu, det):
+        """
+        Return a DectectorContainer for the current image
+
+        Args:
+            hdu (`astropy.io.fits.HDUList`):
+                HDUList of the image of interest.
+                Ought to be the raw file, or else..
+            det (int):
+
+        Returns:
+            :class:`pypeit.images.detector_container.DetectorContainer`:
+
+        """
+        # Binning
+        binning = self.get_meta_value(self.get_headarr(hdu), 'binning')  # Could this be detector dependent??
+
+        # Detector 1
+        detector_dict1 = dict(
+            binning         = binning,
+            det             = 1,
+            dataext         = 1,
+            specaxis        = 0,
+            specflip        = False,
+            spatflip        = False,
+            platescale      = 0.1185,
+            darkcurr        = 4.19,
+            saturation      = 65535., # ADU
+            nonlinear       = 0.95,   # Changed by JFH from 0.86 to 0.95
+            mincounts       = -1e10,
+            numamplifiers   = 1,
+            gain            = np.atleast_1d(1.226),
+            ronoise         = np.atleast_1d(2.570),
+            )
+        # Detector 2
+        detector_dict2 = detector_dict1.copy()
+        detector_dict2.update(dict(
+            det=2,
+            dataext=2,
+            darkcurr=3.46,
+            gain=np.atleast_1d(1.188),
+            ronoise=np.atleast_1d(2.491),
+        ))
+        # Detector 3
+        detector_dict3 = detector_dict1.copy()
+        detector_dict3.update(dict(
+            det=3,
+            dataext=3,
+            darkcurr=4.03,
+            gain=np.atleast_1d(1.248),
+            ronoise=np.atleast_1d(2.618),
+        ))
+        # Detector 4
+        detector_dict4 = detector_dict1.copy()
+        detector_dict4.update(dict(
+            det=4,
+            dataext=4,
+            darkcurr=3.80,
+            gain=np.atleast_1d(1.220),
+            ronoise=np.atleast_1d(2.557),
+        ))
+        # Detector 5
+        detector_dict5 = detector_dict1.copy()
+        detector_dict5.update(dict(
+            det=5,
+            dataext=5,
+            darkcurr=4.71,
+            gain=np.atleast_1d(1.184),
+            ronoise=np.atleast_1d(2.482),
+        ))
+        # Detector 6
+        detector_dict6 = detector_dict1.copy()
+        detector_dict6.update(dict(
+            det=6,
+            dataext=6,
+            darkcurr=4.28,
+            gain=np.atleast_1d(1.177),
+            ronoise=np.atleast_1d(2.469),
+        ))
+        # Detector 7
+        detector_dict7 = detector_dict1.copy()
+        detector_dict7.update(dict(
+            det=7,
+            dataext=7,
+            darkcurr=3.33,
+            gain=np.atleast_1d(1.201),
+            ronoise=np.atleast_1d(2.518),
+        ))
+        # Detector 8
+        detector_dict8 = detector_dict1.copy()
+        detector_dict8.update(dict(
+            det=8,
+            dataext=8,
+            darkcurr=3.69,
+            gain=np.atleast_1d(1.230),
+            ronoise=np.atleast_1d(2.580),
+        ))
+        detectors = [detector_dict1, detector_dict2, detector_dict3, detector_dict4,
+                     detector_dict5, detector_dict6, detector_dict7, detector_dict8]
+        # Return
+        return detector_container.DetectorContainer(**detectors[det-1])
+
+
     def default_pypeit_par(self):
         """
-        Set default parameters for Keck LRISb reductions.
+        Set default parameters for Keck DEIMOS reductions.
         """
         par = pypeitpar.PypeItPar()
         par['rdx']['spectrograph'] = 'keck_deimos'
-        par['flexure']['method'] = 'boxcar'
-        # Set wave tilts order
-        par['calibrations']['slits']['sigdetect'] = 50.
-        par['calibrations']['slits']['trace_npoly'] = 3
 
-        # Overscan subtract the images
-        #par['calibrations']['biasframe']['useframe'] = 'overscan'
+        # Spectral flexure correction
+        par['flexure']['spec_method'] = 'boxcar'
+        # Set wave tilts order
+        par['calibrations']['slitedges']['edge_thresh'] = 50.
+        par['calibrations']['slitedges']['fit_order'] = 3
+        par['calibrations']['slitedges']['minimum_slit_gap'] = 0.25
+        par['calibrations']['slitedges']['minimum_slit_length_sci'] = 4.
+#        par['calibrations']['slitedges']['sync_clip'] = False
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-        par['calibrations']['wavelengths']['nonlinear_counts'] \
-                = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] \
+        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['n_first'] = 3
         par['calibrations']['wavelengths']['match_toler'] = 2.5
+
+        # Do not require bias frames
+        turn_off = dict(use_biasimage=False)
+        par.reset_all_processimages_par(**turn_off)
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'
@@ -254,22 +212,30 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             adjusted for configuration specific parameter values.
         """
         par = self.default_pypeit_par() if inp_par is None else inp_par
-        # TODO: Should we allow the user to override these?
+
+        headarr = self.get_headarr(scifile)
+
+        # Turn PCA off for long slits
+        # TODO: I'm a bit worried that this won't catch all
+        # long-slits...
+        if ('Long' in self.get_meta_value(headarr, 'decker')) or (
+                'LVMslit' in self.get_meta_value(headarr, 'decker')):
+            par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
         # Templates
-        if self.get_meta_value(scifile, 'dispname') == '600ZD':
+        if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_600.fits'
             par['calibrations']['wavelengths']['lamps'] += ['CdI', 'ZnI', 'HgI']
-        elif self.get_meta_value(scifile, 'dispname') == '830G':
+        elif self.get_meta_value(headarr, 'dispname') == '830G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_830G.fits'
-        elif self.get_meta_value(scifile, 'dispname') == '1200G':
+        elif self.get_meta_value(headarr, 'dispname') == '1200G':
             par['calibrations']['wavelengths']['method'] = 'full_template'
             par['calibrations']['wavelengths']['reid_arxiv'] = 'keck_deimos_1200G.fits'
 
         # FWHM
-        binning = parse.parse_binning(self.get_meta_value(scifile, 'binning'))
+        binning = parse.parse_binning(self.get_meta_value(headarr, 'binning'))
         par['calibrations']['wavelengths']['fwhm'] = 6.0 / binning[1]
 
         # Return
@@ -299,6 +265,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         # Extras for config and frametyping
         meta['hatch'] = dict(ext=0, card='HATCHPOS')
         meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
+        # Image type
+        meta['idname'] = dict(ext=0, card='OBSTYPE')
         # Lamps
         meta['lampstat01'] = dict(ext=0, card='LAMPS')
 
@@ -326,7 +294,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             elif headarr[0]['GRATEPOS'] == 4:
                 return headarr[0]['G4TLTWAV']
             else:
-                debugger.set_trace()
+                msgs.warn('This is probably a problem. Non-standard DEIMOS GRATEPOS={0}.'.format(headarr[0]['GRATEPOS']))
         else:
             msgs.error("Not ready for this compound meta")
 
@@ -351,17 +319,18 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         good_exp = framematch.check_frame_exptime(fitstbl['exptime'], exprng)
         if ftype == 'science':
+            #return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'open')
         if ftype == 'bias':
             return good_exp & (fitstbl['lampstat01'] == 'Off') & (fitstbl['hatch'] == 'closed')
-        if ftype in ['pixelflat', 'trace']:
+        if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            return good_exp & (fitstbl['lampstat01'] == 'Qz') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'IntFlat') & (fitstbl['hatch'] == 'closed')
         if ftype in ['pinhole', 'dark']:
             # Don't type pinhole or dark frames
             return np.zeros(len(fitstbl), dtype=bool)
         if ftype in ['arc', 'tilt']:
-            return good_exp & (fitstbl['lampstat01'] == 'Kr Xe Ar Ne') & (fitstbl['hatch'] == 'closed')
+            return good_exp & (fitstbl['idname'] == 'Line') & (fitstbl['hatch'] == 'closed')
 
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
@@ -392,123 +361,162 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                  'standard': None,
                  'trace': 'IntFlat' }
         return name[ftype]
-  
-    def load_raw_frame(self, raw_file, det=None):
+
+    def get_rawimage(self, raw_file, det):
         """
-        Wrapper to the raw image reader for DEIMOS
+        Read a raw DEIMOS data frame (one or more detectors).
 
-        Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
-            **null_kwargs:
-              Captured and never used
+        Data are unpacked from the multi-extension HDU.  Function is
+        based on :func:`pypeit.spectrographs.keck_lris.read_lris`, which
+        was based on the IDL procedure ``readmhdufits.pro``.
 
-        Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            head0: Header
+        Parameters
+        ----------
+        raw_file : str
+            Filename
+        det : int or None
+            if None, return all 8 detectors!
+
+        Returns
+        -------
+        tuple
+            See :func:`pypeit.spectrograph.spectrograph.get_rawimage`
+
         """
-        raw_img, hdu, _ = read_deimos(raw_file, det=det)
+        # Check for file; allow for extra .gz, etc. suffix
+        fil = glob.glob(raw_file + '*')
+        if len(fil) != 1:
+            msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
+        # Read
+        try:
+            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
+        except AttributeError:
+            print("Reading DEIMOS file: {:s}".format(fil[0]))
 
-        return raw_img, hdu
+        hdu = fits.open(fil[0])
+        head0 = hdu[0].header
 
-    def get_image_section(self, inp=None, det=1, section='datasec'):
-        """
-        Return a string representation of a slice defining a section of
-        the detector image.
+        # Get post, pre-pix values
+        postpix = head0['POSTPIX']
+        detlsize = head0['DETLSIZE']
+        x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
 
-        Overwrites base class function to use :func:`read_deimos` to get
-        the image sections.
+        # Create final image
+        if det is None:
+            image = np.zeros((x_npix, y_npix + 4 * postpix))
+            rawdatasec_img = np.zeros_like(image, dtype=int)
+            oscansec_img = np.zeros_like(image, dtype=int)
 
-        .. todo ::
-            - It is really ineffiecient.  Can we parse
-              :func:`read_deimos` into something that can give you the
-              image section directly?
+        # get the x and y binning factors...
+        binning = head0['BINNING']
+        if binning != '1,1':
+            msgs.error("This binning for DEIMOS might not work.  But it might..")
 
-        This is done separately for the data section and the overscan
-        section in case one is defined as a header keyword and the other
-        is defined directly.
+        # DEIMOS detectors
+        nchip = 8
 
-        Args:
-            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
-                String providing the file name to read, or the relevant
-                header object.  Default is None, meaning that the
-                detector attribute must provide the image section
-                itself, not the header keyword.
-            det (:obj:`int`, optional):
-                1-indexed detector number.
-            section (:obj:`str`, optional):
-                The section to return.  Should be either 'datasec' or
-                'oscansec', according to the
-                :class:`pypeitpar.DetectorPar` keywords.
-
-        Returns:
-            tuple: Returns three objects: (1) A list of string
-            representations for the image sections, one string per
-            amplifier.  The sections are *always* returned in PypeIt
-            order: spectral then spatial.  (2) Boolean indicating if the
-            slices are one indexed.  (3) Boolean indicating if the
-            slices should include the last pixel.  The latter two are
-            always returned as True following the FITS convention.
-        """
-        # Read the file
-        if inp is None:
-            msgs.error('Must provide Keck DEIMOS file to get image section.')
-        elif not os.path.isfile(inp):
-            msgs.error('File {0} does not exist!'.format(inp))
-        _, _, secs = read_deimos(inp, det)
-        if section == 'datasec':
-            return secs[0], False, False
-        elif section == 'oscansec':
-            return secs[1], False, False
+        if det is None:
+            chips = range(nchip)
         else:
-            raise ValueError('Unrecognized keyword: {0}'.format(section))
-#
-#     def get_datasec_img(self, filename, det=1, force=True):
-#         """
-#         Create an image identifying the amplifier used to read each pixel.
-#
-#         Args:
-#             filename (str):
-#                 Name of the file from which to read the image size.
-#             det (:obj:`int`, optional):
-#                 Detector number (1-indexed)
-#             force (:obj:`bool`, optional):
-#                 Force the image to be remade
-#
-#         Returns:
-#             `numpy.ndarray`: Integer array identifying the amplifier
-#             used to read each pixel.
-#         """
-#         if self.datasec_img is None or force:
-#             # Check the detector is defined
-#             self._check_detector()
-#             # Get the image shape
-#             raw_naxis = self.get_raw_image_shape(filename, det=det)
-#
-#             # Binning is not required because read_deimos accounts for it
-# #            binning = self.get_meta_value(filename, 'binning')
-#
-#             data_sections, one_indexed, include_end, transpose \
-#                     = self.get_image_section(filename, det, section='datasec')
-#
-#             # Initialize the image (0 means no amplifier)
-#             self.datasec_img = np.zeros(raw_naxis, dtype=int)
-#             for i in range(self.detector[det-1]['numamplifiers']):
-#                 # Convert the data section from a string to a slice
-#                 datasec = parse.sec2slice(data_sections[i], one_indexed=one_indexed,
-#                                           include_end=include_end, require_dim=2,
-#                                           transpose=transpose) #, binning=binning)
-#                 # Assign the amplifier
-#                 self.datasec_img[datasec] = i+1
-#         return self.datasec_img
+            chips = [det - 1]  # Indexing starts at 0 here
+        # Loop
+        for tt in chips:
+            data, oscan = deimos_read_1chip(hdu, tt + 1)
 
-    # WARNING: Uses Spectrograph default get_image_shape.  If no file
-    # provided it will fail.  Provide a function like in keck_lris.py
-    # that forces a file to be provided?
+            # One detector??
+            if det is not None:
+                image = np.zeros((data.shape[0], data.shape[1] + oscan.shape[1]))
+                rawdatasec_img = np.zeros_like(image, dtype=int)
+                oscansec_img = np.zeros_like(image, dtype=int)
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+            # Indexing
+            x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
+
+            # Fill
+            image[y1:y2, x1:x2] = data
+            rawdatasec_img[y1:y2, x1:x2] = 1 # Amp
+            image[o_y1:o_y2, o_x1:o_x2] = oscan
+            oscansec_img[o_y1:o_y2, o_x1:o_x2] = 1 # Amp
+
+        # Return
+        exptime = hdu[self.meta['exptime']['ext']].header[self.meta['exptime']['card']]
+        return self.get_detector_par(hdu, det if det is not None else 1), \
+               image, hdu, exptime, rawdatasec_img, oscansec_img
+
+#    def load_raw_frame(self, raw_file, det=None):
+#        """
+#        Wrapper to the raw image reader for DEIMOS
+#
+#        Args:
+#            raw_file:  str, filename
+#            det: int, REQUIRED
+#              Desired detector
+#            **null_kwargs:
+#              Captured and never used
+#
+#        Returns:
+#            raw_img: ndarray
+#              Raw image;  likely unsigned int
+#            head0: Header
+#        """
+#        raw_img, hdu, _ = read_deimos(raw_file, det=det)
+#
+#        return raw_img, hdu
+
+#    def get_image_section(self, inp=None, det=1, section='datasec'):
+#        """
+#        Return a string representation of a slice defining a section of
+#        the detector image.
+#
+#        Overwrites base class function
+#
+#        Args:
+#            inp (:obj:`str`, `astropy.io.fits.Header`_, optional):
+#                String providing the file name to read, or the relevant
+#                header object.  Default is None, meaning that the
+#                detector attribute must provide the image section
+#                itself, not the header keyword.
+#            det (:obj:`int`, optional):
+#                1-indexed detector number.
+#            section (:obj:`str`, optional):
+#                The section to return.  Should be either 'datasec' or
+#                'oscansec', according to the
+#                :class:`pypeitpar.DetectorPar` keywords.
+#
+#        Returns:
+#            tuple: Returns three objects: (1) A list of string
+#            representations for the image sections, one string per
+#            amplifier.  The sections are *always* returned in PypeIt
+#            order: spectral then spatial.  (2) Boolean indicating if the
+#            slices are one indexed.  (3) Boolean indicating if the
+#            slices should include the last pixel.  The latter two are
+#            always returned as True following the FITS convention.
+#        """
+#        # Read the file
+#        if inp is None:
+#            msgs.error('Must provide Keck DEIMOS file or hdulist to get image section.')
+#        # Read em
+#        shape, datasec, oscansec, _ = deimos_image_sections(inp, det)
+#        if section == 'datasec':
+#            return datasec, False, False
+#        elif section == 'oscansec':
+#            return oscansec, False, False
+#        else:
+#            raise ValueError('Unrecognized keyword: {0}'.format(section))
+#
+#    def get_raw_image_shape(self, hdulist, det=None, **null_kwargs):
+#        """
+#        Overrides :class:`Spectrograph.get_image_shape` for LRIS images.
+#
+#        Must always provide a file.
+#        """
+#        # Do it
+#        self._check_detector()
+#        shape, datasec, oscansec, _ = deimos_image_sections(hdulist, det)
+#        self.naxis = shape
+#        return self.naxis
+
+    def bpm(self, filename, det, shape=None, msbias=None):
         """
         Override parent bpm function with BPM specific to DEIMOS.
 
@@ -518,6 +526,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -527,61 +536,102 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
           0 = ok; 1 = Mask
 
         """
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        if det == 1:
-            self.bpm_img[:,1052:1054] = 1
-        elif det == 2:
-            self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,376:381] = 1
-            self.bpm_img[:,489] = 1
-            self.bpm_img[:,1333:1335] = 1
-            self.bpm_img[:,2047] = 1
-        elif det == 3:
-            self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,221] = 1
-            self.bpm_img[:,260] = 1
-            self.bpm_img[:,366] = 1
-            self.bpm_img[:,816:819] = 1
-            self.bpm_img[:,851] = 1
-            self.bpm_img[:,940] = 1
-            self.bpm_img[:,1167] = 1
-            self.bpm_img[:,1280] = 1
-            self.bpm_img[:,1301:1303] = 1
-            self.bpm_img[:,1744:1747] = 1
-            self.bpm_img[:,-4:] = 1
-        elif det == 4:
-            self.bpm_img[:,0:4] = 1
-            self.bpm_img[:,47] = 1
-            self.bpm_img[:,744] = 1
-            self.bpm_img[:,790:792] = 1
-            self.bpm_img[:,997:999] = 1
-        elif det == 5:
-            self.bpm_img[:,25:27] = 1
-            self.bpm_img[:,128:130] = 1
-            self.bpm_img[:,1535:1539] = 1
-        elif det == 7:
-            self.bpm_img[:,426:428] = 1
-            self.bpm_img[:,676] = 1
-            self.bpm_img[:,1176:1178] = 1
-        elif det == 8:
-            self.bpm_img[:,440] = 1
-            self.bpm_img[:,509:513] = 1
-            self.bpm_img[:,806] = 1
-            self.bpm_img[:,931:934] = 1
+        bpm_img = self.empty_bpm(filename, det, shape=shape)
 
-        return self.bpm_img
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        if det == 1:
+            bpm_img[:,1052:1054] = 1
+        elif det == 2:
+            bpm_img[:,0:4] = 1
+            bpm_img[:,376:381] = 1
+            bpm_img[:,489] = 1
+            bpm_img[:,1333:1335] = 1
+            bpm_img[:,2047] = 1
+        elif det == 3:
+            bpm_img[:,0:4] = 1
+            bpm_img[:,221] = 1
+            bpm_img[:,260] = 1
+            bpm_img[:,366] = 1
+            bpm_img[:,816:819] = 1
+            bpm_img[:,851] = 1
+            bpm_img[:,940] = 1
+            bpm_img[:,1167] = 1
+            bpm_img[:,1280] = 1
+            bpm_img[:,1301:1303] = 1
+            bpm_img[:,1744:1747] = 1
+            bpm_img[:,-4:] = 1
+        elif det == 4:
+            bpm_img[:,0:4] = 1
+            bpm_img[:,47] = 1
+            bpm_img[:,744] = 1
+            bpm_img[:,790:792] = 1
+            bpm_img[:,997:999] = 1
+        elif det == 5:
+            bpm_img[:,25:27] = 1
+            bpm_img[:,128:130] = 1
+            bpm_img[:,1535:1539] = 1
+        elif det == 7:
+            bpm_img[:,426:428] = 1
+            bpm_img[:,676] = 1
+            bpm_img[:,1176:1178] = 1
+        elif det == 8:
+            bpm_img[:,440] = 1
+            bpm_img[:,509:513] = 1
+            bpm_img[:,806] = 1
+            bpm_img[:,931:934] = 1
+
+        return bpm_img
 
     def get_slitmask(self, filename):
+        """
+        Parse the slitmask data from a DEIMOS file into a
+        :class:`pypeit.spectrographs.slitmask.SlitMask` object.
+
+        Args:
+            filename (:obj:`str`):
+                Name of the file to read.
+        """
+        # Open the file
         hdu = fits.open(filename)
-        corners = np.array([hdu['BluSlits'].data['slitX1'],
-                            hdu['BluSlits'].data['slitY1'],
-                            hdu['BluSlits'].data['slitX2'],
-                            hdu['BluSlits'].data['slitY2'],
-                            hdu['BluSlits'].data['slitX3'],
-                            hdu['BluSlits'].data['slitY3'],
-                            hdu['BluSlits'].data['slitX4'],
-                            hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2)
-        self.slitmask = SlitMask(corners, slitid=hdu['BluSlits'].data['dSlitId'])
+
+        # Build the object data
+        #   - Find the index of the object IDs in the slit-object
+        #     mapping that match the object catalog
+        mapid = hdu['SlitObjMap'].data['ObjectID']
+        catid = hdu['ObjectCat'].data['ObjectID']
+        indx = index_of_x_eq_y(mapid, catid)
+        #   - Pull out the slit ID, object ID, and object coordinates
+        objects = np.array([hdu['SlitObjMap'].data['dSlitId'][indx].astype(float),
+                            catid.astype(float), hdu['ObjectCat'].data['RA_OBJ'],
+                            hdu['ObjectCat'].data['DEC_OBJ']]).T
+        #   - Only keep the objects that are in the slit-object mapping
+        objects = objects[mapid[indx] == catid]
+
+        # Match the slit IDs in DesiSlits to those in BluSlits
+        indx = index_of_x_eq_y(hdu['DesiSlits'].data['dSlitId'], hdu['BluSlits'].data['dSlitId'],
+                               strict=True)
+
+        # Instantiate the slit mask object and return it
+        self.slitmask = SlitMask(np.array([hdu['BluSlits'].data['slitX1'],
+                                           hdu['BluSlits'].data['slitY1'],
+                                           hdu['BluSlits'].data['slitX2'],
+                                           hdu['BluSlits'].data['slitY2'],
+                                           hdu['BluSlits'].data['slitX3'],
+                                           hdu['BluSlits'].data['slitY3'],
+                                           hdu['BluSlits'].data['slitX4'],
+                                           hdu['BluSlits'].data['slitY4']]).T.reshape(-1,4,2),
+                                 slitid=hdu['BluSlits'].data['dSlitId'],
+                                 align=hdu['DesiSlits'].data['slitTyp'][indx] == 'A',
+                                 science=hdu['DesiSlits'].data['slitTyp'][indx] == 'P',
+                                 onsky=np.array([hdu['DesiSlits'].data['slitRA'][indx],
+                                                 hdu['DesiSlits'].data['slitDec'][indx],
+                                                 hdu['DesiSlits'].data['slitLen'][indx],
+                                                 hdu['DesiSlits'].data['slitWid'][indx],
+                                                 hdu['DesiSlits'].data['slitLPA'][indx]]).T,
+                                 objects=objects)
         return self.slitmask
 
     def get_grating(self, filename):
@@ -897,100 +947,85 @@ class DEIMOSDetectorMap(DetectorMap):
         self.rot_matrix = np.array([cosa, -sina, sina, cosa]).T.reshape(self.nccd,2,2)
 
         # ccd_geom.pro has offsets by sys.CN_XERR, but these are all 0.
-   
 
-def read_deimos(raw_file, det=None):
-    """
-    Read a raw DEIMOS data frame (one or more detectors)
-    Packed in a multi-extension HDU
-    Based on pypeit.arlris.read_lris...
-       Based on readmhdufits.pro
-
-    Parameters
-    ----------
-    raw_file : str
-      Filename
-
-    Returns
-    -------
-    array : ndarray
-      Combined image
-    hdu: HDUList
-    sections : tuple
-      List of datasec, oscansec sections
-    """
-
-    # Check for file; allow for extra .gz, etc. suffix
-    fil = glob.glob(raw_file + '*')
-    if len(fil) != 1:
-        msgs.error('Found {0} files matching {1}'.format(len(fil), raw_file + '*'))
-    # Read
-    try:
-        msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
-    except AttributeError:
-        print("Reading DEIMOS file: {:s}".format(fil[0]))
-
-    hdu = fits.open(fil[0])
-    head0 = hdu[0].header
-
-    # Get post, pre-pix values
-    precol = head0['PRECOL']
-    postpix = head0['POSTPIX']
-    preline = head0['PRELINE']
-    postline = head0['POSTLINE']
-    detlsize = head0['DETLSIZE']
-    x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
-
-    # Create final image
-    if det is None:
-        image = np.zeros((x_npix,y_npix+4*postpix))
-
-    # Setup for datasec, oscansec
-    dsec = []
-    osec = []
-
-    # get the x and y binning factors...
-    binning = head0['BINNING']
-    if binning != '1,1':
-        msgs.error("This binning for DEIMOS might not work.  But it might..")
-
-    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
-
-    # DEIMOS detectors
-    nchip = 8
-
-
-    if det is None:
-        chips = range(nchip)
-    else:
-        chips = [det-1] # Indexing starts at 0 here
-    # Loop
-    for tt in chips:
-        data, oscan = deimos_read_1chip(hdu, tt+1)
-
-
-        #if n_elements(nobias) eq 0 then nobias = 0
-
-
-        # One detector??
-        if det is not None:
-            image = np.zeros((data.shape[0],data.shape[1]+oscan.shape[1]))
-
-        # Indexing
-        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
-
-        # Fill
-        image[y1:y2, x1:x2] = data
-        image[o_y1:o_y2, o_x1:o_x2] = oscan
-
-        # Sections
-        idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
-        iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
-        dsec.append(idsec)
-        osec.append(iosec)
-    # Return
-    return image, hdu, (dsec,osec)
-
+#def deimos_image_sections(inp, det):
+#    """
+#    Parse the image for the raw image shape and data sections
+#
+#    Args:
+#        inp (str or `astropy.io.fits.HDUList`_ object):
+#        det (int):
+#
+#    Returns:
+#        tuple:
+#            shape, dsec, osec, ext_items
+#            ext_items is a large tuple of bits and pieces for other methods
+#                ext_items = hdu, chips, postpix, image
+#    """
+#    # Check for file; allow for extra .gz, etc. suffix
+#    if isinstance(inp, str):
+#        fil = glob.glob(inp + '*')
+#        if len(fil) != 1:
+#            msgs.error('Found {0} files matching {1}'.format(len(fil), inp + '*'))
+#        # Read
+#        try:
+#            msgs.info("Reading DEIMOS file: {:s}".format(fil[0]))
+#        except AttributeError:
+#            print("Reading DEIMOS file: {:s}".format(fil[0]))
+#        # Open
+#        hdu = fits.open(fil[0])
+#    else:
+#        hdu = inp
+#    head0 = hdu[0].header
+#
+#    # Get post, pre-pix values
+#    precol = head0['PRECOL']
+#    postpix = head0['POSTPIX']
+#    preline = head0['PRELINE']
+#    postline = head0['POSTLINE']
+#    detlsize = head0['DETLSIZE']
+#    x0, x_npix, y0, y_npix = np.array(parse.load_sections(detlsize)).flatten()
+#
+#
+#    # Setup for datasec, oscansec
+#    dsec = []
+#    osec = []
+#
+#    # get the x and y binning factors...
+#    binning = head0['BINNING']
+#    if binning != '1,1':
+#        msgs.error("This binning for DEIMOS might not work.  But it might..")
+#
+#    xbin, ybin = [int(ibin) for ibin in binning.split(',')]
+#
+#    # DEIMOS detectors
+#    nchip = 8
+#    if det is None:
+#        chips = range(nchip)
+#    else:
+#        chips = [det-1] # Indexing starts at 0 here
+#
+#    for tt in chips:
+#        x1, x2, y1, y2, o_x1, o_x2, o_y1, o_y2 = indexing(tt, postpix, det=det)
+#        # Sections
+#        idsec = '[{:d}:{:d},{:d}:{:d}]'.format(y1, y2, x1, x2)
+#        iosec = '[{:d}:{:d},{:d}:{:d}]'.format(o_y1, o_y2, o_x1, o_x2)
+#        dsec.append(idsec)
+#        osec.append(iosec)
+#
+#    # Create final image (if the full image is requested)
+#    if det is None:
+#        image = np.zeros((x_npix,y_npix+4*postpix))
+#        shape = image.shape
+#    else:
+#        image = None
+#        head = hdu[chips[0]+1].header
+#        shape = (head['NAXIS2'], head['NAXIS1']-precol)  # We don't load up the precol
+#
+#    # Pack up a few items for use elsewhere
+#    ext_items = hdu, chips, postpix, image
+#    # Return
+#    return shape, dsec, osec, ext_items
 
 def indexing(itt, postpix, det=None):
     """
@@ -1034,15 +1069,13 @@ def indexing(itt, postpix, det=None):
 def deimos_read_1chip(hdu,chipno):
     """ Read one of the DEIMOS detectors
 
-    Parameters
-    ----------
-    hdu : HDUList
-    chipno : int
+    Args:
+        hdu (astropy.io.fits.HDUList):
+        chipno (int):
 
-    Returns
-    -------
-    data : ndarray
-    oscan : ndarray
+    Returns:
+        np.ndarray, np.ndarray:
+            data, oscan
     """
 
     # Extract datasec from header

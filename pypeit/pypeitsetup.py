@@ -1,5 +1,8 @@
 """
 Class for organizing PypeIt setup
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import inspect
@@ -15,7 +18,7 @@ from pypeit.par import PypeItPar
 from pypeit.par.util import parse_pypeit_file, make_pypeit_file
 from pypeit.spectrographs.util import load_spectrograph
 
-from pypeit import debugger
+from IPython import embed
 
 class PypeItSetup(object):
     """
@@ -70,7 +73,7 @@ class PypeItSetup(object):
         pypeit_file (:obj:`str`, optional):
             The name of the pypeit file used to instantiate the
             reduction.  This can be None, and will lead to default names
-            for output files (TODO: Give list).  Setting `pypeit_file`
+            for output files (TODO: Give list).  Setting :ref:`pypeit_file`
             here *only sets the name of the file*.  To instantiate a
             `PypitSetup` object directly from a pypeit file (i.e. by
             reading the file), use the :func:`from_pypeit_file` method;
@@ -129,7 +132,7 @@ class PypeItSetup(object):
             msgs.error('Must provide spectrograph name directly or using configuration lines.')
        
         # Instantiate the spectrograph
-        self.spectrograph = load_spectrograph(_spectrograph_name)
+        self.spectrograph = load_spectrograph(_spectrograph_name)#, ifile=file_list[0])
 
         # Get the spectrograph specific configuration to be merged with
         # the user modifications.
@@ -153,7 +156,7 @@ class PypeItSetup(object):
             filename (str):
                 Name of the pypeit file to read.  Pypit files have a
                 specific set of valid formats. A description can be
-                found `here`_ (include doc link).
+                found :ref:`pypeit_file`.
         
         Returns:
             :class:`PypeitSetup`: The instance of the class.
@@ -218,7 +221,7 @@ class PypeItSetup(object):
 
         Args:
             pypeit_file (str):
-              Name of PypeIt file
+              Name of PypeIt file to be generated
             root (str):
             spectrograph (str):
               Name of spectrograph
@@ -322,7 +325,7 @@ class PypeItSetup(object):
 
     def write_metadata(self, sort_dir=None, ofile=None):
         """
-        Write the :class:`astropy.table.Table` object in :attr:`fitstbl`
+        Write the `astropy.table.Table`_ object in :attr:`fitstbl`
         to a file.
 
         If an output file is provided, the file is used.  If that file
@@ -340,7 +343,7 @@ class PypeItSetup(object):
             sort_dir (:obj:`str`, optional):
                 The full root of the name for the metadata table
                 ('.lst') file.
-            ofile (:obj:`str, optional):
+            ofile (:obj:`str`, optional):
                 The name of the file to write.  See description above.
         """
         if ofile is None:
@@ -445,6 +448,7 @@ class PypeItSetup(object):
 
         else:
             # Write the calib file
+            # This is currently needed for QA
             calib_file = self.spectrograph.spectrograph + '.calib' \
                                 if pypeit_file is None or len(pypeit_file) == 0 \
                                 else pypeit_file.replace('.pypeit', '.calib')

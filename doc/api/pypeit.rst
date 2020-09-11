@@ -5,28 +5,34 @@ Subpackages
 -----------
 
 .. toctree::
+   :maxdepth: 4
 
-    pypeit.core
-    pypeit.images
-    pypeit.par
-    pypeit.scripts
-    pypeit.spectrographs
-    pypeit.tests
+   pypeit.bspline
+   pypeit.core
+   pypeit.display
+   pypeit.images
+   pypeit.par
+   pypeit.spectrographs
 
 Submodules
 ----------
 
 .. toctree::
+   :maxdepth: 4
 
-   pypeit.arcimage
+   pypeit.alignframe
    pypeit.biasframe
    pypeit.bitmask
    pypeit.calibrations
    pypeit.check_requirements
-   pypeit.debugger
+   pypeit.coadd1d
+   pypeit.coadd2d
+   pypeit.compiler_version
+   pypeit.datamodel
+   pypeit.defs
+   pypeit.edgetrace
    pypeit.flatfield
-   pypeit.fluxspec
-   pypeit.ginga
+   pypeit.fluxcalibrate
    pypeit.io
    pypeit.masterframe
    pypeit.metadata
@@ -34,14 +40,17 @@ Submodules
    pypeit.pypeitsetup
    pypeit.pypmsgs
    pypeit.reduce
+   pypeit.sampling
+   pypeit.sensfunc
    pypeit.setup_package
+   pypeit.slittrace
+   pypeit.spec2dobj
+   pypeit.specobj
    pypeit.specobjs
    pypeit.telescopes
-   pypeit.traceimage
-   pypeit.traceslits
+   pypeit.tracepca
    pypeit.utils
    pypeit.wavecalib
-   pypeit.waveimage
    pypeit.wavemodel
    pypeit.wavetilts
 
@@ -49,6 +58,7 @@ Module contents
 ---------------
 
 .. automodule:: pypeit
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

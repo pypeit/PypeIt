@@ -2,6 +2,7 @@ pypeit.wavecalib module
 =======================
 
 .. automodule:: pypeit.wavecalib
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,4 +1,8 @@
 """ Module for basic utilties with holy grail
+
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import numpy as np
 import numba as nb
@@ -9,22 +13,90 @@ from scipy.signal import resample
 import scipy
 from scipy.optimize import curve_fit
 from pypeit import msgs
-
+from IPython import embed
 
 from pypeit.core import arc
-from pypeit import debugger
+
+
+def parse_param(par, key, slit):
+    # Find good lines for the tilts
+    param_in = par[key]
+    if isinstance(param_in, (float, int)):
+        param = param_in
+    elif isinstance(param_in, (list, np.ndarray)):
+        param = param_in[slit]
+    else:
+        raise ValueError('Invalid input for parameter {:s}'.format(key))
+
+    return param
+
+def get_sampling(waves, pix_per_R=3.0):
+    """
+    Computes the median wavelength sampling of wavelength vector(s)
+
+    Args:
+        waves (float ndarray): shape = (nspec,) or (nspec, nimgs)
+            Array of wavelengths. Can be one or two dimensional where
+            the nimgs dimension can represent the orders, exposures, or
+            slits
+        pix_per_R (float):  default=3.0
+            Number of pixels per resolution element used for the
+            resolution guess. The default of 3.0 assumes roughly Nyquist
+            smampling
+
+    Returns:
+        tuple: Returns dlam, dloglam, resln_guess, pix_per_sigma.
+        Computes the median wavelength sampling of the wavelength
+        vector(s)
+
+    """
+
+    if waves.ndim == 1:
+        norders = 1
+        nspec = waves.shape[0]
+        waves_stack = waves.reshape((nspec, norders))
+    elif waves.ndim == 2:
+        waves_stack = waves
+    elif waves.ndim == 3:
+        nspec, norder, nexp = waves.shape
+        waves_stack = np.reshape(waves, (nspec, norder * nexp), order='F')
+    else:
+        msgs.error('The shape of your wavelength array does not make sense.')
+
+    wave_mask = waves_stack > 1.0
+    waves_ma = np.ma.array(waves_stack, mask=np.invert(wave_mask))
+    loglam = np.ma.log10(waves_ma)
+    wave_diff = np.diff(waves_ma, axis=0)
+    loglam_diff = np.diff(loglam, axis=0)
+    dwave = np.ma.median(wave_diff)
+    dloglam = np.ma.median(loglam_diff)
+    #dloglam_ord = np.ma.median(loglam_roll, axis=0)
+    #dloglam = np.median(dloglam_ord)
+    resln_guess = 1.0 / (pix_per_R* dloglam * np.log(10.0))
+    pix_per_sigma = 1.0 / resln_guess / (dloglam * np.log(10.0)) / (2.0 * np.sqrt(2.0 * np.log(2)))
+    return dwave, dloglam, resln_guess, pix_per_sigma
+
 
 def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, cont_frac_fwhm=1.0,max_frac_fwhm=2.0,
                         cont_samp=30, niter_cont=3,nonlinear_counts=1e10, debug=False):
     """
-    Parameters
-    ----------
-    spec
-    siglev
-    min_ampl
+    Simple wrapper to arc.detect_lines.
+    See that code for docs
 
-    Returns
-    -------
+    Args:
+        spec:
+        sigdetect:
+        fwhm:
+        fit_frac_fwhm:
+        cont_frac_fwhm:
+        max_frac_fwhm:
+        cont_samp:
+        niter_cont:
+        nonlinear_counts:
+        debug:
+
+    Returns:
+        tuple: all_tcent, all_ecent, cut_tcent, icut, arc_cont_sub. See arc.detect_lines
 
     """
 
@@ -55,23 +127,26 @@ def arc_lines_from_spec(spec, sigdetect=10.0, fwhm=4.0,fit_frac_fwhm = 1.25, con
 
 def shift_and_stretch(spec, shift, stretch):
 
-    """ Utility function to shift and stretch a spectrum. This operation is being implemented in many steps and
-    could be significantly optimized. But it works for now. Note that the stretch is applied *first* and then the
-    shift is applied in stretch coordinates.
+    """
+    Utility function to shift and stretch a spectrum. This operation is
+    being implemented in many steps and could be significantly
+    optimized. But it works for now. Note that the stretch is applied
+    *first* and then the shift is applied in stretch coordinates.
 
     Parameters
     ----------
     spec : ndarray
-      spectrum to be shited and stretch
+        spectrum to be shited and stretch
     shift: float
-      shift to be applied
+        shift to be applied
     stretch: float
-      stretch to be applied
+        stretch to be applied
 
     Returns
     -------
     spec_out: ndarray
-      shifted and stretch spectrum. Regions where there is no information are set to zero.
+        shifted and stretch spectrum. Regions where there is no information are set to zero.
+
     """
 
     # Positive value of shift means features shift to larger pixel values
@@ -93,24 +168,29 @@ def shift_and_stretch(spec, shift, stretch):
 
 def zerolag_shift_stretch(theta, y1, y2):
 
-    """ Utility function which is run by the differential evolution optimizer in scipy. These is the fucntion we optimize.
-    It is the zero lag cross-correlation coefficient of spectrum with a shift and stretch applied.
+    """
+    Utility function which is run by the differential evolution
+    optimizer in scipy. These is the fucntion we optimize.  It is the
+    zero lag cross-correlation coefficient of spectrum with a shift and
+    stretch applied.
 
-     Parameters
-     ----------
-     theta: ndarray
-       Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
-     y1: ndarray, shape = (nspec,)
-       First spectrum which acts as the refrence
-     y2: ndarray,  shape = (nspec,)
-       Second spectrum which will be transformed by a shift and stretch to match y1
+    Parameters
+    ----------
+    theta: ndarray
+        Function parameters to optmize over. theta[0] = shift, theta[1] = stretch
+    y1: ndarray, shape = (nspec,)
+        First spectrum which acts as the refrence
+    y2: ndarray,  shape = (nspec,)
+        Second spectrum which will be transformed by a shift and stretch to match y1
 
-     Returns
-     -------
-     corr_norm: float
-       Negative of the zero lag cross-correlation coefficient (since we are miniziming with scipy.optimize). scipy.optimize will
-       thus determine the shift,stretch that maximize the cross-correlation.
-     """
+    Returns
+    -------
+    corr_norm: float
+        Negative of the zero lag cross-correlation coefficient (since we
+        are miniziming with scipy.optimize). scipy.optimize will thus
+        determine the shift,stretch that maximize the cross-correlation.
+
+    """
 
 
     shift, stretch = theta
@@ -136,7 +216,7 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
         ampl = tampl1_cont
         use_arc = arc1
 
-    if percent_ceil is not None:
+    if percent_ceil is not None and (ampl.size > 0):
         # If this is set, set a ceiling on the greater > 10sigma peaks
         ceil1 = np.percentile(ampl, percent_ceil)
         spec1 = np.fmin(use_arc, ceil1)
@@ -154,37 +234,40 @@ def smooth_ceil_cont(inspec1, smooth, percent_ceil = None, use_raw_arc=False,sig
 
 # ToDO can we speed this code up? I've heard numpy.correlate is faster. Someone should investigate optimization. Also we don't need to compute
 # all these lags.
-def xcorr_shift(inspec1,inspec2,smooth=1.0,percent_ceil=80.0, use_raw_arc=False, sigdetect = 10.0, fwhm = 4.0, debug=False):
+def xcorr_shift(inspec1,inspec2, smooth=1.0, percent_ceil=80.0, use_raw_arc=False, sigdetect=10.0, fwhm=4.0, debug=False):
 
     """ Determine the shift inspec2 relative to inspec1.  This routine computes the shift by finding the maximum of the
     the cross-correlation coefficient. The convention for the shift is that positive shift means inspec2 is shifted to the right
     (higher pixel values) relative to inspec1.
 
-    Parameters
-    ----------
-    inspec1 : ndarray
-      Reference spectrum
-    inspec2 : ndarray
-      Spectrum for which the shift and stretch are computed such that it will match inspec1
+    Args:
+        inspec1 : ndarray
+            Reference spectrum
+        inspec2 : ndarray
+            Spectrum for which the shift and stretch are computed such
+            that it will match inspec1
+        smooth: float, default=1.0
+            Gaussian smoothing in pixels applied to both spectra for the
+            computations. Default is 5.0
+        percent_ceil: float, default=90.0
+            Apply a ceiling to the input spectra at the percent_ceil
+            percentile level of the distribution of peak amplitudes.
+            This prevents extremely strong lines from completely
+            dominating the cross-correlation, which can causes the
+            cross-correlation to have spurious noise spikes that are not
+            the real maximum.
+        use_raw_arc: bool, default = False
+            If this parameter is True the raw arc will be used rather
+            than the continuum subtracted arc
+        debug: boolean, default = False
 
-    Optional Parameters
-    -------------------
-    smooth: float, default
-      Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
-    percent_ceil: float, default=90.0
-      Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
-      This prevents extremely strong lines from completely dominating the cross-correlation, which can
-      causes the cross-correlation to have spurious noise spikes that are not the real maximum.
-    use_raw_arc: bool, default = False
-      If this parameter is True the raw arc will be used rather than the continuum subtracted arc
-    debug: boolean, default = False
+    Returns:
+       tuple: Returns the following:
 
-    Returns
-    -------
-    shift: float
-      the shift which was determined
-    cross_corr: float
-      the maximum of the cross-correlation coefficient at this shift
+            - shift: float; the shift which was determined
+            - cross_corr: float; the maximum of the cross-correlation
+              coefficient at this shift
+
     """
 
     y1 = smooth_ceil_cont(inspec1,smooth,percent_ceil=percent_ceil,use_raw_arc=use_raw_arc, sigdetect = sigdetect, fwhm = fwhm)
@@ -225,61 +308,84 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
     Parameters
     ----------
     inspec1 : ndarray
-      Reference spectrum
+        Reference spectrum
     inspec2 : ndarray
-      Spectrum for which the shift and stretch are computed such that it will match inspec1
-
-    Optional Parameters
-    -------------------
+        Spectrum for which the shift and stretch are computed such that it will match inspec1
     cc_thresh: float, default = -1.0
-      A number in the range [-1.0,1.0] which is the threshold on the initial cross-correlation coefficient for the shift/stretch.
-      If the value of the initial cross-correlation is < cc_thresh the code will just exit and return this value and the best shift.
-      This is desirable behavior since the shif/stretch optimization is slow and this allows one to test how correlated the spectra are
-      before attempting it, since there is little value in that expensive computation for spectra with little overlap. The default cc_thresh =-1.0
-      means shift/stretch is always attempted since the cross correlation coeficcient cannot be less than -1.0.
+        A number in the range [-1.0,1.0] which is the threshold on the
+        initial cross-correlation coefficient for the shift/stretch.  If
+        the value of the initial cross-correlation is < cc_thresh the
+        code will just exit and return this value and the best shift.
+        This is desirable behavior since the shif/stretch optimization
+        is slow and this allows one to test how correlated the spectra
+        are before attempting it, since there is little value in that
+        expensive computation for spectra with little overlap. The
+        default cc_thresh =-1.0 means shift/stretch is always attempted
+        since the cross correlation coeficcient cannot be less than
+        -1.0.
     smooth: float, default
-      Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
+        Gaussian smoothing in pixels applied to both spectra for the computations. Default is 5.0
     percent_ceil: float, default=90.0
-      Appply a ceiling to the input spectra at the percent_ceil percentile level of the distribution of peak amplitudes.
-      This prevents extremely strong lines from completely dominating the cross-correlation, which can
-      causes the cross-correlation to have spurious noise spikes that are not the real maximum.
+        Apply a ceiling to the input spectra at the percent_ceil
+        percentile level of the distribution of peak amplitudes.  This
+        prevents extremely strong lines from completely dominating the
+        cross-correlation, which can causes the cross-correlation to
+        have spurious noise spikes that are not the real maximum.
     use_raw_arc: bool, default = False
-      If this parameter is True the raw arc will be used rather than the continuum subtracted arc
+        If this parameter is True the raw arc will be used rather than the continuum subtracted arc
     shift_mnmx: tuple of floats, default = (-0.05,0.05)
-      Range to search for the shift in the optimization about the initial cross-correlation based estimate of the shift.
-      The optimization will search the window (shift_cc + nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]) where nspec
-      is the number of pixels in the spectrum
+        Range to search for the shift in the optimization about the
+        initial cross-correlation based estimate of the shift.  The
+        optimization will search the window (shift_cc +
+        nspec*shift_mnmx[0],shift_cc + nspec*shift_mnmx[1]) where nspec
+        is the number of pixels in the spectrum
     stretch_mnmx: tuple of floats, default = (0.97,1.03)
-      Range to search for the stretch in the optimization. The code may not work well if this range is significantly expanded
-      because the linear approximation used to transform the arc starts to break down.
+        Range to search for the stretch in the optimization. The code
+        may not work well if this range is significantly expanded
+        because the linear approximation used to transform the arc
+        starts to break down.
     seed: int or np.random.RandomState, optional, default = None
-       Seed for scipy.optimize.differential_evolution optimizer. If not specified, the calculation will not be repeatable
+        Seed for scipy.optimize.differential_evolution optimizer. If not
+        specified, the calculation will not be repeatable
     debug = False
        Show plots to the screen useful for debugging.
 
     Returns
     -------
     success: int
-      A flag indicating the exist status.
-          success  = 1, shift and stretch performed via sucessful optimization
-          success  = 0, shift and stretch optimization failed
-          success  = -1, initial x-correlation is below cc_thresh (see above), so shift/stretch optimization was not attempted
+        A flag indicating the exist status.  Values are:
+
+          - success = 1, shift and stretch performed via sucessful
+            optimization
+          - success = 0, shift and stretch optimization failed
+          - success = -1, initial x-correlation is below cc_thresh (see
+            above), so shift/stretch optimization was not attempted
+
     shift: float
-      the optimal shift which was determined.
-      If cc_thresh is set, and the initial cross-correlation is < cc_thresh,  then this will be just the cross-correlation shift
+        the optimal shift which was determined.  If cc_thresh is set,
+        and the initial cross-correlation is < cc_thresh,  then this
+        will be just the cross-correlation shift
     stretch: float
-      the optimal stretch which was determined.
-      If cc_thresh is set, and the initial cross-correlation is < cc_thresh,  then this will be just be 1.0
+        the optimal stretch which was determined.  If cc_thresh is set,
+        and the initial cross-correlation is < cc_thresh,  then this
+        will be just be 1.0
     cross_corr: float
-      the value of the cross-correlation coefficient at the optimal shift and stretch. This is a number between zero and unity,
-      which unity indicating a perfect match between the two spectra.
-      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the initial cross-correlation
+        the value of the cross-correlation coefficient at the optimal
+        shift and stretch. This is a number between zero and unity,
+        which unity indicating a perfect match between the two spectra.
+        If cc_thresh is set, and the initial cross-correlation is <
+        cc_thresh, this will be just the initial cross-correlation
     shift_init:
-      The initial shift determined by maximizing the cross-correlation coefficient without allowing for a stretch.
-      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the shift from the initial cross-correlation
+        The initial shift determined by maximizing the cross-correlation
+        coefficient without allowing for a stretch.  If cc_thresh is
+        set, and the initial cross-correlation is < cc_thresh, this will
+        be just the shift from the initial cross-correlation
     cross_corr_init:
-      The maximum of the initial cross-correlation coefficient determined without allowing for a stretch.
-      If cc_thresh is set, and the initial cross-correlation is < cc_thresh, this will be just the initial cross-correlation
+        The maximum of the initial cross-correlation coefficient
+        determined without allowing for a stretch.  If cc_thresh is set,
+        and the initial cross-correlation is < cc_thresh, this will be
+        just the initial cross-correlation
+
     """
 
     nspec = inspec1.size
@@ -323,8 +429,8 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
             x1 = np.arange(nspec)
             y2_trans = shift_and_stretch(y2, shift_out, stretch_out)
             plt.figure(figsize=(14, 6))
-            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1')
-            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, shift & stretch')
+            plt.plot(x1,y1, 'k-', drawstyle='steps', label ='inspec1, input spectrum')
+            plt.plot(x1,y2_trans, 'r-', drawstyle='steps', label = 'inspec2, reference shift & stretch')
             plt.title('shift= {:5.3f}'.format(shift_out) +
                       ',  stretch = {:7.5f}'.format(stretch_out) + ', corr = {:5.3f}'.format(corr_out))
             plt.legend()
@@ -336,7 +442,9 @@ def xcorr_shift_stretch(inspec1, inspec2, cc_thresh=-1.0, smooth=1.0, percent_ce
 
 @nb.jit(nopython=True, cache=True)
 def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=False):
-    """ Generates a flexible 2D histogram of central wavelength and
+    """
+
+    Generates a flexible 2D histogram of central wavelength and
     dispersion, where the wavelength grid spacing depends on the
     dispersion, so that each wavelength bin width roughly corresponds
     to the sample dispersion, scaled by a factor.
@@ -344,24 +452,24 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Fal
     Parameters
     ----------
     waves : ndarray
-      array of central wavelengths (A). Must be the same size as disps.
+        array of central wavelengths (A). Must be the same size as disps.
     disps : ndarray
-      logarithmic array of dispersions (A/pix). Must be the same size as waves.
+        logarithmic array of dispersions (A/pix). Must be the same size as waves.
     dispbin : ndarray
-      bin widths for the dispersion dimension
+        bin widths for the dispersion dimension
     wavebin : two-element list
-      minimum and maximum wavelength of the histogram bins
+        minimum and maximum wavelength of the histogram bins
     scale : float
-      Scale the sampling of the wavelength bin (see description above). Must be >= 1.0
+        Scale the sampling of the wavelength bin (see description above). Must be >= 1.0
 
     Returns
     -------
     hist_wd : ndarray
-      An array of bin counts
+        An array of bin counts
     cent_w : ndarray
-      The value of the wavelength at the centre of each bin
+        The value of the wavelength at the centre of each bin
     cent_d : ndarray
-      The value of the dispersion at the centre of each bin
+        The value of the dispersion at the centre of each bin
     """
     if dispbin is None:
         dispbin = np.linspace(-3.0, 1.0, 1000)
@@ -418,26 +526,37 @@ def hist_wavedisp(waves, disps, dispbin=None, wavebin=None, scale=1.0, debug=Fal
     return hist_wd, cent_w, cent_d
 
 
-def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0):
+def wavegrid(wave_min, wave_max, dwave, samp_fact=1.0, log10=False):
     """
+
     Utility routine to generate a uniform grid of wavelengths
+
     Args:
-        wave_min: float
-           Mininum wavelength. Can be in linear or log.
-        wave_max: float
-           Maximum wavelength. Can be in linear or log.
-        dwave: float
-           Delta wavelength interval
-        samp_fact: float
-           sampling factor to make the wavelength grid finer or coarser.  samp_fact > 1.0 oversamples (finer),
-           samp_fact < 1.0 undersamples (coarser)
+        wave_min (float):
+           Mininum wavelength. Must be linear even if log10 is requested
+        wave_max (float):
+           Maximum wavelength. Must be linear even if log10 is requested.
+        dwave (float):
+           Delta wavelength interval. Must be linear if log10=False, or log10 if log10=True
+        samp_fact (float):
+           sampling factor to make the wavelength grid finer or coarser.
+           samp_fact > 1.0 oversamples (finer), samp_fact < 1.0
+           undersamples (coarser)
 
     Returns:
-        wave_grid: float ndarray
-           Wavelength grid
+        `numpy.ndarray`_: Wavelength grid in Angstroms (i.e. log10 even
+        if log10 is requested)
+
     """
 
     dwave_eff = dwave/samp_fact
-    ngrid = int(np.ceil((wave_max - wave_min)/dwave_eff))
-    wave_grid = wave_min + dwave_eff*np.arange(int(np.ceil(ngrid)))
+    if log10:
+        ngrid = np.ceil((np.log10(wave_max) - np.log10(wave_min))/dwave_eff).astype(int)
+        loglam_grid = np.log10(wave_min) + dwave_eff*np.arange(ngrid)
+        return np.power(10.0,loglam_grid)
+    else:
+        ngrid = np.ceil((wave_max - wave_min)/dwave_eff).astype(int)
+        return wave_min + dwave_eff*np.arange(ngrid)
+
     return wave_grid
+

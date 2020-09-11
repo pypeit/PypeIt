@@ -8,10 +8,14 @@ import pytest
 import glob
 import numpy as np
 
-from pypeit.tests.tstutils import dev_suite_required
+from pypeit.tests.tstutils import dev_suite_required, cooked_required
 from pypeit.tests.tstutils import load_kast_blue_masters
 from pypeit.spectrographs.util import load_spectrograph
-from pypeit.images import scienceimage
+from pypeit.images import buildimage
+from pypeit.images import rawimage
+from pypeit.images import pypeitimage
+from pypeit.core import procimg
+from pypeit import flatfield
 
 
 def data_path(filename):
@@ -23,67 +27,66 @@ kast_par = kast_blue.default_pypeit_par()
 keck_nires = load_spectrograph('keck_nires')
 nires_par = keck_nires.default_pypeit_par()
 
+
 @pytest.fixture
 @dev_suite_required
 def shane_kast_blue_sci_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Shane_Kast_blue', '600_4310_d55', ifile)
-            for ifile in ['b27.fits.gz', 'b28.fits.gz']]
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'shane_kast_blue', '600_4310_d55',
+                         ifile) for ifile in ['b27.fits.gz', 'b28.fits.gz']]
 
 @pytest.fixture
 @dev_suite_required
 def nires_sci_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES', ifile)
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_nires', 'NIRES', ifile)
             for ifile in ['s180604_0089.fits.gz', 's180604_0092.fits.gz']]
 
 @pytest.fixture
 @dev_suite_required
 def nires_bg_files():
-    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Keck_NIRES', 'NIRES', ifile)
+    return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_nires', 'NIRES', ifile)
             for ifile in ['s180604_0090.fits.gz', 's180604_0091.fits.gz']]
 
 
-def test_standard_instantiate():
-    """
-    Simple instantiate
-    """
-    # Empty
-    bpm = np.zeros((100,100))
-    sciImg = scienceimage.ScienceImage(kast_blue, [], kast_par['scienceframe']['process'], bpm)
-    assert sciImg.nfiles == 0
-
-
-@dev_suite_required
+@cooked_required
 def test_instantiate_from_one(shane_kast_blue_sci_files):
     """
     Run on a single science frame
     """
-    # Load calibrations
-    tslits_dict, mstrace, tilts_dict, pixelflat = load_kast_blue_masters(
-        tslits=True, tilts=True, pixflat=True)
-    bpm = kast_blue.empty_bpm(shape=pixelflat.shape)
-    # Do it
+    #
     det = 1
-    sciImg = scienceimage.ScienceImage.from_single_file(kast_blue, det, kast_par['scienceframe']['process'],
-                                            bpm, shane_kast_blue_sci_files[0], None, pixelflat)
-    # Test
-    assert sciImg.nfiles == 1
+    # Load calibrations
+    pixelflat = load_kast_blue_masters(pixflat=True)[0]
+    bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
+    # Process steps -- Set in PypeItPar
+    frame_par = kast_par['scienceframe']
+    frame_par['process']['use_illumflat'] = False
+    frame_par['process']['use_biasimage'] = False
+    # Load
+    rawImage = rawimage.RawImage(shane_kast_blue_sci_files[0], kast_blue, det)
+    flatImages = flatfield.FlatImages(pixelflat_norm=pixelflat)
+    pypeItImage = rawImage.process(frame_par['process'], flatimages=flatImages)
 
 
-@dev_suite_required
+
+
+@cooked_required
 def test_from_list(shane_kast_blue_sci_files):
     """
     Run on two frames
     """
-    # Load calibrations
-    tslits_dict, mstrace, tilts_dict, pixelflat = load_kast_blue_masters(
-        tslits=True, tilts=True, pixflat=True)
-    bpm = kast_blue.empty_bpm(shape=pixelflat.shape)
-    # Do it
     det = 1
-    sciImg = scienceimage.ScienceImage.from_file_list(kast_blue, det, kast_par['scienceframe']['process'],
-                                                        bpm, shane_kast_blue_sci_files, None, pixelflat)
+    # Load calibrations
+    pixelflat = load_kast_blue_masters(pixflat=True)[0]
+    bpm = kast_blue.empty_bpm(shane_kast_blue_sci_files[0], det)
+    # Do it
+    flatImages = flatfield.FlatImages(pixelflat_norm=pixelflat)
+    kast_par['scienceframe']['process']['use_illumflat'] = False
+    kast_par['scienceframe']['process']['use_biasimage'] = False
+    sciImg = buildimage.buildimage_fromlist(kast_blue, det, kast_par['scienceframe'],
+                                            shane_kast_blue_sci_files, bpm=bpm,
+                                            bias=None, flatimages=flatImages)
     # Test
-    assert sciImg.nfiles == 2
+    assert isinstance(sciImg, pypeitimage.PypeItImage)
 
 
 @dev_suite_required
@@ -97,10 +100,15 @@ def test_proc_diff(nires_sci_files, nires_bg_files):
     pixelflat = np.ones_like(bpm)
 
     # Sci image
-    sciImg = scienceimage.ScienceImage.from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
-                                       nires_sci_files, None, pixelflat)
+    flatImages = flatfield.FlatImages(pixelflat_norm=pixelflat)
+    sciImg = buildimage.buildimage_fromlist(keck_nires, det, nires_par['scienceframe'],
+                                            nires_sci_files, bias=None, bpm=bpm,
+                                            flatimages=flatImages)
     # Bg image
-    bgImg = scienceimage.ScienceImage.from_file_list(keck_nires, det, nires_par['scienceframe']['process'], bpm,
-                                                      nires_bg_files, None, pixelflat)
+    bgImg = buildimage.buildimage_fromlist(keck_nires, det, nires_par['scienceframe'],
+                                           nires_bg_files, bias=None, bpm=bpm,
+                                           flatimages=flatImages)
     # Difference
-    sciImg = sciImg - bgImg
+    sciImg = sciImg.sub(bgImg, nires_par['scienceframe']['process'])
+    # Test
+    assert isinstance(sciImg, pypeitimage.PypeItImage)

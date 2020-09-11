@@ -7,12 +7,16 @@ Dynamically build the rst documentation of the pypeit parameters.
 import os
 import time
 import textwrap
+
+from IPython import embed
+
 import numpy
 
 from pkg_resources import resource_filename
 from pypeit.par import pypeitpar
 from pypeit.par.parset import ParSet
-from pypeit.spectrographs.util import load_spectrograph, valid_spectrographs
+from pypeit.spectrographs.util import load_spectrograph
+from pypeit.defs import pypeit_spectrographs
 
 #-----------------------------------------------------------------------------
 #def class_name(p):
@@ -41,7 +45,7 @@ def par_hierarchy(p, indent_level=0, key=''):
 #-----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    t = time.clock()
+    t = time.perf_counter()
 
     # Read the baseline file that is not changed and must be edited by
     # the person building the documentation as necessary.
@@ -53,11 +57,11 @@ if __name__ == '__main__':
 
     # Start to append the automatically generated documentation
     lines += ['Current PypeItPar Parameter Hierarchy']
-    lines += ['++++++++++++++++++++++++++++++++++++']
+    lines += ['+++++++++++++++++++++++++++++++++++++']
     lines += ['']
 
     p = pypeitpar.PypeItPar(flexure=pypeitpar.FlexurePar(),
-                            fluxcalib=pypeitpar.FluxCalibrationPar())
+                            fluxcalib=pypeitpar.FluxCalibratePar())
 
     lines += par_hierarchy(p)
     lines += ['']
@@ -78,10 +82,9 @@ if __name__ == '__main__':
                            ':class:`pypeit.spectrographs.spectrograph.Spectrograph` class.', 72)
     lines += ['']
 
-    spectrographs = valid_spectrographs()
-    for spec in spectrographs:
+    for spec in pypeit_spectrographs:
         s = load_spectrograph(spec)
-        lines += [ ' '.join([s.telescope['name'], s.camera]) ]
+        lines += [ ' '.join([s.telescope['name'], s.camera, '(``{0}``)'.format(s.spectrograph)]) ]
         lines += [ '-'*len(lines[-1]) ]
         lines += [ 'Alterations to the default parameters are::' ]
         lines += ['']
@@ -94,7 +97,7 @@ if __name__ == '__main__':
     with open(output_rst, 'w') as f:
         f.write('\n'.join(lines))
     
-    print('Elapsed time: {0} seconds'.format(time.clock() - t))
+    print('Elapsed time: {0} seconds'.format(time.perf_counter() - t))
 
 
 

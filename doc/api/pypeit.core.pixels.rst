@@ -2,6 +2,7 @@ pypeit.core.pixels module
 =========================
 
 .. automodule:: pypeit.core.pixels
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,52 +1,100 @@
 """
-Module to run tests on simple fitting routines for arrays
+Module to run tests on SpecObj
 """
 import numpy as np
 import sys
 import os
 import pytest
 
+
 #import pypeit
 
 from astropy.table import Table
+from astropy.io import fits
 
-from pypeit import specobjs
+from pypeit import specobj
 from pypeit import msgs
 
-#def data_path(filename):
-#    data_dir = os.path.join(os.path.dirname(__file__), 'files')
-#    return os.path.join(data_dir, filename)
-
-# def test_load_specobj -- See test_arload.py
-
-objnm1 = 'SPAT0968-SLIT0001-DET01-SCI023'
-objnm2 = 'SPAT0967-SLIT0001-DET01-SCI023'
-objnm3 = 'SPAT0965-SLIT0001-DET01-SCI028'
-
-def test_objnm_to_dict():
-    idict = specobjs.objnm_to_dict(objnm1)
-    assert 'SPAT' in idict.keys()
-    assert idict['SPAT'] == 968
-    assert 'SLIT' in idict.keys()
-    assert idict['SLIT'] == 1
-    assert 'DET' in idict.keys()
-    assert idict['DET'] == 1
-    assert 'SCI' in idict.keys()
-    assert idict['SCI'] == 23
-    # List
-    idict2 = specobjs.objnm_to_dict([objnm1,objnm2])
-    assert len(idict2['SPAT']) == 2
-    assert idict2['SPAT'] == [968, 967]
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
 
 
-def test_findobj():
-    objects = [objnm1, objnm2]
-    mtch_obj, indices = specobjs.mtch_obj_to_objects(objnm3, objects)
-    assert mtch_obj == objects
-    assert indices == [0,1]
-    # Now hit only 1
-    #mtch_obj2, _ = specobjs.mtch_obj_to_objects('O965-S5338-D01-I0028', objects)
-    #assert mtch_obj2[0] == 'O968-S5387-D01-I0026'
+def test_init():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    # Test
+    assert sobj.PYPELINE == 'MultiSlit'
+    assert sobj['PYPELINE'] == 'MultiSlit'
+    assert sobj.NAME == 'SPAT-----SLIT0000-DET01'
+
+def test_assignment():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    #
+    sobj.PYPELINE = 'Blah'
+    # Quick test on datamodel
+    with pytest.raises(TypeError):
+        sobj.PYPELINE = 2
+    #
+    sobj.SPAT_PIXPOS = 523.0
+    sobj.PYPELINE = 'MultiSlit'
+    sobj.set_name()
+    assert sobj.NAME == 'SPAT0523-SLIT0000-DET01'
 
 
+def test_hdu():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    #
+    sobj['BOX_WAVE'] = np.arange(100).astype(float)
+    sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
+    sobj['TRACE_SPAT'] = np.arange(100) * 2.
+    # Test
+    hdul = sobj.to_hdu()#force_dict_bintbl=True)
+    assert len(hdul) == 1  # Should be one BinTableHDU
+    assert isinstance(hdul[0], fits.hdu.table.BinTableHDU)
+    assert len(hdul[0].data) == 100
+    assert 'TRACE_SPAT' in hdul[0].data.dtype.names
+    assert 'SLITID' in hdul[0].header.keys()
+
+def test_io():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    # Can we handle 1 array?
+    sobj['BOX_WAVE'] = np.arange(100).astype(float)
+    ofile = data_path('tmp.fits')
+    sobj.to_file(ofile, overwrite=True)
+    _sobj = specobj.SpecObj.from_file(ofile)
+    assert np.array_equal(sobj.BOX_WAVE, _sobj.BOX_WAVE)
+
+    # Cleanup
+    os.remove(ofile)
+
+def test_iotwo():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    #
+    sobj['BOX_WAVE'] = np.arange(100).astype(float)
+    sobj['BOX_COUNTS'] = np.ones_like(sobj.BOX_WAVE)
+    sobj['TRACE_SPAT'] = np.arange(100) * 2.
+    sobj['BOX_MASK'] = np.arange(100).astype(bool)
+
+    # Write table
+    ofile = data_path('tmp.fits')
+    sobj.to_file(ofile, overwrite=True)
+    sobj2 = specobj.SpecObj.from_file(ofile)
+    #
+    assert isinstance(sobj2, specobj.SpecObj)
+    assert np.array_equal(sobj.BOX_WAVE, sobj2.BOX_WAVE)
+    assert sobj2.PYPELINE == 'MultiSlit'
+
+    # Cleanup
+    os.remove(ofile)
+
+def test_copy():
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    #
+    sobj['BOX_WAVE'] = np.arange(100).astype(float)
+    sobj.smash_nsig = 1.
+    # Copy
+    sobj2 = specobj.SpecObj.copy(sobj)
+    assert np.isclose(sobj2.smash_nsig, 1.)
+    # Check
+    assert np.array_equal(sobj.BOX_WAVE, sobj2.BOX_WAVE)
 

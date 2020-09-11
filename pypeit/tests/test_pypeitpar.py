@@ -29,27 +29,57 @@ def test_flatfield():
 def test_flexure():
     pypeitpar.FlexurePar()
 
-def test_fluxcalibration():
-    pypeitpar.FluxCalibrationPar()
+def test_coadd1d():
+    pypeitpar.Coadd1DPar()
+
+def test_coadd2d():
+    pypeitpar.Coadd2DPar()
+
+def test_cube():
+    pypeitpar.CubePar()
+
+def test_fluxcalibrate():
+    pypeitpar.FluxCalibratePar()
+
+def test_sensfunc():
+    pypeitpar.SensFuncPar()
+
+def test_sensfuncuvis():
+    pypeitpar.SensfuncUVISPar()
+
+def test_telluric():
+    pypeitpar.TelluricPar()
 
 def test_manualextraction():
     pypeitpar.ManualExtractionPar()
 
 def test_spectrographs():
-    s = pypeitpar.ReducePar.valid_spectrographs()
+    s = pypeitpar.ReduxPar.valid_spectrographs()
     assert 'keck_lris_blue' in s, 'Expected to find keck_lris_blue as a spectrograph!'
 
-def test_reduce():
-    pypeitpar.ReducePar()
+def test_redux():
+    pypeitpar.ReduxPar()
 
 def test_wavelengthsolution():
     pypeitpar.WavelengthSolutionPar()
 
-def test_traceslits():
-    pypeitpar.TraceSlitsPar()
+def test_edgetrace():
+    pypeitpar.EdgeTracePar()
 
 def test_wavetilts():
     pypeitpar.WaveTiltsPar()
+
+def test_reduce():
+    pypeitpar.ReducePar()
+
+def test_findobj():
+    pypeitpar.FindObjPar()
+
+def test_skysub():
+    pypeitpar.SkySubPar()
+
+def test_extraction():
+    pypeitpar.ExtractionPar()
 
 def test_calibrations():
     pypeitpar.CalibrationsPar()
@@ -104,11 +134,11 @@ def test_mergecfg():
 def test_sync():
     p = pypeitpar.PypeItPar()
     proc = pypeitpar.ProcessImagesPar()
-    proc['combine'] = 'mean'
+    proc['combine'] = 'median'
     proc['sigrej'] = 20.5
     p.sync_processing(proc)
-    assert p['scienceframe']['process']['combine'] == 'mean'
-    assert p['calibrations']['biasframe']['process']['combine'] == 'mean'
+    assert p['scienceframe']['process']['combine'] == 'median'
+    assert p['calibrations']['biasframe']['process']['combine'] == 'median'
     # Sigma rejection of cosmic rays for arc frames is already turned
     # off by default
     assert p['calibrations']['arcframe']['process']['sigrej'] < 0
@@ -125,21 +155,36 @@ def test_pypeit_file():
     # Get the spectrograph specific configuration
     spec_cfg = spectrograph.default_pypeit_par().to_config()
     # Initialize the PypeIt parameters merge in the user config
-    p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
+    _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=spec_cfg, merge_with=cfg)
     # Test everything was merged correctly
     # This is a PypeItPar default that's not changed
-    assert p['calibrations']['pinholeframe']['number'] == 0
+    #assert p['calibrations']['pinholeframe']['number'] == 0
     # These are spectrograph specific defaults
-    assert p['fluxcalib'] is not None
+    assert _p['fluxcalib'] is not None
     # These are user-level changes
-    assert p['calibrations']['arcframe']['number'] == 1
-    assert p['calibrations']['biasframe']['process']['sig_lohi'] == [10, 10]
-    assert p['calibrations']['traceframe']['process']['combine'] == 'mean'
-    assert p['scienceframe']['process']['n_lohi'] == [8, 8]
-
-def test_detector():
-    pypeitpar.DetectorPar()
+    assert _p['calibrations']['biasframe']['process']['sig_lohi'] == [10, 10]
+    assert _p['calibrations']['traceframe']['process']['combine'] == 'median'
+    assert _p['scienceframe']['process']['n_lohi'] == [8, 8]
+    assert _p['reduce']['extraction']['manual'] is not None  # Set this to what it should be eventually
 
 def test_telescope():
     pypeitpar.TelescopePar()
+
+def test_fail_badpar():
+    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+
+    # Faults because there's no junk parameter
+    cfg_lines = ['[calibrations]', '[[biasframe]]', '[[[process]]]', 'junk = True']
+    with pytest.raises(ValueError):
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=cfg_lines)
+    
+def test_fail_badlevel():
+    p = load_spectrograph('gemini_gnirs').default_pypeit_par()
+
+    # Faults because process isn't at the right level (i.e., there's no
+    # process parameter for CalibrationsPar)
+    cfg_lines = ['[calibrations]', '[[biasframe]]', '[[process]]', 'cr_reject = True']
+    with pytest.raises(ValueError):
+        _p = pypeitpar.PypeItPar.from_cfg_lines(cfg_lines=p.to_config(), merge_with=cfg_lines)
+
 

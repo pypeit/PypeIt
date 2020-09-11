@@ -15,10 +15,12 @@ from linetools import utils as ltu
 from pypeit import utils
 from pypeit.core.wave import airtovac
 from pypeit.core.wavecal import waveio
+from pypeit.core.wavecal import wvutils
 from pypeit.core.wavecal import autoid
-from pypeit.core.wavecal import fitting
+from pypeit.core.wavecal import wv_fitting
 
-from pypeit import debugger
+from astropy.io import fits
+from pypeit.spectrographs.util import load_spectrograph
 
 # Data Model
 # FITS table
@@ -26,43 +28,76 @@ from pypeit import debugger
 #  flux -- Arc spectrum flux values
 #
 # Meta must include BINNING of the template with 1=native
-template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
+if os.getenv('PYPEIT_DEV') is not None:
+    template_path = os.path.join(os.getenv('PYPEIT_DEV'), 'dev_algorithms/wavelengths/template_files/')
+else:
+    # print("You may wish to set the PYPEIT_DEV environment variable")
+    pass
 
-outpath=resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
+outpath = resource_filename('pypeit', 'data/arc_lines/reid_arxiv')
 
-def build_template(in_files, slits, wv_cuts, binspec, outroot,
-                   lowredux=True, ifiles=None, det_cut=None, chk=False):
+
+def build_template(in_files, slits, wv_cuts, binspec, outroot, outdir=None,
+                   normalize=False, subtract_conti=False, wvspec=None,
+                   lowredux=True, ifiles=None, det_cut=None, chk=False,
+                   miny=None, overwrite=True):
     """
     Generate a full_template for a given instrument
 
     Args:
         in_files (list or str):
-        slits:
-        wv_cuts:
-        binspec:
-        outroot:
-        lowredux:
-        ifiles:
-        det_cut:
-        chk:
-
-    Returns:
-
+            Wavelength solution files, XIDL or PypeIt
+        slits (list):
+            Slits in the archive files to use
+        wv_cuts (list):
+            Wavelengths to cut each slit at. The elements of the list
+            correspond to the wavelengths where two spectra are stitched together.
+        binspec (int):
+            Spectral binning of the archived spectrum
+        outroot (str):
+            Name of output archive
+        outdir (str):
+            Name of output directory
+        lowredux (bool, optional):
+            If true, in_files are from LowRedux
+        wvspec (ndarray, optional):
+            Manually input the wavelength values
+        ifiles (list, optional):
+            Ordering of the in_files.  Default is np.arange(len(in_files))
+        det_cut (dict, optional):
+            Cut the detector into pieces.  Important for long detectors with wavelengths on one side
+        chk (bool, optional):
+            Show a plot or two
+        miny (float):
+            Impose a minimum value
+        normalize (bool, optional):
+            If provided multiple in_files, normalize each
+            snippet to have the same maximum amplitude.
+        subtract_conti (bool, optional):
+            Subtract the continuum for the final archive
     """
+    if outdir is None:
+        outdir = outpath
+
+    if ifiles is None:
+        ifiles = np.arange(len(in_files))
     # Load xidl file
     # Grab it
     # Load and splice
     yvals = []
     lvals = []
-    if not isinstance(in_files,list):
+    if not isinstance(in_files, list):
         in_files = [in_files]
         ifiles = [0]*len(slits)
     for kk, slit in enumerate(slits):
-        in_file = in_files[ifiles[kk]]
-        if lowredux:
-            wv_vac, spec = xidl_arcspec(in_file, slit)
+        if wvspec is None:
+            in_file = in_files[ifiles[kk]]
+            if lowredux:
+                wv_vac, spec = xidl_arcspec(in_file, slit)
+            else:
+                wv_vac, spec = pypeit_arcspec(in_file, slit)
         else:
-            wv_vac, spec = pypeit_arcspec(in_file, slit)
+            wv_vac, spec = wvspec['wv_vac'], wvspec['spec']
         # Cut
         if len(slits) > 1:
             if kk == 0:
@@ -81,30 +116,118 @@ def build_template(in_files, slits, wv_cuts, binspec, outroot,
         # Append
         yvals.append(spec[gdi])
         lvals.append(wv_vac[gdi])
+    # Continuum
+    if subtract_conti:
+        for kk,spec in enumerate(yvals):
+            _, _, _, _, spec_cont_sub = wvutils.arc_lines_from_spec(spec)
+            yvals[kk] = spec_cont_sub
+    # Normalize?
+    if normalize:
+        norm_val = 10000.
+        # Max values
+        maxs = []
+        for kk,spec in enumerate(yvals):
+            mx = np.max(spec)
+            spec = spec * norm_val / mx
+            yvals[kk] = spec
     # Concatenate
     nwspec = np.concatenate(yvals)
     nwwv = np.concatenate(lvals)
+    # Min y?
+    if miny is not None:
+        nwspec = np.maximum(nwspec, miny)
     # Check
     if chk:
-        debugger.plot1d(nwwv, nwspec)
+#        debugger.plot1d(nwwv, nwspec)
+        embed(header='123')
     # Generate the table
-    write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=det_cut)
+    write_template(nwwv, nwspec, binspec, outdir, outroot, det_cut=det_cut, overwrite=overwrite)
 
 
 def pypeit_arcspec(in_file, slit):
+    """
+    Load up the arc spectrum from an input JSON file
+
+    Args:
+        in_file (str):
+        slit (int):
+            slit index
+
+    Returns:
+        np.ndarray, np.ndarray:  wave, flux
+
+    """
     wv_dict = ltu.loadjson(in_file)
     iwv_calib = wv_dict[str(slit)]
-    x = np.arange(iwv_calib['nspec'])
+    x = np.arange(len(iwv_calib['spec']))
     wv_vac = utils.func_val(iwv_calib['fitc'], x/iwv_calib['xnorm'], iwv_calib['function'],
                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
     # Return
-    return wv_vac, np.array(iwv_calib['spec'])
+    return wv_vac, np.array(iwv_calib['spec']).flatten()  # JXP added flatten on 2019-11-09
 
 
-def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
+def pypeit_identify_record(iwv_calib, binspec, specname, gratname, dispangl, outdir=None):
+    """From within PypeIt, generate a template file if the user manually identifies an arc spectrum
+
+    Parameters
+    ----------
+
+    iwv_calib : dict
+        Wavelength calibration returned by final_fit
+    binspec : int
+        Spectral binning
+    specname : str
+        Name of instrument
+    gratname : str
+        Name of grating
+    dispangl : str
+        Dispersion angle
+    outdir : str, None
+        Output directory
+    """
+    x = np.arange(len(iwv_calib['spec']))
+    wv_vac = utils.func_val(iwv_calib['fitc'], x / iwv_calib['xnorm'], iwv_calib['function'],
+                            minx=iwv_calib['fmin'], maxx=iwv_calib['fmax'])
+    wvspec = dict(wv_vac=wv_vac, spec=np.array(iwv_calib['spec']))
+    # Derive an output file
+    cntr = 1
+    extstr = ""
+    while True:
+        outroot = '{0:s}_{1:s}_{2:s}{3:s}.fits'.format(specname, gratname, dispangl, extstr)
+        if os.path.exists(os.path.join(outpath, outroot)):
+            extstr = "_{0:02d}".format(cntr)
+        else:
+            break
+        cntr += 1
+    slits = [0]
+    lcut = [3200.]
+    build_template("", slits, lcut, binspec, outroot, outdir=outdir, wvspec=wvspec, lowredux=False, overwrite=False)
+    # Return
+    return outroot
+
+
+def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None, order=None, overwrite=True):
+    """
+    TODO: Documentation needed
+    Args:
+        nwwv:
+        nwspec:
+        binspec:
+        outpath:
+        outroot:
+        det_cut:
+        order:
+        overwrite:
+
+    Returns:
+
+    """
     tbl = Table()
     tbl['wave'] = nwwv
     tbl['flux'] = nwspec
+    if order is not None:
+        tbl['order'] = order
+
     tbl.meta['BINSPEC'] = binspec
     # Detector snippets??
     if det_cut is not None:
@@ -115,7 +238,7 @@ def write_template(nwwv, nwspec, binspec, outpath, outroot, det_cut=None):
             tbl['det'][gdwv] += deti
     # Write
     outfile = os.path.join(outpath, outroot)
-    tbl.write(outfile, overwrite=True)
+    tbl.write(outfile, overwrite=overwrite)
     print("Wrote: {}".format(outfile))
 
 
@@ -302,6 +425,7 @@ def main(flg):
         build_template([wfile1,wfile2,wfile3], slits, lcut, binspec, outroot, lowredux=False,
                        ifiles=ifiles, det_cut=det_cut, chk=True)
 
+    # ###############################################3
     # Keck/LRISr
     if flg & (2**10): # R400
         binspec = 2
@@ -334,7 +458,20 @@ def main(flg):
         wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_5000', 'MasterWaveCalib_B_1_01.json')
         build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
 
-    if flg & (2**13):  # Magellan/MagE
+    if flg & (2**27):  # R600/7500
+        # slits = [1-10]  # 5000 -- 7840
+        # slits = [1-4]  # 7840 -- 9230
+        binspec = 2
+        outroot='keck_lris_red_600_7500.fits'
+        slits = [10, 4]
+        lcut = [7840.]
+        wfile = os.path.join(template_path, 'Keck_LRIS', 'R600_7500', 'MasterWaveCalib_I_1_01.json')
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
+                       chk=True, normalize=True, subtract_conti=True)
+
+    # ##################################
+    # Magellan/MagE
+    if flg & (2**13):
         # Load
         mase_path = os.path.join(os.getenv('XIDL_DIR'), 'Magellan', 'MAGE', 'mase', 'Calib')
         sav_file = os.path.join(mase_path, 'MagE_wvguess_jfh.idl')
@@ -376,7 +513,7 @@ def main(flg):
             # Reidentify
             detections, spec_cont_sub, patt_dict = autoid.reidentify(fx, fx, wv, llist, 1)
             # Fit
-            final_fit = fitting.fit_slit(fx, patt_dict, detections, llist)
+            final_fit = wv_fitting.fit_slit(fx, patt_dict, detections, llist)
             # Output
             outfile=os.path.join(outpath, 'MagE_order{:2d}_IDs.pdf'.format(order))
             autoid.arc_fit_qa(final_fit, outfile=outfile, ids_only=True)
@@ -486,11 +623,231 @@ def main(flg):
         tbl.write(outfile, overwrite=True)
         print("Wrote: {}".format(outfile))
 
+    # ##############################
+    if flg & (2**20):  # GMOS R400 Hamamatsu
+        binspec = 2
+        outroot='gemini_gmos_r400_ham.fits'
+        #
+        ifiles = [0, 1, 2, 3, 4]
+        slits = [0, 2, 3, 0, 0]  # Be careful with the order..
+        lcut = [5400., 6620., 8100., 9000.]
+        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_01_aa.json')
+        wfile5 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_05_aa.json') # 5190 -- 6679
+        #wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_02_aa.json')
+        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_04_aa.json')
+        wfile4 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_03_aa.json')
+        wfile6 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_06_aa.json')
+        #
+        build_template([wfile1,wfile5,wfile3,wfile4, wfile6], slits, lcut, binspec,
+                       outroot, lowredux=False, ifiles=ifiles, chk=True,
+                       normalize=True, subtract_conti=True)
+
+
+    # ##############################
+    if flg & (2**21):  # GMOS R400 E2V
+        binspec = 2
+        outroot='gemini_gmos_r400_e2v.fits'
+        #
+        ifiles = [0, 1, 2]
+        slits = [0, 0, 0]
+        lcut = [6000., 7450]
+        wfile1 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_01.json')
+        wfile2 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_02.json')
+        wfile3 = os.path.join(template_path, 'GMOS', 'R400', 'MasterWaveCalib_A_1_03.json')
+        #
+        build_template([wfile1,wfile2,wfile3], slits, lcut, binspec,
+                       outroot, lowredux=False, ifiles=ifiles, chk=True,
+                       normalize=True)
+
+    # ##############################
+    if flg & (2**22):  # GMOS R400 Hamamatsu
+        binspec = 2
+        outroot='gemini_gmos_b600_ham.fits'
+        #
+        ifiles = [0, 1, 2, 3, 4]
+        slits = [0, 0, 0, 0, 0]
+        lcut = [4250., 4547., 5250., 5615.]
+        wfile1 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_01.json')
+        wfile5 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_01.json') # - 4547
+        wfile2 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_02.json')
+        wfile4 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_D_1_02.json') # 4610-5608
+        wfile3 = os.path.join(template_path, 'GMOS', 'B600', 'MasterWaveCalib_C_1_03.json')
+        #
+        build_template([wfile1,wfile5,wfile2,wfile4,wfile3], slits, lcut, binspec,
+                       outroot, lowredux=False, ifiles=ifiles, chk=True,
+                       normalize=True, subtract_conti=True, miny=-100.)
+
+    if flg & (2**23):  # WHT/ISIS
+        iroot = 'wht_isis_blue_1200_4800.json'
+        outroot = 'wht_isis_blue_1200_4800.fits'
+        wfile = os.path.join(template_path, 'WHT_ISIS', '1200B', iroot)
+        binspec = 2
+        slits = [0]
+        lcut = [3200.]
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False)
+
+    if flg & (2**24):  # Magellan/FIRE
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'magellan_fire_echelle.json'
+        iout = 'magellan_fire_echelle.fits'
+        # Load
+        old_file = os.path.join(reid_path, iroot)
+        odict, par = waveio.load_reid_arxiv(old_file)
+
+        # Do it
+        orders = odict['fit2d']['orders'][::-1].astype(int)  # Flipped
+        all_wave = np.zeros((odict['0']['nspec'], orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk,order in enumerate(orders):
+            all_flux[:,kk] = odict[str(kk)]['spec']
+            if 'nir' in iroot:
+                all_wave[:,kk] = odict[str(kk)]['wave_soln']
+            else:
+                all_wave[:,kk] = airtovac(odict[str(kk)]['wave_soln'] * units.AA).value
+
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = os.path.join(reid_path, iout)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
+    if flg & (2**25): # FIRE longslit
+        binspec = 1
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        outroot = 'magellan_fire_long.fits'
+        xidl_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr_archive_fit.fits')
+        spec_file = os.path.join(os.getenv('FIRE_DIR'), 'LowDispersion', 'NeNeAr2.sav')
+        fire_sol = Table.read(xidl_file)
+        wave = cheby_val(fire_sol['FFIT'].data[0], np.arange(2048), fire_sol['NRM'].data[0], fire_sol['NORD'].data[0])
+        wv_vac = airtovac(wave * units.AA)
+        xidl_dict = readsav(spec_file)
+        flux = xidl_dict['arc1d']
+        write_template(wv_vac.value, flux, binspec, reid_path, outroot, det_cut=None)
+
+    # Gemini/Flamingos2
+    if flg & (2**26):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['Flamingos2_JH_JH.json','Flamingos2_HK_HK.json']
+        outroot=['Flamingos2_JH_JH.fits','Flamingos2_HK_HK.fits']
+        binspec = 1
+        slits = [0]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
+
+
+    # MDM/OSMOS -- MDM4K
+    if flg & (2 ** 28):
+        # ArI 4159 -- 6800
+        wfile = os.path.join(template_path, 'MDM_OSMOS', 'MasterWaveCalib_MDM4K_01.json')
+        outroot = 'mdm_osmos_mdm4k.fits'
+        binspec = 1
+        slits = [0]
+        lcut = [3200.]
+        build_template(wfile, slits, lcut, binspec, outroot, lowredux=False,
+                       chk=True, subtract_conti=True)
+
+    # Keck KCWI
+    if flg & (2 ** 29):
+        # FeAr BH2
+        wfile1 = os.path.join(template_path, 'KCWI', 'BH2', 'Keck_KCWI_BH2_4200.json')
+        outroot = 'keck_kcwi_BH2_4200.fits'
+        binspec = 1
+        slits = [1015]
+        lcut = [4350.0, 8000.0]
+        build_template([wfile1], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+        # FeAr BM
+        wfile1 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4060.json')
+        wfile2 = os.path.join(template_path, 'KCWI', 'BM', 'Keck_KCWI_BM_4670.json')
+        outroot = 'keck_kcwi_BM.fits'
+        binspec = 1
+        slits = [1026, 1021]
+        lcut = [4350.0, 8000.0]
+        build_template([wfile1, wfile2], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+
+    # P200 DBSP r
+    if flg & (2 ** 30):
+        # HeNeAr
+        wfile = os.path.join(template_path, 'P200_DBSP', 'R316_7500_D55', 'P200_DBSP_Red.json')
+        outroot = 'p200_dbsp_red_316_7500_d55.fits'
+        binspec = 1
+        slits = [221]
+        lcut = None # only matters if >1 slit
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+
+    # P200 DBSP b
+    if flg & (2 ** 31):
+        # FeAr
+        wfile = os.path.join(template_path, 'P200_DBSP', 'B600_4000_D55', 'P200_DBSP_Blue.json')
+        outroot = 'p200_dbsp_blue_600_4000_d55.fits'
+        binspec = 1
+        slits = [231]
+        lcut = None
+        build_template([wfile], slits, lcut, binspec, outroot, lowredux=False, normalize=True)
+
+    # MMT/MMIRS
+    if flg & (2**32):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['mmt_mmirs_HK_zJ.json','mmt_mmirs_J_zJ.json','mmt_mmirs_K3000_Kspec.json']
+        outroot=['mmt_mmirs_HK_zJ.fits','mmt_mmirs_J_zJ.fits','mmt_mmirs_K3000_Kspec.fits']
+        binspec = 1
+        slits = [1020,1020,1020]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits, lcut, binspec, outroot[ii], lowredux=False)
+    # LBT/MODS
+    if flg & (2**33):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = ['lbt_mods1r_red.json','lbt_mods2r_red.json']
+        outroot=['lbt_mods1r_red.fits','lbt_mods2r_red.fits']
+        binspec = 1
+        slits = [[1557],[1573]]
+        lcut = []
+        for ii in range(len(iroot)):
+            wfile = os.path.join(reid_path, iroot[ii])
+            build_template(wfile, slits[ii], lcut, binspec, outroot[ii], lowredux=False)
+    # P200 Triplespec
+    if flg & (2**34):
+        reid_path = os.path.join(resource_filename('pypeit', 'data'), 'arc_lines', 'reid_arxiv')
+        iroot = 'p200_triplespec_MasterWaveCalib.fits'
+        iout = 'p200_triplespec.fits'
+        # Load
+        old_file = os.path.join(reid_path, iroot)
+        par = fits.open(old_file)
+        pyp_spec = par[0].header['PYP_SPEC']
+        spectrograph  = load_spectrograph(pyp_spec)
+        orders = spectrograph.orders
+
+        # Do it
+        all_wave = np.zeros((par[2].data['spec'].size, orders.size))
+        all_flux = np.zeros_like(all_wave)
+        for kk, order in enumerate(orders):
+            all_flux[:, kk] = par[2*kk+2].data['spec']
+            all_wave[:, kk] = par[2*kk+2].data['wave_soln']
+        # Write
+        tbl = Table()
+        tbl['wave'] = all_wave.T
+        tbl['flux'] = all_flux.T
+        tbl['order'] = orders
+        tbl.meta['BINSPEC'] = 1
+        # Write
+        outfile = os.path.join(reid_path, iout)
+        tbl.write(outfile, overwrite=True)
+        print("Wrote: {}".format(outfile))
+
 
 # Command line execution
 if __name__ == '__main__':
     flg = 0
 
+    # TODO : There must be a better way to index these solutions...
     # Keck/LRISb
     #flg += 2**0  # LRISb 300, all lamps
     #flg += 2**1  # LRISb 400, all lamps
@@ -527,7 +884,47 @@ if __name__ == '__main__':
     #flg += 2**17  # Convert JSON to FITS
 
     # Gemini/GNIRS
-    flg += 2**18  # Convert JSON to FITS
+    #flg += 2**18  # Convert JSON to FITS
+    #flg += 2**19  # Convert JSON to FITS
+
+    # Gemini/GMOS
+    #flg += 2**20  # Hamamatsu R400 Convert JSON to FITS
+    #flg += 2**21  # E2V Convert JSON to FITS
+    #flg += 2**22  # Hamamatsu B600 XIDL
+
+    # WHT/ISIS
+    #flg += 2**23  # Convert JSON to FITS
+
+    # Magellan/FIRE
+    #flg += 2**24  # FIRE Echelle
+    #flg += 2**25  # FIRElongslit
+
+    # Gemini Flamingos2
+    #flg += 2**26  # Longslit
+
+    # Keck/LRIS r
+    #flg += 2**27  # R600/7500
+
+    # MDM/OSMMOS
+    #flg += 2**28
+
+    # Keck KCWI
+    #flg += 2**29
+
+    # P200 DBSP r
+    #flg += 2**30
+
+    # P200 DBSP b
+    #flg += 2**31
+
+    # MMT MMIRS
+    #flg += 2**32
+
+    # LBT MODS
+    #flg += 2**33
+
+    # P200 Triplespec
+    flg += 2**34
 
     main(flg)
 

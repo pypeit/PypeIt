@@ -1,4 +1,4 @@
-.. _flexure
+.. _heliocorr:
 
 .. highlight:: rest
 

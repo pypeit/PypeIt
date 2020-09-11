@@ -12,31 +12,15 @@ Base class for handling bit masks.
 
 *Revision history*:
     | **01 Jun 2015**: Original implementation by K. Westfall (KBW)
-    | **07 Oct 2015**: (KBW) Added a usage case
-    | **29 Jan 2016**: (KBW) Changed attributes of :class:`BitMask` and
-        added functionality to print a description of the bits.  Convert
-        :class:`mangadap.proc.templatelibrary.TemplateLibraryBitMask` to
-        new format where the bits are read from a configuration file.
-    | **17 Feb 2016**: (KBW) Minor edit to documentation
-    | **16 Mar 2016**: (KBW) Moved TemplateLibraryBitMask to
-        :class:`mangadap.proc.templatelibrary.TemplateLibraryBitMask`;
-        moved HDUList_mask_wavelengths to
-        :func:`mangadap.proc.util.HDUList_mask_wavelengths`.
-    | **27 Mar 2016**: (KBW) Added :func:`BitMask.from_ini_file` and
-        :func:`BitMask.from_par_file` class methods.  Added
-        :func:`BitMask._fill_sequence` static method.  This allows for
-        :class:`BitMask` objects to be declared directly from the files,
-        and allows the bit values to take on any number.
-    | **05 Apr 2016**: (KBW) Added parameters to initialization of
-        :class:`BitMask` objects to clean up some of the derived class
-        initialization.
-    | **11 May 2016**: (KBW) Switch to using `pydl.pydlutils.yanny`_
-        instead of internal yanny reader
-    | **29 Jul 2016**: (KBW) Change asarray to atleast_1d
     | **06 Sep 2018**: (KBW) Added to PypeIt repo, removed
         functionality of instantiating a bitmask from a file, code
         update, and slight doc changes.
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+
 """
+from IPython import embed
 import numpy
 import os
 import textwrap
@@ -82,12 +66,13 @@ class BitMask:
             Number of bits
         bits (dict):
             A dictionary with the bit name and value
-        descr (numpy.ndarray):
+        descr (`numpy.ndarray`_):
             List of bit descriptions
         max_value (int):
             The maximum valid bitmask value given the number of bits.
     """
     prefix = 'BIT'
+    version = None
     def __init__(self, keys, descr=None):
 
         _keys = keys if hasattr(keys, '__iter__') else [keys]
@@ -126,8 +111,10 @@ class BitMask:
         if numpy.any([f == 'NULL' for f in _flag]):
             raise ValueError('Flag name NULL is not allowed.')
         # Flags should be among the bitmask keys
-        if numpy.any([f not in self.keys() for f in _flag]):
-            raise ValueError('Some bit names not recognized.')
+        indx = numpy.array([f not in self.keys() for f in _flag])
+        if numpy.any(indx):
+            raise ValueError('The following bit names are not recognized: {0}'.format(
+                             ', '.join(_flag[indx])))
 #        # Flags should be strings
 #        if numpy.any([ not isinstance(f, str) for f in _flag ]):
 #            raise TypeError('Provided bit names must be strings!')
@@ -147,6 +134,7 @@ class BitMask:
         are non-sequential. This is used primarily for instantiation
         the BitMask from bits written to a file where the NULL bits
         have been skipped.
+
         Args:
             keys (:obj:`list`, :obj:`str`):
                 Bit names
@@ -183,12 +171,16 @@ class BitMask:
 
     def keys(self):
         """
-        Return a list of the bits; 'NULL' keywords are ignored.
+        Return a list of the bit keywords.
+
+        Keywords are sorted by their bit value and 'NULL' keywords are
+        ignored.
         
         Returns:
             list: List of bit keywords.
         """
-        return list(set(self.bits.keys())-set(['NULL']))
+        k = numpy.array(list(self.bits.keys()))
+        return k[[_k != 'NULL' for _k in k]].tolist()
 
     def info(self):
         """
@@ -256,7 +248,7 @@ class BitMask:
 
         Raises:
             KeyError: Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
+                is not one of the valid bitmask names.
             TypeError: Raised if the provided *flag* does not contain
                 one or more strings.
         """
@@ -286,7 +278,7 @@ class BitMask:
         Raises:
             KeyError:
                 Raised by the dict data type if the input *flag* is not
-                one of the valid :attr:`flags`.
+                one of the valid bitmask names.
             TypeError:
                 Raised if the provided *flag* does not contain one or
                 more strings.
@@ -297,7 +289,7 @@ class BitMask:
             return []
         keys = numpy.array(self.keys())
         indx = numpy.array([1<<self.bits[k] & value != 0 for k in keys])
-        return list(keys[indx])
+        return (keys[indx]).tolist()
 
     def toggle(self, value, flag):
         """
@@ -315,13 +307,8 @@ class BitMask:
             bit.
 
         Raises:
-            ValueError
-            KeyError:
-
-                Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
-
-            Exception: Raised if the provided *flag* is not a string.
+            ValueError:
+                Raised if the provided flag is None.
         """ 
         if flag is None:
             raise ValueError('Provided bit name cannot be None.')
@@ -342,18 +329,20 @@ class BitMask:
         Ensure that a bit is turned on in the provided bitmask value.
 
         Args:
-            value (uint or array): Bitmask value.  It should be less
-                than or equal to :attr:`max_value`; however, that is not
-                checked.
-            flag (list, numpy.ndarray, or str): Bit name(s) to turn on.
+            value (:obj:`int`, `numpy.ndarray`_):
+                Bitmask value. It should be less than or equal to
+                :attr:`max_value`; however, that is not checked.
+            flag (:obj:`list`, `numpy.ndarray`, :obj:`str`):
+                Bit name(s) to turn on.
         
         Returns:
-            uint: New bitmask value after turning on the selected bit.
+            :obj:`int`: New bitmask value after turning on the
+            selected bit.
 
         Raises:
-            KeyError: Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
-            Exception: Raised if the provided *flag* is not a string.
+            ValueError:
+                Raised by the dict data type if the input ``flag`` is
+                not one of the valid bitmask names or if it is None.
         """
         if flag is None:
             raise ValueError('Provided bit name cannot be None.')
@@ -374,18 +363,19 @@ class BitMask:
         Ensure that a bit is turned off in the provided bitmask value.
 
         Args:
-            value (uint or array): Bitmask value.  It should be less
-                than or equal to :attr:`max_value`; however, that is not
-                checked.
-            flag (list, numpy.ndarray, or str): Bit name(s) to turn off.
+            value (int, array-like):
+                Bitmask value.  It should be less than or equal to
+                :attr:`max_value`; however, that is not checked.
+            flag (str, array-like):
+                Bit name(s) to turn off.
         
         Returns:
-            uint: New bitmask value after turning off the selected bit.
+            int: New bitmask value after turning off the selected bit.
 
         Raises:
-            KeyError: Raised by the dict data type if the input *flag*
-                is not one of the valid :attr:`flags`.
-            Exception: Raised if the provided *flag* is not a string.
+            ValueError:
+                Raised by the dict data type if the input ``flag`` is
+                not one of the valid bitmask names or if it is None.
         """
         if flag is None:
             raise ValueError('Provided bit name cannot be None.')
@@ -414,7 +404,7 @@ class BitMask:
         Construct boolean arrays with the selected bits flagged.
 
         Args:
-            value (numpy.ndarray):
+            value (`numpy.ndarray`_):
                 The bitmask values to unpack.
             flag (:obj:`str`, :obj:`list`, optional):
                 The specific bits to unpack.  If None, all values are
@@ -431,10 +421,9 @@ class BitMask:
         Write the bits to a fits header.
 
         .. todo::
-            - This is very similar to the function in ParSet.
-            Abstract to a general routine?
-             - The comment might have a limited length and be
-            truncated.
+            - This is very similar to the function in ParSet.  Abstract
+              to a general routine?
+            - The comment might have a limited length and be truncated.
 
         Args:
             hdr (`astropy.io.fits.Header`):
@@ -461,10 +450,10 @@ class BitMask:
         Instantiate the BitMask using data parsed from a fits header.
 
         .. todo::
-            - This is very similar to the function in ParSet.
-            Abstract to a general routine?
+            - This is very similar to the function in ParSet.  Abstract
+              to a general routine?
             - If comments are truncated by the comment line length,
-            they'll be different than a direct instantiation.
+              they'll be different than a direct instantiation.
 
         Args:
             hdr (`astropy.io.fits.Header`):
@@ -491,8 +480,8 @@ class BitMask:
         Parse bit names, values, and descriptions from a fits header.
 
         .. todo::
-            - This is very similar to the function in ParSet.
-            Abstract to a general routine?
+            - This is very similar to the function in ParSet.  Abstract
+              to a general routine?
 
         Args:
             hdr (`astropy.io.fits.Header`):
@@ -527,3 +516,5 @@ class BitMask:
                 values += [i]
                 descr += [hdr.comments[k]]
         return keys, values, descr
+
+

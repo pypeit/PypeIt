@@ -1,4 +1,4 @@
-# Mimicing Kirkby's speclit travis file
+# Mimicing Kirkby's speclite travis file
 #
 # We set the language to c because python isn't supported on the MacOS X nodes
 # on Travis. However, the language ends up being irrelevant anyway, since we
@@ -28,14 +28,14 @@ env:
         # overridden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
         - FOLDERNAME='pypeit'
-        - PYTHON_VERSION=3.6
+        - PYTHON_VERSION=3.7
         - ASTROPY_VERSION=stable
         - NUMPY_VERSION=stable
         - SKLEARN_VERSION=stable
         - MAIN_CMD='python setup.py'
         - SETUP_CMD='test'
-        - CONDA_DEPENDENCIES='scipy h5py pyyaml matplotlib future numba scikit-learn configobj IPython'
-        - PIP_DEPENDENCIES=''
+        - CONDA_DEPENDENCIES='scipy pyyaml matplotlib future numba scikit-learn configobj IPython'
+        - PIP_DEPENDENCIES='extension_helpers ginga linetools'
         - EVENT_TYPE='pull_request push'
         - TASK='test'
 
@@ -61,7 +61,7 @@ env:
       #- EXTRA_CONTEXT='_parent_project=sunpy'
       #- TASK='render' EXTRA_CONTEXT='include_example_cython_code=y initialize_git_repo=n'
       #- PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
-      - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
+      - PYTHON_VERSION=3.7 SETUP_CMD='egg_info'
 
 matrix:
 
@@ -99,19 +99,15 @@ matrix:
         # versions of Python, we can vary Python and Numpy versions at the same
         # time.
 
+        # Try numpy 1.17
         #- os: linux
-        #  env: PYTHON_VERSION=2.7 NUMPY_VERSION=1.13
-        #- os: linux
-        #  env: PYTHON_VERSION=3.3 NUMPY_VERSION=1.8
-        #- os: linux
-        #  env: PYTHON_VERSION=3.4 NUMPY_VERSION=1.9
-        #- os: linux
-        #  env: PYTHON_VERSION=3.5 NUMPY_VERSION=1.10
-        #- os: linux
-        #  env: NUMPY_VERSION=1.14
-
+        #  env: NUMPY_VERSION=1.17
+        # Try numpy 1.18
         - os: linux
-          env: NUMPY_VERSION=1.15
+          env: NUMPY_VERSION=1.18
+        # Try numpy 1.19
+        - os: linux
+          env: NUMPY_VERSION=1.19
         # Try numpy pre-release
         - os: linux
           env: NUMPY_VERSION=prerelease
@@ -127,33 +123,12 @@ matrix:
         - os: linux
           env: MAIN_CMD='pycodestyle packagename --count' SETUP_CMD=''
 
-before_install:
-
-    # Use utf8 encoding. Should be default, but this is insurance against
-    # future changes
-    - export PYTHONIOENCODING=UTF8
-    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-    - chmod +x miniconda.sh
-    - ./miniconda.sh -b -p $HOME/miniconda
-    - export PATH=$HOME/miniconda/bin:$PATH
-    - export GSL_PATH=$HOME/miniconda
-    - hash -r
-    - conda config --set always_yes yes --set changeps1 no
-    - conda update --yes conda
-    #- conda install -c https://conda.anaconda.org/asmeurer gsl
-
-    # UPDATE APT-GET LISTINGS
-    - sudo apt-get update
-
-    # DOCUMENTATION DEPENDENCIES
-    - if [[ $SETUP_CMD == build_sphinx* ]]; then sudo apt-get install graphviz texlive-latex-extra dvipng; fi
-
 install:
 
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
-    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
+#    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/linetools/linetools.git; fi
+#    - if [[ $SETUP_CMD != egg_info ]]; then $PIP_INSTALL git+https://github.com/profxj/ginga.git; fi
     #- conda install numpy
     #- conda install configobj
     #- conda install scikit-learn

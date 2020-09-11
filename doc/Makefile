@@ -56,14 +56,20 @@ clean:
 	rm -rf $(LOCALFILES)
 
 apirst:
-	export SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT)
-	$(SPHINXAPI) --separate -o ./api ../pypeit
-	rm -rf ./api/pypeit.tests.*
+	SPHINX_APIDOC_OPTIONS=$(SPHINXAPIOPT) $(SPHINXAPI) --separate -o ./api ../pypeit ../pypeit/tests/* ../pypeit/scripts/* ../pypeit/deprecated/*
 	python3 ./scripts/build_par_rst.py
+	python3 ./scripts/build_specobj_rst.py
+	python3 ./scripts/build_calib_images_rst.py
 
 html:
 	make apirst
 	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) $(BUILDDIR)/html
+	@echo
+	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
+
+picky:
+	make apirst
+	$(SPHINXBUILD) -b html $(ALLSPHINXOPTS) -n $(BUILDDIR)/html
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 

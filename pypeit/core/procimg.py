@@ -1,7 +1,11 @@
 """ Module for image processing core methods
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import numpy as np
 from scipy import signal, ndimage
+from scipy.optimize import curve_fit
 from IPython import embed
 
 from pypeit import msgs
@@ -9,7 +13,7 @@ from pypeit import utils
 from pypeit.core import parse
 
 
-def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
+def lacosmic(sciframe, saturation, nonlinear, varframe=None, maxiter=1, grow=1.5,
              remove_compact_obj=True, sigclip=5.0, sigfrac=0.3, objlim=5.0):
     """
     Identify cosmic rays using the L.A.Cosmic algorithm
@@ -18,7 +22,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
     This routine is mostly courtesy of Malte Tewes
 
     Args:
-        det:
         sciframe:
         saturation:
         nonlinear:
@@ -26,7 +29,8 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         maxiter:
         grow:
         remove_compact_obj:
-        sigclip:
+        sigclip (float):
+            Threshold for identifying a CR
         sigfrac:
         objlim:
 
@@ -34,9 +38,6 @@ def lacosmic(det, sciframe, saturation, nonlinear, varframe=None, maxiter=1, gro
         ndarray: mask of cosmic rays (0=no CR, 1=CR)
 
     """
-
-    dnum = parse.get_dnum(det)
-
     msgs.info("Detecting cosmic rays with the L.A.Cosmic algorithm")
 #    msgs.work("Include these parameters in the settings files to be adjusted by the user")
     # Set the settings
@@ -237,38 +238,7 @@ def grow_masked(img, grow, growval):
     return _img
 
 
-'''
-def gain_frame(datasec_img, gain_list, trim=True):
-    """ Generate a gain image
-
-    Parameters
-    ----------
-    datasec_img : ndarray
-    namp : int
-    gain_list : list
-    # TODO need to beef up the docs here
-
-    Returns
-    -------
-    gain_img : ndarray
-
-    """
-    # TODO: Remove this or actually do it
-    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
-
-    # Loop on amplifiers
-    gain_img = np.zeros_like(datasec_img, dtype=float)
-    for ii, gain in enumerate(gain_list):
-        amp = ii+1
-        amppix = datasec_img == amp
-        gain_img[amppix] = gain
-    if trim:
-        gain_img = trim_frame(gain_img, datasec_img < 1)
-    # Return
-    return gain_img
-'''
-
-def gain_frame(amp_img, gain, trim=True):
+def gain_frame(amp_img, gain):
     """
     Generate an image with the gain for each pixel.
 
@@ -279,14 +249,12 @@ def gain_frame(amp_img, gain, trim=True):
         gain (:obj:`list`):
             List of amplifier gain values.  Must be that the gain for
             amplifier 1 is provided by `gain[0]`, etc.
-        trim (:obj:`bool`, optional):
-            Trim the overscan section from the image.
 
     Returns:
-        `numpy.ndarray`: Image with the gain for each pixel.
+        `numpy.ndarray`_: Image with the gain for each pixel.
     """
     # TODO: Remove this or actually do it.
-    msgs.warn("Should probably be measuring the gain across the amplifier boundary")
+    # msgs.warn("Should probably be measuring the gain across the amplifier boundary")
 
     # Build the gain image
     gain_img = np.zeros_like(amp_img, dtype=float)
@@ -294,22 +262,32 @@ def gain_frame(amp_img, gain, trim=True):
         gain_img[amp_img == i+1] = _gain
 
     # Return the image, trimming if requested
-    return trim_frame(gain_img, amp_img < 1) if trim else gain_img
+    return gain_img
 
 
-
-
-def rn_frame(datasec_img, gain, ronoise, numamplifiers=1):
+def rn_frame(datasec_img, gain, ronoise):
     """ Generate a RN image
 
     Parameters
     ----------
+    datasec_img : ndarray
+        Index image (2D array) assigning each pixel in the data section to an amplifier.
+        A value of 0 means not a data section
+    gain : ndarray, list
+        A list of the gains for each amplifier
+    ronoise : ndarray, list
+        A list of read noise values for each amplifier. If any element of the array is 0.0,
+        the read noise will be determined from the overscan region
 
     Returns
     -------
     rn_img : ndarray
-      Read noise *variance* image (i.e. RN**2)
+        Read noise *variance* image (i.e. RN**2)
     """
+    # Determine the number of amplifiers from the datasec image
+    numamplifiers = np.amax(datasec_img)
+
+    # Check the input types
     _gain = np.asarray(gain) if isinstance(gain, (list, np.ndarray)) else np.array([gain])
     _ronoise = np.asarray(ronoise) if isinstance(ronoise, (list, np.ndarray)) \
                         else np.array([ronoise])
@@ -342,15 +320,12 @@ def rect_slice_with_mask(image, mask, mask_val=1):
         mask_val (int,optiona): Value to mask on
 
     Returns:
-        np.ndarray, list:  Image at mask values, slices describing the mask
-
+        :obj:`tuple`: The image at mask values and a 2-tuple with the
+        :obj:`slice` objects that select the masked data.
     """
     pix = np.where(mask == mask_val)
-    slices = [slice(np.min(pix[0]), np.max(pix[0])+1),
-              slice(np.min(pix[1]), np.max(pix[1])+1)]
-    sub_img = image[slices]
-    #
-    return sub_img, slices
+    slices = (slice(np.min(pix[0]), np.max(pix[0])+1), slice(np.min(pix[1]), np.max(pix[1])+1))
+    return image[slices], slices
 
 
 def subtract_overscan(rawframe, datasec_img, oscansec_img,
@@ -359,12 +334,19 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     Subtract overscan
 
     Args:
-        frame (:obj:`numpy.ndarray`):
+        rawframe (:obj:`numpy.ndarray`):
             Frame from which to subtract overscan
         numamplifiers (int):
             Number of amplifiers for this detector.
-        datasec_img (np.ndarray):
-        oscansec_img (np.ndarray):
+        datasec_img (:obj:`numpy.ndarray`):
+            An array the same shape as rawframe that identifies
+            the pixels associated with the data on each amplifier.
+            0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
+        oscansec_img (:obj:`numpy.ndarray`):
+            An array the same shape as rawframe that identifies
+            the pixels associated with the overscan region on each
+            amplifier.
+            0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
         method (:obj:`str`, optional):
             The method used to fit the overscan region.  Options are
             polynomial, savgol, median.
@@ -384,7 +366,7 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
     # Amplifiers
     amps = np.unique(datasec_img[datasec_img > 0]).tolist()
 
-    # Perform the bias subtraction for each amplifier
+    # Perform the overscan subtraction for each amplifier
     for amp in amps:
         # Pull out the overscan data
         overscan, _ = rect_slice_with_mask(rawframe, oscansec_img, amp)
@@ -418,6 +400,236 @@ def subtract_overscan(rawframe, datasec_img, oscansec_img,
         no_overscan[data_slice] -= (ossub[:, None] if compress_axis == 1 else ossub[None, :])
 
     return no_overscan
+
+
+def subtract_pattern(rawframe, datasec_img, oscansec_img, frequency=None, axis=1, debug=False):
+    """
+    Subtract a sinusoidal pattern from the input rawframe. The algorithm
+    calculates the frequency of the signal, generates a model, and subtracts
+    this signal from the data. This sinusoidal pattern noise was first
+    identified in KCWI, but the source of this pattern noise is not
+    currently known.
+
+    Args:
+        rawframe (`numpy.ndarray`_):
+            Frame from which to subtract overscan
+        numamplifiers (int):
+            Number of amplifiers for this detector.
+        datasec_img (`numpy.ndarray`_):
+            An array the same shape as rawframe that identifies
+            the pixels associated with the data on each amplifier.
+            0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
+        oscansec_img (`numpy.ndarray`_):
+            An array the same shape as rawframe that identifies
+            the pixels associated with the overscan region on each
+            amplifier.
+            0 for not data, 1 for amplifier 1, 2 for amplifier 2, etc.
+        frequency (float, list, optional):
+            The frequency (or list of frequencies - one for each amplifier)
+            of the sinusoidal pattern. If None, the frequency of each amplifier
+            will be determined from the overscan region.
+        axis (int):
+            Which axis should the pattern subtraction be applied?
+        debug (bool):
+            Debug the code (True means yes)
+
+    Returns:
+        `numpy.ndarray`_: The input frame with the pattern subtracted
+    """
+    msgs.info("Analyzing detector pattern")
+
+    # Copy the data so that the subtraction is not done in place
+    frame_orig = rawframe.copy()
+    outframe = rawframe.copy()
+    tmp_oscan = oscansec_img.copy()
+    tmp_data = datasec_img.copy()
+    if axis == 0:
+        frame_orig = rawframe.copy().T
+        outframe = rawframe.copy().T
+        tmp_oscan = oscansec_img.copy().T
+        tmp_data = datasec_img.copy().T
+
+    # Amplifiers
+    amps = np.sort(np.unique(tmp_data[tmp_data > 0])).tolist()
+
+    # Estimate the frequency in each amplifier (then average over all amps)
+    if frequency is None:
+        frq = np.zeros(len(amps))
+        for aa, amp in enumerate(amps):
+            pixs = np.where(tmp_oscan == amp)
+            #pixs = np.where((tmp_oscan == amp) | (tmp_data ==  amp))
+            cmin, cmax = np.min(pixs[0]), np.max(pixs[0])
+            rmin, rmax = np.min(pixs[1]), np.max(pixs[1])
+            frame = frame_orig[cmin:cmax, rmin:rmax].astype(np.float64)
+            frq[aa] = pattern_frequency(frame)
+        frequency = np.mean(frq)
+
+    # Perform the overscan subtraction for each amplifier
+    for aa, amp in enumerate(amps):
+        # Get the frequency to use for this amplifier
+        if isinstance(frequency, list):
+            # if it's a list, then use a different frequency for each amplifier
+            use_fr = frequency[aa]
+        else:
+            # float
+            use_fr = frequency
+
+        # Extract overscan
+        overscan, os_slice = rect_slice_with_mask(frame_orig, tmp_oscan, amp)
+        # Extract overscan+data
+        oscandata, osd_slice = rect_slice_with_mask(frame_orig, tmp_oscan+tmp_data, amp)
+        # Subtract the DC offset
+        overscan -= np.median(overscan, axis=1)[:, np.newaxis]
+
+        # Convert frequency to the size of the overscan region
+        msgs.info("Subtracting detector pattern with frequency = {0:f}".format(use_fr))
+        use_fr *= (overscan.shape[1]-1)
+
+        # Get a first guess of the amplitude and phase information
+        amp = np.fft.rfft(overscan, axis=1)
+        idx = (np.arange(overscan.shape[0]), np.argmax(np.abs(amp), axis=1))
+        # Convert result to amplitude and phase
+        amps = (np.abs(amp))[idx] * (2.0 / overscan.shape[1])
+        phss = np.arctan2(amp.imag, amp.real)[idx]
+
+        # Use the above to as initial guess parameters in chi-squared minimisation
+        cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
+        xdata, step = np.linspace(0.0, 1.0, overscan.shape[1], retstep=True)
+        xdata_all = (np.arange(osd_slice[1].start, osd_slice[1].stop) - os_slice[1].start) * step
+        model_pattern = np.zeros_like(oscandata)
+        val = np.zeros(overscan.shape[0])
+        # Get the best estimate of the amplitude
+        for ii in range(overscan.shape[0]):
+            try:
+                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[amps[ii], use_fr, phss[ii]],
+                                       bounds=([-np.inf, use_fr * 0.99999999, -np.inf], [+np.inf, use_fr * 1.00000001, +np.inf]))
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            val[ii] = popt[0]
+            model_pattern[ii, :] = cosfunc(xdata_all, *popt)
+        use_amp = np.median(val)
+        # Get the best estimate of the phase, and generate a model
+        for ii in range(overscan.shape[0]):
+            try:
+                popt, pcov = curve_fit(cosfunc, xdata, overscan[ii, :], p0=[use_amp, use_fr, phss[ii]],
+                                       bounds=([use_amp * 0.99999999, use_fr * 0.99999999, -np.inf],
+                                               [use_amp * 1.00000001, use_fr * 1.00000001, +np.inf]))
+            except ValueError:
+                msgs.warn("Input data invalid for pattern subtraction of row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            except RuntimeError:
+                msgs.warn("Pattern subtraction fit failed for row {0:d}/{1:d}".format(ii + 1, overscan.shape[0]))
+                continue
+            model_pattern[ii, :] = cosfunc(xdata_all, *popt)
+        outframe[osd_slice] -= model_pattern
+
+    debug = False
+    if debug:
+        embed()
+        import astropy.io.fits as fits
+        hdu = fits.PrimaryHDU(rawframe)
+        hdu.writeto("tst_raw.fits", overwrite=True)
+        hdu = fits.PrimaryHDU(outframe)
+        hdu.writeto("tst_sub.fits", overwrite=True)
+        hdu = fits.PrimaryHDU(rawframe - outframe)
+        hdu.writeto("tst_mod.fits", overwrite=True)
+
+    # Transpose if the input frame if applied along a different axis
+    if axis == 0:
+        outframe = outframe.T
+    # Return the result
+    return outframe
+
+
+def pattern_frequency(frame, axis=1):
+    """
+    Using the supplied 2D array, calculate the pattern frequency
+    along the specified axis.
+
+    Args:
+        frame (:obj:`numpy.ndarray`):
+            2D array to measure the pattern frequency
+        axis (int, optional):
+            Which axis should the pattern frequency be measured?
+
+    Returns:
+        :obj:`float`: The frequency of the sinusoidal pattern.
+    """
+    # For axis=0, transpose
+    arr = frame.copy()
+    if axis == 0:
+        arr = frame.T
+    elif axis != 1:
+        msgs.error("frame must be a 2D image, and axis must be 0 or 1")
+
+    # Calculate the output image dimensions of the model signal
+    # Subtract the DC offset
+    arr -= np.median(arr, axis=1)[:, np.newaxis]
+    # Find significant deviations and ignore those rows
+    mad = 1.4826*np.median(np.abs(arr))
+    ww = np.where(arr > 10*mad)
+    # Create a mask of these rows
+    msk = np.sort(np.unique(ww[0]))
+
+    # Compute the Fourier transform to obtain an estimate of the dominant frequency component
+    amp = np.fft.rfft(arr, axis=1)
+    idx = (np.arange(arr.shape[0]), np.argmax(np.abs(amp), axis=1))
+
+    # Construct the variables of the sinusoidal waveform
+    amps = (np.abs(amp))[idx] * (2.0 / arr.shape[1])
+    phss = np.arctan2(amp.imag, amp.real)[idx]
+    frqs = idx[1]
+
+    # Use the above to as initial guess parameters in chi-squared minimisation
+    cosfunc = lambda xarr, *p: p[0] * np.cos(2.0 * np.pi * p[1] * xarr + p[2])
+    xdata = np.linspace(0.0, 1.0, arr.shape[1])
+    # Calculate the amplitude distribution
+    amp_dist = np.zeros(arr.shape[0])
+    frq_dist = np.zeros(arr.shape[0])
+    # Loop over all rows to new independent values that can be averaged
+    for ii in range(arr.shape[0]):
+        if ii in msk:
+            continue
+        try:
+            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[amps[ii], frqs[ii], phss[ii]],
+                                   bounds=([-np.inf, frqs[ii]-1, -np.inf],
+                                           [+np.inf, frqs[ii]+1, +np.inf]))
+        except ValueError:
+            msgs.warn("Input data invalid for pattern frequency fit of row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
+        except RuntimeError:
+            msgs.warn("Pattern frequency fit failed for row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
+        amp_dist[ii] = popt[0]
+        frq_dist[ii] = popt[1]
+    ww = np.where(amp_dist > 0.0)
+    use_amp = np.median(amp_dist[ww])
+    use_frq = np.median(frq_dist[ww])
+    # Calculate the frequency distribution with a prior on the amplitude
+    frq_dist = np.zeros(arr.shape[0])
+    for ii in range(arr.shape[0]):
+        if ii in msk:
+            continue
+        try:
+            popt, pcov = curve_fit(cosfunc, xdata, arr[ii, :], p0=[use_amp, use_frq, phss[ii]],
+                                   bounds=([use_amp * 0.99999999, use_frq-1, -np.inf],
+                                           [use_amp * 1.00000001, use_frq+1, +np.inf]))
+        except ValueError:
+            msgs.warn("Input data invalid for patern frequency fit of row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
+        except RuntimeError:
+            msgs.warn("Pattern frequency fit failed for row {0:d}/{1:d}".format(ii+1, arr.shape[0]))
+            continue
+        frq_dist[ii] = popt[1]
+    # Ignore masked values, and return the best estimate of the frequency
+    ww = np.where(frq_dist > 0.0)
+    medfrq = np.median(frq_dist[ww])
+    return medfrq/(arr.shape[1]-1)
+
 
 '''
 def subtract_overscan(rawframe, numamplifiers, datasec, oscansec, method='savgol', params=[5,65]):
@@ -723,40 +935,8 @@ def trim_frame(frame, mask):
     return frame[np.invert(np.all(mask,axis=1)),:][:,np.invert(np.all(mask,axis=0))]
 
 
-def init_process_steps(bias, proc_par):
-    """
-    Initialize the processing steps
-    This first set is related to bias and overscan subtraction
-
-    Could include dark subtraction someday
-
-    Args:
-        bias (None or other):
-        proc_par (ProcessImagesPar):
-
-    Returns:
-        list: List of the processing steps to begin with.  Can be empty
-
-    """
-    process_steps = []
-    # Bias image
-    if proc_par['bias'].lower() == 'as_available':
-        if bias is not None:
-            process_steps.append('subtract_bias')
-    elif proc_par['bias'].lower() == 'force':
-        if bias is None:
-            msgs.error("Must provide bias frames!")
-    elif proc_par['bias'].lower() == 'skip':
-        pass
-    # Overscan
-    if proc_par['overscan'].lower() != 'none':
-        process_steps.append('subtract_overscan')
-    # Return
-    return process_steps
-
-
-def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcurr=None,
-                   exptime=None, skyframe=None, objframe=None, adderr=0.01):
+def variance_frame(datasec_img, sciframe, gain, ronoise, darkcurr=None,
+                   exptime=None, skyframe=None, objframe=None, adderr=0.01, rnoise=None):
     """
     Calculate the variance image including detector noise.
 
@@ -774,29 +954,32 @@ def variance_frame(datasec_img, sciframe, gain, ronoise, numamplifiers=1, darkcu
             Gain for each amplifier
         ronoise (:obj:`float`, array-like):
             Read-noise for each amplifier
-        numamplifiers (:obj:`int`, optional):
-            Number of amplifiers.  Default is 1.  (TODO: This is
-            superfluous.  Could get the number of amplifiers from the
-            maximum value in datasec_img or the length of the
-            gain/ronoise lists.)
-        ronoise (:obj:`float`, array-like):
+        darkcurr (:obj:`float`, optional):
+            Dark current in electrons per second if the exposure time is
+            provided, otherwise in electrons.  If None, set to 0.
+        exptime (:obj:`float`, optional):
+            Exposure time in **hours**.  If None, darkcurrent *must* be
+            in electrons.
+        skyframe (`numpy.ndarray`_, optional):
+            Sky image.
+        objframe (`numpy.ndarray`_, optional):
+            Model of object counts
+        adderr (:obj:`float`, optional):
+            Error floor. The quantity adderr**2*sciframe**2 is added in
+            qudarature to the variance to ensure that the S/N is never >
+            1/adderr, effectively setting a floor on the noise or a
+            ceiling on the S/N.
+        rnoise (:obj:`numpy.ndarray`, optional):
+            Read noise image.  If not provided, it will be generated
 
-        darkcurrent (:noise (:
-
-        adderr: float, default = 0.01
-            Error floor. The quantity adderr**2*sciframe**2 is added in qudarature to the variance to ensure that the
-            S/N is never > 1/adderr, effectively setting a floor on the noise or a ceiling on the S/N.
-
-    objframe : ndarray, optional
-      Model of object counts
-    Returns
-    -------
-    variance image : ndarray
+    Returns:
+        `numpy.ndarray`_: Variance image
     """
 
     # ToDO JFH: I would just add the darkcurrent here into the effective read noise image
     # The effective read noise (variance image)
-    rnoise = rn_frame(datasec_img, gain, ronoise, numamplifiers=numamplifiers)
+    if rnoise is None:
+        rnoise = rn_frame(datasec_img, gain, ronoise)
 
     # No sky frame provided
     if skyframe is None:

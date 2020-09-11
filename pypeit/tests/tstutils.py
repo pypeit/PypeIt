@@ -2,35 +2,64 @@
 Odds and ends in support of tests
 """
 import os
-import pytest
-import numpy as np
 import copy
+import pytest
 
 from IPython import embed
 
+import numpy as np
 from astropy import time
+from astropy.io import fits
 
-from pypeit import arcimage
-from pypeit import traceslits
+from pypeit.images import buildimage
+from pypeit import edgetrace
 from pypeit import wavecalib
 from pypeit import flatfield
 from pypeit import wavetilts
-from pypeit.masterframe import MasterFrame
 from pypeit.core.wavecal import waveio
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.metadata import PypeItMetaData
+from pypeit import masterframe
 
-# Create a decorator for tests that require the PypeIt dev suite
+# ----------------------------------------------------------------------
+# pytest @decorators setting the tests to perform
+
+# Tests require the PypeIt dev-suite
 dev_suite_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None,
                                         reason='test requires dev suite')
 
+# Tests require the Cooked data
 cooked_required = pytest.mark.skipif(os.getenv('PYPEIT_DEV') is None or
                             not os.path.isdir(os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked')),
                             reason='no dev-suite cooked directory')
 
+# Tests require the bspline c extension
+try:
+    from pypeit.bspline import utilc
+except:
+    bspline_ext = False
+else:
+    bspline_ext = True
+bspline_ext_required = pytest.mark.skipif(not bspline_ext, reason='Could not import C extension')
+# ----------------------------------------------------------------------
+
+
 def data_path(filename):
     data_dir = os.path.join(os.path.dirname(__file__), 'files')
     return os.path.join(data_dir, filename)
+
+def get_kastb_detector():
+    """
+    Pass back a shane_kast_blue detector when any old one will do
+
+    Returns:
+        :class:`pypeit.images.detector_container.DetectorContainer`:
+
+    """
+    spectrograph = load_spectrograph('shane_kast_blue')
+    hdul = fits.HDUList([])
+    return spectrograph.get_detector_par(hdul, 1)
+
 
 def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype=False):
     """
@@ -101,7 +130,9 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
             #fitstbl['sci_ID'] = 1  # This links all the files to the science object
             type_bits[0] = fitstbl.type_bitmask.turn_on(type_bits[0], flag='bias')
             type_bits[1] = fitstbl.type_bitmask.turn_on(type_bits[1], flag='arc')
-            type_bits[2:4] = fitstbl.type_bitmask.turn_on(type_bits[2:4], flag=['pixelflat', 'trace'])
+            type_bits[1] = fitstbl.type_bitmask.turn_on(type_bits[1], flag='tilt')
+            type_bits[2:4] = fitstbl.type_bitmask.turn_on(type_bits[2:4],
+                                                          flag=['pixelflat', 'trace', 'illumflat'])
             type_bits[4] = fitstbl.type_bitmask.turn_on(type_bits[4], flag='standard')
             type_bits[5:] = fitstbl.type_bitmask.turn_on(type_bits[5:], flag='science')
             fitstbl.set_frame_types(type_bits)
@@ -112,19 +143,20 @@ def dummy_fitstbl(nfile=10, spectro_name='shane_kast_blue', directory='', notype
 
     return fitstbl
 
+
 # TODO: Need to split this into functions that do and do not require
-# cooked.  We should remove the get_spectrograph option.
-def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False, pixflat=False):
+# cooked.
+def load_kast_blue_masters(aimg=False, mstilt=False, edges=False, tilts=False, wvcalib=False, pixflat=False):
     """
     Load up the set of shane_kast_blue master frames
 
-    Order is Arc, tslits_dict, tilts_dict, wv_calib, pixflat
+    Order is Arc, edges, tilts_dict, wv_calib, pixflat
 
     Args:
         get_spectrograph:
         aimg:
-        tslits (bool, optional):
-            Load the tslits_dict
+        edges (bool, optional):
+            Load the slit edges
         tilts:
         datasec:
         wvcalib:
@@ -137,77 +169,52 @@ def load_kast_blue_masters(aimg=False, tslits=False, tilts=False, wvcalib=False,
     spectrograph = load_spectrograph('shane_kast_blue')
     spectrograph.naxis = (2112,350)     # Image shape with overscan
 
-    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'Shane_Kast_blue')
-#    master_dir = root_path+'_'+spectrograph.spectrograph
+    master_dir = os.path.join(os.getenv('PYPEIT_DEV'), 'Cooked', 'shane_kast_blue')
 
     reuse_masters = True
 
     # Load up the Masters
     ret = []
 
-#    if get_spectrograph:
-#        ret.append(spectrograph)
-
     master_key = 'A_1_01'
     if aimg:
-        AImg = arcimage.ArcImage(spectrograph, master_key=master_key, master_dir=master_dir,
-                                 reuse_masters=reuse_masters)
-        msarc = AImg.load()
-        ret.append(msarc)
+        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
+        AImg = buildimage.ArcImage.from_file(arc_file)
 
-    if tslits:
-        trace_file = os.path.join(master_dir, MasterFrame.construct_file_name('Trace', master_key))
-        tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(trace_file)
-        ret.append(tslits_dict)
-        ret.append(mstrace)
+    if mstilt:
+        # We use an arc
+        arc_file = masterframe.construct_file_name(buildimage.ArcImage, master_key, master_dir=master_dir)
+        AImg = buildimage.ArcImage.from_file(arc_file)
+        # Convert
+        mstilt = buildimage.TiltImage.from_pypeitimage(AImg)
+        ret.append(mstilt)
+
+    if edges:
+        #trace_file = '{0}.gz'.format(os.path.join(master_dir,
+        #                                MasterFrame.construct_file_name('Edges', master_key)))
+        trace_file = masterframe.construct_file_name(edgetrace.EdgeTraceSet, master_key, master_dir=master_dir)
+        ret.append(edgetrace.EdgeTraceSet.from_file(trace_file))
 
     if tilts:
-        tilts_file = os.path.join(master_dir, MasterFrame.construct_file_name('Tilts', master_key))
-        tilts_dict = wavetilts.WaveTilts.load_from_file(tilts_file)
-        ret.append(tilts_dict)
+        tilts_file = masterframe.construct_file_name(wavetilts.WaveTilts, master_key, master_dir=master_dir)
+        waveTilts = wavetilts.WaveTilts.from_file(tilts_file)
+        ret.append(waveTilts)
 
     if wvcalib:
-        calib_file = os.path.join(master_dir,
-                                  MasterFrame.construct_file_name('WaveCalib', master_key,
-                                                                  file_format='json'))
-        wv_calib = waveio.load_wavelength_calibration(calib_file) 
+        #calib_file = os.path.join(master_dir,
+        #                          MasterFrame.construct_file_name('WaveCalib', master_key,
+        #                                                          file_format='json'))
+        calib_file = masterframe.construct_file_name(wavecalib.WaveCalib, master_key, master_dir=master_dir)
+        wv_calib = waveio.load_wavelength_calibration(calib_file)
         ret.append(wv_calib)
 
     # Pixelflat
     if pixflat:
-        flatField = flatfield.FlatField(spectrograph,
-                                        spectrograph.default_pypeit_par()['calibrations']['pixelflatframe'])
-        calib_file = os.path.join(master_dir,
-                                  MasterFrame.construct_file_name('Flat', master_key))
-        pixelflat = flatField.load_from_file(calib_file, 2)
-        ret.append(pixelflat)
+        #calib_file = os.path.join(master_dir,
+        #                          MasterFrame.construct_file_name('Flat', master_key))
+        flat_file = masterframe.construct_file_name(flatfield.FlatImages, master_key, master_dir=master_dir)
+        flatImages = flatfield.FlatImages.from_file(flat_file)
+        ret.append(flatImages.get_pixelflat())
 
     # Return
     return ret
-
-def instant_traceslits(mstrace_file, det=None):
-    """
-    Instantiate a TraceSlits object from the master file
-
-    The loaded tslits_dict is set as the atribute
-
-    Args:
-        mstrace_file (str):
-        det (int, optional):
-
-    Returns:
-        Spectrograph, TraceSlits:
-
-    """
-    # Load
-    tslits_dict, mstrace = traceslits.TraceSlits.load_from_file(mstrace_file)
-    # Instantiate
-    spectrograph = load_spectrograph(tslits_dict['spectrograph'])
-    par = spectrograph.default_pypeit_par()
-    msbpm = spectrograph.bpm(shape=mstrace.shape, det=det)
-    #binning = tslits_dict['binspectral'], tslits_dict['binspatial']
-    traceSlits = traceslits.TraceSlits(spectrograph, par['calibrations']['slits'],
-                                       msbpm=msbpm)
-    traceSlits.mstrace = copy.deepcopy(mstrace)
-    traceSlits.tslits_dict = copy.deepcopy(tslits_dict)
-    return spectrograph, traceSlits

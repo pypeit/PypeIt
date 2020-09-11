@@ -1,6 +1,327 @@
 
-0.11.1dev
----------
+1.1.1 (10 Sep 2020)
+-------------------
+
+- (Hotfix) Fluxing doc edits
+- (Hotfix) Fix sdist pip installation
+
+1.1.0 (8 Sep 2020)
+------------------
+
+- Fixed a bug for IR reductions for cases where only negative object
+  traces are identified.  These were accidentally being written to the
+  spec1d file.
+- Fixed a bug fixes a bug in full_template wavelength reidentification
+  for situations where extreme wavelength coverage slits results in
+  reidentification with a purely zero-padded array.
+- Fixed a bug fixes a bug in full_template wavelength reidentification
+  for situations where extreme wavelength coverage slits results in
+  reidentification with a purely zero-padded array.
+- Fixed another such bug arising from these zero-padded arrays.
+- (Hotfix) Deal with chk_calibs test
+- Script to generate combined datacubes for IFU data.
+- Changed numpy (> 1.18.0) and scipy (> 1.4.0) version requirements
+- Allow show2d_spec, chk_edges, chk_flats to load older Spec2DObj
+  datamodel versions
+- Implemented a plugin kindly provided by the ginga developers to
+  display images with a secondary wavelength image WCS.
+    - Removes dependency on @profxj's ginga fork, and avoids a bug when
+      using WCS image registration in that fork.
+    - `pypeit/ginga.py` moved to `pypeit/display/display.py` and ginga
+      plugin added to `pypeit/diplay` directory.
+    - ginga plugin registered as an entry point in `setup.py`
+    - Added a script to check that the plugins are all available.
+    - Installation docs updated.  Both `ginga` and `linetools` are now
+      installed via pip.
+- Deprecated `pypeit/debugger.py` and `pypeit/data/settings`
+- Removed h5py as a dependency
+- `linetools` is now listed in `pypeit/requirements.txt` until I can
+  check if it still causes readthedocs to fail...
+- Modify Spec2DObj 2D model for float32 images
+- `pypeit.tracepca.TracePCA` and `pypeit.edgetrace.EdgeTraceSet` now
+  subclass from `pypeit.datamodel.DataContainer`
+- Refactor WaveCalib into a DataContainer
+- Refactor fitting + PypeItFit DataContainer
+- Coadd2D bug fixes
+- Coadd2D without spec1d files
+- Coadd2D offsets
+- Some Coadd2D docs
+- Manual extraction
+- Improve LBT/LUCI
+- Add MMT/MMIRS
+- QL script for Keck/MOSFIRE (beta version)
+- Correct det bug in keck_lris
+- Modifications to allow for flailing LRISr detector
+- Modifications for parse LRIS LAMPS prior to 2010 upgrade
+- Add P200/TripleSpec
+
+1.0.6 (22 Jul 2020)
+-------------------
+
+- (Hotfix) Deal with wavecalib crash
+- Fix class and version check for DataContainer objects.
+- Script to check for calibration files
+- No longer require bias frames as default for DEIMOS
+- Implement grism19 for NOT/ALFOSC
+- Introduced another parameter used to identify box slits, as opposed to
+  erroneous "slits" found by the edge tracing algorithms.  Any slit that
+  has `minimum_slit_length < length < minimum_slit_length_sci` is
+  considered a `BOXSLIT`, any slit with `length < minimum_slit_length`
+  is considered a `SHORTSLIT`; the latter are always ignored.
+- Introduced order matching code into EdgeTraceSet.
+    - This helps fix an issue for GNIRS_10L caused by the orders
+      shifting.
+    - Introduces two paramters in `EdgeTraceSetPar` to assist the
+      matching: `order_match` and `order_offset`
+    - Echelle spectrographs should now always have `ech_order` defined
+      in the SlitTraceSet object.
+    - Removes the need for `Spectrograph.slit2order` and
+      `Spectrograph.order_vec`.  Changes propagated, primarily in
+      `wavecalib.py`, `autoid.py`, and `reduce.py`.
+- Adds in Keck/LRISr with the original detector
+- Adds in Keck/LRISb with the FITS format
+
+1.0.5 (23 Jun 2020)
+-------------------
+
+- Add median combining code
+- Make biasframes median combine by default
+- Implemented IFU reduction hooks
+- KCWI reduction complete up to spec2D frames
+- Implemented new flatfield DataContainer to separate pixelflat and
+  illumflat
+
+1.0.4 (27 May 2020)
+-------------------
+
+- Add a script (pypeit_flux_setup) for creating fluxing, coadd1d and
+  tellfit pypeit files
+- Add telluric fitting script, pypeit_tellfit
+
+1.0.3 (04 May 2020)
+-------------------
+
+- Add illumflat frametype
+- Enable dark image subtraction
+- Refactor of Calibrations (remove cache, add get_dark)
+- Enable calibration-only run
+- Clean up flat, bias handling
+- Make re-use masters the default mode of run_pypeit
+- Require Python 3.7
+- Fixed a bug in NIRES order finding. 
+- Add NOT/ALFOSC
+- Fluxing docs
+- Fix flexure and heliocentric bugs
+- Identify GUI updates
+
+1.0.2 (30 Apr 2020)
+-------------------
+
+- Various doc hotfixes
+- wavelength algorithm hotfix, such that they must now generate an entry
+  for every slit, bad or good.
+
+1.0.1 (13 Apr 2020)
+-------------------
+
+- Various hot fixes
+
+1.0.0 (07 Apr 2020)
+-------------------
+
+- Replaces usage of the `tslits_dict` dictionary with
+  `pypeit.slittrace.SlitTraceSet` everywhere.  This `SlitTraceSet`
+  object is now the main master file used for passing around the slit
+  edges once the edges are determined by `EdgeTraceSet`.
+- Removes usage of `pypeit.pixels.tslits2mask` and replaces it with
+  `pypeit.slittrace.SlitTraceSet.slit_img`.
+- Significant changes to flat-fielding control flow.
+    - Added `rej_sticky`, `slit_trim`, `slit_pad`, `illum_iter`,
+      `illum_rej`, `twod_fit_npoly` parameters to FlatFieldPar.
+    - Illumination flat no longer removed if the user doesn't want to
+      apply it to the data.  The flat was always created, but all that
+      work was lost if the illumination correction wasn't requested.
+    - Replaced tweak edges method with a more direct algorithm.
+    - `pypeit.core.flat.fit_flat` moved to
+      `pypeit.flatfield.FlatField.fit`.
+- Reoriented trace images in the `EdgeTraceSet` QA plots.  Added the
+  sobel image to the ginga display.
+- Added `bspline_profile_qa` for generic QA of a bspline fit.
+- Eliminate MasterFrame class
+- Masks handled by a DataContainer
+- Move DetectorPar into a DataContainer (named DetectorContainer) which
+  enables frame-level construction
+- Advances to DataContainer (array type checking; nested DataContainers;
+  to_master_file)
+- Dynamic docs for calibration images
+- Every calibration output to disk is help within a DataContainer,
+  separate from previous classes.  Exception is WaveCalib (this needsd a
+  fit DataContainer first)
+- Substantial refactoring of Calibrations
+- Add MDM OSMOS spectrograph
+- Moved pypeit.core.pydl.bspline into its own module, `pypeit.bspline`
+- Introduced C backend functions to speed up bspline fitting
+    - now require `extension_helpers` package to build pypeit and
+      necessary files/code in `setup.py` to build the C code
+    - C functions will be used by default, but code will revert to pure
+      python, if there's some problem importing the C module
+    - Added tests and pre-cooked data to ensure identical behavior
+      between the pure python and C functions.
+- Moved some basis function builders to pypeit.core.basis
+- Release 1.0 doc
+- Lots of new docs
+- pypeit_chk_2dslits script
+- DataContainer's for specobj, bspline
+- Introduction of Spec2DObj, AllSpec2DObj, and OneSpec (for Coadd1D)
+- Added bitmask to SlitTraceSet
+- Introduced SlitTraceSet.spat_id and its usage throughout the code
+- Spatial flexure corrections
+    - Significant refactor of flatfield.BuildFlatField.fit()
+    - Spatial flexure measuring code
+    - PypeItPar control
+    - Modifications to SlitTraceSet methods
+    - Illumflat generated dynamically with different PypeIt control
+    - waveimage generated dynamicall and WaveImage deprecated
+- Moved RawImage into ProcessRawImage and renamed the latter to the
+  former
+- Continued refactoring of Calibrations
+- Initial code for syncing SpecObjs across exposures
+- Option to ignore profile masking during extraction
+- Additional code in DataContainer related to MasterFrames
+- Eliminated WaveImage
+- Updates to QL scripts
+- Lots of new tests
+
+
+
+0.13.2 (17 Mar 2020)
+--------------------
+
+- Added PypeIt identify GUI script for manual wavelength calibration
+- Add bitmask tests and print bitmask names that are invalid when
+  exception raised.
+- Parameter set keywords now sorted when exported to an rst table.
+- Enable user to scale flux of coadded 1D spectrum to a filter magnitude
+- Hold RA/DEC as float (decimal degrees) in PypeIt and knock-on effects
+- Add more cards to spec1d header output
+- Fixes a few sensfunc bugs
+- Added template for LRIS 600/7500
+- Deal with non-extracted Standard
+- docs docs and more docs
+- A QA fix too
+
+0.13.1 (07 Mar 2020)
+--------------------
+
+- Missed a required merge with master before tagging 0.13.0.
+
+0.13.0 (07 Mar 2020)
+--------------------
+
+- Refactored sensitivity function, fluxing, and coadding scripts and
+  algorithms.
+- Added support for additional near-IR spectrographs.
+- Restrict extrapolation in tilt fitting
+- Implemented interactive sky region selection
+
+0.12.3 (13 Feb 2020)
+--------------------
+
+- Implemented DataContainer
+- Added fits I/O methods
+- Implemented SlitTraceSet
+- Setup of `pypeit.par.pypeitpar` parameter sets should now fault if the
+  key is not valid for the given parameter set.  NOTE: The check may
+  fail if there are identical keys for different parameter sets.
+- Modification to add_sobj() for numpy 18
+
+0.12.2 (14 Jan 2020)
+--------------------
+
+- Introduces quick look scripts for MOS and NIRES
+- Bumps dependencies including Python 3.7
+- Modest refactoring of reduce/extraction/skysub codes
+- Refactor of ScienceImage Par into pieces
+- Finally dealt with 'random' windowing of Shane_kast_red
+- Dynamic namp setting for LRISr when instantiating Spectrograph
+
+0.12.1 (07 Jan 2020)
+--------------------
+
+- Hotfixes: np.histogram error in core/coadd1d.py, np.linspace using
+  float number of steps in core/wave.py, and sets numpy version to 1.16
+
+0.12.0 (23 Dec 2019)
+--------------------
+
+- Implemented MOSFIRE and further implemented NIRSPEC for Y-band
+  spectroscopy.
+- Fixed bug in coadd2d.
+- Add VLT/FORS filters to our database
+- Improved DEIMOS frame typing
+- Brings Gemini/GMOS into the suite (R400)
+- Also an important change for autoid.full_template()
+- Fixed trace extrapolation, to fix bugs in object finding. Tweaks to
+  object finding algorithm.
+- Major improvements to echelle object finding.
+- Improved outlier rejection and coefficient fitting in pca_trace
+- Major improvements to coadd routines in coadd1d
+- Introduced telluric module and telluric correction routines
+- Implemented tilt image type which is now a required frame type
+- Streamlined and abstracted echelle properties and echelle routine in
+  spectrograph classes.
+- Revamped 2-d coadding routines and introduced 2-d coadding of
+  MultiSlit data
+- Improved ginga plotting routines.
+- Fixed bug associated with astropy.stats.sigma_clipped_stats when
+  astropy.stats.mad_std is used.
+- Refactor BPM generation
+- Merge raw_image loading with datasec_img and oscansec_img generation
+- Sync datasec_img to image in ProcessRawImage
+- Started (barely) on a path to having calibration images in counts and
+  not ADU
+- Refactors GMOS for get_rawimage method
+- Enables GMOS overscan subtraction
+- Adds R400 wavelength solution for old E2V chip
+- Revises simple_calib() method for quick and dirty wavelength
+  calibration
+- Adds a related show_wvcalib script
+- Changes to ech_combspec to better treat filenames
+- Fixed bug when bias was set to 'force' which was not bias subtracting
+- Implemented changes to vlt_xshooter_nir to now require darks taken
+  between flats
+- Made flat fielding code a bit more robust against hot pixels at edge
+  of orders
+- Added pypeit_chk_flat script to view flat images
+- Refactored image objects into RawImage, ProcessRawImage, PypeItImage,
+  BuildImage
+- Moved load() and save() methods from MasterFrame to the individual
+  calibration objects
+- Converted ArcImage and FlatImages into counts
+- Added code to allow for IVAR and RN2 image generation for calibs
+- Added several from_master_file() instantiation methods
+- Use coadd2d.weighted_combine() to stack calibration images
+- Major refactor of slit edge tracing
+- Added 'Identify' tool to allow manual identification and calibration
+  of an arc spectrum
+- Added support for WHT/ISIS
+- Added 'Object Tracing' tool to allow interactive object tracing
+- Added code of conduct
+- Deprecated previous tracing code: `pypeit.traceslits` and
+  `pypeit.core.trace_slits`, as well as some functions in
+  `pypeit.core.extract` that were replaced by
+  `pypeit.core.moment.moment1d` and functions in `pypeit.core.trace`.
+- PCA now saved to MasterEdges file; added I/O methods
+- Improved CuAr linelists and archives for Gemini wavelength solutions
+- New data model for specobj and specobsj objects (spec1d)
+- Started some improvements to Coadd2D, TBC
+- Allow for the continuum of the arc image to be modeled and subtracted
+  when tracing the line-centroid tilts
+- Include a mask in the line detection in extracted central arc spectrum
+  of each slit/order.  For VLT XShooter NIR, this was needed to ensure
+  the sigma calculation didn't include the off-order spectral positions.
+- Added a staticmethed to :class:`pypeit.edgetrace.EdgeTraceSet` that
+  constructs a ``tslits_dict`` object directly from the Master file.
 
 0.11.0.1
 ---------
@@ -10,24 +331,36 @@
 0.11.0 (22 Jun 2019)
 --------------------
 
-- Add magellan_mage, including a new ThAr linelist and an archived solution
+- Add magellan_mage, including a new ThAr linelist and an archived
+  solution
 - Polish several key echelle methods
 - Modify create_linelist to default to vacuum
 - Update Xshooter, NIRES, and GNIRS
-- Refactor ProcessImages into ProcessRawImage, PypeItImage, CalibrationImage, ScienceImage, and ImageMask
+- Refactor ProcessImages into ProcessRawImage, PypeItImage,
+  CalibrationImage, ScienceImage, and ImageMask
 - Refactor ScienceImage into SciImgStack
 - Fix arc tilts bug
 - Started an X-Shooter doc and introduced a [process][bias] parameter
 - Modified processing steps for bias + overscan subtraction
 - Started notes on how to generate a new spectrograph in PypeIt
-- Refactoring of reduce to take a ScienceImage object for the images and the mask
-- Updates to many spectrograph files to put datasec, oscansec in the raw frame
+- Refactoring of reduce to take a ScienceImage object for the images and
+  the mask
+- Updates to many spectrograph files to put datasec, oscansec in the raw
+  frame
 - Add find_trim_edge and std_prof_nsigma parameters
 - A bit of tuning for MagE
 - Fixes for Echelle in fluxspec
 - Writes a chosen set of header cards to the spec1D and coadd files
 - Updates for FORS2
-
+- Introduced new coadd1d module and some new coadd functinality.
+- modified interface to robust_polyfit_djs, robust_optimize, and
+  djs_reject.
+- Added utility routine cap_ivar for capping the noise level.
+- Fixed a bug in optimal extraction which was causing hot pixels when a
+  large fraction of the pixels on the object profile were masked.
+- Major bug fixes and improvements to echelle object finding. Orders
+  which did not cover the entire detector were not being treated
+  properly.
 
 0.10.1 (22 May 2019)
 --------------------

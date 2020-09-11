@@ -2,6 +2,7 @@ pypeit.specobjs module
 ======================
 
 .. automodule:: pypeit.specobjs
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

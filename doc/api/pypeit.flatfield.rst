@@ -2,6 +2,7 @@ pypeit.flatfield module
 =======================
 
 .. automodule:: pypeit.flatfield
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

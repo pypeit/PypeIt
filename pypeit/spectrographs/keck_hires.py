@@ -1,6 +1,9 @@
-'''
+"""
 Implements HIRES-specific functions, including reading in slitmask design files.
-'''
+
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
+"""
 import glob
 import re
 import os
@@ -20,13 +23,13 @@ from pypeit.spectrographs import spectrograph
 from pypeit.spectrographs.slitmask import SlitMask
 from pypeit.spectrographs.opticalmodel import ReflectionGrating, OpticalModel, DetectorMap
 
-from pypeit import debugger
-
 
 class KECKHIRESSpectrograph(spectrograph.Spectrograph):
     """
     Child to handle KECK/HIRES specific code
     """
+    ndet = 1
+
     def __init__(self):
         # Get it started
         super(KECKHIRESSpectrograph, self).__init__()
@@ -97,16 +100,16 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         Wrapper to the raw image reader for HIRES
 
         Args:
-            raw_file:  str, filename
-            det: int, REQUIRED
-              Desired detector
+            raw_file (:obj:`str`):
+                filename
+            det (:obj:`int`, optional):
+              Desired detector.  Despite default value, cannot be
+              ``None`` (todo: set a sensible default).
             **null_kwargs:
               Captured and never used
 
         Returns:
-            raw_img: ndarray
-              Raw image;  likely unsigned int
-            head0: Header
+            tuple: Raw image and header
 
         """
         raw_img, head0, _ = read_hires(raw_file, det=det)
@@ -214,54 +217,6 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         super(KECKHIRESRSpectrograph, self).__init__()
         self.spectrograph = 'keck_hires_red'
         self.camera = 'HIRES_R'
-        self.detector = [
-            # Detector 1 B
-            pypeitpar.DetectorPar(dataext         = 1,
-                        specaxis        = 0,  # Device is fussed with by the image reader
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.191,
-                        darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
-                        numamplifiers   = 1,
-                        gain            = 0.78, # high gain, low gain 1.9
-                        ronoise         = 2.8,
-                        suffix          = '_01'
-                        ),
-            # Detector 2
-            pypeitpar.DetectorPar(dataext         = 2,
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.191,
-                        darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
-                        numamplifiers   = 1,
-                        gain            = 0.86, # high gain, low gain 2.2
-                        ronoise         = 3.1,
-                        suffix          = '_02'
-                        ),
-            # Detector 3
-            pypeitpar.DetectorPar(dataext         = 3,
-                        specaxis        = 0,
-                        xgap            = 0.,
-                        ygap            = 0.,
-                        ysize           = 1.,
-                        platescale      = 0.191,
-                        darkcurr        = 0.0,
-                        saturation      = 65535.,
-                        nonlinear       = 0.86,
-                        numamplifiers   = 1,
-                        gain            = 0.84, # high gain, low gain 2.2
-                        ronoise         = 3.1,
-                        suffix          = '_03'
-                        ),
-        ]
-        self.numhead = 4
 
     def default_pypeit_par(self):
         """
@@ -271,17 +226,18 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         par['rdx']['spectrograph'] = 'keck_hires_red'
 
         # Adjustments to slit and tilts for NIR
-        par['calibrations']['slits']['sigdetect'] = 600.
-        par['calibrations']['slits']['trace_npoly'] = 5
-        par['calibrations']['slits']['maxshift'] = 0.5
-#        par['calibrations']['slits']['pcatype'] = 'pixel'
+        par['calibrations']['slitedges']['edge_thresh'] = 600.
+        par['calibrations']['slitedges']['fit_order'] = 5
+        par['calibrations']['slitedges']['max_shift_adj'] = 0.5
+        par['calibrations']['slitedges']['left_right_pca'] = True
+
         par['calibrations']['tilts']['tracethresh'] = 20
         # Bias
         par['calibrations']['biasframe']['useframe'] = 'bias'
 
         # 1D wavelength solution
         par['calibrations']['wavelengths']['lamps'] = ['ThAr']
-        par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
+        #par['calibrations']['wavelengths']['nonlinear_counts'] = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
         par['calibrations']['wavelengths']['rms_threshold'] = 0.25
         par['calibrations']['wavelengths']['sigdetect'] = 5.0
         # Reidentification parameters
@@ -328,7 +284,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         super(KECKHIRESRSpectrograph, self).init_meta()
         self.meta['decker'] = dict(ext=0, card='DECKNAME')
 
-    def bpm(self, shape=None, filename=None, det=None, **null_kwargs):
+    def bpm(self, shape=None, filename=None, det=None, msbias=None, **null_kwargs):
         """
         Override parent bpm function with BPM specific to X-ShooterNIR.
 
@@ -338,6 +294,7 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
         Parameters
         ----------
         det : int, REQUIRED
+        msbias : numpy.ndarray, required if the user wishes to generate a BPM based on a master bias
         **null_kwargs:
             Captured and never used
 
@@ -348,8 +305,14 @@ class KECKHIRESRSpectrograph(KECKHIRESSpectrograph):
 
         """
 
-        self.empty_bpm(shape=shape, filename=filename, det=det)
-        return self.bpm_img
+        bpm_img = self.empty_bpm(shape=shape, filename=filename, det=det)
+
+        # Fill in bad pixels if a master bias frame is provided
+        if msbias is not None:
+            return self.bpm_frombias(msbias, det, bpm_img)
+
+        return bpm_img
+
 
 def indexing(itt, postpix, det=None,xbin=None,ybin=None):
     """
@@ -435,23 +398,25 @@ def hires_read_1chip(hdu,chipno):
 
 def read_hires(raw_file, det=None):
     """
-    Read a raw HIRES data frame (one or more detectors)
-    Packed in a multi-extension HDU
-    Based on pypeit.arlris.read_lris...
-       Based on readmhdufits.pro
+    Read a raw HIRES data frame (one or more detectors).
 
+    Data are unpacked from the multi-extension HDU.  Function is
+    based :func:`pypeit.spectrographs.keck_lris.read_lris`, which
+    was based on the IDL procedure ``readmhdufits.pro``.
+    
     Parameters
     ----------
     raw_file : str
-      Filename
+        Filename
 
     Returns
     -------
     array : ndarray
-      Combined image
+        Combined image
     header : FITS header
     sections : tuple
-      List of datasec, oscansec sections
+        List of datasec, oscansec sections
+
     """
 
     # Check for file; allow for extra .gz, etc. suffix

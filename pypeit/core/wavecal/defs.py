@@ -1,16 +1,19 @@
 """ Module for arcline definitions
 """
-from astropy.table import Table
+from pypeit.bitmask import BitMask
 
 # TODO: This doesn't belong here.
 def instruments():
-    """ Dict to convert instrument to bitwise flag
-    WARNING: Modifying any of the following is a *bad* idea
-      Adding is ok
+    """ 
+    Dict to convert instrument to bitwise flag
+
+    .. warning::
+
+        Modifying any of the following is a *bad* idea.  Adding is ok
 
     Returns
     -------
-    instr_dict : Table
+    instr_dict : dict
 
     """
     instr_dict = {}
@@ -22,15 +25,55 @@ def instruments():
     instr_dict['DEIMOS'] = 2**4
     instr_dict['NIRSPEC'] = 2**5
     instr_dict['GMOS'] = 2**6
-
     #
     return instr_dict
 
 
+class LinesBitMask(BitMask):
+    """
+    Bits for arc lines
+    """
+    version = '1.0.0'
+
+    def __init__(self):
+        mask = dict([
+            ('ArI', 'Argon I'),
+            ('HgI', 'Comment'),
+            ('KrI', 'Comment'),
+            ('NeI', 'Comment'),
+            ('XeI', 'Comment'),
+            ('CdI', 'Comment'),
+            ('ZnI', 'Comment'),
+            ('HeI', 'Comment'),
+            ('FeI', 'Comment'),
+            ('FeII', 'Comment'),
+            ('ThAr', 'Comment'),
+            ('OH', 'Comment'),
+            ('UNKNWN', 'Comment'),
+            #('OH_R24000', 'Comment'),
+            #('OH_triplespec', 'Comment'),
+            ('CuI', 'Comment'),
+            ('ArII', 'Comment'),
+            ('ThI', 'Comment'),
+            ('ThII', 'Comment'),
+            #('OH_XSHOOTER', 'Comment'),
+            #('OH_GNIRS', 'Comment'),
+            #('OH_NIRES', 'Comment'),
+            #('OH_GMOS', 'Comment'),
+            #('OH_MODS', 'Comment'),
+            #('OH_FIRE_Echelle', 'Comment'),
+            #('Ar_IR_GNIRS', 'Comment'),
+            ('Ar', 'This is for Ar_IR_GNIRS which should specify the real ion'),
+        ])
+        super(LinesBitMask, self).__init__(list(mask.keys()), descr=list(mask.values()))
+
+
 def lines():
-    """ Dict of lines included in this database
-    WARNING: Modifying any of the following is a *bad* idea
-      Adding is ok
+    """
+    Dict of line lists included in this database
+
+    .. warning::
+        Modifying any of the following is a *bad* idea.  Adding is ok
 
     Returns
     -------
@@ -58,15 +101,23 @@ def lines():
     line_dict['OH_GMOS'] = 2**16
     line_dict['OH_MODS'] = 2**17
     line_dict['ThAr_MagE'] = 2**18  # R=4100
-
+    line_dict['OH_FIRE_Echelle'] = 2**19  # R=6000
+    line_dict['Ar_IR_GNIRS'] = 2**20  # R=6000
+    line_dict['FeI'] = 2**21
+    line_dict['FeII'] = 2**22
+    line_dict['UNKNWN'] = 2**23
 
     #
     return line_dict
 
 
 def str_len():
-    """ Hard-codes length of strings in the database
-    WARNING: Modifying any of the following is a *bad* idea
+    """
+    Hard-codes length of strings in the database
+
+    .. warning::
+
+        Modifying any of the following is a *bad* idea.
 
     Returns
     -------
@@ -80,3 +131,4 @@ def str_len():
     strlen_dict['Source'] = 30
     # Return
     return strlen_dict
+

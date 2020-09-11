@@ -2,6 +2,7 @@ pypeit.bitmask module
 =====================
 
 .. automodule:: pypeit.bitmask
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

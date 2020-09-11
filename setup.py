@@ -9,6 +9,7 @@ import glob
 
 from setuptools import setup, find_packages
 
+from extension_helpers import get_extensions
 
 def get_data_files():
     """ Build the list of data files to include.  """
@@ -50,8 +51,14 @@ def get_requirements():
 
 NAME = 'pypeit'
 # do not use x.x.x-dev.  things complain.  instead use x.x.xdev
-VERSION = '0.11.1dev'
+VERSION = '1.1.1'
 RELEASE = 'dev' not in VERSION
+
+# To enable pypeit ginga global plugin
+entry_points = """
+[ginga.rv.plugins]
+SlitWavelength = pypeit.display:setup_SlitWavelength
+"""
 
 def run_setup(data_files, scripts, packages, install_requires):
 
@@ -70,14 +77,17 @@ def run_setup(data_files, scripts, packages, install_requires):
           url='https://github.com/pypeit/PypeIt',
           packages=packages,
           package_data={'pypeit': data_files, '': ['*.rst', '*.txt']},
+          python_requires='>=3.7',
           include_package_data=True,
           scripts=scripts,
           install_requires=install_requires,
-          requires=[ 'Python (>3.6.0)' ],                               # *
+          requires=[ 'Python (>3.7.0)' ],                               # *
           zip_safe=False,                                               # *
           use_2to3=False,                                               # *
           setup_requires=[ 'pytest-runner' ],
           tests_require=[ 'pytest' ],
+          ext_modules=get_extensions(),
+          entry_points=entry_points,
           classifiers=[
               'Development Status :: 4 - Beta',
               'Intended Audience :: Science/Research',
@@ -85,13 +95,12 @@ def run_setup(data_files, scripts, packages, install_requires):
               'Natural Language :: English',
               'Operating System :: OS Independent',
               'Programming Language :: Python',
-              'Programming Language :: Python :: 3.6',
+              'Programming Language :: Python :: 3.7',
               'Topic :: Documentation :: Sphinx',
               'Topic :: Scientific/Engineering :: Astronomy',
               'Topic :: Software Development :: Libraries :: Python Modules',
               'Topic :: Software Development :: User Interfaces'
-          ],
-          )
+          ])
 
 #-----------------------------------------------------------------------
 if __name__ == '__main__':

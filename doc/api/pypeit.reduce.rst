@@ -2,6 +2,7 @@ pypeit.reduce module
 ====================
 
 .. automodule:: pypeit.reduce
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

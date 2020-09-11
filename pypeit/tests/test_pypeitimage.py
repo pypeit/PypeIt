@@ -4,31 +4,32 @@ Module to run tests on PypeItImage class
 import os
 
 import pytest
-import glob
 import numpy as np
 
-from astropy.io import fits
-
 from pypeit.images import pypeitimage
-from pypeit.tests.tstutils import dev_suite_required
-from pypeit.spectrographs.util import load_spectrograph
 
-kast_blue = load_spectrograph('shane_kast_blue')
+def data_path(filename):
+    data_dir = os.path.join(os.path.dirname(__file__), 'files')
+    return os.path.join(data_dir, filename)
 
-@pytest.fixture
-@dev_suite_required
-def kast_blue_bias_files():
-    return glob.glob(os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'Shane_Kast_blue',
-                                  '600_4310_d55', 'b1?.fits*'))
+def test_full():
+    pypeitImage = pypeitimage.PypeItImage(np.ones((1000, 1000)))
+    # Mask
+    pypeitImage.fullmask = np.zeros((1000, 1000), dtype=np.int64)
+    # Full datamodel
+    full_datamodel = pypeitImage.full_datamodel()
+    assert 'gain' in full_datamodel.keys()
+    assert 'detector' in pypeitImage.keys()
 
-def test_instantiate():
-    pypeitImage = pypeitimage.PypeItImage(kast_blue, 1)
-    assert pypeitImage.head0 is None
+    # I/O
+    outfile = data_path('tst_pypeitimage.fits')
+    pypeitImage.to_file(outfile, overwrite=True)
+    _pypeitImage = pypeitimage.PypeItImage.from_file(outfile)
 
-@dev_suite_required
-def test_load(kast_blue_bias_files):
-    one_file = kast_blue_bias_files[0]
-    #
-    pypeitImage = pypeitimage.PypeItImage(kast_blue, 1)
+    # Cleanup
+    os.remove(outfile)
 
+    # Test
+    assert isinstance(_pypeitImage.image, np.ndarray)
+    assert _pypeitImage.ivar is None
 

@@ -1,8 +1,6 @@
-.. highlight:: rest
-
-*********
+=========
 Keck LRIS
-*********
+=========
 
 
 Overview
@@ -11,63 +9,84 @@ Overview
 This file summarizes several instrument specific
 settings that are related to the Keck/LRIS spectrograph.
 
+Common Items
+============
 
-Longslit
-========
+Flexure
++++++++
 
-If reducing data with a longslit, we recommend
-that you specify that only a single slit is
-desired, i.e.::
+There is substantial flexure in the LRIS instrument and
+the default settings attemps to characterize both the spectral
+and spatial effects.
 
-    trace slits number 1
-
-See :ref:`trace-slit-number` for further details.
+See the :doc:`flexure` notes if you wish
+to turn either of these off.
 
 .. _LRISb:
 
+keck_lris_blue
+==============
+
+LRISb Default Settings
+++++++++++++++++++++++
+
+See :ref:`pypeit_par:Instrument-Specific Default Configuration` for
+a listing of modifications to the default settings.
+
 Taking Calibrations for LRISb
-=============================
++++++++++++++++++++++++++++++
 
+Arcs
+----
 
-Default Settings
-++++++++++++++++
+We recommend that you turn on *all* of the standard
+arc lamps,  including those slated for the red side.
 
-Here are the deviations from the default settings
-for LRISb::
+These are::
 
-    settings trace dispersion direction 0
-    settings trace slits tilts method spca
-    settings trace slits tilts params 1,1,1
-    settings trace slits pca params [3,2,1,0]
-    settings trace slits sigdetect 30.0        # Good for Twilight flats; faint dome flats might fail miserably..
+    Ne,Ar,Cd,Kr,Xe,Zn,Hg
 
-The last setting is fine for a relatively bright frame
-taken on the twilight sky,
-but we suspect a faint dome flat on the blue side will require
-a lower sigdetect (and is likely to be very challenging overall).
-
-Internal flats, meanwhile, may be too bright
-and need to be tested.
-
+The archived solutions expect all of these lamps.
 
 Pixel Flat
-++++++++++
+----------
 
 It is recommend to correct for pixel-to-pixel variations using a slitless
 flat.  If you did not take such calibration frames or cannot process them,
-you may wish to use an archival.  If so, copy the file into your MasterFrame
-folder (should be named MF_lris_blue and you may need to create it yourself)
-and set the following in the :ref:`_reduce-block` of the PypeIt file::
+you may wish to use an archival.
+`This link <https://drive.google.com/drive/folders/1YmDgCgXrsRbkuH_Pc_MLShWVdSrMkoFP?usp=sharing>`_
+has the existing ones staged by the PypeIt team.
+
+And then set the following in your :doc:`pypeit_file`::
+
+    [calibrations]
+      [[flatfield]]
+           frame = path_to_the_file/PYPEIT_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
+
+WARNING: Internal flats may be too bright and need to be tested.
+
+Trace Flat
+----------
+
+We strongly recommend on-the-sky trace flats through full instrument
+setup.  Aim for 1000 counts per pixel above bias.
+These are best achieved by taking twilight flats within 15 minutes
+of sunset/sunrise.
+
+WARNING: Internal/dome flats are likely to be too faint in the
+very blue.
 
 
-    reduce flatfield useframe MF_lris_blue/PypeIt_LRISb_pixflat_B600_2x2_17sep2009.fits.gz
+.. _keck-lris-red:
 
+keck_lris_red
+=============
 
 Taking Calibrations for LRISr
 =============================
 
-Default Settings
-++++++++++++++++
+LRISr Default Settings
+++++++++++++++++++++++
 
 Here are the deviations from the default settings
 for LRISr::

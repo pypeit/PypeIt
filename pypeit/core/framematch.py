@@ -26,11 +26,13 @@ class FrameTypeBitMask(BitMask):
         # 3.7, we can remove this (and other) OrderedDict usage in favor
         # of just a normal dict.
         frame_types = OrderedDict([
+                       ('align', 'Trace constant spatial positions along the slit'),
                          ('arc', 'Arc lamp observation used for wavelength calibration'),
                         ('bias', 'Bias readout for detector bias subtraction'),
                         ('dark', 'Shuttered exposure to measure dark current'),
                      ('pinhole', 'Pinhole observation used for tracing slit centers'),
                    ('pixelflat', 'Flat-field exposure used for pixel-to-pixel response'),
+                   ('illumflat', 'Flat-field exposure used for illumination flat'),
                      ('science', 'On-sky observation of a primary target'),
                     ('standard', 'On-sky observation of a flux calibrator'),
                        ('trace', 'High-count exposure used to trace slit positions'),
@@ -104,7 +106,7 @@ def check_frame_exptime(exptime, exprng):
     if exprng[0] is not None:
         indx[indx] &= (exptime[indx] > exprng[0])
     if exprng[1] is not None:
-        indx[indx] &= (exptime[indx] < exprng[1])
+        indx[indx] &= (exptime[indx] <= exprng[1])
     return indx
 
 

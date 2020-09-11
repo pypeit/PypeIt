@@ -7,6 +7,7 @@ import time
 import glob
 import warnings
 import textwrap
+from IPython import embed
 
 import numpy as np
 
@@ -15,7 +16,7 @@ from astropy.table import Table
 from configobj import ConfigObj
 
 from pypeit import msgs
-from pypeit import debugger
+
 
 #-----------------------------------------------------------------------
 # Parameter utility functions
@@ -556,7 +557,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
     """
     # Error checking
     if not isinstance(data_files, list):
-        raise IOError("files_root needs to be a list")
+        raise IOError("data_files needs to be a list")
 
     # Defaults
     if cfg_lines is None:
@@ -565,26 +566,8 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
     else:
         _cfg_lines = list(cfg_lines)
 
-    if setup_mode:
-        _cfg_lines += ['[calibrations]']
-        _cfg_lines += ['    [[biasframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[pixelflatframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[arcframe]]']
-        _cfg_lines += ['        number = 1']
-        _cfg_lines += ['    [[pinholeframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[traceframe]]']
-        _cfg_lines += ['        number = 0']
-        _cfg_lines += ['    [[standardframe]]']
-        _cfg_lines += ['        number = 0']
-    # TODO: Got rid of this, but need to check this doesn't break
-    # anything
-#    else:
-#        _cfg_lines += ['[calibrations]']
-#        _cfg_lines += ['    [[arcframe]]']
-#        _cfg_lines += ['        number = 1']
+    # TODO: Bring back checks for the appropriate number of calibration
+    # frames?
 
     # TODO: Clean up and check validity of _cfg_lines by reading it into
     # a ConfigObj?
@@ -620,5 +603,7 @@ def make_pypeit_file(pypeit_file, spectrograph, data_files, cfg_lines=None, setu
             f.write('\n')
         f.write("data end\n")
         f.write("\n")
+
+    msgs.info('PypeIt file written to: {0}'.format(pypeit_file))
 
 

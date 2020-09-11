@@ -20,6 +20,7 @@ from pypeit.core import arc
 from pypeit import utils
 from pypeit.core.wave import airtovac
 
+from IPython import embed
 
 def blackbody(wavelength, T_BB=250., debug=False):
     """ Given wavelength [in microns] and Temperature in Kelvin
@@ -575,6 +576,7 @@ def conv2res(wavelength, flux, resolution, central_wl='midpt',
 
     msgs.info("Covolving with a Gaussian kernel with sigma = {} pixels".format(px_sigma))
     gauss_kernel = Gaussian1DKernel(px_sigma)
+
     flux_convolved = convolve(flux, gauss_kernel)
 
     if debug:
@@ -715,7 +717,7 @@ def create_linelist(wavelength, spec, fwhm, sigdetec=2.,
 def create_OHlinelist(resolution, waveminmax=(0.8,2.6), dlam=40.0, flgd=True, nirsky_outfile=None,
                       fwhm=None, sigdetec=3., line_name='OH', file_root_name=None, iraf_frmt=False, 
                       debug=False):
-    """Create a syntetic sky spectrum at a given resolution, extract significant lines, and
+    """Create a synthetic sky spectrum at a given resolution, extract significant lines, and
     store them in a PypeIt compatibile file. The skymodel is built from nearIR_modelsky and
     includes black body at 250K, OH lines, and H2O lines (but only at lambda>2.3microns).
 

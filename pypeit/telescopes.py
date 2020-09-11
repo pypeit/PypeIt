@@ -77,3 +77,30 @@ class LBTTelescopePar(TelescopePar):
                                                longitude=109.889064,
                                                latitude=32.701308,
                                                elevation=3221.0)
+
+class KPNOTelescopePar(TelescopePar):
+    def __init__(self):
+        super(KPNOTelescopePar, self).__init__(name='KPNO',
+                                              longitude=111.616111,
+                                              latitude=31.9516666,
+                                              elevation=2098.)
+class MMTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(MMTTelescopePar, self).__init__(name='MMT',
+                                              longitude=110.885,
+                                              latitude=31.6883,
+                                              elevation=2616.0)
+
+class NOTTelescopePar(TelescopePar):
+    def __init__(self):
+        super(NOTTelescopePar, self).__init__(name='NOT',
+                                              longitude=17.88432979,
+                                              latitude=28.7543303,
+                                              elevation=2465.5)
+
+class P200TelescopePar(TelescopePar):
+    def __init__(self):
+        super(P200TelescopePar, self).__init__(name='P200',
+                                               longitude=116.86489,
+                                               latitude=33.35631,
+                                               elevation=1713.)

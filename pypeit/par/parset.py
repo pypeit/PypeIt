@@ -37,17 +37,19 @@ Define a utility base class used to hold parameters.
         allow it to print the configuration lines for a dictionary, not
         just ParSets.
 
-.. _isinstance: https://docs.python.org/2/library/functions.html#isinstance
-
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
 import warnings
 import textwrap
 import sys
-if sys.version > '3':
-    long = int
+
+from IPython import embed
 
 import numpy
+
+from astropy.io import fits
 
 from pypeit.par import util
 
@@ -120,14 +122,15 @@ class ParSet(object):
         cfg_comment (str): 
             Comment to be placed at the top-level of the configuration
             section written based on the contents of this parameter set.
-        prefix (str):
-            Class Prefix for header keywords when writing the parset to an
-            `astropy.io.fits.Header` object.
-
     """
+
     # Set prefix for writing parameters to a fits header to a class
     # attribute.
     prefix = 'PAR'
+    """
+    Class Prefix for header keywords when writing the parset to an
+    `astropy.io.fits.Header`_ object.
+    """
 
     def __init__(self, pars, values=None, defaults=None, options=None, dtypes=None, can_call=None,
                  descr=None, cfg_section=None, cfg_comment=None):
@@ -187,8 +190,13 @@ class ParSet(object):
         # Set the data dictionary using the overloaded
         # __setitem__function so that value checking is performed
         self.data = {}
-        for p, d, v in zip(pars, _defaults, _values):
-            if v is None:
+        for p, d, v, t in zip(pars, _defaults, _values, _dtypes):
+            # Check if 'None' is an allowed option
+            none_allowed = False
+            if type(t) is list:
+                if type(None) in t:
+                    none_allowed = True
+            if v is None and not none_allowed:
                 self.__setitem__(p, d)
                 continue
             self.__setitem__(p, v)
@@ -236,8 +244,18 @@ class ParSet(object):
                 warnings.warn('List includes a mix of ParSet and dicts with other types.  '
                               'Displaying and writing the ParSet will not be correct!')
 
-        if self.options[key] is not None and value not in self.options[key]:
-            raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
+        if self.options[key] is not None:
+            if isinstance(value, list):
+                # `value` can be a list of items, all of which must be
+                # one of the valid options.
+                indx = numpy.isin(value, self.options[key], invert=True)
+                if numpy.any(indx):
+                    raise ValueError('Input value for {0} invalid'.format(key)
+                                     + '; {0}'.format(numpy.atleast_1d(value)[indx]) 
+                                     + ' are not valid options.\n'
+                                     + 'Options are: {0}'.format(self.options[key]))
+            elif value not in self.options[key]:
+                raise ValueError('Input value for {0} invalid: {1}.\nOptions are: {2}'.format(
                                                                     key, value, self.options[key]))
         if self.dtype[key] is not None \
                 and not any([ isinstance(value, d) for d in self.dtype[key]]):
@@ -279,7 +297,7 @@ class ParSet(object):
                 By default, the table includes the parameter key, its
                 current value, the default value, its data type, and if
                 the value can be a callable function.  If
-                `value_only=True`, only the paramter key and current
+                `value_only=True`, only the parameter key and current
                 value are returned.
 
         Returns:
@@ -306,7 +324,13 @@ class ParSet(object):
                     data_table[i+1,2] = ParSet._data_string(self.default[k])
             if value_only:
                 continue
-            data_table[i+1,3] = ', '.join([t.__name__ for t in self.dtype[k]])
+
+            data_table[i+1,3] = 'Undefined' if self.dtype[k] is None \
+                                    else ', '.join([t.__name__ for t in self.dtype[k]])
+# TODO: Now treating None's differently. None's shouldn't be in a list.
+# Keep this code around for now in case we find a failure mode.
+#                                    else ', '.join(['Undefined' if t is None else t.__name__ 
+#                                                    for t in self.dtype[k]])
             data_table[i+1,4] = self.can_call[k].__repr__()
 
         output = [ParSet._data_table_string(data_table)]
@@ -353,7 +377,7 @@ class ParSet(object):
 
 
     @staticmethod
-    def _data_string(data, use_repr=True, verbatum=False):
+    def _data_string(data, use_repr=True, verbatim=False):
         """
         Convert a single datum into a string
         
@@ -364,16 +388,24 @@ class ParSet(object):
         Args:
             data (object):
                 The object to stringify.
+            use_repr (:obj:`bool`, optional):
+                Use the objects :attr:`__repr__` method; otherwise, use
+                a direct string conversion.
+            verbatim (:obj:`bool`, optional):
+                Use quotes around the provided string to indicate that
+                the string should be representated in a verbatim (fixed
+                width) font.
+        
+        Returns:
+            str: A string representation of the provided ``data``.
         """
         if isinstance(data, str):
-            return data if not verbatum else '``' + data + '``'
+            return data if not verbatim else '``' + data + '``'
         if hasattr(data, '__len__'):
             return '[]' if isinstance(data, list) and len(data) == 0 \
                         else ', '.join([ ParSet._data_string(d, use_repr=use_repr,
-                                                             verbatum=verbatum) for d in data ])
-        if use_repr:
-            return data.__repr__()
-        return str(data)
+                                                             verbatim=verbatim) for d in data ])
+        return data.__repr__() if use_repr else str(data)
 
     def _wrap_print(self, head, output, tcols):
         """
@@ -567,10 +599,10 @@ class ParSet(object):
                 Key for new parameter
             value (:obj:`dtype`):
                 Parameter value, must have a type in the list provided
-                by :arg:`dtype`, if the list is provided
+                by `dtype`, if the list is provided
             default (:obj:`dtype`, optional):
                 Define a default value for the parameter, must have a
-                type in the list provided by :arg:`dtype`, if the list
+                type in the list provided by `dtype`, if the list
                 is provided.  No default if not provided.
             options (:obj:`list`, optional):
                 List of discrete values that the parameter is allowed to
@@ -693,11 +725,23 @@ class ParSet(object):
         return ':class:`' +  type(p).__module__ + '.' + type(p).__name__ + '`'
 
     def to_rst_table(self, parsets_listed=[]):
+        """
+        Construct a reStructuredText table describing the parameter set.
+
+        Args:
+            parsets_listed (:obj:`list`, optional):
+                A list of 
+        
+        Returns:
+            list: Returns a list of lines that can be written to an
+            ``*.rst`` file.
+        """
         new_parsets = []
         data_table = numpy.empty((self.npar+1, 5), dtype=object)
         data_table[0,:] = ['Key', 'Type', 'Options', 'Default', 'Description']
-        for i,k in enumerate(self.keys()):
-            data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatum=True)
+        sorted_keys = numpy.sort(self.keys())
+        for i,k in enumerate(sorted_keys):
+            data_table[i+1,0] = ParSet._data_string(k, use_repr=False, verbatim=True)
             if isinstance(self.data[k], ParSet):
                 if type(self.data[k]).__name__ not in parsets_listed:
                     new_parsets += [k]
@@ -708,11 +752,11 @@ class ParSet(object):
                 data_table[i+1,1] = ', '.join([t.__name__ for t in self.dtype[k]])
                 data_table[i+1,3] = '..' if self.default[k] is None \
                                     else ParSet._data_string(self.default[k], use_repr=False,
-                                                             verbatum=True)
+                                                             verbatim=True)
 
             data_table[i+1,2] = '..' if self.options[k] is None \
                                     else ParSet._data_string(self.options[k], use_repr=False,
-                                                             verbatum=True)
+                                                             verbatim=True)
             data_table[i+1,4] = '..' if self.descr[k] is None \
                                     else ParSet._data_string(self.descr[k])
 
@@ -748,7 +792,7 @@ class ParSet(object):
                 raise ValueError('These keys should not be None: {0}'.format(
                                     numpy.asarray(self.keys())[should_not_be_None].tolist()))
 
-    def to_header(self, hdr, prefix=None, quiet=False):
+    def to_header(self, hdr=None, prefix=None, quiet=False):
         """
         Write the parameters to a fits header.
 
@@ -756,15 +800,23 @@ class ParSet(object):
         *not* written to the header.
 
         Args:
-            hdr (`astropy.io.fits.Header`):
-                Header object for the parameters. Modified in-place.
+            hdr (`astropy.io.fits.Header`, optional):
+                Header object for the parameters. **If provided, the
+                header is not copied and directly modified.** If
+                None, the baseline header is empty.
             prefix (:obj:`str`, optional):
                 Prefix to use for the header keywords, which
                 overwrites the string defined for the class. If None,
                 uses the default for the class.
             quiet (:obj:`bool`, optional):
                 Suppress print statements.
+
+        Returns:
+            `astropy.io.fits.Header`_: Header with the parameter
+            data included.
         """
+        if hdr is None:
+            hdr = fits.Header()
         if prefix is None:
             prefix = self.prefix
         ndig = int(numpy.log10(self.npar))+1 
@@ -773,18 +825,41 @@ class ParSet(object):
                 # Don't write Nones
                 continue
             if isinstance(value, ParSet):
-                if verbose:
+                if not quiet:
                     warnings.warn('ParSets within ParSets are not written to headers!  '
                                   'Skipping {0}.'.format(key))
                 continue
-            _value = str(value) if isinstance(value, (list, tuple)) else value
+            if isinstance(value, list):
+                _value = '[' + ', '.join([str(v) for v in value]) + ']'
+            elif isinstance(value, tuple):
+                _value = '(' + ', '.join([str(v) for v in value]) + ')'
+            else :
+                _value = value 
+            hdr['{0}K{1}'.format(prefix, str(i+1).zfill(ndig))] \
+                    = (key, '{0}: Key'.format(self.__class__.__name__))
             hdr['{0}{1}'.format(prefix, str(i+1).zfill(ndig))] \
-                    = (_value, '{0}: {1}'.format(self.__class__.__name__, key))
+                    = (_value, '{0}: Value'.format(self.__class__.__name__))
+        return hdr
 
     @classmethod
     def from_header(cls, hdr, prefix=None):
         """
         Instantiate the ParSet using data parsed from a fits header.
+
+        This is a simple wrapper for
+        :func:`ParSet.parse_par_from_hdr` and
+        :func:`ParSet.from_dict`.
+
+        .. warning::
+
+            The to/from header methods in the :class:`ParSet` base
+            class **only** saves the parameter keys and values, not
+            its other attributes (e.g., options, dtypes, etc). In
+            essentially all use cases, the :class:`ParSet` should be
+            used as a base class where the :func:`from_dict` method
+            is overwritten such that these higher-level attributes of
+            the derived class are maintained in the header I/O. See,
+            e.g., :mod:`pypeit.par.pypeitpar`.
 
         Args:
             hdr (`astropy.io.fits.Header`):
@@ -796,7 +871,7 @@ class ParSet(object):
         """
         if prefix is None:
             prefix = cls.prefix
-        return cls.from_dict(util.recursive_dict_evaluate(ParSet.parse_par_from_hdr(hdr, prefix)))
+        return cls.from_dict(util.recursive_dict_evaluate(cls.parse_par_from_hdr(hdr, prefix)))
 
     @staticmethod
     def parse_par_from_hdr(hdr, prefix):
@@ -813,25 +888,71 @@ class ParSet(object):
             dict: A dictionary with the parameter keywords and
             values.
         """
+        # TODO: I don't like having to find the number of parameters first...
+        # Find the numbers of parameters
+        npar = 0
+        for k, v in hdr.items():
+            if k[:len(prefix)] == prefix:
+                if k[len(prefix)] == 'K':
+                    continue
+                try:
+                    i = int(k[len(prefix):])
+                except ValueError:
+                    continue
+                if npar < i:
+                    npar = i
+        ndig = int(numpy.log10(npar))+1 
+
         par = {}
         for k, v in hdr.items():
             # Check if this header keyword starts with the required
             # prefix
             if k[:len(prefix)] == prefix:
+                if k[len(prefix)] == 'K':
+                    # Skip keys
+                    continue
                 try:
                     # Try to convert the keyword without the prefix into
                     # an integer.
-                    i = int(k[len(prefix):])-1
+                    i = int(k[len(prefix):])
                 except ValueError:
-                    # Assume the value is some other random keyword that
-                    # starts with the prefix but isn't a parameter
+                    # Assume the value is some other random keyword
+                    # that starts with the prefix but doesn't contain a
+                    # relevant parameter
                     continue
-                # Assume we've found a parameter. Parse the parameter
-                # name from the header comment and add it to the
-                # dictionary.
-                par_key = hdr.comments[k].split(':')[-1].strip()
-                par[par_key] = v
+                # Assume we've found a parameter. Use the associated
+                # header card to set the keyword and add both to the
+                # output dictionary.
+                par[hdr['{0}K{1}'.format(prefix,str(i).zfill(ndig))]] = v
         return par
+
+    @classmethod
+    def from_dict(cls, cfg):
+        """
+        Instantiate a :class:`ParSet` from a dictionary.
+
+        This simply constructs a :class:`ParSet` that behaves exactly
+        like a dictionary. That is, no constraints are put on the
+        types, options, etc., of the parameters.
+
+        .. warning::
+
+            Use of this method of instantiating a :class:`ParSet`
+            **only** sets the parameter keys and values, not
+            its other attributes (e.g., options, dtypes, etc). In
+            essentially all use cases, the :class:`ParSet` should be
+            used as a base class where the :func:`from_dict` method
+            is overwritten such that these higher-level attributes of
+            the derived class are maintained in the header I/O. See,
+            e.g., :mod:`pypeit.par.pypeitpar`.
+
+        Args:
+            cfg (dict-like):
+                Dictionary-like object used to set the parameters and
+                parameter values for the :class:`ParSet`.
+        """
+        pars, values = map(lambda x : list(x), zip(*cfg.items()))
+        return cls(pars, values=values)
 
 
 class ParDatabase(object):

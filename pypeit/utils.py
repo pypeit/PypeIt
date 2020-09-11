@@ -1,45 +1,391 @@
 """
 General utility functions.
 
-.. _numpy.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. include common links, assuming primary doc root is up one directory
+.. include:: ../links.rst
 """
 import os
+import inspect
+import pickle
 import warnings
 import itertools
-import matplotlib
+from collections import deque
+from bisect import insort, bisect_left
+
+from IPython import embed
 
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 
-from scipy.optimize import curve_fit
-from scipy import interpolate
+from scipy import interpolate, ndimage
 
-from astropy import units
+import matplotlib
 from matplotlib import pyplot as plt
 
-# Imports for fast_running_median
-from collections import deque
-from itertools import islice
-from bisect import insort, bisect_left
+from astropy import units
+from astropy import stats
+
 from pypeit.core import pydl
 from pypeit import msgs
 
+def embed_header():
+    """
+    Nominal header for an execution of `IPython.embed`_.
 
-def rebin(a, newshape):
-    '''Rebin an array to a new shape using slicing. This routine is taken from:
-    https://scipy-cookbook.readthedocs.io/items/Rebinning.html. The image shapes need
-    not be integer multiples of each other, but in this regime the transformation will
-    not be reversible, i.e. if a_orig = rebin(rebin(a,newshape), a.shape) then
-    a_orig will not be everywhere equal to a (but it will be equal in most places).
+    Example:
+
+        To include the returned string::
+
+            from IPython import embed
+            from pypeit.utils import embed_header
+
+            embed(header=embed_header())
+
+    Returns:
+        :obj:`str`: String with the line in the calling module, the
+        name of the calling function, and the name of the calling
+        file.
+    """
+    info = inspect.getframeinfo(inspect.stack()[1][0])
+    return '{0} {1} {2}'.format(info.lineno, info.function, os.path.split(info.filename)[1])
+
+
+# Pulled from `pypeit.par.ParSet`. Maybe move these to
+# doc/scripts/util.py?
+def to_string(data, use_repr=True, verbatim=False):
+    """
+    Convert a single datum into a string
+
+    Simply return strings, recursively convert the elements of any
+    objects with a :attr:`__len__` attribute, and use the object's
+    own :attr:`__repr__` attribute for all other objects.
 
     Args:
-        a: ndarray, any dtype
-          Image of any dimensionality and data type
-        newshape:
-          Shape of the new image desired. Dimensionality must be the same as a.
+        data (object):
+            The object to stringify.
+        use_repr (:obj:`bool`, optional):
+            Use the objects :attr:`__repr__` method; otherwise, use a
+            direct string conversion.
+        verbatim (:obj:`bool`, optional):
+            Use quotes around the provided string to indicate that
+            the string should be represented in a verbatim (fixed
+            width) font.
+        
     Returns:
-        ndarray: same dtype as input Image with same values as a rebinning to shape newshape
-    '''
+        :obj:`str`: A string representation of the provided ``data``.
+    """
+    if isinstance(data, str):
+        return data if not verbatim else '``' + data + '``'
+    if hasattr(data, '__len__'):
+        return '[]' if isinstance(data, list) and len(data) == 0 \
+                    else ', '.join([to_string(d, use_repr=use_repr, verbatim=verbatim) 
+                                        for d in data ])
+    return data.__repr__() if use_repr else str(data)
 
+
+def string_table(tbl, delimeter='print'):
+    """
+    Provided the array of data, format it with equally spaced columns
+    and add a header (first row) and contents delimeter.
+
+    Args:
+        tbl (`numpy.ndarray`_):
+            Array of string representations of the data to print.
+        delimeter (:obj:`str`, optional):
+            Delimeter between first table row, which should contain
+            the column headings, and the column data. Use ``'print'``
+            for a simple line of hyphens, anything else results in an
+            ``rst`` style table formatting.
+
+    Returns:
+        :obj:`str`: Single long string with the data table.
+    """
+    nrows, ncols = tbl.shape
+    col_width = [np.amax([len(dij) for dij in dj]) for dj in tbl.T]
+    row_string = ['']*(nrows+1) if delimeter == 'print' else ['']*(nrows+3)
+    start = 2 if delimeter == 'print' else 3
+    for i in range(start,nrows+start-1):
+        row_string[i] = '  '.join([tbl[1+i-start,j].ljust(col_width[j]) for j in range(ncols)])
+    if delimeter == 'print':
+        # Heading row
+        row_string[0] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+        # Delimiter
+        row_string[1] = '-'*len(row_string[0])
+        return '\n'.join(row_string)+'\n'
+
+    # For an rst table
+    row_string[0] = '  '.join([ '='*col_width[j] for j in range(ncols)])
+    row_string[1] = '  '.join([tbl[0,j].ljust(col_width[j]) for j in range(ncols)])
+    row_string[2] = row_string[0]
+    row_string[-1] = row_string[0]
+    return '\n'.join(row_string)+'\n'
+
+
+def spec_atleast_2d(wave, flux, ivar, mask):
+    """
+    Utility routine to repackage spectra to have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp)
+
+    Args:
+        wave (`numpy.ndarray`_):
+            Wavelength array
+        flux (`numpy.ndarray`_):
+            Flux array
+        ivar (`numpy.ndarray`_):
+            Inverse variance array
+        mask (`numpy.ndarray`_, bool):
+            Good pixel mask True=Good.
+
+    Returns:
+        wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+
+            Reshaped arrays which all have shape (nspec, norders) or (nspec, ndetectors) or (nspec, nexp) along
+            with nspec, and norders = total number of orders, detectors, or exposures
+
+
+    """
+    # Repackage the data into arrays of shape (nspec, norders)
+    if flux.ndim == 1:
+        nspec = flux.size
+        norders = 1
+        wave_arr = wave.reshape(nspec, 1)
+        flux_arr = flux.reshape(nspec, 1)
+        ivar_arr = ivar.reshape(nspec, 1)
+        mask_arr = mask.reshape(nspec, 1)
+    else:
+        nspec, norders = flux.shape
+        if wave.ndim == 1:
+            wave_arr = np.tile(wave, (norders, 1)).T
+        else:
+            wave_arr = wave
+        flux_arr = flux
+        ivar_arr = ivar
+        mask_arr = mask
+
+    return wave_arr, flux_arr, ivar_arr, mask_arr, nspec, norders
+
+
+def nan_mad_std(data, axis=None, func=None):
+    """
+
+    Wrapper for astropy.stats.mad_stad which ignores nans, so as to
+    prevent bugs when using sigma_clipped_stats with the axis keyword
+    and stdfunc=astropy.stats.mad_std
+
+    Args:
+        data (array-like):
+            Data array or object that can be converted to an array.
+        axis (int, sequence of int, None, optional):
+            Axis along which the robust standard deviations are
+            computed.  The default (`None`) is to compute the robust
+            standard deviation of the flattened array.
+
+    Returns:
+        float, `numpy.ndarray`: The robust standard deviation of the
+        input data.  If ``axis`` is `None` then a scalar will be
+        returned, otherwise a `~numpy.ndarray` will be returned.
+    """
+    return stats.mad_std(data, axis=axis, func=func, ignore_nan=True)
+
+
+def growth_lim(a, lim, fac=1.0, midpoint=None, default=[0., 1.]):
+    """
+    Calculate bounding limits for an array based on its growth.
+
+    Args:
+        a (array-like):
+            Array for which to determine limits.
+        lim (:obj:`float`):
+            Percentage of the array values to cover. Set to 1 if
+            provided value is greater than 1.
+        fac (:obj:`float`, optional):
+            Factor to increase the range based on the growth limits.
+            Default is no increase.
+        midpoint (:obj:`float`, optional):
+            Force the midpoint of the range to be centered on this
+            value. Default is the sample median.
+        default (:obj:`list`, optional):
+            Default limits to return if `a` has no data.
+
+    Returns:
+        :obj:`list`: Lower and upper boundaries for the data in `a`.
+    """
+    # Get the values to plot
+    _a = a.compressed() if isinstance(a, np.ma.MaskedArray) else np.asarray(a).ravel()
+    if len(_a) == 0:
+        # No data so return the default range
+        return default
+
+    # Set the starting and ending values based on a fraction of the
+    # growth
+    _lim = 1.0 if lim > 1.0 else lim
+    start, end = (len(_a)*(1.0+_lim*np.array([-1,1]))/2).astype(int)
+    if end == len(_a):
+        end -= 1
+
+    # Set the full range and multiply it by the provided factor
+    srt = np.ma.argsort(_a)
+    Da = (_a[srt[end]] - _a[srt[start]])*fac
+
+    # Set the midpoint
+    mid = _a[srt[len(_a)//2]] if midpoint is None else midpoint
+
+    # Return the range centered on the midpoint
+    return [ mid - Da/2, mid + Da/2 ]
+
+
+def nearest_unmasked(arr, use_indices=False):
+    """
+    Return the indices of the nearest unmasked element in a vector.
+
+    .. warning::
+        The function *uses the values of the masked data* for masked
+        elements. This means that if you want to know the nearest
+        unmasked element to one of the *masked* elements, the `data`
+        attribute of the provided array should have meaningful values
+        for these masked elements.
+
+    Args:
+        arr (`numpy.ma.MaskedArray`_):
+            Array to analyze. Must be 1D.
+        use_indices (:obj:`bool`, optional):
+            The proximity of each element in the array is based on
+            the difference in the array `data` values. Setting
+            `use_indices` to `True` instead bases the calculation on
+            the proximity of the element indices; i.e., find the
+            index of the nearest unmasked element.
+
+    Returns:
+        `numpy.ndarray`_: Integer array with the indices of the
+        nearest array elements, the definition of which depends on
+        `use_indices`.
+    """
+    # Check the input
+    if not isinstance(arr, np.ma.MaskedArray):
+        raise TypeError('Must provide a numpy masked array.')
+    if arr.ndim != 1:
+        raise ValueError('Must be a 1D array.')
+    if use_indices:
+        return nearest_unmasked(np.ma.MaskedArray(np.arange(arr.size), mask=arr.mask.copy()))
+
+    # Get the difference of each element with every other element
+    nearest = np.absolute(arr[None,:]-arr.data[:,None])
+    # Ignore the diagonal
+    nearest[np.diag_indices(arr.size)] = np.ma.masked
+    # Return the location of the minimum value ignoring the masked values
+    return np.ma.argmin(nearest, axis=1)
+
+
+def boxcar_smooth_rows(img, nave, wgt=None, mode='nearest', replace='original'):
+    """
+    Boxcar smooth an image along their first axis (rows).
+
+    Constructs a boxcar kernel and uses `scipy.ndimage.convolve` to
+    smooth the image.  Smoothing does not account for any masking.
+
+    .. note::
+        For images following the PypeIt convention, this smooths the
+        data spectrally for each spatial position.
+
+    Args:
+        img (`numpy.ndarray`_):
+            Image to convolve.
+        nave (:obj:`int`):
+            Number of pixels along rows for smoothing.
+        wgt (`numpy.ndarray`_, optional):
+            Image providing weights for each pixel in `img`.  Uniform
+            weights are used if none are provided.
+        mode (:obj:`str`, optional):
+            See `scipy.ndimage.convolve`_.
+
+    Returns:
+        `numpy.ndarray`_: The smoothed image
+    """
+    if nave == 1:
+        return img
+    if img.ndim != 2:
+        raise ValueError('Input image must be 2D.')
+    if wgt is not None and img.shape != wgt.shape:
+        raise ValueError('Input image to smooth and weights must have the same shape.')
+    if nave > img.shape[0]:
+        msgs.warn('Smoothing box is larger than the image size!')
+
+    # Construct the kernel for mean calculation
+    _nave = np.fmin(nave, img.shape[0])
+    kernel = np.ones((_nave, 1))/float(_nave)
+
+    if wgt is None:
+        # No weights so just smooth
+        return ndimage.convolve(img, kernel, mode='nearest')
+
+    # Weighted smoothing
+    cimg = ndimage.convolve(img*wgt, kernel, mode='nearest')
+    wimg = ndimage.convolve(wgt, kernel, mode='nearest')
+    smoothed_img = np.ma.divide(cimg, wimg)
+    if replace == 'original':
+        smoothed_img[smoothed_img.mask] = img[smoothed_img.mask]
+    elif replace == 'zero':
+        smoothed_img[smoothed_img.mask] = 0.0
+    else:
+        msgs.error('Unrecognized value of replace')
+    return smoothed_img.data
+
+
+# TODO: Could this use bisect?
+def index_of_x_eq_y(x, y, strict=False):
+    """
+    Return an index array that maps the elements of `x` to those of
+    `y`.
+
+    This should return the index of the *first* element in array `x`
+    equal to the associated value in array `y`. Inspired by:
+    https://tinyurl.com/yyrx8acf
+
+    Args:
+        x (`numpy.ndarray`_):
+            1D parent array
+        y (`numpy.ndarray`_):
+            1D reference array
+        strict (:obj:`bool`, optional):
+            Raise an exception unless every element of y is found in
+            x. I.e., it must be true that::
+
+                np.array_equal(x[index_of_x_eq_y(x,y)], y)
+
+    Returns:
+        `numpy.ndarray`_: An array with index of `x` that is equal to
+        the given value of `y`.  Output shape is the same as `y`.
+    """
+    if y.ndim != 1 or y.ndim != 1:
+        raise ValueError('Arrays must be 1D.')
+    srt = np.argsort(x)
+    indx = np.searchsorted(x[srt], y)
+    x2y = np.take(srt, indx, mode='clip')
+    if strict and not np.array_equal(x[x2y], y):
+        raise ValueError('Not every element of y was found in x.')
+    return x2y
+
+
+def rebin(a, newshape):
+    """
+
+    Rebin an array to a new shape using slicing. This routine is taken
+    from: https://scipy-cookbook.readthedocs.io/items/Rebinning.html.
+    The image shapes need not be integer multiples of each other, but in
+    this regime the transformation will not be reversible, i.e. if
+    a_orig = rebin(rebin(a,newshape), a.shape) then a_orig will not be
+    everywhere equal to a (but it will be equal in most places).
+
+    Args:
+        a (ndarray, any dtype):
+            Image of any dimensionality and data type
+        newshape (tuple):
+            Shape of the new image desired. Dimensionality must be the
+            same as a.
+
+    Returns:
+        ndarray: same dtype as input Image with same values as a
+        rebinning to shape newshape
+    """
     if not len(a.shape) == len(newshape):
         msgs.error('Dimension of a image does not match dimension of new requested image shape')
 
@@ -115,30 +461,33 @@ def smooth(x, window_len, window='flat'):
 
      This code taken from this cookbook and slightly modified: https://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
 
-    input:
+    .. todo::
+        the window parameter could be the window itself if an array instead of a string
+
+    Args:
         x: the input signal
         window_len: the dimension of the smoothing window; should be an odd integer
         window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
             flat window will produce a moving average smoothing., default is 'flat'
 
-    output:
+    Returns:
         the smoothed signal, same shape as x
 
-    example:
+    Examples:
 
-    t=linspace(-2,2,0.1)
-    x=sin(t)+randn(len(t))*0.1
-    y=smooth(x)
+        >>> t=linspace(-2,2,0.1)
+        >>> x=sin(t)+randn(len(t))*0.1
+        >>> y=smooth(x)
 
-    see also:
+    Notes:
 
-    numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
-    scipy.signal.lfilter
+        - See also: numpy.hanning, numpy.hamming, numpy.bartlett,
+          numpy.blackman, numpy.convolve scipy.signal.lfilter
 
-    TODO: the window parameter could be the window itself if an array instead of a string
-    NOTE: length(output) != length(input), to correct this: return y[(window_len/2-1):-(window_len/2)] instead of just y.
+        - length(output) != length(input), to correct this, return
+          y[(window_len/2-1):-(window_len/2)] instead of just y.
+
     """
-
     if x.ndim != 1:
         raise ValueError("smooth only accepts 1 dimension arrays.")
 
@@ -165,14 +514,18 @@ def smooth(x, window_len, window='flat'):
 
 def fast_running_median(seq, window_size):
     """
-    Compute the median of sequence of numbers with a running window. The boundary conditions are identical to the
-    scipy 'reflect' boundary codition:
 
-     'reflect' (`d c b a | a b c d | d c b a`)
-     The input is extended by reflecting about the edge of the last pixel.
+    Compute the median of sequence of numbers with a running window. The
+    boundary conditions are identical to the scipy 'reflect' boundary
+    codition:
 
-    This code has been confirmed to produce identical results to scipy.ndimage.filters.median_filter with the reflect
-    boundary condition, but is ~ 100 times faster.
+    'reflect' (`d c b a | a b c d | d c b a`)
+
+    The input is extended by reflecting about the edge of the last pixel.
+
+    This code has been confirmed to produce identical results to
+    scipy.ndimage.filters.median_filter with the reflect boundary
+    condition, but is ~ 100 times faster.
 
     Args:
         seq (list or 1-d numpy array of numbers):
@@ -181,20 +534,29 @@ def fast_running_median(seq, window_size):
     Returns:
         ndarray: median filtered values
 
-    Code contributed by Peter Otten, made to be consistent with scipy.ndimage.filters.median_filter by Joe Hennawi.
+    Code contributed by Peter Otten, made to be consistent with
+    scipy.ndimage.filters.median_filter by Joe Hennawi.
 
     See discussion at:
     http://groups.google.com/group/comp.lang.python/browse_thread/thread/d0e011c87174c2d0
     """
+    # Enforce that the window_size needs to be smaller than the sequence, otherwise we get arrays of the wrong size
+    # upon return (very bad). Added by JFH. Should we print out an error here?
+
+    if (window_size > (len(seq)-1)):
+        msgs.warn('window_size > len(seq)-1. Truncating window_size to len(seq)-1, but something is probably wrong....')
+    if (window_size < 0):
+        msgs.warn('window_size is negative. This does not make sense something is probably wrong. Setting window size to 1')
+
+    window_size = int(np.fmax(np.fmin(int(window_size), len(seq)-1),1))
     # pad the array for the reflection
     seq_pad = np.concatenate((seq[0:window_size][::-1],seq,seq[-1:(-1-window_size):-1]))
 
-    window_size= int(window_size)
     seq_pad = iter(seq_pad)
     d = deque()
     s = []
     result = []
-    for item in islice(seq_pad, window_size):
+    for item in itertools.islice(seq_pad, window_size):
         d.append(item)
         insort(s, item)
         result.append(s[len(d)//2])
@@ -213,289 +575,118 @@ def fast_running_median(seq, window_size):
     return result[window_size:-window_size]
 
 
-# TODO JFH: This is the old bspline_fit which shoul be deprecated. I think some codes still use it though. We should transtion to pydl everywhere
-def bspline_fit(x,y,order=3,knots=None,everyn=20,xmin=None,xmax=None,w=None,bkspace=None):
-    """ bspline fit to x,y
-    Should probably only be called from func_fit
+# Taken from stackoverflow
+# https://stackoverflow.com/questions/30677241/how-to-limit-cross-correlation-window-width-in-numpy
+# slightly modified to return lags
 
-    Parameters:
-    ---------
-    x: ndarray
-    y: ndarray
-    func: str
-      Name of the fitting function:  polynomial, legendre, chebyshev, bspline
-    deg: int 
-      deg of the spline.  Default=3 (cubic)
-    xmin: float, optional
-      Minimum value in the array  [both must be set to normalize]
-    xmax: float, optional
-      Maximum value in the array  [both must be set to normalize]
-    w: ndarray, optional
-      weights to be used in the fitting (weights = 1/sigma)
-    knots: ndarray, optional
-      Internal knots only.  External ones are added by scipy
-    everyn: int 
-      Knot everyn good pixels, if used
-    bkspace: float 
-      Spacing of breakpoints in units of x
+def cross_correlate(x, y, maxlag):
+    """
+
+    Cross correlation with a maximum number of lags. This computes the same result as::
+
+        numpy.correlate(x, y, mode='full')[len(a)-maxlag-1:len(a)+maxlag]
+
+    Edges are padded with zeros using ``np.pad(mode='constant')``.
+
+    Args:
+        x (ndarray):
+            First vector of the cross-correlation.
+        y (ndarray):
+            Second vector of the cross-correlation. `x` and `y` must be
+            one-dimensional numpy arrays with the same length.
+        maxlag (int):
+            The maximum lag for which to compute the cross-correlation.
+            The cross correlation is computed at integer lags from
+            (-maxlag, maxlag)
 
     Returns:
-    ---------
-    tck : tuple
-      describes the bspline
+        tuple:  Returns are as follows:
+            - lags (ndarray):  shape = (2*maxlag + 1); Lags for the
+              cross-correlation. Integer spaced values from (-maxlag,
+              maxlag)
+            - xcorr (ndarray): shape = (2*maxlag + 1); Cross-correlation
+              at the lags
     """
-    task = 0  # Default of splrep
-    if w is None:
-        ngd = x.size
-        gd = np.arange(ngd)
-        weights = None
-    else:
-        gd = np.where(w > 0.)[0]
-        weights = w[gd]
-        ngd = len(gd)
-    # Make the knots
-    if knots is None:
-        if bkspace is not None: 
-            xrnge = (np.max(x[gd]) - np.min(x[gd]))
-            startx = np.min(x[gd])
-            nbkpts = max(int(xrnge/bkspace) + 1,2)
-            tempbkspace = xrnge/(nbkpts-1)
-            knots = np.arange(1, nbkpts-1)*tempbkspace + startx
-            # Remove cases where two knots have no data between them
-            keep_knots = np.array([True]*len(knots))
-            for ii in range(1,len(knots)): # Ugly for loop..
-                if not np.any((x[gd] > knots[ii-1]) & (x[gd] < knots[ii])):
-                    keep_knots[ii] = False
-            knots = knots[keep_knots]
-        elif everyn is not None:
-            # A knot every good N pixels
-            idx_knots = np.arange(everyn//2, ngd-everyn//2, everyn)
-            knots = x[gd[idx_knots]]
-        else:
-            msgs.error("No method specified to generate knots")
-    else:
-        task = -1
-    # Generate spline
-    try:
-        tck = interpolate.splrep(x[gd], y[gd], w=weights, k=order, xb=xmin, xe=xmax, t=knots, task=task)
-    except ValueError:
-        # Knot problem (usually)
-        msgs.warn("Problem in the bspline knot")
-        raise ValueError("Crashing out of bspline fitting")
-    return tck
 
-#ToDo I would prefer to remove the kwargs_bspline and
-# and make them explicit
-def bspline_profile(xdata, ydata, invvar, profile_basis, inmask = None, upper=5, lower=5,
-                    maxiter=25, nord = 4, bkpt=None, fullbkpt=None,
-                    relative=None, kwargs_bspline={}, kwargs_reject={}):
+    x = np.asarray(x)
+    y = np.asarray(y)
+    if x.ndim != 1:
+        msgs.error('x must be one-dimensional.')
+    if y.ndim != 1:
+        msgs.error('y must be one-dimensional.')
+
+
+    #py = np.pad(y.conj(), 2*maxlag, mode=mode)
+    py = np.pad(y, 2*maxlag, mode='constant')
+    T = as_strided(py[2*maxlag:], shape=(2*maxlag+1, len(y) + 2*maxlag),
+                   strides=(-py.strides[0], py.strides[0]))
+    px = np.pad(x, maxlag, mode='constant')
+    lags = np.arange(-maxlag, maxlag + 1,dtype=float)
+    return lags, T.dot(px)
+
+
+
+def clip_ivar(flux, ivar, sn_clip, mask=None, verbose=False):
     """
-    Create a B-spline in the least squares sense with rejection, using a model profile
 
-     Parameters
-     ----------
-     xdata : :class:`numpy.ndarray`
-         Independent variable.
-     ydata : :class:`numpy.ndarray`
-         Dependent variable.
-     invvar : :class:`numpy.ndarray`
-         Inverse variance of `ydata`.
-     profile_basis : :class:`numpy.ndarray`
-         model profiles
-     upper : :class:`int` or :class:`float`, optional
-         Upper rejection threshold in units of sigma, defaults to 5 sigma.
-     lower : :class:`int` or :class:`float`, optional
-         Lower rejection threshold in units of sigma, defaults to 5 sigma.
-     maxiter : :class:`int`, optional
-         Maximum number of rejection iterations, default 10.  Set this to
-         zero to disable rejection.
-     nord : :class:`int`, optional
-         Order of B-spline fit
-     bkpt : :class:`numpy.ndarray`
-         Array of breakpoints to be used for the b-spline
-     fullbkpt : :class:`numpy.ndarray`
-         Full array of breakpoints to be used for the b-spline, without letting the b-spline class append on any extra bkpts
-     relative : class:`numpy.ndarray`
-        Array of integer indices to be used for computing the reduced chi^2 of the fits, which then is used as a scale factor for
-         the upper,lower rejection thresholds
-     kwargs_bspline : dict
-       Passed to bspline
-     kwargs_reject : dict
-       Passed to djs_reject
+    This adds an error floor to the ivar, preventing too much rejection
+    at high-S/N (i.e. standard stars, bright objects)
 
-     Returns
-     -------
-     :func:`tuple`
-         A tuple containing the (sset, outmask, yfit, reduced_chi), where
+    Args:
+        flux (ndarray):
+            flux array
+        ivar (ndarray):
+            ivar array
+        sn_clip (float):
+            Small erorr is added to input ivar so that the output ivar_out will never give S/N greater than sn_clip.
+            This prevents overly aggressive rejection in high S/N ratio spectra which neverthless differ at a
+            level greater than the formal S/N due to systematics.
 
-            sset: object
-               bspline object
-            outmask: : :class:`numpy.ndarray`
-               output mask which the same size as xdata, such that rejected points have outmask set to False
-            yfit  : :class:`numpy.ndarray`
-               result of the bspline fit (same size as xdata)
-            reduced_chi: float
-               value of the reduced chi^2
-     """
-    # Checks
-    nx = xdata.size
-    if ydata.size != nx:
-        msgs.error('Dimensions of xdata and ydata do not agree.')
+        mask (ndarray, bool): mask array, True=good
 
-    # ToDO at the moment invvar is a required variable input
-    #    if invvar is not None:
-    #        if invvar.size != nx:
-    #            raise ValueError('Dimensions of xdata and invvar do not agree.')
-    #        else:
-    #            #
-    #            # This correction to the variance makes it the same
-    #            # as IDL's variance()
-    #            #
-    #            var = ydata.var()*(float(nx)/float(nx-1))
-    #            if var == 0:
-    #                var = 1.0
-    #            invvar = np.ones(ydata.shape, dtype=ydata.dtype)/var
-
-    npoly = int(profile_basis.size/nx)
-    if profile_basis.size != nx*npoly:
-        msgs.error('Profile basis is not a multiple of the number of data points.')
-
-    # Init
-    yfit = np.zeros(ydata.shape)
-    reduced_chi = 0.
-
-    if invvar.size == 1:
-        outmask = True
+    Returns:
+         ndarray: new ivar array
+    """
+    if sn_clip is None:
+        return ivar
     else:
-        outmask = np.ones(invvar.shape, dtype='bool')
-
-    if inmask is None:
-        inmask = (invvar > 0)
-
-    nin = np.sum(inmask)
-    msgs.info("Fitting npoly =" + "{:3d}".format(npoly) + " profile basis functions, nin=" + "{:3d}".format(nin) + " good pixels")
-    msgs.info("******************************  Iter  Chi^2  # rejected  Rel. fact   ******************************")
-    msgs.info("                              ----  -----  ----------  --------- ")
-
-
-    maskwork = outmask & inmask & (invvar > 0)
-    if not maskwork.any():
-        msgs.error('No valid data points in bspline_profile!.')
-    else:
-        # Init bspline class
-        sset = pydl.bspline(xdata[maskwork], nord=nord, npoly=npoly, bkpt=bkpt, fullbkpt=fullbkpt,
-                                funcname='Bspline longslit special', **kwargs_bspline)
-        if maskwork.sum() < sset.nord:
-            msgs.warn('Number of good data points fewer than nord.')
-            exit_status = 4
-            return sset, outmask, yfit, reduced_chi, exit_status
-
-    # This was checked in detail against IDL for identical inputs
-    outer = (np.outer(np.ones(nord, dtype=float), profile_basis.flatten('F'))).T
-    action_multiple = outer.reshape((nx, npoly * nord), order='F')
-    #--------------------
-    # Iterate spline fit
-    iiter = 0
-    error = -1
-    qdone = False
-    exit_status = 0
-    relative_factor = 1.0
-    tempin = np.copy(inmask)
-    while (error != 0 or qdone is False) and iiter <= maxiter and (exit_status == 0):
-        ngood = maskwork.sum()
-        goodbk = sset.mask.nonzero()[0]
-        if ngood <= 1 or not sset.mask.any():
-            sset.coeff = 0
-            exit_status = 2 # This will end iterations
-            #iiter = maxiter + 1 # End iterations
-        else:
-            # Do the fit. Return values from workit for error are as follows:
-            #    0 if fit is good
-            #   -1 if some breakpoints are masked, so try the fit again
-            #   -2 if everything is screwed
-
-            # we'll do the fit right here..............
-            if error != 0:
-                bf1, laction, uaction = sset.action(xdata)
-                if np.any(bf1 == -2) or (bf1.size !=nx*nord):
-                    msgs.error("BSPLINE_ACTION failed!")
-                action = np.copy(action_multiple)
-                for ipoly in range(npoly):
-                    action[:, np.arange(nord)*npoly + ipoly] *= bf1
-                del bf1 # Clear the memory
-            if np.sum(np.isfinite(action) is False) > 0:
-                msgs.error("Infinities in action matrix, wavelengths may be very messed up!!!")
-            error, yfit = sset.workit(xdata, ydata, invvar*maskwork,action, laction, uaction)
-        iiter += 1
-        if error == -2:
-            msgs.warn(" All break points have been dropped!! Fit failed, I hope you know what you are doing")
-            exit_status = 3
-            return (sset, np.zeros(xdata.shape,dtype=bool), np.zeros(xdata.shape), reduced_chi, exit_status)
-        elif error == 0:
-            # Iterate the fit -- next rejection iteration
-            chi_array = (ydata - yfit)*np.sqrt(invvar * maskwork)
-            reduced_chi = np.sum(chi_array**2)/(ngood - npoly*(len(goodbk) + nord)-1)
-            relative_factor = 1.0
-            # JFH -- What is
-            if relative is not None:
-                nrel = len(relative)
-                if nrel == 1:
-                    relative_factor = np.sqrt(reduced_chi)
-                else:
-                    this_chi2 = np.sum(chi_array[relative]**2)/(nrel - (len(goodbk) + nord) - 1)
-                    relative_factor = np.sqrt(this_chi2)
-                relative_factor = max(relative_factor,1.0)
-            # Rejection
-            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
-            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring sticky to be set is the more transparent behavior.
-            maskwork, qdone = pydl.djs_reject(ydata, yfit, invvar=invvar,
-                                         inmask=tempin, outmask=maskwork,
-                                         upper=upper*relative_factor,
-                                         lower=lower*relative_factor, **kwargs_reject)
-            tempin = np.copy(maskwork)
-            msgs.info("                             {:4d}".format(iiter) + "{:8.3f}".format(reduced_chi) +
-                      "  {:7d}".format((maskwork == 0).sum()) + "      {:6.2f}".format(relative_factor))
-
-        else:
-            msgs.info("                             {:4d}".format(iiter) + "    ---    ---    ---    ---")
-
-    if iiter == (maxiter + 1):
-        exit_status = 1
-
-    # Exit status:
-    #    0 = fit exited cleanly
-    #    1 = maximum iterations were reached
-    #    2 = all points were masked
-    #    3 = all break points were dropped
-    #    4 = Number of good data points fewer than nord
-
-    msgs.info("***************************************************************************************************")
-    msgs.info(
-        "Final fit after " + "{:2d}".format(iiter) + " iterations: reduced_chi = " + "{:8.3f}".format(reduced_chi) +
-        ", rejected = " + "{:7d}".format((maskwork == 0).sum()) + ", relative_factor = {:6.2f}".format(relative_factor))
-    # Finish
-    outmask = np.copy(maskwork)
-    # Return
-    return sset, outmask, yfit, reduced_chi, exit_status
+        if mask is None:
+            mask = (ivar > 0.0)
+        adderr = 1.0/sn_clip
+        gmask = (ivar > 0) & mask
+        ivar_cap = gmask/(1.0/(ivar + np.invert(gmask)) + adderr**2*(np.abs(flux))**2)
+        ivar_out = np.minimum(ivar, ivar_cap)
+        if verbose:
+            msgs.info('Adding error to ivar to keep S/N ratio below S/N_clip = {:5.3f}'.format(sn_clip))
+        return ivar_out
 
 
-def inverse(a, positive=False):
-    """ Calculate and return the inverse of the input array
+def inverse(array):
+    """
+
+    Calculate and return the inverse of the input array, enforcing
+    positivity and setting values <= 0 to zero.  The input array should
+    be a quantity expected to always be positive, like a variance or an
+    inverse variance. The quantity::
+
+        out = (array > 0.0)/(np.abs(array) + (array == 0.0))
+
+    is returned.
 
     Args:
         a (np.ndarray):
-        positive (bool, optional):
 
     Returns:
         np.ndarray:
 
     """
-    return np.ma.power(np.ma.MaskedArray(a, mask=a<0 if positive else None), -1).filled(0.0)
+    return (array > 0.0)/(np.abs(array) + (array == 0.0))
 
 
 def calc_ivar(varframe):
-    """ Calculate the inverse variance based on the input array
+    """
+
+    Calculate the inverse variance based on the input array
 
     Wrapper to inverse()
 
@@ -506,259 +697,9 @@ def calc_ivar(varframe):
         ndarray:  Inverse variance image
     """
     # THIS WILL BE DEPRECATED!!
-    return inverse(varframe, positive=True)
+    return inverse(varframe)
 
 
-
-def func_fit(x, y, func, deg, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None, w=None, inmask = None, guesses=None,
-             bspline_par=None, return_errors=False):
-    """ General routine to fit a function to a given set of x,y points
-
-    Parameters
-    ----------
-    x : ndarray
-    y : ndarray
-    func : str
-      polynomial, legendre, chebyshev, bspline, gaussian
-    deg : int
-      degree of the fit
-    minx : float, optional
-    maxx
-    w
-    guesses : tuple
-    bspline_par : dict
-      Passed to bspline_fit()
-
-    Returns
-    -------
-    coeff : ndarray or tuple
-      ndarray for standard function fits
-      tuple for bspline
-
-    """
-
-    # If the user provided an inmask apply it. The logic below of evaluating the fit only at the non-masked
-    # pixels is preferable to the other approach of simply setting the weights to zero. The reason for that is that
-    # the fits use a least-square optimization approach using matrix algebra, and lots of zero weights are
-    # 1) more costly, and 2) will not produce exactly the same result (due to roundoff error) as actually
-    # removing the locations you want to mask.
-    if inmask is not None:
-        x_out = x[inmask]
-        y_out = y[inmask]
-        if x2 is not None:
-            x2_out = x2[inmask]
-        else:
-            x2_out = None
-        if w is not None:
-            w_out = w[inmask]
-        else:
-            w_out = None
-    else:
-        x_out = x
-        y_out = y
-        if x2 is not None:
-            x2_out = x2
-        else:
-            x2_out = None
-        if w is not None:
-            w_out = w
-        else:
-            w_out = None
-
-    # For two-d fits x = x, y = x2, y = z
-    if ('2d' in func) and (x2_out is not None):
-        # Is this a 2d fit?
-        return polyfit2d_general(x_out, x2_out, y_out, deg, w=w_out, function=func[:-2],minx=minx, maxx=maxx, miny=minx2, maxy=maxx2)
-    elif func == "polynomial":
-        return np.polynomial.polynomial.polyfit(x_out, y_out, deg, w=w_out)
-    elif func == "legendre":
-        if minx is None or maxx is None:
-            if np.size(x_out) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x_out), np.max(x_out)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legfit(xv, y_out, deg, w=w_out)
-    elif func == "chebyshev":
-        if minx is None or maxx is None:
-            if np.size(x_out) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x_out), np.max(x_out)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x_out-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebfit(xv, y_out, deg, w=w_out)
-    elif func == "bspline":
-        if bspline_par is None:
-            bspline_par = {}
-        # TODO -- Deal with this kwargs-like kludge
-        return bspline_fit(x_out, y_out, order=deg, w=w_out, **bspline_par)
-    elif func == "gaussian":
-        # Guesses
-        if guesses is None:
-            ampl, cent, sigma = guess_gauss(x_out, y_out)
-            # As first guess choose slope and intercept to be zero
-            b = 0
-            m = 0
-        else:
-            if deg == 2:
-                ampl, sigma = guesses
-            elif deg == 3:
-                ampl, cent, sigma = guesses
-            elif deg == 4:
-                b, ampl, cent, sigma = guesses
-            elif deg == 5:
-                m, b, ampl, cent, sigma = guesses
-        # Error
-        if w_out is not None:
-            sig_y = 1./w_out
-        else:
-            sig_y = None
-        if deg == 2:  # 2 parameter fit
-            popt, pcov = curve_fit(gauss_2deg, x_out, y_out, p0=[ampl, sigma], sigma=sig_y)
-        elif deg == 3:  # Standard 3 parameters
-            popt, pcov = curve_fit(gauss_3deg, x_out, y_out, p0=[ampl, cent, sigma],
-                                   sigma=sig_y)
-        elif deg == 4:  # 4 parameters
-            popt, pcov = curve_fit(gauss_4deg, x_out, y_out, p0=[b, ampl, cent, sigma],sigma=sig_y)
-        elif deg == 5:  # 5 parameters
-            popt, pcov = curve_fit(gauss_5deg, x_out, y_out, p0=[m, b, ampl, cent, sigma],sigma=sig_y)
-        else:
-            msgs.error("Not prepared for deg={:d} for Gaussian fit".format(deg))
-        # Return
-        if return_errors:
-            return popt, pcov
-        else:
-            return popt
-    elif func == "moffat":
-        # Guesses
-        if guesses is None:
-            ampl, cent, sigma = guess_gauss(x_out, y_out)
-            p0 = ampl
-            p2 = 3. # Standard guess
-            p1 = (2.355*sigma)/(2*np.sqrt(2**(1./p2)-1))
-        else:
-            p0,p1,p2 = guesses
-        # Error
-        if w_out is not None:
-            sig_y = 1./w_out
-        else:
-            sig_y = None
-        if deg == 3:  # Standard 3 parameters
-            popt, pcov = curve_fit(moffat, x_out, y_out, p0=[p0,p1,p2], sigma=sig_y)
-        else:
-            msgs.error("Not prepared for deg={:d} for Moffat fit".format(deg))
-        # Return
-        return popt
-    else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                   "Please choose from 'polynomial', 'legendre', 'chebyshev','bspline'")
-
-
-def func_val(c, x, func, x2 = None, minx=None, maxx=None, minx2=None, maxx2=None):
-    """ Generic routine to return an evaluated function
-    Functional forms include:
-      polynomial, legendre, chebyshev, bspline, gauss
-
-    Parameters
-    ----------
-    c : ndarray
-      coefficients
-    x
-    func
-    minx
-    maxx
-
-    Returns
-    -------
-    values : ndarray
-
-    """
-    # For two-d fits x = x, y = x2, y = z
-    if ('2d' in func) and (x2 is not None):
-        # Is this a 2d fit?
-        if func[:-2] == "polynomial":
-            return np.polynomial.polynomial.polyval2d(x, x2, c)
-        elif func[:-2] in ["legendre", "chebyshev"]:
-            # Scale x-direction
-            xv = scale_minmax(x, minx=minx, maxx=maxx)
-            # Scale x2-direction
-            x2v = scale_minmax(x2, minx=minx2, maxx=maxx2)
-            if func[:-2] == "legendre":
-                return np.polynomial.legendre.legval2d(xv, x2v, c)
-            elif func[:-2] == "chebyshev":
-                return np.polynomial.chebyshev.chebval2d(xv, x2v, c)
-        else:
-            msgs.error("Function {0:s} has not yet been implemented for 2d fits".format(func))
-        return None
-    elif func == "polynomial":
-        return np.polynomial.polynomial.polyval(x, c)
-    elif func == "legendre":
-        if minx is None or maxx is None:
-            if np.size(x) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x), np.max(x)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.legendre.legval(xv, c)
-    elif func == "chebyshev":
-        if minx is None or maxx is None:
-            if np.size(x) == 1:
-                xmin, xmax = -1.0, 1.0
-            else:
-                xmin, xmax = np.min(x), np.max(x)
-        else:
-            xmin, xmax = minx, maxx
-        xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-        return np.polynomial.chebyshev.chebval(xv, c)
-    elif func == "bspline":
-        return interpolate.splev(x, c, ext=1)
-    elif func == "gaussian":
-        if len(c) == 2:
-            return gauss_2deg(x, c[0], c[1])
-        elif len(c) == 3:
-            return gauss_3deg(x, c[0], c[1], c[2])
-        else:
-            msgs.error("Not ready for this type of gaussian")
-    elif func == "moffat":
-        if len(c) == 3:
-            return moffat(x, c[0], c[1], c[2])
-        else:
-            msgs.error("Not ready for this type of Moffat")
-    else:
-        msgs.error("Fitting function '{0:s}' is not implemented yet" + msgs.newline() +
-                   "Please choose from 'polynomial', 'legendre', 'chebyshev', 'bspline'")
-
-
-def calc_fit_rms(xfit, yfit, fit, func, minx=None, maxx=None, weights=None):
-    """ Simple RMS calculation
-
-    Args:
-        xfit : ndarray
-        yfit : ndarray
-        fit : coefficients
-        func : str
-        minx : float, optional
-        maxx : float, optional
-
-    Returns:
-        float: RMS
-
-    """
-    if weights is None:
-        weights = np.ones(xfit.size)
-    # Normalise
-    weights /= np.sum(weights)
-    values = func_val(fit, xfit, func, minx=minx, maxx=maxx)
-    # rms = np.std(yfit-values)
-    rms = np.sqrt(np.sum(weights*(yfit-values)**2))
-    # Return
-    return rms
 
 
 def robust_meanstd(array):
@@ -769,7 +710,8 @@ def robust_meanstd(array):
         array (ndarray): an array of values
 
     Returns:
-        float, float: median of the array and a robust estimate of the standand deviation (assuming a symmetric distribution)
+        tuple: Median of the array and a robust estimate of the standand
+        deviation (assuming a symmetric distribution).
     """
     med = np.median(array)
     mad = np.median(np.abs(array-med))
@@ -861,176 +803,8 @@ def polyval2d(x, y, m):
     return z
 
 
-def moffat(x,p0,p1,p2):
-    """
-    Moffat profile
-    This 3 parameter formulation assumes the trace is known
-
-    Args:
-        x (float or ndarray): x values
-        p0 (float): Amplitude
-        p1 (float):
-          Width scaling
-        p2 : float
-
-    Returns:
-        float or ndarray: Evaluated Moffat
-    """
-    return p0 / (1+(x/p1)**2)**p2
 
 
-def gauss_2deg(x,ampl,sigm):
-    """
-    Simple 2 parameter Gaussian (amplitude, sigma)
-
-    Args:
-        x
-        ampl
-        sigm
-
-    Returns:
-        float or ndarray: Evaluated Gausssian
-    """
-    return ampl*np.exp(-1.*x**2/2./sigm**2)
-
-
-def gauss_3deg(x,ampl,cent,sigm):
-    """  Simple 3 parameter Gaussian
-
-    Args:
-        x (float or ndarray): x-valus
-        ampl (float): Amplitude
-        cent (float): Centroid
-        sigm (float): sigma
-
-    Returns:
-        float or ndarray: Evaluated Gausssian
-    """
-    return ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
-
-
-def gauss_4deg(x,b, ampl,cent,sigm):
-    """  Simple 3 parameter Gaussian
-
-    Args:
-        x
-        b (float): Floor
-        ampl (float): Amplitude
-        cent (float): Centroid
-        sigm (float): sigma
-
-    Returns:
-        float or ndarray: Evaluated Gausssian
-    """
-    return b + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
-
-
-def gauss_5deg(x,m, b, ampl,cent,sigm):
-    """  Simple 3 parameter Gaussian
-
-    Args:
-        x
-        m (float): Slope of floor
-        b (float): Floor
-        ampl (float): Amplitude
-        cent (float): Centroid
-        sigm (float): sigma
-
-    Returns:
-        float or ndarray: Evaluated Gausssian
-    """
-    return b + m*x + ampl*np.exp(-1.*(cent-x)**2/2/sigm**2)
-
-
-def guess_gauss(x,y):
-    """
-    Guesses Gaussian parameters with basic stats
-
-    Args:
-        x (ndarray): x-values
-        y (ndarray): y-values
-
-    Returns:
-        float, float, float:  Amplitude, centroid, sigma
-
-    """
-    ypos = y - y.min()
-    cent = np.sum(ypos*x)/np.sum(ypos)
-    sigma = np.sqrt(np.abs(np.sum((x-cent)**2*ypos)/np.sum(ypos))) # From scipy doc
-    # Calculate ampl from pixels within +/- sigma/2
-    cen_pix= np.abs(x-cent)<sigma/2
-    if np.any(cen_pix):
-        ampl = np.median(y[cen_pix])
-    else:
-        ampl = y.max()
-    # Return
-    return ampl, cent, sigma
-
-
-
-
-
-def polyfit2d_general(x, y, z, deg, w=None, function='polynomial',
-                      minx=None, maxx=None, miny=None, maxy=None):
-    """
-    :param x: array of x values
-    :param y: array of y values
-    :param z: value of data at each (x,y) coordinate
-    :param deg: degree of polynomial fit in the form [nx,ny]
-    :param w: weights
-    :return: coefficients
-    """
-#    msgs.work("Generalize to different polynomial types")
-    x = np.asarray(x)
-    y = np.asarray(y)
-    z = np.asarray(z)
-    deg = np.asarray(deg)
-    # Vander
-    if function == 'polynomial':
-        vander = np.polynomial.polynomial.polyvander2d(x, y, deg)
-    elif function == 'legendre':
-        xv = scale_minmax(x, minx=minx, maxx=maxx)
-        yv = scale_minmax(y, minx=miny, maxx=maxy)
-        vander = np.polynomial.legendre.legvander2d(xv, yv, deg)
-    else:
-        msgs.error("Not ready for this type of {:s}".format(function))
-    # Weights
-    if w is not None:
-        w = np.asarray(w) + 0.0
-        if w.ndim != 1:
-            msgs.bug("utils.polyfit2d - Expected 1D vector for weights")
-        if len(x) != len(w) or len(y) != len(w) or len(x) != len(y):
-            msgs.bug("utils.polyfit2d - Expected x, y and weights to have same length")
-        z = z * w
-        vander = vander * w[:,np.newaxis]
-    # Reshape
-    vander = vander.reshape((-1,vander.shape[-1]))
-    z = z.reshape((vander.shape[0],))
-    c = np.linalg.lstsq(vander, z, rcond=None)[0]
-    return c.reshape(deg+1)
-
-def scale_minmax(x, minx=None, maxx=None):
-    """
-    Scale in the input array
-
-    Args:
-        x (ndarray): x-values
-        minx (float, optional): Minimum value for scaling
-        maxx (float, optional): Maximum value for scaling
-
-    Returns:
-        ndarray: Scaled x values
-
-    """
-    if minx is None or maxx is None:
-        if np.size(x) == 1:
-            xmin, xmax = -1.0, 1.0
-        else:
-            xmin, xmax = np.min(x), np.max(x)
-    else:
-        xmin, xmax = minx, maxx
-    xv = 2.0 * (x-xmin)/(xmax-xmin) - 1.0
-    return xv
 
 
 
@@ -1109,129 +883,10 @@ def robust_polyfit(xarray, yarray, order, weights=None, maxone=True, sigma=3.0,
     ct = func_fit(xfit, yfit, function, order, w=wfit, minx=minx, maxx=maxx, bspline_par=bspline_par)
     return mask, ct
 
-# TODO This should replace robust_polyfit. #ToDO This routine needs to return dicts with the minx and maxx set
-def robust_polyfit_djs(xarray, yarray, order, x2 = None, function = 'polynomial', minx = None, maxx = None, minx2 = None, maxx2 = None,
-                       bspline_par = None,
-                       guesses = None, maxiter=10, inmask=None, sigma=None,invvar=None, lower=None, upper=None,
-                       maxdev=None,maxrej=None, groupdim=None,groupsize=None, groupbadpix=False, grow=0,
-                       sticky=True, use_mad=True):
-    """
-    A robust polynomial fit is performed to the xarray, yarray pairs
-    mask[i] = 1 are good values
-
-    xarray: independent variable values
-    yarray: dependent variable values
-    order: the order of the polynomial to be used in the fitting
-    x2: ndarray, default = None
-       Do a 2d fit?
-    function: which function should be used in the fitting (valid inputs: 'polynomial', 'legendre', 'chebyshev', 'bspline')
-    minx: minimum value in the array (or the left limit for a legendre/chebyshev polynomial)
-    maxx: maximum value in the array (or the right limit for a legendre/chebyshev polynomial)
-    guesses : tuple
-    bspline_par : dict
-        Passed to bspline_fit()
-    maxiter : :class:`int`, optional
-         Maximum number of rejection iterations, default 10.  Set this to zero to disable rejection and simply do a fit.
-    inmask : :class:`numpy.ndarray`, optional
-        Input mask.  Bad points are marked with a value that evaluates to ``False``.
-        Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
-        will also always evaluate to "False" in the outmask
-    sigma : :class: float or `numpy.ndarray`, optional
-        Standard deviation of the yarray, used to reject points based on the values
-        of `upper` and `lower`. This can either be a single float for the entire yarray or a ndarray with the same
-        shape as the yarray.
-    invvar : :class: float or `numpy.ndarray`, optional
-        Inverse variance of the data, used to reject points based on the values
-        of `upper` and `lower`.  This can either be a single float for the entire yarray or a ndarray with the same
-        shape as the yarray. If both `sigma` and `invvar` are set the code will return an error.
-    lower : :class:`int` or :class:`float`, optional
-        If set, reject points with data < model - lower * sigma.
-    upper : :class:`int` or :class:`float`, optional
-        If set, reject points with data > model + upper * sigma.
-    maxdev : :class:`int` or :class:`float`, optional
-        If set, reject points with abs(data-model) > maxdev.  It is permitted to
-        set all three of `lower`, `upper` and `maxdev`.
-    maxrej: :class:`int` or :class:`numpy.ndarray`, optional
-        Maximum number of points to reject in this iteration.  If `groupsize` or
-        `groupdim` are set to arrays, this should be an array as well.
-    groupdim: class: `int`
-        Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
-        If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
-        In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
-    groupsize: class: `int`
-        If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points.  If groupdim is also
-        set, then this specifies sub-groups within that. NOT WELL TESTED IN PYTHON!!
-    groupbadpix : :class:`bool`, optional
-        If set to ``True``, consecutive sets of bad pixels are considered groups,
-        overriding the values of `groupsize`.
-    grow : :class:`int`, optional, default = 0
-        If set to a non-zero integer, N, the N nearest neighbors of rejected
-        pixels will also be rejected.
-    sticky : :class:`bool`, optional, default is True
-        If set to ``True``, pixels rejected in one iteration remain rejected in
-        subsequent iterations, even if the model changes. If
-    use_mad : :class: `bool`, optional, defaul = False
-        It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
-        the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
-        and also pass in values for sigma or invvar, and the code will return an error if this is done.
-
-
-    Returns:
-    --------
-    :return: mask, ct -- mask is an array of the masked values, ct is the coefficients of the robust polyfit.
-    """
-
-    # Setup the initial mask
-    if inmask is None:
-        inmask = np.ones(xarray.size, dtype=bool)
-
-    if sigma is not None and invvar is not None:
-        msgs.error('You cannot specify both sigma and invvar')
-    elif sigma is not None:
-        weights = 1.0/sigma**2
-    elif invvar is not None:
-        weights = np.copy(invvar)
-    else:
-        weights = np.ones(xarray.size,dtype=float)
-
-    # Iterate, and mask out new values on each iteration
-    ct = guesses
-
-    iIter = 0
-    qdone = False
-    thismask = np.copy(inmask)
-    while (not qdone) and (iIter < maxiter):
-        if np.sum(thismask) <= np.sum(order) + 1:
-            msgs.warn("More parameters than data points - fit might be undesirable")
-        if not np.any(thismask):
-            msgs.warn("All points were masked. Returning current fit and masking all points. Fit is likely undesirable")
-            if ct is None:
-                ct = np.zeros(order + 1)
-            return thismask, ct
-
-        ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask=thismask,guesses=ct,
-                      minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2, bspline_par=bspline_par)
-        ymodel = func_val(ct, xarray, function, x2 = x2, minx=minx, maxx=maxx,minx2=minx2,maxx2=maxx2)
-        # TODO Add nrej and nrej_tot as in robust_optimize below?
-        thismask, qdone = pydl.djs_reject(yarray, ymodel, outmask=thismask,inmask=inmask, sigma=sigma, invvar=invvar,
-                                          lower=lower,upper=upper,maxdev=maxdev,maxrej=maxrej,
-                                          groupdim=groupdim,groupsize=groupsize,groupbadpix=groupbadpix,grow=grow,
-                                          use_mad=use_mad,sticky=sticky)
-        iIter += 1
-    if (iIter == maxiter) & (maxiter != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_polyfit_djs')
-    outmask = np.copy(thismask)
-    if np.sum(outmask) == 0:
-        msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
-
-    # Do the final fit
-    ct = func_fit(xarray, yarray, function, order, x2 = x2, w=weights, inmask = outmask, minx=minx, maxx=maxx, minx2 = minx2, maxx2=maxx2, bspline_par=bspline_par)
-
-    return outmask, ct
-
-def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=None, invvar=None,
+def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, invvar=None,
                     lower=None, upper=None, maxdev=None, maxrej=None, groupdim=None,
-                    groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=True,
+                    groupsize=None, groupbadpix=False, grow=0, sticky=True, use_mad=False,
+                    verbose=False,
                     **kwargs_optimizer):
     """
     A routine to perform robust optimization. It is completely analogous
@@ -1248,16 +903,27 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
             The callable object used to perform the fitting.  The
             calling sequence must be::
 
-                result, ymodel = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
+                ret_tuple = fitfunc(ydata, inmask, arg_dict, **kwargs_optimizer)
 
             See the descriptions of `ydata`, `inmask`, `arg_dict`, and
-            `kwargs_optimizer`.  The two returned objects are:
+            `kwargs_optimizer`.  The returned object ret_tuple that can
+            have two or three elements.  If it has two elements (result,
+            ymodel):
+
                 - `result`: Object returned by the specific
                   scipy.optimize method used to perform the fit.
                 - `ymodel`: A `numpy.ndarray` with the model fit to
                   `ydata` and with the same shape.
 
-        arg_dict (:obj:`dict`)
+            If it has three elements (result, ymodel, newivar):
+
+                - `newivar`: new inverse variance for the ydata ymodel
+                  comparison, in other words chi = (ydata -
+                  ymodel)*np.sqrt(newivar). This functionality allows
+                  one to deal with cases where the noise of the
+                  data-model comaprison is model dependent.
+
+        arg_dict (:obj:`dict`):
             Dictionary containing the other variables needed to evaluate
             the model fit.
         maxiter (:obj:`int`, optional):
@@ -1268,23 +934,19 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
             evaluates to `False`.  Must have the same number of
             dimensions as `ydata`.  Points masked as `False` in `inmask`
             will also always evaluate to `False` in the output mask.
-        sigma (:obj:`float`, `numpy.ndarray`_, optional):
-            Standard deviation of the `ydata`, used to reject points
-            based on the values of `upper` and `lower`. This can either
-            be a single float or an array with the same shape as
-            `ydata`.
         invvar (:obj:`float`, `numpy.ndarray`_, optional):
             Inverse variance of the data, used to reject points based on
             the values of `upper` and `lower`.  This can either be a
             single float for the entire yarray or a ndarray with the
-            same shape as the yarray. If both `sigma` and `invvar` are
-            set the code will return an error.
+            same shape as the yarray.
         lower (:obj:`int`, :obj:`float`, optional):
-            If set, reject points with `data < model - lower * sigma`.
+            If set, reject points with ``data < model - lower * sigma``, where
+            ``sigma = 1/sqrt(invvar)``
         upper (:obj:`int`, :obj:`float`, optional):
-            If set, reject points with `data > model + upper * sigma`.
-        maxdev (:obj:`int` or :class:`float`, optional
-            If set, reject points with `abs(data-model) > maxdev`.  It
+            If set, reject points with ``data > model + upper * sigma``, where
+            ``sigma = 1/sqrt(invvar)``.
+        maxdev (:obj:`int` or :class:`float`, optional):
+            If set, reject points with ``abs(data-model) > maxdev``.  It
             is permitted to set all three of `lower`, `upper` and
             `maxdev`.
         maxrej (:obj:`int`, `numpy.ndarray`_, optional):
@@ -1305,7 +967,7 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
             `groupdim` is also set, then this specifies sub-groups
             within that.  This functionality is **not well tested in
             python**!
-        groupbadpix (:obj:``bool`, optional):
+        groupbadpix (:obj:`bool`, optional):
             If `True`, consecutive sets of bad pixels are considered
             groups, overriding the values of `groupsize`.
         grow (:obj:`int`, optional):
@@ -1319,9 +981,8 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
             deviation between the data and use this for the rejection
             instead of the default, which is to compute the standard
             deviation of `ydata - modelfit`. Note that it is not
-            possible to specify `use_mad=True` and also pass in values
-            for `sigma` or `invvar`, and the code will return an error
-            if this is done.
+            possible to specify `use_mad=True` and also pass in a value for
+            `invvar`, and the code will return an error if this is done.
         **kwargs_optimizer:
             Optional parameters passed to the optimizer.
 
@@ -1335,41 +996,53 @@ def robust_optimize(ydata, fitfunc, arg_dict, maxiter=10, inmask=None, sigma=Non
               indicating which pixels were masked in the final fit.
               Convention is that `True` are good values where `False`
               indicates bad values.
+
     """
     # Setup the initial mask
     if inmask is None:
         inmask = np.ones(ydata.size, dtype=bool)
 
-    if sigma is not None and invvar is not None:
-        msgs.error('You cannot specify both sigma and invvar')
-
+    nin_good = np.sum(inmask)
     iter = 0
     qdone = False
     thismask = np.copy(inmask)
 
     while (not qdone) and (iter < maxiter):
-        result, ymodel = fitfunc(ydata, thismask, arg_dict, **kwargs_optimizer)
+        ret_tuple = fitfunc(ydata, thismask, arg_dict, **kwargs_optimizer)
+        if (len(ret_tuple) == 2):
+            result, ymodel = ret_tuple
+            invvar_use = invvar
+        elif (len(ret_tuple) == 3):
+            result, ymodel, invvar_use = ret_tuple
+        else:
+            msgs.error('Invalid return value from fitfunc')
+
         thismask_iter = thismask.copy()
-        thismask, qdone = pydl.djs_reject(ydata, ymodel, outmask=thismask, inmask=inmask, invvar=invvar,
+        thismask, qdone = pydl.djs_reject(ydata, ymodel, outmask=thismask, inmask=inmask, invvar=invvar_use,
                                           lower=lower, upper=upper, maxdev=maxdev, maxrej=maxrej,
                                           groupdim=groupdim, groupsize=groupsize, groupbadpix=groupbadpix, grow=grow,
                                           use_mad=use_mad, sticky=sticky)
         nrej = np.sum(thismask_iter & np.invert(thismask))
         nrej_tot = np.sum(inmask & np.invert(thismask))
-        msgs.info(
-            'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections'.format(iter, nrej, nrej_tot))
+        if verbose:
+            msgs.info(
+                'Iteration #{:d}: nrej={:d} new rejections, nrej_tot={:d} total rejections out of ntot={:d} '
+                'total pixels'.format(iter, nrej, nrej_tot, nin_good))
         iter += 1
 
     if (iter == maxiter) & (maxiter != 0):
-        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in sens_tell_fit')
+        msgs.warn('Maximum number of iterations maxiter={:}'.format(maxiter) + ' reached in robust_optimize')
     outmask = np.copy(thismask)
     if np.sum(outmask) == 0:
         msgs.warn('All points were rejected!!! The fits will be zero everywhere.')
 
-    # Perform a final fit using the final outmask
-    result, ymodel = fitfunc(ydata, outmask, arg_dict, **kwargs_optimizer)
+    # Perform a final fit using the final outmask if new pixels were rejected on the last iteration
+    if qdone is False:
+        ret_tuple = fitfunc(ydata, outmask, arg_dict, **kwargs_optimizer)
 
-    return result, ymodel, outmask
+    return ret_tuple + (outmask,)
+
+    #return result, ymodel, outmask
 
 def subsample(frame):
     """
@@ -1389,15 +1062,47 @@ def subsample(frame):
     return frame[tuple(indices)]
 
 
+def find_nearest(array, values):
+    """For all elements of values, find the index of the nearest value in array
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+        Array of values
+    values : numpy.ndarray
+        Values to be compared with the elements of `array`
+
+    Return
+    ------
+    numpy.ndarray : indices of `array` that are closest to each element of value
+    """
+    # Make sure the input is a numpy array
+    array = np.array(array)
+
+    # get insert positions
+    idxs = np.searchsorted(array, values, side="left")
+
+    # find indexes where previous index is closer
+    prev_idx_is_less = ((idxs == len(array)) | (np.fabs(values - array[np.maximum(idxs - 1, 0)]) <
+                                                np.fabs(values - array[np.minimum(idxs, len(array) - 1)])))
+    idxs[prev_idx_is_less] -= 1
+
+    return idxs
+
 
 def yamlify(obj, debug=False):
-    """Recursively process an object so it can be serialised for yaml.
-    Based on jsonify in `linetools <https://pypi.python.org/pypi/linetools>`_.
+    """
 
-    Note: All string-like keys in :class:`dict` s are converted to
-    :class:`str`.
+    Recursively process an object so it can be serialised for yaml.
+
+    Based on jsonify in `linetools
+    <https://pypi.python.org/pypi/linetools>`_.
 
     Also found in desiutils
+
+    Note:
+        All string-like keys in :class:`dict` s are converted to
+        :class:`str`.
 
     Parameters
     ----------
@@ -1408,10 +1113,10 @@ def yamlify(obj, debug=False):
 
     Returns
     -------
-    :class:`object`
-       An object suitable for yaml serialization.  For example
-       :class:`numpy.ndarray` is converted to :class:`list`,
-       :class:`numpy.int64` is converted to :class:`int`, etc.
+    obj: :class:`object`
+        An object suitable for yaml serialization.  For example
+        :class:`numpy.ndarray` is converted to :class:`list`,
+        :class:`numpy.int64` is converted to :class:`int`, etc.
     """
     if isinstance(obj, (np.float64, np.float32)):
         obj = float(obj)
@@ -1459,3 +1164,36 @@ def yamlify(obj, debug=False):
     return obj
 
 
+def save_pickle(fname, obj):
+    """Save an object to a python pickle file
+
+    Parameters
+    ----------
+    fname : :class:`str`
+        Filename
+    obj : :class:`object`
+        An object suitable for pickle serialization.
+    """
+    if fname.split(".")[-1] != 'pkl':
+        fname += '.pkl'
+    with open(fname, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+        msgs.info('File saved: {0:s}'.format(fname))
+
+
+def load_pickle(fname):
+    """Load a python pickle file
+
+    Parameters
+    ----------
+    fname : :class:`str`
+        Filename
+
+    Returns
+    -------
+    :class:`object`
+        An object suitable for pickle serialization.
+    """
+    msgs.info('Loading file: {0:s}'.format(fname))
+    with open(fname, 'rb') as f:
+        return pickle.load(f)

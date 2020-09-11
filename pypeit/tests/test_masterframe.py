@@ -5,69 +5,33 @@ import os
 import numpy as np
 import pytest
 
-from pypeit import msgs
+from astropy.io import fits
+
 from pypeit import masterframe
-from pypeit import io
-
-#@pytest.fixture
-#def fitsdict():
-#    return arutils.dummy_fitsdict()
-
-#def test_master_name():
-#    """ Test master name method
-#    """
-#    types = ['bias', 'badpix', 'trace', 'pixelflat', 'arc', 'wave', 'wv_calib', 'tilts']
-#    suff = ['Bias', 'BadPix', 'Trace', 'PixelFlat', 'Arc', 'Wave', 'WaveCalib', 'Tilts']
-#    for isuff,itype in zip(suff,types):
-#        if itype == 'wv_calib':
-#            exten = '.json'
-##        elif itype == 'trace':
-##            exten = ''
-#        else:
-#            exten = '.fits'
-#        assert masterframe.master_name(itype, '01', mdir='MasterFrames') == 'MasterFrames/Master{:s}_01{:s}'.format(isuff,exten)
+from pypeit.images import buildimage
 
 def data_root():
     return os.path.join(os.path.dirname(__file__), 'files')
 
-# Could break this into a bunch of separate tests...
-def test_master_io():
-    """
-    Test the save and load methods by saving a fake master and reading it back in.
-    """
-    # Init
+def test_masterframe_methods():
+    master_key = 'A_1_01'
     master_dir = data_root()
-    mf = masterframe.MasterFrame('Test', master_dir=master_dir, master_key='A_01_1',
-                                 reuse_masters=True)
-    # In case of previous test failure
-    if os.path.isfile(mf.file_path):
-        os.remove(mf.file_path)
-    # Check the filename
-    assert mf.file_name == 'MasterTest_A_01_1.fits', 'Incorrect master frame file name'
-    # No file so load should return None
-    assert mf.load('JUNK') is None, 'Load for non-existent frame should return None'
-    # Should also return None for the header
-    assert mf.load('JUNK', return_header=True) == (None, None), \
-            'Load for non-existent frame should return None'
-    # Save a fake file
-    data = np.arange(10)
-    extnames = 'JUNK'
-    raw_files = ['fake1.fits', 'fake2.fits']
-    steps = ['foo', 'bar']
-    mf.save(data, extnames, overwrite=False, raw_files=raw_files, steps=steps)
-    assert os.path.isfile(mf.file_path), 'No file written'
-    # Try to load it
-    _data = mf.load('JUNK')
-    assert np.array_equal(data, _data), 'Data written/read incorrectly'
-    # Try to load it with the header
-    _data, _hdr = mf.load('JUNK', return_header=True)
-    assert np.array_equal(data, _data), 'Data written/read incorrectly'
-    assert _hdr['MSTRTYP'] == 'Test', 'Incorrect master type'
-    assert _hdr['STEPS'].split(',') == steps, 'Steps written incorrectly'
-    assert io.parse_hdr_key_group(_hdr, prefix='F') == raw_files, 'Did not correctly read files'
-    # Loading if reuse_masters is false should yield None
-    mf.reuse_masters = False
-    assert mf.load('JUNK') is None, 'Load when reuse_masters=False should return None'
-    # Clean up
-    os.remove(mf.file_path)
 
+    # Filename
+    Aimg = buildimage.ArcImage(None)
+    Aimg.PYP_SPEC = 'shane_kast_blue'
+    filename = masterframe.construct_file_name(Aimg, master_key, master_dir=master_dir)
+    assert isinstance(filename, str)
+    assert filename == os.path.join(
+        master_dir, 'Master'+Aimg.master_type+'_'+master_key+'.'+Aimg.master_file_format)
+
+    # Header
+    hdr = masterframe.build_master_header(Aimg, master_key, master_dir)
+    assert isinstance(hdr, fits.Header)
+
+    # Get those keys!
+    _master_key, _master_dir = masterframe.grab_key_mdir(hdr)
+    assert _master_key == master_key
+
+    _master_key2, _master_dir2 = masterframe.grab_key_mdir(filename, from_filename=True)
+    assert _master_key2 == master_key

@@ -1,14 +1,14 @@
 # Licensed under a 3-clause BSD style license - see PYDL_LICENSE.rst
 # -*- coding: utf-8 -*-
 # Also cite https://doi.org/10.5281/zenodo.1095150 when referencing PYDL
+from IPython import embed
+
 import numpy as np
-from warnings import warn
 
 from pypeit import msgs
-from pypeit import debugger
 from pypeit import utils
-import copy
-from astropy.extern.six import string_types
+from pypeit.core import basis
+from pypeit.core import fitting
 
 """This module corresponds to the image directory in idlutils.
 """
@@ -32,10 +32,9 @@ def djs_maskinterp1(yval, mask, xval=None, const=False):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`numpy.ndarray`:
         The `yval` array with masked values replaced by interpolated values.
     """
-    import numpy as np
     good = mask == 0
     if good.all():
         return yval
@@ -92,7 +91,6 @@ def djs_maskinterp(yval, mask, xval=None, axis=None, const=False):
     :class:`numpy.ndarray`
         The interpolated array.
     """
-    import numpy as np
     if mask.shape != yval.shape:
         raise ValueError('mask must have the same shape as yval.')
     if xval is not None:
@@ -176,1088 +174,6 @@ def djs_maskinterp(yval, mask, xval=None, axis=None, const=False):
 
 
 
-class bspline(object):
-    """Bspline class.
-
-    Functions in the bspline library are implemented as methods on this
-    class.
-
-    Parameters
-    ----------
-    x : :class:`numpy.ndarray`
-        The data.
-    nord : :class:`int`, optional
-        To be documented.
-    npoly : :class:`int`, optional
-        To be documented.
-    bkpt : :class:`numpy.ndarray`, optional
-        To be documented.
-    bkspread : :class:`float`, optional
-        To be documented.
-    verbose : :class:`bool`, optional.
-        If ``True`` print extra information.
-
-    Attributes
-    ----------
-    breakpoints
-        Breakpoints for bspline, spacing for these breakpoints are determinated by keywords inputs;
-    nord
-        Order of bspline; [default=4]
-    npoly
-        Polynomial order to fit over 2nd variable (when specified as x2): [default=1]
-    mask
-        Output mask, set =1 for good points, =0 for bad points;
-    coeff
-        Output coefficient of the bspline;
-    icoeff
-        Cholesky band matrix used to solve for the bspline coefficients;
-    xmin
-        Normalization minimum for x2; [default max(xdata)]
-    xmax
-        Normalization maximum for x2; [default min(xdata)]
-    funcname
-        Function for the second variable; [default 'legendre']
-    from_dict
-        If not None, create a bspline from a dictionary created by to_dict(). [default 'None']
-        It is possible to instantiate a bspline from a dict without the x data:
-        new_bspline = bspline(None, from_dict=dictionary)
-    """
-
-    # ToDO Consider refactoring the argument list so that there are no kwargs
-    def __init__(self, x, fullbkpt = None, nord=4, npoly=1, bkpt=None, bkspread=1.0,
-                 verbose=False, from_dict=None, **kwargs):
-        """Init creates an object whose attributes are similar to the
-        structure returned by the create_bspline function.
-        """
-        # JFH added this to enforce immutability of these input arguments, as this code modifies bkpt and fullbkpt
-        # as it goes
-        fullbkpt1 = copy.copy(fullbkpt)
-        bkpt1 = copy.copy(bkpt)
-        if from_dict is not None:
-            self.nord=from_dict['nord']
-            self.npoly=from_dict['npoly']
-            self.breakpoints=np.array(from_dict['breakpoints'])
-            self.mask=np.array(from_dict['mask'])
-            self.coeff=np.array(from_dict['coeff'])
-            self.icoeff=np.array(from_dict['icoeff'])
-            self.xmin=from_dict['xmin']
-            self.xmax=from_dict['xmax']
-            self.funcname=from_dict['funcname']
-            return
-        # Instantiate empty if neither fullbkpt or x is set
-        elif x is None and fullbkpt is None:
-            self.nord = None
-            self.npoly = None
-            self.breakpoints= None
-            self.mask= None
-            self.coeff= None
-            self.icoeff= None
-            self.xmin= None
-            self.xmax= None
-            self.funcname= None
-            return
-        else:
-            #
-            # Set the breakpoints.
-            #
-            if fullbkpt1 is None:
-                if bkpt1 is None:
-                    startx = x.min()
-                    rangex = x.max() - startx
-                    if 'placed' in kwargs:
-                        w = ((kwargs['placed'] >= startx) &
-                             (kwargs['placed'] <= startx+rangex))
-                        if w.sum() < 2:
-                            bkpt1 = np.arange(2, dtype='f') * rangex + startx
-                        else:
-                            bkpt1 = kwargs['placed'][w]
-                    elif 'bkspace' in kwargs:
-                        nbkpts = int(rangex/kwargs['bkspace']) + 1
-                        if nbkpts < 2:
-                            nbkpts = 2
-                        tempbkspace = rangex/float(nbkpts-1)
-                        bkpt1 = np.arange(nbkpts, dtype='f')*tempbkspace + startx
-                    elif 'nbkpts' in kwargs:
-                        nbkpts = kwargs['nbkpts']
-                        if nbkpts < 2:
-                            nbkpts = 2
-                        tempbkspace = rangex/float(nbkpts-1)
-                        bkpt1 = np.arange(nbkpts, dtype='f') * tempbkspace + startx
-                    elif 'everyn' in kwargs:
-                        nx = x.size
-                        nbkpts = max(nx/kwargs['everyn'], 1)
-                        if nbkpts == 1:
-                            xspot = [0]
-                        else:
-                            xspot = (nx/nbkpts)*np.arange(nbkpts)
-                            # JFH This was a bug. Made fixes
-                            #xspot = int(nx/(nbkpts-1)) * np.arange(nbkpts, dtype='i4')
-                        #bkpt = x[xspot].astype('f')
-                        bkpt1 = np.interp(xspot,np.arange(nx),x)
-                    else:
-                        raise ValueError('No information for bkpts.')
-                # JFH added this new code, because bkpt.size = 1 implies fullbkpt has only 2*(nord-1) + 1 elements.
-                # This will cause a crash in action because nbkpt < 2*nord, i.e. for bkpt = 1, nord = 4 fullbkpt has
-                # seven elements which is less than 2*nord = 8. The codes above seem to require nbkpt >=2, so I'm implementing
-                # this requirement. Note that the previous code before this fix simply sets bkpt to bkpt[imax] =x.max()
-                # which is equally arbitrary, but still results in a crash. By requiring at least 2 bkpt, fullbkpt will
-                # have 8 elements preventing action from crashing
-                if (bkpt1.size < 2):
-                    bkpt1 = np.zeros(2,dtype=float)
-                    bkpt1[0] = x.min()
-                    bkpt1[1] = x.max()
-                else:
-                    imin = bkpt1.argmin()
-                    imax = bkpt1.argmax()
-                    if x.min() < bkpt1[imin]:
-                        if verbose:
-                            print('Lowest breakpoint does not cover lowest x value: changing.')
-                        bkpt1[imin] = x.min()
-                    if x.max() > bkpt1[imax]:
-                        if verbose:
-                            print('Highest breakpoint does not cover highest x value: changing.')
-                        bkpt1[imax] = x.max()
-
-                nshortbkpt = bkpt1.size
-                fullbkpt1 = bkpt1.copy()
-                # Note that with the JFH change above, this nshortbkpt ==1 is never realized beacause above I forced
-                # bkpt to have at least two elements. Not sure why this was even allowed, since bkpt.size = 1
-                #  basically results in action crashing as described above.
-                if nshortbkpt == 1:
-                    bkspace = bkspread
-                else:
-                    bkspace = (bkpt1[1] - bkpt1[0])*bkspread
-                for i in np.arange(1, nord):
-                    fullbkpt1 = np.insert(fullbkpt1, 0, bkpt1[0]-bkspace*i)
-                    fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
-                                         bkpt1[nshortbkpt-1] + bkspace*i)
-
-
-            # JFH added this to fix bug in cases where fullbkpt is passed in but has < 2*nord elements
-            if fullbkpt1.size < 2*nord:
-                fullbkpt_init = fullbkpt1.copy()
-                nshortbkpt = fullbkpt_init.size
-                bkspace = (fullbkpt_init[1] - fullbkpt_init[0])*bkspread
-                for i in np.arange(1, nord):
-                    fullbkpt1 = np.insert(fullbkpt1, 0, fullbkpt_init[0] - bkspace * i)
-                    fullbkpt1 = np.insert(fullbkpt1, fullbkpt1.shape[0],
-                                          fullbkpt_init[nshortbkpt - 1] + bkspace * i)
-
-            nc = fullbkpt1.size - nord
-            self.breakpoints = fullbkpt1
-            self.nord = nord
-            self.npoly = npoly
-            self.mask = np.ones((fullbkpt1.size,), dtype='bool')
-            if npoly > 1:
-                self.coeff = np.zeros((npoly, nc), dtype='d')
-                self.icoeff = np.zeros((npoly, nc), dtype='d')
-            else:
-                self.coeff = np.zeros((nc,), dtype='d')
-                self.icoeff = np.zeros((nc,), dtype='d')
-            self.xmin = 0.0
-            self.xmax = 1.0
-            if 'funcname' in kwargs:
-                self.funcname = kwargs['funcname']
-            else:
-                self.funcname = 'legendre'
-
-        return
-
-    def copy(self):
-
-        bsp_copy = bspline(None)
-        bsp_copy.nord = self.nord
-        bsp_copy.npoly = self.npoly
-        bsp_copy.breakpoints = np.copy(self.breakpoints)
-        bsp_copy.mask = np.copy(self.mask)
-        bsp_copy.coeff = np.copy(self.coeff)
-        bsp_copy.icoeff = np.copy(self.icoeff)
-        bsp_copy.xmin = self.xmin
-        bsp_copy.xmax = self.xmax
-        bsp_copy.funcname = self.funcname
-        return bsp_copy
-
-    def to_dict(self):
-        """Write bspline parameters to a dict.
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-            A dict containing the relevant bspline paramenters.
-
-        Notes
-        -----
-        The dictionary is JSON compatible.
-        """
-
-        # needs to move np.arrays to lists for JSON files
-        return (dict(breakpoints=self.breakpoints.tolist(),
-                     nord=self.nord,
-                     npoly=self.npoly,
-                     mask=self.mask.tolist(),
-                     coeff=self.coeff.tolist(),
-                     icoeff=self.icoeff.tolist(),
-                     xmin=self.xmin,
-                     xmax=self.xmax,
-                     funcname=self.funcname))
-
-    def fit(self, xdata, ydata, invvar, x2=None):
-        """Calculate a B-spline in the least-squares sense.
-
-        Fit is based on two variables: x which is sorted and spans a large range
-        where bkpts are required y which can be described with a low order
-        polynomial.
-
-        Parameters
-        ----------
-        xdata : :class:`numpy.ndarray`
-            Independent variable.
-        ydata : :class:`numpy.ndarray`
-            Dependent variable.
-        invvar : :class:`numpy.ndarray`
-            Inverse variance of `ydata`.
-        x2 : :class:`numpy.ndarray`, optional
-            Orthogonal dependent variable for 2d fits.
-
-        Returns
-        -------
-        :func:`tuple`
-            A tuple containing an integer error code, and the evaluation of the
-            b-spline at the input values.  An error code of -2 is a failure,
-            -1 indicates dropped breakpoints, 0 is success, and positive
-            integers indicate ill-conditioned breakpoints.
-        """
-        goodbk = self.mask[self.nord:]
-        nn = goodbk.sum()
-        if nn < self.nord:
-            yfit = np.zeros(ydata.shape, dtype='f')
-            return (-2, yfit)
-        nfull = nn * self.npoly
-        bw = self.npoly * self.nord
-        a1, lower, upper = self.action(xdata, x2=x2)
-        foo = np.tile(invvar, bw).reshape(bw, invvar.size).transpose()
-        a2 = a1 * foo
-        alpha = np.zeros((bw, nfull+bw), dtype='d')
-        beta = np.zeros((nfull+bw,), dtype='d')
-        bi = np.arange(bw, dtype='i4')
-        bo = np.arange(bw, dtype='i4')
-        for k in range(1, bw):
-            bi = np.append(bi, np.arange(bw-k, dtype='i4')+(bw+1)*k)
-            bo = np.append(bo, np.arange(bw-k, dtype='i4')+bw*k)
-        for k in range(nn-self.nord+1):
-            itop = k*self.npoly
-            ibottom = min(itop, nfull) + bw - 1
-            ict = upper[k] - lower[k] + 1
-            if ict > 0:
-                work = np.dot(a1[lower[k]:upper[k]+1, :].T, a2[lower[k]:upper[k]+1, :])
-                wb = np.dot(ydata[lower[k]:upper[k]+1], a2[lower[k]:upper[k]+1, :])
-                alpha.T.flat[bo+itop*bw] += work.flat[bi]
-                beta[itop:ibottom+1] += wb
-        min_influence = 1.0e-10 * invvar.sum() / nfull
-        errb = cholesky_band(alpha, mininf=min_influence)  # ,verbose=True)
-        if isinstance(errb[0], int) and errb[0] == -1:
-            a = errb[1]
-        else:
-            yfit, foo = self.value(xdata, x2=x2, action=a1, upper=upper, lower=lower)
-            return (self.maskpoints(errb[0]), yfit)
-        errs = cholesky_solve(a, beta)
-        if isinstance(errs[0], int) and errs[0] == -1:
-            sol = errs[1]
-        else:
-            #
-            # It is not possible for this to get called, because cholesky_solve
-            # has only one return statement, & that statement guarantees that
-            # errs[0] == -1
-            #
-            yfit, foo = self.value(xdata, x2=x2, action=a1, upper=upper, lower=lower)
-            return (self.maskpoints(errs[0]), yfit)
-        if self.coeff.ndim == 2:
-            # JFH made major bug fix here.
-            self.icoeff[:, goodbk] = np.array(a[0, 0:nfull].T.reshape(self.npoly, nn,order='F'), dtype=a.dtype)
-            self.coeff[:, goodbk] = np.array(sol[0:nfull].T.reshape(self.npoly, nn, order='F'), dtype=sol.dtype)
-        else:
-            self.icoeff[goodbk] = np.array(a[0, 0:nfull], dtype=a.dtype)
-            self.coeff[goodbk] = np.array(sol[0:nfull], dtype=sol.dtype)
-        yfit, foo = self.value(xdata, x2=x2, action=a1, upper=upper, lower=lower)
-        return (0, yfit)
-
-    def action(self, x, x2=None):
-        """Construct banded bspline matrix, with dimensions [ndata, bandwidth].
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            Independent variable.
-        x2 : :class:`numpy.ndarray`, optional
-            Orthogonal dependent variable for 2d fits.
-
-        Returns
-        -------
-        :func:`tuple`
-            A tuple containing the b-spline action matrix; the 'lower' parameter,
-            a list of pixel positions, each corresponding to the first
-            occurence of position greater than breakpoint indx; and 'upper',
-            Same as lower, but denotes the upper pixel positions.
-        """
-        nx = x.size
-        nbkpt = self.mask.sum()
-        if nbkpt < 2*self.nord:
-            msgs.warn('Order chosen nord = {:d}'.format(self.nord) +
-                         ' is too low for the number of breakpoints nbkpt = {:d}'.format(nbkpt))
-            return (-2, 0, 0)
-        n = nbkpt - self.nord
-        gb = self.breakpoints[self.mask]
-        bw = self.npoly*self.nord
-        lower = np.zeros((n - self.nord + 1,), dtype=int)
-        upper = np.zeros((n - self.nord + 1,), dtype=int) - 1
-        indx = self.intrv(x)
-        bf1 = self.bsplvn(x, indx)
-        action = bf1
-        aa = uniq(indx, np.arange(indx.size, dtype=int))
-        upper[indx[aa]-self.nord+1] = aa
-        rindx = indx[::-1]
-        bb = uniq(rindx, np.arange(rindx.size, dtype=int))
-        lower[rindx[bb]-self.nord+1] = nx - bb - 1
-        if x2 is not None:
-            if x2.size != nx:
-                raise ValueError('Dimensions of x and x2 do not match.')
-            x2norm = 2.0 * (x2 - self.xmin) / (self.xmax - self.xmin) - 1.0
-            if self.funcname == 'poly':
-                temppoly = np.ones((nx, self.npoly), dtype='f')
-                for i in range(1, self.npoly):
-                    temppoly[:, i] = temppoly[:, i-1] * x2norm
-            elif self.funcname == 'poly1':
-                temppoly = np.tile(x2norm, self.npoly).reshape(nx, self.npoly)
-                for i in range(1, self.npoly):
-                    temppoly[:, i] = temppoly[:, i-1] * x2norm
-            elif self.funcname == 'chebyshev':
-                # JFH fixed bug here where temppoly needed to be transposed because of different IDL and python array conventions
-                temppoly = fchebyshev(x2norm, self.npoly).T
-            elif self.funcname == 'legendre':
-                temppoly = flegendre(x2norm, self.npoly).T
-            else:
-                raise ValueError('Unknown value of funcname.')
-            action = np.zeros((nx, bw), dtype='d')
-            counter = -1
-            for ii in range(self.nord):
-                for jj in range(self.npoly):
-                    counter += 1
-                    action[:, counter] = bf1[:, ii]*temppoly[:, jj]
-        return (action, lower, upper)
-
-    def intrv(self, x):
-        """Find the segment between breakpoints which contain each value in the array x.
-
-        The minimum breakpoint is nbkptord -1, and the maximum
-        is nbkpt - nbkptord - 1.
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            Data values, assumed to be monotonically increasing.
-
-        Returns
-        -------
-        :class:`numpy.ndarray`
-            Position of array elements with respect to breakpoints.
-        """
-        gb = self.breakpoints[self.mask]
-        n = gb.size - self.nord
-        indx = np.zeros((x.size,), dtype=int)
-        ileft = self.nord - 1
-        for i in range(x.size):
-            while x[i] > gb[ileft+1] and ileft < n - 1:
-                ileft += 1
-            indx[i] = ileft
-        return indx
-
-    def bsplvn(self, x, ileft):
-        """To be documented.
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            To be documented.
-        ileft : :class:`int`
-            To be documented
-
-        Returns
-        -------
-        :class:`numpy.ndarray`
-            To be documented.
-        """
-        bkpt = self.breakpoints[self.mask]
-        vnikx = np.zeros((x.size, self.nord), dtype=x.dtype)
-        deltap = vnikx.copy()
-        deltam = vnikx.copy()
-        j = 0
-        vnikx[:, 0] = 1.0
-        while j < self.nord - 1:
-            ipj = ileft+j+1
-            deltap[:, j] = bkpt[ipj] - x
-            imj = ileft-j
-            deltam[:, j] = x - bkpt[imj]
-            vmprev = 0.0
-            for l in range(j+1):
-                vm = vnikx[:, l]/(deltap[:, l] + deltam[:, j-l])
-                vnikx[:, l] = vm*deltap[:, l] + vmprev
-                vmprev = vm*deltam[:, j-l]
-            j += 1
-            vnikx[:, j] = vmprev
-        return vnikx
-
-    def value(self, x, x2=None, action=None, lower=None, upper=None):
-        """Evaluate a bspline at specified values.
-
-        Parameters
-        ----------
-        x : :class:`numpy.ndarray`
-            Independent variable.
-        x2 : :class:`numpy.ndarray`, optional
-            Orthogonal dependent variable for 2d fits.
-        action : :class:`numpy.ndarray`, optional
-            Action matrix to use.  If not supplied it is calculated.
-        lower : :class:`numpy.ndarray`, optional
-            If the action parameter is supplied, this parameter must also
-            be supplied.
-        upper : :class:`numpy.ndarray`, optional
-            If the action parameter is supplied, this parameter must also
-            be supplied.
-
-        Returns
-        -------
-        :func:`tuple`
-            A tuple containing the results of the bspline evaluation and a
-            mask indicating where the evaluation was good.
-        """
-
-        xsort = x.argsort()
-        xwork = x[xsort]
-        if x2 is not None:
-            x2work = x2[xsort]
-        else:
-            x2work = None
-        if action is not None:
-            if lower is None or upper is None:
-                raise ValueError('Must specify lower and upper if action is set.')
-        else:
-            action, lower, upper = self.action(xwork, x2=x2work)
-        yfit = np.zeros(x.shape, dtype=x.dtype)
-        bw = self.npoly * self.nord
-        spot = np.arange(bw, dtype='i4')
-        goodbk = self.mask.nonzero()[0]
-        coeffbk = self.mask[self.nord:].nonzero()[0]
-        n = self.mask.sum() - self.nord
-        if self.npoly > 1:
-            goodcoeff = self.coeff[:, coeffbk]
-        else:
-            goodcoeff = self.coeff[coeffbk]
-        # maskthis = np.zeros(xwork.shape,dtype=xwork.dtype)
-        for i in range(n-self.nord+1):
-            ict = upper[i] - lower[i] + 1
-            if ict > 0:
-                yfit[lower[i]:upper[i]+1] = np.dot(action[lower[i]:upper[i]+1, :], (goodcoeff.flatten('F'))[i*self.npoly+spot])
-        yy = yfit.copy()
-        yy[xsort] = yfit
-        mask = np.ones(x.shape, dtype='bool')
-        gb = self.breakpoints[goodbk]
-        outside = ((x < gb[self.nord-1]) | (x > gb[n]))
-        if outside.any():
-            mask[outside] = False
-        hmm = ((np.diff(goodbk) > 2).nonzero())[0]
-        for jj in range(hmm.size):
-            inside = ((x >= self.breakpoints[goodbk[hmm[jj]]]) &
-                      (x <= self.breakpoints[goodbk[hmm[jj]+1]-1]))
-            if inside.any():
-                mask[inside] = False
-        return (yy, mask)
-
-    def maskpoints(self, err):
-        """Perform simple logic of which breakpoints to mask.
-
-
-        Parameters
-        ----------
-        err : :class:`numpy.ndarray` or int
-            The list of indexes returned by the cholesky routines.
-            This is indexed to the set of currently *good* breakpoints (i.e. self.mask=True)
-            And the first nord are skipped
-
-        Returns
-        -------
-        :class:`int`
-            An integer indicating the results of the masking.  -1 indicates
-            that the error points were successfully masked.  -2 indicates
-            failure; the calculation should be aborted.
-
-        Notes
-        -----
-        The mask attribute is modified, assuming it is possible to create the
-        mask.
-        """
-        # Recast err as an array if a single value int was passed in (occasional)
-        if not isinstance(err, np.ndarray):
-            err = np.array([err])
-        # Currently good points
-        goodbkpt = np.where(self.mask)[0]
-        nbkpt = len(goodbkpt)
-        if nbkpt <= 2*self.nord:
-            msgs.warn('Fewer good break points than order of b-spline. Returning...')
-            return -2
-        # Find the unique ones for the polynomial
-        hmm = err[uniq(err//self.npoly)]//self.npoly
-
-        n = nbkpt - self.nord
-        if np.any(hmm >= n):
-            msgs.warn('Note enough unique points in cholesky_band decomposition of b-spline matrix. Returning...')
-            return -2
-        test = np.zeros(nbkpt, dtype='bool')
-        for jj in range(-int(np.ceil(self.nord/2)), int(self.nord/2.)):
-            foo = np.where((hmm+jj) > 0, hmm+jj, np.zeros(hmm.shape, dtype=hmm.dtype))
-            inside = np.where((foo+self.nord) < n-1, foo+self.nord, np.zeros(hmm.shape, dtype=hmm.dtype)+n-1)
-            if len(inside)>0:
-                test[inside] = True
-        if test.any():
-            reality = goodbkpt[test]
-            if self.mask[reality].any():
-                self.mask[reality] = False
-                return -1
-            else:
-                return -2
-        else:
-            return -2
-
-    def workit(self, xdata, ydata, invvar, action,lower,upper):
-        """An internal routine for bspline_extract and bspline_radial which solve a general
-        banded correlation matrix which is represented by the variable "action".  This routine
-        only solves the linear system once, and stores the coefficients in sset. A non-zero return value
-        signifies a failed inversion
-
-
-        Parameters
-        ----------
-        xdata : :class:`numpy.ndarray`
-            Independent variable.
-        ydata : :class:`numpy.ndarray`
-            Dependent variable.
-        invvar : :class:`numpy.ndarray`
-            Inverse variance of `ydata`.
-        action : :class:`numpy.ndarray`
-            Banded correlation matrix
-        lower  : :class:`numpy.ndarray`
-            A list of pixel positions, each corresponding to the first occurence of position greater than breakpoint indx
-        upper  : :class:`numpy.ndarray`
-            Same as lower, but denotes the upper pixel positions
-
-        Returns
-        -------
-        :func:`tuple` (success, yfit)
-            A tuple containing an boolean error code, and the evaluation of the b-spline yfit at the input values.  The error codes are as follows:
-
-                 0 is good
-                -1 is dropped breakpoints, try again
-                -2 is failure, should abort
-
-        """
-        goodbk = self.mask[self.nord:]
-        nn = goodbk.sum()
-        if nn < self.nord:
-            msgs.warn('Fewer good break points than order of b-spline. Returning...')
-            yfit = np.zeros(ydata.shape, dtype='f')
-            return (-2, yfit)
-        nfull = nn * self.npoly
-        bw = self.npoly * self.nord
-        foo = np.sqrt(np.tile(invvar, bw).reshape(bw, invvar.size).transpose())
-        a2 = action * foo
-        #a2 = action*np.sqrt(np.outer(invvar,np.ones(bw)))
-
-        alpha = np.zeros((bw, nfull+bw), dtype='d')
-        beta = np.zeros((nfull+bw,), dtype='d')
-        bi = np.arange(bw, dtype='i4')
-        bo = np.arange(bw, dtype='i4')
-        for k in range(1, bw):
-            bi = np.append(bi, np.arange(bw-k, dtype='i4')+(bw+1)*k)
-            bo = np.append(bo, np.arange(bw-k, dtype='i4')+bw*k)
-        for k in range(nn-self.nord+1):
-            itop = k*self.npoly
-            ibottom = min(itop, nfull) + bw - 1
-            try:
-                ict = upper[k] - lower[k] + 1
-            except:
-                debugger.set_trace()
-            if ict > 0:
-                work = np.dot(a2[lower[k]:upper[k]+1, :].T, a2[lower[k]:upper[k]+1, :])
-                wb = np.dot(ydata[lower[k]:upper[k]+1]*np.sqrt(invvar[lower[k]:upper[k]+1]), a2[lower[k]:upper[k]+1, :])
-                alpha.T.flat[bo+itop*bw] += work.flat[bi]
-                beta[itop:ibottom+1] += wb
-        min_influence = 1.0e-10 * invvar.sum() / nfull
-        # Right now we are not returning the covariance, although it may arise that we should
-        covariance = alpha
-        errb = cholesky_band(alpha, mininf=min_influence)  # ,verbose=True)
-        if isinstance(errb[0], int) and errb[0] == -1: # successful cholseky_band returns -1
-            a = errb[1]
-        else:
-            yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (self.maskpoints(errb[0]), yfit)
-        errs = cholesky_solve(a, beta)
-        if isinstance(errs[0], int) and errs[0] == -1:
-            sol = errs[1]
-        else:
-            #
-            # It is not possible for this to get called, because cholesky_solve
-            # has only one return statement, & that statement guarantees that
-            # errs[0] == -1
-            #
-            yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-            return (self.maskpoints(errs[0]), yfit)
-
-        if self.coeff.ndim == 2:
-            self.icoeff[:, goodbk] = np.array(a[0, 0:nfull].T.reshape(self.npoly, nn,order='F'), dtype=a.dtype)
-            self.coeff[:, goodbk] = np.array(sol[0:nfull].T.reshape(self.npoly, nn, order='F'), dtype=sol.dtype)
-        else:
-            self.icoeff[goodbk] = np.array(a[0, 0:nfull], dtype=a.dtype)
-            self.coeff[goodbk] = np.array(sol[0:nfull], dtype=sol.dtype)
-
-        yfit, foo = self.value(xdata, x2=xdata, action=action, upper=upper, lower=lower)
-        return (0, yfit)
-
-
-
-def cholesky_band(l, mininf=0.0):
-    """Compute Cholesky decomposition of banded matrix.
-
-    Parameters
-    ----------
-    l : :class:`numpy.ndarray`
-        A matrix on which to perform the Cholesky decomposition.
-    mininf : :class:`float`, optional
-        Entries in the `l` matrix are considered negative if they are less
-        than this value (default 0.0).
-
-    Returns
-    -------
-    :func:`tuple`
-        If problems were detected, the first item will be the index or
-        indexes where the problem was detected, and the second item will simply
-        be the input matrix.  If no problems were detected, the first item
-        will be -1, and the second item will be the Cholesky decomposition.
-    """
-    #from . import PydlutilsUserWarning
-    lower = l.copy()
-    bw, nn = lower.shape
-    n = nn - bw
-    negative = lower[0, 0:n] <= mininf
-    # JFH changed this below to make it more consistent with IDL version. Not sure
-    # why the np.all(np.isfinite(lower)) was added. The code could return an empty
-    # list for negative.nonzero() and crash if all elements in lower are NaN.
-    if negative.any():
-        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
-                  ' bad entries: ' + str(negative.nonzero()[0]))
-        return (negative.nonzero()[0], l)
-#    negative = (lower[0, 0:n] <= mininf)
-#    if negative.any() or not np.all(np.isfinite(lower)):
-#        msgs.warn('Found {:d}'.format(len(negative.nonzero()[0])) +
-#                  ' bad entries: ' + str(negative.nonzero()[0]))
-#        return (negative.nonzero()[0], l)
-    kn = bw - 1
-    spot = np.arange(kn, dtype='i4') + 1
-    bi = np.arange(kn, dtype='i4')
-    for i in range(1, kn):
-        bi = np.append(bi, np.arange(kn-i, dtype='i4') + (kn+1)*i)
-    for j in range(n):
-        lower[0, j] = np.sqrt(lower[0, j])
-        lower[spot, j] /= lower[0, j]
-        x = lower[spot, j]
-        if not np.all(np.isfinite(x)):
-            msgs.warn('NaN found in cholesky_band.')
-            return (j, l)
-        hmm = np.outer(x, x)
-        here = bi+(j+1)*bw
-        lower.T.flat[here] -= hmm.flat[bi]
-    return (-1, lower)
-
-
-def cholesky_solve(a, bb):
-    """Solve the equation Ax=b where A is a Cholesky-banded matrix.
-
-    Parameters
-    ----------
-    a : :class:`numpy.ndarray`
-        :math:`A` in :math:`A x = b`.
-    bb : :class:`numpy.ndarray`
-        :math:`b` in :math:`A x = b`.
-
-    Returns
-    -------
-    :func:`tuple`
-        A tuple containing the status and the result of the solution.  The
-        status is always -1.
-    """
-    b = bb.copy()
-    bw = a.shape[0]
-    n = b.shape[0] - bw
-    kn = bw - 1
-    spot = np.arange(kn, dtype='i4') + 1
-    for j in range(n):
-        b[j] /= a[0, j]
-        b[j+spot] -= b[j]*a[spot, j]
-    spot = kn - np.arange(kn, dtype='i4')
-    for j in range(n-1, -1, -1):
-        b[j] = (b[j] - np.sum(a[spot, j] * b[j+spot]))/a[0, j]
-    return (-1, b)
-
-
-def iterfit(xdata, ydata, invvar=None, inmask = None, upper=5, lower=5, x2=None,
-            maxiter=10, nord = 4, bkpt = None, fullbkpt = None, kwargs_bspline={}, kwargs_reject={}):
-    """Iteratively fit a b-spline set to data, with rejection.
-
-    Parameters
-    ----------
-    xdata : :class:`numpy.ndarray`
-        Independent variable.
-    ydata : :class:`numpy.ndarray`
-        Dependent variable.
-    invvar : :class:`numpy.ndarray`
-        Inverse variance of `ydata`.  If not set, it will be calculated based
-        on the standard deviation.
-    upper : :class:`int` or :class:`float`
-        Upper rejection threshold in units of sigma, defaults to 5 sigma.
-    lower : :class:`int` or :class:`float`
-        Lower rejection threshold in units of sigma, defaults to 5 sigma.
-    x2 : :class:`numpy.ndarray`, optional
-        Orthogonal dependent variable for 2d fits.
-    maxiter : :class:`int`, optional
-        Maximum number of rejection iterations, default 10.  Set this to
-        zero to disable rejection.
-
-    Returns
-    -------
-    :func:`tuple`
-        A tuple containing the fitted bspline object and an output mask.
-    """
-    #from .math import djs_reject
-    nx = xdata.size
-    if ydata.size != nx:
-        raise ValueError('Dimensions of xdata and ydata do not agree.')
-    if invvar is not None:
-        if invvar.size != nx:
-            raise ValueError('Dimensions of xdata and invvar do not agree.')
-    else:
-        #
-        # This correction to the variance makes it the same
-        # as IDL's variance()
-        #
-        var = ydata.var()*(float(nx)/float(nx-1))
-        if var == 0:
-            var = 1.0
-        invvar = np.ones(ydata.shape, dtype=ydata.dtype)/var
-
-    if inmask is None:
-        inmask = invvar > 0.0
-
-    if x2 is not None:
-        if x2.size != nx:
-            raise ValueError('Dimensions of xdata and x2 do not agree.')
-    yfit = np.zeros(ydata.shape)
-    if invvar.size == 1:
-        outmask = True
-    else:
-        outmask = np.ones(invvar.shape, dtype='bool')
-    xsort = xdata.argsort()
-    maskwork = (outmask & inmask & (invvar > 0.0))[xsort]
-    if 'oldset' in kwargs_bspline:
-        sset = kwargs_bspline['oldset']
-        sset.mask = True
-        sset.coeff = 0
-    else:
-        if not maskwork.any():
-            raise ValueError('No valid data points.')
-            # return (None,None)
-        # JFH comment this out for now
-        #        if 'fullbkpt' in kwargs:
-        #            fullbkpt = kwargs['fullbkpt']
-        else:
-            sset = bspline(xdata[xsort[maskwork]], nord = nord, bkpt = bkpt, fullbkpt = fullbkpt, **kwargs_bspline)
-            if maskwork.sum() < sset.nord:
-                print('Number of good data points fewer than nord.')
-                return (sset, outmask)
-            if x2 is not None:
-                if 'xmin' in kwargs_bspline:
-                    xmin = kwargs_bspline['xmin']
-                else:
-                    xmin = x2.min()
-                if 'xmax' in kwargs_bspline:
-                    xmax = kwargs_bspline['xmax']
-                else:
-                    xmax = x2.max()
-                if xmin == xmax:
-                    xmax = xmin + 1
-                sset.xmin = xmin
-                sset.xmax = xmax
-                if 'funcname' in kwargs_bspline:
-                    sset.funcname = kwargs_bspline['funcname']
-    xwork = xdata[xsort]
-    ywork = ydata[xsort]
-    invwork = invvar[xsort]
-    if x2 is not None:
-        x2work = x2[xsort]
-    else:
-        x2work = None
-    iiter = 0
-    error = -1
-    # JFH fixed major bug here. Codes were not iterating
-    qdone = False
-    while (error != 0 or qdone is False) and iiter <= maxiter:
-        goodbk = sset.mask.nonzero()[0]
-        if maskwork.sum() <= 1 or not sset.mask.any():
-            sset.coeff = 0
-            iiter = maxiter + 1 # End iterations
-        else:
-            if 'requiren' in kwargs_bspline:
-                i = 0
-                while xwork[i] < sset.breakpoints[goodbk[sset.nord]] and i < nx-1:
-                    i += 1
-                ct = 0
-                for ileft in range(sset.nord, sset.mask.sum()-sset.nord+1):
-                    while (xwork[i] >= sset.breakpoints[goodbk[ileft]] and
-                           xwork[i] < sset.breakpoints[goodbk[ileft+1]] and
-                           i < nx-1):
-                        ct += invwork[i]*maskwork[i] > 0
-                        i += 1
-                    if ct >= kwargs_bspline['requiren']:
-                        ct = 0
-                    else:
-                        sset.mask[goodbk[ileft]] = False
-            error, yfit = sset.fit(xwork, ywork, invwork*maskwork,
-                                   x2=x2work)
-        iiter += 1
-        inmask_rej = maskwork
-        if error == -2:
-
-            return (sset, outmask)
-        elif error == 0:
-            # ToDO JFH by setting inmask to be tempin which is maskwork, we are basically implicitly enforcing sticky rejection
-            # here. See djs_reject.py. I'm leaving this as is for consistency with the IDL version, but this may require
-            # further consideration. I think requiring stick to be set is the more transparent behavior.
-            maskwork, qdone = djs_reject(ywork, yfit, invvar=invwork,
-                                         inmask=inmask_rej, outmask=maskwork,
-                                         upper=upper, lower=lower,**kwargs_reject)
-        else:
-            pass
-    outmask[xsort] = maskwork
-    temp = yfit
-    yfit[xsort] = temp
-    return (sset, outmask)
-
-def uniq(x, index=None):
-    """Replicates the IDL ``UNIQ()`` function.
-
-    Returns the *subscripts* of the unique elements of an array.  The elements
-    must actually be *sorted* before being passed to this function.  This can
-    be done by sorting `x` explicitly or by passing the array subscripts that
-    sort `x` as a second parameter.
-
-    Parameters
-    ----------
-    x : array-like
-        Search this array for unique items.
-    index : array-like, optional
-        This array provides the array subscripts that sort `x`.
-
-    Returns
-    -------
-    array-like
-        The subscripts of `x` that are the unique elements of `x`.
-
-    Notes
-    -----
-    Given a sorted array, and assuming that there is a set of
-    adjacent identical items, ``uniq()`` will return the subscript of the
-    *last* unique item.  This charming feature is retained for
-    reproducibility.
-
-    References
-    ----------
-    http://www.harrisgeospatial.com/docs/uniq.html
-
-    Examples
-    --------
-    >>> import numpy as np
-    >>> from pydl import uniq
-    >>> data = np.array([ 1, 2, 3, 1, 5, 6, 1, 7, 3, 2, 5, 9, 11, 1 ])
-    >>> print(uniq(np.sort(data)))
-    [ 3  5  7  9 10 11 12 13]
-    """
-    from numpy import array, roll
-    if index is None:
-        indicies = (x != roll(x, -1)).nonzero()[0]
-        if indicies.size > 0:
-            return indicies
-        else:
-            return array([x.size - 1, ])
-    else:
-        q = x[index]
-        indicies = (q != roll(q, -1)).nonzero()[0]
-        if indicies.size > 0:
-            return index[indicies]
-        else:
-            return array([q.size - 1, ], dtype=index.dtype)
-
-
-
-
-def flegendre(x, m):
-    """Compute the first `m` Legendre polynomials.
-
-    Parameters
-    ----------
-    x : array-like
-        Compute the Legendre polynomials at these abscissa values.
-    m : :class:`int`
-        The number of Legendre polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`P_0 (x)`, :math:`P_1 (x)` and :math:`P_2 (x)`
-        will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    import numpy as np
-    from scipy.special import legendre
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 1:
-        raise ValueError('Number of Legendre polynomials must be at least 1.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    if m >= 2:
-        leg[1, :] = x
-    if m >= 3:
-        for k in range(2, m):
-            leg[k, :] = np.polyval(legendre(k), x)
-    return leg
-
-
-def fchebyshev(x, m):
-    """Compute the first `m` Chebyshev polynomials.
-
-    Parameters
-    ----------
-    x : array-like
-        Compute the Chebyshev polynomials at these abscissa values.
-    m : :class:`int`
-        The number of Chebyshev polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`T_0 (x)`, :math:`T_1 (x)` and
-        :math:`T_2 (x)` will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    from scipy.special import chebyt
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 1:
-        raise ValueError('Order of Chebyshev polynomial must be at least 1.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    if m >= 2:
-        leg[1, :] = x
-    if m >= 3:
-        for k in range(2, m):
-            leg[k, :] = np.polyval(chebyt(k), x)
-    return leg
-
-
-def fchebyshev_split(x, m):
-    """Compute the first `m` Chebyshev polynomials, but modified to allow a
-    split in the baseline at :math:`x=0`.  The intent is to allow a model fit
-    where a constant term is different for positive and negative `x`.
-
-    Parameters
-    ----------
-    x : array-like
-        Compute the Chebyshev polynomials at these abscissa values.
-    m : :class:`int`
-        The number of Chebyshev polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`T_0 (x)`, :math:`T_1 (x)` and
-        :math:`T_2 (x)` will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    import numpy as np
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 2:
-        raise ValueError('Order of polynomial must be at least 2.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    try:
-        leg[0, :] = (x >= 0).astype(x.dtype)
-    except AttributeError:
-        leg[0, :] = np.double(x >= 0)
-    if m > 2:
-        leg[2, :] = x
-    if m > 3:
-        for k in range(3, m):
-            leg[k, :] = 2.0 * x * leg[k-1, :] - leg[k-2, :]
-    return leg
-
-
-
-def fpoly(x, m):
-    """Compute the first `m` simple polynomials.
-
-    Parameters
-    ----------
-    x : array-like
-        Compute the simple polynomials at these abscissa values.
-    m : :class:`int`
-        The number of simple polynomials to compute.  For example, if
-        :math:`m = 3`, :math:`x^0`, :math:`x^1` and
-        :math:`x^2` will be computed.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-    """
-    if isinstance(x, np.ndarray):
-        n = x.size
-    else:
-        n = 1
-    if m < 1:
-        raise ValueError('Order of polynomial must be at least 1.')
-    try:
-        dt = x.dtype
-    except AttributeError:
-        dt = np.float64
-    leg = np.ones((m, n), dtype=dt)
-    if m >= 2:
-        leg[1, :] = x
-    if m >= 3:
-        for k in range(2, m):
-            leg[k, :] = leg[k-1, :] * x
-    return leg
-
 
 def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
             inputans=None, inputfunc=None):
@@ -1323,17 +239,17 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
     else:
         ncfit = min(ngood, ncoeff)
         function_map = {
-            'legendre': flegendre,
-            'flegendre': flegendre,
-            'chebyshev': fchebyshev,
-            'fchebyshev': fchebyshev,
-            'chebyshev_split': fchebyshev_split,
-            'fchebyshev_split': fchebyshev_split,
-            'poly': fpoly,
-            'fpoly': fpoly
+            'legendre': basis.flegendre,
+            'flegendre': basis.flegendre,
+            'chebyshev': basis.fchebyshev,
+            'fchebyshev': basis.fchebyshev,
+            'chebyshev_split': basis.fchebyshev_split,
+            'fchebyshev_split': basis.fchebyshev_split,
+            'poly': basis.fpoly,
+            'fpoly': basis.fpoly
             }
         try:
-            legarr = function_map[function_name](x, ncfit)
+            legarr = function_map[function_name](x, ncfit).T
         except KeyError:
             raise KeyError('Unknown function type: {0}'.format(function_name))
         if inputfunc is not None:
@@ -1369,9 +285,10 @@ def func_fit(x, y, ncoeff, invvar=None, function_name='legendre', ia=None,
         if len(fixed) > 0:
             res[fixed] = inputans[fixed]
         yfit = np.dot(legarr.T, res[0:ncfit])
-    return (res, yfit)
+    return res, yfit
 
 
+# TODO -- This class needs to become a DataContainer
 class TraceSet(object):
     """Implements the idea of a trace set.
 
@@ -1407,10 +324,9 @@ class TraceSet(object):
     yfit : array-like
         When initialized with x,y positions, this contains the fitted y
         values.
+    pypeitFits : list
+        Holds a list of :class:`pypeit.fitting.PypeItFit` fits
     """
-    #_func_map = {'poly': fpoly, 'legendre': flegendre,
-    #                'chebyshev': fchebyshev}
-
     # ToDO Remove the kwargs and put in all the djs_reject parameters here
     def __init__(self, *args, **kwargs):
         """This class can be initialized either with a set of xy positions,
@@ -1514,6 +430,7 @@ class TraceSet(object):
             self.coeff = np.zeros((self.nTrace, self.ncoeff+1), dtype=xpos.dtype)
             self.outmask = np.zeros(xpos.shape, dtype=np.bool)
             self.yfit = np.zeros(xpos.shape, dtype=xpos.dtype)
+            self.pypeitFits = []
             for iTrace in range(self.nTrace):
                 xvec = self.xnorm(xpos[iTrace, :], do_jump)
                 if invvar is None:
@@ -1521,35 +438,23 @@ class TraceSet(object):
                 else:
                     thisinvvar = invvar[iTrace, :]
 
-                mask_djs, poly_coeff = utils.robust_polyfit_djs(xvec, ypos[iTrace, :], self.ncoeff,
+                pypeitFit = fitting.robust_fit(xvec, ypos[iTrace, :], self.ncoeff,
                                                                 function=self.func, maxiter = self.maxiter,
-                                                                inmask = inmask[iTrace, :], invvar = thisinvvar,
+                                                                in_gpm = inmask[iTrace, :], invvar = thisinvvar,
                                                                 lower = self.lower, upper = self.upper,
                                                                 minx = self.xmin, maxx = self.xmax,
-                                                                sigma=None,maxdev=self.maxdev,maxrej=None,groupdim=None,
-                                                                groupsize=None,groupbadpix=None,grow=0,use_mad=False,sticky=False)
-                ycurfit_djs = utils.func_val(poly_coeff, xvec, self.func, minx=self.xmin, maxx=self.xmax)
+                                                                maxdev=self.maxdev,
+                                                                grow=0,use_mad=False,sticky=False)
+                ycurfit_djs = pypeitFit.eval(xvec)
+                self.pypeitFits.append(pypeitFit)
 
-                ##Using robust_polyfit_djs to do the fitting and the following part are commented out by Feige
-                #while (not qdone) and (iIter <= maxiter):
-                #    res, ycurfit = func_fit(xvec, ypos[iTrace, :], self.ncoeff,
-                #        invvar=tempivar*thismask, function_name=self.func)#function_name='poly')
-                #    #ToDo: is this doing rejection? I think not???? THIS IS A MASSIVE BUG!!!! See IDL code.
-                #    # ADd kwargs_reject in here like with iterfit
-                #    thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,
-                #                                invvar=tempivar)
-                #    #thismask, qdone = djs_reject(ypos[iTrace, :], ycurfit,lower=3,upper=3)
-                #    iIter += 1
-                #self.yfit[iTrace, :] = ycurfit
-                #self.coeff[iTrace, :] = res
-                #self.outmask[iTrace, :] = thismask
-                self.yfit[iTrace, :] = ycurfit_djs #ycurfit
-                self.coeff[iTrace, :] = poly_coeff#[:-1] #res
-                self.outmask[iTrace, :] = mask_djs #thismask
+                # Load
+                self.yfit[iTrace, :] = ycurfit_djs
+                self.coeff[iTrace, :] = pypeitFit.fitc
+                self.outmask[iTrace, :] = pypeitFit.gpm
 
         else:
             msgs.error('Wrong number of arguments to TraceSet!')
-            #raise PydlutilsException("Wrong number of arguments to TraceSet!")
 
     def xy(self, xpos=None, ignore_jump=False):
         """Convert from a trace set to an array of x,y positions.
@@ -1575,7 +480,8 @@ class TraceSet(object):
         for iTrace in range(self.nTrace):
             xvec = self.xnorm(xpos[iTrace, :], do_jump)
             #legarr = self._func_map[self.func](xvec, self.ncoeff+1) #need to be norder+1 for utils functions
-            ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
+            #ypos[iTrace, :] =  utils.func_val(self.coeff[iTrace, :], xvec, self.func, minx=self.xmin, maxx=self.xmax)
+            ypos[iTrace, :] =  self.pypeitFits[iTrace].eval(xvec)#, self.func, minx=self.xmin, maxx=self.xmax)
 #            ypos[iTrace, :] = np.dot(legarr.T, self.coeff[iTrace, :])
         return (xpos, ypos)
 
@@ -1696,8 +602,8 @@ def xy2traceset(xpos, ypos, **kwargs):
 
 
 
-def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
-               invvar=None, lower=None, upper=None, maxdev=None,
+def djs_reject(data, model, outmask=None, inmask=None,
+               invvar=None, lower=None, upper=None, percentile=False, maxdev=None,
                maxrej=None, groupdim=None, groupsize=None, groupbadpix=False,
                grow=0, sticky=False, use_mad=False):
     """Routine to reject points when doing an iterative fit to data.
@@ -1717,17 +623,13 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         Input mask.  Bad points are marked with a value that evaluates to ``False``.
         Must have the same number of dimensions as `data`. Points masked as bad "False" in the inmask
         will also always evaluate to "False" in the outmask
-    sigma : :class:`numpy.ndarray`, optional
-        Standard deviation of the data, used to reject points based on the values
-        of `upper` and `lower`.
     invvar : :class:`numpy.ndarray`, optional
         Inverse variance of the data, used to reject points based on the values
-        of `upper` and `lower`.  If both `sigma` and `invvar` are set, `invvar`
-        will be ignored.
+        of `upper` and `lower`.
     lower : :class:`int` or :class:`float`, optional
-        If set, reject points with data < model - lower * sigma.
+        If set, reject points with data < model - lower * sigm, where sigma = 1.0/sqrt(invvar)
     upper : :class:`int` or :class:`float`, optional
-        If set, reject points with data > model + upper * sigma.
+        If set, reject points with data > model + upper * sigma, where sigma = 1.0/sqrt(invvar)
     maxdev : :class:`int` or :class:`float`, optional
         If set, reject points with abs(data-model) > maxdev.  It is permitted to
         set all three of `lower`, `upper` and `maxdev`.
@@ -1737,7 +639,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     groupdim: class: `int`
         Dimension along which to group the data; set to 1 to group along the 1st dimension, 2 for the 2nd dimension, etc.
         If data has shape [100,200], then setting GROUPDIM=2 is equivalent to grouping the data with groupsize=100.
-        In either case, there are 200 groups, specified by [*,i]. NOT WELL TESTED IN PYTHON!
+        In either case, there are 200 groups, specified by ``[*,i]``. NOT WELL TESTED IN PYTHON!
     groupsize: class: `int`
         If this and maxrej are set, then reject a maximum of maxrej points per group of groupsize points, where the grouping is performed in the
         along the dimension of the data vector. (For use in curve fitting, one probably wants to make sure that data is sorted according to the indpeendent
@@ -1750,27 +652,27 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
         If set to a non-zero integer, N, the N nearest neighbors of rejected
         pixels will also be rejected.
     sticky : :class:`bool`, optional
-        If set to ``True``, pixels rejected in one iteration remain rejected in
-        subsequent iterations, even if the model changes.
+        If set to True then points rejected in outmask from a previous call to djs_reject are kept rejected. If
+        set to False, if a fit (model) changes between iterations, points can alternate from being rejected to not rejected.
     use_mad : :class: `bool`, optional, defaul = False
         It set to ``True``, compute the median of the maximum absolute deviation between the data and use this for the rejection instead of
         the default which is to compute the standard deviation of the yarray - modelfit. Note that it is not possible to specify use_mad=True
-        and also pass in values for sigma or invvar, and the code will return an error if this is done.
-
-
+        and also pass in values invvar, and the code will return an error if this is done.
 
     Returns
     -------
-    (tuple): tuple containing:
-        outmask(np.ndarray, boolean): mask where rejected data values are ``False``
-
-        qdone(boolean): a value set to "True" if  `djs_reject` believes there is no
-        further rejection to be done. This will be set to "False" if the points marked as rejected in the outmask
-        have changed. It will be set to "True" when the same points are rejected in outmask as from a previous call.
-        It will also be set to "False" if model is set to None. Recall that outmask is also an optional input parameter. If it is
-        not set, then qdone will simply return true, so outmask needs to be input from the previous iteration for the routine
-        to do something meaningful.
-
+    outmask (np.ndarray, boolean):
+        mask where rejected data values are ``False``
+    qdone (boolean):
+        a value set to "True" if  `djs_reject` believes there is no
+        further rejection to be done. This will be set to "False" if the
+        points marked as rejected in the outmask have changed. It will
+        be set to "True" when the same points are rejected in outmask as
+        from a previous call.  It will also be set to "False" if model
+        is set to None. Recall that outmask is also an optional input
+        parameter. If it is not set, then qdone will simply return true,
+        so outmask needs to be input from the previous iteration for the
+        routine to do something meaningful.
 
     Raises
     ------
@@ -1785,9 +687,9 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     if upper is None and lower is None and maxdev is None:
         msgs.warn('upper, lower, and maxdev are all set to None. No rejection performed since no rejection criteria were specified.')
 
-    if use_mad and ((sigma is not None) or (invvar is not None)):
-        raise ValueError('use_mad can only be set to True if both sigma = None and innvar = None. This code only computes a mad'
-                         ' if errors are not input (i.e. sigma or invvar)')
+    if (use_mad and (invvar is not None)):
+        raise ValueError('use_mad can only be set to True innvar = None. This code only computes a mad'
+                         ' if errors are not input')
 
     # Create outmask setting = True for good data.
     #
@@ -1830,19 +732,24 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
             maxrej1 = np.asarray([maxrej])
         else:
             maxrej1 = maxrej
-    if sigma is None and invvar is None:
+    if invvar is None:
         if inmask is not None:
-            igood = (inmask & outmask).nonzero()[0]
+            igood = (inmask & outmask)
         else:
-            igood = outmask.nonzero()[0]
-        if len(igood > 1):
+            igood = outmask
+        if (np.sum(igood) > 1):
             if use_mad is True:
                 sigma = 1.4826*np.median(np.abs(data[igood] - model[igood]))
             else:
                 sigma = np.std(data[igood] - model[igood])
+            invvar = utils.inverse(sigma**2)
         else:
-            sigma = 0
+            invvar = 0.0
+
+
     diff = data - model
+    chi = diff * np.sqrt(invvar)
+
     #
     # The working array is badness, which is set to zero for good points
     # (or points already rejected), and positive values for bad points.
@@ -1851,26 +758,39 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
     # of multiples of maxdev away from the fit.
     #
     badness = np.zeros(outmask.shape, dtype=data.dtype)
+
+    if percentile:
+        if inmask is not None:
+            igood = (inmask & outmask)
+        else:
+            igood = outmask
+        if (np.sum(igood)> 1):
+            if lower is not None:
+                lower_chi = np.percentile(chi[igood],lower)
+            else:
+                lower_chi = -np.inf
+            if upper is not None:
+                upper_chi = np.percentile(chi[igood], upper)
+            else:
+                upper_chi = np.inf
     #
     # Decide how bad a point is according to lower.
     #
     if lower is not None:
-        if sigma is not None:
-            qbad = diff < (-lower * sigma)
-            badness += np.fmax(-diff/(sigma + (sigma == 0)),0.0)*qbad
+        if percentile:
+            qbad = chi < lower_chi
         else:
-            qbad = (diff * np.sqrt(invvar)) < -lower
-            badness += np.fmax(-diff*np.sqrt(invvar),0.0)*qbad
+            qbad = chi < -lower
+        badness += np.fmax(-chi,0.0)*qbad
     #
     # Decide how bad a point is according to upper.
     #
     if upper is not None:
-        if sigma is not None:
-            qbad = diff > (upper * sigma)
-            badness += np.fmax(diff/(sigma + (sigma == 0)),0.0) * qbad
+        if percentile:
+            qbad = chi > upper_chi
         else:
-            qbad = (diff * np.sqrt(invvar)) > upper
-            badness += np.fmax(diff*np.sqrt(invvar),0.0)*qbad
+            qbad = chi > upper
+        badness += np.fmax(chi,0.0)*qbad
     #
     # Decide how bad a point is according to maxdev.
     #
@@ -1996,6 +916,7 @@ def djs_reject(data, model, outmask=None, inmask=None, sigma=None,
 
     outmask = newmask
     return (outmask, qdone)
+
 
 
 def djs_laxisnum(dims, iaxis=0):
@@ -2490,7 +1411,7 @@ class groups(object):
         #
         if callable(separation):
             self.separation = separation
-        elif isinstance(separation, string_types):
+        elif isinstance(separation, str):
             if separation == 'euclid':
                 self.separation = self.euclid
             elif separation == 'sphereradec':
@@ -2823,3 +1744,5 @@ def gcirc(ra1, dec1, ra2, dec2, units=2):
     else:
         return rad2deg(dis)*3600.0
 ### Above part are imported from pydl spheregroup
+
+

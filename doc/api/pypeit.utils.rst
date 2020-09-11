@@ -2,6 +2,7 @@ pypeit.utils module
 ===================
 
 .. automodule:: pypeit.utils
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

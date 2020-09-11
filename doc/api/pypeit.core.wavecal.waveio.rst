@@ -2,6 +2,7 @@ pypeit.core.wavecal.waveio module
 =================================
 
 .. automodule:: pypeit.core.wavecal.waveio
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :private-members:
+   :undoc-members:
+   :show-inheritance:

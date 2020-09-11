@@ -11,6 +11,7 @@ from astropy import units
 from linetools import utils as ltu
 
 from pypeit.core import wave
+from pypeit import specobj
 from pypeit import specobjs
 from pypeit.tests.tstutils import dummy_fitstbl
 
@@ -49,14 +50,16 @@ def test_geovelocity():
 def test_geocorrect(fitstbl):
     """
     """
-    # Spectrograph
-    # (KBW) Had to change this to keck to match the telecope parameters,
-    # then just changed to use definitions above directly.
-#    spectrograph = load_spectrograph('keck_lris_blue')
 
-    # Specobjs (wrap in a list to mimic a slit)
-    sobj_list = specobjs.dummy_specobj((2048,2048), extraction=True)
-    specObjs = specobjs.SpecObjs(sobj_list)
+    # Specobj (wrap in a list to mimic a slit)
+    npix = 1000
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj.BOX_WAVE = np.linspace(4000., 6000., npix)
+    sobj.BOX_COUNTS = 50.*(sobj.BOX_WAVE/5000.)**-1.
+    sobj.BOX_COUNTS_IVAR = 1./sobj.BOX_COUNTS.copy()
+    # SpecObjs
+    specObjs = specobjs.SpecObjs()
+    specObjs.add_sobj(sobj)
     scidx = 5
     obstime = Time(fitstbl['mjd'][scidx], format='mjd')#'%Y-%m-%dT%H:%M:%S.%f')
     maskslits = np.array([False]*specObjs.nobj)
@@ -66,5 +69,5 @@ def test_geocorrect(fitstbl):
                                                lon, lat, alt, 'heliocentric')
     assert np.isclose(helio, -9.17461338, rtol=1e-5)  # Checked against x_keckhelio
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original
-    assert np.isclose(specObjs[0].boxcar['WAVE'][0].value, 3999.877589008, rtol=1e-8)
+    assert np.isclose(specObjs[0].BOX_WAVE[0], 3999.877589008, rtol=1e-8)
 

@@ -2,31 +2,12 @@
 """
 import numpy as np
 
-from pypeit import msgs
 from pypeit import spectrographs
+from pypeit import msgs
+from IPython import embed
 
 # TODO: Allow the spectrographs to be identified by their camera?  Won't
 # work for 'shane_kast_red' and 'shane_kast_red_ret'.
-
-def valid_spectrographs():
-    """
-    Return a list of allowed spectrograph names
-
-    Returns:
-        list:  Allowed spectrograph names
-
-    """
-    # TODO: Is there a more clever way to do this?  If we change these
-    # names, we could do something like what's done in
-    # pypeit.instantiate_me.
-    return ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_lris_red_longonly', 'keck_nires', 'keck_nirspec_low',
-            'shane_kast_blue', 'shane_kast_red', 'shane_kast_red_ret', 'tng_dolores',
-            'wht_isis_blue', 'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir',
-            'gemini_gnirs', 'gemini_gmos_south_ham', 'gemini_gmos_north_e2v',
-            'gemini_gmos_north_ham', 'magellan_fire', 'magellan_mage', 'keck_hires_red',
-            'lbt_mods1r', 'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'vlt_fors2']
-            # There are no such spectrographs defined
-            #'keck_hires_blue', 'mmt_binospec']
 
 
 def load_spectrograph(spectrograph):
@@ -35,17 +16,15 @@ def load_spectrograph(spectrograph):
     possible.
 
     Args:
-
-        spectrograph (:obj:`str`,
-            :class:`spectrographs.spectrograph.Spectrograph`): The
+        spectrograph (:obj:`str`, :class:`spectrographs.spectrograph.Spectrograph`): The
             spectrograph to instantiate.  If the input is a spectrograph
             instance, the instance is simply returned.  If a string, the
             string is used to select the spectrograph to instantiate.
             If None, None is returned.
 
     Returns:
-        :class:`spectrographs.spectrograph.Spectrograph`: The
-        spectrograph used to obtain the data to be reduced.
+        :class:`spectrographs.spectrograph.Spectrograph`: The spectrograph used to obtain the data to be reduced.
+
     """
 
     if spectrograph is None:
@@ -57,17 +36,29 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'gemini_gnirs':
         return spectrographs.gemini_gnirs.GeminiGNIRSSpectrograph()
 
+    if spectrograph == 'gemini_flamingos1':
+        return spectrographs.gemini_flamingos.GeminiFLAMINGOS1Spectrograph()
+
+    if spectrograph == 'gemini_flamingos2':
+        return spectrographs.gemini_flamingos.GeminiFLAMINGOS2Spectrograph()
+
     if spectrograph == 'keck_deimos':
         return spectrographs.keck_deimos.KeckDEIMOSSpectrograph()
+
+    if spectrograph == 'keck_kcwi':
+        return spectrographs.keck_kcwi.KeckKCWISpectrograph()
 
     if spectrograph == 'keck_lris_blue':
         return spectrographs.keck_lris.KeckLRISBSpectrograph()
 
+    if spectrograph == 'keck_lris_blue_orig':
+        return spectrographs.keck_lris.KeckLRISBOrigSpectrograph()
+
     if spectrograph == 'keck_lris_red':
         return spectrographs.keck_lris.KeckLRISRSpectrograph()
 
-    if spectrograph == 'keck_lris_red_longonly':
-        return spectrographs.keck_lris.KeckLRISRLSpectrograph()
+    if spectrograph == 'keck_lris_red_orig':
+        return spectrographs.keck_lris.KeckLRISROrigSpectrograph()
 
     if spectrograph == 'keck_hires_red':
         return spectrographs.keck_hires.KECKHIRESRSpectrograph()
@@ -81,8 +72,14 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'keck_nirspec_low':
         return spectrographs.keck_nirspec.KeckNIRSPECLowSpectrograph()
 
+    if spectrograph == 'keck_mosfire':
+        return spectrographs.keck_mosfire.KeckMOSFIRESpectrograph()
+
     if spectrograph == 'magellan_fire':
-        return spectrographs.magellan_fire.MagellanFIRESpectrograph()
+        return spectrographs.magellan_fire.MagellanFIREEchelleSpectrograph()
+
+    if spectrograph == 'magellan_fire_long':
+        return spectrographs.magellan_fire.MagellanFIRELONGSpectrograph()
 
     if spectrograph == 'magellan_mage':
         return spectrographs.magellan_mage.MagellanMAGESpectrograph()
@@ -98,7 +95,10 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'wht_isis_blue':
         return spectrographs.wht_isis.WHTISISBlueSpectrograph()
-    
+
+    if spectrograph == 'wht_isis_red':
+        return spectrographs.wht_isis.WHTISISRedSpectrograph()
+
     if spectrograph == 'tng_dolores':
         return spectrographs.tng_dolores.TNGDoloresSpectrograph()
 
@@ -113,7 +113,6 @@ def load_spectrograph(spectrograph):
 
     if spectrograph == 'vlt_fors2':
         return spectrographs.vlt_fors.VLTFORS2Spectrograph()
-
 
     if spectrograph == 'gemini_gmos_south_ham':
         return spectrographs.gemini_gmos.GeminiGMOSSHamSpectrograph()
@@ -136,30 +135,33 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'lbt_mods2b':
         return spectrographs.lbt_mods.LBTMODS2BSpectrograph()
 
-    msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
+    if spectrograph == 'lbt_luci1':
+        return spectrographs.lbt_luci.LBTLUCI1Spectrograph()
 
+    if spectrograph == 'lbt_luci2':
+        return spectrographs.lbt_luci.LBTLUCI2Spectrograph()
 
-'''
-def checkme(chk_dict, headarr):
-    """
-    DEPRECATED
+    if spectrograph == 'mmt_binospec':
+        return spectrographs.mmt_binospec.MMTBINOSPECSpectrograph()
+
+    if spectrograph == 'mmt_mmirs':
+        return spectrographs.mmt_mmirs.MMTMMIRSSpectrograph()
+
+    if spectrograph == 'mdm_osmos_mdm4k':
+        return spectrographs.mdm_osmos.MDMOSMOSMDM4KSpectrograph()
+
+    if spectrograph == 'not_alfosc':
+        return spectrographs.not_alfosc.NOTALFOSCSpectrograph()
+
+    if spectrograph == 'p200_dbsp_red':
+        return spectrographs.p200_dbsp.P200DBSPRedSpectrograph()
     
-    Args:
-        chk_dict: 
-        headarr: 
+    if spectrograph == 'p200_dbsp_blue':
+        return spectrographs.p200_dbsp.P200DBSPBlueSpectrograph()
 
-    Returns:
+    if spectrograph == 'p200_tspec':
+        return spectrographs.p200_tspec.P200TSPECSpectrograph()
 
-    """
-    #
-    skip = False
-    for head_idx in chk_dict.keys():
-        for ch, value in chk_dict[head_idx].items():
-            if (value in str(headarr[head_idx][ch]).strip()) is False:
-                msgs.info(ch, head_idx, value)
-                msgs.warn("Skipping the file..")
-                skip = True
-    # Return
-    return skip
-'''
+
+    msgs.error('{0} is not a supported spectrograph.'.format(spectrograph))
 
