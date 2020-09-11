@@ -178,17 +178,6 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
     return w
 
 
-def main(args):
-    # Get a list of files for the combination
-    files = open(args.file, 'r').readlines()
-    filelist = []
-    for fil in files:
-        filelist.append(fil.rstrip("\n"))
-
-    # Coadd the files
-    coadd_cube(filelist, det=args.det, overwrite=args.overwrite)
-
-
 def coadd_cube(files, det=1, overwrite=False):
     """ Main routine to coadd spec2D files
 
@@ -425,3 +414,14 @@ def coadd_cube(files, det=1, overwrite=False):
     var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
     hdulist.writeto(outfile, overwrite=overwrite)
+
+
+def main(args):
+    # Get a list of files for the combination
+    files = open(args.file, 'r').readlines()
+    filelist = []
+    for fil in files:
+        filelist.append(fil.rstrip("\n"))
+
+    # Coadd the files
+    coadd_cube(filelist, det=args.det, overwrite=args.overwrite)
