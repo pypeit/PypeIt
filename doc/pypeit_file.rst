@@ -21,6 +21,8 @@ It is possible that you will need to modify the settings for
 different gratings, etc.  It will also enable you to more
 easily customize the associated calibration files to process.
 
+
+
 The File
 ========
 
@@ -81,16 +83,6 @@ The two lines shown in this example are the only 2 that are required.
 See :doc:`pypeit_par` for the complete list of parameters,
 the spectrograph specific settings, and the syntax for changing parameters.
 
-Here are notes on somewhat common edits that PypeIt users make
-(docs under construction!):
-
-  - Restrict reduction (including the detectors reduced)
-  - :doc:`bias_dark`
-  - :doc:`flat_fielding`
-  - Wavelength fussing
-  - :doc:`slit_tracing`
-  - :doc:`object_finding`
-  - :doc:`reduction_tips`
 
 Setup Block
 -----------
@@ -189,4 +181,22 @@ comb_id
 bkg_id
 ++++++
 
+.. pypeit-file-reading:
 
+Additional Reading
+==================
+
+Here are additional docs on somewhat common edits that
+PypeIt users make:
+
+.. toctree::
+   :caption: More reading
+   :maxdepth: 1
+
+   frametype
+   bias_dark
+   flat_fielding
+   wave_calib
+   slit_tracing
+   object_finding
+   reduction_tips

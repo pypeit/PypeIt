@@ -40,3 +40,14 @@ If you need to extract an object that is too faint to be
 detected with the :doc:`object_finding` algorithm, even
 by adjusting its parameters, then you may do a
 :doc:`manual`.
+
+Additional Reading
+==================
+
+Here are additional docs on somewhat common edits that
+PypeIt users make:
+
+.. toctree::
+   :maxdepth: 1
+
+   manual
