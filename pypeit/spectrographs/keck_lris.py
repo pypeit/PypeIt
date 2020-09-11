@@ -246,6 +246,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         Read a raw LRIS data frame (one or more detectors)
         Packed in a multi-extension HDU
         Based on readmhdufits.pro
+
         Parameters
         ----------
         raw_file : str
@@ -253,6 +254,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
         det (int or None):
           Detector number;
           If None, grab both [if both are there]
+
         Returns
         -------
         tuple

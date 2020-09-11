@@ -103,7 +103,7 @@ Applying the Sensitivity Function
 Once you have generated a `Sensitivity Function`_, you may apply
 it to one or more :doc:`out_spec1D` files.
 The files are modified in place, filling the OPT_FLAM, BOX_FLAM, etc.
-entries, as described in :doc:`specobj`.
+entries, as described in :doc:`out_spec1D`.
 
 Flux File
 ---------
@@ -157,7 +157,7 @@ typical call::
     pypeit_flux_calib flux_file.txt
 
 Again, the :doc:`out_spec1D` files are modified in place.
-See :ref:`pypeit-1dspec` for details on how to view them.
+See :ref:`pypeit_show_1dspec` for details on how to view them.
 
 FluxSpec Class
 ==============
@@ -168,6 +168,27 @@ class.
 
 Troubleshooting
 ===============
+
+Problem with Empty filename
+---------------------------
+If you encounter this error when doing flux calibration with the IR algorithm, please do the following steps:
+
+ - Download the atmosphere telluric models at `this link <https://drive.google.com/open?id=1x5d2_L8pwLDmvvoFUCa-vIoluv3GpowA>`_.
+   If you do not find a specified model for your observatory, you can use the Maunakea model as a proximation. It includes a large grid
+   of different parameters and should be good enough for most purposes.
+ - Put the telluric models into the directory: your_path/Pypeit/pypeit/data/telluric
+ - Write the filename of the corresponding file for your observatory in the parameter telgridfile (i.e. keck_lris_sens.txt), e.g. ::
+
+    [sensfunc]
+      algorithm = IR
+      polyorder = 8
+      [[IR]]
+        telgridfile = /your_path/PypeIt/pypeit/data/telluric/TelFit_MaunaKea_3100_26100_R20000-006.fits
+
+ - Run pypeit_sensfunc with the --sens_file option, e.g.::
+
+    pypeit_sensfunc your_spec1dfile -o your_output.fits --sens_file keck_lris_sens.txt
+
 
 Problem with bspline knot
 -------------------------
@@ -185,3 +206,17 @@ Extra kudos if you submit this as a PR for others benefit.
 
 If your standard star is even more non-traditional, contact
 the developers.
+
+Additional Reading
+==================
+
+Here are additional docs on somewhat common edits that
+PypeIt users make:
+
+.. toctree::
+   :caption: More reading
+   :maxdepth: 1
+
+   standards
+   telluric
+
