@@ -378,9 +378,9 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, sky_file, m
         msgs.info("Working on spectral flexure of slit: {:d}".format(islit))
 
         # Reset
-        flex_dict = dict(polyfit=None, shift=None, subpix=None, corr=None,
-                         corr_cen=None, spec_file=sky_file, smooth=None,
-                         arx_spec=None, sky_spec=None)
+        flex_dict = dict(polyfit=[], shift=[], subpix=[], corr=[],
+                         corr_cen=[], spec_file=sky_file, smooth=[],
+                         arx_spec=[], sky_spec=[])
         # If no objects on this slit append an empty dictionary
         if islit not in gdslits:
             flex_list.append(flex_dict.copy())
@@ -405,9 +405,9 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, sky_file, m
         if fdict is not None:
             # Update dict
             for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
-                flex_dict[key] = fdict[key]
+                flex_dict[key].append(fdict[key])
             # Interpolate
-            flex_dict['sky_spec'] = xspectrum1d.XSpectrum1D.from_tuple((flexure_interp(sky_wave, fdict), sky_flux))
+            flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((flexure_interp(sky_wave, fdict), sky_flux)))
             # Now correct the waveimg
             waveimg_nrm = (waveimg[slitmask == slit_spat] - sky_wave.min()) / (sky_wave.max() - sky_wave.min())
             waveimg_flex_corr[slitmask == slit_spat] = flexure_interp(sky_wave, fdict, xin=waveimg_nrm)
@@ -418,7 +418,32 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, sky_file, m
     return waveimg_flex_corr, flex_list
 
 
-def spec_flexure_qa(slitords, bpm, basename, det, flex_list, out_dir=None):
+def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):
+    # Fit
+    fit = this_flex_dict['polyfit'][cntr]
+    xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'][cntr]  # + flex_dict['shift'][o]
+    # model = (fit[2]*(xval**2.))+(fit[1]*xval)+fit[0]
+    model = fit.eval(xval)
+    # model = utils.func_val(fit, xval, 'polynomial')
+    mxmod = np.max(model)
+    ylim_min = np.min(model / mxmod) if np.isfinite(np.min(model / mxmod)) else 0.0
+    ylim = [ylim_min, 1.3]
+    ax.plot(xval - this_flex_dict['corr_cen'][cntr], model / mxmod, 'k-')
+    # Measurements
+    ax.scatter(this_flex_dict['subpix'][cntr] - this_flex_dict['corr_cen'][cntr],
+               this_flex_dict['corr'][cntr] / mxmod, marker='o')
+    # Final shift
+    ax.plot([this_flex_dict['shift'][cntr]] * 2, ylim, 'g:')
+    # Label
+    ax.text(0.5, 0.25, name, transform=ax.transAxes, size='large', ha='center')
+    ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift'][cntr]),
+            transform=ax.transAxes, size='large', ha='center')  # , bbox={'facecolor':'white'})
+    # Axes
+    ax.set_ylim(ylim)
+    ax.set_xlabel('Lag')
+
+
+def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_dir=None):
     """
 
     Args:
@@ -429,12 +454,16 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, out_dir=None):
         basename (str):
         det (int):
         flex_list (list):
-        slit_cen:
+        specobjs:
         out_dir:
 
     """
     plt.rcdefaults()
     plt.rcParams['font.family'] = 'times new roman'
+
+    # What type of QA are we doing
+    slit_cen = False
+    if specobjs is None: slit_cen = True
 
     # Grab the named of the method
     method = inspect.stack()[0][3]
@@ -446,49 +475,58 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, out_dir=None):
     for islit in gdslits:
         # Slit/order number
         slitord = slitords[islit]
-        # Parse
+
+        # Parse and Setup
+        if slit_cen:
+            nobj = 1
+            ncol = 1
+        else:
+            indx = specobjs.slitorder_indices(slitord)
+            this_specobjs = specobjs[indx]
+            nobj = np.sum(indx)
+            if nobj == 0: continue
+            ncol = min(3, nobj)
         this_flex_dict = flex_list[islit]
 
         # Check that the default was overwritten
-        if this_flex_dict['shift'] is None:
+        if len(this_flex_dict['shift']) == 0:
             continue
 
+        nrow = nobj // ncol + ((nobj % ncol) > 0)
         # Outfile, one QA file per slit
         outfile = qa.set_qa_filename(basename, method + '_corr', det=det, slit=slitord, out_dir=out_dir)
         plt.figure(figsize=(8, 5.0))
         plt.clf()
-        gs = gridspec.GridSpec(1, 1)
+        gs = gridspec.GridSpec(nrow, ncol)
+        # TODO -- This cntr is crummy and needs to be replaced by a DataContainer
+        #  for flex_dict and flex_list
+        cntr = 0
         # Correlation QA
-        ax = plt.subplot(gs[0, 0])
-        # Fit
-        fit = this_flex_dict['polyfit']
-        xval = np.linspace(-10., 10, 100) + this_flex_dict['corr_cen'] #+ flex_dict['shift'][o]
-        model = fit.eval(xval)
-        mxmod = np.max(model)
-        ylim_min = np.min(model/mxmod) if np.isfinite(np.min(model/mxmod)) else 0.0
-        ylim = [ylim_min, 1.3]
-        ax.plot(xval-this_flex_dict['corr_cen'], model/mxmod, 'k-')
-        # Measurements
-        ax.scatter(this_flex_dict['subpix']-this_flex_dict['corr_cen'],
-                   this_flex_dict['corr']/mxmod, marker='o')
-        # Final shift
-        ax.plot([this_flex_dict['shift']]*2, ylim, 'g:')
-        # Label
-        ax.text(0.5, 0.25, 'Slit Center', transform=ax.transAxes, size='large', ha='center')
-        ax.text(0.5, 0.15, 'flex_shift = {:g}'.format(this_flex_dict['shift']),
-                transform=ax.transAxes, size='large', ha='center')#, bbox={'facecolor':'white'})
-        # Axes
-        ax.set_ylim(ylim)
-        ax.set_xlabel('Lag')
-
+        if slit_cen:
+            ax = plt.subplot(gs[0, 0])
+            spec_flexure_corrQA(ax, this_flex_dict, cntr, 'Slit Center')
+        else:
+            for specobj in this_specobjs:
+                if specobj is None or (specobj.BOX_WAVE is None and specobj.OPT_WAVE is None):
+                    continue
+                ax = plt.subplot(gs[cntr//ncol, cntr % ncol])
+                spec_flexure_corrQA(ax, this_flex_dict, cntr, '{:s}'.format(specobj.NAME))
+                cntr += 1
         # Finish
         plt.tight_layout(pad=0.2, h_pad=0.0, w_pad=0.0)
         plt.savefig(outfile, dpi=400)
         plt.close()
 
+        # Sky line QA (just one object)
+        if slit_cen:
+            iobj = 0
+        else:
+            iobj = 0
+            specobj = this_specobjs[iobj]
+
         # Repackage
-        sky_spec = this_flex_dict['sky_spec']
-        arx_spec = this_flex_dict['arx_spec']
+        sky_spec = this_flex_dict['sky_spec'][iobj]
+        arx_spec = this_flex_dict['arx_spec'][iobj]
 
         # Sky lines
         sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
@@ -510,7 +548,10 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, out_dir=None):
         plt.clf()
         nrow, ncol = 2, 3
         gs = gridspec.GridSpec(nrow, ncol)
-        plt.suptitle('Sky Comparison for Slit Center', y=1.05)
+        if slit_cen:
+            plt.suptitle('Sky Comparison for Slit Center', y=1.05)
+        else:
+            plt.suptitle('Sky Comparison for {:s}'.format(specobj.NAME), y=1.05)
 
         for ii, igdsky in enumerate(gdsky):
             skyline = sky_lines[igdsky]

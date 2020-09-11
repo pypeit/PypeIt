@@ -205,12 +205,10 @@ class KeckKCWISpectrograph(spectrograph.Spectrograph):
         # Set the slit edge parameters
         par['calibrations']['slitedges']['fit_order'] = 4
 
-        # 1D wavelength solution
-        # par['calibrations']['wavelengths']['lamps'] = ['ArI','NeI','KrI','XeI']
-        # par['calibrations']['wavelengths']['nonlinear_counts'] \
-        #        = self.detector[0]['nonlinear'] * self.detector[0]['saturation']
-        # par['calibrations']['wavelengths']['n_first'] = 3
-        # par['calibrations']['wavelengths']['match_toler'] = 2.5
+        # Always correct for flexure, starting with default parameters
+        # slitcen must be used, because this is a slit-based IFU where
+        # no objects are extracted.
+        par['flexure']['spec_method'] = 'slitcen'
 
         # Alter the method used to combine pixel flats
         par['calibrations']['pixelflatframe']['process']['combine'] = 'median'

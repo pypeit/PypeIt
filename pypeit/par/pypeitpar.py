@@ -731,7 +731,6 @@ class FlexurePar(ParSet):
     def valid_methods():
         """
         Return the valid flat-field methods
-        TODO :: Remove boxcar as an option, because slitcen is used
         """
         return ['boxcar', 'slitcen', 'skip']
 
