@@ -390,13 +390,14 @@ class Reduce(object):
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
 
-            # Apply flexure correction to each slit
-            if not self.std_redux:
-                # Flexure correction if this is not a standard star
-                self.spec_flexure_correct(basename)
-            # Correct wavelength image to the user-specified reference frame
-            radec = ltu.radec_to_coord((ra, dec))
-            self.refframe_correct(radec, obstime)
+            if self.par['flexure']['spec_method'] == 'slit_cen':
+                # Apply flexure and helio correction to each slit
+                if not self.std_redux:
+                    # Flexure correction if this is not a standard star
+                    self.spec_flexure_correct(basename)
+                # Correct wavelength image to the user-specified reference frame
+                radec = ltu.radec_to_coord((ra, dec))
+                self.refframe_correct(radec, obstime)
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
@@ -420,6 +421,14 @@ class Reduce(object):
         # Finish up
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
+        elif self.par['flexure']['spec_method'] != 'slit_cen':
+            # Apply flexure and helio to objects if it's not been globally applied to the slit already
+                # TODO -- Should we move these to redux.run()?
+                # Flexure correction if this is not a standard star
+                if (not self.std_redux):
+                    self.spec_flexure_correct(basename, specObjs=self.sobjs)
+                # Heliocentric
+                self.helio_correct(self.sobjs, ra, dec, obstime)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -646,16 +655,15 @@ class Reduce(object):
                 usersky = True
         return skymask_init, usersky
 
-    def spec_flexure_correct(self, basename):
+    def spec_flexure_correct(self, basename, specObjs=None):
         """ Correct for spectral flexure
 
         Spectra are modified in place (wavelengths are shifted)
 
-        Wrapper to flexure.flexure_obj()
-
         Args:
             basename (str):
-
+            specObjs (:class:`pypeit.specobjs.SpecObjs`, None):
+                Spectrally extracted objects
         """
         if self.par['flexure']['spec_method'] != 'skip':
             # Measure
@@ -666,16 +674,20 @@ class Reduce(object):
                                                                 mxshft=self.par['flexure']['spec_maxshift'])
             # QA
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
-                                    out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
+                                    specobjs=specObjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')
 
-    def refframe_correct(self, radec, obstime):
+    def refframe_correct(self, radec, obstime, specObjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
 
         Args:
             radec (astropy.coordiantes.SkyCoord):
+                Sky Coordinate of the observation
             obstime (:obj:`astropy.time.Time`):
+                Observation time
+            specObjs (:class:`pypeit.specobjs.Specobjs`, None):
+                Spectrally extracted objects
 
         """
         # Correct Telescope's motion
@@ -691,9 +703,21 @@ class Reduce(object):
                                                    refframe)
             # Apply correction
             msgs.info('Applying {0} correction = {1:0.5f}'.format(refframe, vel))
-            self.waveimg *= vel_corr
+            if specObjs is None:
+                self.waveimg *= vel_corr
+            else:
+                # Loop on slits to apply
+                gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
+                for slitord in gd_slitord:
+                    indx = specObjs.slitorder_indices(slitord)
+                    this_specobjs = specObjs[indx]
+                    # Loop on objects
+                    for specobj in this_specobjs:
+                        if specobj is None:
+                            continue
+                        specobj.apply_helio(vel_corr, refframe)
         else:
-            msgs.info('A wavelength reference-frame correction will not be performed.')
+            msgs.info('A wavelength reference frame correction will not be performed.')
         return
 
     def show(self, attr, image=None, showmask=False, sobjs=None,

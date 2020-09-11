@@ -467,6 +467,29 @@ class SpecObj(datamodel.DataContainer):
             self[attr+'_FLAM_SIG'] = flam_sig
             self[attr+'_FLAM_IVAR'] = flam_var
 
+
+    def apply_helio(self, vel_corr, refframe):
+        """
+        Apply a heliocentric correction
+
+        Wavelength arrays are modified in place
+
+        Args:
+            vel_corr (float):
+            refframe (str):
+
+        """
+        # Apply
+        for attr in ['BOX', 'OPT']:
+            if self[attr+'_WAVE'] is not None:
+                msgs.info('Applying {0} correction to '.format(refframe)
+                          + '{0} extraction for object:'.format(attr)
+                          + msgs.newline() + "{0}".format(str(self.NAME)))
+                self[attr+'_WAVE'] *= vel_corr
+                # Record
+                self['VEL_TYPE'] = refframe
+                self['VEL_CORR'] = vel_corr
+
     def to_arrays(self, extraction='OPT', fluxed=True):
         """
 

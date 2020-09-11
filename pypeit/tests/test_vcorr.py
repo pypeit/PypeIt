@@ -61,3 +61,11 @@ def test_geocorrect(fitstbl):
     #assert np.isclose(helio, -9.3344957, rtol=1e-5)  # Original
     assert np.isclose(1-hel_corr, 3.060273748e-05, rtol=1e-5)
 
+    # Now apply to a specobj
+    npix = 1000
+    sobj = specobj.SpecObj('MultiSlit', 1, SLITID=0)
+    sobj.BOX_WAVE = np.linspace(4000., 6000., npix)
+    sobj.BOX_COUNTS = 50.*(sobj.BOX_WAVE/5000.)**-1.
+    sobj.BOX_COUNTS_IVAR = 1./sobj.BOX_COUNTS.copy()
+    sobj.apply_helio(hel_corr, 'heliocentric')
+    assert np.isclose(sobj.BOX_WAVE[0], 3999.877589008, rtol=1e-8)

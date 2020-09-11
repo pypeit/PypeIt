@@ -454,7 +454,8 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
         basename (str):
         det (int):
         flex_list (list):
-        specobjs:
+        specobjs: (:class:`pypeit.specobjs.Specobjs`)
+            Spectrally extracted objects
         out_dir:
 
     """
