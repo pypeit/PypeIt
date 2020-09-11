@@ -657,7 +657,7 @@ class Reduce(object):
             basename (str):
 
         """
-        if self.par['flexure']['perform']:
+        if self.par['flexure']['spec_method'] != 'skip':
             # Measure
             traces = 0.5*(self.slits_left+self.slits_right)
             self.waveimg, flex_list = flexure.spec_flexure_slit(self.waveimg, self.global_sky, traces, self.slits,

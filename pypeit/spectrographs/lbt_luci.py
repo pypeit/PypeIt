@@ -298,7 +298,7 @@ class LBTLUCI1Spectrograph(LBTLUCISpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Flexure
-        par['flexure']['perform'] = False
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'
@@ -409,7 +409,7 @@ class LBTLUCI2Spectrograph(LBTLUCISpectrograph):
         par.reset_all_processimages_par(**turn_off)
 
         # Flexure
-        par['flexure']['perform'] = False
+        par['flexure']['spec_method'] = 'skip'
 
         par['scienceframe']['process']['sigclip'] = 20.0
         par['scienceframe']['process']['satpix'] = 'nothing'

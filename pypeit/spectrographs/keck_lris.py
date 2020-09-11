@@ -59,7 +59,7 @@ class KeckLRISSpectrograph(spectrograph.Spectrograph):
 
         # Flexure
         # Always correct for spectral flexure, starting with default parameters
-        par['flexure']['perform'] = True
+        par['flexure']['spec_method'] = 'boxcar'
         # Always correct for spatial flexure on science images
         # TODO -- Decide whether to make the following defaults
         #   May not want to do them for LongSlit

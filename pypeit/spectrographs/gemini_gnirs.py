@@ -94,7 +94,7 @@ class GeminiGNIRSSpectrograph(spectrograph.Spectrograph):
         par['reduce']['extraction']['model_full_slit'] = True  # local sky subtraction operates on entire slit
 
         # Do not correct for flexure
-        par['flexure']['perform'] = False
+        par['flexure']['spec_method'] = 'skip'
 
         # Set the default exposure time ranges for the frame typing
         par['calibrations']['pixelflatframe']['exprng'] = [None, 30]

@@ -154,7 +154,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         par['rdx']['spectrograph'] = 'keck_deimos'
 
         # Spectral flexure correction
-        par['flexure']['perform'] = True
+        par['flexure']['spec_method'] = 'boxcar'
         # Set wave tilts order
         par['calibrations']['slitedges']['edge_thresh'] = 50.
         par['calibrations']['slitedges']['fit_order'] = 3

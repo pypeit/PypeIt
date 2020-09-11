@@ -120,7 +120,7 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['pixelflatframe']['process']['sig_lohi'] = [10.,10.]
 
         # Always correct for flexure
-        par['flexure']['perform'] = True
+        par['flexure']['spec_method'] = 'boxcar'
         # Splice detectors 1,2,3 when creating sensitivity function
         par['sensfunc']['multi_spec_det'] = [1,2,3]
 
