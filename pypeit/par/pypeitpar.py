@@ -3544,8 +3544,8 @@ class CalibrationsPar(ParSet):
 
         defaults['tiltframe'] = FrameGroupPar(frametype='tilt',
                                               process=ProcessImagesPar(sigrej=-1,
-                                              use_pixelflat=False,
-                                              use_illumflat=False))
+                                                                       use_pixelflat=False,
+                                                                       use_illumflat=False))
         dtypes['tiltframe'] = [ ParSet, dict ]
         descr['tiltframe'] = 'The frames and combination rules for the wavelength tilts'
 
