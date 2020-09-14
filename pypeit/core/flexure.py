@@ -306,6 +306,8 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
 
 def flexure_interp(sky_wave, fdict, xin=None):
     """
+    TODO :: DELETE THIS ROUTINE AND USE THE ONE IN SPECOBJS!!!
+
     Apply interpolation with the flexure dict
 
     Args:

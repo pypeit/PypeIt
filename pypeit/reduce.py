@@ -390,14 +390,10 @@ class Reduce(object):
             else:
                 self.global_sky = self.global_skysub(skymask=self.skymask, show=self.reduce_show)
 
-            if self.par['flexure']['spec_method'] == 'slit_cen':
-                # Apply flexure and helio correction to each slit
-                if not self.std_redux:
-                    # Flexure correction if this is not a standard star
-                    self.spec_flexure_correct(basename)
-                # Correct wavelength image to the user-specified reference frame
-                radec = ltu.radec_to_coord((ra, dec))
-                self.refframe_correct(radec, obstime)
+            # Apply a global flexure correction to each slit
+            # provided it's not a standard star
+            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+                self.spec_flexure_correct(basename)
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
@@ -406,6 +402,10 @@ class Reduce(object):
                 self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
 
         else:  # No objects, pass back what we have
+            # Apply a global flexure correction to each slit
+            # provided it's not a standard star
+            if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+                self.spec_flexure_correct(basename)
             #Could have negative objects but no positive objects so purge them
             if self.ir_redux:
                 self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
@@ -422,13 +422,17 @@ class Reduce(object):
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
         elif self.par['flexure']['spec_method'] != 'slit_cen':
-            # Apply flexure and helio to objects if it's not been globally applied to the slit already
-                # TODO -- Should we move these to redux.run()?
-                # Flexure correction if this is not a standard star
-                if (not self.std_redux):
-                    self.spec_flexure_correct(basename, specObjs=self.sobjs)
-                # Heliocentric
-                self.helio_correct(self.sobjs, ra, dec, obstime)
+            # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
+            # TODO -- Should we move these to redux.run()?
+            # Flexure correction if this is not a standard star
+            if (not self.std_redux):
+                self.spec_flexure_correct(basename, specObjs=self.sobjs)
+            # Apply a reference frame correction to each object
+            self.refframe_correct(self.sobjs, ra, dec, obstime)
+
+        # Now correct the wavelength image to the user-specified reference frame
+        radec = ltu.radec_to_coord((ra, dec))
+        self.refframe_correct(radec, obstime)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
