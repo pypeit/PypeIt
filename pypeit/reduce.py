@@ -20,9 +20,10 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat
+from pypeit.core import skysub, extract, pixels, wave, flexure, flat, fitting
 from pypeit.images import buildimage
-from pypeit import wavecalib
+
+from linetools.spectra import xspectrum1d
 
 from IPython import embed
 
@@ -176,6 +177,7 @@ class Reduce(object):
         self.objimage = None
         self.skyimage = None
         self.initial_sky = None
+        self.global_skyset = None
         self.global_sky = None
         self.skymask = None
         self.outmask = None
@@ -393,7 +395,7 @@ class Reduce(object):
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(basename)
+                self.spec_flexure_correct(basename, mode='slit', update_waveimg=True)
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
@@ -405,7 +407,7 @@ class Reduce(object):
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(basename)
+                self.spec_flexure_correct(basename, mode='slit', update_waveimg=True)
             #Could have negative objects but no positive objects so purge them
             if self.ir_redux:
                 self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
@@ -426,13 +428,12 @@ class Reduce(object):
             # TODO -- Should we move these to redux.run()?
             # Flexure correction if this is not a standard star
             if (not self.std_redux):
-                self.spec_flexure_correct(basename, specObjs=self.sobjs)
+                self.spec_flexure_correct(basename, mode='object', specObjs=self.sobjs, update_waveimg=False)
             # Apply a reference frame correction to each object
-            self.refframe_correct(self.sobjs, ra, dec, obstime)
+            self.refframe_correct(ra, dec, obstime, specObjs=self.sobjs, update_waveimg=False)
 
         # Now correct the wavelength image to the user-specified reference frame
-        radec = ltu.radec_to_coord((ra, dec))
-        self.refframe_correct(radec, obstime)
+        self.refframe_correct(ra, dec, obstime, update_waveimg=True)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -559,7 +560,7 @@ class Reduce(object):
             thismask = self.slitmask == slit_spat
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # Find sky
-            self.global_sky[thismask] \
+            self.global_skyset, self.global_sky[thismask] \
                     = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
                                            thismask, self.slits_left[:,slit_idx],
                                            self.slits_right[:,slit_idx],
@@ -659,30 +660,62 @@ class Reduce(object):
                 usersky = True
         return skymask_init, usersky
 
-    def spec_flexure_correct(self, basename, specObjs=None):
+    def spec_flexure_correct(self, basename, mode="object", specObjs=None, update_waveimg=False):
         """ Correct for spectral flexure
 
         Spectra are modified in place (wavelengths are shifted)
 
         Args:
             basename (str):
+            mode (str):
+                "object" - Use specObjs to determine flexure correction
+                "slit" - Use waveimg and global_sky to determine flexure correction at the centre of the slit
             specObjs (:class:`pypeit.specobjs.SpecObjs`, None):
                 Spectrally extracted objects
         """
         if self.par['flexure']['spec_method'] != 'skip':
-            # Measure
-            traces = 0.5*(self.slits_left+self.slits_right)
-            self.waveimg, flex_list = flexure.spec_flexure_slit(self.waveimg, self.global_sky, traces, self.slits,
-                                                                self.slitmask, self.reduce_bpm,
-                                                                self.par['flexure']['spectrum'],
-                                                                mxshft=self.par['flexure']['spec_maxshift'])
+            # Initialise
+            slitSpecs = None
+            wvimg = self.waveimg.copy() if update_waveimg else None
+            # Perform some checks
+            if mode == "object" and specObjs is None:
+                msgs.warn("No spectral extractions provided for flexure, using slit center instead")
+                mode = "slit"
+            elif mode not in ["object", "slit"]:
+                msgs.warn("mode must be 'object' or 'slit'. Assuming 'slit'.")
+                mode = "slit"
+            # Prepare a list of slit spectra, if required.
+            if mode == "slit":
+                # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
+                trace_spat = 0.5 * (self.slits_left + self.slits_right)
+                trace_spec = np.arange(self.slits.nspec)
+                slitSpecs = []
+                for ss in range(self.slits.nslits):
+                    coeff2 = self.waveTilts.coeffs[:self.waveTilts.spec_order[ss] + 1,
+                             :self.waveTilts.spat_order[ss] + 1, ss]
+                    pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
+                                                  minx2=0.0, maxx2=1.0, func=self.waveTilts.func2d)
+                    tilt_slitcen = pypeitFit.eval(trace_spec, x2=trace_spat)
+                    tilt_slitcen *= self.slits.nspec - 1
+                    slit_wave = self.wv_calib.wv_fits[ss].pypeitfit.eval(tilt_slitcen)
+                    slit_sky = self.global_skyset.value(tilt_slitcen)
+                    slitSpecs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+            # Measure flexure
+            waveimg_new, flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.slitmask,
+                                                               self.reduce_bpm, self.par['flexure']['spectrum'],
+                                                               method=self.par['flexure']['spec_method'],
+                                                               mxshft=self.par['flexure']['spec_maxshift'],
+                                                               specobjs=specObjs, waveimg=wvimg, slitspecs=slitSpecs)
+            if waveimg_new is not None:
+                self.waveimg = waveimg_new.copy()
+
             # QA
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     specobjs=specObjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')
 
-    def refframe_correct(self, radec, obstime, specObjs=None):
+    def refframe_correct(self, ra, dec, obstime, specObjs=None, update_waveimg=False):
         """ Correct the calibrated wavelength to the user-supplied reference frame
 
         Args:
@@ -694,6 +727,7 @@ class Reduce(object):
                 Spectrally extracted objects
 
         """
+        radec = ltu.radec_to_coord((ra, dec))
         # Correct Telescope's motion
         refframe = self.par['calibrations']['wavelengths']['refframe']
         if (refframe in ['heliocentric', 'barycentric']) \
@@ -706,10 +740,11 @@ class Reduce(object):
                                                    self.spectrograph.telescope['elevation'],
                                                    refframe)
             # Apply correction
-            msgs.info('Applying {0} correction = {1:0.5f}'.format(refframe, vel))
-            if specObjs is None:
+            if update_waveimg:
+                msgs.info('Applying {0} correction = {1:0.5f}'.format(refframe, vel))
                 self.waveimg *= vel_corr
-            else:
+            elif specObjs is not None:
+                msgs.info('Applying {0} correction = {1:0.5f}'.format(refframe, vel))
                 # Loop on slits to apply
                 gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
                 for slitord in gd_slitord:
@@ -1399,7 +1434,7 @@ class IFUReduce(MultiSlitReduce, Reduce):
         model_ivar = self.sciImg.ivar.copy()
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
-            self.global_sky[thismask] \
+            self.global_skyset, self.global_sky[thismask] \
                 = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
                                        thismask, self.slits_left, self.slits_right, inmask=inmask,
                                        sigrej=sigrej, trim_edg=trim_edg,

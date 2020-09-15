@@ -332,29 +332,33 @@ def flexure_interp(sky_wave, fdict, xin=None):
     else: return f(xin + fdict['shift'] / (npix - 1))
 
 
-def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, method, sky_file, specobjs=None, mxshft=None):
+def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", specobjs=None, slitspecs=None,
+                      waveimg=None, mxshft=None):
     """Correct wavelengths for flexure, slit by slit
 
     Args:
-        waveimg (`numpy.ndarray`_):
-            A 2D array providing the wavelength (in A) of each pixel of an image
-        skyimg (`numpy.ndarray`_):
-            A 2D array of the global sky model for each slit
-        traces (`numpy.ndarray`_):
-            The central trace of each slit
         slits (:class:`pypeit.slittrace.SlitTraceSet`_):
             Slit trace set
+        slitord (`numpy.ndarray`_):
+            Array of slit/order numbers
         slitmask (`numpy.ndarray`_):
             Slit mask
         bpm (`numpy.ndarray`_):
             True = masked slit
-        method (:obj:`str`)
-          'boxcar' -- Recommneded
-          'slitcen' --
+        method (:obj:`str`, optional)
+          'boxcar' -- Recommended for object extractions
+          'slitcen' -- Recommended when no objects are being extracted
         sky_file (str):
             Sky file
-        specobjs (:class:`pypeit.specobjs.Specobjs`_):
+        specobjs (:class:`pypeit.specobjs.Specobjs`_, optional):
             Spectral extractions
+        slitspecs (list, optional):
+            A list of linetools.xspectrum1d, one for each slit
+        waveimg (`numpy.ndarray`_, optional):
+            A 2D array providing the wavelength (in A) of each pixel of an image.
+            If none, the spectral flexure correction will not be applied to the
+            wavelength image. If provided, the correction will be applied and
+            returned.
         mxshft (int, optional):
             Passed to flex_shift()
 
@@ -365,7 +369,7 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, method, sky
     """
     sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
-    waveimg_flex_corr = waveimg.copy()
+    waveimg_flex_corr = None if waveimg is None else waveimg.copy()
 
     # Determine the method
     slit_cen = False
@@ -386,8 +390,6 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, method, sky
     return_later_sobjs = []
 
     # Loop over slits, and then over objects
-    nspec = slits.nspec
-    spec_vec = np.arange(nspec)
     for islit in range(nslits):
         msgs.info("Working on spectral flexure of slit: {:d}".format(islit))
 
@@ -403,20 +405,11 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, method, sky
 
         if slit_cen:
             slit_spat = slits.spat_id[islit]
-            mask = (slitmask == slit_spat) & gpm
-
-            # Fill in the boxcar extraction tags
-            box_denom = moment1d(waveimg * mask > 0.0, traces[:, islit], 2, row=spec_vec)[0]
-            wghts = (box_denom + (box_denom == 0.0))
-            sky_flux = moment1d(skyimg * mask, traces[:, islit], 2, row=spec_vec)[0] / wghts
-            # Denom is computed in case the trace goes off the edge of the image
-            sky_wave = moment1d(waveimg * mask, traces[:, islit], 2, row=spec_vec)[0] / wghts
-
-            # Generate 1D spectrum for object
-            obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
+            sky_wave = slitspecs[islit].wavelength.value
+            sky_flux = slitspecs[islit].flux.value
 
             # Calculate the shift
-            fdict = spec_flex_shift(obj_sky, sky_spectrum, sky_lines, mxshft=mxshft)
+            fdict = spec_flex_shift(slitspecs[islit], sky_spectrum, sky_lines, mxshft=mxshft)
             # Failed?
             if fdict is not None:
                 # Update dict
@@ -426,8 +419,9 @@ def spec_flexure_slit(waveimg, skyimg, traces, slits, slitmask, bpm, method, sky
                 flex_dict['sky_spec'].append(
                     xspectrum1d.XSpectrum1D.from_tuple((flexure_interp(sky_wave, fdict), sky_flux)))
                 # Now correct the waveimg
-                waveimg_nrm = (waveimg[slitmask == slit_spat] - sky_wave.min()) / (sky_wave.max() - sky_wave.min())
-                waveimg_flex_corr[slitmask == slit_spat] = flexure_interp(sky_wave, fdict, xin=waveimg_nrm)
+                if waveimg_flex_corr is not None:
+                    waveimg_nrm = (waveimg[slitmask == slit_spat] - sky_wave.min()) / (sky_wave.max() - sky_wave.min())
+                    waveimg_flex_corr[slitmask == slit_spat] = flexure_interp(sky_wave, fdict, xin=waveimg_nrm)
         else:
             i_slitord = slitord[islit]
             indx = specobjs.slitorder_indices(i_slitord)

@@ -92,12 +92,12 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             is closed.
 
     Returns:
-        `numpy.ndarray`_: Returns the model sky background at the pixels
-        where thismask is True::
+        tuple: Returns a two tuple containing the skyset and a `numpy.ndarray`_ representing the
+        model sky background at the pixels where thismask is True::
 
             >>>  skyframe = np.zeros_like(image)
             >>>  thismask = slitpix == thisslit
-            >>>  skyframe[thismask] = global_skysub(image,ivar, tilts, thismask, slit_left, slit_righ)
+            >>>  skyset, skyframe[thismask] = global_skysub(image,ivar, tilts, thismask, slit_left, slit_righ)
 
     """
 
@@ -212,7 +212,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
     # ToDO worth thinking about whether we want to return a mask here. It makese no sense to return outmask
     # in its present form though since that does not refer to the whole image.
     # return bgframe, outmask
-    return ythis
+    return skyset, ythis
 
 
 
