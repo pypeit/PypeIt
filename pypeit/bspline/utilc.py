@@ -67,6 +67,8 @@ def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
     # don't have to recreate them?
     # TODO: x is always 1D right?
     yfit = np.zeros(x.size, dtype=x.dtype)
+    upper = np.array(upper, dtype=np.int64)
+    lower = np.array(lower, dtype=np.int64)
     # TODO: Get rid of this ascontiguousarray call if possible
 #    print(action.flags['F_CONTIGUOUS'])
     bspline_model_c(action, lower, upper, coeff.flatten('F'), n, nord, npoly, x.size, yfit)
@@ -164,6 +166,8 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
     # NOTE: Declared as empty because the c code zeros them out
     alpha = np.empty((bw, nfull+bw), dtype=float)
     beta = np.empty((nfull+bw,), dtype=float)
+    upper = np.array(upper, dtype=np.int64)
+    lower = np.array(lower, dtype=np.int64)
     # NOTE: Beware of the integer types for upper and lower. They must
     # match the argtypes above and in bspline.c explicitly!! np.int32
     # for int and np.int64 for long.
