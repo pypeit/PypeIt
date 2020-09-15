@@ -105,7 +105,7 @@ def intrv(nord, breakpoints, x):
     indx : `numpy.ndarray`_
         Position of array elements with respect to breakpoints.
     """
-    indx = np.zeros(x.size, dtype=int)
+    indx = np.zeros(x.size, dtype=np.int64)
     intrv_c(nord, breakpoints, breakpoints.size, x, x.size, indx)
     return indx
 #-----------------------------------------------------------------------
