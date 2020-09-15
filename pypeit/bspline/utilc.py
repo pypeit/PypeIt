@@ -25,10 +25,10 @@ except Exception:
 bspline_model_c = _bspline.bspline_model
 bspline_model_c.restype = None
 bspline_model_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="F_CONTIGUOUS"),
-                            np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
-                            np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
+                            np.ctypeslib.ndpointer(ctypes.c_int64, flags="C_CONTIGUOUS"),
+                            np.ctypeslib.ndpointer(ctypes.c_int64, flags="C_CONTIGUOUS"),
                             np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                            ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                            ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32,
                             np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS")]
 
 def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
@@ -77,9 +77,9 @@ def bspline_model(x, action, lower, upper, coeff, n, nord, npoly):
 #-----------------------------------------------------------------------
 intrv_c = _bspline.intrv
 intrv_c.restype = None
-intrv_c.argtypes = [ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                    ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                    ctypes.c_int, np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS")]
+intrv_c.argtypes = [ctypes.c_int32, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                    ctypes.c_int32, np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
+                    ctypes.c_int32, np.ctypeslib.ndpointer(ctypes.c_int64, flags="C_CONTIGUOUS")]
 
 def intrv(nord, breakpoints, x):
     """
@@ -114,16 +114,16 @@ def intrv(nord, breakpoints, x):
 #-----------------------------------------------------------------------
 solution_arrays_c = _bspline.solution_arrays
 solution_arrays_c.restype = None
-solution_arrays_c.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+solution_arrays_c.argtypes = [ctypes.c_int32, ctypes.c_int32, ctypes.c_int32, ctypes.c_int32,
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="F_CONTIGUOUS"),
-                              np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
-                              np.ctypeslib.ndpointer(ctypes.c_long, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_int64, flags="C_CONTIGUOUS"),
+                              np.ctypeslib.ndpointer(ctypes.c_int64, flags="C_CONTIGUOUS"),
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                              ctypes.c_int,
+                              ctypes.c_int32,
                               np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                              ctypes.c_int]
+                              ctypes.c_int32]
 
 def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
     """
@@ -179,7 +179,7 @@ def solution_arrays(nn, npoly, nord, ydata, action, ivar, upper, lower):
 cholesky_band_c = _bspline.cholesky_band
 cholesky_band_c.restype = int
 cholesky_band_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                            ctypes.c_int, ctypes.c_int]
+                            ctypes.c_int32, ctypes.c_int32]
 
 def cholesky_band(l, mininf=0.0):
     """
@@ -219,9 +219,9 @@ def cholesky_band(l, mininf=0.0):
 cholesky_solve_c = _bspline.cholesky_solve
 cholesky_solve_c.restype = None
 cholesky_solve_c.argtypes = [np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                             ctypes.c_int, ctypes.c_int, 
+                             ctypes.c_int32, ctypes.c_int32, 
                              np.ctypeslib.ndpointer(ctypes.c_double, flags="C_CONTIGUOUS"),
-                             ctypes.c_int]
+                             ctypes.c_int32]
 
 def cholesky_solve(a, bb):
     r"""
