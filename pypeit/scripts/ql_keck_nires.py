@@ -32,6 +32,7 @@ def main(pargs):
     from pypeit import pypeit
     from pypeit import pypeitsetup
     from pypeit.core import framematch
+    from pypeit import msgs
 
 
     # Setup
