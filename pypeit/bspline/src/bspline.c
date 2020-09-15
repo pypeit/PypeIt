@@ -9,6 +9,16 @@ Support algorithms for bspline.
 
 #include "bspline.h"
 
+#include <Python.h>
+
+static struct PyModuleDef _bspline_module = {
+    PyModuleDef_HEAD_INIT,
+    "_bspline",   /* name of module */
+};
+
+PyMODINIT_FUNC PyInit__bspline(void) {
+    return PyModule_Create(&_bspline_module);
+}
 
 int column_to_row_major_index(int k, int nr, int nc) {
     /*
