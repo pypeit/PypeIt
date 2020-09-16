@@ -355,8 +355,7 @@ class Reduce(object):
 
         # Wavelengths (on unmasked slits)
         msgs.info("Generating wavelength image")
-        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
-                                               spat_flexure=self.spat_flexure_shift)
+        self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits, spat_flexure=self.spat_flexure_shift)
 
         # First pass object finding
         self.sobjs_obj, self.nobj, skymask_init = \
@@ -395,7 +394,7 @@ class Reduce(object):
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(basename, mode='slit', update_waveimg=True)
+                self.spec_flexure_correct(basename+"_global", mode='slit', update_waveimg=True)
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
@@ -407,7 +406,7 @@ class Reduce(object):
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(basename, mode='slit', update_waveimg=True)
+                self.spec_flexure_correct(basename+"_global", mode='slit', update_waveimg=True)
             #Could have negative objects but no positive objects so purge them
             if self.ir_redux:
                 self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
@@ -687,18 +686,27 @@ class Reduce(object):
             # Prepare a list of slit spectra, if required.
             if mode == "slit":
                 # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
-                trace_spat = 0.5 * (self.slits_left + self.slits_right)
-                trace_spec = np.arange(self.slits.nspec)
+                trace_spat = 0.5 * (self.slits_left + self.slits_right)/(self.slits.nspat-1)
+                trace_spec = np.arange(self.slits.nspec)/(self.slits.nspec-1)
+                #spat_img, spec_img = np.meshgrid(spat_vec, spec_vec)
                 slitSpecs = []
+                embed()
                 for ss in range(self.slits.nslits):
                     coeff2 = self.waveTilts.coeffs[:self.waveTilts.spec_order[ss] + 1,
-                             :self.waveTilts.spat_order[ss] + 1, ss]
+                                                   :self.waveTilts.spat_order[ss] + 1, ss]
                     pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
                                                   minx2=0.0, maxx2=1.0, func=self.waveTilts.func2d)
-                    tilt_slitcen = pypeitFit.eval(trace_spec, x2=trace_spat)
-                    tilt_slitcen *= self.slits.nspec - 1
+                    tilt_slitcen = pypeitFit.eval(trace_spec, x2=trace_spat[:, ss])
                     slit_wave = self.wv_calib.wv_fits[ss].pypeitfit.eval(tilt_slitcen)
-                    slit_sky = self.global_skyset.value(tilt_slitcen)
+                    tilt_slitcen *= (self.slits.nspec - 1)
+                    # action, laction, uaction = self.global_skyset.action(tilt_slitcen)
+                    # slit_sky_alt, _ = self.global_skyset.value(tilt_slitcen, action=action, lower=laction, upper=uaction)
+                    coords = (np.arange(self.slits.nspec), np.round(trace_spat*(self.slits.nspat-1))[:, ss].astype(np.int))
+                    slit_sky = self.global_sky[coords]
+                    # from matplotlib import pyplot as plt
+                    # plt.plot(slit_wave, slit_sky_alt, 'k-')
+                    # plt.plot(slit_wave, self.global_sky[coords], 'r-')
+                    # plt.show()
                     slitSpecs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
             # Measure flexure
             waveimg_new, flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.slitmask,

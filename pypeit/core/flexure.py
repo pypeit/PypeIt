@@ -304,34 +304,6 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
                 corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
 
 
-def flexure_interp(sky_wave, fdict, xin=None):
-    """
-    TODO :: DELETE THIS ROUTINE AND USE THE ONE IN SPECOBJS!!!
-
-    Apply interpolation with the flexure dict
-
-    Args:
-        sky_wave (`numpy.ndarray`_):
-            Wavelengths of the extracted sky
-        fdict (dict):
-            Holds the various flexure items
-        xin (`numpy.ndarray`_):
-            spectral values (in pixels) to apply flexure correction (normalized to a value between 0-1)
-
-    Returns:
-        xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
-
-    """
-    # Simple interpolation to apply
-    npix = len(sky_wave)
-    x = np.linspace(0., 1., npix)
-    # Apply
-    msgs.info("Applying flexure correction")
-    f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-    if xin is None: return f(x + fdict['shift'] / (npix - 1))
-    else: return f(xin + fdict['shift'] / (npix - 1))
-
-
 def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", specobjs=None, slitspecs=None,
                       waveimg=None, mxshft=None):
     """Correct wavelengths for flexure, slit by slit

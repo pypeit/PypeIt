@@ -349,6 +349,11 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return copy.deepcopy(self)
 
+    @staticmethod
+    def apply_flexure_correction(self):
+
+        return
+
     def flexure_interp(self, sky_wave, fdict):
         """
         Apply interpolation with the flexure dict
