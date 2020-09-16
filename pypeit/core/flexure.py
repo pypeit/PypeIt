@@ -470,7 +470,9 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
 
 
 def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
-    """Correct wavelengths for flexure, object by object
+    """  THIS FUNCTION IS DEPRECATED
+
+    Correct wavelengths for flexure, object by object
 
     Args:
         specobjs (:class:`pypeit.specobjs.Specobjs`):
