@@ -798,7 +798,10 @@ class Spectrograph:
                     return ['None']*999 # self.numhead
         else:
             hdu = inp
-        return [hdu[k].header for k in range(len(hdu))]
+        ret = [hdu[k].header for k in range(len(hdu))]
+        if isinstance(inp, str):
+            hdu.close()
+        return ret
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         raise NotImplementedError('Frame typing not defined for {0}.'.format(self.spectrograph))
