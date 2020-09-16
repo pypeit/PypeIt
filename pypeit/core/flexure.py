@@ -20,11 +20,11 @@ from linetools.spectra import xspectrum1d
 
 from pypeit import msgs
 from pypeit import utils
+from pypeit import specobj
 from pypeit.display import display
 from pypeit.core import arc
 from pypeit.core import qa
 from pypeit.core import fitting
-from pypeit.core.moment import moment1d
 
 from IPython import embed
 
@@ -388,27 +388,28 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
                 for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                     flex_dict[key].append(fdict[key])
                 # Interpolate
+                sky_wave_new = specobj.SpecObj.flexure_interp(fdict['shift'], sky_wave)
                 flex_dict['sky_spec'].append(
-                    xspectrum1d.XSpectrum1D.from_tuple((flexure_interp(sky_wave, fdict), sky_flux)))
+                    xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
                 # Now correct the waveimg
                 if waveimg_flex_corr is not None:
-                    waveimg_nrm = (waveimg[slitmask == slit_spat] - sky_wave.min()) / (sky_wave.max() - sky_wave.min())
-                    waveimg_flex_corr[slitmask == slit_spat] = flexure_interp(sky_wave, fdict, xin=waveimg_nrm)
+                    waveimg_flex_corr[slitmask == slit_spat] = \
+                        specobj.SpecObj.flexure_interp(fdict['shift'], sky_wave, wavein=waveimg[slitmask == slit_spat])
         else:
             i_slitord = slitord[islit]
             indx = specobjs.slitorder_indices(i_slitord)
             this_specobjs = specobjs[indx]
             # Loop through objects
-            for ss, specobj in enumerate(this_specobjs):
-                if specobj is None:
+            for ss, sobj in enumerate(this_specobjs):
+                if sobj is None:
                     continue
-                if specobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
+                if sobj['BOX_WAVE'] is None: #len(specobj._data.keys()) == 1:  # Nothing extracted; only the trace exists
                     continue
-                msgs.info("Working on flexure for object # {:d}".format(specobj.OBJID) + "in slit # {:d}".format(islit))
+                msgs.info("Working on flexure for object # {:d}".format(sobj.OBJID) + "in slit # {:d}".format(islit))
 
                 # Using boxcar
-                sky_wave = specobj.BOX_WAVE
-                sky_flux = specobj.BOX_COUNTS_SKY
+                sky_wave = sobj.BOX_WAVE
+                sky_flux = sobj.BOX_COUNTS_SKY
 
                 # Generate 1D spectrum for object
                 obj_sky = xspectrum1d.XSpectrum1D.from_tuple((sky_wave, sky_flux))
@@ -434,7 +435,7 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
                     break
 
                 # Interpolate
-                new_sky = specobj.flexure_interp(sky_wave, fdict)
+                new_sky = sobj.apply_spectral_flexure(fdict)
                 # Update dict
                 for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                     flex_dict[key].append(fdict[key])
@@ -454,12 +455,12 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
                 msgs.error("This probably needs to be updated")
                 slit, ss = items
                 flex_dict = flex_list[slit]
-                specobj = specobjs[ss]
-                sky_wave = specobj.BOX_WAVE  # .to('AA').value
+                sobj = specobjs[ss]
+                sky_wave = sobj.BOX_WAVE  # .to('AA').value
                 # Copy me
                 fdict = copy.deepcopy(sv_fdict)
                 # Interpolate
-                new_sky = specobj.flexure_interp(sky_wave, fdict)
+                new_sky = sobj.apply_spectral_flexure(fdict)
                 # Update dict
                 for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                     flex_dict[key].append(fdict[key])
@@ -559,7 +560,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
                 break
 
             # Interpolate
-            new_sky = specobj.flexure_interp(sky_wave, fdict)
+            new_sky = specobj.apply_spectral_flexure(sky_wave, fdict)
             # Update dict
             for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                 flex_dict[key].append(fdict[key])
@@ -581,7 +582,7 @@ def spec_flexure_obj(specobjs, slitord, bpm, method, sky_file, mxshft=None):
             # Copy me
             fdict = copy.deepcopy(sv_fdict)
             # Interpolate
-            new_sky = specobj.flexure_interp(sky_wave, fdict)
+            new_sky = specobj.apply_spectral_flexure(sky_wave, fdict)
             # Update dict
             for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                 flex_dict[key].append(fdict[key])

@@ -350,40 +350,54 @@ class SpecObj(datamodel.DataContainer):
         return copy.deepcopy(self)
 
     @staticmethod
-    def apply_flexure_correction(self):
+    def flexure_interp(shift, wave, wavein=None):
+        """
+        Perform interpolation on wave given a shift in pixels
 
-        return
+        Args:
+            shift (float):
+                Shift in pixels
+            wave (`numpy.ndarray`_):
+                extracted wave of size nspec
+            wavein (`numpy.ndarray`_, optional):
+                Apply the shift to this array of wavelengths
+        Returns:
+            `numpy.ndarray`_: Wavelength scale corrected for spectral flexure
 
-    def flexure_interp(self, sky_wave, fdict):
+        """
+        npix = wave.size
+        x = np.linspace(0., 1., npix)
+        f = interpolate.interp1d(x, wave, bounds_error=False, fill_value="extrapolate")
+        twave = f(x + shift / (npix - 1))
+        # If this shift is to be applied onto another wave scale, reinterpolate
+        if wavein is not None:
+            f = interpolate.interp1d(wave, twave, bounds_error=False, fill_value="extrapolate")
+            twave = f(wavein)
+        return twave
+
+    def apply_spectral_flexure(self, fdict):
         """
         Apply interpolation with the flexure dict
 
         Args:
-            sky_wave (np.ndarray): Wavelengths of the extracted sky
-            fdict (dict): Holds the various flexure items
+            fdict (dict):
+                Holds the various flexure items
 
         Returns:
             xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
-
         """
         # Simple interpolation to apply
-        npix = len(sky_wave)
-        x = np.linspace(0., 1., npix)
         # Apply
         for attr in ['BOX', 'OPT']:
             if self[attr+'_WAVE'] is not None:
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
                           msgs.newline() + "{0:s}".format(str(self.NAME)))
-                f = interpolate.interp1d(x, sky_wave, bounds_error=False, fill_value="extrapolate")
-                self[attr+'_WAVE'] = f(x + fdict['shift'] / (npix - 1)) #* units.AA
+                self[attr+'_WAVE'] = self.flexure_interp(fdict['shift'], self[attr+'_WAVE']).copy()
         # Shift sky spec too
-        cut_sky = fdict['sky_spec']
-        x = np.linspace(0., 1., cut_sky.npix)
-        f = interpolate.interp1d(x, cut_sky.wavelength.value, bounds_error=False, fill_value="extrapolate")
-        twave = f(x + fdict['shift'] / (cut_sky.npix - 1)) * units.AA
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, cut_sky.flux))
-        # Save
-        self.FLEX_SHIFT = fdict['shift']
+        twave = self.flexure_interp(fdict['shift'], fdict['sky_spec'].wavelength.value) * units.AA
+        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, fdict['sky_spec'].flux))
+        # Save - since flexure may have been applied/calculated twice, this needs to be additive
+        self.FLEX_SHIFT += fdict['shift']
         # Return
         return new_sky
 
