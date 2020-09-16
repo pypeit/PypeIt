@@ -178,7 +178,6 @@ class Reduce(object):
         self.objimage = None
         self.skyimage = None
         self.initial_sky = None
-        self.global_skyset = None
         self.global_sky = None
         self.skymask = None
         self.outmask = None
@@ -560,14 +559,13 @@ class Reduce(object):
             thismask = self.slitmask == slit_spat
             inmask = (self.sciImg.fullmask == 0) & thismask & skymask_now
             # Find sky
-            self.global_skyset, self.global_sky[thismask] \
-                    = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
-                                           thismask, self.slits_left[:,slit_idx],
-                                           self.slits_right[:,slit_idx],
-                                           inmask=inmask, sigrej=sigrej,
-                                           bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                           no_poly=self.par['reduce']['skysub']['no_poly'],
-                                           pos_mask=(not self.ir_redux), show_fit=show_fit)
+            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, self.sciImg.ivar, self.tilts,
+                                                             thismask, self.slits_left[:,slit_idx],
+                                                             self.slits_right[:,slit_idx],
+                                                             inmask=inmask, sigrej=sigrej,
+                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                             pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Mask if something went wrong
             if np.sum(self.global_sky[thismask]) == 0.:
                 self.reduce_bpm[slit_idx] = True
@@ -1453,13 +1451,12 @@ class IFUReduce(MultiSlitReduce, Reduce):
         model_ivar = self.sciImg.ivar.copy()
         for nn in range(numiter):
             msgs.info("Performing iterative joint sky subtraction - ITERATION {0:d}/{1:d}".format(nn+1, numiter))
-            self.global_skyset, self.global_sky[thismask] \
-                = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
-                                       thismask, self.slits_left, self.slits_right, inmask=inmask,
-                                       sigrej=sigrej, trim_edg=trim_edg,
-                                       bsp=self.par['reduce']['skysub']['bspline_spacing'],
-                                       no_poly=self.par['reduce']['skysub']['no_poly'],
-                                       pos_mask=(not self.ir_redux), show_fit=show_fit)
+            self.global_sky[thismask] = skysub.global_skysub(self.sciImg.image, model_ivar, tilt_wave,
+                                                             thismask, self.slits_left, self.slits_right, inmask=inmask,
+                                                             sigrej=sigrej, trim_edg=trim_edg,
+                                                             bsp=self.par['reduce']['skysub']['bspline_spacing'],
+                                                             no_poly=self.par['reduce']['skysub']['no_poly'],
+                                                             pos_mask=(not self.ir_redux), show_fit=show_fit)
             # Update the ivar image used in the sky fit
             msgs.info("Updating sky noise model")
             var = np.abs(self.global_sky - np.sqrt(2.0) * np.sqrt(self.sciImg.rn2img)) + self.sciImg.rn2img

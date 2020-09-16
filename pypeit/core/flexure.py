@@ -335,9 +335,10 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
             Passed to flex_shift()
 
     Returns:
-        numpy.ndarray: The input waveimg, corrected for spectral flexure
-        list:  list of dicts containing flexure results of each slit
-            Filled with a basically empty dict if the slit is skipped
+        tuple: Two element tuple containing (1) the input waveimg (`numpy.ndarray`_),
+               corrected for spectral flexure and (2) a list of dicts containing flexure
+               results of each slit. The latter is filled with a basically empty dict if
+               the slit is skipped
     """
     sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
