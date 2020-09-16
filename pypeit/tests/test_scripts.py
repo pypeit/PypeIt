@@ -220,6 +220,7 @@ def test_coadd1d_1():
     assert hdu[1].header['FLUXED'] is False
 
     # Clean up
+    hdu.close()
     os.remove(parfile)
     os.remove(coadd_ofile)
 
@@ -244,6 +245,7 @@ def test_coadd1d_2():
     assert hdu[1].header['FLUXED'] is False
 
     # Clean up
+    hdu.close()
     os.remove(parfile)
     os.remove(coadd_ofile)
 
