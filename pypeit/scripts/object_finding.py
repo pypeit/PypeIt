@@ -106,7 +106,7 @@ def main(args):
 
     # Assumes a MasterSlit file has been written
     #slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
-                                               mdir)
+    #                                           mdir)
     # Load the slits information
     slits = slittrace.SlitTraceSet.from_master(mast_key, mdir)
 
