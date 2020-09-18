@@ -185,6 +185,7 @@ class Reduce(object):
         # SpecObjs object
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
+        self.slitShift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
 
     def initialise_slits(self, initial=False):
         """
@@ -697,36 +698,24 @@ class Reduce(object):
                     slit_sky = moment1d(self.global_sky * mask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
                     # Denom is computed in case the trace goes off the edge of the image
                     slit_wave = moment1d(self.waveimg * mask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
-
-                    # TODO :: REMOVE THIS OLD CODE
-                    # coeff2 = self.waveTilts.coeffs[:self.waveTilts.spec_order[ss] + 1,
-                    #                                :self.waveTilts.spat_order[ss] + 1, ss]
-                    # pypeitFit = fitting.PypeItFit(fitc=coeff2, minx=0.0, maxx=1.0,
-                    #                               minx2=0.0, maxx2=1.0, func=self.waveTilts.func2d)
-                    # tilt_slitcen = pypeitFit.eval(trace_spec, x2=trace_spat[:, ss])
-                    # slit_wave = self.wv_calib.wv_fits[ss].pypeitfit.eval(tilt_slitcen)
-                    # tilt_slitcen *= (self.slits.nspec - 1)
-                    # coords = (np.arange(self.slits.nspec), np.round(trace_spat*(self.slits.nspat-1))[:, ss].astype(np.int))
-                    # slit_sky = self.global_sky[coords]
-                    ## OLD:
-                    # action, laction, uaction = self.global_skyset.action(tilt_slitcen)
-                    # slit_sky_alt, _ = self.global_skyset.value(tilt_slitcen, action=action, lower=laction, upper=uaction)
-                    # from matplotlib import pyplot as plt
-                    # plt.plot(slit_wave, slit_sky_alt, 'k-')
-                    # plt.plot(slit_wave, self.global_sky[coords], 'r-')
-                    # plt.show()
-
                     slitSpecs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+
             # Measure flexure
             waveimg_new, flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.slitmask,
                                                                self.reduce_bpm, self.par['flexure']['spectrum'],
                                                                method=self.par['flexure']['spec_method'],
                                                                mxshft=self.par['flexure']['spec_maxshift'],
-                                                               specobjs=specObjs, waveimg=wvimg, slitspecs=slitSpecs)
-            # TODO :: DO NOT MERGE UNTIL ---> Need to apply "global" shifts to the specobjs
+                                                               specobjs=specObjs, waveimg=wvimg, slitspecs=slitSpecs,
+                                                               slitShift=self.slitShift)
             if waveimg_new is not None:
                 self.waveimg = waveimg_new.copy()
-            # QA
+                # Store the slit shifts that were applied to each slit
+                # These corrections are later needed so the headers of the specobjs contains the total spectral flexure
+                self.slitShift = np.zeros(self.slits.nslits)
+                for islit in range(self.slits.nslits):
+                    self.slitShift[islit] = flex_list[islit]['shift'][0]
+
+            # Save QA
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     specobjs=specObjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:

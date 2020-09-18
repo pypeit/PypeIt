@@ -397,9 +397,18 @@ class SpecObj(datamodel.DataContainer):
         twave = self.flexure_interp(fdict['shift'], fdict['sky_spec'].wavelength.value) * units.AA
         new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, fdict['sky_spec'].flux))
         # Save - since flexure may have been applied/calculated twice, this needs to be additive
-        self.FLEX_SHIFT += fdict['shift']
+        self.update_flex_shift(fdict['shift'])
         # Return
         return new_sky
+
+    def update_flex_shift(self, shift):
+        """Store the total spectral flexure shift in pixels
+
+        Args:
+            shift (float):
+                additive spectral flexure in pixels
+        """
+        self.FLEX_SHIFT += shift
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,
