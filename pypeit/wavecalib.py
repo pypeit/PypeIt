@@ -1,7 +1,8 @@
 """
 Module for guiding 1D Wavelength Calibration
 
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import os
 import copy

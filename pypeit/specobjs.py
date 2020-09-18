@@ -2,7 +2,8 @@
 Module for the SpecObjs and SpecObj classes
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import os
 import re
