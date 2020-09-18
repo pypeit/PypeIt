@@ -66,3 +66,4 @@ def test_deimos():
 
         # Clean up after every setup
         shutil.rmtree(output_path)
+
