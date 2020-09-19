@@ -1616,7 +1616,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
     # [left, bottom, width, height]
     num_plot =  fig.add_axes([0.10, 0.70, 0.80, 0.23])
     spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60])
-    num_plot.plot(wave[wave_mask],nused[wave_mask],linestyle='steps-mid',color='k',lw=2)
+    num_plot.plot(wave[wave_mask],nused[wave_mask],drawstyle='steps-mid',color='k',lw=2)
     num_plot.set_xlim([wave_min, wave_max])
     num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])
     num_plot.set_ylabel('$\\rm N_{EXP}$')

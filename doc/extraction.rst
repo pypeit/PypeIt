@@ -40,6 +40,14 @@ the following to your :doc:`pypeit_file`::
 This may lead to a few additional CRs entering your
 extraction.
 
+And when viewing the 2D spectrum using the
+:ref:`out_spec2D:pypeit_show_2dspec` script,
+you should use the *--ignore_extract_mask* option.
+
+For very extended, bright emission lines you may need
+to use *skip_optimal* to avoid poor local sky subtraction.
+
+
 Manual
 ------
 
