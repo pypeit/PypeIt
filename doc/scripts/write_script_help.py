@@ -1,5 +1,5 @@
 """
-Dynamically build the rst documentation of the bitmasks.
+Dynamically build the rst documentation with the script help text.
 """
 
 import os

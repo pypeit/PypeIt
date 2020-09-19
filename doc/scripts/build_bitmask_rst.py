@@ -1,5 +1,5 @@
 """
-Dynamically build the rst documentation for the Calibration Images
+Dynamically build tables for the bitmasks.
 """
 
 import os
