@@ -28,7 +28,7 @@ from pypeit import masterframe
 from pypeit import spec2dobj
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
     parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in a '
                                                  'Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -46,6 +46,9 @@ def parser(options=None):
                         action='store_true')
     parser.add_argument('--ignore_extract_mask', default=False, help='Ignore the extraction mask',
                         action='store_true')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 

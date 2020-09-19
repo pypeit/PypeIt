@@ -4,7 +4,7 @@
 Bitmasks
 ========
 
-The DAP has implemented a generalized class for handling bitmasks.
+``PypeIt`` has implemented a generalized class for handling bitmasks.
 
 .. include:: include/links.rst
 
