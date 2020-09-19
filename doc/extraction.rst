@@ -30,8 +30,15 @@ will, by default, *not* be extracted.
 You can, however, turn off the rejection of these pixels
 based on their different spatial profile
 by setting the use_2dmodel_mask paramter in
-:ref:`pypeit_par:ExtractionPar Keywords` to False.
+:ref:`pypeit_par:ExtractionPar Keywords` to False, e.g. add
+the following to your :doc:`pypeit_file`::
 
+    [reduce]
+        [[extraction]]
+             use_2dmodel_mask = False
+
+This may lead to a few additional CRs entering your
+extraction.
 
 Manual
 ------
