@@ -52,7 +52,7 @@ i.e. above the ``Science/`` folder where the spec2d image is located.
 The script usage can be displayed by calling the script with the
 ``-h`` option:
 
-.. include: help/pypeit_show_2dspec.rst
+.. include:: help/pypeit_show_2dspec.rst
 
 Here is a typical call:
 
