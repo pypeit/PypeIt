@@ -11,9 +11,6 @@ from pypeit.utils import to_string, string_table
 
 from IPython import embed
 
-def link_string(p):
-    return '`{0} Keywords`_'.format(type(p).__name__)
-
 #-----------------------------------------------------------------------------
 
 def write_bitmask_table(obj, path):
