@@ -68,7 +68,6 @@ class SpecObjs:
         # Add on the header
         slf.header = hdul[0].header
         # Keep track of HDUList for closing later
-        slf.hdul = hdul
 
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
@@ -89,6 +88,7 @@ class SpecObjs:
             # Append
             slf.add_sobj(sobj)
         # Return
+        hdul.close()
         return slf
 
     def __init__(self, specobjs=None, header=None):
@@ -630,15 +630,6 @@ class SpecObjs:
         hdulist = fits.HDUList(hdus)
         if debug:
             import pdb; pdb.set_trace()
-        if isinstance(_specobjs, SpecObjs):
-            # We read this in using SpecObjs.from_fitsfile()
-            # and need to clean up for Windows
-            if _specobjs.hdul is not None:
-                _specobjs.hdul.close()
-        else:
-            if self.hdul is not None:
-                # Windows cleanup
-                self.hdul.close()
         hdulist.writeto(outfile, overwrite=overwrite)
         msgs.info("Wrote 1D spectra to {:s}".format(outfile))
         return

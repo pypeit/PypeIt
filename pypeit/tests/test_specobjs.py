@@ -130,5 +130,4 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     _sobjs1 = specobjs.SpecObjs.from_fitsfile(ofile)
     assert _sobjs1.nobj == 3
     assert _sobjs1[2].BOX_WAVE.size == 2000
-    _sobjs1.hdul.close()
     os.remove(ofile)

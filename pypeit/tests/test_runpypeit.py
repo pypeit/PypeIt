@@ -137,7 +137,6 @@ def test_run_pypeit():
     spec1d_file = os.path.join(configdir, 'Science', 'spec1d_b27-J1217p3905_KASTb_2015May20T045733.560.fits')
     assert os.path.isfile(spec1d_file)
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
-    specObjs.hdul.close()
 
     # Flexure
     assert specObjs[0].FLEX_SHIFT != 0., 'Flexure not calculated!'
