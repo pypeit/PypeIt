@@ -164,3 +164,7 @@ left mouse button near the object trace. Once selected, press the
 'd' key. If you're sure you want to delete this trace, select "Yes"
 from the information panel.
 
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_find_objects.rst

@@ -76,25 +76,10 @@ pypeit_show_1dspec
 The spectra may be viewed with the `pypeit_show_1dspec`_ script
 which loads the data and launches a GUI from the *linetools* package.
 
-Here is the usage (use *pypeit_show_1dspec -h* to see the most current)::
+The script usage can be displayed by calling the script with the
+``-h`` option:
 
-    usage: pypeit_show_1dspec [-h] [--list] [--exten EXTEN] [--obj OBJ]
-                          [--extract EXTRACT] [--flux]
-                          file
-
-    Parse
-
-    positional arguments:
-      file               Spectral file
-
-    optional arguments:
-      -h, --help         show this help message and exit
-      --list             List the extensions only?
-      --exten EXTEN      FITS extension
-      --obj OBJ          Object name in lieu of extension, e.g.
-                         SPAT0424-SILT0000-DET01
-      --extract EXTRACT  Extraction method. Default is OPT. ['BOX', 'OPT']
-      --flux             Show fluxed spectrum?
+.. include:: help/pypeit_show_1dspec.rst
 
 Here is a typical call::
 

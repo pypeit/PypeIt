@@ -79,9 +79,12 @@ pypeit_chk_2dslits
 ------------------
 
 This script prints to the screen a short summary of the slit
-information, detector by detector.  Here is an example::
+information, detector by detector.
 
-    pypeit_chk_2dslits 
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_2dslits.rst
 
 
 Identifying Slits
