@@ -21,7 +21,7 @@ from pypeit.core.parse import get_dnum
 from pypeit import slittrace
 
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in the'
                                                  'interactive object finding GUI.  Run above'
@@ -33,6 +33,9 @@ def parser(options=None):
                         action="store_true")
     parser.add_argument('--det', default=1, type=int, help="Detector")
     parser.add_argument("--old", default=False, action="store_true", help="Used old slit tracing")
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -106,7 +109,7 @@ def main(args):
 
     # Assumes a MasterSlit file has been written
     #slits = slittrace.SlitTraceSet.from_master('{0}_{1:02d}'.format(head0['TRACMKEY'], args.det),
-                                               mdir)
+    #                                           mdir)
     # Load the slits information
     slits = slittrace.SlitTraceSet.from_master(mast_key, mdir)
 

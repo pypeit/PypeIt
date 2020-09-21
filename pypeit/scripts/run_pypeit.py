@@ -6,13 +6,11 @@
 """
 This script runs PypeIt
 """
-import argparse
 
 from pypeit import msgs
 
-import warnings
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
 
     parser = argparse.ArgumentParser(description=msgs.usage('PypeIt'),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -49,11 +47,10 @@ def parser(options=None):
 #                         help='Number of CPUs for parallel processing')
 #    parser.print_help()
 
-    if options is None:
-        pargs = parser.parse_args()
-    else:
-        pargs = parser.parse_args(options)
-    return pargs
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):

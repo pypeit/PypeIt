@@ -7,7 +7,6 @@
 This script enables the viewing of a processed FITS file
 with extras.  Run above the Science/ folder.
 """
-import argparse
 import os
 
 import numpy as np
@@ -29,6 +28,7 @@ from pypeit import spec2dobj
 
 
 def parse_args(options=None, return_parser=False):
+    import argparse
     parser = argparse.ArgumentParser(description='Display sky subtracted, spec2d image in a '
                                                  'Ginga viewer.  Run above the Science/ folder',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)

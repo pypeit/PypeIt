@@ -7,8 +7,7 @@
 This script generates a sky spectrum from a LowRedux IDL save file
 """
 
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -17,11 +16,10 @@ def parser(options=None):
                         help = 'LowRedux Sky Spectrum (IDL save file)')
     parser.add_argument('new_file', type = str, default = None, help = 'PYPIT FITS sky spectrum')
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(args):

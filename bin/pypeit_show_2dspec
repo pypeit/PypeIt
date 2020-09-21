@@ -12,3 +12,5 @@ from pypeit.scripts import show_2dspec
 
 if __name__ == '__main__':
     show_2dspec.main(show_2dspec.parse_args())
+
+

@@ -7,5 +7,5 @@ Run QL on MOS
 from pypeit.scripts import  ql_mos
 
 if __name__ == '__main__':
-    args = ql_mos.parser()
-    ql_mos.main(args)
+    ql_mos.main(ql_mos.parse_args())
+

@@ -6,7 +6,8 @@
 """
 This script runs PypeIt on a set of MultiSlit images
 """
-def parser(options=None):
+
+def parse_args(options=None, return_parser=False):
     import argparse
 
     parser = argparse.ArgumentParser(description='Script to run PypeIt in QuickLook on a set of '
@@ -28,10 +29,13 @@ def parser(options=None):
     parser.add_argument('--slit_spat', type=str,
                         help='Reduce only this slit on this detector DET:SPAT_ID, e.g. 1:175')
 
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def main(pargs):
+def main(args):
 
     import os
     import numpy as np
@@ -43,21 +47,21 @@ def main(pargs):
     from pypeit.core import framematch
     from pypeit import msgs
 
-    spec = pargs.spectrograph
+    spec = args.spectrograph
 
     # Config the run
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
     cfg_lines += ['    redux_path = {0}_A'.format(os.path.join(os.getcwd(),spec))]
-    if pargs.slit_spat is not None:
+    if args.slit_spat is not None:
         msgs.info("--slit_spat provided.  Ignoring --det")
     else:
-        cfg_lines += ['    detnum = {0}'.format(pargs.det)]
+        cfg_lines += ['    detnum = {0}'.format(args.det)]
     # Restrict on slit
-    if pargs.slit_spat is not None:
-        cfg_lines += ['    slitspatnum = {0}'.format(pargs.slit_spat)]
+    if args.slit_spat is not None:
+        cfg_lines += ['    slitspatnum = {0}'.format(args.slit_spat)]
     # Allow for bad headers
-    if pargs.ignore_headers:
+    if args.ignore_headers:
         cfg_lines += ['    ignore_bad_headers = True']
     cfg_lines += ['[scienceframe]']
     cfg_lines += ['    [[process]]']
@@ -67,23 +71,23 @@ def main(pargs):
     cfg_lines += ['    use_biasimage = False']
     cfg_lines += ['[calibrations]']
     # Input pixel flat?
-    if pargs.user_pixflat is not None:
+    if args.user_pixflat is not None:
         cfg_lines += ['    [[flatfield]]']
-        cfg_lines += ['        pixelflat_file = {0}'.format(pargs.user_pixflat)]
+        cfg_lines += ['        pixelflat_file = {0}'.format(args.user_pixflat)]
     # Reduction restrictions
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['         skip_optimal = True']
     # Set boxcar radius
-    if pargs.box_radius is not None:
-        cfg_lines += ['    boxcar_radius = {0}'.format(pargs.box_radius)]
+    if args.box_radius is not None:
+        cfg_lines += ['    boxcar_radius = {0}'.format(args.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['         skip_second_find = True']
 
     # Data files
-    data_files = [os.path.join(pargs.full_rawpath, pargs.arc),
-                  os.path.join(pargs.full_rawpath, pargs.flat),
-                  os.path.join(pargs.full_rawpath,pargs.science)]
+    data_files = [os.path.join(args.full_rawpath, args.arc),
+                  os.path.join(args.full_rawpath, args.flat),
+                  os.path.join(args.full_rawpath,args.science)]
 
     # Setup
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name=spec,
@@ -94,7 +98,7 @@ def main(pargs):
     file_bits = np.zeros(3, dtype=bm.minimum_dtype())
     file_bits[0] = bm.turn_on(file_bits[0], ['arc', 'tilt'])
     file_bits[1] = bm.turn_on(file_bits[1], ['pixelflat', 'trace', 'illumflat']
-                                             if pargs.user_pixflat is None 
+                                             if args.user_pixflat is None 
                                              else ['trace', 'illumflat'])
     file_bits[2] = bm.turn_on(file_bits[2], 'science')
 
