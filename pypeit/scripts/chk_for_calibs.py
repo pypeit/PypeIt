@@ -8,9 +8,10 @@ This script examines a set of files and indicates which do and
 which do not have sufficient calibs
 """
 
+from pypeit import defs
+
 def parse_args(options=None, return_parser=False):
     import argparse
-    from pypeit import defs
 
     parser = argparse.ArgumentParser(description="Script to check for calibrations [v1]",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
