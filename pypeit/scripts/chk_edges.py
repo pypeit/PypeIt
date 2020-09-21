@@ -7,9 +7,10 @@
 This script displays the Trace image and the traces
 in an RC Ginga window (must be previously launched)
 """
-import argparse
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
+
     parser = argparse.ArgumentParser(description='Display MasterEdges image and trace data',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -22,15 +23,12 @@ def parser(options=None):
     parser.add_argument('--try_old', default=False, action='store_true',
                         help='Attempt to load old datamodel versions.  A crash may ensue..')
 
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
 
-# TODO: JFH I don't see why we are showing the edges and/or what the
-# purpose of all this if synced not synced is fore. edgetrace seems to
-# crash if the syncing fails. So if we have successfuly run EdgeTrace,
-# we create a slittrace object and the slittrace object is the thing we
-# should be showing not the edgetrace object. This has the advantage
-# that then orders are correctly labeled for Echelle which is not the
-# case with the current show method.
+
 def main(pargs):
     from pypeit import edgetrace
 

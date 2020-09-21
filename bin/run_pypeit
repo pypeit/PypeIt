@@ -9,11 +9,9 @@
 This script runs PypeIt
 """
 
-import pypeit.scripts.run_pypeit as run_pypeit
+from pypeit.scripts import run_pypeit
 import sys
 
 if __name__ == '__main__':
-    args = run_pypeit.parser()
-    rtval = run_pypeit.main(args)
-    sys.exit(rtval)
+    sys.exit(run_pypeit.main(run_pypeit.parse_args()))
 

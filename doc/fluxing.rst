@@ -39,7 +39,12 @@ pypeit_sensfunc
 ---------------
 
 The process is mediated by the *pypeit_sensfunc* script.
-Its usage (*pypeit_sensfunc -h*) describes its functionality.
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_sensfunc.rst
+
 Here is a typical call::
 
     pypeit_sensfunc spec1dfile -o Keck_LRISr_600_7500_sens.fits
@@ -146,13 +151,27 @@ add a Parameter block at the top of the file, e.g.::
       spec1d_FORS2.2019-07-12T08:34:55.904-FRB190611Host_FORS2_2019Jul12T083455.904.fits
     flux end
 
+To aid this setup, we provide the ``pypeit_flux_setup`` script.  
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_flux_setup.rst
+
+.. THIS NEEDS SOME MORE DESCRIPTION
+
 
 pypeit_flux_calib
 -----------------
 
 Fluxing is performed with the *pypeit_flux_calib* script.
-Use *pypeit_flux_calib -h* to see its full usage.  Here is a
-typical call::
+
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_flux_calib.rst
+
+Here is a typical call::
 
     pypeit_flux_calib flux_file.txt
 

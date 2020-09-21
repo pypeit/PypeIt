@@ -6,7 +6,9 @@
     - Exposure-time ranges removed
     - All frame types now key off OBSTYPE
 - Added more detail on citation policy to main page on readthedocs
-
+- Added docs for BitMasks
+- Altered scripts interface to allow for dynamically making the help
+  doc files
 
 1.1.1 (10 Sep 2020)
 -------------------

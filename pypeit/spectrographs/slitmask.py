@@ -2,7 +2,7 @@
 Module to define the SlitMask class
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 from collections import OrderedDict
 import warnings
