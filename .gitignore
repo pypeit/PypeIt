@@ -1,5 +1,8 @@
 # Folders#
 .idea/
+.vscode/
+build/*
+dist/*
 
 # Compiled source #
 ###################

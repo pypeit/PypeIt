@@ -13,5 +13,4 @@ to help setup the .pypeit file
 import pypeit.scripts.setup as setup
 
 if __name__ == '__main__':
-    args = setup.parser()
-    setup.main(args)
+    setup.main(setup.parser())

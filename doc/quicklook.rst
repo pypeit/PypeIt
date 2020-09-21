@@ -1,6 +1,6 @@
-**********
-Quick Look
-**********
+*********************
+Quick Look Reductions
+*********************
 
 Overview
 ========
@@ -163,5 +163,5 @@ Output
 
 If all goes smoothly, the code will generate four spectral
 output files, with 2 each with extensions of spec1d and
-spec2d.  These can be viewed with :ref:`pypeit-1dspec`
-and :ref:`pypeit-2dspec`.
+spec2d.  These can be viewed with :ref:`pypeit_show_1dspec`
+and :ref:`pypeit_show_2dspec`.

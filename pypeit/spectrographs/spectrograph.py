@@ -106,8 +106,6 @@ class Spectrograph:
         #   used by arsave.save_2d_images
         self.primary_hdrext = 0
 
-        self.minexp = 0  # TODO: NEED TO TIE TO INSTRUMENT PAR INSTEAD
-
         # Init meta
         self.meta_data_model = meta.get_meta_data_model()
         self.init_meta()

@@ -20,6 +20,7 @@ Inspecting
 PypeIt provides the `pypeit_chk_flats` script to inspect
 the key `MasterFlat`_ outputs.  See below
 
+.. _pypeit_chk_flats:
 
 pypeit_chk_flats
 ----------------

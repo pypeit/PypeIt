@@ -19,3 +19,4 @@ dependencies:
   - extension-helpers>=0.1
   - ginga>=3.0
   - linetools>=0.2
+  - pytest>=3.0.7
