@@ -39,7 +39,7 @@ You can construct the appropriate bitmask in two ways:
         bm = ImageBitMask()
 
     - Specifically for the ``spec2d*`` files, the names of the bits
-      and their order is save to the header. You can instantiate a
+      and their order is saved to the header. You can instantiate a
       generic :class:`pypeit.bitmask.BitMask` from the header;
       however, it's not clear how long this behavior will remain. To
       instantiate the relevant :class:`~pypeit.bitmask.BitMask` from

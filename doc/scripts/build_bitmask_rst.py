@@ -17,12 +17,13 @@ def write_bitmask_table(obj, path):
     bm = obj()
     ofile = os.path.join(path, '{0}_table.rst'.format(obj.__name__.lower()))
 
-    data_table = numpy.empty((bm.nbits+1, 3), dtype=object)
-    data_table[0,:] = ['Bit Name', 'Bit Value', 'Description']
+    data_table = numpy.empty((bm.nbits+1, 4), dtype=object)
+    data_table[0,:] = ['Bit Name', 'Bit Number', 'Decimal Value', 'Description']
     for i,k in enumerate(bm.bits.keys()):
         data_table[i+1,0] = k
         data_table[i+1,1] = to_string(bm.bits[k])
-        data_table[i+1,2] = to_string(bm.descr[bm.bits[k]])
+        data_table[i+1,2] = to_string(int(2**bm.bits[k]))
+        data_table[i+1,3] = to_string(bm.descr[bm.bits[k]])
 
     lines = string_table(data_table, delimeter='rst')
     with open(ofile, 'w') as f:

@@ -5,24 +5,30 @@ example, say you're processing an image and you want to set up a set of
 bits that indicate that the pixel is part of a bad-pixel mask, has a
 cosmic ray, or is saturated.  You can define the following::
 
-    from collections import OrderedDict
     from pypeit.bitmask import BitMask
 
-    bits = OrderedDict([('BPM', 'Pixel is part of a bad-pixel mask'),
-                        ('COSMIC', 'Pixel is contaminated by a cosmic ray'),
-                        ('SATURATED', 'Pixel is saturated.')])
+    bits = {'BPM':'Pixel is part of a bad-pixel mask',
+            'COSMIC':'Pixel is contaminated by a cosmic ray',
+            'SATURATED':'Pixel is saturated.'}
     image_bm = BitMask(list(bits.keys()), descr=list(bits.values()))
 
+.. note::
+
+    Consistency in the order of the dictionary keywords is *critical*
+    to the repeatability of the :class:`~pypeit.bitmask.BitMask`
+    instances. The above is possible because :obj:`dict` objects
+    automatically maintain the order of the provided keywords since
+    Python 3.7, the minimum required version for ``PypeIt``.
+    
 Or, better yet, define a derived class::
 
-    from collections import OrderedDict
     from pypeit.bitmask import BitMask
 
     class ImageBitMask(BitMask):
         def __init__(self):
-            bits = OrderedDict([('BPM', 'Pixel is part of a bad-pixel mask'),
-                                ('COSMIC', 'Pixel is contaminated by a cosmic ray'),
-                                ('SATURATED', 'Pixel is saturated.')])
+            bits = {'BPM':'Pixel is part of a bad-pixel mask',
+                    'COSMIC':'Pixel is contaminated by a cosmic ray',
+                    'SATURATED':'Pixel is saturated.'}
             super(ImageBitMask, self).__init__(list(bits.keys()), descr=list(bits.values()))
 
     image_bm = ImageBitMask()
