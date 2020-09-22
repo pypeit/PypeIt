@@ -47,7 +47,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
         if x_model[wkeep].size<2:
             print('Working between {} and {}'.format(min_x_det+xlag_range[0], max_x_det+xlag_range[1]))
             print('Not enough lines to run!!!')
-            sdev=1.E10
+            sdev=1e10
             return 0.
         x_model_trim=x_model[wkeep]
     else:

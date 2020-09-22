@@ -759,7 +759,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.amap=readsav(mp_dir+'amap.s{}.2003mar04.sav'.format(slider))
             self.bmap=readsav(mp_dir+'bmap.s{}.2003mar04.sav'.format(slider))
         else:
-            raise ValueError('No amap/bmap available for slider {0}'.format(slider))
+            msgs.error('No amap/bmap available for slider {0}'.format(slider))
         #TODO: Figure out which amap and bmap to use for slider 2
 
         return self.amap, self.bmap
@@ -825,8 +825,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 Raised if the user provides one but not both of the x
                 and y coordinates, if no coordinates are provided or
                 available within the :attr:`slitmask`, or if the
-                :attr:`grating` hasn't been defined and not file is
-                provided.
+                :attr:`grating`, :attr:`amap` or :attr:`bmap` haven't been
+                defined and not file is provided.
         """
         # Cannot provide just one of x or y
         if x is None and y is not None or x is not None and y is None:
@@ -870,6 +870,11 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
         # Instantiate the detector map, if necessary
         self.get_detector_map()
+
+        # hard-coded for DEIMOS: wavelength array if wave is None
+        if wave is None:
+            npoints = 250
+            wave = np.arange(npoints) * 24. + 4000.
 
         # Compute the detector image plane coordinates
         x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, self.amap, self.bmap,

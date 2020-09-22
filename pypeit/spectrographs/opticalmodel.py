@@ -2,6 +2,7 @@
 Module to generate an optical model for a spectrograph.
 """
 import warnings
+from pypeit import msgs
 import numpy
 import scipy
 import pdb
@@ -14,12 +15,12 @@ class ReflectionGrating:
     Doc this!
     """
     def __init__(self, ruling, tilt, roll, yaw, central_wave=None):
-        self.ruling = ruling  # Grating groove spacing in lines per mm
-        self.tilt = tilt  # Effective grating tilt (deg)
-        self.roll = roll  # Grating roll (deg)
-        self.yaw = yaw  # Grating yaw (deg)
+        self.ruling = ruling               # Grating groove spacing in lines per mm
+        self.tilt = tilt                   # Effective grating tilt (deg)
+        self.roll = roll                   # Grating roll (deg)
+        self.yaw = yaw                     # Grating yaw (deg)
 
-        self.central_wave = central_wave  # Central wavelength (angstroms)
+        self.central_wave = central_wave   # Central wavelength (angstroms)
 
         self.transform = self._get_grating_transform()
 
@@ -70,9 +71,9 @@ class ReflectionGrating:
         Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
         """
         if wave is None and self.central_wave is None:
-            raise ValueError('Must define a wavelength for the calculation.')
+            msgs.error('Must define a wavelength for the calculation.')
         if wave is None:
-            warnings.warn('Using central wavelength for calculation.')
+            msgs.info('Using central wavelength for calculation.')
         _wave = numpy.array([self.central_wave]) if wave is None else numpy.atleast_1d(wave)
         if _wave.ndim > 1:
             raise NotImplementedError('Input wavelength must be one number or a vector.')
