@@ -544,7 +544,8 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
             indx = specobjs.slitorder_indices(slitord)
             this_specobjs = specobjs[indx]
             nobj = np.sum(indx)
-            if nobj == 0: continue
+            if nobj == 0:
+                continue
             ncol = min(3, nobj)
         this_flex_dict = flex_list[islit]
 
@@ -587,22 +588,24 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
         # Repackage
         sky_spec = this_flex_dict['sky_spec'][iobj]
         arx_spec = this_flex_dict['arx_spec'][iobj]
+        min_wave = max(np.amin(arx_spec.wavelength.value), np.amin(sky_spec.wavelength.value))*units.AA
+        max_wave = min(np.amax(arx_spec.wavelength.value), np.amax(sky_spec.wavelength.value))*units.AA
 
         # Sky lines
         sky_lines = np.array([3370.0, 3914.0, 4046.56, 4358.34, 5577.338, 6300.304,
                               7340.885, 7993.332, 8430.174, 8919.610, 9439.660,
                               10013.99, 10372.88])*units.AA
         dwv = 20.*units.AA
-        gdsky = np.where((sky_lines > sky_spec.wvmin) & (sky_lines < sky_spec.wvmax))[0]
+        gdsky = np.where((sky_lines > min_wave) & (sky_lines < max_wave))[0]
         if len(gdsky) == 0:
             msgs.warn("No sky lines for Flexure QA")
-            return
+            continue
         if len(gdsky) > 6:
             idx = np.array([0, 1, len(gdsky)//2, len(gdsky)//2+1, -2, -1])
             gdsky = gdsky[idx]
 
         # Outfile
-        outfile = qa.set_qa_filename(basename, method+'_sky', det=det,slit=slitord, out_dir=out_dir)
+        outfile = qa.set_qa_filename(basename, method+'_sky', det=det, slit=slitord, out_dir=out_dir)
         # Figure
         plt.figure(figsize=(8, 5.0))
         plt.clf()
