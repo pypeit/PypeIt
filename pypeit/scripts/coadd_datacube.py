@@ -16,6 +16,7 @@ from astropy.io import fits
 from astropy.coordinates import AltAz, SkyCoord
 import scipy.optimize as opt
 from scipy.interpolate import interp1d
+from scipy import stats
 import numpy as np
 import copy
 
@@ -25,6 +26,7 @@ from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.procimg import grow_masked
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
+from pypeit.core import fitting
 from pypeit import spec2dobj
 
 
@@ -144,6 +146,86 @@ def dar_correction(wave_arr, coord, obstime, location, pressure, temperature, re
     return ra_diff, dec_diff
 
 
+def generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
+                            dspat, numfiles=None, all_ivar=None):
+    """ Generate a whitelight image of every input frame
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            RA values of each pixel from all spec2d files
+        all_dec (`numpy.ndarray`_):
+            DEC values of each pixel from all spec2d files
+        all_wave (`numpy.ndarray`_):
+            Wavelength values of each pixel from all spec2d files
+        all_sci (`numpy.ndarray`_):
+            Counts of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            Weights attributed to each pixel from all spec2d files
+        all_idx (`numpy.ndarray`_):
+            An index indicating which spec2d file each pixel originates from
+        dspat (float):
+            The size of each spaxel on the sky (in degrees)
+        numfiles (int, optional):
+            Number of spec2d files included. If not provided, it will be calculated from all_idx
+        all_ivar (`numpy.ndarray`_, optional):
+            Inverse variance of each pixel from all spec2d files. If provided,
+            inverse variance images will be calculated and return for each white light image.
+
+    Returns:
+        tuple : two 3D arrays will be returned, each of shape [N, M, numfiles],
+        where N and M are the spatial dimensions of the combined white light images.
+        The first array is a white light image, and the second array is the corresponding
+        inverse variance image. If all_ivar is None, this will be an empty array.
+    """
+    # Determine number of files
+    if numfiles is None:
+        numfiles = np.unique(all_idx).size
+
+    # Generate coordinates
+    cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
+    numra = int((np.max(all_ra) - np.min(all_ra)) * cosdec / dspat)
+    numdec = int((np.max(all_dec) - np.min(all_dec)) / dspat)
+    xbins = np.arange(1 + numra) - 1
+    ybins = np.arange(1 + numdec) - 1
+    spec_bins = np.arange(2) - 1
+    bins = (xbins, ybins, spec_bins)
+
+    # Generate a master 2D WCS to register all frames
+    coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
+    coord_dlt = [dspat, dspat, np.max(all_wave) - np.min(all_wave)]
+    whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+
+    whitelight_Imgs = np.zeros((numra, numdec, numfiles))
+    whitelight_ivar = np.zeros((numra, numdec, numfiles))
+    trim = 3
+    for ff in range(numfiles):
+        msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff + 1, numfiles))
+        ww = (all_idx == ff)
+        # Make the cube
+        pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
+        wlcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci[ww] * all_wghts[ww])
+        norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts[ww])
+        nrmCube = (norm > 0) / (norm + (norm == 0))
+        whtlght = (wlcube * nrmCube)[:, :, 0]
+        # Create a mask of good pixels (trim the edges)
+        msk = grow_masked(whtlght == 0, trim, 1) == 0
+        whtlght *= msk
+        # Set the masked regions to the minimum value
+        minval = np.min(whtlght[msk == 1])
+        whtlght[msk == 0] = minval
+        # Store the white light image
+        whitelight_Imgs[:, :, ff] = whtlght.copy()
+        # Now operate on the inverse variance image
+        if all_ivar is not None:
+            ivar_img, _ = np.histogramdd(pix_coord, bins=bins, weights=all_ivar[ww])
+            ivar_img = ivar_img[:, :, 0]
+            ivar_img *= msk
+            minval = np.min(ivar_img[msk == 1])
+            ivar_img[msk == 0] = minval
+            whitelight_ivar[:, :, ff] = ivar_img.copy()
+    return whitelight_Imgs, whitelight_ivar
+
+
 def generate_masterWCS(crval, cdelt, equinox=2000.0):
     """ Generate a WCS that will cover all input spec2D files
 
@@ -176,6 +258,73 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
     w.wcs.lonpole = 180.0  # Native longitude of the Celestial pole
     w.wcs.latpole = 0.0  # Native latitude of the Celestial pole
     return w
+
+
+def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx, dspat, dwv, numfiles=None):
+    # Determine number of files
+    if numfiles is None:
+        numfiles = np.unique(all_idx).size
+
+    # Generate a white light image of *all* data
+    msgs.info("Generating global white light image")
+    whitelight_Img, ivar = generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts, np.zeros(all_ra.size),
+                                                dspat, numfiles=1)
+    whitelight_Img = whitelight_Img[:, :, 0]
+    # Find the location of the object with the highest S/N in the combined white light image
+    idx_max = np.unravel_index(np.argmax(whitelight_Img), whitelight_Img.shape)
+    msgs.info("Highest S/N object located at spaxel (x, y) = {0:d}, {1:d}".format(idx_max[0], idx_max[1]))
+
+    # Generate a master 2D WCS to register all frames
+    coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
+    coord_dlt = [dspat, dspat, dwv]
+    whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
+    # Make the bin edges to be at +/- 1 pixels around the maximum (i.e. summing 9 pixels total)
+    numwav = int((np.max(all_wave) - np.min(all_wave)) / dwv)
+    xbins = np.array([idx_max[0]-1, idx_max[0]+2]) - 0.5
+    ybins = np.array([idx_max[1]-1, idx_max[1]+2]) - 0.5
+    spec_bins = np.arange(1 + numwav) - 0.5
+    bins = (xbins, ybins, spec_bins)
+
+    # Extract the spectrum of the highest S/N object
+    all_spec = np.zeros((numwav, numfiles))
+    all_snr = np.zeros((numwav, numfiles))
+    for ff in range(numfiles):
+        msgs.info("Extracting spectrum of highest S/N detection from frame {0:d}/{1:d}".format(ff + 1, numfiles))
+        ww = (all_idx == ff)
+        # Extract the spectrum
+        pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
+        spec, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci[ww])
+        norm, edges = np.histogramdd(pix_coord, bins=bins)
+        ivar, edges = np.histogramdd(pix_coord, bins=bins, weights=all_ivar[ww])
+        nrmSpec = (norm > 0) / (norm + (norm == 0))
+        spec = (spec*nrmSpec)[0, 0, :]
+        all_spec[:, ff] = spec.copy()
+        all_snr[:, ff] = spec*np.sqrt(ivar[0, 0, :])
+
+    # Construct the relative weights based on the S/N as a function of wavelength
+    # Obtain a wavelength of each pixel
+    wcs_res = whitelightWCS.wcs_pix2world(np.vstack((np.zeros(numwav), np.zeros(numwav), np.arange(numwav))).T, 0)
+    wave_spec = wcs_res[:, 2] * 1.0E10
+    # Identify the reference spectrum (the one with the highest typical S/N ratio)
+    medsnr = np.median(all_snr, axis=0)
+    ref_idx = np.argmax(medsnr)
+    msgs.info("The reference spectrum (frame {0:d}) has a typical S/N = {1:.3f}".format(ref_idx, medsnr[ref_idx]))
+    all_wghts = np.ones(all_sci.size)
+    for ff in range(numfiles):
+        ww = (all_idx == ff)
+        # The reference spectrum will have unit weights
+        if ff == ref_idx:
+            all_wghts[ww] = 1.0
+            continue
+        # Calculate the relative weights according the S/N
+        relsnr = (all_snr[:, ff]/all_snr[:, ref_idx])**2
+        # Perform a low order polynomial fit
+        wght_fit = fitting.robust_fit(wave_spec, relsnr, 3, function="legendre",
+                                      minx=wave_spec.min(), maxx=wave_spec.max(),
+                                      lower=5, upper=5)
+        # Apply fitting function to all wavelengths
+        all_wghts[ww] = wght_fit.eval(all_wave[ww])
+    return all_wghts
 
 
 def main(args):
@@ -314,38 +463,11 @@ def coadd_cube(files, det=1, overwrite=False):
     # Grab cos(dec) for convenience
     cosdec = np.cos(np.mean(all_dec) * np.pi / 180.0)
 
-    # If several frames are being combined, generate white light images to register the offsets
+    # Register spatial offsets between all frames if several frames are being combined
     if combine:
-        numra = int((np.max(all_ra)-np.min(all_ra)) * np.cos(np.mean(all_dec)*np.pi/180.0) / dspat)
-        numdec = int((np.max(all_dec)-np.min(all_dec))/dspat)
-        xbins = np.arange(1+numra)-1
-        ybins = np.arange(1+numdec)-1
-        spec_bins = np.arange(2)-1
-
-        # Generate a master 2D WCS to register all frames
-        coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
-        coord_dlt = [dspat, dspat, np.max(all_wave)-np.min(all_wave)]
-        whitelightWCS = generate_masterWCS(coord_min, coord_dlt)
-
-        # Register spatial offsets between all frames
-        whitelight_Imgs = np.zeros((numra, numdec, numfiles))
-        trim = 3
-        for ff in range(numfiles):
-            msgs.info("Generating white light image of frame {0:d}/{1:d}".format(ff+1, numfiles))
-            ww = (all_idx == ff)
-            # Make the cube
-            pix_coord = whitelightWCS.wcs_world2pix(np.vstack((all_ra[ww], all_dec[ww], all_wave[ww] * 1.0E-10)).T, 0)
-            wlcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci[ww] * all_wghts[ww])
-            norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_wghts[ww])
-            nrmCube = (norm > 0) / (norm + (norm == 0))
-            whtlght = (wlcube * nrmCube)[:, :, 0]
-            # Create a mask of good pixels (trim the edges)
-            msk = grow_masked(whtlght == 0, trim, 1) == 0
-            whtlght *= msk
-            # Set the masked regions to the median value
-            minval = np.min(whtlght[msk == 1])
-            whtlght[msk == 0] = minval
-            whitelight_Imgs[:, :, ff] = whtlght.copy()
+        # Generate white light images
+        whitelight_Imgs, _ = generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts, all_idx,
+                                                     dspat, numfiles=numfiles)
 
         # ref_idx will be the index of the cube with the highest S/N
         ref_idx = np.argmax(weights)
@@ -369,8 +491,25 @@ def coadd_cube(files, det=1, overwrite=False):
             all_ra[all_idx == ff] += ra_shift
             all_dec[all_idx == ff] += dec_shift
 
-        # Recalculate the white light images to get the relative weights of the images
-        weights = np.ones(numfiles)
+        # msgs.info("Recomputing white light images")
+        # # Generate white light images for each spec2D file
+        # whitelight_Imgs, whitelight_ivar = generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts,
+        #                                                            all_idx, dspat, numfiles=numfiles, all_ivar=all_ivar)
+        # Calculate the relative spectral weights of all pixels
+        all_wghts = calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx,
+                                               dspat, dwv, numfiles=numfiles)
+        # TODO :: Recalculate the white light images to get the relative weights of the images
+        # TODO :: SOME NOTES...
+        # Probably don't need to recalculate all individual white light images.
+        # Here is a better process:
+        # (1) generate a global white light image
+        # (2) Find spaxel with maximum S/N ratio
+        # (3) Histogram each spec2d file, centred around the spaxel of maximum S/N
+        #     (i.e. +/-1 pixel in each direction = 9 pixels total), but, perform
+        #     the wavelength binning so you get a spectrum of the brightest object.
+        # (4) Calculate the S/N of each pixel in the spectrum, relative to a reference spectrum
+        # (5) Find a way to apply these weights to all pixels within a given wavelength range.
+        #     Could do it by brute force, but this is surely going to be very slow... maybe jit it?
 
     # Generate a master WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
@@ -387,6 +526,7 @@ def coadd_cube(files, det=1, overwrite=False):
         spec_bins = np.arange(1+numwav)-0.5
     else:
         # TODO :: This is KCWI specific - probably should put this in the spectrograph file, or just delete it.
+        msgs.warn("This routine is Keck/KCWI specific")
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
         xbins = np.arange(1 + 24) - 12.0 - 0.5
         ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
@@ -401,9 +541,26 @@ def coadd_cube(files, det=1, overwrite=False):
     else:
         pix_coord = wcs.wcs_world2pix(np.vstack((all_ra, all_dec, all_wave*1.0E-10)).T, 0)
         hdr = wcs.to_header()
-    datacube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_sci*all_wghts)
-    norm, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_wghts)
-    ivarcube, edges = np.histogramdd(pix_coord, bins=(xbins, ybins, spec_bins), weights=all_ivar)
+    # Find the NGP coordinates for all input pixels
+    comb_method = 'mean'
+    numiter = 3
+    embed()
+    bins = (xbins, ybins, spec_bins)
+    count, edges, binidx = stats.binned_statistic_dd(pix_coord, pix_coord, bins=bins, statistic='count')
+    # Histogram
+    for ii in range(numiter):
+        datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
+        norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
+        ivarcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_ivar)
+        normCube = (norm > 0) / (norm + (norm == 0))
+        varCube = (ivarcube > 0) / (ivarcube + (ivarcube == 0))
+        # Update the weights
+
+
+    msgs.info("Generating final datacube")
+    datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
+    norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
+    ivarcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_ivar)
     normCube = (norm > 0) / (norm + (norm == 0))
     varCube = (ivarcube > 0) / (ivarcube + (ivarcube == 0))
 
