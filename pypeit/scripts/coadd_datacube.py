@@ -541,23 +541,9 @@ def coadd_cube(files, det=1, overwrite=False):
     else:
         pix_coord = wcs.wcs_world2pix(np.vstack((all_ra, all_dec, all_wave*1.0E-10)).T, 0)
         hdr = wcs.to_header()
+
     # Find the NGP coordinates for all input pixels
-    comb_method = 'mean'
-    numiter = 3
-    embed()
     bins = (xbins, ybins, spec_bins)
-    count, edges, binidx = stats.binned_statistic_dd(pix_coord, pix_coord, bins=bins, statistic='count')
-    # Histogram
-    for ii in range(numiter):
-        datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
-        norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-        ivarcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_ivar)
-        normCube = (norm > 0) / (norm + (norm == 0))
-        varCube = (ivarcube > 0) / (ivarcube + (ivarcube == 0))
-        # Update the weights
-
-
-    msgs.info("Generating final datacube")
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
     ivarcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_ivar)
