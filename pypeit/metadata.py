@@ -607,12 +607,12 @@ class PypeItMetaData:
             return_index (:obj:`bool`, optional):
                 Return row indices with the first occurence of these
                 configurations.
-            configs (:obj:`list`, optional):
-                A list of strings used to select the configurations
-                to include in the returned objects. If ['all'], pass
-                back all configurations. Otherwise, only return the
-                configurations matched to this provided list (e.g.,
-                ['A','C']).
+            configs (:obj:`str`, :obj:`list`, optional):
+                One or more strings used to select the configurations
+                to include in the returned objects. If ``'all'``,
+                pass back all configurations. Otherwise, only return
+                the configurations matched to this provided string or
+                list of strings (e.g., ['A','C']).
 
         Returns:
             numpy.array: The list of unique setup names.  A second
@@ -636,16 +636,14 @@ class PypeItMetaData:
             indx = indx[rm]
 
         # Restrict
+        _configs = None if configs is None else np.atleast_1d(configs)
         # TODO: Why do we need to specify 'all' here? Can't `configs is
         # None` mean that you want all the configurations? Or can we
         # make the default 'all'?
-        if configs is not None:
-            if configs[0] == 'all':
-                pass
-            else:
-                use = np.isin(setups, configs)
-                setups = setups[use]
-                indx = indx[use]
+        if configs is not None and 'all' not in _configs:
+            use = np.isin(setups, _configs)
+            setups = setups[use]
+            indx = indx[use]
 
         return setups, indx if return_index else setups
 
@@ -805,7 +803,7 @@ class PypeItMetaData:
                 A string or list of strings identifying frame types that
                 should be ignored when assigning the configurations.
             fill (:obj:`str`, optional):
-                If the 'setup' columns does not exist, fill the
+                If the 'setup' column does not exist, fill the
                 configuration setup columns with this single identifier.
                 Ignores other inputs.
 
@@ -833,6 +831,7 @@ class PypeItMetaData:
             for d, cfg in _configs.items():
                 if row_match_config(self.table[i], cfg, self.spectrograph):
                     self.table['setup'][i] = d
+
         # Deal with ignored frames (e.g. bias)
         #  For now, we set them to setup=A
         not_setup = self.table['setup'] == 'None'
@@ -841,7 +840,7 @@ class PypeItMetaData:
                                             else [ignore_frames]
             ckey = list(_configs.keys())[0]
             for idx in np.where(not_setup)[0]:
-                if self.table['frametype'][idx] in _ignore_frames:
+                if np.any(np.isin(self.table['frametype'][idx].split(','), _ignore_frames)):
                     self.table['setup'][idx] = ckey
 
     def _set_calib_group_bits(self):
@@ -1212,6 +1211,7 @@ class PypeItMetaData:
         if 'ra' not in self.keys() or 'dec' not in self.keys():
             msgs.warn('Cannot associate standard with science frames without sky coordinates.')
         else:
+            # TODO: Do we want to do this here?
             indx = self.type_bitmask.flagged(type_bits, flag='standard')
             for b, f, ra, dec in zip(type_bits[indx], self['filename'][indx], self['ra'][indx],
                                      self['dec'][indx]):
@@ -1221,7 +1221,7 @@ class PypeItMetaData:
                               + msgs.newline() + 'missed by the automatic identification.')
                     b = self.type_bitmask.turn_off(b, flag='standard')
                     continue
-    
+
                 # If an object exists within 20 arcmins of a listed standard,
                 # then it is probably a standard star
                 foundstd = flux_calib.find_standard_file(ra, dec, check=True)
@@ -1235,13 +1235,6 @@ class PypeItMetaData:
                 msgs.info(f)
             if not flag_unknown:
                 msgs.error("Check these files before continuing")
-    
-        # Now identify the dark frames
-        # TODO: This should not be here.  Move to instrument specific
-        # selection as above
-        indx = self.type_bitmask.flagged(type_bits, flag='bias') \
-                        & (self['exptime'].data.astype(float) > self.spectrograph.minexp)
-        type_bits[indx] = self.type_bitmask.turn_on(type_bits[indx], 'dark')
     
         # Finish up (note that this is called above if user is not None!)
         msgs.info("Typing completed!")
@@ -1472,7 +1465,7 @@ class PypeItMetaData:
         ff.write(yaml.dump(utils.yamlify(cfg)))
         ff.close()
 
-    def write_pypeit(self, ofile, ignore=None, cfg_lines=None, write_bkg_pairs=False,
+    def write_pypeit(self, output_path=None, ignore=None, cfg_lines=None, write_bkg_pairs=False,
                      configs=None):
         """
         Write a pypeit file in data-table format.
@@ -1485,9 +1478,9 @@ class PypeItMetaData:
         which can be specific to each instrument.
 
         Args:
-            ofile (:obj:`str`):
-                Name (typically the root) for the output .pypeit file.
-                Note: This does *not* specify the filename used.
+            output_path (:obj:`str`, optional):
+                Root path for the output pypeit files. If None, set
+                to current directory.
             overwrite (:obj:`bool`, optional):
                 Overwrite any existing file(s).
             ignore (:obj:`list`, optional):
@@ -1507,12 +1500,13 @@ class PypeItMetaData:
                       values are all originally set to -1.  **This is
                       currently the only option.**
 
-            configs (str, optional):
-                A list of strings used to select the configurations
-                to include in the returned objects. If ['all'], pass
-                back all configurations. Otherwise, only return the
-                configurations matched to this provided list (e.g.,
-                ['A','C']).  See :func:`get_configuration_names`.
+            configs (:obj:`str`, :obj:`list`, optional):
+                One or more strings used to select the configurations
+                to include in the returned objects. If ``'all'``,
+                pass back all configurations. Otherwise, only return
+                the configurations matched to this provided string or
+                list of strings (e.g., ['A','C']). See
+                :func:`get_configuration_names`.
 
         Raises:
             PypeItError:
@@ -1527,18 +1521,19 @@ class PypeItMetaData:
         setups, indx = self.get_configuration_names(ignore=ignore, return_index=True,
                                                     configs=configs)
 
-        # TODO: The output directory and file name are too obscure here
-        # given the input arguments.
+        # Output path
+        if output_path is None:
+            output_path = os.getcwd()
 
-        ofiles = []
-        for setup,i in zip(setups, indx):
+        ofiles = [None]*len(setups)
+        for j,(setup,i) in enumerate(zip(setups, indx)):
             # Create the output directory
             root = '{0}_{1}'.format(self.spectrograph.spectrograph, setup)
-            odir = os.path.join(os.path.split(ofile)[0], root)
+            odir = os.path.join(output_path, root)
             if not os.path.isdir(odir):
                 os.makedirs(odir)
             # Create the output file name
-            _ofile = os.path.join(odir, '{0}.pypeit'.format(root))
+            ofiles[j] = os.path.join(odir, '{0}.pypeit'.format(root))
             # Get the setup lines
             cfg = self.get_setup(i, config_only=False)
             setup_lines = yaml.dump(utils.yamlify(cfg)).split('\n')[:-1]
@@ -1552,10 +1547,8 @@ class PypeItMetaData:
                 subtbl.write(ff, format='ascii.fixed_width')
                 data_lines = ff.getvalue().split('\n')[:-1]
             # Write the file
-            make_pypeit_file(_ofile, self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
+            make_pypeit_file(ofiles[j], self.spectrograph.spectrograph, [], cfg_lines=cfg_lines,
                              setup_lines=setup_lines, sorted_files=data_lines, paths=paths)
-            #
-            ofiles.append(_ofile)
         # Return
         return ofiles
 
