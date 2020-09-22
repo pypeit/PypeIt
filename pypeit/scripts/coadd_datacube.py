@@ -320,7 +320,7 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
         relsnr = (all_snr[:, ff]/all_snr[:, ref_idx])**2
         # Perform a low order polynomial fit
         wght_fit = fitting.robust_fit(wave_spec, relsnr, 3, function="legendre",
-                                      minx=wave_spec.min(), maxx=wave_spec.max(),
+                                      minx=np.min(wave_spec), maxx=np.max(wave_spec),
                                       lower=5, upper=5)
         # Apply fitting function to all wavelengths
         all_wghts[ww] = wght_fit.eval(all_wave[ww])
