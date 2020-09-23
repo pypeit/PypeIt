@@ -1,4 +1,4 @@
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 
 .. _dev_reports:
 

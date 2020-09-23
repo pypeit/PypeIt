@@ -839,7 +839,6 @@ Alterations to the default parameters are::
       spectrograph = keck_deimos
   [calibrations]
       [[biasframe]]
-          exprng = None, 2
           [[[process]]]
               apply_gain = False
               combine = median
@@ -847,7 +846,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[darkframe]]
-          exprng = 999999, None
           [[[process]]]
               apply_gain = False
               use_biasimage = False
@@ -867,7 +865,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pixelflatframe]]
-          exprng = None, 30
           [[[process]]]
               combine = median
               satpix = nothing
@@ -876,7 +873,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[pinholeframe]]
-          exprng = 999999, None
           [[[process]]]
               use_biasimage = False
       [[alignframe]]
@@ -887,7 +883,6 @@ Alterations to the default parameters are::
               use_pixelflat = False
               use_illumflat = False
       [[traceframe]]
-          exprng = None, 30
           [[[process]]]
               use_biasimage = False
               use_pixelflat = False
@@ -912,7 +907,6 @@ Alterations to the default parameters are::
           minimum_slit_length_sci = 4.0
           minimum_slit_gap = 0.25
   [scienceframe]
-      exprng = 30, None
       [[process]]
           mask_cr = True
           sigclip = 4.0

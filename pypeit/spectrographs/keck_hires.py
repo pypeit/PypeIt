@@ -2,7 +2,7 @@
 Implements HIRES-specific functions, including reading in slitmask design files.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import glob
 import re

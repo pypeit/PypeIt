@@ -4,8 +4,8 @@
 Launch the identify GUI tool
 """
 
-from pypeit.scripts import launch_identify
+from pypeit.scripts import identify
 
 if __name__ == '__main__':
-    args = launch_identify.parser()
-    launch_identify.main(args)
+    identify.main(identify.parse_args())
+
