@@ -261,6 +261,36 @@ def generate_masterWCS(crval, cdelt, equinox=2000.0):
 
 
 def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx, dspat, dwv, numfiles=None):
+    """ Calculate wavelength dependent optimal weights. The weighting
+        is currently based on a relative (S/N)^2 at each wavelength
+
+    Args:
+        all_ra (`numpy.ndarray`_):
+            RA values of each pixel from all spec2d files
+        all_dec (`numpy.ndarray`_):
+            DEC values of each pixel from all spec2d files
+        all_wave (`numpy.ndarray`_):
+            Wavelength values of each pixel from all spec2d files
+        all_sci (`numpy.ndarray`_):
+            Counts of each pixel from all spec2d files
+        all_ivar (`numpy.ndarray`_):
+            Inverse variance of each pixel from all spec2d files
+        all_wghts (`numpy.ndarray`_):
+            Weights attributed to each pixel from all spec2d files
+        all_idx (`numpy.ndarray`_):
+            An index indicating which spec2d file each pixel originates from
+        dspat (float):
+            The size of each spaxel on the sky (in degrees)
+        dwv (float):
+            The size of each wavelength pixel (in Angstroms)
+        numfiles (int, optional):
+            Number of spec2d files included. If not provided, it will be calculated from all_idx
+
+    Returns:
+        `numpy.ndarray`_ : A 1D numpy array the same size as all_sci, containing
+        relative wavelength dependent weights for each input pixel.
+    """
+    msgs.info("Calculating the optimal weights of each pixel")
     # Determine number of files
     if numfiles is None:
         numfiles = np.unique(all_idx).size
@@ -318,13 +348,14 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
             continue
         # Calculate the relative weights according the S/N
         msk = (all_snr[:, ff] != 0) & (all_snr[:, ref_idx] != 0)
-        relsnr = (all_snr[:, ff]/all_snr[:, ref_idx])**2
+        relsnr = all_snr[:, ff] / all_snr[:, ref_idx]
         # Perform a low order polynomial fit
         wght_fit = fitting.robust_fit(wave_spec[msk], relsnr[msk], 3, function="legendre",
                                       minx=np.min(wave_spec), maxx=np.max(wave_spec),
                                       lower=5, upper=5)
         # Apply fitting function to all wavelengths
-        all_wghts[ww] = wght_fit.eval(all_wave[ww])
+        all_wghts[ww] = (wght_fit.eval(all_wave[ww]))**2  # Weight needs to be relative (S/N)^2
+    msgs.info("Optimal weighting complete")
     return all_wghts
 
 
@@ -492,25 +523,9 @@ def coadd_cube(files, det=1, overwrite=False):
             all_ra[all_idx == ff] += ra_shift
             all_dec[all_idx == ff] += dec_shift
 
-        # msgs.info("Recomputing white light images")
-        # # Generate white light images for each spec2D file
-        # whitelight_Imgs, whitelight_ivar = generate_whiteLightImgs(all_ra, all_dec, all_wave, all_sci, all_wghts,
-        #                                                            all_idx, dspat, numfiles=numfiles, all_ivar=all_ivar)
         # Calculate the relative spectral weights of all pixels
         all_wghts = calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all_wghts, all_idx,
                                                dspat, dwv, numfiles=numfiles)
-        # TODO :: Recalculate the white light images to get the relative weights of the images
-        # TODO :: SOME NOTES...
-        # Probably don't need to recalculate all individual white light images.
-        # Here is a better process:
-        # (1) generate a global white light image
-        # (2) Find spaxel with maximum S/N ratio
-        # (3) Histogram each spec2d file, centred around the spaxel of maximum S/N
-        #     (i.e. +/-1 pixel in each direction = 9 pixels total), but, perform
-        #     the wavelength binning so you get a spectrum of the brightest object.
-        # (4) Calculate the S/N of each pixel in the spectrum, relative to a reference spectrum
-        # (5) Find a way to apply these weights to all pixels within a given wavelength range.
-        #     Could do it by brute force, but this is surely going to be very slow... maybe jit it?
 
     # Generate a master WCS to register all frames
     coord_min = [np.min(all_ra), np.min(all_dec), np.min(all_wave)]
@@ -535,7 +550,6 @@ def coadd_cube(files, det=1, overwrite=False):
 
     # Make the cube
     msgs.info("Generating datacube")
-    # TODO :: Need to include variance weights and make a variance cube
     if combine:
         pix_coord = masterwcs.wcs_world2pix(all_ra, all_dec, all_wave * 1.0E-10, 0)
         hdr = masterwcs.to_header()
@@ -547,9 +561,12 @@ def coadd_cube(files, det=1, overwrite=False):
     bins = (xbins, ybins, spec_bins)
     datacube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_sci*all_wghts)
     norm, edges = np.histogramdd(pix_coord, bins=bins, weights=all_wghts)
-    ivarcube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_ivar)
     normCube = (norm > 0) / (norm + (norm == 0))
-    varCube = (ivarcube > 0) / (ivarcube + (ivarcube == 0))
+    datacube *= normCube
+    # Create the variance cube, including weights
+    all_var = (all_ivar > 0) / (all_ivar + (all_ivar == 0))
+    varCube, edges = np.histogramdd(pix_coord, bins=bins, weights=all_var * all_wghts**2)
+    varCube *= normCube**2
 
     # Save the datacube
     debug = False
@@ -565,7 +582,7 @@ def coadd_cube(files, det=1, overwrite=False):
     outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
-    sci_hdu = fits.ImageHDU((datacube*normCube).T, name="scicube", header=hdr)
+    sci_hdu = fits.ImageHDU(datacube.T, name="scicube", header=hdr)
     var_hdu = fits.ImageHDU(varCube.T, name="varcube", header=hdr)
     hdulist = fits.HDUList([primary_hdu, sci_hdu, var_hdu])
     hdulist.writeto(outfile, overwrite=overwrite)
