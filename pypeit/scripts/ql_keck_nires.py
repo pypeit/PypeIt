@@ -7,7 +7,7 @@
 This script runs PypeIt on a pair of NIRES images (A-B)
 """
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
     import argparse
 
     parser = argparse.ArgumentParser(description='Run PypeIt on an A-B pair of NIRES files',
@@ -18,10 +18,13 @@ def parser(options=None):
     parser.add_argument('-b', '--box_radius', type=float,
                         help='Set the radius for the boxcar extraction')
 
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def main(pargs):
+def main(args):
 
     import os
     import sys
@@ -36,8 +39,8 @@ def main(pargs):
 
 
     # Setup
-    data_files = [os.path.join(pargs.full_rawpath, pargs.fileA),
-                  os.path.join(pargs.full_rawpath,pargs.fileB)]
+    data_files = [os.path.join(args.full_rawpath, args.fileA),
+                  os.path.join(args.full_rawpath,args.fileB)]
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name='keck_nires')
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
@@ -77,8 +80,8 @@ def main(pargs):
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['        skip_optimal = True']
-    if pargs.box_radius is not None: # Boxcar radius
-        cfg_lines += ['        boxcar_radius = {0}'.format(pargs.box_radius)]
+    if args.box_radius is not None: # Boxcar radius
+        cfg_lines += ['        boxcar_radius = {0}'.format(args.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['        skip_second_find = True']
 

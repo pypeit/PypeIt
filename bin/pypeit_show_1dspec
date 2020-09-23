@@ -4,8 +4,8 @@
 Plot a spectrum with an interactive QT GUI
 """
 
-import pypeit.scripts.show_1dspec as show_1dspec
+from pypeit.scripts import show_1dspec
 
 if __name__ == '__main__':
-    args = show_1dspec.parser()
-    show_1dspec.main(args)
+    show_1dspec.main(show_1dspec.parse_args())
+

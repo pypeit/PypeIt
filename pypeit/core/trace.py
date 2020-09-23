@@ -9,7 +9,7 @@ TODO: Is there a way that we could define this link so that it's
 accessible by the docstring of all modules?
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 from collections import Counter
 

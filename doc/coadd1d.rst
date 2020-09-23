@@ -70,7 +70,12 @@ in the Science/folder (one per exposure).
 run
 ---
 
-Then run the script::
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_coadd_1dspec.rst
+
+An example execution looks like this::
 
     pypeit_coadd_1dspec FRB190714_LRISr_coadd1d_file.txt --show
 
