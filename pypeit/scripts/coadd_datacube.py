@@ -317,9 +317,10 @@ def calculate_spectral_weights(all_ra, all_dec, all_wave, all_sci, all_ivar, all
             all_wghts[ww] = 1.0
             continue
         # Calculate the relative weights according the S/N
+        msk = (all_snr[:, ff] != 0) & (all_snr[:, ref_idx] != 0)
         relsnr = (all_snr[:, ff]/all_snr[:, ref_idx])**2
         # Perform a low order polynomial fit
-        wght_fit = fitting.robust_fit(wave_spec, relsnr, 3, function="legendre",
+        wght_fit = fitting.robust_fit(wave_spec[msk], relsnr[msk], 3, function="legendre",
                                       minx=np.min(wave_spec), maxx=np.max(wave_spec),
                                       lower=5, upper=5)
         # Apply fitting function to all wavelengths
