@@ -267,9 +267,9 @@ def renormalize_errors(chi, mask, clip = 6.0, max_corr = 5.0, title = '', debug=
                       " Errors are overestimated so not applying correction")
             sigma_corr = 1.0
         if sigma_corr > max_corr:
-            msgs.warn("Error renormalization found sigma_corr/sigma = {:f} > {:f}." + msgs.newline() +
+            msgs.warn(("Error renormalization found sigma_corr/sigma = {:f} > {:f}." + msgs.newline() +
                       "Errors are severely underestimated." + msgs.newline() +
-                      "Setting correction to sigma_corr = {:4.2f}".format(sigma_corr, max_corr, max_corr))
+                      "Setting correction to sigma_corr = {:4.2f}").format(sigma_corr, max_corr, max_corr))
             sigma_corr = max_corr
 
         if debug:
