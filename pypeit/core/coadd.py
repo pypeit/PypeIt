@@ -548,7 +548,7 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     nspec = wave.size
     # Determine an initial guess
     ratio = robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=mask_ref,
-                                ref_percentile=ref_percentile)
+                                ref_percentile=ref_percentile, max_factor=scale_max)
     if 'poly' in model:
         guess = np.append(ratio, np.zeros(norder-1))
     elif 'square' in model:
