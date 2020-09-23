@@ -16,6 +16,8 @@ dist/*
 *.pyd
 *.pyc
 *_rjc*
+*.nbi
+*.nbc
  
 # Packages #
 ############
