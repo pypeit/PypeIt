@@ -1493,12 +1493,12 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
                    label='originally masked')
 
     if norder is None:
-        spec_plot.plot(wave[wave_mask], flux[wave_mask], color='dodgerblue', linestyle='steps-mid',
+        spec_plot.plot(wave[wave_mask], flux[wave_mask], color='dodgerblue', drawstyle='steps-mid',
                        zorder=2, alpha=0.5,label='single exposure')
         spec_plot.plot(wave[wave_mask], np.sqrt(utils.inverse(rejivar[wave_mask])),zorder=3,
-                       color='0.7', alpha=0.5, linestyle='steps-mid')
+                       color='0.7', alpha=0.5, drawstyle='steps-mid')
         spec_plot.plot(wave_stack[wave_stack_mask],flux_stack[wave_stack_mask]*mask_stack[wave_stack_mask],color='k',
-                       linestyle='steps-mid',lw=2,zorder=3, alpha=0.5, label='coadd')
+                       drawstyle='steps-mid',lw=2,zorder=3, alpha=0.5, label='coadd')
 
         # TODO Use one of our telluric models here instead
         # Plot transmission
@@ -1511,11 +1511,11 @@ def coadd_iexp_qa(wave, flux, rejivar, mask, wave_stack, flux_stack, ivar_stack,
         npix = np.size(flux)
         nspec = int(npix / norder)
         spec_plot.plot(wave_stack[wave_stack_mask], flux_stack[wave_stack_mask] * mask_stack[wave_stack_mask],
-                       color='k', linestyle='steps-mid', lw=1, zorder=3, alpha=0.5, label='coadd')
+                       color='k', drawstyle='steps-mid', lw=1, zorder=3, alpha=0.5, label='coadd')
         for iord in range(norder):
             spec_plot.plot(wave[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
                            flux[nspec*iord:nspec*(iord+1)][wave_mask[nspec*iord:nspec*(iord+1)]],
-                           linestyle='steps-mid', zorder=1, alpha=0.7, label='order {:d}'.format(iord))
+                           drawstyle='steps-mid', zorder=1, alpha=0.7, label='order {:d}'.format(iord))
 
     # This logic below allows more of the spectrum to be plotted if wave_ref is a multi-order stack which has broader
     # wavelength coverage. For the longslit or single order case, this will plot the correct range as well
@@ -1617,7 +1617,7 @@ def coadd_qa(wave, flux, ivar, nused, mask=None, tell=None, title=None, qafile=N
     # [left, bottom, width, height]
     num_plot =  fig.add_axes([0.10, 0.70, 0.80, 0.23])
     spec_plot = fig.add_axes([0.10, 0.10, 0.80, 0.60])
-    num_plot.plot(wave[wave_mask],nused[wave_mask],linestyle='steps-mid',color='k',lw=2)
+    num_plot.plot(wave[wave_mask],nused[wave_mask],drawstyle='steps-mid',color='k',lw=2)
     num_plot.set_xlim([wave_min, wave_max])
     num_plot.set_ylim([0.0, np.fmax(1.1*nused.max(), nused.max()+1.0)])
     num_plot.set_ylabel('$\\rm N_{EXP}$')
