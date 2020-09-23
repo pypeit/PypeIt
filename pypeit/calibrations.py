@@ -598,9 +598,6 @@ class Calibrations(object):
         # Check internals
         self._chk_set(['det', 'calib_ID', 'par'])
 
-        # Use slit-mask design if spectrograph is `keck_deimos`
-        maskdesign = True if self.spectrograph.spectrograph == 'keck_deimos' else False
-
         # Prep
         trace_image_files, self.master_key_dict['trace'] = self._prep_calibrations('trace')
 
@@ -631,7 +628,7 @@ class Calibrations(object):
                                                         dark=self.msdark)
                 self.edges = edgetrace.EdgeTraceSet(self.traceImage, self.spectrograph,
                                                     self.par['slitedges'], bpm=self.msbpm,
-                                                    auto=True, maskdesign=maskdesign)
+                                                    auto=True)
                 self.edges.to_master_file(edge_masterframe_name)
 
                 # Show the result if requested

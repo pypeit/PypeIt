@@ -435,7 +435,7 @@ class EdgeTraceSet(DataContainer):
     """DataContainer datamodel."""
 
     def __init__(self, traceimg, spectrograph, par, bpm=None, qa_path=None, auto=False,
-                 maskdesign=False, debug=False, show_stages=False):
+                 debug=False, show_stages=False):
 
         # Instantiate as an empty DataContainer
         super(EdgeTraceSet, self).__init__()
@@ -469,7 +469,7 @@ class EdgeTraceSet(DataContainer):
         # None.
         if auto:
             # Run the automatic tracing
-            self.auto_trace(bpm=bpm, maskdesign=maskdesign, debug=debug, show_stages=show_stages)
+            self.auto_trace(bpm=bpm, debug=debug, show_stages=show_stages)
         else:
             # Only get the initial trace
             self.initial_trace(bpm=bpm)
@@ -671,7 +671,7 @@ class EdgeTraceSet(DataContainer):
                                       max_ocol=self.nspat-1, extract_width=extract_width,
                                       mask_threshold=mask_threshold)
 
-    def auto_trace(self, bpm=None, maskdesign=False, debug=False, show_stages=False):
+    def auto_trace(self, bpm=None, debug=False, show_stages=False):
         r"""
         Execute a fixed series of methods to automatically identify
         and trace slit edges.
@@ -702,21 +702,22 @@ class EdgeTraceSet(DataContainer):
               traces* are based on the result of :func:`peak_refine`.
             - Synchronize the left and right traces into pairs that
               define slit apertures using :func:`sync`.
-            - Use :func:`maskdesign_matching` to add match the slit
+            - Use :func:`maskdesign_matching` to match the slit
               edge traces found with the ones predicted by the
               slit-mask design.
             - Use :func:`add_user_traces` and :func:`rm_user_traces`
               to add and remove traces as defined by the
               user-provided lists in the :attr:`par`.
 
+        Used parameters from :attr:`par`
+        (:class:`pypeit.par.pypeitpar.EdgeTracePar`) are
+        `use_maskdesign`.
+
         Args:
             bpm (`numpy.ndarray`_, optional):
                 Bad-pixel mask for the trace image. Must have the
                 same shape as `img`. If None, all pixels are assumed
                 to be valid.
-            maskdesign (:obj:`bool`, optional):
-                Run the slit-mask design matching. This is optimazed only
-                for DEIMOS at the moment.
             debug (:obj:`bool`, optional):
                 Run in debug mode.
             show_stages (:obj:`bool`, optional):
@@ -802,8 +803,8 @@ class EdgeTraceSet(DataContainer):
         # [DP] `maskdesign_matching` for now is only matching the traces found with the ones predicted by
         # the slit-mask design. If we include the piece of code in which `maskdesign_matching` recovers
         # missing traces, we should move the following 2 lines before `self.sync()`
-        if maskdesign is True and self.pcatype is not None:
-            self.maskdesign_matching(offsets_range=[-50, 50], step=1, debug=False)
+        if self.par['use_maskdesign']:
+            self.maskdesign_matching(debug=debug)
 
         # First manually remove some traces, just in case a user
         # wishes to manually place a trace nearby a trace that
@@ -3988,7 +3989,7 @@ class EdgeTraceSet(DataContainer):
             bpm &= np.logical_not(np.any(self.bitmask.flagged(self.edge_msk, flag=exclude), axis=0))
         return bpm
     
-    def maskdesign_matching(self, offsets_range=[-50, 50], step=1, debug=False):
+    def maskdesign_matching(self, debug=False):
         """
         Match slit info from the mask design data to the traced slits.
 
@@ -4008,13 +4009,6 @@ class EdgeTraceSet(DataContainer):
 
 
         Args:
-            offsets_range (:obj:`list`):
-                range of offsets in pixels allowed between the slit positions predicted by
-                 the mask design and the traced slit positions.
-            step (:obj:`int`):
-                step in pixels used to generate a list of possible offsets within
-                the `offsets_range`:
-
             debug (:obj:`bool`, optional):
                 Run in debug mode.
         """
@@ -4080,7 +4074,7 @@ class EdgeTraceSet(DataContainer):
                         omodel_bspat[sortindx][i], omodel_tspat[sortindx][i]))
 
         reference_row = self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row
-        spat_bedge = self.edge_fit[reference_row,self.is_left]
+        spat_bedge = self.edge_fit[reference_row, self.is_left]
         spat_tedge = self.edge_fit[reference_row, self.is_right]
 
         # [DP] I am not sure how to incorporate the lines below.
@@ -4097,26 +4091,37 @@ class EdgeTraceSet(DataContainer):
         wh = omodel_tspat != omodel_bspat
         switched = np.mean(omodel_tspat[wh] - omodel_bspat[wh]) < 0
         # Matching
+        # `offsets_range` is the range of offsets in pixels allowed between the slit positions
+        # predicted by the mask design and the traced slit positions.
+        offsets_range = [-self.par['maskdesign_maxsep'], self.par['maskdesign_maxsep']]
         if not switched:
             # Bottom slit edge
-            spat_bedge_new, ind_b, coeff_b, sigres_b = slitdesign_matching.slit_match(spat_bedge, omodel_bspat,
-                                                step=step, xlag_range=offsets_range, print_matches=debug, edge='bottom')
+            spat_bedge_new, ind_b, coeff_b, sigres_b = \
+                slitdesign_matching.slit_match(spat_bedge, omodel_bspat, step=self.par['maskdesign_step'],
+                                               xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
+                                               print_matches=debug, edge='bottom')
             # Top slit edge
-            spat_tedge_new, ind_t, coeff_t, sigres_t = slitdesign_matching.slit_match(spat_tedge, omodel_tspat,
-                                                step=step, xlag_range=offsets_range, print_matches=debug, edge='top')
+            spat_tedge_new, ind_t, coeff_t, sigres_t = \
+                slitdesign_matching.slit_match(spat_tedge, omodel_tspat, step=self.par['maskdesign_step'],
+                                               xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
+                                               print_matches=debug, edge='top')
         else:
             # Bottom slit edge
-            spat_bedge_new, ind_b, coeff_b, sigres_b = slitdesign_matching.slit_match(spat_bedge, omodel_tspat,
-                                                step=step, xlag_range=offsets_range, print_matches=debug, edge='bottom')
+            spat_bedge_new, ind_b, coeff_b, sigres_b = \
+                slitdesign_matching.slit_match(spat_bedge, omodel_tspat, step=self.par['maskdesign_step'],
+                                               xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
+                                               print_matches=debug, edge='bottom')
             # Top slit edge
-            spat_tedge_new, ind_t, coeff_t, sigres_t = slitdesign_matching.slit_match(spat_tedge, omodel_bspat,
-                                                step=step, xlag_range=offsets_range, print_matches=debug, edge='top')
+            spat_tedge_new, ind_t, coeff_t, sigres_t = \
+                slitdesign_matching.slit_match(spat_tedge, omodel_bspat, step=self.par['maskdesign_step'],
+                                               xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
+                                               print_matches=debug, edge='top')
         if debug is True:
             plt.scatter(spat_bedge_new, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
                                         label='Bottom edge: RMS={}'.format(round(sigres_b, 4)))
             plt.scatter(spat_tedge_new, omodel_tspat[ind_t], s=40, lw=1, marker='D', facecolors='none',
                                         edgecolors='r', zorder=0, label='Top edge: RMS={}'.format(round(sigres_t, 4)))
-            plt.plot(np.linspace(0, 2048), np.linspace(0, 2048), 'b-', zorder=-1)
+            plt.plot(np.linspace(0, self.traceimg.shape[1]), np.linspace(0, self.traceimg.shape[1]), 'b-', zorder=-1)
             plt.xlabel('Edges from trace')
             plt.ylabel('Edges from model')
             plt.legend()
@@ -4124,9 +4129,11 @@ class EdgeTraceSet(DataContainer):
 
         if debug is True:
             slitdesign_matching.plot_matches(self.edge_fit[:,self.is_left], ind_b, omodel_bspat, spat_bedge_new,
-                                                                reference_row, self.spectrograph.slitmask.slitindx, edge='bottom')
+                                             reference_row, self.spectrograph.slitmask.slitindx, edge='bottom',
+                                             shape=(self.nspec, self.nspat))
             slitdesign_matching.plot_matches(self.edge_fit[:,self.is_right], ind_t, omodel_tspat, spat_tedge_new,
-                                                                    reference_row, self.spectrograph.slitmask.slitindx, edge='top')
+                                             reference_row, self.spectrograph.slitmask.slitindx, edge='top',
+                                             shape=(self.nspec, self.nspat))
 
         bot_edge_pred = slitdesign_matching.slit_coeff_eval(omodel_bspat, omodel_bspat * 0. + 1, coeff_b)
         top_edge_pred = slitdesign_matching.slit_coeff_eval(omodel_tspat, omodel_tspat * 0. + 1, coeff_t)
@@ -4134,14 +4141,14 @@ class EdgeTraceSet(DataContainer):
         # Find if there are missing traces.
         # Need exactly one occurrence of each index in "need"
         buffer = 20.
-        need = ((top_edge_pred > buffer) & (bot_edge_pred < 2047. - buffer)) & ((omodel_bspat != -1) | (omodel_tspat != -1))
+        need = ((top_edge_pred > buffer) & (bot_edge_pred < self.traceimg.shape[1] - 1 - buffer)) & \
+               ((omodel_bspat != -1) | (omodel_tspat != -1))
 
         needind_b = slitdesign_matching.slit_match_fix(need, ind_b)
         needind_t = slitdesign_matching.slit_match_fix(need, ind_t)
 
         if (needind_b.shape[0] > 0) | (needind_t.shape[0] > 0):
-            msgs.warn('Some traces are missing: {} left and {} right'.format(needind_b.shape[0],
-                                                                                           needind_t.shape[0]))
+            msgs.warn('Some traces are missing: {} left and {} right'.format(needind_b.shape[0], needind_t.shape[0]))
 
         # [DP] The code below is to add traces that are predicted but not found. For now we leave it commented, as we
         # incorporate it in a second moment.

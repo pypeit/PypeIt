@@ -227,6 +227,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 'LVMslit' in self.get_meta_value(headarr, 'decker')):
             par['calibrations']['slitedges']['sync_predict'] = 'nearest'
 
+        # Turn on the use of mask design
+        if 'Long' not in self.get_meta_value(headarr, 'decker'):
+            par['calibrations']['slitedges']['use_maskdesign'] = True
+
         # Templates
         if self.get_meta_value(headarr, 'dispname') == '600ZD':
             par['calibrations']['wavelengths']['method'] = 'full_template'

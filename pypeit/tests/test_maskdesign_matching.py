@@ -1,17 +1,9 @@
 import os
 
-import pytest
-import numpy as np
-
-# from astropy.io import fits
-# from astropy.table import Table
-
 from pypeit.images import buildimage
 from pypeit.tests.tstutils import dev_suite_required
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit.edgetrace import EdgeTraceSet
-# from pypeit.slittrace import SlitTraceSet
-# from pypeit import masterframe
 
 
 # This test check that `maskdesign_matching` method is properly assigning DEIMOS slit-mask design IDs
@@ -29,22 +21,22 @@ def test_maskdef_id():
     keck_deimos = load_spectrograph('keck_deimos')
     par = keck_deimos.default_pypeit_par()
     par['calibrations']['traceframe']['process']['use_biasimage'] = False
-    trace_par = par['calibrations']['slitedges']
 
     # working only on detector 1
     det=1
-    master_key = 'A_1_{}'.format(str(det).zfill(2))
-    redux_path = os.path.join(os.getenv('PYPEIT_DEV'), 'REDUX_OUT', 'keck_deimos', '1200G_Cooper')
-    master_dir = os.path.join(redux_path, 'Masters')
 
     # Built trace image
     traceImage = buildimage.buildimage_fromlist(keck_deimos, det, par['calibrations']['traceframe'],
                                                 deimos_flat_files())
-
     msbpm = keck_deimos.bpm(traceImage.files[0], det)
 
+    # load specific config parameters
+    par = keck_deimos.config_specific_par(traceImage.files[0])
+    trace_par = par['calibrations']['slitedges']
+
+
     # Run edge trace
-    edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, bpm=msbpm, auto=True, maskdesign=True,
+    edges = EdgeTraceSet(traceImage, keck_deimos, trace_par, bpm=msbpm, auto=True,
                                            debug=False, show_stages=False,qa_path=None)
 
     slits = edges.get_slits()

@@ -129,7 +129,7 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     return ind
 
 
-def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], print_matches=False, edge=None):
+def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matches=False, edge=None):
     """
     Taken from DEEP2/spec2d/pro/deimos_slit_match.pro
     """
@@ -139,12 +139,12 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], print_matches=False,
     residual = (x_det-x_model[ind]) - numpy.median(x_det-x_model[ind])
     weights = numpy.zeros(residual.size, dtype=int)
     weights[numpy.abs(residual) < 100.] = 1
-    if weights.sum()==0: weights=numpy.ones(residual.size, dtype=int)
+    if weights.sum() == 0:
+        weights=numpy.ones(residual.size, dtype=int)
     coeff, cov= curve_fit(linefit, x_model[ind]*weights, x_det, p0=[0,1])
     coeff=numpy.append(coeff, 0)
     yfit = slit_coeff_eval(x_model[ind], x_model[ind]*0., coeff)
 
-    sigrej = 3
     # compute residual
     res = yfit - x_det
     sigres = sigma_clipped_stats(res, sigma = sigrej)[2]   # RMS residuals
@@ -179,10 +179,14 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], print_matches=False,
     return x_det, ind, coeff, sigres
 
 
-
-def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, edge=None):
+def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, edge=None, shape=None):
     yref_xdet=numpy.tile(yref, x_det.size)
     yref_x_model=numpy.tile(yref, x_model.size)
+
+    _shape = (4096, 2048) if shape is None else shape
+    buffer = 20
+    dist = _shape[0] - yref
+
     plt.rc('xtick', direction='in')
     plt.rc('ytick', direction='in')
     fig=plt.figure(figsize=(10, 4.5))
@@ -190,7 +194,7 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, edge=None):
     if edge is not None:
         plt.title('{} slit edges cross-matching'.format(edge))
     for x in edgetrace.T:
-        plt.plot(x, numpy.arange(4096), color='k', lw=0.5, zorder=0)
+        plt.plot(x, numpy.arange(x.size), color='k', lw=0.5, zorder=0)
     plt.scatter(x_det, yref_xdet, marker='D', s=10, lw=0, color='m', zorder=1,
                                       label='Image trace midpoint (x_det)')
     plt.scatter(x_model, yref_x_model, marker='o', s=10, lw=0, color='b', zorder=1,
@@ -198,15 +202,16 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, edge=None):
     plt.scatter(x_model[ind], yref_x_model[ind], marker='o', s=40, facecolors='none', edgecolors='g', zorder=1,
                                       label='Optical model trace AFTER x-corr (x_model[ind])')
     for i in range(x_model[ind].size):
-        plt.text(x_model[ind][i], yref_x_model[ind][i]+100, slit_index[ind][i], rotation=45, color='g',
+        plt.text(x_model[ind][i], yref_x_model[ind][i]+0.05*dist, slit_index[ind][i], rotation=45, color='g',
                                      fontsize=8, horizontalalignment='center')
     for i in range(x_model.size):
-        plt.text(x_model[i], yref_x_model[i]-300, slit_index[i], rotation=45, color='b',
+        if (x_model[i] >= buffer) and (x_model[i] <= _shape[1] + buffer):
+            plt.text(x_model[i], yref_x_model[i]-0.15*dist, slit_index[i], rotation=45, color='b',
                                      fontsize=8, horizontalalignment='center')
     plt.xlabel('Spatial pixels')
     plt.ylabel('Spectral pixels')
-    plt.xlim(0, 2218)
-    plt.ylim(0, 4206)
+    plt.xlim(buffer, _shape[1]+buffer)
+    plt.ylim(0, _shape[0])
     plt.legend(loc=1)
 
 
