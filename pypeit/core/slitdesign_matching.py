@@ -12,26 +12,12 @@ These routines are taken from the DEEP2 IDL-based pipeline.
 # from IPython import embed
 
 import numpy
-from scipy.optimize import curve_fit
-
 from matplotlib import pyplot as plt
 
 from astropy.stats import sigma_clipped_stats
+from pypeit.core import fitting
 
 # from pypeit import msgs
-# from pypeit import utils
-
-
-def linefit(x, a, b):
-    return a + x*b
-
-
-def slit_coeff_eval(x, y, coeff):
-    """
-    Taken from DEEP2/spec2d/pro/deimos_slit_match.pro
-    """
-    return coeff[0] + coeff[1]*x + coeff[2]*y
-
 
 
 def best_offset(x_det, x_model, step=1, xlag_range=None):
@@ -87,8 +73,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
 
         sdev[j] = (offs**2).sum()          # big if match is bad
 
-    best_sdev = int(numpy.mean(numpy.where(sdev==sdev.min())[0]))      # average ind
-    #sdev = sdev[best_sdev]
+    best_sdev = int(numpy.mean(numpy.argmin(sdev)))      # average ind
 
     return xlag[best_sdev]
 
@@ -107,7 +92,8 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
         ind[i] = numpy.argmin(numpy.abs(x_det[i] - x_model_new))
 
     dx = x_det - x_model_new[ind]
-    coeff, cov = curve_fit(linefit, x_det, dx, p0=[0, 1])
+    pypeitFit = fitting.robust_fit(x_det, dx, 1, maxiter=100, lower=3, upper=3)
+    coeff = pypeitFit.fitc
     scale = 1 + coeff[1] if x_det.size > 4 else 1
     x_model_new *= scale
 
@@ -141,15 +127,15 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
     weights[numpy.abs(residual) < 100.] = 1
     if weights.sum() == 0:
         weights=numpy.ones(residual.size, dtype=int)
-    coeff, cov= curve_fit(linefit, x_model[ind]*weights, x_det, p0=[0,1])
-    coeff=numpy.append(coeff, 0)
-    yfit = slit_coeff_eval(x_model[ind], x_model[ind]*0., coeff)
+    pypeitFit = fitting.robust_fit( x_model[ind], x_det, 1, maxiter=100, weights=weights, lower=3, upper=3)
+    coeff = pypeitFit.fitc
+    yfit = pypeitFit.eval(x_model[ind])
 
     # compute residual
     res = yfit - x_det
     sigres = sigma_clipped_stats(res, sigma = sigrej)[2]   # RMS residuals
     cut = 5 if res.size<5 else sigrej*sigres
-    out = numpy.abs(res)> cut
+    out = numpy.abs(res) > cut
 
     # check for duplicate indices
     bad = numpy.ones(ind.size, dtype=int)
@@ -213,22 +199,3 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, edge=None, sh
     plt.xlim(buffer, _shape[1]+buffer)
     plt.ylim(0, _shape[0])
     plt.legend(loc=1)
-
-
-def slit_match_fix(need, ind):
-    """
-    Taken from deimos_slit_match_fix in DEEP2/spec2d/pro/deimos_slit_match.pro
-    """
-
-    # synth = numpy.zeros(ind.size, dtype=int)
-    needadd = need.copy()
-    needadd[ind] = False
-    needind = numpy.where(needadd)[0]  # slits we are missing
-    # if needind.size > 0:
-    #     ind = numpy.append(ind, needind)
-    #     synth = numpy.append(synth, numpy.ones(needind.shape, dtype=int))
-    # sind = numpy.argsort(ind)
-    # ind = ind[sind]
-    # synth = synth[sind]
-
-    return needind     # ind, synth

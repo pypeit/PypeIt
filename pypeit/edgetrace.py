@@ -4135,8 +4135,8 @@ class EdgeTraceSet(DataContainer):
                                              reference_row, self.spectrograph.slitmask.slitindx, edge='top',
                                              shape=(self.nspec, self.nspat))
 
-        bot_edge_pred = slitdesign_matching.slit_coeff_eval(omodel_bspat, omodel_bspat * 0. + 1, coeff_b)
-        top_edge_pred = slitdesign_matching.slit_coeff_eval(omodel_tspat, omodel_tspat * 0. + 1, coeff_t)
+        bot_edge_pred = coeff_b[0] + coeff_b[1]*omodel_bspat
+        top_edge_pred = coeff_t[0] + coeff_t[1]*omodel_tspat
 
         # Find if there are missing traces.
         # Need exactly one occurrence of each index in "need"
@@ -4144,8 +4144,15 @@ class EdgeTraceSet(DataContainer):
         need = ((top_edge_pred > buffer) & (bot_edge_pred < self.traceimg.shape[1] - 1 - buffer)) & \
                ((omodel_bspat != -1) | (omodel_tspat != -1))
 
-        needind_b = slitdesign_matching.slit_match_fix(need, ind_b)
-        needind_t = slitdesign_matching.slit_match_fix(need, ind_t)
+        # bottom edges
+        needadd_b = need.copy()
+        needadd_b[ind_b] = False
+        needind_b = np.where(needadd_b)[0]  # edges we are missing
+
+        # top edges
+        needadd_t = need.copy()
+        needadd_t[ind_t] = False
+        needind_t = np.where(needadd_t)[0]  # edges we are missing
 
         if (needind_b.shape[0] > 0) | (needind_t.shape[0] > 0):
             msgs.warn('Some traces are missing: {} left and {} right'.format(needind_b.shape[0], needind_t.shape[0]))

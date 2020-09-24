@@ -804,8 +804,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                 use the center of the slits in the :attr:`slitmask`.
             wave (array-like, optional):
                 The wavelengths in angstroms for the propagated
-                coordinates.  Default is to use the central wavelength
-                of the :attr:`grating`.
+                coordinates.  If not provided, an array of wavelength
+                covering the full DEIMOS wavelength range will be used.
             order (:obj:`int`, optional):
                 The grating order.  Default is 1.
             filename (:obj:`str`, optional):
