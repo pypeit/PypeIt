@@ -688,11 +688,13 @@ class Reduce(object):
                 # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
                 trace_spat = 0.5 * (self.slits_left + self.slits_right)#/(self.slits.nspat-1)
                 trace_spec = np.arange(self.slits.nspec)#/(self.slits.nspec-1)
-                gpm = np.logical_not(self.reduce_bpm)
+                gd_slits = np.logical_not(self.reduce_bpm)
                 slitSpecs = []
                 for ss in range(self.slits.nslits):
+                    if not gd_slits[ss]:
+                        continue
                     slit_spat = self.slits.spat_id[ss]
-                    mask = (self.slitmask == slit_spat) & gpm
+                    mask = (self.slitmask == slit_spat)
                     box_denom = moment1d(self.waveimg * mask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
                     wghts = (box_denom + (box_denom == 0.0))
                     slit_sky = moment1d(self.global_sky * mask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts

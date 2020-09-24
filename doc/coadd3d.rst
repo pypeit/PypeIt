@@ -27,80 +27,39 @@ usage
 
 Here is the current usage for the script::
 
-    usage: pypeit_coadd_2dspec [-h] [--file FILE] [--det DET] [--obj OBJ] [--show]
-                           [--debug_offsets] [--peaks] [--basename BASENAME]
-                           [--samp_fact SAMP_FACT] [--debug]
+    usage: pypeit_coadd_datacube [-h] [-o] [--det DET] file
 
     Parse
 
     optional arguments:
       -h, --help            show this help message and exit
-      --file FILE           File to guide 2d coadds
+      -o, --overwrite       Overwrite any existing files/directories (default: False)
       --det DET             Only coadd this detector number
-      --obj OBJ             Object name in lieu of extension, e.g if the spec2d
-                            files are named
-                            'spec2d_J1234+5678_GNIRS_2017Mar31T085412.181.fits.
-                            then obj=J1234+5678
-      --show                Show the reduction steps. Equivalent to the -s option
-                            when running pypeit.
-      --debug_offsets       Show QA plots useful for debugging automatic offset
-                            determination
-      --peaks               Show the peaks found by the object finding algorithm.
-      --basename BASENAME   Basename of files to save the parameters, spec1d, and
-                            spec2d
-      --samp_fact SAMP_FACT
-                            Make the wavelength grid finer (samp_fact > 1.0) or
-                            coarser (samp_fact < 1.0) by this sampling factor
-      --debug               show debug plots?
+      file                  coadd3d file (see below)
 
 
-options
--------
-
-Here are commonly used options:
-
---show
-++++++
-
-Show a series of matplotlib plots to the screen.
-
---basename
-++++++++++
-
-Provides the basename for the spec1d and spec2d files.
-If not provided, defaults to a portion of the input spec2d filenames.
-
---debug
-+++++++
-
-Unclear how this differs from `--show`_.
-
-coadd2d file
+coadd3d file
 ------------
 
 The format of this file is very similar to a :doc:`pypeit_file`.
-Here is an example for `keck_lris_blue`::
+In the following example for `keck_kcwi`, the coadd3d file will be
+saved as `BB1245p4238_coadd3d.cfg`::
 
     # User-defined execution parameters
     [rdx]
-      spectrograph = keck_lris_blue
-      detnum = 2
-    [reduce]
-        [[findobj]]
-            sig_thresh=5.0
+      spectrograph = keck_kcwi
+      detnum = 1
 
     # Read in the data
-    coadd2d read
-    Science/spec2d_b170320_2083-c17_60L._LRISb_2017Mar20T055336.211.fits
-    Science/spec2d_b170320_2090-c17_60L._LRISb_2017Mar20T082144.525.fits
-    Science/spec2d_b170320_2084-c17_60L._LRISb_2017Mar20T062414.630.fits
-    Science/spec2d_b170320_2091-c17_60L._LRISb_2017Mar20T085223.894.fits
-    coadd2d end
+    spec2d read
+    Science/spec2d_KB.20191219.56886-BB1245p4238_KCWI_2019Dec19T154806.538.fits
+    Science/spec2d_KB.20191219.57662-BB1245p4238_KCWI_2019Dec19T160102.755.fits
+    spec2d end
 
 
 The opening block sets parameters for the reduction steps
 
-The data block provides a list of :doc:`out_spec2D` files.
+The spec2d block provides a list of :doc:`out_spec2D` files.
 
 
 run
@@ -108,18 +67,33 @@ run
 
 Then run the script::
 
-    pypeit_coadd_2dspec --file FRB190711_XS_coadd2d.cfg --show
+    pypeit_coadd_datacube BB1245p4238_coadd3d.cfg -o
 
-
-
-The parameters that guide the coadd process are also written
-to disk for your records. The default location is *coadd2d.par*.
-You can choose another location by modifying `--basename`_.
-
-
-Current Coadd2D Data Model
+Current Coadd3D Data Model
 ==========================
 
-The outputs are identical to the standard run, as
-described in :doc:`out_spec1D` and :doc:`out_spec2D`.
+The output is a single fits file that contains the combined
+datacube, and a cube with the same shape that stores the variance.
+Here is a short python script that will allow you to read in and
+plot a wavelength slice of the cube::
+
+    from matplotlib import pyplot as plt
+    from astropy.visualization import ZScaleInterval, ImageNormalize
+    import astropy.io.fits as fits
+    from astropy.wcs import WCS
+
+    filename = "datacube.fits"
+    cube = fits.open(filename)
+    hdu_sci = cube['SCICUBE']
+    hdu_var = cube['VARCUBE']
+    wcs = WCS(hdu_sci.header)
+    wave_slice = 1000
+    norm = ImageNormalize(hdu_sci.data[wave_slice,:,:], interval=ZScaleInterval())
+    fig = plt.figure()
+    fig.add_subplot(111, projection=wcs, slices=('x', 'y', wave_slice))
+    plt.imshow(hdu_sci.data[wave_slice,:,:], origin='lower', cmap=plt.cm.viridis, norm=norm)
+    plt.xlabel('RA')
+    plt.ylabel('Dec')
+    plt.show()
+
 
