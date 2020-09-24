@@ -154,7 +154,7 @@ trace image is also used to calculate the spatial flexure of
 each frame relative to the master flat frame.
 
 (6) The above calibrations are applied to every science and standard star frame.
-``PypeIt`` jointly performs the object extraction and b-spline `@kelson2003` sky
+``PypeIt`` jointly performs the object extraction and b-spline [@kelson2003] sky
 subtraction.  A two-dimensional model of the sky is first constructed using the spectral
 tilt map, including a robust fit to separate the signal of the
 science target from the sky background emission. This sky
