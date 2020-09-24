@@ -1,4 +1,4 @@
-.. include:: links.rst
+.. include:: ../links.rst
 
 .. _development:
 
@@ -129,6 +129,8 @@ Testing the Code
 PypeIt has two main methods for testing and verifying the code base,
 unit tests and a dedicated development suite.
 
+.. _dev-suite:
+
 Development Suite
 ~~~~~~~~~~~~~~~~~
 
@@ -169,6 +171,8 @@ To test PypeIt using the data from the Google TeamDrive:
         flexure, and coadding tests.  The execution time is system
         dependent, but you should expect it to take approx. 12 hours.
 
+.. _unit-tests:
+
 Unit Tests
 ~~~~~~~~~~
 
@@ -178,13 +182,13 @@ them, make sure you have `pytest`_ installed and then:
 .. code-block:: bash
 
     cd $PYPEIT_DIR/pypeit/tests
-    py.test .
+    pytest .
 
 If some tests fail, you can run an individual test, e.g. test_wavecalib.py with
 
 .. code-block:: bash
 
-    py.test -s test_wavecalib.py
+    pytest -s test_wavecalib.py
 
 Note that the "-s" option allows to insert interactive debugging commands into the test,
 here test_wavecalib.py to help determine why the test is failing.
@@ -235,7 +239,7 @@ A typical PypeIt development workflow is as follows:
    .. code-block:: bash
 
         cd $PYPEIT_DIR/pypeit/tests
-        py.test .
+        pytest .
 
    The tests should be run so that they have access to the `Development
    Suite`_ (so that it can, e.g., test loading data), but this first
@@ -264,7 +268,7 @@ A typical PypeIt development workflow is as follows:
    .. code-block:: bash
 
         cd $PYPEIT_DIR/pypeit/tests
-        py.test .
+        pytest .
 
  * Edit ``$PYPEIT_DIR/CHANGES.rst`` to reflect your key developments and
    update the API `documentation`_.
@@ -314,7 +318,7 @@ are as follows:
 
         rclone copyto Cooked_pypeit_dev_vx.xx.x.tar.gz gdv:Cooked_pypeit_dev_vx.xx.x.tar.gz
 
-   .. figure:: figures/tests_success.png
+   .. figure:: ../figures/tests_success.png
 
         Example posting of successful tests.
 
@@ -472,15 +476,20 @@ J. Xavier Prochaska, Joseph Hennawi.
 
 *Last Modified: 07 Apr 2020*
 
+----
 
-Additonal Developer Links
-=========================
+
+Additional Developer Links
+--------------------------
+
+.. Should move these rst files into the dev directory!
 
 Here are some developer-specific docs:
 
 .. toctree::
    :maxdepth: 1
 
-   flow
-   internals
-   metadata
+   ../flow
+   ../internals
+   ../metadata
+   reports

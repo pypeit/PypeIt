@@ -6,25 +6,19 @@
 """
 This script runs PypeIt on a pair of NIRES images (A-B)
 """
-import argparse
-
-from pypeit import msgs
-
-import warnings
 
 def parser(options=None):
+    import argparse
 
-    parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of NIRES files (A-B)')
+    parser = argparse.ArgumentParser(description='Run PypeIt on an A-B pair of NIRES files',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
     parser.add_argument('fileA', type=str, help='A frame')
     parser.add_argument('fileB', type=str, help='B frame')
-    parser.add_argument('-b', '--box_radius', type=float, help='Set the radius for the boxcar extraction')
+    parser.add_argument('-b', '--box_radius', type=float,
+                        help='Set the radius for the boxcar extraction')
 
-    if options is None:
-        pargs = parser.parse_args()
-    else:
-        pargs = parser.parse_args(options)
-    return pargs
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(pargs):
@@ -38,10 +32,12 @@ def main(pargs):
     from pypeit import pypeit
     from pypeit import pypeitsetup
     from pypeit.core import framematch
+    from pypeit import msgs
 
 
     # Setup
-    data_files = [os.path.join(pargs.full_rawpath, pargs.fileA), os.path.join(pargs.full_rawpath,pargs.fileB)]
+    data_files = [os.path.join(pargs.full_rawpath, pargs.fileA),
+                  os.path.join(pargs.full_rawpath,pargs.fileB)]
     ps = pypeitsetup.PypeItSetup(data_files, path='./', spectrograph_name='keck_nires')
     ps.build_fitstbl()
     # TODO -- Get the type_bits from  'science'
@@ -60,7 +56,8 @@ def main(pargs):
     # Calibrations
     master_dir = os.getenv('NIRES_MASTERS')
     if master_dir is None:
-        msgs.error("You need to set an Environmental variable NIRES_MASTERS that points at the Master Calibs")
+        msgs.error('You need to set an Environmental variable NIRES_MASTERS that points at the '
+                   'Master Calibs')
 
     # Config the run
     cfg_lines = ['[rdx]']
@@ -86,7 +83,7 @@ def main(pargs):
     cfg_lines += ['        skip_second_find = True']
 
     # Write
-    ofiles = ps.fitstbl.write_pypeit('', configs=['A'], write_bkg_pairs=True, cfg_lines=cfg_lines)
+    ofiles = ps.fitstbl.write_pypeit(configs='A', write_bkg_pairs=True, cfg_lines=cfg_lines)
     if len(ofiles) > 1:
         msgs.error("Bad things happened..")
 

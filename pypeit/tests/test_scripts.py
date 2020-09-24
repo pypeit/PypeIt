@@ -123,11 +123,8 @@ def test_trace_add_rm():
                     'add_slits = 1:1028:30:300']
 
     # Use PypeItMetaData to write the complete PypeIt file
-    pypeit_file = os.path.join(os.getcwd(), 'shane_kast_blue.pypeit')
-    ps.fitstbl.write_pypeit(pypeit_file, cfg_lines=ps.user_cfg, configs=['all'])
-
-    # Define the pypeit file (HARDCODED!!)
-    pypeit_file = os.path.join(outdir, 'shane_kast_blue_A.pypeit')
+    pypeit_file = ps.fitstbl.write_pypeit(output_path=os.getcwd(), cfg_lines=ps.user_cfg,
+                                          configs=['all'])[0]
 
     # Run the tracing
     trace_edges.main(trace_edges.parser(['-f', pypeit_file]))

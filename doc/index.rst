@@ -30,6 +30,8 @@
    :target: https://github.com/pypeit/PypeIt
 
 
+.. TODO: Having the version here means we'll need to change it every time we release a new version. Do we need this here?
+
 PypeIt 1.1.0 |stars| |watch|
 ============================
 
@@ -189,14 +191,14 @@ or have a feature request, please `submit an issue
    :caption: For developers
    :maxdepth: 1
 
-   development
+   dev/development
 
 Contributors
 ============
 
 ``PypeIt`` is an open-source, community developed package.
 Astronomers are encouraged to join the project and should review our
-:doc:`codeconduct` and :doc:`development`. We would also appreciate
+:doc:`codeconduct` and :ref:`development`. We would also appreciate
 if you contact the lead developers (JXP, JFH) before beginning
 development activities.
 
