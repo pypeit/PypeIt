@@ -1019,7 +1019,7 @@ class PypeItMetaData:
         """
         if 'framebit' not in self.keys():
             msgs.error('Frame types are not set.  First run get_frame_types.')
-        if ftype is 'None':
+        if ftype == 'None':
             return self['framebit'] == 0
         # Select frames
         indx = self.type_bitmask.flagged(self['framebit'], ftype)
