@@ -8,8 +8,6 @@ import numpy as np
 import warnings
 
 from scipy import interpolate
-from scipy.io import readsav
-
 from astropy.io import fits
 
 from pkg_resources import resource_filename
@@ -760,8 +758,8 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         mp_dir = resource_filename('pypeit', 'data/static_calibs/keck_deimos/')
 
         if slider in [3,4]:
-            self.amap=readsav(mp_dir+'amap.s{}.2003mar04.sav'.format(slider))
-            self.bmap=readsav(mp_dir+'bmap.s{}.2003mar04.sav'.format(slider))
+            self.amap = fits.getdata(mp_dir+'amap.s{}.2003mar04.fits'.format(slider))
+            self.bmap = fits.getdata(mp_dir+'bmap.s{}.2003mar04.fits'.format(slider))
         else:
             msgs.error('No amap/bmap available for slider {0}'.format(slider))
         #TODO: Figure out which amap and bmap to use for slider 2

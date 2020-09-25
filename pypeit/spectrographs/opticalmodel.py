@@ -466,15 +466,15 @@ class OpticalModel:
         xmm = numpy.tile(x, (npoints, 1))
         ymm = numpy.tile(y, (npoints, 1))
 
-        sx = amap['tanx'].T.shape[0]
-        sy = amap['tanx'].T.shape[1]
+        sx = amap['tanx'].squeeze().T.shape[0]
+        sy = amap['tanx'].squeeze().T.shape[1]
 
         # create a set of indices to interpolate amap into
         xindx = (xmm - amap['xmin']) / amap['xstep']
         yindx = (ymm - amap['ymin']) / amap['ystep']
 
         # preparing input and output coordinates for interpolation
-        _x, _y = numpy.meshgrid(amap['xarr'], amap['yarr'])
+        _x, _y = numpy.meshgrid(amap['xarr'].squeeze(), amap['yarr'].squeeze())
         out_coo = numpy.column_stack((xmm.ravel(), ymm.ravel()))
         in_coo = numpy.column_stack((_x.ravel(), _y.ravel()))
 
@@ -513,11 +513,11 @@ class OpticalModel:
         xindx = (tanxi - bmap['txmin']) / bmap['txstep']
         yindx = (tanyi - bmap['tymin']) / bmap['tystep']
 
-        sx = bmap['gridx'].T.shape[0]
-        sy = bmap['gridx'].T.shape[1]
+        sx = bmap['gridx'].squeeze().T.shape[0]
+        sy = bmap['gridx'].squeeze().T.shape[1]
 
         # preparing input and output coordinates for interpolation
-        indx = numpy.logical_not(bmap['gridx'] == -1e10)
+        indx = numpy.logical_not(bmap['gridx'].squeeze() == -1e10)
         _x, _y = numpy.meshgrid(numpy.arange(sx), numpy.arange(sy))
         out_coo = numpy.column_stack((xindx.ravel(), yindx.ravel()))
         in_coo = numpy.column_stack((_x.ravel()[indx.ravel()], _y.ravel()[indx.ravel()]))
