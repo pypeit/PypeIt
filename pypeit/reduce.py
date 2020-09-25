@@ -675,6 +675,7 @@ class Reduce(object):
         if self.par['flexure']['spec_method'] != 'skip':
             # Initialise
             slitSpecs = None
+            gd_slits = np.logical_not(self.reduce_bpm)
             wvimg = self.waveimg.copy() if update_waveimg else None
             # Perform some checks
             if mode == "object" and specObjs is None:
@@ -688,10 +689,10 @@ class Reduce(object):
                 # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
                 trace_spat = 0.5 * (self.slits_left + self.slits_right)#/(self.slits.nspat-1)
                 trace_spec = np.arange(self.slits.nspec)#/(self.slits.nspec-1)
-                gd_slits = np.logical_not(self.reduce_bpm)
                 slitSpecs = []
                 for ss in range(self.slits.nslits):
                     if not gd_slits[ss]:
+                        slitSpecs.append(None)
                         continue
                     slit_spat = self.slits.spat_id[ss]
                     mask = (self.slitmask == slit_spat)
@@ -715,6 +716,8 @@ class Reduce(object):
                 # These corrections are later needed so the headers of the specobjs contains the total spectral flexure
                 self.slitShift = np.zeros(self.slits.nslits)
                 for islit in range(self.slits.nslits):
+                    if (not gd_slits[ss]) or len(flex_list[islit]['shift']) == 0:
+                        continue
                     self.slitShift[islit] = flex_list[islit]['shift'][0]
 
             # Save QA

@@ -448,9 +448,6 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
                     flex_dict[key].append(fdict[key])
                 flex_dict['sky_spec'].append(new_sky)
 
-        # Append, this will be an empty dictionary if the flexure failed
-        flex_list.append(flex_dict.copy())
-
         # Check if we need to go back
         if not slit_cen:
             # Do we need to go back?
@@ -473,6 +470,9 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
                 for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
                     flex_dict[key].append(fdict[key])
                 flex_dict['sky_spec'].append(new_sky)
+
+        # Append, this will be an empty dictionary if the flexure failed
+        flex_list.append(flex_dict.copy())
 
     return waveimg_flex_corr, flex_list
 
