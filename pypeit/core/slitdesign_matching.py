@@ -39,7 +39,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
     else:
         min_x_model, max_x_model = numpy.min(x_model), numpy.max(x_model)
         max_x_det = numpy.max(x_det)
-        xlag = numpy.arange((max_x_model-min_x_model+max_x_det)/step)*step+min_x_model-max_x_det
+        xlag = numpy.arange(min_x_model-max_x_det, max_x_model, step)
         x_model_trim = x_model
     # -------- Store results in sdev
     sdev = numpy.zeros(xlag.size)
@@ -139,33 +139,39 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
 
     # check for duplicate indices
     bad = numpy.ones(ind.size, dtype=int)
+    # If there are duplicates of `ind`, for now we keep only the first one. We don't remove the others yet
     bad[numpy.unique(ind, return_index=True)[1]] = 0
     wbad = numpy.where(bad)[0]
+    # Iterate over the duplicates flagged as bad
     if wbad.size > 0:
-        print('Trimming {} bad matches in deimos_slit_match'.format(wbad.size))
         for i in range(wbad.size):
             badind = ind[wbad[i]]
-            w = ind == badind
-            bad[w] = 1    # set all with (ind eq badind) bad for a moment
+            # Where are the other duplicates of this `ind`
+            w = numpy.where(ind == badind)[0]
+            # set those to be bad (for the moment)
+            bad[w] = 1
+            # Among the duplicates of this particular `ind`, which one as the smallest residual
             wdif = numpy.argmin(numpy.abs(res[w]))
-            bad[w[wdif]] = 0  # set this one not bad
+            # The one with the smallest residuals, is then set to not bad
+            bad[w[wdif]] = 0
         bad = bad|out
+        print('Trimming {} bad match(es) in deimos_slit_match'.format(bad[bad == 1].size))
         good = bad == 0
         ind = ind[good]
         x_det=x_det[good]
     if print_matches is True:
         if edge is not None:
             print('-----------------------------------------------')
-            print('             {} slit edge               '.format(edge))
+            print('             {} slit edges               '.format(edge))
         print('-----------------------------------------------')
-        print('Index      xblupix       found_x               ')
+        print('Index      omodel_edge       spat_edge               ')
         print('-----------------------------------------------')
         for i in range(ind.size):
             print('{}  {}  {}'.format(ind[i], x_model[ind][i], x_det[i]))
     return x_det, ind, coeff, sigres
 
 
-def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, edge=None, shape=None):
+def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, trimmed=None, edge=None, shape=None):
     yref_xdet=numpy.tile(yref, x_det.size)
     yref_x_model=numpy.tile(yref, x_model.size)
 
@@ -179,8 +185,11 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, edge=None, sh
     fig.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0, hspace=0)
     if edge is not None:
         plt.title('{} slit edges cross-matching'.format(edge))
-    for x in edgetrace.T:
-        plt.plot(x, numpy.arange(x.size), color='k', lw=0.5, zorder=0)
+    for x in range(edgetrace.T.shape[0]):
+        if trimmed is not None and x in trimmed:
+            plt.plot(edgetrace.T[x,:], numpy.arange(edgetrace.T[x,:].size), color='orange', lw=0.5, zorder=0)
+        else:
+            plt.plot(edgetrace.T[x, :], numpy.arange(edgetrace.T[x, :].size), color='k', lw=0.5, zorder=0)
     plt.scatter(x_det, yref_xdet, marker='D', s=10, lw=0, color='m', zorder=1,
                                       label='Image trace midpoint (x_det)')
     plt.scatter(x_model, yref_x_model, marker='o', s=10, lw=0, color='b', zorder=1,

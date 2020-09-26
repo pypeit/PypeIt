@@ -4065,7 +4065,7 @@ class EdgeTraceSet(DataContainer):
 
 
         if debug is True:
-            print("slitindex    length      width       mmspat_cen         omodel_botedge  omodel_topedge")
+            print("slitindex    slitID    length      width       mmspat_cen         omodel_botedge  omodel_topedge")
             for i in range(sortindx.shape[0]):
                 if (omodel_bspat[sortindx][i] != -1) | (omodel_tspat[sortindx][i] != -1):
                     print("{}  {}  {}  {}   {}      {}  {}".format(self.spectrograph.slitmask.slitindx[sortindx][i],
@@ -4096,44 +4096,55 @@ class EdgeTraceSet(DataContainer):
         offsets_range = [-self.par['maskdesign_maxsep'], self.par['maskdesign_maxsep']]
         if not switched:
             # Bottom slit edge
-            spat_bedge_new, ind_b, coeff_b, sigres_b = \
+            spat_bedge_trim, ind_b, coeff_b, sigres_b = \
                 slitdesign_matching.slit_match(spat_bedge, omodel_bspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='bottom')
             # Top slit edge
-            spat_tedge_new, ind_t, coeff_t, sigres_t = \
+            spat_tedge_trim, ind_t, coeff_t, sigres_t = \
                 slitdesign_matching.slit_match(spat_tedge, omodel_tspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='top')
         else:
             # Bottom slit edge
-            spat_bedge_new, ind_b, coeff_b, sigres_b = \
+            spat_bedge_trim, ind_b, coeff_b, sigres_b = \
                 slitdesign_matching.slit_match(spat_bedge, omodel_tspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='bottom')
             # Top slit edge
-            spat_tedge_new, ind_t, coeff_t, sigres_t = \
+            spat_tedge_trim, ind_t, coeff_t, sigres_t = \
                 slitdesign_matching.slit_match(spat_tedge, omodel_bspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='top')
+        #
+        btrimmed = np.where(np.in1d(spat_bedge, spat_bedge_trim) == False)[0]
+        ttrimmed = np.where(np.in1d(spat_tedge, spat_tedge_trim) == False)[0]
         if debug is True:
-            plt.scatter(spat_bedge_new, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
-                                        label='Bottom edge: RMS={}'.format(round(sigres_b, 4)))
-            plt.scatter(spat_tedge_new, omodel_tspat[ind_t], s=40, lw=1, marker='D', facecolors='none',
-                                        edgecolors='r', zorder=0, label='Top edge: RMS={}'.format(round(sigres_t, 4)))
+            plt.scatter(spat_bedge_trim, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
+                        label='Bottom edge: RMS={}'.format(round(sigres_b, 4)))
+            plt.scatter(spat_tedge_trim, omodel_tspat[ind_t], s=40, lw=1, marker='D', facecolors='none',
+                        edgecolors='r', zorder=0, label='Top edge: RMS={}'.format(round(sigres_t, 4)))
+            if btrimmed.size > 0:
+                plt.scatter(spat_bedge[btrimmed], spat_bedge[btrimmed], s=80, lw=2, marker='+', color='m',
+                            zorder=1, label='Trace trimmed (Bottom)')
+            if ttrimmed.size > 0:
+                plt.scatter(spat_tedge[ttrimmed], spat_tedge[ttrimmed], s=80, lw=1, marker='D', facecolors='none',
+                            edgecolor='orange', zorder=1, label='Trace trimmed (Top)')
             plt.plot(np.linspace(0, self.traceimg.shape[1]), np.linspace(0, self.traceimg.shape[1]), 'b-', zorder=-1)
             plt.xlabel('Edges from trace')
             plt.ylabel('Edges from model')
+            plt.xlim(0, self.traceimg.shape[1] + 20)
+            plt.ylim(0, self.traceimg.shape[1] + 20)
             plt.legend()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
 
         if debug is True:
-            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_left], ind_b, omodel_bspat, spat_bedge_new,
-                                             reference_row, self.spectrograph.slitmask.slitindx, edge='bottom',
-                                             shape=(self.nspec, self.nspat))
-            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_right], ind_t, omodel_tspat, spat_tedge_new,
-                                             reference_row, self.spectrograph.slitmask.slitindx, edge='top',
-                                             shape=(self.nspec, self.nspat))
+            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_left], ind_b, omodel_bspat, spat_bedge_trim,
+                                             reference_row, self.spectrograph.slitmask.slitindx, trimmed=btrimmed,
+                                             edge='bottom', shape=(self.nspec, self.nspat))
+            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_right], ind_t, omodel_tspat, spat_tedge_trim,
+                                             reference_row, self.spectrograph.slitmask.slitindx, trimmed=ttrimmed,
+                                             edge='top', shape=(self.nspec, self.nspat))
 
         bot_edge_pred = coeff_b[0] + coeff_b[1]*omodel_bspat
         top_edge_pred = coeff_t[0] + coeff_t[1]*omodel_tspat
@@ -4178,23 +4189,28 @@ class EdgeTraceSet(DataContainer):
         #
         # if ((needind_b.shape[0] > 0)|(needind_t.shape[0] > 0))&(debug is True):
         #     slitdesign_matching.plot_matches(self.edge_fit[:, self.is_left], ind_b, omodel_bspat,
-        #                  spat_bedge_new, reference_row, self.spectrograph.slitmask.slitindx, edge='bottom')
+        #                  spat_bedge_trim, reference_row, self.spectrograph.slitmask.slitindx, edge='bottom')
         #     slitdesign_matching.plot_matches(self.edge_fit[:, self.is_right], ind_t, omodel_tspat,
-        #                  spat_tedge_new, reference_row, self.spectrograph.slitmask.slitindx, edge='top')
+        #                  spat_tedge_trim, reference_row, self.spectrograph.slitmask.slitindx, edge='top')
 
         # [DP] The index resulting from the matching are provided separately for left and right edges (ind_b, ind_t)
         # Therefore I can provide only one of the two here. If for a specific slit the right trace is found but not the
         # left one, that slit will not have an associated id.
         self.maskdef_id = self.spectrograph.slitmask.slitid[ind_b]
+        # In the eventuality (hopefully remote) that some matches have been trimmed, some traces will not have
+        # a `maskdef_id` associated. We assign a value of `maskdef_id=-99` to those traces.
+        if btrimmed.size>0:
+            self.maskdef_id = np.insert(self.maskdef_id, btrimmed, -99)
 
         # [DP] The following lines create two attributes, `design` and `object`, which store
-        # the matched slit-design and object information. For the moment I am not passing those to the datamodel.
-        # Traced edges MUST be synchronized.
+        # the matched slit-design and object information.
+        # Traced edges MUST be synchronized and NO trimmed matches should exist.
         # TODO: pass the `design` and `object` to `EdgeTraceSet` and/or `SlitTraceSet` datamodel.
-        self._fill_design_table(ind_b, coeff_b, omodel_bspat, omodel_tspat)
-        self._fill_objects_table(ind_b)
-
-
+        # TODO: [DP] There is some inconsistency for the two scripts below if any matches have been trimmed.
+        #  For now I'll just put a condition, but it needs to be fixed.
+        if btrimmed.size == 0:
+            self._fill_design_table(ind_b, coeff_b, omodel_bspat, omodel_tspat)
+            self._fill_objects_table(ind_b)
 
     def _fill_design_table(self, ind, coeff, omodel_bspat, omodel_tspat):
         """
