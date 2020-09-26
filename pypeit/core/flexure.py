@@ -620,14 +620,14 @@ def spec_flexure_qa(slitords, bpm, basename, det, flex_list, specobjs=None, out_
             skyline = sky_lines[igdsky]
             ax = plt.subplot(gs[ii//ncol, ii % ncol])
             # Norm
-            pix = np.where(np.abs(sky_spec.wavelength-skyline) < dwv)[0]
-            f1 = np.sum(sky_spec.flux[pix])
-            f2 = np.sum(arx_spec.flux[pix])
+            pix1 = np.where(np.abs(sky_spec.wavelength-skyline) < dwv)[0]
+            pix2 = np.where(np.abs(arx_spec.wavelength-skyline) < dwv)[0]
+            f1 = np.sum(sky_spec.flux[pix1])
+            f2 = np.sum(arx_spec.flux[pix2])
             norm = f1/f2
             # Plot
-            ax.plot(sky_spec.wavelength[pix], sky_spec.flux[pix], 'k-', label='Obj',
+            ax.plot(sky_spec.wavelength[pix1], sky_spec.flux[pix1], 'k-', label='Obj',
                     drawstyle='steps-mid')
-            pix2 = np.where(np.abs(arx_spec.wavelength-skyline) < dwv)[0]
             ax.plot(arx_spec.wavelength[pix2], arx_spec.flux[pix2]*norm, 'r-', label='Arx',
                     drawstyle='steps-mid')
             # Axes
