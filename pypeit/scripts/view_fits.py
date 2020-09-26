@@ -19,6 +19,7 @@ def parse_args(options=None, return_parser=False):
     parser.add_argument("--list", default=False, help="List the extensions only?", action="store_true")
     parser.add_argument('--exten', type=int, default = 0, help="FITS extension")
     parser.add_argument('--det', type=int, default=1, help="Detector number (ignored for keck_lris, keck_deimos")
+    parser.add_argument('--chname', type=str, default='Image', help="Name of Ginga tab")
 
     if return_parser:
         return parser
@@ -39,6 +40,7 @@ def main(args):
     from pypeit.display import display
     from pypeit.spectrographs import mmt_binospec
     from pypeit.spectrographs import mmt_mmirs
+    from pypeit.spectrographs import util
     from pypeit import msgs
 
     # List only?
@@ -69,8 +71,8 @@ def main(args):
     elif 'gemini_gmos' in args.spectrograph:
         # TODO this routine should show the whole mosaic if no detector number is passed in!
         # Need to figure out the number of amps
-        gen_gmos = gemini_gmos.GeminiGMOSSpectrograph()
-        img = gen_gmos.get_rawimage(args.file, args.det)[1]
+        spectrograph = util.load_spectrograph(args.spectrograph)
+        img = spectrograph.get_rawimage(args.file, args.det)[1]
     # RAW_BinoSpec
     elif args.spectrograph == 'mmt_binospec':
         #
@@ -86,4 +88,4 @@ def main(args):
         img = hdu[args.exten].data
         # Write
 
-    display.show_image(img)
+    display.show_image(img,chname=args.chname)

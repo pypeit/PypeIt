@@ -13,6 +13,7 @@ pypeit_spectrographs = ['keck_deimos', 'keck_lris_blue', 'keck_lris_red', 'keck_
                         'vlt_xshooter_uvb', 'vlt_xshooter_vis', 'vlt_xshooter_nir', 'vlt_fors2',
                         'gemini_gnirs', 'gemini_flamingos1', 'gemini_flamingos2',
                         'gemini_gmos_south_ham', 'gemini_gmos_north_e2v', 'gemini_gmos_north_ham',
+                        'gemini_gmos_north_ham_ns',
                         'magellan_fire', 'magellan_fire_long', 'magellan_mage', 'lbt_mods1r',
                         'lbt_mods1b', 'lbt_mods2r', 'lbt_mods2b', 'lbt_luci1', 'lbt_luci2',
                         'mmt_binospec', 'mmt_mmirs', 'mdm_osmos_mdm4k', 'not_alfosc',

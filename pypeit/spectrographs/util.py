@@ -123,6 +123,9 @@ def load_spectrograph(spectrograph):
     if spectrograph == 'gemini_gmos_north_ham':
         return spectrographs.gemini_gmos.GeminiGMOSNHamSpectrograph()
 
+    if spectrograph == 'gemini_gmos_north_ham_ns':
+        return spectrographs.gemini_gmos.GeminiGMOSNHamNSSpectrograph()
+
     if spectrograph == 'lbt_mods1r':
         return spectrographs.lbt_mods.LBTMODS1RSpectrograph()
 
