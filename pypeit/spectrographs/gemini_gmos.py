@@ -30,6 +30,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         super(GeminiGMOSSpectrograph, self).__init__()
         self.timeunit = 'isot'  # Synthesizes date+time
 
+        # Nod & Shuffle
+        self.nod_shuffle_pix = None
+
     def init_meta(self):
         """
         Generate the meta data dictionary.
@@ -279,9 +282,9 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
 
         # Hack me
         if self.spectrograph == 'gemini_gmos_north_ham_ns' and (
-                head0['object'] in ['GCALflat', 'CuAr', 'Bias']):
+                head0['object'] in ['GCALflat', 'CuAr', 'Bias']) and self.nod_shuffle_pix is not None:
             row1, row2 = 1456, 2812 # NEED TO FIGURE OUT HOW TO GENERALIZE THIS
-            nodpix = 1392  # THIS TOO
+            nodpix = self.nod_shuffle_pix
             # Copy me
             array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
 
@@ -620,6 +623,15 @@ class GeminiGMOSNHamNSSpectrograph(GeminiGMOSNHamSpectrograph):
         # Get it started
         super(GeminiGMOSNHamNSSpectrograph, self).__init__()
         self.spectrograph = 'gemini_gmos_north_ham_ns'
+
+    def config_specific_par(self, scifile, inp_par=None):
+        # Start with instrument wide
+        par = super(GeminiGMOSNHamNSSpectrograph, self).config_specific_par(scifile, inp_par=inp_par)
+        # Slurp the NOD&Shuffle
+        headarr = self.get_headarr(scifile)
+        self.nod_shuffle_pix = headarr[0]['NODPIX']
+        #
+        return par
 
 
 class GeminiGMOSNE2VSpectrograph(GeminiGMOSNSpectrograph):
