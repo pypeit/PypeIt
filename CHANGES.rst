@@ -9,6 +9,8 @@
 - Added docs for BitMasks
 - Altered scripts interface to allow for dynamically making the help
   doc files
+- Docs for skysub, extraction, flat fielding
+- New skysub options for masking and suppressing local
 
 1.1.1 (10 Sep 2020)
 -------------------
