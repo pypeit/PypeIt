@@ -283,9 +283,10 @@ class GeminiGMOSSpectrograph(spectrograph.Spectrograph):
         # Hack me
         if self.spectrograph == 'gemini_gmos_north_ham_ns' and (
                 head0['object'] in ['GCALflat', 'CuAr', 'Bias']) and self.nod_shuffle_pix is not None:
+            # TODO -- Should double check NOD&SHUFFLE was not on
             row1, row2 = 1456, 2812 # NEED TO FIGURE OUT HOW TO GENERALIZE THIS
             nodpix = self.nod_shuffle_pix
-            # Copy me
+            # Shuffle me
             array[row1-nodpix:row2-nodpix,:] = array[row1:row2,:]
 
         # Return, transposing array back to orient the overscan properly
