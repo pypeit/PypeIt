@@ -45,7 +45,7 @@ def main(args):
     from pypeit.images import buildimage
 
     # Generate a utilities class
-    info = utils.Utilities(args.file, args.det)
+    info = utils.Utilities(None, pypeit_file=args.file, det=args.det)
 
     # Interactively select a science frame
     sciIdx = info.select_science_frame(standard=args.standard)

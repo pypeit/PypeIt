@@ -9,6 +9,7 @@ which do not have sufficient calibs
 """
 
 from pypeit import defs
+from pypeit.scripts.utils import Utilities
 
 def parse_args(options=None, return_parser=False):
     import argparse
@@ -47,7 +48,6 @@ def main(args):
 
     from astropy import table
 
-    from pypeit.pypeitsetup import PypeItSetup
     from pypeit import calibrations
     from pypeit import msgs
     from pypeit.par import PypeItPar
@@ -64,18 +64,12 @@ def main(args):
                              + '\tSelect an available instrument or consult the documentation '
                              + 'on how to add a new instrument.')
 
-    # Initialize PypeItSetup based on the arguments
-    ps = PypeItSetup.from_file_root(args.root, args.spectrograph, extension=args.extension)
-
-    # Run the setup
-    ps.run(setup_only=True)#, write_bkg_pairs=args.background)
+    # Run setup
+    script_Utils = Utilities(args.spectrograph)
+    ps, setups, indx = script_Utils.run_setup(args.root, extension=args.extension)
     is_science = ps.fitstbl.find_frames('science')
 
-    msgs.info('Loaded spectrograph {0}'.format(ps.spectrograph.spectrograph))
-
-    # Unique configurations
-    setups, indx = ps.fitstbl.get_configuration_names(return_index=True)
-
+    # Proceed
     answers = table.Table()
     answers['setups'] = setups
     passes, scifiles, cfgs = [], [], []
