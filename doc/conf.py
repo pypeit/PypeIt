@@ -109,7 +109,7 @@ language = None
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build', 'include/*.rst']
+exclude_patterns = ['_build', 'include/*.rst', 'help/*.rst']
 
 # When nit-picking, ignore these warnings:
 nitpick_ignore = [ ('py:class', 'optional'),

@@ -27,8 +27,8 @@ def test_read_combid():
 
     # Generate the pypeit file with the comb_id
     droot = data_path('b')
-    pargs = setup.parser(['-r', droot, '-s', 'shane_kast_blue', '-c=all', '-b',
-                          '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
+    pargs = setup.parse_args(['-r', droot, '-s', 'shane_kast_blue', '-c=all', '-b',
+                             '--extension=fits.gz', '--output_path={:s}'.format(data_path(''))])
     setup.main(pargs)
     shutil.rmtree(setup_dir)
 
