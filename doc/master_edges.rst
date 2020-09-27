@@ -25,7 +25,10 @@ Viewing
 The preferred way to view the slit edges identified
 by PypeIt is with the `pypeit_chk_edges`_ script.
 
-Use `pypeit_chk_edges -h` to view its current usage.
+The script usage can be displayed by calling the script with the
+``-h`` option:
+
+.. include:: help/pypeit_chk_edges.rst
 
 .. _pypeit_chk_edges:
 

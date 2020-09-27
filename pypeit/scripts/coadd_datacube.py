@@ -27,8 +27,7 @@ from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 from pypeit import spec2dobj
 
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it to a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -37,6 +36,9 @@ def parser(options=None):
     parser.add_argument('--det', default=1, type=int, help="Detector")
     parser.add_argument('-o', '--overwrite', default=False, action='store_true',
                         help='Overwrite any existing files/directories')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 

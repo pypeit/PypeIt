@@ -2,26 +2,23 @@
 """
 Wrapper to matplotlib to show an arc spectrum
 """
-import argparse
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description='Parse')
+def parse_args(options=None, return_parser=False):
+    import argparse
+    parser = argparse.ArgumentParser(description='Show the result of wavelength calibration',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("file", type=str, help="WaveCalib JSON file")
     parser.add_argument("slit", type=str)
 
-    if options is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(options)
-    return args
+    if return_parser:
+        return parser
+
+    return parser.parse_args() if options is None else parser.parse_args(options)
 
 
 def main(pargs, unit_test=False):
     """ Shows the spectrum
     """
-
-    import sys
-    import pdb
 
     from matplotlib import pyplot as plt
     from linetools import utils as ltu
