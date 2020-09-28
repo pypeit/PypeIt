@@ -111,7 +111,7 @@ class PypeItSetup:
     .. _configobj: http://configobj.readthedocs.io/en/latest/
     """
     def __init__(self, file_list, path=None, frametype=None, usrdata=None, setups=None,
-                 cfg_lines=None, spectrograph_name=None, pypeit_file=None):
+                 cfg_lines=None, spectrograph_name=None, pypeit_file=None, setup_dict=None):
 
         # The provided list of files cannot be None
         if file_list is None or len(file_list) == 0:
@@ -125,6 +125,7 @@ class PypeItSetup:
         self.setups = setups
         self.pypeit_file = pypeit_file
         self.user_cfg = cfg_lines
+        self.setup_dict = setup_dict
 
         # Determine the spectrograph name
         _spectrograph_name = spectrograph_name if cfg_lines is None \
@@ -147,7 +148,6 @@ class PypeItSetup:
 
         # Prepare internals for execution
         self.fitstbl = None
-        self.setup_dict = None
         self.steps = []
 
     @classmethod
@@ -164,9 +164,9 @@ class PypeItSetup:
         Returns:
             :class:`PypeitSetup`: The instance of the class.
         """
-        cfg_lines, data_files, frametype, usrdata, setups = parse_pypeit_file(filename)
+        cfg_lines, data_files, frametype, usrdata, setups, setup_dict = parse_pypeit_file(filename)
         return cls(data_files, frametype=frametype, usrdata=usrdata, setups=setups,
-                   cfg_lines=cfg_lines, pypeit_file=filename)
+                   cfg_lines=cfg_lines, pypeit_file=filename, setup_dict=setup_dict)
 
     @classmethod
     def from_file_root(cls, root, spectrograph, extension='.fits', output_path=None):
@@ -361,7 +361,8 @@ class PypeItSetup:
                            format=format, overwrite=True)
 
     def run(self, setup_only=False, calibration_check=False,
-            use_header_id=False, sort_dir=None, write_bkg_pairs=False):
+            use_header_id=False, sort_dir=None, write_bkg_pairs=False,
+            no_write_sorted=False):
         """
         Once instantiated, this is the main method used to construct the
         object.
@@ -402,6 +403,8 @@ class PypeItSetup:
                 the metadata table (:attr:`fitstbl`).
             sort_dir (:obj:`str`, optional):
                 The directory to put the '.sorted' file.
+            no_write_sorted (:obj:`bool`, optional):
+                If True, suppress writing the .sorted file to disk
 
         Returns:
             :class:`pypeit.par.pypeitpar.PypeItPar`,
@@ -446,7 +449,8 @@ class PypeItSetup:
                                 else pypeit_file.replace('.pypeit', '.sorted')
             if sort_dir is not None:
                 sorted_file = os.path.join(sort_dir, os.path.split(sorted_file)[1])
-            self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
+            if not no_write_sorted:
+                self.fitstbl.write_sorted(sorted_file, write_bkg_pairs=write_bkg_pairs)
             msgs.info("Wrote sorted file data to {:s}".format(sorted_file))
 
         else:

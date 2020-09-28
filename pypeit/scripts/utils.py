@@ -66,12 +66,17 @@ class Utilities:
         else:
             self.spectrograph = None
         self.par = None
-
-        # Load the pypeit file
         self.pypeit_file = pypeit_file
+        if pypeit_file is not None:
+            self.load_pypeit()
+
+    def load_pypeit(self, pypeit_file=None):
+        # Load the pypeit file
+        if pypeit_file is None:
+            pypeit_file = self.pypeit_file
         msgs.info("Loading the PypeIt file: {}".format(pypeit_file))
         if self.pypeit_file is not None:
-            self.cfg_lines, self.data_files, self.frametype, self.usrdata, self.setups =\
+            self.cfg_lines, self.data_files, self.frametype, self.usrdata, self.setups, self.sdict =\
                 parse_pypeit_file(pypeit_file, runtime=False)
 
     def check_index(self, iFile):
@@ -136,12 +141,14 @@ class Utilities:
         self.par = PypeItPar.from_cfg_lines(cfg_lines=spectrograph_cfg_lines, merge_with=self.cfg_lines)
         return
 
-    def run_setup(self, root, extension=None):
+    def run_setup(self, root, extension=None, **kwargs):
         """
 
         Args:
             root (str):
             extension (str, optional):
+            **kwargs:
+                Passed to ps.run()
 
         Returns:
             tuple: setups, indx
@@ -152,7 +159,7 @@ class Utilities:
                                         extension=extension)
 
         # Run the setup
-        ps.run(setup_only=True)  # , write_bkg_pairs=args.background)
+        ps.run(setup_only=True, **kwargs)  # , write_bkg_pairs=args.background)
 
         # Unique configurations
         setups, indx = ps.fitstbl.get_configuration_names(return_index=True)

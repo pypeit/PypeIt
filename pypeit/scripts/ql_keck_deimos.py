@@ -7,34 +7,134 @@
 This script runs PypeIt *fast* on a set of DEIMOS images
 """
 import os
+import glob
+import copy
+import yaml
+import io
+import numpy as np
 
 from pypeit.scripts.utils import Utilities
 from pypeit.par import PypeItPar
+from pypeit.par.util import parse_pypeit_file
+from pypeit.pypeitsetup import PypeItSetup
 from pypeit import msgs
 from pypeit.scripts import run_pypeit
+from pypeit.par.util import make_pypeit_file
+from pypeit import utils
 
 from IPython import embed
 
 def process_calibs(pargs, script_Utils):
+    # Slurp
+    output_path = pargs.redux_path
+
     # Run setup
     ps, setups, indx = script_Utils.run_setup(os.path.join(pargs.full_rawpath, pargs.root),
                                               extension='.fits')
-    # Loop on setups + run calibs
-    for setup, ii in zip(setups, indx):
+    # Restrict on detector -- May remove this
+    ps.user_cfg += ['detnum = {}'.format(pargs.det)]
+    # Avoid crash in flat fielding from saturated slits
+    ps.user_cfg += ['[calibrations]', '[[flatfield]]', 'saturated_slits = mask']
+    # Other DEIMOS fiddling here (e.g. reduce edge_thresh value)
 
-        # Generate PypeIt file
-        output_path = pargs.redux_path
-        # Restrict on detector -- May remove this
-        ps.user_cfg += ['detnum = {}'.format(pargs.det)]
-        # Generate
-        pypeit_file = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, configs=[setup])[0]
+    # TODO -- Remove the science files!  We want calibs only
+
+    # Write the PypeIt files
+    pypeit_files = ps.fitstbl.write_pypeit(output_path=output_path,
+                                          cfg_lines=ps.user_cfg,
+                                          configs='all')
+
+    # Loop on setups, rename + run calibs
+    for pypeit_file, setup, ii in zip(pypeit_files, setups, indx):
+
+        # Rename with _calib
+        calib_pypeit_file = pypeit_file.replace('deimos_{}.pypeit'.format(setup),
+                                                'deimos_calib_{}.pypeit'.format(setup))
+        os.rename(pypeit_file, calib_pypeit_file)
 
         # Run me via the script
-        redux_path = os.path.dirname(pypeit_file)  # Path to PypeIt file
-        run_pargs = run_pypeit.parse_args([pypeit_file,
+        redux_path = os.path.dirname(calib_pypeit_file)  # Path to PypeIt file
+        run_pargs = run_pypeit.parse_args([calib_pypeit_file,
                                            '-r={}'.format(redux_path),
                                            '-c'])
         run_pypeit.main(run_pargs)
+
+def get_science_setup(pargs, script_Utils):
+    # Check file exists
+    science_file = os.path.join(pargs.full_rawpath, pargs.science)
+    if not os.path.isfile(science_file):
+        msgs.error("Your science filename {} does not exist. Check your path".format(science_file))
+    # Run setup
+    ps_sci, _, indx = script_Utils.run_setup(science_file,
+                                              extension='', no_write_sorted=True)
+    # Check against existing PypeIt files
+    pypeit_files = glob.glob(os.path.join(pargs.redux_path, 'keck_deimos_*', 'keck_deimos_calib_*.pypeit'))
+    mtch = []
+    for pypeit_file in pypeit_files:
+        # Read
+        tmp_scriptU = Utilities('keck_deimos', pypeit_file=pypeit_file)
+        # Check for a match
+        match = True
+        for key in tmp_scriptU.spectrograph.configuration_keys():
+            if ps_sci.fitstbl[key][0] != tmp_scriptU.sdict[key]:
+                match = False
+        if match:
+            mtch.append(pypeit_file)
+    if len(mtch) != 1:
+        msgs.error("Matched to more than one setup.  Inconceivable!")
+
+    return mtch[0], ps_sci
+
+def run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci):
+    # Load up and slurp PypeIt file
+    ps = PypeItSetup.from_pypeit_file(calib_pypeit_file)
+    # Parse science file info
+    science_file = os.path.join(pargs.full_rawpath, pargs.science)
+    science_pypeit = calib_pypeit_file.replace('calib', 'science')
+    # Add to file list
+    ps.file_list += [science_file]
+    # Add to usrdata
+    new_row = {}
+    for key in ps.usrdata.keys():
+        new_row[key] = ps_sci.fitstbl[key][0]
+    ps.usrdata.add_row(new_row)
+    # Build
+    _ = ps.build_fitstbl()
+    # Generate PypeIt file
+    # TODO -- Generalize this with metadata.write_pypeit()
+    # Write the file
+    setup_lines = yaml.dump(utils.yamlify(ps.setup_dict)).split('\n')[:-1]
+    with io.StringIO() as ff:
+        ps.usrdata.write(ff, format='ascii.fixed_width')
+        data_lines = ff.getvalue().split('\n')[:-1]
+    paths = [os.path.dirname(item) for item in ps.file_list]
+    paths = np.unique(paths)
+
+    # Add to configs
+    if pargs.slit_spat is not None:
+        # Remove detnum
+        for kk, item in enumerate(ps.user_cfg):
+            if 'detnum' in item:
+                ps.user_cfg.pop(kk)
+        ridx = ps.user_cfg.index('[rdx]')
+        ps.user_cfg.insert(ridx+1, '    slitspatnum = {0}'.format(pargs.slit_spat))
+    else:
+        embed(header='NOT READY:  118 of ql_deimos')
+    # Do it
+    '''
+    make_pypeit_file(science_pypeit,
+                     script_Utils.spectrograph.spectrograph, [],
+                     cfg_lines=ps.user_cfg,
+                     setup_lines=setup_lines,
+                     sorted_files=data_lines, paths=paths)
+    '''
+
+    # Run me!
+    redux_path = os.path.dirname(science_pypeit)  # Path to PypeIt file
+    run_pargs = run_pypeit.parse_args([science_pypeit,
+                                   '-r={}'.format(redux_path),
+                                   ])
+    run_pypeit.main(run_pargs)
 
 
 def parse_args(options=None, return_parser=False):
@@ -44,8 +144,8 @@ def parse_args(options=None, return_parser=False):
                                                  'Keck/DEIMOS files',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
-    parser.add_argument('--root', type=str, help='Root of filenames, eg.  DE.2019')
     parser.add_argument('--redux_path', type=str, help='Path to where reduction products lie')
+    parser.add_argument('--root', type=str, help='Root of filenames, eg.  DE.2019')
     parser.add_argument('--calibs_only', default=False, action='store_true',
                         help='Run on calibs only')
     parser.add_argument('--science', type=str, help='Science frame filename')
@@ -90,7 +190,13 @@ def main(pargs):
         process_calibs(pargs, script_Utils)
         return
 
+    # Slurp the afternoon runs and grab the right PypeIt file
+    calib_pypeit_file, ps_sci = get_science_setup(pargs, script_Utils)
+    run_on_science(pargs, script_Utils, calib_pypeit_file, ps_sci)
+    embed(header='133 of ql')
 
+
+    '''
     # Config the run
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format(spec)]
@@ -174,6 +280,7 @@ def main(pargs):
     # QA HTML
     msgs.info('Generating QA HTML')
     pypeIt.build_qa()
+    '''
 
     return 0
 

@@ -574,9 +574,10 @@ class PypeItMetaData:
         binning = '1,1' if 'binning' not in self.keys() else self['binning'][row]
 
         skey = 'Setup {}'.format(self['setup'][row])
+        # Key names *must* match configuration_keys() for spectrographs
         setup = {skey:
                     {'--':
-                        {'disperser': {'name': dispname, 'angle':dispangle},
+                        {'disperser': {'dispname': dispname, 'dispangle':dispangle},
                          'dichroic': dichroic,
                          'slit': {'decker': decker, 'slitwid':slitwid, 'slitlen':slitlen},
                          'binning': binning,  # PypeIt orientation binning of a science image
@@ -1181,6 +1182,7 @@ class PypeItMetaData:
         # Use the user-defined frame types from the input dictionary
         if user is not None:
             if len(user.keys()) != len(self):
+                embed(header='1185 of metadata')
                 raise ValueError('The user-provided dictionary does not match table length.')
             msgs.info('Using user-provided frame types.')
             for ifile,ftypes in user.items():
@@ -1507,6 +1509,7 @@ class PypeItMetaData:
                 the configurations matched to this provided string or
                 list of strings (e.g., ['A','C']). See
                 :func:`get_configuration_names`.
+
 
         Raises:
             PypeItError:

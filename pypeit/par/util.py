@@ -5,8 +5,7 @@ Utility functions for PypeIt parameter sets
 import os
 import time
 import glob
-import warnings
-import textwrap
+import yaml
 from IPython import embed
 
 import numpy as np
@@ -418,19 +417,25 @@ def _read_data_file_table(lines, file_check=True):
 
 
 def _parse_setup_lines(lines):
-    """Return a list of the setup names"""
+    """
+    Return a list of the setup names and corresponding dict
+
+    Args:
+        lines (`numpy.ndarray`_): Setup lines as an array
+
+    Returns:
+        tuple: list, dict
+
+    """
     setups = []
-    for l in lines:
-        if 'Setup' in l:
-            tsetup = l.split()[1].strip()
-            # Remove any lingering colon
-            if tsetup[-1] == ':':
-                setup = tsetup[:-1]
-            else:
-                setup = tsetup
-            setups.append(setup)
-    #
-    return setups
+    ystr = '\n'.join(lines.tolist())
+    sdict = yaml.safe_load(ystr)
+    for key in sdict:
+        if 'Setup' in key:
+            tsetup = key.split()[1].strip()
+            setups.append(tsetup)
+    # TODO -- Crash if there is more than one setup.  Should not happen
+    return setups, sdict
 
 
 def parse_pypeit_file(ifile, file_check=True, runtime=False):
@@ -447,13 +452,14 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
             Perform additional checks if called to run PypeIt
 
     Returns:
-        5-element tuple containing
+        6-element tuple containing
 
         - list:  List of configuration lines,
         - list:  List of datafiles to read,
         - list:  List of frametypes for each file
         - :obj:`astropy.table.Table`:  Table of user supplied info on data files
         - list:  List of setup lines.
+        - dict:  Setup dict
     """
     # Read in the pypeit reduction file
     msgs.info('Loading the reduction file')
@@ -489,9 +495,10 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
     if s >= 0 and e < 0:
         msgs.error("Missing 'setup end' in {0}".format(ifile))
     if s < 0:
-        setups = []
+        msgs.warn("Missing setup block! This may be a problem")
+        setups, sdict = [], {}
     else:
-        setups = _parse_setup_lines(lines[s:e])
+        setups, sdict = _parse_setup_lines(lines[s:e])
         is_config[s-1:e+1] = False
 
     # TODO: This should be moved to the PypeIt class
@@ -505,7 +512,7 @@ def parse_pypeit_file(ifile, file_check=True, runtime=False):
             msgs.error("Add setup info to your PypeIt file in the setup block!")
 
     msgs.info('Input file loaded successfully')
-    return list(lines[is_config]), data_files, frametype, usrtbl, setups
+    return list(lines[is_config]), data_files, frametype, usrtbl, setups, sdict
 
 
 def pypeit_config_lines(ifile):

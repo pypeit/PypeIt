@@ -76,7 +76,7 @@ class PypeIt(object):
                  show=False, redux_path=None, calib_only=False):
 
         # Load
-        cfg_lines, data_files, frametype, usrdata, setups \
+        cfg_lines, data_files, frametype, usrdata, setups, _ \
                 = parse_pypeit_file(pypeit_file, runtime=True)
         self.pypeit_file = pypeit_file
         self.calib_only = calib_only
