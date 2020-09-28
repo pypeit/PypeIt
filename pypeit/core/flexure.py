@@ -304,7 +304,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
                 corr_cen=corr.size/2, smooth=smooth_sig_pix, success=success)
 
 
-def flexure_interp(shift, wave, wavein=None):
+def flexure_interp(shift, wave):
     """
     Perform interpolation on wave given a shift in pixels
 
@@ -323,15 +323,11 @@ def flexure_interp(shift, wave, wavein=None):
     x = np.linspace(0., 1., npix)
     f = interpolate.interp1d(x, wave, bounds_error=False, fill_value="extrapolate")
     twave = f(x + shift / (npix - 1))
-    # If this shift is to be applied onto another wave scale, reinterpolate
-    if wavein is not None:
-        f = interpolate.interp1d(wave, twave, bounds_error=False, fill_value="extrapolate")
-        twave = f(wavein)
     return twave
 
 
-def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", specobjs=None, slitspecs=None,
-                      waveimg=None, mxshft=None):
+def spec_flexure_slit(slits, slitord, bpm, sky_file, method="boxcar", specobjs=None, slitspecs=None,
+                      mxshft=None):
     """Correct wavelengths for flexure, slit by slit
 
     Args:
@@ -339,8 +335,6 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
             Slit trace set
         slitord (`numpy.ndarray`_):
             Array of slit/order numbers
-        slitmask (`numpy.ndarray`_):
-            Slit mask
         bpm (`numpy.ndarray`_):
             True = masked slit
         method (:obj:`str`, optional)
@@ -356,24 +350,15 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
         slitspecs (list, optional):
             A list of linetools.xspectrum1d, one for each slit. The spectra stored in
             this list are sky spectra, extracted from the center of each slit.
-        waveimg (`numpy.ndarray`_, optional):
-            A 2D array providing the wavelength (in A) of each pixel of an image.
-            If none, the spectral flexure correction will not be applied to the
-            wavelength image. If provided, the correction will be applied and
-            returned.
         mxshft (int, optional):
             Passed to flex_shift()
 
     Returns:
-        tuple: Two element tuple containing (1) the input waveimg (`numpy.ndarray`_),
-               corrected for spectral flexure and (2) a list of dicts containing flexure
-               results of each slit. The latter is filled with a basically empty dict if
-               the slit is skipped. Note, if the input waveimg is None, the first element
-               of this tuple will also be None.
+        list of dicts: A list of dicts containing flexure results of each slit. This is filled
+                       with a basically empty dict if the slit is skipped.
     """
     sv_fdict = None
     msgs.work("Consider doing 2 passes in flexure as in LowRedux")
-    waveimg_flex_corr = None if waveimg is None else waveimg.copy()
 
     # Determine the method
     slit_cen = True if (specobjs is None) or (method == "slitcen") else False
@@ -407,7 +392,6 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
             continue
 
         if slit_cen:
-            slit_spat = slits.spat_id[islit]
             sky_wave = slitspecs[islit].wavelength.value
             sky_flux = slitspecs[islit].flux.value
 
@@ -423,10 +407,6 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
                 flex_dict['sky_spec'].append(
                     xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
                 flex_dict['method'].append("slitcen")
-                # Now correct the waveimg
-                if waveimg_flex_corr is not None:
-                    waveimg_flex_corr[slitmask == slit_spat] = \
-                        flexure_interp(fdict['shift'], sky_wave, wavein=waveimg[slitmask == slit_spat])
         else:
             i_slitord = slitord[islit]
             indx = specobjs.slitorder_indices(i_slitord)
@@ -499,7 +479,7 @@ def spec_flexure_slit(slits, slitord, slitmask, bpm, sky_file, method="boxcar", 
         # Append, this will be an empty dictionary if the flexure failed
         flex_list.append(flex_dict.copy())
 
-    return waveimg_flex_corr, flex_list
+    return flex_list
 
 
 def spec_flexure_corrQA(ax, this_flex_dict, cntr, name):

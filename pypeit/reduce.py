@@ -420,9 +420,10 @@ class Reduce(object):
             self.sobjs = self.sobjs_obj
 
         # If a global spectral flexure has been applied to all slits, store this correction in each specobj
-        for iobj in range(self.sobjs.nobj):
-            islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
-            self.sobjs[iobj].update_flex_shift(self.slitshift[islit])
+        if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
+            for iobj in range(self.sobjs.nobj):
+                islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
+                self.sobjs[iobj].update_flex_shift(self.slitshift[islit])
 
         # Finish up
         if self.sobjs.nobj == 0:
@@ -685,9 +686,6 @@ class Reduce(object):
                 msgs.warn("mode must be 'global' or 'local'. Assuming 'global'.")
                 mode = "global"
 
-            # Grab a copy of the waveimg if needed
-            wvimg = self.waveimg.copy() if mode == "global" else None
-
             # Prepare a list of slit spectra, if required.
             if mode == "global":
                 # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
@@ -708,20 +706,24 @@ class Reduce(object):
                     slitSpecs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
 
             # Measure flexure
-            waveimg_new, flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.slitmask,
-                                                               self.reduce_bpm, self.par['flexure']['spectrum'],
-                                                               method=self.par['flexure']['spec_method'],
-                                                               mxshft=self.par['flexure']['spec_maxshift'],
-                                                               specobjs=specObjs, waveimg=wvimg, slitspecs=slitSpecs)
-            if waveimg_new is not None and mode == "global":
-                self.waveimg = waveimg_new.copy()
+            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
+                                                  self.par['flexure']['spectrum'],
+                                                  method=self.par['flexure']['spec_method'],
+                                                  mxshft=self.par['flexure']['spec_maxshift'],
+                                                  specobjs=specObjs, slitspecs=slitSpecs)
+            if mode == "global":
                 # Store the slit shifts that were applied to each slit
                 # These corrections are later needed so the headers of the specobjs contains the total spectral flexure
                 self.slitshift = np.zeros(self.slits.nslits)
                 for islit in range(self.slits.nslits):
-                    if (not gd_slits[ss]) or len(flex_list[islit]['shift']) == 0:
+                    if (not gd_slits[islit]) or len(flex_list[islit]['shift']) == 0:
                         continue
                     self.slitshift[islit] = flex_list[islit]['shift'][0]
+                # Apply the new wavelength solution
+                msgs.info("Regenerating wavelength image")
+                self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
+                                                           spat_flexure=self.spat_flexure_shift,
+                                                           spec_flexure=self.slitshift)
 
             # Save QA
             basename = "{0:s}_{1:s}".format(self.basename, mode)
