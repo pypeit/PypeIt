@@ -79,7 +79,8 @@ automatically classify my calibrations."
 
 .. code-block:: bash
 
-    pytest test_frametype.py::test_deimos -W ignore --tb=no
+    cd pypeit/tests
+    pytest test_frametype.py::test_deimos -W ignore
 
 The test requires that you have downloaded the ``PypeIt``
 :ref:`dev-suite` and defined the ``PYPEIT_DEV`` environmental
