@@ -836,6 +836,7 @@ class MultiSlitCoAdd2D(CoAdd2D):
         objid_max = np.zeros((nslits, nexp), dtype=int)
         # Loop over each exposure, slit, find the brighest object on that slit for every exposure
         for iexp, sobjs in enumerate(specobjs_list):
+            msgs.info("Working on exposure {}".format(iexp))
             for islit, spat_id in enumerate(spat_ids):
                 ithis = sobjs.SLITID == spat_id
                 nobj_slit = np.sum(ithis)
@@ -850,6 +851,8 @@ class MultiSlitCoAdd2D(CoAdd2D):
                         ivar[:, iobj] = spec.OPT_COUNTS_IVAR
                         wave[:, iobj] = spec.OPT_WAVE
                         mask[:, iobj] = spec.OPT_MASK
+                    if np.any(np.isnan(flux)):
+                        embed(header='855 of coadd2d')
                     rms_sn, weights = coadd.sn_weights(wave, flux, ivar, mask, None, const_weights=True)
                     imax = np.argmax(rms_sn)
                     slit_snr_max[islit, iexp] = rms_sn[imax]

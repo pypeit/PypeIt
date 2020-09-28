@@ -750,6 +750,7 @@ def sn_weights(waves, fluxes, ivars, masks, sn_smooth_npix, const_weights=False,
 
     # TODO: ivar weights is better than SN**2 or const_weights for merging orders. Enventially, we will change it to
     # TODO Should ivar weights be deprecated??
+
     if ivar_weights:
         if verbose:
             msgs.info("Using ivar weights for merging orders")
