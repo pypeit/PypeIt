@@ -23,15 +23,16 @@ def process_calibs(pargs, script_Utils):
     for setup, ii in zip(setups, indx):
 
         # Generate PypeIt file
-        output_path = './' if pargs.redux_path is None else pargs.redux_path
+        output_path = pargs.redux_path
         # Restrict on detector -- May remove this
         ps.user_cfg += ['detnum = {}'.format(pargs.det)]
         # Generate
-        pypeit_file = ps.fitstbl.write_pypeit(output_path, cfg_lines=ps.user_cfg, configs=[setup])[0]
+        pypeit_file = ps.fitstbl.write_pypeit(output_path=output_path, cfg_lines=ps.user_cfg, configs=[setup])[0]
 
         # Run me via the script
+        redux_path = os.path.dirname(pypeit_file)  # Path to PypeIt file
         run_pargs = run_pypeit.parse_args([pypeit_file,
-                                           '-r {}'.format(output_path),
+                                           '-r={}'.format(redux_path),
                                            '-c'])
         run_pypeit.main(run_pargs)
 
