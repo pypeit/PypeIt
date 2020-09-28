@@ -92,7 +92,7 @@ class Reduce(object):
     @classmethod
     def get_instance(cls, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, std_outfile=None):
+                 binning=None, setup=None, std_outfile=None, basename=None):
         """
         Instantiate the Reduce subclass appropriate for the provided
         spectrograph.
@@ -105,7 +105,8 @@ class Reduce(object):
             spectrograph (:class:`pypeit.spectrographs.spectrograph.Spectrograph`):
             par (pypeit.par.pyepeitpar.PypeItPar):
             caliBrate (:class:`pypeit.calibrations.Calibrations`):
-
+            basename (str, optional):
+                Output filename used for spectral flexure QA
             **kwargs
                 Passed to Parent init
 
@@ -115,12 +116,12 @@ class Reduce(object):
         return next(c for c in cls.__subclasses__()
                     if c.__name__ == (spectrograph.pypeline + 'Reduce'))(
             sciImg, spectrograph, par, caliBrate, objtype, ir_redux=ir_redux, det=det,
-            std_redux=std_redux, show=show,binning=binning, setup=setup)
-
+            std_redux=std_redux, show=show,binning=binning, setup=setup,
+            std_outfile=std_outfile, basename=basename)
 
     def __init__(self, sciImg, spectrograph, par, caliBrate,
                  objtype, ir_redux=False, det=1, std_redux=False, show=False,
-                 binning=None, setup=None, std_outfile=None):
+                 binning=None, setup=None, std_outfile=None, basename=None):
 
         # Setup the parameters sets for this object. NOTE: This uses objtype, not frametype!
 
@@ -132,6 +133,7 @@ class Reduce(object):
         self.caliBrate = caliBrate
         self.std_outfile = std_outfile
         self.scaleimg = np.array([1.0], dtype=np.float)  # np.array([1]) applies no scale
+        self.basename = basename
         # Parse
         # Slit pieces
         #   WARNING -- It is best to unpack here then pass around self.slits
@@ -186,7 +188,7 @@ class Reduce(object):
         # SpecObjs object
         self.sobjs_obj = None  # Only object finding but no extraction
         self.sobjs = None  # Final extracted object list with trace corrections applied
-        self.slitShift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
+        self.slitshift = np.zeros(self.slits.nslits)  # Global spectral flexure slit shifts (in pixels) that are applied to all slits.
 
     def initialise_slits(self, initial=False):
         """
@@ -313,16 +315,13 @@ class Reduce(object):
         """
         pass
 
-    def run(self, basename=None, ra=None, dec=None, obstime=None,
-            std_trace=None, show_peaks=False, return_negative=False):
+    def run(self, ra=None, dec=None, obstime=None, std_trace=None, show_peaks=False, return_negative=False):
         """
         Primary code flow for PypeIt reductions
 
         *NOT* used by COADD2D
 
         Args:
-            basename (str, optional):
-                Required if flexure correction is to be applied
             ra (str, optional):
                 Required if helio-centric correction is to be applied
             dec (str, optional):
@@ -396,19 +395,18 @@ class Reduce(object):
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(basename+"_global", mode='slit', update_waveimg=True)
+                self.spec_flexure_correct(mode='global')
 
             # Extract + Return
             self.skymodel, self.objmodel, self.ivarmodel, self.outmask, self.sobjs \
                 = self.extract(self.global_sky, self.sobjs_obj)
             if self.ir_redux:
                 self.sobjs.make_neg_pos() if return_negative else self.sobjs.purge_neg()
-
         else:  # No objects, pass back what we have
             # Apply a global flexure correction to each slit
             # provided it's not a standard star
             if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
-                self.spec_flexure_correct(basename+"_global", mode='slit', update_waveimg=True)
+                self.spec_flexure_correct(mode='global')
             #Could have negative objects but no positive objects so purge them
             if self.ir_redux:
                 self.sobjs_obj.make_neg_pos() if return_negative else self.sobjs_obj.purge_neg()
@@ -421,6 +419,11 @@ class Reduce(object):
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
+        # If a global spectral flexure has been applied to all slits, store this correction in each specobj
+        for iobj in range(self.sobjs.nobj):
+            islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
+            self.sobjs[iobj].update_flex_shift(self.slitshift[islit])
+
         # Finish up
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
@@ -428,13 +431,11 @@ class Reduce(object):
             # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
             # TODO -- Should we move these to redux.run()?
             # Flexure correction if this is not a standard star
-            if (not self.std_redux):
-                self.spec_flexure_correct(basename, mode='object', specObjs=self.sobjs, update_waveimg=False)
-            # Apply a reference frame correction to each object
-            self.refframe_correct(ra, dec, obstime, specObjs=self.sobjs, update_waveimg=False)
+            if not self.std_redux:
+                self.spec_flexure_correct(mode='local', specObjs=self.sobjs)
 
-        # Now correct the wavelength image to the user-specified reference frame
-        self.refframe_correct(ra, dec, obstime, update_waveimg=True)
+        # Apply a reference frame correction to each object and the waveimg
+        self.refframe_correct(ra, dec, obstime, specObjs=self.sobjs)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -660,16 +661,15 @@ class Reduce(object):
                 usersky = True
         return skymask_init, usersky
 
-    def spec_flexure_correct(self, basename, mode="object", specObjs=None, update_waveimg=False):
+    def spec_flexure_correct(self, mode="local", specObjs=None):
         """ Correct for spectral flexure
 
         Spectra are modified in place (wavelengths are shifted)
 
         Args:
-            basename (str):
             mode (str):
-                "object" - Use specObjs to determine flexure correction
-                "slit" - Use waveimg and global_sky to determine flexure correction at the centre of the slit
+                "local" - Use specObjs to determine flexure correction
+                "global" - Use waveimg and global_sky to determine flexure correction at the centre of the slit
             specObjs (:class:`pypeit.specobjs.SpecObjs`, None):
                 Spectrally extracted objects
         """
@@ -677,16 +677,19 @@ class Reduce(object):
             # Initialise
             slitSpecs = None
             gd_slits = np.logical_not(self.reduce_bpm)
-            wvimg = self.waveimg.copy() if update_waveimg else None
             # Perform some checks
-            if mode == "object" and specObjs is None:
+            if mode == "local" and specObjs is None:
                 msgs.warn("No spectral extractions provided for flexure, using slit center instead")
-                mode = "slit"
-            elif mode not in ["object", "slit"]:
-                msgs.warn("mode must be 'object' or 'slit'. Assuming 'slit'.")
-                mode = "slit"
+                mode = "global"
+            elif mode not in ["local", "global"]:
+                msgs.warn("mode must be 'global' or 'local'. Assuming 'global'.")
+                mode = "global"
+
+            # Grab a copy of the waveimg if needed
+            wvimg = self.waveimg.copy() if mode == "global" else None
+
             # Prepare a list of slit spectra, if required.
-            if mode == "slit":
+            if mode == "global":
                 # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
                 trace_spat = 0.5 * (self.slits_left + self.slits_right)#/(self.slits.nspat-1)
                 trace_spec = np.arange(self.slits.nspec)#/(self.slits.nspec-1)
@@ -709,25 +712,25 @@ class Reduce(object):
                                                                self.reduce_bpm, self.par['flexure']['spectrum'],
                                                                method=self.par['flexure']['spec_method'],
                                                                mxshft=self.par['flexure']['spec_maxshift'],
-                                                               specobjs=specObjs, waveimg=wvimg, slitspecs=slitSpecs,
-                                                               slitShift=self.slitShift)
-            if waveimg_new is not None:
+                                                               specobjs=specObjs, waveimg=wvimg, slitspecs=slitSpecs)
+            if waveimg_new is not None and mode == "global":
                 self.waveimg = waveimg_new.copy()
                 # Store the slit shifts that were applied to each slit
                 # These corrections are later needed so the headers of the specobjs contains the total spectral flexure
-                self.slitShift = np.zeros(self.slits.nslits)
+                self.slitshift = np.zeros(self.slits.nslits)
                 for islit in range(self.slits.nslits):
                     if (not gd_slits[ss]) or len(flex_list[islit]['shift']) == 0:
                         continue
-                    self.slitShift[islit] = flex_list[islit]['shift'][0]
+                    self.slitshift[islit] = flex_list[islit]['shift'][0]
 
             # Save QA
+            basename = "{0:s}_{1:s}".format(self.basename, mode)
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     specobjs=specObjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
         else:
             msgs.info('Skipping flexure correction.')
 
-    def refframe_correct(self, ra, dec, obstime, specObjs=None, update_waveimg=False):
+    def refframe_correct(self, ra, dec, obstime, specObjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
 
         Args:
@@ -751,12 +754,9 @@ class Reduce(object):
                                                    self.spectrograph.telescope['latitude'],
                                                    self.spectrograph.telescope['elevation'],
                                                    refframe)
-            # Apply correction
-            if update_waveimg:
-                msgs.info('Applying {0} correction = {1:0.5f}'.format(refframe, vel))
-                self.waveimg *= vel_corr
-            elif specObjs is not None:
-                msgs.info('Applying {0} correction = {1:0.5f}'.format(refframe, vel))
+            # Apply correction to objects
+            msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
+            if specObjs is not None:
                 # Loop on slits to apply
                 gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
                 for slitord in gd_slitord:
@@ -767,6 +767,10 @@ class Reduce(object):
                         if specobj is None:
                             continue
                         specobj.apply_helio(vel_corr, refframe)
+
+            # Apply correction to wavelength image
+            self.waveimg *= vel_corr
+
         else:
             msgs.info('A wavelength reference frame correction will not be performed.')
         return
