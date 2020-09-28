@@ -13,8 +13,11 @@ dist/*
 *.exe
 *.o
 *.so
+*.pyd
 *.pyc
 *_rjc*
+*.nbi
+*.nbc
  
 # Packages #
 ############

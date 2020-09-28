@@ -68,6 +68,7 @@ class SpecObjs:
         slf = cls()
         # Add on the header
         slf.header = hdul[0].header
+        # Keep track of HDUList for closing later
 
         detector_hdus = {}
         # Loop for Detectors first as we need to add these to the objects
@@ -88,6 +89,7 @@ class SpecObjs:
             # Append
             slf.add_sobj(sobj)
         # Return
+        hdul.close()
         return slf
 
     def __init__(self, specobjs=None, header=None):
@@ -101,6 +103,7 @@ class SpecObjs:
             self.specobjs = specobjs
 
         self.header = header if header is not None else None
+        self.hdul = None
 
         # Turn off attributes from here
         #   Anything else set will be on the individual specobj objects in the specobjs array

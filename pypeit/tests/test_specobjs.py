@@ -106,6 +106,7 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     hdul = fits.open(ofile)
     assert len(hdul) == 7  # Primary + 4 Obj + 2 Detectors
     assert hdul[0].header['NSPEC'] == 4
+    hdul.close()
     #
     _sobjs = specobjs.SpecObjs.from_fitsfile(ofile)
     assert _sobjs.nobj == 4
@@ -129,5 +130,4 @@ def test_io(sobj1, sobj2, sobj3, sobj4):
     _sobjs1 = specobjs.SpecObjs.from_fitsfile(ofile)
     assert _sobjs1.nobj == 3
     assert _sobjs1[2].BOX_WAVE.size == 2000
-
     os.remove(ofile)
