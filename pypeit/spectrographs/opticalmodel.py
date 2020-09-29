@@ -1,5 +1,8 @@
 """
 Module to generate an optical model for a spectrograph.
+
+.. include:: ../include/links.rst
+
 """
 import warnings
 from pypeit import msgs

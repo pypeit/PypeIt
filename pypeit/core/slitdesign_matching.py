@@ -8,6 +8,8 @@ TODO: These routines are specific for DEIMOS. Can they be generalized?
 
 These routines are taken from the DEEP2 IDL-based pipeline.
 
+.. include:: ../include/links.rst
+
 """
 # from IPython import embed
 
@@ -170,36 +172,54 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     return ind
 
 
-def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matches=False, edge=None):
+def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matches=False,
+               edge=None):
     """
-        Script that perform the slit edges matching.
-        This method uses :func:`discrete_correlate_match` to find the indices of x_model that match x_det.
+    Script that perform the slit edges matching.
 
-        Taken from DEEP2/spec2d/pro/deimos_slit_match.pro
+    This method uses :func:`discrete_correlate_match` to find the
+    indices of x_model that match x_det.
 
-    Args:
-        x_det (`numpy.ndarray`_):
-            1D array of slit edge spatial positions found from image
-        x_model (`numpy.ndarray`_):
-            1D array of slit edge spatial positions predicted by the optical model
-        step (:obj:`int`):
-            step size in pixels used to generate a list of possible offsets within the `offsets_range`
-        xlag_range (:obj:`list`, optional):
-            range of offsets in pixels allowed between the slit positions predicted by
-            the mask design and the traced slit positions.
-        sigrej:
-        print_matches:
-        edge:
+    Taken from DEEP2/spec2d/pro/deimos_slit_match.pro
 
-    Returns:
-        x_det (`numpy.ndarray`_):
-            1D array of slit edge spatial positions found from image trimmed if duplicated matches exist
-        ind  (`numpy.ndarray`_):
-            1D array of indices for `x_model`, which defines the matches to `x_det`, i.e., `x_det` matches `x_model[ind]`
-        coeff (`numpy.ndarray`_):
-            pypeitFit coefficients of the fitted relation between `x_det` and `x_model[ind]`
-        sigres (:obj:`float`):
-            RMS residual for the fitted relation between `x_det` and `x_model[ind]`
+    Parameters
+    ----------
+    x_det: `numpy.ndarray`_
+        1D array of slit edge spatial positions found from image.
+    x_model: `numpy.ndarray`_
+        1D array of slit edge spatial positions predicted by the
+        optical model.
+    step: :obj:`int`, optional
+        Step size in pixels used to generate a list of possible
+        offsets within the `offsets_range`.
+    xlag_range: :obj:`list`, optional
+        Range of offsets in pixels allowed between the slit
+        positions predicted by the mask design and the traced
+        slit positions.
+    sigrej: :obj:`float`, optional
+        Reject slit matches larger than this number of sigma in
+        the match residuals.
+    print_matches: :obj:`bool`, optional
+        Print the result of the matching.
+    edge: :obj:`str`, optional
+        String that indicates which edges are being plotted,
+        i.e., left of right. Ignored if ``print_matches`` is
+        False.
+
+    Returns
+    -------
+    x_det: `numpy.ndarray`_
+        1D array of slit edge spatial positions found from image
+        trimmed if duplicated matches exist.
+    ind: `numpy.ndarray`_
+        1D array of indices for `x_model`, which defines the matches
+        to `x_det`, i.e., `x_det` matches `x_model[ind]`
+    coeff: `numpy.ndarray`_
+        pypeitFit coefficients of the fitted relation between `x_det`
+        and `x_model[ind]`
+    sigres: :obj:`float`
+        RMS residual for the fitted relation between `x_det` and
+        `x_model[ind]`
 
     """
     # Determine the indices of `x_model` that match `x_det`
@@ -259,31 +279,35 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
 
 
 def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, trimmed=None, edge=None, shape=None):
-    """
+    r"""
+    Plot the slit mask matching results.
 
     Args:
         edgetrace (`numpy.ndarray`_):
-            2D array with the location of the slit edges for each spectral pixel as measured from the trace
-            image. Shape is :math:`(N_{\rm spec},N_{\rm trace})`.
+            2D array with the location of the slit edges for each
+            spectral pixel as measured from the trace image. Shape is
+            :math:`(N_{\rm spec},N_{\rm trace})`.
         ind (`numpy.ndarray`_):
-            1D array of indices for `x_model`, which defines the matches to `x_det`
+            1D array of indices for `x_model`, which defines the
+            matches to `x_det`.
         x_model (`numpy.ndarray`_):
-            1D array of slit edge spatial positions predicted by the optical model
+            1D array of slit edge spatial positions predicted by the
+            optical model.
         x_det (`numpy.ndarray`_):
-            1D array of slit edge spatial positions found from image
+            1D array of slit edge spatial positions found from image.
         yref (:obj:`float`):
-            reference pixel in the `spec` direction
+            Reference pixel in the `spec` direction.
         slit_index (`numpy.ndarray`_):
-            1D array of slit-mask design indices
+            1D array of slit-mask design indices.
         trimmed (:obj:`bool`, optional):
-            True if the duplicated matches have been trimmed during :func:`slit_match`.
+            True if the duplicated matches have been trimmed during
+            :func:`slit_match`.
         edge (:obj:`str`, optional):
-            Optional. String that indicates which edges are being plotted, i.e., left of right
-        shape  (:obj:`tuple`, optional):
-            Shape of the detector, for plotting purpose. It should be :math:`(N_{\rm spec}, N_{\rm spat})`
-
-    Returns:
-
+            String that indicates which edges are being plotted,
+            i.e., left of right.
+        shape (:obj:`tuple`, optional):
+            Shape of the detector, for plotting purpose. It should be
+            :math:`(N_{\rm spec}, N_{\rm spat})`.
     """
     yref_xdet = numpy.tile(yref, x_det.size)
     yref_x_model = numpy.tile(yref, x_model.size)
