@@ -551,17 +551,26 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     # Determine an initial guess
     ratio = robust_median_ratio(flux, ivar, flux_ref, ivar_ref, mask=mask, mask_ref=mask_ref,
                                 ref_percentile=ref_percentile, max_factor=scale_max)
+    wave_min = wave.min()
+    wave_max = wave.max()
+
     if 'poly' in model:
         guess = np.append(ratio, np.zeros(norder-1))
+        scale_fun = lambda x: x
     elif 'square' in model:
         guess = np.append(np.sqrt(ratio), np.zeros(norder-1))
+        scale_fun = np.sqrt
     elif 'exp' in model:
         guess = np.append(np.log(ratio), np.zeros(norder-1))
+        scale_fun = np.log
     else:
         msgs.error('Unrecognized model type')
 
-    wave_min = wave.min()
-    wave_max = wave.max()
+    lr = scipy.stats.linregress(wave[mask], scale_fun(flux_ref[mask]))
+    if np.abs(lr.rvalue) > 0.5:
+        leg_slope = lr.slope * (wave_max - wave_min) / 2.0
+        leg_int = lr.intercept + lr.slope * (wave_max + wave_min)/2.0
+        guess = np.append([leg_int, leg_slope], np.zeros(norder-2))
 
     # Now compute median filtered versions of the spectra which we will actually operate on for the fitting. Note
     # that rejection will however work on the non-filtered spectra.
