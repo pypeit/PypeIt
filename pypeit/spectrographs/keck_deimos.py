@@ -886,7 +886,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             npoints = 250
             wave = np.arange(npoints) * 24. + 4000.
 
-        # Compute the detector image plane coordinates
+        # Compute the detector image plane coordinates (in pixels)
         x_img, y_img = self.optical_model.mask_to_imaging_coordinates(_x, _y, self.amap, self.bmap,
                                                                       nslits=self.slitmask.nslits,
                                                                       wave=wave, order=order)

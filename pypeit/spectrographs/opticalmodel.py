@@ -69,6 +69,20 @@ class ReflectionGrating:
         along the first axis.
 
         Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
+
+        Args:
+            r (numpy.ndarray):
+                Rays to propagate.
+            nslits (:obj:`int`):
+                Number of slits
+            wave (`numpy.ndarray`_):
+                The wavelengths in angstroms for the propagated coordinates.
+            order (:obj:`int`):
+                The grating order.
+
+        Returns:
+            Rays reflected off the grating
+
         """
         if wave is None and self.central_wave is None:
             msgs.error('Must define a wavelength for the calculation.')
@@ -456,11 +470,25 @@ class OpticalModel:
     def pre_grating_vectors(self, x, y, amap, npoints=1):
         """
         Propagate rays from the mask plane to the grating, by interpolating a pre-grating
-        map (amap) saved in a .sav file.
+        map (amap).
 
         This should replace :attr:`mask_coo_to_grating_input_vectors`
 
         Taken from DEEP2/spec2d/pro/model/qmodel.pro
+
+        Args:
+            x (`numpy.ndarray`_):
+                The x coordinates in the slit mask in mm.
+            y (`numpy.ndarray`_):
+                The y coordinates in the slit mask in mm.
+            amap (`FITS_rec`):
+                pre-grating map
+            npoints (:obj:`int`):
+                Size of the spectral direction
+
+        Returns:
+            Rays (`numpy.ndarray`_) propagated from mask plane to grating.
+
         """
 
         xmm = numpy.tile(x, (npoints, 1))
@@ -495,15 +523,29 @@ class OpticalModel:
 
         return rr
 
-
     def post_grating_vectors_to_ics_coo(self, r, bmap, nslits, npoints):
         """
         Revert rays from post-grating output vectors to CCD coordinates, by interpolating a post-grating
-        map (bmap) saved in a .sav file.
+        map (bmap).
 
         This should replace :attr:`grating_output_vectors_to_ics_coo`
 
         Taken from DEEP2/spec2d/pro/model/qmodel.pro
+
+        Args:
+            r (`numpy.ndarray`_):
+                Rays to be transformed
+            bmap (`FITS_rec`):
+                post-grating map
+            nslits (:obj:`int`):
+                Number of slits
+            npoints (:obj:`int`):
+                Size of the spectral direction
+
+        Returns:
+            xics, yics (`numpy.ndarray`_):
+                Detector image plane coordinates in pixels
+
         """
 
         tanxi = r[:, 0] / r[:, 2]
@@ -543,8 +585,6 @@ class OpticalModel:
             yics = yics.reshape(nslits, npoints)
 
         return xics, yics
-
-
 
     def ics_coo_to_grating_output_vectors(self, x, y):
         """
@@ -631,6 +671,26 @@ class OpticalModel:
         ordered along the first axis.
 
         Taken from xidl/DEEP2/spec2d/pro/model/qmodel.pro.
+
+        Args:
+            x (`numpy.ndarray`_):
+                The x coordinates in the slit mask in mm.
+            y (`numpy.ndarray`_):
+                The y coordinates in the slit mask in mm.
+            amap (`FITS_rec`):
+                pre-grating map
+            bmap (`FITS_rec`):
+                post-grating map
+            nslits (:obj:`int`):
+                Number of slits
+            wave (`numpy.ndarray`_):
+                The wavelengths in angstroms for the propagated coordinates.
+            order (:obj:`int`):
+                The grating order.
+
+        Returns:
+            `numpy.ndarray`_: Two arrays.
+                Detector image plane coordinates in pixels
         """
 
         npoints = 1 if wave is None else numpy.atleast_1d(wave).shape[0]
