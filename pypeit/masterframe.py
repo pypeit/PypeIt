@@ -2,7 +2,8 @@
 Implements the master frame base class.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
+
 """
 import os
 from IPython import embed

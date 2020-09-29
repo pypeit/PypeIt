@@ -76,6 +76,7 @@
 
 .. ginga
 
+.. _ginga: https://ginga.readthedocs.io/en/stable/
 .. _AstroImage: https://ginga.readthedocs.io/en/stable/dev_manual/image_wrappers.html#astroimage
 .. _ginga GlobalPlugin: https://ginga.readthedocs.io/en/stable/dev_manual/developers.html#writing-a-global-plugin
 
@@ -88,5 +89,6 @@
 .. _Joe Hennawi: joe@physics.ucsb.edu
 .. _X Prochaska: xavier@ucolick.org
 
-
+.. misc
+.. _SDSS bitmasks: https://www.sdss.org/dr16/algorithms/bitmasks/
 

@@ -7,6 +7,5 @@ Show the trace image in a Ginga window with edges
 from pypeit.scripts import chk_edges
 
 if __name__ == '__main__':
-    args = chk_edges.parser()
-    chk_edges.main(args)
+    chk_edges.main(chk_edges.parse_args())
 

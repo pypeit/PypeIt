@@ -45,7 +45,7 @@ class SmartFormatter(argparse.HelpFormatter):
         # this is the RawTextHelpFormatter._split_lines
         return argparse.HelpFormatter._split_lines(self, text, width)
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
 
     parser = argparse.ArgumentParser(description='Script to run PypeIt on a pair of MOSFIRE files (A-B)', formatter_class=SmartFormatter)
     parser.add_argument('full_rawpath', type=str, help='Full path to the raw files')
@@ -69,18 +69,18 @@ def parser(options=None):
     parser.add_argument("--show", default=False, action="store_true",
                         help="Show the reduction steps. Equivalent to the -s option when running pypeit.")
 
-    if options is None:
-        pargs = parser.parse_args()
-    else:
-        pargs = parser.parse_args(options)
-    return pargs
+    if return_parser:
+        return parser
 
-def config_lines(pargs):
+    return parser.parse_args() if options is None else parser.parse_args(options)
+
+
+def config_lines(args):
 
     # Config the run
     cfg_lines = ['[rdx]']
     cfg_lines += ['    spectrograph = {0}'.format('keck_mosfire')]
-    cfg_lines += ['    redux_path = {0}'.format(pargs.redux_path)]
+    cfg_lines += ['    redux_path = {0}'.format(args.redux_path)]
     cfg_lines += ['    scidir = Science_QL']
     # Calibrations
     cfg_lines += ['[baseprocess]']
@@ -89,15 +89,15 @@ def config_lines(pargs):
     cfg_lines += ['[calibrations]']
     cfg_lines += ['    [[wavelengths]]']
     cfg_lines += ['        frame = observed']
-    if not pargs.mask_cr:
+    if not args.mask_cr:
         cfg_lines += ['[scienceframe]']
         cfg_lines += ['    [[process]]']
         cfg_lines += ['        mask_cr = False']
     cfg_lines += ['[reduce]']
     cfg_lines += ['    [[extraction]]']
     cfg_lines += ['        skip_optimal = True']
-    if pargs.box_radius is not None: # Boxcar radius
-        cfg_lines += ['        boxcar_radius = {0}'.format(pargs.box_radius)]
+    if args.box_radius is not None: # Boxcar radius
+        cfg_lines += ['        boxcar_radius = {0}'.format(args.box_radius)]
     cfg_lines += ['    [[findobj]]']
     cfg_lines += ['        skip_second_find = True']
 
@@ -180,12 +180,12 @@ def parse_dither_pattern(file_list, ext):
 
 
 
-def main(pargs):
+def main(args):
 
 
     # Build the fitstable since we currently need it for output. This should not be the case!
-    A_files = [os.path.join(pargs.full_rawpath, file) for file in pargs.Afiles]
-    B_files = [os.path.join(pargs.full_rawpath, file) for file in pargs.Bfiles]
+    A_files = [os.path.join(args.full_rawpath, file) for file in args.Afiles]
+    B_files = [os.path.join(args.full_rawpath, file) for file in args.Bfiles]
     data_files = A_files + B_files
     ps = pypeitsetup.PypeItSetup(A_files, path='./', spectrograph_name='keck_mosfire')
     ps.build_fitstbl()
@@ -195,17 +195,17 @@ def main(pargs):
     spectrograph = load_spectrograph('keck_mosfire')
     spectrograph_def_par = spectrograph.default_pypeit_par()
     parset = par.PypeItPar.from_cfg_lines(cfg_lines=spectrograph_def_par.to_config(),
-                                          merge_with=config_lines(pargs))
+                                          merge_with=config_lines(args))
     science_path = os.path.join(parset['rdx']['redux_path'], parset['rdx']['scidir'])
 
     # Calibration Master directory
-    if pargs.master_dir is None:
+    if args.master_dir is None:
         msgs.error("You need to set an Environmental variable MOSFIRE_MASTERS that points at the Master Calibs")
 
     # Define some hard wired master files here to be later parsed out of the directory
-    slit_masterframe_name = os.path.join(pargs.master_dir, 'MasterSlits_E_15_01.fits.gz')
-    tilts_masterframe_name = os.path.join(pargs.master_dir, 'MasterTilts_E_1_01.fits')
-    wvcalib_masterframe_name = os.path.join(pargs.master_dir, 'MasterWaveCalib_E_1_01.fits')
+    slit_masterframe_name = os.path.join(args.master_dir, 'MasterSlits_E_15_01.fits.gz')
+    tilts_masterframe_name = os.path.join(args.master_dir, 'MasterTilts_E_1_01.fits')
+    wvcalib_masterframe_name = os.path.join(args.master_dir, 'MasterWaveCalib_E_1_01.fits')
     # For now don't require a standard
     std_outfile=None
     #std_outfile = os.path.join('/Users/joe/Dropbox/PypeIt_Redux/MOSFIRE/Nov19/quicklook/Science/',
@@ -258,12 +258,12 @@ def main(pargs):
     # Instantiate Reduce object
     # Required for pypeline specific object
     # At instantiaton, the fullmask in self.sciImg is modified
-    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=pargs.show,
+    redux = reduce.Reduce.get_instance(sciImg, spectrograph, parset, caliBrate, 'science', ir_redux=True, show=args.show,
                                        det=det, std_outfile=std_outfile)
 
     manual_extract_dict = None
     skymodel, objmodel, ivarmodel, outmask, sobjs, waveImg, tilts = redux.run(
-        std_trace=std_trace, return_negative=True, manual_extract_dict=manual_extract_dict, show_peaks=pargs.show)
+        std_trace=std_trace, return_negative=True, manual_extract_dict=manual_extract_dict, show_peaks=args.show)
 
     # TODO -- Do this upstream
     # Tack on detector
@@ -324,9 +324,9 @@ def main(pargs):
 
     #offset_dith_pix = offset_dith_pix = offset_arcsec_A[0]/sciImg.detector.platescale
     offsets_dith_pix = (np.array([0.0,np.mean(offset_arcsec_B) - np.mean(offset_arcsec_A)]))/sciImg.detector.platescale
-    if pargs.offset is not None:
-        offsets_pixels = np.array([0.0, pargs.offset])
-        msgs.info('Using user specified offsets instead: {:5.2f}'.format(pargs.offset))
+    if args.offset is not None:
+        offsets_pixels = np.array([0.0, args.offset])
+        msgs.info('Using user specified offsets instead: {:5.2f}'.format(args.offset))
     else:
         offsets_pixels = offsets_dith_pix
 
@@ -335,7 +335,7 @@ def main(pargs):
     # Instantiate Coadd2d
     coadd = coadd2d.CoAdd2D.get_instance(spec2d_list, spectrograph, parset, det=det,
                                          offsets=offsets_pixels, weights='uniform', ir_redux=True,
-                                         debug=pargs.show, samp_fact=pargs.samp_fact)
+                                         debug=args.show, samp_fact=args.samp_fact)
     # Coadd the slits
     coadd_dict_list = coadd.coadd(only_slits=None, interp_dspat=False)  # TODO implement only_slits later
     # Create the pseudo images
@@ -368,7 +368,7 @@ def main(pargs):
     out = shell.start_global_plugin('WCSMatch')
     out = shell.call_global_plugin_method('WCSMatch', 'set_reference_channel', [chname_skyresids], {})
 
-    if pargs.embed:
+    if args.embed:
         embed()
 
     return 0

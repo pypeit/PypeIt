@@ -9,7 +9,7 @@ This script generates files to setup a PypeIt run
 import os
 from pypeit import defs
 
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
     import argparse
 
     # TODO: Add argument that specifies the log file
@@ -39,6 +39,9 @@ def parser(options=None):
                         help='Include the background-pair columns for the user to edit')
     parser.add_argument('-v', '--verbosity', type=int, default=2,
                         help='Level of verbosity from 0 to 2.')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 

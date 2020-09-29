@@ -24,7 +24,7 @@ provide instrument-specific:
     - method to access an archival sky spectrum
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 """
 import os
 from copy import deepcopy

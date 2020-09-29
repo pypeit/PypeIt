@@ -1,4 +1,4 @@
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 
 .. _deimos_frames_report:
 
@@ -12,6 +12,7 @@ Version History
 *Version*   *Author*        *Date*      ``PypeIt``
 =========   =============   =========== ===========
 1.0         Kyle Westfall   11 Sep 2020 1.1.1
+1.1         Kyle Westfall   18 Sep 2020 1.1.2dev
 =========   =============   =========== ===========
 
 ----
@@ -43,22 +44,23 @@ required for the frame-typing and their associated keyword in the
 
 The criteria used to select each frame type are as follows:
 
-=============   =============   =========   ============    ============
-Frame           ``OBSTYPE``     ``LAMPS``   ``HATCHPOS``    ``ELAPTIME``
-=============   =============   =========   ============    ============
-``science``     ...             ``'Off'``   ``'open'``      :math:`\geq 30`
-``bias``        ...             ``'Off'``   ``'closed'``    :math:`\leq 2`
-``pixelflat``   ``'IntFlat'``   ...         ``'closed'``    :math:`\leq 30`
-``trace``       ``'IntFlat'``   ...         ``'closed'``    :math:`\leq 30`
-``illumflat``   ``'IntFlat'``   ...         ``'closed'``    :math:`\leq 30`
-``arc``         ``'Line'``      ``'Off'``   ``'closed'``    ...
-``tilt``        ``'Line'``      ``'Off'``   ``'closed'``    ...
-=============   =============   =========   ============    ============
+=============   ==========================================  =========   ============    ============
+Frame           ``OBSTYPE``                                 ``LAMPS``   ``HATCHPOS``    ``ELAPTIME``
+=============   ==========================================  =========   ============    ============
+``science``     ``'Object'``                                ``'Off'``   ``'open'``      ...
+``bias``        ``'Bias'``                                  ``'Off'``   ``'closed'``    ...
+``dark``        ``'Dark'``                                  ``'Off'``   ``'closed'``    ...
+``pixelflat``   ``'IntFlat'``, ``'DmFlat'``, ``'SkyFlat'``  ...         ``'closed'``    ...
+``trace``       ``'IntFlat'``, ``'DmFlat'``, ``'SkyFlat'``  ...         ``'closed'``    ...
+``illumflat``   ``'IntFlat'``, ``'DmFlat'``, ``'SkyFlat'``  ...         ``'closed'``    ...
+``arc``         ``'Line'``                                  ``'Off'``   ``'closed'``    ...
+``tilt``        ``'Line'``                                  ``'Off'``   ``'closed'``    ...
+=============   ==========================================  =========   ============    ============
 
-Importantly, note that a DEIMOS frame is never given a ``pinhole`` or
-``dark`` type. Also note that the criteria used to select
-``pixelflat``, ``trace``, and ``illumflat`` are identical; the same
-is true for ``arc`` and ``tilt`` frames.
+Importantly, note that a DEIMOS frame is never given a ``pinhole``
+type. Also note that the criteria used to select ``pixelflat``,
+``trace``, and ``illumflat`` are identical; the same is true for
+``arc`` and ``tilt`` frames.
 
 Testing
 -------

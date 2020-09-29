@@ -7,19 +7,23 @@
 This script examines a set of files and indicates which do and
 which do not have sufficient calibs
 """
-import argparse
+
 from pypeit import defs
 
-from IPython import embed
+def parse_args(options=None, return_parser=False):
+    import argparse
 
-def parser(options=None):
-    parser = argparse.ArgumentParser(description="Script to check for calibrations [v1]")
+    parser = argparse.ArgumentParser(description="Script to check for calibrations [v1]",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('root', type=str, default=None, help='File path+root, e.g. /data/Kast/b ')
     parser.add_argument('-s', '--spectrograph', default=None, type=str,
                         help='A valid spectrograph identifier: {0}'.format(
                                 ', '.join(defs.pypeit_spectrographs)))
     parser.add_argument('-e', '--extension', default='.fits',
                         help='File extension; compression indicators (e.g. .gz) not required.')
+
+    if return_parser:
+        return parser
 
     return parser.parse_args() if options is None else parser.parse_args(options)
 
@@ -36,6 +40,9 @@ def main(args):
     """
 
     import os
+
+    from IPython import embed
+
     import numpy as np
 
     from astropy import table

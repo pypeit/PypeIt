@@ -4,7 +4,7 @@ Provides methods common to :class:`pypeit.metadata.PypeItMetaData` and
 common metadata used for all specrographs.
 
 .. include common links, assuming primary doc root is up one directory
-.. include:: ../links.rst
+.. include:: ../include/links.rst
 
 """
 

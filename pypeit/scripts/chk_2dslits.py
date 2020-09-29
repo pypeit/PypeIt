@@ -1,26 +1,29 @@
 """
 This script displays the flat images in an RC Ginga window.
 """
-import argparse
 
-from pypeit import slittrace
-from pypeit import msgs
-from IPython import embed
-from pypeit import spec2dobj
-
-
-def parser(options=None):
+def parse_args(options=None, return_parser=False):
+    import argparse
     parser = argparse.ArgumentParser(description='Print info on slits from a spec2D file',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('spec2d_file', type=str, help='spec2D filename')
+    if return_parser:
+        return parser
+
     return parser.parse_args() if options is None else parser.parse_args(options)
 
 
-def main(pargs):
+def main(args):
+
+    from IPython import embed
+
+    from pypeit import slittrace
+    from pypeit import spec2dobj
+
     # bitmask
     bitmask = slittrace.SlitTraceBitMask()
     # Load
-    allspec2D = spec2dobj.AllSpec2DObj.from_fits(pargs.spec2d_file)
+    allspec2D = spec2dobj.AllSpec2DObj.from_fits(args.spec2d_file)
     # Loop on Detectors
     for det in allspec2D.detectors:
         print("================ DET {:02d} ======================".format(det))
