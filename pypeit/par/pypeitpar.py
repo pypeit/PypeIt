@@ -1684,7 +1684,7 @@ class TellFitPar(ParSet):
                  bounds_norm=None, tell_norm_thresh=None, only_orders=None, pca_lower=None, pca_upper=None,
                  star_type=None, star_mag=None, star_ra=None, star_dec=None, mask_abs_lines=None,
                  func=None, model=None, polyorder=None, fit_wv_min_max=None, mask_lyman_a=None,
-                 delta_coeff_bounds=None, minmax_coeff_bounds=None, tell_grid=None):
+                 delta_coeff_bounds=None, minmax_coeff_bounds=None, use_huber=None, tell_grid=None):
 
         # Grab the parameter names and values from the function arguments
         args, _, _, values = inspect.getargvalues(inspect.currentframe())
@@ -1789,6 +1789,10 @@ class TellFitPar(ParSet):
         defaults['minmax_coeff_bounds'] = [-5.0, 5.0]
         dtypes['minmax_coeff_bounds'] = list
         descr['minmax_coeff_bounds'] = "Paramters setting the polynomial coefficient bounds for telluric optimization."
+
+        defaults['use_huber'] = True
+        dtypes['use_huber'] = bool
+        descr['use_huber'] = "Rescale chi2 to ignore outliers when initializing object model?"
 
         ### Start parameters for poly_telluric
         defaults['fit_wv_min_max'] = None
