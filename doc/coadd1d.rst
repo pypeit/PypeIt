@@ -112,6 +112,10 @@ through :doc:`fluxing`.  If not you should set::
 
     flux_value = False
 
+If the data were fluxed, then the output *flux* spectrum
+will have units of ergs/s/cm^2/Ang multiplied by 1e17.
+
+
 Flux Scale
 ++++++++++
 
