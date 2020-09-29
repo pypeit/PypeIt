@@ -748,7 +748,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def get_amapbmap(self, filename):
         """
-        Select the pre-grating (amap) and post-grating (bmap) maps according to the slider.
+            Select the pre-grating (amap) and post-grating (bmap) maps according to the slider.
+
+        Args:
+            filename (:obj:`str`, optional):
+                The filename to read the slider information from the header.
+
+        Returns:
+            Two attributes :attr:`amap` and :attr:`bmap`.
+
         """
         hdu = fits.open(filename)
 
@@ -761,7 +769,7 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
             self.amap = fits.getdata(mp_dir+'amap.s{}.2003mar04.fits'.format(slider))
             self.bmap = fits.getdata(mp_dir+'bmap.s{}.2003mar04.fits'.format(slider))
         else:
-            msgs.error('No amap/bmap available for slider {0}'.format(slider))
+            msgs.error('No amap/bmap available for slider {0}. Set `use_maskdesign = False`'.format(slider))
         #TODO: Figure out which amap and bmap to use for slider 2
 
         return self.amap, self.bmap

@@ -804,6 +804,9 @@ class EdgeTraceSet(DataContainer):
         # the slit-mask design. If we include the piece of code in which `maskdesign_matching` recovers
         # missing traces, we should move the following 2 lines before `self.sync()`
         if self.par['use_maskdesign']:
+            msgs.info('-' * 50)
+            msgs.info('{0:^50}'.format('Matching traces to the slit-mask design'))
+            msgs.info('-' * 50)
             self.maskdesign_matching(debug=debug)
 
         # First manually remove some traces, just in case a user
@@ -4035,7 +4038,7 @@ class EdgeTraceSet(DataContainer):
 
         # Left (bottom) and right (top) traces in pixels from optical model (image plane and detector)
         # bottom
-        omodel_bcoo= self.spectrograph.mask_to_pixel_coordinates(x=self.spectrograph.slitmask.bottom[:, 0],
+        omodel_bcoo = self.spectrograph.mask_to_pixel_coordinates(x=self.spectrograph.slitmask.bottom[:, 0],
                                                                  y=self.spectrograph.slitmask.bottom[:, 1])
         bedge_img, ccd_b, bedge_pix = omodel_bcoo[0], omodel_bcoo[2], omodel_bcoo[3]
 
@@ -4044,16 +4047,34 @@ class EdgeTraceSet(DataContainer):
                                                                   y=self.spectrograph.slitmask.top[:, 1])
         tedge_img, ccd_t, tedge_pix = omodel_tcoo[0], omodel_tcoo[2], omodel_tcoo[3]
 
-        # Per each slit we take the median value of the left and right trace over the wavelength direction
+        # This gives the pixel positions for center of the slit from optical model. We use it to determine if the
+        # slit falls into the current detector
+        omodel_cencoo = self.spectrograph.mask_to_pixel_coordinates(x=self.spectrograph.slitmask.center[:, 0],
+                                                                  y=self.spectrograph.slitmask.center[:, 1])
+        cenedge_img, ccd_cen, cenedge_pix = omodel_cencoo[0], omodel_cencoo[2], omodel_cencoo[3]
+
+        # Per each slit we take the median value of the traces over the wavelength direction. These medians will be used
+        # for the cross-correlation with the traces found in the images.
         ccdnum=self.traceimg.detector.det
         omodel_bspat = np.zeros(self.spectrograph.slitmask.nslits)
         omodel_tspat = np.zeros(self.spectrograph.slitmask.nslits)
+        omodel_censpat = np.zeros(self.spectrograph.slitmask.nslits)
 
         for i in range(omodel_bspat.size):
+            # We "flag" the left and right traces (as well as the center of the slit) predicted by the optical model
+            # that are outside of the current detector, by giving a value of -1.
+            # bottom
             omodel_bspat[i] = -1 if bedge_pix[i, ccd_b[i, :] == ccdnum].shape[0] == 0 else np.median(
                                                                                     bedge_pix[i, ccd_b[i, :] == ccdnum])
+            # top
             omodel_tspat[i] = -1 if tedge_pix[i, ccd_t[i, :] == ccdnum].shape[0] == 0 else np.median(
                                                                                     tedge_pix[i, ccd_t[i, :] == ccdnum])
+            # center
+            omodel_censpat[i] = -1 if cenedge_pix[i, ccd_cen[i, :] == ccdnum].shape[0] == 0 else np.median(
+                                                                                cenedge_pix[i, ccd_cen[i, :] == ccdnum])
+
+            # If a left (or right) trace is outside of the detector, the corresponding right (or left) trace
+            # is determined using the pixel position from the image plane.
             whgood = np.where(tedge_img[i, :] > -1e4)[0]
             npt_img = int(whgood.shape[0] / 2.)
             whgood = whgood[:npt_img] if ccdnum <= 4 else whgood[npt_img:]
@@ -4062,16 +4083,36 @@ class EdgeTraceSet(DataContainer):
             if (omodel_tspat[i] == -1) & (omodel_bspat[i] >= 0):
                 omodel_tspat[i] = omodel_bspat[i] + np.median((tedge_img - bedge_img)[i, whgood])
 
-
-
-        if debug is True:
-            print("slitindex    slitID    length      width       mmspat_cen         omodel_botedge  omodel_topedge")
+        # This print a QA table with info on the slits that fall in the current detector. The only info provided here
+        # are `slitindex`, which is called `SlitName` in the DEIMOS design file, `slitid`, which is called `dSlitId`.
+        # They are also sorted from left to right.
+        if debug is not True:
+            msgs.info('*' * 24)
+            msgs.info(' {0}    {1:^12s}'.format('SlitName', 'dSlitId'))
+            msgs.info(' {0}    {1}'.format('-' * 8, '-' * 11))
             for i in range(sortindx.shape[0]):
-                if (omodel_bspat[sortindx][i] != -1) | (omodel_tspat[sortindx][i] != -1):
-                    print("{}  {}  {}  {}   {}      {}  {}".format(self.spectrograph.slitmask.slitindx[sortindx][i],
-                        self.spectrograph.slitmask.slitid[sortindx][i], self.spectrograph.slitmask.length[sortindx][i],
-                        self.spectrograph.slitmask.width[sortindx][i], self.spectrograph.slitmask.center[:, 0][sortindx][i],
-                        omodel_bspat[sortindx][i], omodel_tspat[sortindx][i]))
+                if omodel_censpat[sortindx][i] != -1:
+                    msgs.info('   {0:03d}      {1:^14d}'.format(self.spectrograph.slitmask.slitindx[sortindx][i],
+                                                                self.spectrograph.slitmask.slitid[sortindx][i]))
+            msgs.info('*' * 24)
+
+        # If instead we run this method in debug mode, we print more info useful for comparison, for example, with
+        # the IDL-based pipeline.
+        if debug is True:
+            msgs.info('*' * 102)
+            msgs.info(' {0:9s} {1:^12s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^14s}'.format(
+                'SlitName', 'dSlitId', 'slitLen(mm)', 'slitWid(mm)', 'spat_cen(mm)', 'omodel_bottom(pix)',
+                                                                                                'omodel_top(pix)'))
+            msgs.info(' {0:9s} {1:^12s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^14s}'.format(
+                        '-' * 8, '-' * 11,'-' * 11, '-' * 11, '-' * 13,'-' * 18, '-' * 15))
+            for i in range(sortindx.shape[0]):
+                if omodel_censpat[sortindx][i] != -1:
+                    msgs.info('   {0:03d}    {1:^14d} {2:^12.3f} {3:^12.3f} {4:^14.3f}  {5:^16.2f} {6:^14.2f}'.format(
+                        self.spectrograph.slitmask.slitindx[sortindx][i], self.spectrograph.slitmask.slitid[sortindx][i],
+                        self.spectrograph.slitmask.length[sortindx][i], self.spectrograph.slitmask.width[sortindx][i],
+                        self.spectrograph.slitmask.center[:, 0][sortindx][i], omodel_bspat[sortindx][i],
+                        omodel_tspat[sortindx][i]))
+            msgs.info('*' * 102)
 
         reference_row = self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row
         spat_bedge = self.edge_fit[reference_row, self.is_left]
@@ -4116,9 +4157,10 @@ class EdgeTraceSet(DataContainer):
                 slitdesign_matching.slit_match(spat_tedge, omodel_bspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='top')
-        #
-        btrimmed = np.where(np.in1d(spat_bedge, spat_bedge_trim) == False)[0]
-        ttrimmed = np.where(np.in1d(spat_tedge, spat_tedge_trim) == False)[0]
+
+        # flag the matches that have been trimmed
+        btrimmed = np.where(~np.in1d(spat_bedge, spat_bedge_trim))[0]
+        ttrimmed = np.where(~np.in1d(spat_tedge, spat_tedge_trim))[0]
         if debug is True:
             plt.scatter(spat_bedge_trim, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
                         label='Bottom edge: RMS={}'.format(round(sigres_b, 4)))
