@@ -9,6 +9,12 @@
 - Added docs for BitMasks
 - Altered scripts interface to allow for dynamically making the help
   doc files
+- Added `pypeit/core/convert_DEIMOSsavfiles.py` to convert .sav files into fits files
+- Added "amap" and "bmap" fits files in `pypeit/data/static_calibs/keck_deimos/` for DEIMOS
+   optical model
+- Added `pypeit/core/slitdesign_matching.py` and `maskdesign_matching` to `EdgeTraceSet`
+- Added ParSet for switching ON the slit-mask design matching. Default is ON for `keck_deimos`
+- Pypeit registers `maskdef_id` in SlitTraceSet if instrument is `keck_deimos`
 
 1.1.1 (10 Sep 2020)
 -------------------
