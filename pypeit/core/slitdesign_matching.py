@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 from astropy.stats import sigma_clipped_stats
 from pypeit.core import fitting
 
-# from pypeit import msgs
+from pypeit import msgs
 
 
 def best_offset(x_det, x_model, step=1, xlag_range=None):
@@ -40,8 +40,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
             the mask design and the traced slit positions.
 
     Returns:
-        xlag (:obj:`float`):
-            best offset between the slit edge predicted by the optical model and the one found in the image
+        :obj:`float`: best offset between the slit edge predicted by the optical model and the one found in the image
 
     """
     # This select the number of best matches used later fo statistics
@@ -53,8 +52,8 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
         # we keep only the x_model values that are in the current detector
         wkeep =(x_model > min_x_det+xlag_range[0]) & (x_model < max_x_det+xlag_range[1])
         if x_model[wkeep].size<2:
-            print('Working between {} and {}'.format(min_x_det+xlag_range[0], max_x_det+xlag_range[1]))
-            print('Not enough lines to run!!!')
+            msgs.warn('Working between {} and {}'.format(min_x_det+xlag_range[0], max_x_det+xlag_range[1]))
+            msgs.warn('Not enough lines to run!!!')
             sdev = 1e10
             return 0.
         x_model_trim = x_model[wkeep]
@@ -248,13 +247,13 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
         x_det=x_det[good]
     if print_matches is True:
         if edge is not None:
-            print('-----------------------------------------------')
-            print('             {} slit edges               '.format(edge))
-        print('-----------------------------------------------')
-        print('Index      omodel_edge       spat_edge               ')
-        print('-----------------------------------------------')
+            msgs.info('-----------------------------------------------')
+            msgs.info('             {} slit edges               '.format(edge))
+        msgs.info('-----------------------------------------------')
+        msgs.info('Index      omodel_edge       spat_edge               ')
+        msgs.info('-----------------------------------------------')
         for i in range(ind.size):
-            print('{}  {}  {}'.format(ind[i], x_model[ind][i], x_det[i]))
+            msgs.info('{}  {}  {}'.format(ind[i], x_model[ind][i], x_det[i]))
     return x_det, ind, coeff, sigres
 
 

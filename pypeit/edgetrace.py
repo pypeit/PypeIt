@@ -4189,13 +4189,13 @@ class EdgeTraceSet(DataContainer):
                                              reference_row, self.spectrograph.slitmask.slitindx, trimmed=ttrimmed,
                                              edge='top', shape=(self.nspec, self.nspat))
 
-        bot_edge_pred = coeff_b[0] + coeff_b[1]*omodel_bspat
-        top_edge_pred = coeff_t[0] + coeff_t[1]*omodel_tspat
+        bot_edge_pred = coeff_b[0] + coeff_b[1]*omodel_bspat if not switched else coeff_b[0] + coeff_b[1]*omodel_tspat
+        top_edge_pred = coeff_t[0] + coeff_t[1]*omodel_tspat if not switched else coeff_t[0] + coeff_t[1]*omodel_bspat
 
         # Find if there are missing traces.
         # Need exactly one occurrence of each index in "need"
         buffer = 20.
-        need = ((top_edge_pred > buffer) & (bot_edge_pred < self.traceimg.shape[1] - 1 - buffer)) & \
+        need = ((top_edge_pred > buffer) & (bot_edge_pred < (self.traceimg.shape[1] - 1 - buffer))) & \
                ((omodel_bspat != -1) | (omodel_tspat != -1))
 
         # bottom edges
