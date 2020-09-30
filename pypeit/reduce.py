@@ -428,7 +428,7 @@ class Reduce(object):
         # Correct for local spectral flexure
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
-        elif self.par['flexure']['spec_method'] not in ['skip', 'slit_cen'] and not self.std_redux:
+        elif self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
             # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
             self.spec_flexure_correct(mode='local', specObjs=self.sobjs)
 
