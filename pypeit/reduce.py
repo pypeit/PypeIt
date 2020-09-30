@@ -433,7 +433,7 @@ class Reduce(object):
             self.spec_flexure_correct(mode='local', specObjs=self.sobjs)
 
         # Apply a reference frame correction to each object and the waveimg
-        self.refframe_correct(ra, dec, obstime, specObjs=self.sobjs)
+        self.refframe_correct(ra, dec, obstime, specobjs=self.sobjs)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -735,7 +735,7 @@ class Reduce(object):
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     specobjs=specObjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
 
-    def refframe_correct(self, ra, dec, obstime, specObjs=None):
+    def refframe_correct(self, ra, dec, obstime, specobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
 
         Args:
@@ -743,7 +743,7 @@ class Reduce(object):
                 Sky Coordinate of the observation
             obstime (:obj:`astropy.time.Time`):
                 Observation time
-            specObjs (:class:`pypeit.specobjs.Specobjs`, None):
+            specobjs (:class:`pypeit.specobjs.Specobjs`, None):
                 Spectrally extracted objects
 
         """
@@ -761,12 +761,12 @@ class Reduce(object):
                                                    refframe)
             # Apply correction to objects
             msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
-            if specObjs is not None:
+            if (specobjs is not None) and (specobjs.nobj != 0):
                 # Loop on slits to apply
                 gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
                 for slitord in gd_slitord:
-                    indx = specObjs.slitorder_indices(slitord)
-                    this_specobjs = specObjs[indx]
+                    indx = specobjs.slitorder_indices(slitord)
+                    this_specobjs = specobjs[indx]
                     # Loop on objects
                     for specobj in this_specobjs:
                         if specobj is None:
