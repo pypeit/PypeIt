@@ -58,6 +58,7 @@ class ReflectionGrating:
                             [     -sinx,                 cost*cosx,                 sint*cosx],
                             [ cosx*sinr, -sint*cosr+cost*sinx*sinr,  cost*cosr+sint*sinx*sinr]])
 
+# NOTE: Keep this around for the time-being.
     # def reflect(self, r, wave=None, order=1):
     #     """
     #     Propagate an input ray for a given wavelength and order.
@@ -757,6 +758,7 @@ class OpticalModel:
         # return self.grating_output_vectors_to_ics_coo(r, sign=1 - 2 * (x < 0))
         return self.post_grating_vectors_to_ics_coo(r, bmap, nslits, npoints)
 
+# NOTE: Keep this around for the time-being.
     # def mask_to_imaging_coordinates(self, x, y, wave, order):
     #     """
     #     Convert mask coordinates in mm to detector coordinates in pixels.

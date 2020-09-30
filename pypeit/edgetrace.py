@@ -4338,6 +4338,8 @@ class EdgeTraceSet(DataContainer):
 
 
 
+# NOTE: I'd like us to keep this commented mask_refine function around
+# for the time being.
         # def mask_refine(self, design_file=None, allow_resync=False, debug=False):
         #     """
         #     Use the mask design data to refine the edge trace positions.
@@ -4633,85 +4635,6 @@ class EdgeTraceSet(DataContainer):
         #     # Fill the slit-design and object tables
         #     self._fill_design_table(register, _design_file)
         #     self._fill_objects_table(register)
-
-    # def _fill_design_table(self, register, design_file):
-    #     """
-    #     Fill :attr:`design` based on the results of the design
-    #     registration.
-    #
-    #     Args:
-    #         register (:class:`pypeit.spectrographs.slitmask.SlitRegister`):
-    #             Object holding the result of the registration.
-    #         design_file (:obj:`str`):
-    #             File that provided the slit-mask design data.
-    #     """
-    #     # Index for the slit in the design data
-    #     slit_index = register.match_index[register.match_index % 2 == 0]//2
-    #     # Number of slits
-    #     nslits = len(slit_index)
-    #     # Reference row
-    #     reference_row = self.left_pca.reference_row if self.par['left_right_pca'] \
-    #                         else self.pca.reference_row
-    #     # Instantiate as an empty table
-    #     self.design = EdgeTraceSet.empty_design_table(rows=nslits)
-    #     # Save the fit parameters and the source file as table metadata
-    #     self.design.meta['MASKFILE'] = design_file
-    #     self.design.meta['MASKOFF'] = register.par[0]
-    #     self.design.meta['MASKSCL'] = register.par[1]
-    #     # Fill the columns
-    #     self.design['TRACEID'] = np.arange(nslits, dtype=self.design['TRACEID'].dtype)
-    #     self.design['TRACESROW'] = np.full(nslits, reference_row,
-    #                                        dtype=self.design['TRACESROW'].dtype)
-    #     self.design['TRACELPIX'] = self.edge_fit[reference_row,self.traceid<0].astype(
-    #                                     dtype=self.design['TRACELPIX'].dtype)
-    #     self.design['TRACERPIX'] = self.edge_fit[reference_row,self.traceid>0].astype(
-    #                                     dtype=self.design['TRACERPIX'].dtype)
-    #     self.design['SLITID'] = self.spectrograph.slitmask.slitid[slit_index].astype(
-    #                                     dtype=self.design['SLITID'].dtype)
-    #     self.design['SLITLFOC'] = register.mask_spat[register.match_index][self.traceid<0].astype(
-    #                                     dtype=self.design['SLITLFOC'].dtype)
-    #     self.design['SLITRFOC'] = register.mask_spat[register.match_index][self.traceid>0].astype(
-    #                                     dtype=self.design['SLITRFOC'].dtype)
-    #     if self.spectrograph.slitmask.onsky is not None:
-    #         for i,key in enumerate(['SLITRA', 'SLITDEC', 'SLITLEN', 'SLITWID', 'SLITPA']):
-    #             self.design[key] = self.spectrograph.slitmask.onsky[slit_index,i].astype(
-    #                                     dtype=self.design[key].dtype)
-    #     self.design['ALIGN'] = self.spectrograph.slitmask.alignment_slit[slit_index].astype(
-    #                                     dtype=self.design['ALIGN'].dtype)
-
-    # def _fill_objects_table(self, register):
-    #     """
-    #     Fill :attr:`objects` based on the result of the design
-    #     registration.
-    #
-    #     Args:
-    #         register (:class:`pypeit.spectrographs.slitmask.SlitRegister`):
-    #             Object holding the result of the registration.
-    #     """
-    #     if self.spectrograph.slitmask.objects is None:
-    #         # No object data available in slit mask design object
-    #         self.objects = None
-    #         return
-    #
-    #     # Index for the slit in the design data
-    #     slit_index = register.match_index[register.match_index % 2 == 0]//2
-    #     # The index in the objects table are found by mapping the slit
-    #     # index of each object in the design file to the slit index
-    #     # included in the registration
-    #     obj_index = utils.index_of_x_eq_y(self.spectrograph.slitmask.slitindx, slit_index,
-    #                                       strict=True)
-    #     # Number of objects
-    #     nobj = len(obj_index)
-    #     # Instantiate an empty table
-    #     self.objects = EdgeTraceSet.empty_objects_table(rows=nobj)
-    #     # Fill the columns
-    #     for i,key in enumerate(['SLITID', 'OBJID', 'OBJRA', 'OBJDEC']):
-    #             self.objects[key] = self.spectrograph.slitmask.objects[obj_index,i].astype(
-    #                                     dtype=self.objects[key].dtype)
-    #     # SLITINDX is the index of the slit in the `design` table, not
-    #     # in the original slit-mask design data
-    #     self.objects['SLITINDX'] = utils.index_of_x_eq_y(self.objects['SLITID'],
-    #                                                      self.design['SLITID'], strict=True)
 
     def slit_spatial_center(self, normalized=True, spec=None, use_center=False, include_box=False):
         """

@@ -2,6 +2,9 @@
 Module to run tests on PypeItPar classes
 """
 import os
+
+from IPython import embed
+
 import numpy
 
 import pytest

@@ -10,7 +10,6 @@ from pypeit.edgetrace import EdgeTraceSet
 # to traced slits
 
 # Load flats files
-@dev_suite_required
 def deimos_flat_files():
     return [os.path.join(os.getenv('PYPEIT_DEV'), 'RAW_DATA', 'keck_deimos', '1200G_Cooper', ifile)
                 for ifile in ['d0115_0023.fits.gz', 'd0115_0024.fits.gz', 'd0115_0025.fits.gz']]
