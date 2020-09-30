@@ -566,17 +566,18 @@ def solve_poly_ratio(wave, flux, ivar, flux_ref, ivar_ref, norder, mask = None, 
     else:
         msgs.error('Unrecognized model type')
 
-    lr = scipy.stats.linregress(wave[mask], scale_fun(flux_ref[mask]))
-    if np.abs(lr.rvalue) > 0.5:
-        leg_slope = lr.slope * (wave_max - wave_min) / 2.0
-        leg_int = lr.intercept + lr.slope * (wave_max + wave_min)/2.0
-        guess = np.append([leg_int, leg_slope], np.zeros(norder-2))
 
     # Now compute median filtered versions of the spectra which we will actually operate on for the fitting. Note
     # that rejection will however work on the non-filtered spectra.
     med_width = (2.0*np.ceil(median_frac/2.0*nspec) + 1).astype(int)
     flux_med, ivar_med = median_filt_spec(flux, ivar, mask, med_width)
     flux_ref_med, ivar_ref_med = median_filt_spec(flux_ref, ivar_ref, mask_ref, med_width)
+
+    lr = scipy.stats.linregress(wave[mask], scale_fun(flux_ref_med[mask]))
+    if np.abs(lr.rvalue) > 0.8:
+        leg_slope = lr.slope * (wave_max - wave_min) / 2.0
+        leg_int = lr.intercept + lr.slope * (wave_max + wave_min)/2.0
+        guess = np.append([leg_int, leg_slope], np.zeros(norder-2))
 
     arg_dict = dict(flux = flux, ivar = ivar, mask = mask,
                     flux_med = flux_med, ivar_med = ivar_med,
