@@ -430,10 +430,10 @@ class Reduce(object):
             msgs.warn('No objects to extract!')
         elif self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
             # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
-            self.spec_flexure_correct(mode='local', specobjs=self.sobjs)
+            self.spec_flexure_correct(mode='local', sobjs=self.sobjs)
 
         # Apply a reference frame correction to each object and the waveimg
-        self.refframe_correct(ra, dec, obstime, specobjs=self.sobjs)
+        self.refframe_correct(ra, dec, obstime, sobjs=self.sobjs)
 
         # Update the mask
         reduce_masked = np.where(np.invert(self.reduce_bpm_init) & self.reduce_bpm)[0]
@@ -749,7 +749,7 @@ class Reduce(object):
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     specobjs=sobjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
 
-    def refframe_correct(self, ra, dec, obstime, specobjs=None):
+    def refframe_correct(self, ra, dec, obstime, sobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
 
         Args:
@@ -757,7 +757,7 @@ class Reduce(object):
                 Sky Coordinate of the observation
             obstime (:obj:`astropy.time.Time`):
                 Observation time
-            specobjs (:class:`pypeit.specobjs.Specobjs`, None):
+            sobjs (:class:`pypeit.specobjs.Specobjs`, None):
                 Spectrally extracted objects
 
         """
@@ -775,12 +775,12 @@ class Reduce(object):
                                                    refframe)
             # Apply correction to objects
             msgs.info('Applying {0} correction = {1:0.5f} km/s'.format(refframe, vel))
-            if (specobjs is not None) and (specobjs.nobj != 0):
+            if (sobjs is not None) and (sobjs.nobj != 0):
                 # Loop on slits to apply
                 gd_slitord = self.slits.slitord_id[np.logical_not(self.reduce_bpm)]
                 for slitord in gd_slitord:
-                    indx = specobjs.slitorder_indices(slitord)
-                    this_specobjs = specobjs[indx]
+                    indx = sobjs.slitorder_indices(slitord)
+                    this_specobjs = sobjs[indx]
                     # Loop on objects
                     for specobj in this_specobjs:
                         if specobj is None:
