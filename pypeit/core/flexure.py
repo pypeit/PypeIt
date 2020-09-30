@@ -288,7 +288,7 @@ def spec_flex_shift(obj_skyspec, arx_skyspec, arx_lines, mxshft=20):
         max_fit = -0.5 * fit.fitc[1] / fit.fitc[2]
     else:
         fit = fitting.PypeItFit(xval=subpix_grid, yval=0.0*subpix_grid,
-                                funct='polynomial', order=np.atleast_1d(2))
+                                func='polynomial', order=np.atleast_1d(2))
         fit.fit()
         success = False
         max_fit = 0.0
@@ -326,7 +326,7 @@ def flexure_interp(shift, wave):
     return twave
 
 
-def spec_flexure_slit(slits, slitord, bpm, sky_file, method="boxcar", specobjs=None, slitspecs=None,
+def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None, slit_specs=None,
                       mxshft=None):
     """Correct wavelengths for flexure, slit by slit
 
@@ -335,7 +335,7 @@ def spec_flexure_slit(slits, slitord, bpm, sky_file, method="boxcar", specobjs=N
             Slit trace set
         slitord (`numpy.ndarray`_):
             Array of slit/order numbers
-        bpm (`numpy.ndarray`_):
+        slit_bpm (`numpy.ndarray`_):
             True = masked slit
         method (:obj:`str`, optional)
           'boxcar' -- Recommended for object extractions. This method uses the boxcar
@@ -347,7 +347,7 @@ def spec_flexure_slit(slits, slitord, bpm, sky_file, method="boxcar", specobjs=N
             Sky file
         specobjs (:class:`pypeit.specobjs.Specobjs`_, optional):
             Spectral extractions
-        slitspecs (list, optional):
+        slit_specs (list, optional):
             A list of linetools.xspectrum1d, one for each slit. The spectra stored in
             this list are sky spectra, extracted from the center of each slit.
         mxshft (int, optional):
@@ -369,7 +369,7 @@ def spec_flexure_slit(slits, slitord, bpm, sky_file, method="boxcar", specobjs=N
     sky_lines = arc.detect_lines(sky_spectrum.flux.value)
 
     nslits = slits.nslits
-    gpm = np.logical_not(bpm)
+    gpm = np.logical_not(slit_bpm)
     gdslits = np.where(gpm)[0]
 
     # Initialise the flexure list for each slit
@@ -392,11 +392,11 @@ def spec_flexure_slit(slits, slitord, bpm, sky_file, method="boxcar", specobjs=N
             continue
 
         if slit_cen:
-            sky_wave = slitspecs[islit].wavelength.value
-            sky_flux = slitspecs[islit].flux.value
+            sky_wave = slit_specs[islit].wavelength.value
+            sky_flux = slit_specs[islit].flux.value
 
             # Calculate the shift
-            fdict = spec_flex_shift(slitspecs[islit], sky_spectrum, sky_lines, mxshft=mxshft)
+            fdict = spec_flex_shift(slit_specs[islit], sky_spectrum, sky_lines, mxshft=mxshft)
             # Failed?
             if fdict is not None:
                 # Update dict
@@ -455,6 +455,7 @@ def spec_flexure_slit(slits, slitord, bpm, sky_file, method="boxcar", specobjs=N
                 flex_dict['method'].append("boxcar")
 
         # Check if we need to go back
+        # TODO :: This code just throws an error... probably need to delete or fix this "local" spectral flexure code
         if not slit_cen:
             # Do we need to go back?
             for items in return_later_sobjs:

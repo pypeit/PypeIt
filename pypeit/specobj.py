@@ -58,7 +58,7 @@ class SpecObj(datamodel.DataContainer):
     Attributes:
         See datamodel and _init_internals()
     """
-    version = '1.1.0'
+    version = '1.1.1'
     hdu_prefix = None
 
     datamodel = {'TRACE_SPAT': dict(otype=np.ndarray, atype=float,
@@ -128,8 +128,16 @@ class SpecObj(datamodel.DataContainer):
                                   descr='Reduced chi2 of the model fit for this spectral pixel'),
                  'BOX_RADIUS': dict(otype=float, descr='Size of boxcar radius (pixels)'),
                  #
-                 'FLEX_SHIFT': dict(otype=float,
-                                    descr='Shift of the spectrum to correct for flexure (pixels)'),
+                 'FLEX_SHIFT_GLOBAL': dict(otype=float, descr='Global shift of the spectrum to correct for spectral'
+                                                              'flexure (pixels). This is based on the sky spectrum at'
+                                                              'the center of the slit'),
+                 'FLEX_SHIFT_LOCAL': dict(otype=float, descr='Local shift of the spectrum to correct for spectral'
+                                                             'flexure (pixels). This should be a small correction to'
+                                                             'the global value, and is based on the sky spectrum'
+                                                             'extracted near the object'),
+                 'FLEX_SHIFT_TOTAL': dict(otype=float, descr='Total shift of the spectrum to correct for spectral'
+                                                             'flexure (pixels). This is the sum of the global and'
+                                                             'local FLEX_SHIFT'),
                  'VEL_TYPE': dict(otype=str, descr='Type of heliocentric correction (if any)'),
                  'VEL_CORR': dict(otype=float,
                                   descr='Relativistic velocity correction for wavelengths'),
@@ -182,7 +190,9 @@ class SpecObj(datamodel.DataContainer):
         # Setup the DataContainer
         datamodel.DataContainer.__init__(self, d=_d)
 
-        self.FLEX_SHIFT = 0.
+        self.FLEX_SHIFT_GLOBAL = 0.
+        self.FLEX_SHIFT_LOCAL = 0.
+        self.FLEX_SHIFT_TOTAL = 0.
 
         # Name
         self.set_name()
@@ -373,18 +383,25 @@ class SpecObj(datamodel.DataContainer):
         twave = flexure.flexure_interp(fdict['shift'], fdict['sky_spec'].wavelength.value) * units.AA
         new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, fdict['sky_spec'].flux))
         # Save - since flexure may have been applied/calculated twice, this needs to be additive
-        self.update_flex_shift(fdict['shift'])
+        self.update_flex_shift(fdict['shift'], flex_type='local')
         # Return
         return new_sky
 
-    def update_flex_shift(self, shift):
+    def update_flex_shift(self, shift, flex_type='local'):
         """Store the total spectral flexure shift in pixels
 
         Args:
             shift (float):
                 additive spectral flexure in pixels
         """
-        self.FLEX_SHIFT += shift
+        if flex_type == 'global':
+            self.FLEX_SHIFT_GLOBAL = shift
+        elif flex_type == 'local':
+            self.FLEX_SHIFT_LOCAL = shift
+        else:
+            msgs.error("Spectral flexure type must be 'global' or 'local' only")
+        # Now update the total flexure
+        self.FLEX_SHIFT_TOTAL += shift
 
     # TODO This should be a wrapper calling a core algorithm.
     def apply_flux_calib(self, wave_sens, sensfunc, exptime, telluric=None, extinct_correct=False,

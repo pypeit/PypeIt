@@ -419,21 +419,18 @@ class Reduce(object):
             # empty specobjs object from object finding
             self.sobjs = self.sobjs_obj
 
-        # If a global spectral flexure has been applied to all slits, store this correction in each specobj
+        # If a global spectral flexure has been applied to all slits, store this correction as metadata in each specobj
         if self.par['flexure']['spec_method'] != 'skip' and not self.std_redux:
             for iobj in range(self.sobjs.nobj):
                 islit = self.slits.spatid_to_zero(self.sobjs[iobj].SLITID)
-                self.sobjs[iobj].update_flex_shift(self.slitshift[islit])
+                self.sobjs[iobj].update_flex_shift(self.slitshift[islit], flex_type='global')
 
-        # Finish up
+        # Correct for local spectral flexure
         if self.sobjs.nobj == 0:
             msgs.warn('No objects to extract!')
-        elif self.par['flexure']['spec_method'] not in ['skip', 'slit_cen']:
+        elif self.par['flexure']['spec_method'] not in ['skip', 'slit_cen'] and not self.std_redux:
             # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
-            # TODO -- Should we move these to redux.run()?
-            # Flexure correction if this is not a standard star
-            if not self.std_redux:
-                self.spec_flexure_correct(mode='local', specObjs=self.sobjs)
+            self.spec_flexure_correct(mode='local', specObjs=self.sobjs)
 
         # Apply a reference frame correction to each object and the waveimg
         self.refframe_correct(ra, dec, obstime, specObjs=self.sobjs)
@@ -674,63 +671,69 @@ class Reduce(object):
             specObjs (:class:`pypeit.specobjs.SpecObjs`, None):
                 Spectrally extracted objects
         """
-        if self.par['flexure']['spec_method'] != 'skip':
-            # Initialise
-            slitSpecs = None
-            gd_slits = np.logical_not(self.reduce_bpm)
+        if self.par['flexure']['spec_method'] == 'skip':
+            msgs.info('Skipping flexure correction.')
+        else:
             # Perform some checks
             if mode == "local" and specObjs is None:
-                msgs.warn("No spectral extractions provided for flexure, using slit center instead")
-                mode = "global"
+                msgs.error("No spectral extractions provided for flexure, using slit center instead")
             elif mode not in ["local", "global"]:
-                msgs.warn("mode must be 'global' or 'local'. Assuming 'global'.")
-                mode = "global"
+                msgs.error("mode must be 'global' or 'local'. Assuming 'global'.")
 
             # Prepare a list of slit spectra, if required.
             if mode == "global":
+                gd_slits = np.logical_not(self.reduce_bpm)
                 # TODO :: Need to think about spatial flexure - is the appropriate spatial flexure already included in trace_spat via left/right slits?
-                trace_spat = 0.5 * (self.slits_left + self.slits_right)#/(self.slits.nspat-1)
-                trace_spec = np.arange(self.slits.nspec)#/(self.slits.nspec-1)
-                slitSpecs = []
+                trace_spat = 0.5 * (self.slits_left + self.slits_right)
+                trace_spec = np.arange(self.slits.nspec)
+                slit_specs = []
                 for ss in range(self.slits.nslits):
                     if not gd_slits[ss]:
-                        slitSpecs.append(None)
+                        slit_specs.append(None)
                         continue
                     slit_spat = self.slits.spat_id[ss]
-                    mask = (self.slitmask == slit_spat)
-                    box_denom = moment1d(self.waveimg * mask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
+                    thismask = (self.slitmask == slit_spat)
+                    box_denom = moment1d(self.waveimg * thismask > 0.0, trace_spat[:, ss], 2, row=trace_spec)[0]
                     wghts = (box_denom + (box_denom == 0.0))
-                    slit_sky = moment1d(self.global_sky * mask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                    slit_sky = moment1d(self.global_sky * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
                     # Denom is computed in case the trace goes off the edge of the image
-                    slit_wave = moment1d(self.waveimg * mask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
-                    slitSpecs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
+                    slit_wave = moment1d(self.waveimg * thismask, trace_spat[:, ss], 2, row=trace_spec)[0] / wghts
+                    # TODO :: Need to remove this XSpectrum1D dependency - it is required in:  flexure.spec_flex_shift
+                    slit_specs.append(xspectrum1d.XSpectrum1D.from_tuple((slit_wave, slit_sky)))
 
-            # Measure flexure
-            flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
-                                                  self.par['flexure']['spectrum'],
-                                                  method=self.par['flexure']['spec_method'],
-                                                  mxshft=self.par['flexure']['spec_maxshift'],
-                                                  specobjs=specObjs, slitspecs=slitSpecs)
-            if mode == "global":
+                # Measure flexure
+                # If mode == global: specobjs = None and slitspecs != None
+                flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
+                                                      self.par['flexure']['spectrum'],
+                                                      method=self.par['flexure']['spec_method'],
+                                                      mxshft=self.par['flexure']['spec_maxshift'],
+                                                      specobjs=specObjs, slit_specs=slit_specs)
+
                 # Store the slit shifts that were applied to each slit
-                # These corrections are later needed so the headers of the specobjs contains the total spectral flexure
+                # These corrections are later needed so the specobjs metadata contains the total spectral flexure
                 self.slitshift = np.zeros(self.slits.nslits)
                 for islit in range(self.slits.nslits):
                     if (not gd_slits[islit]) or len(flex_list[islit]['shift']) == 0:
                         continue
                     self.slitshift[islit] = flex_list[islit]['shift'][0]
-                # Apply the new wavelength solution
+                # Apply flexure to the new wavelength solution
                 msgs.info("Regenerating wavelength image")
                 self.waveimg = self.wv_calib.build_waveimg(self.tilts, self.slits,
                                                            spat_flexure=self.spat_flexure_shift,
                                                            spec_flexure=self.slitshift)
+            elif mode == "local":
+                # Measure and apply flexure:
+                # If mode == local: specobjs != None and slitspecs = None
+                flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
+                                                      self.par['flexure']['spectrum'],
+                                                      method=self.par['flexure']['spec_method'],
+                                                      mxshft=self.par['flexure']['spec_maxshift'],
+                                                      specobjs=specObjs, slit_specs=None)
 
             # Save QA
             basename = "{0:s}_{1:s}".format(self.basename, mode)
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
                                     specobjs=specObjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
-        else:
-            msgs.info('Skipping flexure correction.')
 
     def refframe_correct(self, ra, dec, obstime, specObjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame

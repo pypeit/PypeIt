@@ -179,6 +179,7 @@ class WaveCalib(datamodel.DataContainer):
                 Image holding tilts
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
             spat_flexure (float, optional):
+                Spatial flexure correction in pixels.
             spec_flexure (float, `numpy.ndarray`_, optional):
                 Spectral flexure correction in pixels. If a float,
                 the same spectral flexure correction will be applied
@@ -190,10 +191,13 @@ class WaveCalib(datamodel.DataContainer):
         Returns:
             `numpy.ndarray`_: The wavelength image.
         """
+        # Check spatial flexure type
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
+            msgs.error("Spatial flexure must be None or float")
         # Check spectral flexure type
         if spec_flexure is None: spec_flex = np.zeros(slits.nslits)
-        elif type(spec_flexure) is float: spec_flex = spec_flexure*np.ones(slits.nslits)
-        elif type(spec_flexure) is np.ndarray:
+        elif isinstance(spec_flexure, float): spec_flex = spec_flexure*np.ones(slits.nslits)
+        elif isinstance(spec_flexure, np.ndarray):
             spec_flex = spec_flexure.copy()
             assert(spec_flexure.size == slits.nslits)
         spec_flex /= (slits.nspec - 1)
@@ -206,8 +210,6 @@ class WaveCalib(datamodel.DataContainer):
         #
         image = np.zeros_like(tilts)
         slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
-
-        slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
 
         # If this is echelle print out a status message and do some error checking
         if self.par['echelle']:
