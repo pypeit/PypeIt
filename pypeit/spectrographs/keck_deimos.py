@@ -243,35 +243,31 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
 
     def init_meta(self):
         """
-        Generate the meta data dict
-        Note that the children can add to this
-
-        Returns:
-            self.meta: dict (generated in place)
-
+        Builds :attr:`meta`, providing the connection to DEIMOS
+        header keywords.
         """
-        meta = {}
+        self.meta = {}
         # Required (core)
-        meta['ra'] = dict(ext=0, card='RA')
-        meta['dec'] = dict(ext=0, card='DEC')
-        meta['target'] = dict(ext=0, card='TARGNAME')
-        meta['decker'] = dict(ext=0, card='SLMSKNAM')
-        meta['binning'] = dict(card=None, compound=True)
+        self.meta['ra'] = dict(ext=0, card='RA')
+        self.meta['dec'] = dict(ext=0, card='DEC')
+        self.meta['target'] = dict(ext=0, card='TARGNAME')
+        self.meta['decker'] = dict(ext=0, card='SLMSKNAM')
+        self.meta['binning'] = dict(card=None, compound=True)
 
-        meta['mjd'] = dict(ext=0, card='MJD-OBS')
-        meta['exptime'] = dict(ext=0, card='ELAPTIME')
-        meta['airmass'] = dict(ext=0, card='AIRMASS')
-        meta['dispname'] = dict(ext=0, card='GRATENAM')
+        self.meta['mjd'] = dict(ext=0, card='MJD-OBS')
+        self.meta['exptime'] = dict(ext=0, card='ELAPTIME')
+        self.meta['airmass'] = dict(ext=0, card='AIRMASS')
+        self.meta['dispname'] = dict(ext=0, card='GRATENAM')
         # Extras for config and frametyping
-        meta['hatch'] = dict(ext=0, card='HATCHPOS')
-        meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
+        self.meta['hatch'] = dict(ext=0, card='HATCHPOS')
+        self.meta['dispangle'] = dict(card=None, compound=True, rtol=1e-5)
         # Image type
-        meta['idname'] = dict(ext=0, card='OBSTYPE')
+        self.meta['idname'] = dict(ext=0, card='OBSTYPE')
         # Lamps
-        meta['lampstat01'] = dict(ext=0, card='LAMPS')
-
-        # Ingest
-        self.meta = meta
+        self.meta['lampstat01'] = dict(ext=0, card='LAMPS')
+        # Extras for pypeit file
+        self.meta['dateobs'] = dict(ext=0, card='DATE-OBS')
+        self.meta['utc'] = dict(ext=0, card='UTC')
 
     def compound_meta(self, headarr, meta_key):
         """
@@ -312,6 +308,15 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         """
         return ['dispname', 'decker', 'binning', 'dispangle']
 
+    def pypeit_file_keys(self):
+        """
+        Define the list of keys to be output into a standard PypeIt file
+
+        Returns:
+            pypeit_keys: list
+
+        """
+        return super().pypeit_file_keys() + ['dateobs', 'utc']
 
     def check_frame_type(self, ftype, fitstbl, exprng=None):
         """
