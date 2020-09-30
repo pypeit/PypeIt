@@ -40,7 +40,8 @@ def test_deimos_mask_coordinates():
     # Get the chip and pixel coordinates (1-indexed!) at the central
     # wavelength
     ximg, yimg, ccd, xpix, ypix = spec.mask_to_pixel_coordinates(x=spec.slitmask.center[:, 0],
-                                                                 y=spec.slitmask.center[:, 1])
+                                                                 y=spec.slitmask.center[:, 1],
+                                                                 wave=spec.grating.central_wave)
     assert ccd[0] == 6, 'Incorrect chip selected'
     assert numpy.isclose(xpix[0], 604.5558558898638), 'Incorrect x coordinate'
     assert numpy.isclose(ypix[0], 362.1307486284081), 'Incorrect y coordinate'
@@ -51,7 +52,9 @@ def test_deimos_ccd_slits():
     f = os.path.join(os.environ['PYPEIT_DEV'], 'RAW_DATA', 'keck_deimos', '830G_M_8500',
                      'DE.20100913.22358.fits.gz')
     spec = KeckDEIMOSSpectrograph()
-    ximg, yimg, ccd, xpix, ypix = spec.mask_to_pixel_coordinates(filename=f)
+    spec.get_grating(f)
+    ximg, yimg, ccd, xpix, ypix = spec.mask_to_pixel_coordinates(filename=f,
+                                                                 wave=spec.grating.central_wave)
     indx = ccd < 1
     assert numpy.sum(indx) == 4, 'Should find 4 slits that are off all CCDs at the central lambda'
     ccds_with_slits_at_cwl, n_per_ccd = numpy.unique(ccd, return_counts=True)
