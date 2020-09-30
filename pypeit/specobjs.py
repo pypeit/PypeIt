@@ -359,7 +359,6 @@ class SpecObjs:
             except (TypeError,ValueError):
                 pass
 
-
     def slitorder_indices(self, slitorder):
         """
         Return the set of indices matching the input slit/order
@@ -400,7 +399,6 @@ class SpecObjs:
         else:
             msgs.error("The '{0:s}' PYPELINE is not defined".format(self[0].PYPELINE))
         return indx
-
 
     def slitorder_objid_indices(self, slitorder, objid):
         """
