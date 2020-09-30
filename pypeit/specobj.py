@@ -361,13 +361,15 @@ class SpecObj(datamodel.DataContainer):
         # Return
         return copy.deepcopy(self)
 
-    def apply_spectral_flexure(self, fdict):
+    def apply_spectral_flexure(self, shift, sky_spec):
         """
         Apply interpolation with the flexure dict
 
         Args:
-            fdict (dict):
-                Holds the various flexure items
+            shift (float):
+                additive spectral flexure in pixels
+            sky_spec (`xspectrum1d.XSpectrum1D`_):
+                Sky Spectrum
 
         Returns:
             xspectrum1d.XSpectrum1D:  New sky spectrum (mainly for QA)
@@ -378,12 +380,12 @@ class SpecObj(datamodel.DataContainer):
             if self[attr+'_WAVE'] is not None:
                 msgs.info("Applying flexure correction to {0:s} extraction for object:".format(attr) +
                           msgs.newline() + "{0:s}".format(str(self.NAME)))
-                self[attr+'_WAVE'] = flexure.flexure_interp(fdict['shift'], self[attr+'_WAVE']).copy()
+                self[attr+'_WAVE'] = flexure.flexure_interp(shift, self[attr+'_WAVE']).copy()
         # Shift sky spec too
-        twave = flexure.flexure_interp(fdict['shift'], fdict['sky_spec'].wavelength.value) * units.AA
-        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, fdict['sky_spec'].flux))
+        twave = flexure.flexure_interp(shift, sky_spec.wavelength.value) * units.AA
+        new_sky = xspectrum1d.XSpectrum1D.from_tuple((twave, sky_spec.flux))
         # Save - since flexure may have been applied/calculated twice, this needs to be additive
-        self.update_flex_shift(fdict['shift'], flex_type='local')
+        self.update_flex_shift(shift, flex_type='local')
         # Return
         return new_sky
 

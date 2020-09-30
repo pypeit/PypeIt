@@ -328,7 +328,7 @@ def flexure_interp(shift, wave):
 
 def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", specobjs=None, slit_specs=None,
                       mxshft=None):
-    """Correct wavelengths for flexure, slit by slit
+    """Calculate the spectral flexure for every slit (global) or object (local)
 
     Args:
         slits (:class:`pypeit.slittrace.SlitTraceSet`_):
@@ -404,8 +404,7 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                     flex_dict[key].append(fdict[key])
                 # Interpolate
                 sky_wave_new = flexure_interp(fdict['shift'], sky_wave)
-                flex_dict['sky_spec'].append(
-                    xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
+                flex_dict['sky_spec'].append(xspectrum1d.XSpectrum1D.from_tuple((sky_wave_new, sky_flux)))
                 flex_dict['method'].append("slitcen")
         else:
             i_slitord = slitord[islit]
@@ -446,12 +445,9 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 if punt:
                     break
 
-                # Interpolate
-                new_sky = sobj.apply_spectral_flexure(fdict)
                 # Update dict
-                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
+                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
                     flex_dict[key].append(fdict[key])
-                flex_dict['sky_spec'].append(new_sky)
                 flex_dict['method'].append("boxcar")
 
         # Check if we need to go back
@@ -469,12 +465,9 @@ def spec_flexure_slit(slits, slitord, slit_bpm, sky_file, method="boxcar", speco
                 sobj = specobjs[ss]
                 # Copy me
                 fdict = copy.deepcopy(sv_fdict)
-                # Interpolate
-                new_sky = sobj.apply_spectral_flexure(fdict)
                 # Update dict
-                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec']:
+                for key in ['polyfit', 'shift', 'subpix', 'corr', 'corr_cen', 'smooth', 'arx_spec', 'sky_spec']:
                     flex_dict[key].append(fdict[key])
-                flex_dict['sky_spec'].append(new_sky)
                 flex_dict['method'].append("boxcar")
 
         # Append, this will be an empty dictionary if the flexure failed

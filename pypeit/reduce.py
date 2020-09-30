@@ -21,7 +21,7 @@ from pypeit import specobjs
 from pypeit import msgs, utils
 from pypeit import masterframe, flatfield
 from pypeit.display import display
-from pypeit.core import skysub, extract, pixels, wave, flexure, flat, fitting
+from pypeit.core import skysub, extract, pixels, wave, flexure, flat
 from pypeit.images import buildimage
 from pypeit.core.moment import moment1d
 
@@ -430,7 +430,7 @@ class Reduce(object):
             msgs.warn('No objects to extract!')
         elif self.par['flexure']['spec_method'] not in ['skip', 'slitcen'] and not self.std_redux:
             # Apply a refined estimate of the flexure to objects, and then apply reference frame correction to objects
-            self.spec_flexure_correct(mode='local', specObjs=self.sobjs)
+            self.spec_flexure_correct(mode='local', specobjs=self.sobjs)
 
         # Apply a reference frame correction to each object and the waveimg
         self.refframe_correct(ra, dec, obstime, specobjs=self.sobjs)
@@ -659,23 +659,23 @@ class Reduce(object):
                 usersky = True
         return skymask_init, usersky
 
-    def spec_flexure_correct(self, mode="local", specObjs=None):
+    def spec_flexure_correct(self, mode="local", sobjs=None):
         """ Correct for spectral flexure
 
         Spectra are modified in place (wavelengths are shifted)
 
         Args:
             mode (str):
-                "local" - Use specObjs to determine flexure correction
+                "local" - Use sobjs to determine flexure correction
                 "global" - Use waveimg and global_sky to determine flexure correction at the centre of the slit
-            specObjs (:class:`pypeit.specobjs.SpecObjs`, None):
+            sobjs (:class:`pypeit.specobjs.SpecObjs`, None):
                 Spectrally extracted objects
         """
         if self.par['flexure']['spec_method'] == 'skip':
             msgs.info('Skipping flexure correction.')
         else:
             # Perform some checks
-            if mode == "local" and specObjs is None:
+            if mode == "local" and sobjs is None:
                 msgs.error("No spectral extractions provided for flexure, using slit center instead")
             elif mode not in ["local", "global"]:
                 msgs.error("mode must be 'global' or 'local'. Assuming 'global'.")
@@ -707,7 +707,7 @@ class Reduce(object):
                                                       self.par['flexure']['spectrum'],
                                                       method=self.par['flexure']['spec_method'],
                                                       mxshft=self.par['flexure']['spec_maxshift'],
-                                                      specobjs=specObjs, slit_specs=slit_specs)
+                                                      specobjs=sobjs, slit_specs=slit_specs)
 
                 # Store the slit shifts that were applied to each slit
                 # These corrections are later needed so the specobjs metadata contains the total spectral flexure
@@ -722,18 +722,32 @@ class Reduce(object):
                                                            spat_flexure=self.spat_flexure_shift,
                                                            spec_flexure=self.slitshift)
             elif mode == "local":
-                # Measure and apply flexure:
+                # Measure flexure:
                 # If mode == local: specobjs != None and slitspecs = None
                 flex_list = flexure.spec_flexure_slit(self.slits, self.slits.slitord_id, self.reduce_bpm,
                                                       self.par['flexure']['spectrum'],
                                                       method=self.par['flexure']['spec_method'],
                                                       mxshft=self.par['flexure']['spec_maxshift'],
-                                                      specobjs=specObjs, slit_specs=None)
+                                                      specobjs=sobjs, slit_specs=None)
+                # Apply flexure to objects
+                for islit in range(self.slits.nslits):
+                    i_slitord = self.slits.slitord_id[islit]
+                    indx = sobjs.slitorder_indices(i_slitord)
+                    this_specobjs = sobjs[indx]
+                    this_flex_dict = flex_list[islit]
+                    # Loop through objects
+                    cntr = 0
+                    for ss, sobj in enumerate(this_specobjs):
+                        # Interpolate
+                        new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][cntr],
+                                                              this_flex_dict['sky_spec'][cntr])
+                        flex_list[islit]['sky_spec'][cntr] = new_sky.copy()
+                        cntr += 1
 
             # Save QA
             basename = "{0:s}_{1:s}".format(self.basename, mode)
             flexure.spec_flexure_qa(self.slits.slitord_id, self.reduce_bpm, basename, self.det, flex_list,
-                                    specobjs=specObjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
+                                    specobjs=sobjs, out_dir=os.path.join(self.par['rdx']['redux_path'], 'QA'))
 
     def refframe_correct(self, ra, dec, obstime, specobjs=None):
         """ Correct the calibrated wavelength to the user-supplied reference frame
