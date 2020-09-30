@@ -333,8 +333,10 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
                         & (fitstbl['hatch'] == 'closed')
         if ftype in ['pixelflat', 'trace', 'illumflat']:
             # Flats and trace frames are typed together
-            is_flat = np.isin(fitstbl['idname'], ['IntFlat', 'DmFlat', 'SkyFlat'])
-            return good_exp & is_flat & (fitstbl['hatch'] == 'closed')
+            is_flat = np.any(np.vstack(((fitstbl['idname'] == n) & (fitstbl['hatch'] == h)
+                                    for n,h in zip(['IntFlat', 'DmFlat', 'SkyFlat'],
+                                                   ['closed', 'open', 'open']))), axis=0)
+            return good_exp & is_flat
         if ftype == 'pinhole':
             # Pinhole frames are never assigned for DEIMOS
             return np.zeros(len(fitstbl), dtype=bool)
