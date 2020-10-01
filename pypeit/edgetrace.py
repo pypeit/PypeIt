@@ -4089,12 +4089,14 @@ class EdgeTraceSet(DataContainer):
         # are `slitindex`, which is called `SlitName` in the DEIMOS design file, `slitid`, which is called `dSlitId`.
         # They are also sorted from left to right.
         if not debug:
+            num = 0
             msgs.info('*' * 30)
             msgs.info('{0:^6s} {1:^12s} {2:^12s}'.format('N.', 'SlitName', 'dSlitId'))
             msgs.info('{0:^6s} {1:^12s} {2:^12s}'.format('-' * 5, '-' * 8, '-' * 9))
             for i in range(sortindx.shape[0]):
                 if omodel_censpat[sortindx][i] != -1:
-                    msgs.info('{0:^6d}     {1:03d}     {2:^14d}'.format(i,
+                    num += 1
+                    msgs.info('{0:^6d}     {1:03d}     {2:^14d}'.format(num,
                                                                 self.spectrograph.slitmask.slitindx[sortindx][i],
                                                                 self.spectrograph.slitmask.slitid[sortindx][i]))
             msgs.info('*' * 30)
@@ -4102,6 +4104,7 @@ class EdgeTraceSet(DataContainer):
         # If instead we run this method in debug mode, we print more info useful for comparison, for example, with
         # the IDL-based pipeline.
         if debug:
+            num = 0
             msgs.info('*' * 104)
             msgs.info('{0:^5s} {1:^10s} {2:^10s} {3:^12s} {4:^12s} {5:^14s} {6:^16s} {7:^16s}'.format('N.',
                 'SlitName', 'dSlitId', 'slitLen(mm)', 'slitWid(mm)', 'spat_cen(mm)', 'omodel_bottom(pix)',
@@ -4110,8 +4113,9 @@ class EdgeTraceSet(DataContainer):
                         '-' * 4, '-' * 8, '-' * 9, '-' * 11, '-' * 11, '-' * 13,'-' * 18, '-' * 15))
             for i in range(sortindx.shape[0]):
                 if omodel_censpat[sortindx][i] != -1:
+                    num += 1
                     msgs.info('{0:^5d}    {1:03d}   {2:^14d} {3:^9.3f} {4:^12.3f} {5:^14.3f}    {6:^16.2f} {7:^14.2f}'
-                              .format(i, self.spectrograph.slitmask.slitindx[sortindx][i],
+                              .format(num, self.spectrograph.slitmask.slitindx[sortindx][i],
                                          self.spectrograph.slitmask.slitid[sortindx][i],
                                          self.spectrograph.slitmask.length[sortindx][i],
                                          self.spectrograph.slitmask.width[sortindx][i],
