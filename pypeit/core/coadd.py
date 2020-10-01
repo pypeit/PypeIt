@@ -377,7 +377,7 @@ def poly_ratio_fitfunc_chi2(theta, flux_ref, thismask, arg_dict):
     huber_vec = scipy.special.huber(robust_scale*chi_std, chi_vec)
     loss_function = np.sum(np.square(huber_vec*mask_both))
     if not use_huber:
-        loss_function = np.sum(np.square(chi_vec))
+        loss_function = np.sum(np.square(chi_vec*mask_both))
     return loss_function
 
 # TODO: Change thismask to gpm
