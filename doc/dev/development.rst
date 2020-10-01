@@ -153,8 +153,8 @@ To test PypeIt using the data from the Google TeamDrive:
 
    .. warning::
 
-        The ``RAW_DATA`` directory currently contains about 22 Gb of
-        data, and running the develop test below produces about 26 Gb of
+        The ``RAW_DATA`` directory currently contains about 36 Gb of
+        data, and running the develop test below produces about 61 Gb of
         reduced data.
 
  * Run the test suite on the setups designated for development purposes:
@@ -166,10 +166,62 @@ To test PypeIt using the data from the Google TeamDrive:
 
    .. warning::
         
-        The current script executes 31 tests.  These tests are mostly
+        The current script executes 89 tests.  These tests are mostly
         reductions of example data, but they also include fluxing,
         flexure, and coadding tests.  The execution time is system
-        dependent, but you should expect it to take approx. 12 hours.
+        dependent, but you should expect it to take approx. 14 hours.
+
+   The test suite can be run in parallel using the -t option.
+
+   .. code-block:: bash
+
+        ./pypeit_test -t 2 develop
+
+   The above runs tests using two processes run from parallel threads. The number of
+   threads that can be used reliably depends on the amount of memory available. The
+   below table shows the worst case amount of memory used per number of threads.
+
+   +--------------+---------------+
+   | # of threads | Memory used GB|
+   +==============+===============+
+   | 1            | 16            |
+   +--------------+---------------+
+   | 2            | 32            |
+   +--------------+---------------+
+   | 3            | 46            |
+   +--------------+---------------+
+   | 4            | 60            |
+   +--------------+---------------+
+   | 5            | 72            |
+   +--------------+---------------+
+   | 6            | 80            |
+   +--------------+---------------+
+   | 7            | 88            |
+   +--------------+---------------+
+   | 8            | 94            |
+   +--------------+---------------+
+
+To add new tests to the development suite
+
+1. Add the new data to shared Google drive under ``RAW_DATA``. The tests are organized
+into setup directories under a directory named for the instrument.
+
+2. Add new a pypeit to the `PypeIt-development-suite`_ repo under ``pypeit_files``. The
+file name be lower case and named after the instrument and setup, for example:
+``keck_deimos_1200g_m_7750.pypeit``.
+
+3. If desired, add any files for ``pypeit_sensfunc``, ``pypeit_flux_calib``,
+``pypeit_coadd_1dspec``, ``pypeit_coadd_2dspec`` to the `PypeIt-development-suite`_ repo under
+``sensfunc_files``, ``fluxing_files``, ``coadd1d_files``, ``coadd2d_files`` respectively.
+
+4. Edit pypeit_setups.py in the `PypeIt-development-suite`_ under test_scripts. Follow
+the instructions at the top of that file.
+
+5. Run the full development test suite to completion. Once all tests pass,
+the ``test_priority_file`` will be updated with the new test. This file tells
+the test scripts what order to run the tests in for optimum CPU utilization.
+Commit ``test_priority_list`` and any other files added to the repository and submit
+a pull request.
 
 .. _unit-tests:
 
