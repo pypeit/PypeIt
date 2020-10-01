@@ -12,6 +12,7 @@ def sav_to_fits(savfile):
     optical model maps, to .fits files.
     ToDO: This is specific for keck_deimos `static_calib` data, since the path
     is explicitly mentioned. If needed, this method could be generalized.
+    TODO: move it to `pypeit.io`.
     Args:
         savfile: path to the .sav file
 

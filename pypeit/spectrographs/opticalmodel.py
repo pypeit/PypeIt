@@ -613,7 +613,7 @@ class OpticalModel:
                 Size of the spectral direction
 
         Returns:
-            Rays (`numpy.ndarray`_) propagated from mask plane to grating.
+            `numpy.ndarray`_: Rays propagated from mask plane to grating.
 
         """
 
@@ -669,8 +669,7 @@ class OpticalModel:
                 Size of the spectral direction
 
         Returns:
-            xics, yics (`numpy.ndarray`_):
-                Detector image plane coordinates in pixels
+            Two `numpy.ndarray`_:  Detector image plane coordinates in pixels
 
         """
 
@@ -740,8 +739,7 @@ class OpticalModel:
                 The grating order.
 
         Returns:
-            `numpy.ndarray`_: Two arrays.
-                Detector image plane coordinates in pixels
+            Two `numpy.ndarray`_: Detector image plane coordinates in pixels
         """
 
         npoints = 1 if wave is None else numpy.atleast_1d(wave).shape[0]

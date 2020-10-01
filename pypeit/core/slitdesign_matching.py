@@ -42,7 +42,8 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
             the mask design and the traced slit positions.
 
     Returns:
-        :obj:`float`: best offset between the slit edge predicted by the optical model and the one found in the image
+        :obj:`float`: best offset between the slit edge predicted by the optical model
+        and the one found in the image
 
     """
     # This select the number of best matches used later fo statistics
@@ -85,9 +86,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
         else:
             # [IDL-version comment] so added this brute-force version - still not quite right,
             # as assumes don't match 2 x_det's to the same x_model
-            offs = numpy.zeros(x_det.size)
-            for xelement in range(x_det.size):
-                offs[xelement] = numpy.min(numpy.abs(x_det_lag[xelement]-x_model_trim))
+            offs = numpy.amin(numpy.absolute(x_det_lag[:, None] - x_model_trim[None, :]), axis=1)
 
             # use only nbest best matches
             soffs = numpy.argsort(numpy.abs(offs))
@@ -126,9 +125,8 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
             the mask design and the traced slit positions.
 
     Returns:
-        ind (`numpy.ndarray`_):
-            array of indices for x_model, which defines the matches to x_det,
-            i.e., x_det matches x_model[ind]
+        `numpy.ndarray`_: array of indices for x_model, which defines the matches to x_det,
+        i.e., x_det matches x_model[ind]
 
     """
     # -------- PASS 1: get offset between x1 and x2
@@ -139,9 +137,7 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     x_model_new = x_model - best_off
 
     # for each traced edge (`x_det`) determine the value of x_model that gives the smallest offset
-    ind = numpy.zeros(x_det.size, dtype=int)
-    for i in range(ind.size):
-        ind[i] = numpy.argmin(numpy.abs(x_det[i] - x_model_new))
+    ind = numpy.argmin(numpy.absolute(x_det[:, None] - x_model_new[None, :]), axis=1)
 
     # -------- PASS 2: remove linear trend (i.e. adjust scale)
     # fit the offsets to `x_det` to find the scale and apply it to x_model
@@ -157,16 +153,14 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     x_model_new -= new_best_off
 
     # find again `ind`
-    for i in range(ind.size):
-        ind[i] = numpy.argmin(numpy.abs(x_det[i] - x_model_new))
+    ind = numpy.argmin(numpy.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
 
     # -------- PASS 3: tweak offset
     dx = x_det - x_model_new[ind]
     x_model_new += numpy.median(dx)
 
     # find again `ind`
-    for i in range(ind.size):
-        ind[i] = numpy.argmin(numpy.abs(x_det[i] - x_model_new))
+    ind = numpy.argmin(numpy.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
 
     return ind
 
@@ -207,12 +201,11 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
 
     Returns
     -------
-    x_det: `numpy.ndarray`_
-        1D array of slit edge spatial positions found from image
-        trimmed if duplicated matches exist.
     ind: `numpy.ndarray`_
         1D array of indices for `x_model`, which defines the matches
         to `x_det`, i.e., `x_det` matches `x_model[ind]`
+    dupl: `numpy.ndarray`_
+        1D array of `bool` that flags which `ind` are duplicates.
     coeff: `numpy.ndarray`_
         pypeitFit coefficients of the fitted relation between `x_det`
         and `x_model[ind]`
@@ -243,28 +236,33 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
     out = numpy.abs(res) > cut
 
     # check for duplicate indices
-    bad = numpy.ones(ind.size, dtype=int)
+    dupl = numpy.ones(ind.size, dtype=bool)
     # If there are duplicates of `ind`, for now we keep only the first one. We don't remove the others yet
-    bad[numpy.unique(ind, return_index=True)[1]] = 0
-    wbad = numpy.where(bad)[0]
+    dupl[numpy.unique(ind, return_index=True)[1]] = False
+    wdupl = numpy.where(dupl)[0]
     # Iterate over the duplicates flagged as bad
-    if wbad.size > 0:
-        for i in range(wbad.size):
-            badind = ind[wbad[i]]
+    if wdupl.size > 0:
+        for i in range(wdupl.size):
+            duplind = ind[wdupl[i]]
             # Where are the other duplicates of this `ind`?
-            w = numpy.where(ind == badind)[0]
+            w = numpy.where(ind == duplind)[0]
             # set those to be bad (for the moment)
-            bad[w] = 1
+            dupl[w] = True
             # Among the duplicates of this particular `ind`, which one has the smallest residual?
             wdif = numpy.argmin(numpy.abs(res[w]))
             # The one with the smallest residuals, is then set to not bad
-            bad[w[wdif]] = 0
-        # Both duplicates and matches with high RMS are trimmed
-        bad = bad|out
-        print('Trimming {} bad match(es) in deimos_slit_match'.format(bad[bad == 1].size))
-        good = bad == 0
-        ind = ind[good]
-        x_det=x_det[good]
+            dupl[w[wdif]] = False
+        # Both duplicates and matches with high RMS are considered bad
+        #dupl = dupl|out
+        # [DP] I decided not flag the matches with high RMS, because those are usually the ones
+        # with the traces at the edge of the detector that have been added as part of syncing process
+        # between left and right edges. Those are not bad, but it is highly probable that they have high `res`.
+        msgs.warn('{} duplicate match(es) in deimos_slit_match'.format(dupl[dupl == 1].size))
+        # I commented the 3 lines below because I don't really need to trim the duplicate matches. I just
+        # propagate the flag.
+        # good = dupl == 0
+        # ind = ind[good]
+        # x_det=x_det[good]
     if print_matches is True:
         if edge is not None:
             msgs.info('-----------------------------------------------')
@@ -274,10 +272,10 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
         msgs.info('-----------------------------------------------')
         for i in range(ind.size):
             msgs.info('{}  {}  {}'.format(ind[i], x_model[ind][i], x_det[i]))
-    return x_det, ind, coeff, sigres
+    return ind, dupl, coeff, sigres
 
 
-def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, trimmed=None, edge=None, shape=None):
+def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, nspat=2048, duplicates=None, edge=None):
     r"""
     Plot the slit mask matching results.
 
@@ -298,22 +296,19 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, trimmed=None,
             Reference pixel in the `spec` direction.
         slit_index (`numpy.ndarray`_):
             1D array of slit-mask design indices.
-        trimmed (:obj:`bool`, optional):
-            True if the duplicated matches have been trimmed during
-            :func:`slit_match`.
+        nspat (:obj:`int`, optional):
+            Spatial dimension of the detector, for plotting purpose.
+        duplicates (`numpy.ndarray`_, optional):
+            1D array of `bool` that flags which `ind` are duplicates.
         edge (:obj:`str`, optional):
             String that indicates which edges are being plotted,
             i.e., left of right.
-        shape (:obj:`tuple`, optional):
-            Shape of the detector, for plotting purpose. It should be
-            :math:`(N_{\rm spec}, N_{\rm spat})`.
     """
     yref_xdet = numpy.tile(yref, x_det.size)
     yref_x_model = numpy.tile(yref, x_model.size)
 
-    _shape = (4096, 2048) if shape is None else shape
     buffer = 20
-    dist = _shape[0] - yref
+    dist = edgetrace.shape[0] - yref
 
     plt.rc('xtick', direction='in')
     plt.rc('ytick', direction='in')
@@ -325,11 +320,11 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, trimmed=None,
         plt.title('{} slit edges cross-matching'.format(edge))
 
     # Plot the traced edges
-    for x in range(edgetrace.T.shape[0]):
-        if trimmed is not None and x in trimmed:
-            plt.plot(edgetrace.T[x,:], numpy.arange(edgetrace.T[x,:].size), color='orange', lw=0.5, zorder=0)
+    for x in range(edgetrace.shape[1]):
+        if duplicates is not None and duplicates[x]:
+            plt.plot(edgetrace[:, x], numpy.arange(edgetrace[:, x].size), color='orange', lw=0.5, zorder=0)
         else:
-            plt.plot(edgetrace.T[x, :], numpy.arange(edgetrace.T[x, :].size), color='k', lw=0.5, zorder=0)
+            plt.plot(edgetrace[:, x], numpy.arange(edgetrace[:, x].size), color='k', lw=0.5, zorder=0)
 
     # Plot `x_det`, `x_model`, and `x_model[ind]` at a reference pixel in the `spec` direction
     plt.scatter(x_det, yref_xdet, marker='D', s=10, lw=0, color='m', zorder=1, label='Image trace midpoint (x_det)')
@@ -343,12 +338,12 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, trimmed=None,
         plt.text(x_model[ind][i], yref_x_model[ind][i]+0.05*dist, slit_index[ind][i], rotation=45, color='g',
                  fontsize=8, horizontalalignment='center')
     for i in range(x_model.size):
-        if (x_model[i] >= buffer) and (x_model[i] <= _shape[1] + buffer):
+        if (x_model[i] >= buffer) and (x_model[i] <= nspat + buffer):
             plt.text(x_model[i], yref_x_model[i]-0.15*dist, slit_index[i], rotation=45, color='b',
                      fontsize=8, horizontalalignment='center')
 
     plt.xlabel('Spatial pixels')
     plt.ylabel('Spectral pixels')
-    plt.xlim(buffer, _shape[1]+buffer)
-    plt.ylim(0, _shape[0])
+    plt.xlim(buffer, nspat+buffer)
+    plt.ylim(0, edgetrace.shape[0])
     plt.legend(loc=1)
