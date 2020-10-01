@@ -4095,10 +4095,10 @@ class EdgeTraceSet(DataContainer):
             msgs.info('{0:^6s} {1:^12s} {2:^12s}'.format('-' * 5, '-' * 8, '-' * 9))
             for i in range(sortindx.shape[0]):
                 if omodel_censpat[sortindx][i] != -1:
-                    num += 1
                     msgs.info('{0:^6d}     {1:03d}     {2:^14d}'.format(num,
                                                                 self.spectrograph.slitmask.slitindx[sortindx][i],
                                                                 self.spectrograph.slitmask.slitid[sortindx][i]))
+                    num += 1
             msgs.info('*' * 30)
 
         # If instead we run this method in debug mode, we print more info useful for comparison, for example, with
@@ -4113,7 +4113,6 @@ class EdgeTraceSet(DataContainer):
                         '-' * 4, '-' * 8, '-' * 9, '-' * 11, '-' * 11, '-' * 13,'-' * 18, '-' * 15))
             for i in range(sortindx.shape[0]):
                 if omodel_censpat[sortindx][i] != -1:
-                    num += 1
                     msgs.info('{0:^5d}    {1:03d}   {2:^14d} {3:^9.3f} {4:^12.3f} {5:^14.3f}    {6:^16.2f} {7:^14.2f}'
                               .format(num, self.spectrograph.slitmask.slitindx[sortindx][i],
                                          self.spectrograph.slitmask.slitid[sortindx][i],
@@ -4121,6 +4120,7 @@ class EdgeTraceSet(DataContainer):
                                          self.spectrograph.slitmask.width[sortindx][i],
                                          self.spectrograph.slitmask.center[:, 0][sortindx][i],
                                          omodel_bspat[sortindx][i], omodel_tspat[sortindx][i]))
+                    num += 1
             msgs.info('*' * 104)
 
         reference_row = self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row
