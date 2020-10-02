@@ -139,7 +139,7 @@ def test_run_pypeit():
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
 
     # Flexure
-    assert abs(specObjs[0].FLEX_SHIFT + 0.7792376147143614) < 0.1
+    assert abs(specObjs[0].FLEX_SHIFT_TOTAL + 0.7792376147143614) < 0.1
 
     # Helio
     assert np.testing.assert_almost_equal(specObjs[0].VEL_CORR, 0.9999121961411798, decimal=10)
