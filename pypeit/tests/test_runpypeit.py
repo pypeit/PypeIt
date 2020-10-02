@@ -128,7 +128,7 @@ def test_run_pypeit():
     pargs = run_pypeit.parse_args([pyp_file, '-o', '-m', '-r', configdir])
     run_pypeit.main(pargs)
 
-    # #########################################################33
+    # #########################################################
     # Test!!
     # Files exist
     assert os.path.isfile(os.path.join(configdir, 'Science', 'spec2d_b27-J1217p3905_KASTb_2015May20T045733.560.fits'))
