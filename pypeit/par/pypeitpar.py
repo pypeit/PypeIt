@@ -1107,8 +1107,9 @@ class CubePar(ParSet):
     see :ref:`pypeitpar`.
     """
 
-    def __init__(self, slit_spec=None, cube_spat_num=None, cube_wave_num=None,
-                 cube_wave_min=None):
+    def __init__(self, slit_spec=None, output_filename=None, reference_cube=None, reference_image=None, save_whitelight=None,
+                 ra_min=None, ra_max=None, dec_min=None, dec_max=None, wave_min=None, wave_max=None,
+                 spatial_delta=None, wave_delta=None):
 
         # Grab the parameter names and values from the function
         # arguments
@@ -1131,28 +1132,70 @@ class CubePar(ParSet):
         descr['slit_spec'] = 'If the data use slits in one spatial direction, set this to True.' \
                              'If the data uses fibres for all spaxels, set this to False.'
 
+        defaults['output_filename'] = "datacube.fits"
+        dtypes['output_filename'] = str
+        descr['output_filename'] = 'Output filename of the combined datacube.'
+
+        defaults['reference_cube'] = None
+        dtypes['reference_cube'] = str
+        descr['reference_cube'] = 'Filename of another datacube. The WCS of the specified datacube will' \
+                                  'be used to construct the WCS of the newly combined datacube.'
+
+        defaults['reference_image'] = None
+        dtypes['reference_image'] = str
+        descr['reference_image'] = 'White light image of a previously combined datacube. The white light' \
+                                   'image will be used as a reference when calculating the offsets of the' \
+                                   'input spec2d files.'
+
+        defaults['save_whitelight'] = False
+        dtypes['save_whitelight'] = bool
+        descr['save_whitelight'] = 'Save a white light image of the combined datacube.'
+
         defaults['cube_spat_num'] = None
         dtypes['cube_spat_num'] = [int, float]
         descr['cube_spat_num'] = 'Number of pixels in the spatial dimension. If None, the number of' \
                                  'pixels in the spatial direction of the slit will be used. If you' \
                                  'are reducing fibre IFU data, this parameter will be ignored'
 
-        defaults['cube_wave_num'] = None
-        dtypes['cube_wave_num'] = [int, float]
-        descr['cube_wave_num'] = 'Number of pixels in the wavelength dimension. If None, the number' \
-                                 'of pixels in the spectral direction on the raw science frame will' \
-                                 'be used.'
+        defaults['ra_min'] = None
+        dtypes['ra_min'] = float
+        descr['ra_min'] = 'Minimum RA to use when generating the WCS. If None, the default is minimum RA' \
+                          'based on the WCS of all spaxels. Units should be degrees.'
 
-        defaults['cube_wave_min'] = None
-        dtypes['cube_wave_min'] = float
-        descr['cube_wave_min'] = 'Minimum wavelength to use. If None, default is minimum wavelength' \
-                                 'based on wavelength solution of all spaxels'
+        defaults['ra_max'] = None
+        dtypes['ra_max'] = float
+        descr['ra_max'] = 'Maximum RA to use when generating the WCS. If None, the default is maximum RA' \
+                          'based on the WCS of all spaxels. Units should be degrees.'
 
-        defaults['cube_wave_max'] = None
-        dtypes['cube_wave_max'] = float
-        descr['cube_wave_max'] = 'Maximum wavelength to use. If None, default is maximum wavelength' \
-                                 'based on wavelength solution of all spaxels'
+        defaults['dec_min'] = None
+        dtypes['dec_min'] = float
+        descr['dec_min'] = 'Minimum DEC to use when generating the WCS. If None, the default is minimum DEC' \
+                           'based on the WCS of all spaxels. Units should be degrees.'
 
+        defaults['dec_max'] = None
+        dtypes['dec_max'] = float
+        descr['dec_max'] = 'Maximum DEC to use when generating the WCS. If None, the default is maximum DEC' \
+                           'based on the WCS of all spaxels. Units should be degrees.'
+
+        defaults['wave_min'] = None
+        dtypes['wave_min'] = float
+        descr['wave_min'] = 'Minimum wavelength to use when generating the WCS. If None, the default is' \
+                            'minimum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
+
+        defaults['wave_max'] = None
+        dtypes['wave_max'] = float
+        descr['wave_max'] = 'Maximum wavelength to use when generating the WCS. If None, the default is' \
+                            'maximum wavelength based on the WCS of all spaxels. Units should be Angstroms.'
+
+        defaults['spatial_delta'] = None
+        dtypes['spatial_delta'] = float
+        descr['spatial_delta'] = 'The spatial size of each spaxel to use when generating the WCS.' \
+                                 'If None, the default is set by the spectrograph file.'
+
+        defaults['spatial_wave'] = None
+        dtypes['spatial_wave'] = float
+        descr['spatial_wave'] = 'The wavelength step to use when generating the WCS. If None, the default is' \
+                                'set by the wavelength solution.'
 
         # Instantiate the parameter set
         super(CubePar, self).__init__(list(pars.keys()),
@@ -1168,11 +1211,13 @@ class CubePar(ParSet):
         k = numpy.array([*cfg.keys()])
 
         # Basic keywords
-        parkeys = ['slit_spec', 'make_cube', 'cube_spat_num', 'cube_wave_num', 'cube_wave_min', 'cube_wave_max']
+        parkeys = ['slit_spec', 'output_filename', 'reference_cube', 'reference_image', 'save_whitelight',
+                   'ra_min', 'ra_max', 'dec_min', 'dec_max', 'wave_min', 'wave_max',
+                   'spatial_delta', 'wave_delta']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
-            raise ValueError('{0} not recognized key(s) for ExtractionPar.'.format(k[badkeys]))
+            raise ValueError('{0} not recognized key(s) for CubePar.'.format(k[badkeys]))
 
         kwargs = {}
         for pk in parkeys:
