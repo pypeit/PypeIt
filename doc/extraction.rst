@@ -6,7 +6,7 @@ Overview
 ========
 
 This document describes how PypeIt performs object extraction.
-The standard run will perform a boxcar and optimal extrction
+The standard run will perform a boxcar and optimal extraction
 of every object discovered with the :doc:`object_finding` algorithm.
 
 Boxcar

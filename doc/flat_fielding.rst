@@ -175,7 +175,7 @@ Saturated Slits
 ---------------
 
 Occasionally one or more slits are saturated
-(a common case is the :doc:`deimos` LVDMC mask)
+(a common case is the :doc:`deimos` LVMCslitC mask)
 and the code exits in flat field generation.  If you
 wish to continue on with the slits that are ok,
 add this to your :doc:`pypeit_file`::

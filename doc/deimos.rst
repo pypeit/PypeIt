@@ -41,7 +41,7 @@ for DEIMOS is too high for some setups.
 Flat Fielding
 -------------
 
-When using the LVDMC long silt mask, it is common for the
+When using the *LVMslitC* mask, it is common for the
 widest slits to have saturated flat fields.  If so, the
 code will exit during flat fielding. You can skip over them
 as described in :ref:`flat_fielding:Saturated Slits`.
