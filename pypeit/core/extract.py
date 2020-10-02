@@ -491,6 +491,7 @@ def fit_profile(image, ivar, waveimg, thismask, spat_img, trace_in, wave, flux, 
     maskwidth : float [default = None], optional
         object maskwidth determined from object finding algorithm. If = None,
         code defaults to use 3.0*(np.max(thisfwhm) + 1.0)
+        THIS PARAMETER IS NOT USED IN THIS METHOD
     prof_nsigma : float [default = None], optional
         Number of sigma to include in the profile fitting. This option is only needed for bright objects that are not
         point sources, which allows the profile fitting to fit the high S/N wings (rather than the default behavior
@@ -1034,6 +1035,7 @@ def parse_hand_dict(hand_extract_dict):
 def create_skymask_fwhm(sobjs, thismask):
     """
     Creates a skymask from a SpecObjs object using the fwhm of each object
+    and or the boxcar radius
 
     Args:
         sobjs (:class:`pypeit.specobjs.SpecObjs`):
@@ -1042,10 +1044,10 @@ def create_skymask_fwhm(sobjs, thismask):
             Boolean image indicating pixels which are on the slit
 
     Returns:
-        np.ndarray: skymask, bool, shape (nspec, nspat) Boolean image with
-        the same size as thismask indicating which pixels are usable for
-        global sky subtraction.  True = usable for sky subtraction,
-        False = should be masked when sky subtracting.
+        `numpy.ndarray`_: skymask, bool, shape (nspec, nspat) Boolean image with
+            the same size as thismask indicating which pixels are usable for
+            global sky subtraction.  True = usable for sky subtraction,
+            False = should be masked when sky subtracting.
     """
     nobj = len(sobjs)
     skymask = np.copy(thismask)
@@ -1057,8 +1059,14 @@ def create_skymask_fwhm(sobjs, thismask):
         spat_img = np.outer(np.ones(nspec, dtype=int),np.arange(nspat, dtype=int))
         all_fwhm = sobjs.FWHM
         med_fwhm = np.median(all_fwhm)
+        # Boxcar radius?
+        box_pix = sobjs.boxcar_rad_pix[0]
+        if box_pix is not None:
+            med_fwhm = max(med_fwhm, box_pix)
+        msgs.info("Masking around the object with {} pixels".format(med_fwhm))
+        # Loop me
         for iobj in range(nobj):
-            # Create a mask for the pixels that will contribue to the arc
+            # Create a mask for the pixels that will contribute to the object
             slit_img = np.outer(sobjs[iobj].TRACE_SPAT, np.ones(nspat))  # central trace replicated spatially
             objmask_now = thismask & (spat_img > (slit_img - med_fwhm)) & (spat_img < (slit_img + med_fwhm))
             skymask = skymask & np.invert(objmask_now)
@@ -1075,8 +1083,10 @@ def create_skymask_fwhm(sobjs, thismask):
 def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev=2.0, ir_redux=False, spec_min_max=None,
             hand_extract_dict=None, std_trace=None, extrap_npoly=3, ncoeff=5, nperslit=None, bg_smth=5.0,
             extract_maskwidth=4.0, sig_thresh=10.0, peak_thresh=0.0, abs_thresh=0.0, trim_edg=(5,5),
+            boxcar_rad_pix=None,
             skymask_nthresh=1.0, specobj_dict=None, cont_fit=True, npoly_cont=1, find_min_max=None,
-            show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False, qa_title='objfind'):
+            show_peaks=False, show_fits=False, show_trace=False, show_cont=False, debug_all=False,
+            qa_title='objfind'):
 
     """
     Find the location of objects in a slitmask slit or a echelle order.
@@ -1091,7 +1101,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sky-subtracted images, but often one runs on the frame with
             sky first to identify the brightest objects which are then
             masked (see skymask below) in sky subtraction.
-        thismask:  boolean ndarray
+        thismask (`numpy.ndarray`_): gpm
             Boolean mask image specifying the pixels which lie on the
             slit/order to search for objects on.  The convention is:
             True = on the slit/order, False = off the slit/order
@@ -1176,6 +1186,8 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             spectral direction smashed out).
         cont_fit (bool): default=True:
             Fit a continuum to the illumination pattern across the slit when peak finding
+        boxcar_rad_pix (float, optional): Boxcar radius; only for sky masking. Needs to be in pixels
+            If set, the skymask includes this boxcar radius
         npoly_cont (int): default=1
             Order of polynomial fit to the illumination pattern across the slit when peak finding
         specobj_dict: dict, default = None
@@ -1487,6 +1499,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         else:
             xleft = None
 
+        # Set FWHM for the object
         if (xleft is None) & (xrigh is None):
             fwhm_measure = None
         elif xrigh is None:
@@ -1500,6 +1513,9 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
             sobjs[iobj].FWHM = np.sqrt(np.fmax(fwhm_measure**2 - fwhm**2, (fwhm/2.0)**2)) # Set a floor of fwhm/2 on fwhm
         else:
             sobjs[iobj].FWHM = fwhm
+
+        # And boxcar_rad for skymask'ing.  This propogates to create_skymask_fwhm()
+        sobjs[iobj].boxcar_rad_pix = boxcar_rad_pix
 
 
     if (len(sobjs) == 0) & (hand_extract_dict is None):
@@ -1642,6 +1658,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     xtmp = (np.arange(nsamp) + 0.5)/nsamp
     qobj = np.zeros_like(xtmp)
     for iobj in range(nobj):
+        # TODO -- This parameter may not be used anywhere
         if skythresh > 0.0:
             sobjs[iobj].maskwidth = extract_maskwidth*sobjs[iobj].FWHM*(1.0 + 0.5*np.log10(np.fmax(sobjs[iobj].smash_peakflux/skythresh,1.0)))
         else:
@@ -1656,7 +1673,10 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     skymask_objflux[thismask] = np.interp(ximg[thismask],xtmp,qobj) < (skymask_nthresh*threshold)
     # Still have to make the skymask
     skymask_fwhm = create_skymask_fwhm(sobjs,thismask)
-    skymask = skymask_objflux | skymask_fwhm
+    if boxcar_rad_pix is None:
+        skymask = skymask_objflux | skymask_fwhm
+    else:  # Enforces boxcar radius masking
+        skymask = skymask_objflux & skymask_fwhm
     # If requested display the resulting traces on top of the image
     if show_trace:
         viewer, ch = display.show_image(image*(thismask*inmask))
@@ -1718,7 +1738,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                 pca_explained_var=99.0, box_radius=2.0, fwhm=3.0, maxdev=2.0, hand_extract_dict=None, nperslit=5, bg_smth=5.0,
                 extract_maskwidth=3.0, sig_thresh = 10.0, peak_thresh=0.0, abs_thresh=0.0, specobj_dict=None,
                 trim_edg=(5,5), cont_fit=True, npoly_cont=1, show_peaks=False, show_fits=False, show_single_fits=False,
-                show_trace=False, show_single_trace=False, debug=False, show_pca=False, debug_all=False):
+                show_trace=False, show_single_trace=False, debug=False, show_pca=False,
+                debug_all=False, mask_by_boxcar=False, boxcar_rad=None):
     """
     Object finding routine for Echelle spectrographs. This routine:
        1) runs object finding on each order individually
@@ -1812,6 +1833,10 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         show_single_fits: Plot trace fitting for single order fits
         show_trace: whether display the resulting traces on top of the image
         debug:
+        mask_by_boxcar: bool, optional
+            If True, use the boxcar radius in the skymask
+        boxcar_rad: float, optional
+            Boxcar radius in arcsec
 
     Returns:
         tuple: Returns the following:
@@ -1932,6 +1957,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
         else:
             new_hand_extract_dict = None
 
+        # Masking
+        boxcar_rad_pix = boxcar_rad/plate_scale_ord[iord] if mask_by_boxcar else None
         # Run
         sobjs_slit, skymask_objfind[thisslit_gpm] = \
             objfind(image, thisslit_gpm, slit_left[:,iord], slit_righ[:,iord], spec_min_max=spec_min_max[:,iord],
@@ -1941,7 +1968,8 @@ def ech_objfind(image, ivar, slitmask, slit_left, slit_righ, order_vec, maskslit
                     peak_thresh=peak_thresh, abs_thresh=abs_thresh, trim_edg=trim_edg, cont_fit=cont_fit,
                     npoly_cont=npoly_cont, show_peaks=show_peaks,
                     show_fits=show_single_fits, show_trace=show_single_trace,
-                    specobj_dict=specobj_dict)
+                    boxcar_rad_pix=boxcar_rad_pix,
+                    specobj_dict=specobj_dict )
         sobjs.add_sobj(sobjs_slit)
 
     nfound = len(sobjs)

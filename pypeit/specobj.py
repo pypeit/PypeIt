@@ -204,6 +204,7 @@ class SpecObj(datamodel.DataContainer):
         self.sign = 1.0
         self.min_spat = None
         self.max_spat = None
+        self.boxcar_rad_pix = None
 
         # Trace
         self.trace_spec = None  # Only for debuggin, internal plotting

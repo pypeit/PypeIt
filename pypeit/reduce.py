@@ -874,6 +874,12 @@ class MultiSlitReduce(Reduce):
         # Instantiate the specobjs container
         sobjs = specobjs.SpecObjs()
 
+        # Masking options
+        if self.par['reduce']['skysub']['mask_by_boxcar']:
+            boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(None),
+        else:
+            boxcar_rad_pix = None
+
         # Loop on slits
         for slit_idx in gdslits:
             slit_spat = self.slits.spat_id[slit_idx]
@@ -905,6 +911,7 @@ class MultiSlitReduce(Reduce):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
+                                boxcar_rad_pix=boxcar_rad_pix,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
@@ -987,7 +994,8 @@ class MultiSlitReduce(Reduce):
                     bsp=self.par['reduce']['skysub']['bspline_spacing'],
                     sn_gauss=self.par['reduce']['extraction']['sn_gauss'],
                     show_profile=show_profile,
-                    use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'])
+                    use_2dmodel_mask=self.par['reduce']['extraction']['use_2dmodel_mask'],
+                    no_local_sky=self.par['reduce']['skysub']['no_local_sky'])
 
         # Set the bit for pixels which were masked by the extraction.
         # For extractmask, True = Good, False = Bad
@@ -1112,6 +1120,8 @@ class EchelleReduce(Reduce):
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
+            mask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
+            boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
             show_trace=show_trace, debug=debug)
 
         # Steps
