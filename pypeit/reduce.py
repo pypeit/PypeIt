@@ -738,6 +738,10 @@ class Reduce(object):
                     # Loop through objects
                     cntr = 0
                     for ss, sobj in enumerate(this_specobjs):
+                        if sobj is None:
+                            continue
+                        if sobj['BOX_WAVE'] is None:  # Nothing extracted; only the trace exists
+                            continue
                         # Interpolate
                         new_sky = sobj.apply_spectral_flexure(this_flex_dict['shift'][cntr],
                                                               this_flex_dict['sky_spec'][cntr])
