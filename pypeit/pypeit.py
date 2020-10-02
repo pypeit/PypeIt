@@ -651,7 +651,8 @@ class PypeIt(object):
                                                 setup=self.setup,
                                                 show=self.show,
                                                 det=det, binning=self.binning,
-                                                std_outfile=std_outfile)
+                                                std_outfile=std_outfile,
+                                                basename=self.basename)
         # Show?
         if self.show:
             self.redux.show('image', image=sciImg.image, chname='processed',
@@ -673,7 +674,7 @@ class PypeIt(object):
 
         skymodel, objmodel, ivarmodel, outmask, sobjs, scaleImg, waveImg, tilts = self.redux.run(
             std_trace=std_trace, show_peaks=self.show,
-            basename=self.basename, ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
+            ra=self.fitstbl["ra"][frames[0]], dec=self.fitstbl["dec"][frames[0]],
             obstime=self.obstime)
 
         # TODO -- Save the slits yet again?
@@ -702,7 +703,6 @@ class PypeIt(object):
 
         # Return
         return spec2DObj, sobjs
-
 
     def save_exposure(self, frame, all_spec2d, all_specobjs, basename):
         """

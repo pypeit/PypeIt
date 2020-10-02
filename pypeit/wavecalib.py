@@ -167,7 +167,7 @@ class WaveCalib(datamodel.DataContainer):
         if not np.array_equal(self.spat_ids, slits.spat_id):
             msgs.error("Your wvcalib solutions are out of sync with your slits.  Remove Masters and start from scratch")
 
-    def build_waveimg(self, tilts, slits, spat_flexure=None):
+    def build_waveimg(self, tilts, slits, spat_flexure=None, spec_flexure=None):
         """
         Main algorithm to build the wavelength image
 
@@ -179,10 +179,29 @@ class WaveCalib(datamodel.DataContainer):
                 Image holding tilts
             slits (:class:`pypeit.slittrace.SlitTraceSet`):
             spat_flexure (float, optional):
+                Spatial flexure correction in pixels.
+            spec_flexure (float, `numpy.ndarray`_, optional):
+                Spectral flexure correction in pixels. If a float,
+                the same spectral flexure correction will be applied
+                to all slits. If a numpy array, the length of the
+                array should be the same as the number of slits. The
+                value of each element is the spectral shift in pixels
+                to be applied to each slit.
 
         Returns:
             `numpy.ndarray`_: The wavelength image.
         """
+        # Check spatial flexure type
+        if (spat_flexure is not None) and (not isinstance(spat_flexure, float)):
+            msgs.error("Spatial flexure must be None or float")
+        # Check spectral flexure type
+        if spec_flexure is None: spec_flex = np.zeros(slits.nslits)
+        elif isinstance(spec_flexure, float): spec_flex = spec_flexure*np.ones(slits.nslits)
+        elif isinstance(spec_flexure, np.ndarray):
+            spec_flex = spec_flexure.copy()
+            assert(spec_flexure.size == slits.nslits)
+        spec_flex /= (slits.nspec - 1)
+
         # Setup
         #ok_slits = slits.mask == 0
         bpm = slits.mask.astype(bool)
@@ -191,8 +210,6 @@ class WaveCalib(datamodel.DataContainer):
         #
         image = np.zeros_like(tilts)
         slitmask = slits.slit_img(flexure=spat_flexure, exclude_flag=slits.bitmask.exclude_for_reducing)
-
-        slit_spat_pos = slits.spatial_coordinates(flexure=spat_flexure)
 
         # If this is echelle print out a status message and do some error checking
         if self.par['echelle']:
@@ -211,11 +228,11 @@ class WaveCalib(datamodel.DataContainer):
                 # # TODO: Put this in `SlitTraceSet`?
                 # evaluate solution --
                 image[thismask] = self.wv_fit2d.eval(
-                    tilts[thismask], x2=np.full_like(tilts[thismask], slits.ech_order[islit]))
+                    tilts[thismask] + spec_flex[islit], x2=np.full_like(tilts[thismask], slits.ech_order[islit]))
                 image[thismask] /= slits.ech_order[islit]
             else:
                 iwv_fits = self.wv_fits[islit]
-                image[thismask] = iwv_fits.pypeitfit.eval(tilts[thismask])
+                image[thismask] = iwv_fits.pypeitfit.eval(tilts[thismask] + spec_flex[islit])
         # Return
         return image
 

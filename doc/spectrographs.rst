@@ -19,7 +19,7 @@ gemini_gmos_north_e2v   Gemini      :doc:`gemini_gmos`-N spectrometer; E2V detec
 gemini_gmos_south_ham   Gemini      :doc:`gemini_gmos`-S spectrometer; Hamamatsu detector (R400, B600)
 gemini_gnirs            Gemini      GNIRS spectrometer
 gemini_flamingos        Gemini      Gemini FLAMINGOS spectrometer
-keck_kcwi               Keck        KCWI slit-based IFU (BM, BH2)
+keck_kcwi               Keck        :doc:`keck_kcwi` slit-based IFU (BM, BH2)
 keck_lris_blue          Keck        :doc:`lris` spectrometer; blue camera
 keck_lris_red           Keck        :doc:`lris` spectrometer; red camera
 keck_lris_red_orig      Keck        :doc:`lris` spectrometer; red camera + original detector
