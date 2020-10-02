@@ -26,7 +26,7 @@ from pypeit.core import parse
 
 def parser(options=None):
 
-    parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it to a datacube',
+    parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it into a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default=None, help='ascii file with list of spec2D files to combine')
