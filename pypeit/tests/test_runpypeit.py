@@ -142,7 +142,7 @@ def test_run_pypeit():
     assert specObjs[0].FLEX_SHIFT_TOTAL != 0., 'Flexure not calculated!'
 
     # Helio
-    assert (specObjs[0].VEL_CORR-0.9999261685542624)/0.9999261685542624 <= 1.0E-5, 'Heliocentric not calculated!'
+    assert np.testing.assert_almost_equal(specObjs[0].VEL_CORR, 0.9999121961411798, decimal=10)
 
     # Now re-use those master files
     pargs = run_pypeit.parse_args([pyp_file, '-o', '-r', configdir])
