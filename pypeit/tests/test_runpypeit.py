@@ -139,10 +139,10 @@ def test_run_pypeit():
     specObjs = specobjs.SpecObjs.from_fitsfile(spec1d_file)
 
     # Flexure
-    assert np.isclose(specObjs[0].FLEX_SHIFT_TOTAL, -0.03, rtol=0.0, atol=0.1)  # atol=0.1  means  0.1 pixels
+    assert abs(-0.03 - specObjs[0].FLEX_SHIFT_TOTAL) < 0.1  # difference must be less than 0.1 pixels
 
     # Helio
-    assert np.isclose(specObjs[0].VEL_CORR, 0.9999261685542624, rtol=1.0E-10, atol=0.0)
+    assert abs(specObjs[0].VEL_CORR - 0.9999261685542624) < 1.0E-10
 
     # Now re-use those master files
     pargs = run_pypeit.parse_args([pyp_file, '-o', '-r', configdir])
