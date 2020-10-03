@@ -1676,7 +1676,6 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
         skymask = skymask_objflux | skymask_fwhm
     else:  # Enforces boxcar radius masking
         skymask = skymask_objflux & skymask_fwhm
-    embed(header='1679 of extract')
     # If requested display the resulting traces on top of the image
     if show_trace:
         viewer, ch = display.show_image(image*(thismask*inmask))
