@@ -4048,12 +4048,6 @@ class EdgeTraceSet(DataContainer):
                                                                   y=self.spectrograph.slitmask.top[:, 1])
         tedge_img, ccd_t, tedge_pix = omodel_tcoo[0], omodel_tcoo[2], omodel_tcoo[3]
 
-        # This gives the pixel positions for center of the slit from optical model. We use it to determine if the
-        # slit falls into the current detector
-        omodel_cencoo = self.spectrograph.mask_to_pixel_coordinates(x=self.spectrograph.slitmask.center[:, 0],
-                                                                  y=self.spectrograph.slitmask.center[:, 1])
-        cenedge_img, ccd_cen, cenedge_pix = omodel_cencoo[0], omodel_cencoo[2], omodel_cencoo[3]
-
         # Per each slit we take the median value of the traces over the wavelength direction. These medians will be used
         # for the cross-correlation with the traces found in the images.
         ccdnum=self.traceimg.detector.det
@@ -4065,14 +4059,11 @@ class EdgeTraceSet(DataContainer):
             # We "flag" the left and right traces (as well as the center of the slit) predicted by the optical model
             # that are outside of the current detector, by giving a value of -1.
             # bottom
-            omodel_bspat[i] = -1 if bedge_pix[i, ccd_b[i, :] == ccdnum].shape[0] == 0 else np.median(
+            omodel_bspat[i] = -1 if bedge_pix[i, ccd_b[i, :] == ccdnum].shape[0] < 10 else np.median(
                                                                                     bedge_pix[i, ccd_b[i, :] == ccdnum])
             # top
-            omodel_tspat[i] = -1 if tedge_pix[i, ccd_t[i, :] == ccdnum].shape[0] == 0 else np.median(
+            omodel_tspat[i] = -1 if tedge_pix[i, ccd_t[i, :] == ccdnum].shape[0] < 10 else np.median(
                                                                                     tedge_pix[i, ccd_t[i, :] == ccdnum])
-            # center
-            omodel_censpat[i] = -1 if cenedge_pix[i, ccd_cen[i, :] == ccdnum].shape[0] == 0 else np.median(
-                                                                                cenedge_pix[i, ccd_cen[i, :] == ccdnum])
 
             # If a left (or right) trace is outside of the detector, the corresponding right (or left) trace
             # is determined using the pixel position from the image plane.
@@ -4094,7 +4085,7 @@ class EdgeTraceSet(DataContainer):
             msgs.info('{0:^6s} {1:^12s} {2:^12s}'.format('N.', 'SlitName', 'dSlitId'))
             msgs.info('{0:^6s} {1:^12s} {2:^12s}'.format('-' * 5, '-' * 8, '-' * 9))
             for i in range(sortindx.shape[0]):
-                if omodel_censpat[sortindx][i] != -1:
+                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
                     msgs.info('{0:^6d}     {1:03d}     {2:^14d}'.format(num,
                                                                 self.spectrograph.slitmask.slitindx[sortindx][i],
                                                                 self.spectrograph.slitmask.slitid[sortindx][i]))
@@ -4112,7 +4103,7 @@ class EdgeTraceSet(DataContainer):
             msgs.info('{0:^5s} {1:^10s} {2:^10s} {3:^12s} {4:^12s} {5:^14s} {6:^16s} {7:^14s}'.format(
                         '-' * 4, '-' * 8, '-' * 9, '-' * 11, '-' * 11, '-' * 13,'-' * 18, '-' * 15))
             for i in range(sortindx.shape[0]):
-                if omodel_censpat[sortindx][i] != -1:
+                if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
                     msgs.info('{0:^5d}    {1:03d}   {2:^14d} {3:^9.3f} {4:^12.3f} {5:^14.3f}    {6:^16.2f} {7:^14.2f}'
                               .format(num, self.spectrograph.slitmask.slitindx[sortindx][i],
                                          self.spectrograph.slitmask.slitid[sortindx][i],
@@ -4165,7 +4156,7 @@ class EdgeTraceSet(DataContainer):
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
                                                print_matches=debug, edge='top')
 
-        if debug is True:
+        if debug:
             plt.scatter(spat_bedge, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
                         label='Bottom edge: RMS={}'.format(round(sigres_b, 4)))
             plt.scatter(spat_tedge, omodel_tspat[ind_t], s=40, lw=1, marker='D', facecolors='none',
@@ -4184,22 +4175,14 @@ class EdgeTraceSet(DataContainer):
             plt.legend()
         msgs.info('SLIT_MATCH: RMS residuals for left and right edges: {}, {} pixels'.format(sigres_b, sigres_t))
 
-        if debug is True:
-            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_left], ind_b, omodel_bspat, spat_bedge,
-                                             reference_row, self.spectrograph.slitmask.slitindx, nspat=self.nspat,
-                                             duplicates=dupl_b, edge='bottom')
-            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_right], ind_t, omodel_tspat, spat_tedge,
-                                             reference_row, self.spectrograph.slitmask.slitindx, nspat=self.nspat,
-                                             duplicates=dupl_t, edge='top')
-
         bot_edge_pred = coeff_b[0] + coeff_b[1]*omodel_bspat if not switched else coeff_b[0] + coeff_b[1]*omodel_tspat
         top_edge_pred = coeff_t[0] + coeff_t[1]*omodel_tspat if not switched else coeff_t[0] + coeff_t[1]*omodel_bspat
 
         # Find if there are missing traces.
         # Need exactly one occurrence of each index in "need"
         buffer = 20.
-        need = ((bot_edge_pred > 0) & (top_edge_pred < self.traceimg.shape[1])) & ((top_edge_pred > buffer) &
-               (bot_edge_pred < (self.traceimg.shape[1] - 1 - buffer))) & ((omodel_bspat != -1) | (omodel_tspat != -1))
+        need = ((top_edge_pred > buffer) & (bot_edge_pred < (self.traceimg.shape[1] - 1 - buffer))) & \
+               ((omodel_bspat != -1) | (omodel_tspat != -1))
 
         # bottom edges
         needadd_b = need.copy()
@@ -4214,6 +4197,14 @@ class EdgeTraceSet(DataContainer):
         if (needind_b.shape[0] > 0) | (needind_t.shape[0] > 0):
             msgs.warn('Missing edge traces: {} left and {} right'.format(needind_b.shape[0], needind_t.shape[0]))
             msgs.warn('Some of them may have been removed by setting the parameter `minimum_slit_length`')
+
+        if debug:
+            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_left], ind_b, omodel_bspat, spat_bedge,
+                                             reference_row, self.spectrograph.slitmask.slitindx, nspat=self.nspat,
+                                             duplicates=dupl_b, missing=needind_b, edge='left')
+            slitdesign_matching.plot_matches(self.edge_fit[:,self.is_right], ind_t, omodel_tspat, spat_tedge,
+                                             reference_row, self.spectrograph.slitmask.slitindx, nspat=self.nspat,
+                                             duplicates=dupl_t, missing=needind_t, edge='right')
 
         # [DP] The code below is to add traces that are predicted but not found. For now we leave it commented, as we
         # incorporate it in a second moment.

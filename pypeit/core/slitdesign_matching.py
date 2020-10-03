@@ -11,7 +11,7 @@ These routines are taken from the DEEP2 IDL-based pipeline.
 .. include:: ../include/links.rst
 
 """
-# from IPython import embed
+from IPython import embed
 
 import numpy
 from matplotlib import pyplot as plt
@@ -61,7 +61,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
             return 0.
         x_model_trim = x_model[wkeep]
     else:
-        min_x_model, max_x_model = numpy.min(x_model), numpy.max(x_model)
+        min_x_model, max_x_model = numpy.ma.min(x_model), numpy.ma.max(x_model)
         max_x_det = numpy.max(x_det)
         xlag = numpy.arange(min_x_model-max_x_det, max_x_model, step)
         x_model_trim = x_model
@@ -72,7 +72,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
     # so that for each element of x_det we get the closest value of x_model
     for j in range(xlag.size):
         x_det_lag = x_det+xlag[j]
-        join = numpy.concatenate([x_det_lag, x_model_trim])
+        join = numpy.ma.concatenate([x_det_lag, x_model_trim])
         sind = numpy.argsort(join)
         nj = sind.size
         w1 = numpy.where(sind < x_det.size)
@@ -137,11 +137,11 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     x_model_new = x_model - best_off
 
     # for each traced edge (`x_det`) determine the value of x_model that gives the smallest offset
-    ind = numpy.argmin(numpy.absolute(x_det[:, None] - x_model_new[None, :]), axis=1)
+    ind = numpy.ma.argmin(numpy.ma.absolute(x_det[:, None] - x_model_new[None, :]), axis=1)
 
     # -------- PASS 2: remove linear trend (i.e. adjust scale)
     # fit the offsets to `x_det` to find the scale and apply it to x_model
-    dx = x_det - x_model_new[ind]
+    dx = numpy.ma.compressed(x_det - x_model_new[ind])
     pypeitFit = fitting.robust_fit(x_det, dx, 1, maxiter=100, lower=3, upper=3)
     coeff = pypeitFit.fitc
     scale = 1 + coeff[1] if x_det.size > 4 else 1
@@ -153,14 +153,14 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     x_model_new -= new_best_off
 
     # find again `ind`
-    ind = numpy.argmin(numpy.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
+    ind = numpy.ma.argmin(numpy.ma.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
 
     # -------- PASS 3: tweak offset
     dx = x_det - x_model_new[ind]
-    x_model_new += numpy.median(dx)
+    x_model_new += numpy.ma.median(dx)
 
     # find again `ind`
-    ind = numpy.argmin(numpy.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
+    ind = numpy.ma.argmin(numpy.ma.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
 
     return ind
 
@@ -215,7 +215,7 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
 
     """
     # Determine the indices of `x_model` that match `x_det`
-    ind = discrete_correlate_match(x_det, x_model, step=step, xlag_range=xlag_range)
+    ind = discrete_correlate_match(x_det, numpy.ma.masked_equal(x_model, -1), step=step, xlag_range=xlag_range)
 
     # Define the weights for the fitting
     residual = (x_det-x_model[ind]) - numpy.median(x_det-x_model[ind])
@@ -257,13 +257,16 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
         # [DP] I decided not flag the matches with high RMS, because those are usually the ones
         # with the traces at the edge of the detector that have been added as part of syncing process
         # between left and right edges. Those are not bad, but it is highly probable that they have high `res`.
-        msgs.warn('{} duplicate match(es) in deimos_slit_match'.format(dupl[dupl == 1].size))
+        if edge is not None:
+            msgs.warn('{} duplicate match(es) for {} edges'.format(dupl[dupl == 1].size, edge))
+        else:
+            msgs.warn('{} duplicate match(es)'.format(dupl[dupl == 1].size))
         # I commented the 3 lines below because I don't really need to trim the duplicate matches. I just
         # propagate the flag.
         # good = dupl == 0
         # ind = ind[good]
         # x_det=x_det[good]
-    if print_matches is True:
+    if print_matches:
         if edge is not None:
             msgs.info('-----------------------------------------------')
             msgs.info('             {} slit edges               '.format(edge))
@@ -275,7 +278,7 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
     return ind, dupl, coeff, sigres
 
 
-def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, nspat=2048, duplicates=None, edge=None):
+def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, nspat=2048, duplicates=None, missing=None, edge=None):
     r"""
     Plot the slit mask matching results.
 
@@ -300,12 +303,19 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, nspat=2048, d
             Spatial dimension of the detector, for plotting purpose.
         duplicates (`numpy.ndarray`_, optional):
             1D array of `bool` that flags which `ind` are duplicates.
+        missing (`numpy.ndarray`_, optional):
+            1D array of indices for `x_model`, which defines the
+            missing traces, if any.
         edge (:obj:`str`, optional):
             String that indicates which edges are being plotted,
             i.e., left of right.
     """
     yref_xdet = numpy.tile(yref, x_det.size)
     yref_x_model = numpy.tile(yref, x_model.size)
+
+    # Set the axis size
+    xaxis_min = numpy.min(x_model[x_model != -1])
+    xaxis_max = numpy.max([nspat, numpy.max(x_model[x_model != -1])])
 
     buffer = 20
     dist = edgetrace.shape[0] - yref
@@ -328,22 +338,29 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, nspat=2048, d
 
     # Plot `x_det`, `x_model`, and `x_model[ind]` at a reference pixel in the `spec` direction
     plt.scatter(x_det, yref_xdet, marker='D', s=10, lw=0, color='m', zorder=1, label='Image trace midpoint (x_det)')
-    plt.scatter(x_model, yref_x_model, marker='o', s=10, lw=0, color='b', zorder=1,
+    plt.scatter(x_model[x_model != -1], yref_x_model[x_model != -1], marker='o', s=10, lw=0, color='b', zorder=1,
                 label='Optical model trace BEFORE x-corr (x_model)')
     plt.scatter(x_model[ind], yref_x_model[ind], marker='o', s=40, facecolors='none', edgecolors='g', zorder=1,
                 label='Optical model trace AFTER x-corr (x_model[ind])')
+    if missing is not None:
+        plt.scatter(x_model[missing], yref_x_model[missing], marker='x', s=40, color='r', zorder=1,
+                    label='Missing traces')
 
     # Print in the plot the values of `slintindx` for the matched edges
     for i in range(x_model[ind].size):
         plt.text(x_model[ind][i], yref_x_model[ind][i]+0.05*dist, slit_index[ind][i], rotation=45, color='g',
                  fontsize=8, horizontalalignment='center')
     for i in range(x_model.size):
-        if (x_model[i] >= buffer) and (x_model[i] <= nspat + buffer):
+        if x_model[i] != -1:
             plt.text(x_model[i], yref_x_model[i]-0.15*dist, slit_index[i], rotation=45, color='b',
                      fontsize=8, horizontalalignment='center')
+    if missing is not None:
+        for i in range(x_model[missing].size):
+            plt.text(x_model[missing][i], yref_x_model[missing][i]+0.05*dist, slit_index[missing][i], rotation=45,
+                     color='r', fontsize=8, horizontalalignment='center')
 
     plt.xlabel('Spatial pixels')
     plt.ylabel('Spectral pixels')
-    plt.xlim(buffer, nspat+buffer)
+    plt.xlim(xaxis_min-buffer, xaxis_max+buffer)
     plt.ylim(0, edgetrace.shape[0])
     plt.legend(loc=1)
