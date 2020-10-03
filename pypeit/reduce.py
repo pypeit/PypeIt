@@ -876,9 +876,9 @@ class MultiSlitReduce(Reduce):
 
         # Masking options
         if self.par['reduce']['skysub']['mask_by_boxcar']:
-            boxcar_rad_pix = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(None),
+            boxcar_rad_skymask = self.par['reduce']['extraction']['boxcar_radius'] / self.get_platescale(None),
         else:
-            boxcar_rad_pix = None
+            boxcar_rad_skymask = None
 
         # Loop on slits
         for slit_idx in gdslits:
@@ -911,7 +911,7 @@ class MultiSlitReduce(Reduce):
                                 cont_fit=self.par['reduce']['findobj']['find_cont_fit'],
                                 npoly_cont=self.par['reduce']['findobj']['find_npoly_cont'],
                                 fwhm=self.par['reduce']['findobj']['find_fwhm'],
-                                boxcar_rad_pix=boxcar_rad_pix,
+                                boxcar_rad_skymask=boxcar_rad_skymask,
                                 maxdev=self.par['reduce']['findobj']['find_maxdev'],
                                 find_min_max=self.par['reduce']['findobj']['find_min_max'],
                                 qa_title=qa_title, nperslit=self.par['reduce']['findobj']['maxnumber'],
@@ -1120,7 +1120,7 @@ class EchelleReduce(Reduce):
             max_snr=self.par['reduce']['findobj']['ech_find_max_snr'],
             min_snr=self.par['reduce']['findobj']['ech_find_min_snr'],
             nabove_min_snr=self.par['reduce']['findobj']['ech_find_nabove_min_snr'],
-            mask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
+            skymask_by_boxcar=self.par['reduce']['skysub']['mask_by_boxcar'],
             boxcar_rad=self.par['reduce']['extraction']['boxcar_radius'],  # arcsec
             show_trace=show_trace, debug=debug)
 

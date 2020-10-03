@@ -3294,7 +3294,7 @@ class SkySubPar(ParSet):
 
         defaults['no_local_sky'] = False
         dtypes['no_local_sky'] = bool
-        descr['no_local_sky'] = 'Turn off local sky evaluation, but do perform optimal extraction'
+        descr['no_local_sky'] = 'If True, turn off local sky model evaluation, but do fit object profile and perform optimal extraction'
 
         # Masking
         defaults['user_regions'] = None
@@ -3308,7 +3308,7 @@ class SkySubPar(ParSet):
 
         defaults['mask_by_boxcar'] = False
         dtypes['mask_by_boxcar'] = bool
-        descr['mask_by_boxcar'] = 'Mask the sky region around the object by the boxcar radius (set in ExtractionPar).'
+        descr['mask_by_boxcar'] = 'In global sky evaluation, mask the sky region around the object by the boxcar radius (set in ExtractionPar).'
 
         defaults['load_mask'] = False
         dtypes['load_mask'] = bool
