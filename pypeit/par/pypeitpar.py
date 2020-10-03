@@ -1816,11 +1816,11 @@ class TellFitPar(ParSet):
     @classmethod
     def from_dict(cls, cfg):
         k = numpy.array([*cfg.keys()])
-        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_wv_min_max', 'bounds_norm',
-                   'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
-                   'star_type','star_mag','star_ra','star_dec','mask_abs_lines',
-                   'func','model','polyorder','fit_wv_min_max','mask_lyman_a',
-                   'delta_coeff_bounds','minmax_coeff_bounds','tell_grid']
+        parkeys = ['objmodel','redshift', 'delta_redshift', 'pca_file', 'npca', 'bal_wv_min_max',
+                   'bounds_norm', 'tell_norm_thresh', 'only_orders', 'pca_lower', 'pca_upper',
+                   'star_type', 'star_mag', 'star_ra', 'star_dec', 'mask_abs_lines', 'func',
+                   'model', 'polyorder', 'fit_wv_min_max', 'mask_lyman_a', 'delta_coeff_bounds',
+                   'minmax_coeff_bounds', 'use_huber', 'tell_grid']
 
         badkeys = numpy.array([pk not in parkeys for pk in k])
         if numpy.any(badkeys):
