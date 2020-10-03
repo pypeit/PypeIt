@@ -1643,7 +1643,7 @@ def objfind(image, thismask, slit_left, slit_righ, inmask=None, fwhm=3.0, maxdev
     #
     if len(sobjs) == 0:
         msgs.info('No hand or normal objects found on this slit. Returning')
-        skymask = create_skymask_fwhm(sobjs,thismask, box_pix=boxcar_rad_pix)
+        skymask = create_skymask_fwhm(sobjs,thismask, box_pix=boxcar_rad_skymask)
         return specobjs.SpecObjs(), skymask[thismask]
 
     # Sort objects according to their spatial location
