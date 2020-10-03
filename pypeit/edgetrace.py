@@ -4138,23 +4138,23 @@ class EdgeTraceSet(DataContainer):
             ind_b, dupl_b, coeff_b, sigres_b = \
                 slitdesign_matching.slit_match(spat_bedge, omodel_bspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
-                                               print_matches=debug, edge='bottom')
+                                               print_matches=debug, edge='left')
             # Top slit edge
             ind_t, dupl_t, coeff_t, sigres_t = \
                 slitdesign_matching.slit_match(spat_tedge, omodel_tspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
-                                               print_matches=debug, edge='top')
+                                               print_matches=debug, edge='right')
         else:
             # Bottom slit edge
             ind_b, dupl_b, coeff_b, sigres_b = \
                 slitdesign_matching.slit_match(spat_bedge, omodel_tspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
-                                               print_matches=debug, edge='bottom')
+                                               print_matches=debug, edge='right')
             # Top slit edge
             ind_t, dupl_t, coeff_t, sigres_t = \
                 slitdesign_matching.slit_match(spat_tedge, omodel_bspat, step=self.par['maskdesign_step'],
                                                xlag_range=offsets_range, sigrej=self.par['maskdesign_sigrej'],
-                                               print_matches=debug, edge='top')
+                                               print_matches=debug, edge='left')
 
         if debug:
             plt.scatter(spat_bedge, omodel_bspat[ind_b], s=80, lw=2, marker='+', color='g', zorder=1,
@@ -4227,9 +4227,9 @@ class EdgeTraceSet(DataContainer):
         #
         # if ((needind_b.shape[0] > 0)|(needind_t.shape[0] > 0))&(debug is True):
         #     slitdesign_matching.plot_matches(self.edge_fit[:, self.is_left], ind_b, omodel_bspat,
-        #                  spat_bedge, reference_row, self.spectrograph.slitmask.slitindx, edge='bottom')
+        #                  spat_bedge, reference_row, self.spectrograph.slitmask.slitindx, edge='left')
         #     slitdesign_matching.plot_matches(self.edge_fit[:, self.is_right], ind_t, omodel_tspat,
-        #                  spat_tedge, reference_row, self.spectrograph.slitmask.slitindx, edge='top')
+        #                  spat_tedge, reference_row, self.spectrograph.slitmask.slitindx, edge='right')
 
         # [DP] The index resulting from the matching are provided separately for left and right edges (ind_b, ind_t)
         # Therefore I can provide only one of the two here. If for a specific slit the right trace is found but not the

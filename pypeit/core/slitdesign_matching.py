@@ -13,7 +13,7 @@ These routines are taken from the DEEP2 IDL-based pipeline.
 """
 from IPython import embed
 
-import numpy
+import numpy as np
 from matplotlib import pyplot as plt
 
 from astropy.stats import sigma_clipped_stats
@@ -50,8 +50,8 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
     nbest = int(x_det.size * .85)
     # Genarate an array of offsets
     if xlag_range is not None:
-        xlag = numpy.arange(xlag_range[0], xlag_range[1]+step, step)
-        min_x_det, max_x_det = numpy.min(x_det), numpy.max(x_det)
+        xlag = np.arange(xlag_range[0], xlag_range[1]+step, step)
+        min_x_det, max_x_det = np.min(x_det), np.max(x_det)
         # we keep only the x_model values that are in the current detector
         wkeep =(x_model > min_x_det+xlag_range[0]) & (x_model < max_x_det+xlag_range[1])
         if x_model[wkeep].size<2:
@@ -61,21 +61,21 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
             return 0.
         x_model_trim = x_model[wkeep]
     else:
-        min_x_model, max_x_model = numpy.ma.min(x_model), numpy.ma.max(x_model)
-        max_x_det = numpy.max(x_det)
-        xlag = numpy.arange(min_x_model-max_x_det, max_x_model, step)
+        min_x_model, max_x_model = np.ma.min(x_model), np.ma.max(x_model)
+        max_x_det = np.max(x_det)
+        xlag = np.arange(min_x_model-max_x_det, max_x_model, step)
         x_model_trim = x_model
     # The results will be stored in sdev
-    sdev = numpy.zeros(xlag.size)
+    sdev = np.zeros(xlag.size)
 
     # Loop over the array of offsets
     # so that for each element of x_det we get the closest value of x_model
     for j in range(xlag.size):
         x_det_lag = x_det+xlag[j]
-        join = numpy.ma.concatenate([x_det_lag, x_model_trim])
-        sind = numpy.argsort(join)
+        join = np.ma.concatenate([x_det_lag, x_model_trim])
+        sind = np.argsort(join)
         nj = sind.size
-        w1 = numpy.where(sind < x_det.size)
+        w1 = np.where(sind < x_det.size)
 
         # [IDL-version comment] the following code is incorrect if the first element or last element in the
         # joined array is an element of x_det
@@ -86,10 +86,10 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
         else:
             # [IDL-version comment] so added this brute-force version - still not quite right,
             # as assumes don't match 2 x_det's to the same x_model
-            offs = numpy.amin(numpy.absolute(x_det_lag[:, None] - x_model_trim[None, :]), axis=1)
+            offs = np.amin(np.absolute(x_det_lag[:, None] - x_model_trim[None, :]), axis=1)
 
             # use only nbest best matches
-            soffs = numpy.argsort(numpy.abs(offs))
+            soffs = np.argsort(np.abs(offs))
             nbest2 = nbest if nbest<x_det.size else x_det.size
             offs = offs[soffs[0:nbest2]]
 
@@ -97,7 +97,7 @@ def best_offset(x_det, x_model, step=1, xlag_range=None):
         sdev[j] = (offs**2).sum()          # big if match is bad
 
     # The best offset will be the one with the smallest `sdev`
-    best_sdev = int(numpy.mean(numpy.argmin(sdev)))      # average ind
+    best_sdev = int(np.mean(np.argmin(sdev)))      # average ind
 
     return xlag[best_sdev]
 
@@ -137,11 +137,11 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     x_model_new = x_model - best_off
 
     # for each traced edge (`x_det`) determine the value of x_model that gives the smallest offset
-    ind = numpy.ma.argmin(numpy.ma.absolute(x_det[:, None] - x_model_new[None, :]), axis=1)
+    ind = np.ma.argmin(np.ma.absolute(x_det[:, None] - x_model_new[None, :]), axis=1)
 
     # -------- PASS 2: remove linear trend (i.e. adjust scale)
     # fit the offsets to `x_det` to find the scale and apply it to x_model
-    dx = numpy.ma.compressed(x_det - x_model_new[ind])
+    dx = np.ma.compressed(x_det - x_model_new[ind])
     pypeitFit = fitting.robust_fit(x_det, dx, 1, maxiter=100, lower=3, upper=3)
     coeff = pypeitFit.fitc
     scale = 1 + coeff[1] if x_det.size > 4 else 1
@@ -153,14 +153,14 @@ def discrete_correlate_match(x_det, x_model, step=1, xlag_range=[-50, 50]):
     x_model_new -= new_best_off
 
     # find again `ind`
-    ind = numpy.ma.argmin(numpy.ma.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
+    ind = np.ma.argmin(np.ma.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
 
     # -------- PASS 3: tweak offset
     dx = x_det - x_model_new[ind]
-    x_model_new += numpy.ma.median(dx)
+    x_model_new += np.ma.median(dx)
 
     # find again `ind`
-    ind = numpy.ma.argmin(numpy.ma.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
+    ind = np.ma.argmin(np.ma.absolute(x_det[:,None] - x_model_new[None,:]), axis=1)
 
     return ind
 
@@ -215,14 +215,14 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
 
     """
     # Determine the indices of `x_model` that match `x_det`
-    ind = discrete_correlate_match(x_det, numpy.ma.masked_equal(x_model, -1), step=step, xlag_range=xlag_range)
+    ind = discrete_correlate_match(x_det, np.ma.masked_equal(x_model, -1), step=step, xlag_range=xlag_range)
 
     # Define the weights for the fitting
-    residual = (x_det-x_model[ind]) - numpy.median(x_det-x_model[ind])
-    weights = numpy.zeros(residual.size, dtype=int)
-    weights[numpy.abs(residual) < 100.] = 1
+    residual = (x_det-x_model[ind]) - np.median(x_det-x_model[ind])
+    weights = np.zeros(residual.size, dtype=int)
+    weights[np.abs(residual) < 100.] = 1
     if weights.sum() == 0:
-        weights = numpy.ones(residual.size, dtype=int)
+        weights = np.ones(residual.size, dtype=int)
     # Fit between `x_det` and `x_model[ind]`
     pypeitFit = fitting.robust_fit(x_model[ind], x_det, 1, maxiter=100, weights=weights, lower=3, upper=3)
     coeff = pypeitFit.fitc
@@ -233,23 +233,23 @@ def slit_match(x_det, x_model, step=1, xlag_range=[-50,50], sigrej=3, print_matc
     sigres = sigma_clipped_stats(res, sigma=sigrej)[2]   # RMS residuals
     # flag the matches that have residuals > `sigrej` times the RMS, or if res>5
     cut = 5 if res.size < 5 else sigrej*sigres
-    out = numpy.abs(res) > cut
+    out = np.abs(res) > cut
 
     # check for duplicate indices
-    dupl = numpy.ones(ind.size, dtype=bool)
+    dupl = np.ones(ind.size, dtype=bool)
     # If there are duplicates of `ind`, for now we keep only the first one. We don't remove the others yet
-    dupl[numpy.unique(ind, return_index=True)[1]] = False
-    wdupl = numpy.where(dupl)[0]
+    dupl[np.unique(ind, return_index=True)[1]] = False
+    wdupl = np.where(dupl)[0]
     # Iterate over the duplicates flagged as bad
     if wdupl.size > 0:
         for i in range(wdupl.size):
             duplind = ind[wdupl[i]]
             # Where are the other duplicates of this `ind`?
-            w = numpy.where(ind == duplind)[0]
+            w = np.where(ind == duplind)[0]
             # set those to be bad (for the moment)
             dupl[w] = True
             # Among the duplicates of this particular `ind`, which one has the smallest residual?
-            wdif = numpy.argmin(numpy.abs(res[w]))
+            wdif = np.argmin(np.abs(res[w]))
             # The one with the smallest residuals, is then set to not bad
             dupl[w[wdif]] = False
         # Both duplicates and matches with high RMS are considered bad
@@ -310,12 +310,12 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, nspat=2048, d
             String that indicates which edges are being plotted,
             i.e., left of right.
     """
-    yref_xdet = numpy.tile(yref, x_det.size)
-    yref_x_model = numpy.tile(yref, x_model.size)
+    yref_xdet = np.tile(yref, x_det.size)
+    yref_x_model = np.tile(yref, x_model.size)
 
     # Set the axis size
-    xaxis_min = numpy.min(x_model[x_model != -1])
-    xaxis_max = numpy.max([nspat, numpy.max(x_model[x_model != -1])])
+    xaxis_min = np.min(x_model[x_model != -1])
+    xaxis_max = np.max([nspat, np.max(x_model[x_model != -1])])
 
     buffer = 20
     dist = edgetrace.shape[0] - yref
@@ -332,9 +332,9 @@ def plot_matches(edgetrace, ind, x_model, x_det, yref, slit_index, nspat=2048, d
     # Plot the traced edges
     for x in range(edgetrace.shape[1]):
         if duplicates is not None and duplicates[x]:
-            plt.plot(edgetrace[:, x], numpy.arange(edgetrace[:, x].size), color='orange', lw=0.5, zorder=0)
+            plt.plot(edgetrace[:, x], np.arange(edgetrace[:, x].size), color='orange', lw=0.5, zorder=0)
         else:
-            plt.plot(edgetrace[:, x], numpy.arange(edgetrace[:, x].size), color='k', lw=0.5, zorder=0)
+            plt.plot(edgetrace[:, x], np.arange(edgetrace[:, x].size), color='k', lw=0.5, zorder=0)
 
     # Plot `x_det`, `x_model`, and `x_model[ind]` at a reference pixel in the `spec` direction
     plt.scatter(x_det, yref_xdet, marker='D', s=10, lw=0, color='m', zorder=1, label='Image trace midpoint (x_det)')

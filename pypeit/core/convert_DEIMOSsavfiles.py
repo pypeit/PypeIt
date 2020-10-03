@@ -1,5 +1,5 @@
 from scipy.io import readsav
-import numpy
+import numpy as np
 import os.path
 
 from pypeit import io
@@ -25,8 +25,8 @@ def sav_to_fits(savfile):
 
     list_keys = list(sav.keys())
     for k in list_keys:
-        if type(sav[k]) is not numpy.ndarray:
-            sav[k] = numpy.asarray([sav[k]])
+        if type(sav[k]) is not np.ndarray:
+            sav[k] = np.asarray([sav[k]])
 
     to_path = resource_filename('pypeit', 'data/static_calibs/keck_deimos/')
     io.write_to_fits(sav, to_path + savfile_name + '.fits', overwrite=True)
