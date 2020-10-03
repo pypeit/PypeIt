@@ -4053,11 +4053,10 @@ class EdgeTraceSet(DataContainer):
         ccdnum=self.traceimg.detector.det
         omodel_bspat = np.zeros(self.spectrograph.slitmask.nslits)
         omodel_tspat = np.zeros(self.spectrograph.slitmask.nslits)
-        omodel_censpat = np.zeros(self.spectrograph.slitmask.nslits)
 
         for i in range(omodel_bspat.size):
-            # We "flag" the left and right traces (as well as the center of the slit) predicted by the optical model
-            # that are outside of the current detector, by giving a value of -1.
+            # We "flag" the left and right traces predicted by the optical model that are outside of the
+            # current detector, by giving a value of -1.
             # bottom
             omodel_bspat[i] = -1 if bedge_pix[i, ccd_b[i, :] == ccdnum].shape[0] < 10 else np.median(
                                                                                     bedge_pix[i, ccd_b[i, :] == ccdnum])
@@ -4076,43 +4075,50 @@ class EdgeTraceSet(DataContainer):
             if omodel_tspat[i] == -1 and omodel_bspat[i] >= 0:
                 omodel_tspat[i] = omodel_bspat[i] + np.median((tedge_img - bedge_img)[i, whgood])
 
-        # This print a QA table with info on the slits that fall in the current detector. The only info provided here
-        # are `slitindex`, which is called `SlitName` in the DEIMOS design file, `slitid`, which is called `dSlitId`.
-        # They are also sorted from left to right.
+            # If the `omodel_bspat` is greater than `omodel_tspat` we switch the order
+            if omodel_bspat[i] > omodel_tspat[i]:
+                invert_order = omodel_bspat[i]
+                omodel_bspat[i] = omodel_tspat[i]
+                omodel_tspat[i] = invert_order
+
+        # This print a QA table with info on the slits (sorted from left to right) that fall in the current detector.
+        # The only info provided here is `slitid`, which is called `dSlitId` in the DEIMOS design file. I had to remove
+        # `slitindex` because not always matches `SlitName` from the DEIMOS design file.
         if not debug:
             num = 0
-            msgs.info('*' * 30)
-            msgs.info('{0:^6s} {1:^12s} {2:^12s}'.format('N.', 'SlitName', 'dSlitId'))
-            msgs.info('{0:^6s} {1:^12s} {2:^12s}'.format('-' * 5, '-' * 8, '-' * 9))
+            msgs.info('*' * 18)
+            msgs.info('{0:^6s} {1:^12s}'.format('N.', 'dSlitId'))
+            msgs.info('{0:^6s} {1:^12s}'.format('-' * 5, '-' * 9))
             for i in range(sortindx.shape[0]):
                 if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
-                    msgs.info('{0:^6d}     {1:03d}     {2:^14d}'.format(num,
-                                                                self.spectrograph.slitmask.slitindx[sortindx][i],
-                                                                self.spectrograph.slitmask.slitid[sortindx][i]))
+                    msgs.info('{0:^6d} {1:^12d}'.format(num, self.spectrograph.slitmask.slitid[sortindx][i]))
                     num += 1
-            msgs.info('*' * 30)
+            msgs.info('*' * 18)
 
         # If instead we run this method in debug mode, we print more info useful for comparison, for example, with
         # the IDL-based pipeline.
         if debug:
             num = 0
-            msgs.info('*' * 104)
-            msgs.info('{0:^5s} {1:^10s} {2:^10s} {3:^12s} {4:^12s} {5:^14s} {6:^16s} {7:^16s}'.format('N.',
-                'SlitName', 'dSlitId', 'slitLen(mm)', 'slitWid(mm)', 'spat_cen(mm)', 'omodel_bottom(pix)',
-                                                                                                'omodel_top(pix)'))
-            msgs.info('{0:^5s} {1:^10s} {2:^10s} {3:^12s} {4:^12s} {5:^14s} {6:^16s} {7:^14s}'.format(
-                        '-' * 4, '-' * 8, '-' * 9, '-' * 11, '-' * 11, '-' * 13,'-' * 18, '-' * 15))
+            msgs.info('*' * 92)
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^16s}'.format('N.',
+                                                                                             'dSlitId', 'slitLen(mm)',
+                                                                                             'slitWid(mm)',
+                                                                                             'spat_cen(mm)',
+                                                                                             'omodel_bottom(pix)',
+                                                                                             'omodel_top(pix)'))
+            msgs.info('{0:^5s} {1:^10s} {2:^12s} {3:^12s} {4:^14s} {5:^16s} {6:^14s}'.format('-' * 4, '-' * 9, '-' * 11,
+                                                                                             '-' * 11, '-' * 13,
+                                                                                             '-' * 18, '-' * 15))
             for i in range(sortindx.shape[0]):
                 if omodel_bspat[sortindx][i] != -1 or omodel_tspat[sortindx][i] != -1:
-                    msgs.info('{0:^5d}    {1:03d}   {2:^14d} {3:^9.3f} {4:^12.3f} {5:^14.3f}    {6:^16.2f} {7:^14.2f}'
-                              .format(num, self.spectrograph.slitmask.slitindx[sortindx][i],
-                                         self.spectrograph.slitmask.slitid[sortindx][i],
+                    msgs.info('{0:^5d}{1:^14d} {2:^9.3f} {3:^12.3f} {4:^14.3f}    {5:^16.2f} {6:^14.2f}'
+                              .format(num, self.spectrograph.slitmask.slitid[sortindx][i],
                                          self.spectrograph.slitmask.length[sortindx][i],
                                          self.spectrograph.slitmask.width[sortindx][i],
                                          self.spectrograph.slitmask.center[:, 0][sortindx][i],
                                          omodel_bspat[sortindx][i], omodel_tspat[sortindx][i]))
                     num += 1
-            msgs.info('*' * 104)
+            msgs.info('*' * 92)
 
         reference_row = self.left_pca.reference_row if self.par['left_right_pca'] else self.pca.reference_row
         spat_bedge = self.edge_fit[reference_row, self.is_left]
