@@ -9,6 +9,8 @@
 - Added docs for BitMasks
 - Altered scripts interface to allow for dynamically making the help
   doc files
+- full spatial/spectral flexure and heliocentric corrections implemented for IFU reductions
+- optimal weights in datacube generation
 - Docs for skysub, extraction, flat fielding
 - New skysub options for masking and suppressing local
 

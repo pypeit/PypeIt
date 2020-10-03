@@ -92,8 +92,7 @@ def global_skysub(image, ivar, tilts, thismask, slit_left, slit_righ, inmask=Non
             is closed.
 
     Returns:
-        `numpy.ndarray`_: Returns the model sky background at the pixels
-        where thismask is True::
+        `numpy.ndarray`_ : The model sky background at the pixels where thismask is True::
 
             >>>  skyframe = np.zeros_like(image)
             >>>  thismask = slitpix == thisslit
