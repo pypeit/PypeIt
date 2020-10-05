@@ -14,7 +14,7 @@ from astropy import units
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 import numpy as np
-import copy
+import copy, os
 
 from pypeit import msgs, par, io, spec2dobj
 from pypeit.spectrographs.util import load_spectrograph
@@ -23,9 +23,10 @@ from pypeit.core.flux_calib import load_extinction_data, extinction_correction
 from pypeit.core.flexure import calculate_image_offset
 from pypeit.core import parse
 
+
 def parse_args(options=None, return_parser=False):
 
-    parser = argparse.ArgumentParser(description='Read in a spec2D file and convert it to a datacube',
+    parser = argparse.ArgumentParser(description='Read in an array of spec2D files and convert them into a datacube',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     parser.add_argument('file', type = str, default=None, help='ascii file with list of spec2D files to combine')
@@ -50,6 +51,9 @@ def coadd_cube(files, det=1, overwrite=False):
         overwrite (bool):
             Overwrite the output file, if it exists?
     """
+    outfile = "datacube.fits"
+    if os.path.exists(outfile) and not overwrite:
+        msgs.error("Output filename already exists:"+msgs.newline()+outfile)
     # prep
     numfiles = len(files)
     combine = True if numfiles > 1 else False
@@ -210,12 +214,9 @@ def coadd_cube(files, det=1, overwrite=False):
         ybins = np.arange(1+numdec)-0.5
         spec_bins = np.arange(1+numwav)-0.5
     else:
-        # TODO :: This is KCWI specific - probably should put this in the spectrograph file, or just delete it.
-        msgs.warn("This routine is Keck/KCWI specific")
         slitlength = int(np.round(np.median(slits.get_slitlengths(initial=True, median=True))))
-        xbins = np.arange(1 + 24) - 12.0 - 0.5
-        ybins = np.linspace(np.min(minmax[:, 0]), np.max(minmax[:, 1]), 1+slitlength) - 0.5
-        spec_bins = np.arange(1+int(round((np.max(waveimg)-wave0)/dwv))) - 0.5
+        numwav = int((np.max(waveimg) - wave0) / dwv)
+        xbins, ybins, spec_bins = spec.get_datacube_bins(slitlength, minmax, numwav)
 
     # Make the cube
     msgs.info("Generating datacube")
@@ -248,7 +249,6 @@ def coadd_cube(files, det=1, overwrite=False):
         hdu = fits.PrimaryHDU((datacube_resid*normCube).T, header=masterwcs.to_header())
         hdu.writeto(outfile, overwrite=overwrite)
 
-    outfile = "datacube.fits"
     msgs.info("Saving datacube as: {0:s}".format(outfile))
     primary_hdu = fits.PrimaryHDU(header=spec2DObj.head0)
     sci_hdu = fits.ImageHDU(datacube.T, name="scicube", header=hdr)
@@ -258,7 +258,6 @@ def coadd_cube(files, det=1, overwrite=False):
 
 
 def main(args):
-    spec2d_files = []
     if args.file is not None:
         spectrograph_name, config_lines, spec2d_files = io.read_spec2d_file(args.file, filetype="coadd3d")
     else:
